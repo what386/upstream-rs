@@ -1,0 +1,152 @@
+use crate::models::common::enums::Filetype;
+use crate::utils::platform_info::{CpuArch, OSKind};
+
+const ARCHIVE_EXTENSIONS: &'static [&'static str] = &[
+    ".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2",
+    ".tbz2", ".tar.xz", ".txz", ".7z", ".rar"
+];
+
+const COMPRESSION_EXTENSIONS: &'static [&'static str] = &[
+    ".gz", ".br", ".bz2"
+];
+
+const SCRIPT_EXTENSIONS: &'static [&'static str] = &[
+    ".sh", ".bash", ".zsh", ".fish", ".ps1",
+    ".py", ".js", ".ts", ".lua", ".rb", ".txt"
+];
+
+const CHECKSUM_EXTENSIONS: &'static [&'static str] = &[
+    ".sha256", ".sha512", ".sha1", ".md5",
+    ".sig", ".asc", ".minisig", ".sum"
+];
+
+pub fn parse_os(filename: &str) -> Option<OSKind> {
+    let name = filename.to_lowercase();
+
+    // Windows
+    if contains_arch_marker(&name, &[".exe", ".msi", ".dll", "windows", "win64", "win32", "win-", "-win", "mingw", "msvc"]) {
+        return Some(OSKind::Windows);
+    }
+
+    // iOS
+    if contains_arch_marker(&name, &["ios", "iphone", "ipad"]) {
+        return Some(OSKind::IOS);
+    }
+
+    // macOS/Darwin
+    if contains_arch_marker(&name, &["macos", "darwin", "osx", "mac-", "-mac", ".dmg", ".app"]) {
+        return Some(OSKind::MacOS);
+    }
+    // Android
+    if contains_arch_marker(&name, &["android", ".apk", ".aab"]) {
+        return Some(OSKind::Android);
+    }
+
+    // Linux
+    if contains_arch_marker(&name, &["linux", "gnu", ".appimage", "-musl"]) {
+        return Some(OSKind::Linux);
+    }
+
+    // FreeBSD
+    if contains_arch_marker(&name, &["freebsd", "fbsd"]) {
+        return Some(OSKind::FreeBSD);
+    }
+
+    // OpenBSD
+    if contains_arch_marker(&name, &["openbsd", "obsd"]) {
+        return Some(OSKind::OpenBSD);
+    }
+
+    // NetBSD
+    if contains_arch_marker(&name, &["netbsd", "nbsd"]) {
+        return Some(OSKind::NetBSD);
+    }
+
+    return None
+}
+
+pub fn parse_arch(filename: &str) -> Option<CpuArch> {
+    let name = filename.to_lowercase();
+
+    if contains_arch_marker(&name, &["aarch64", "arm64", "armv8"]) {
+        return Some(CpuArch::Aarch64);
+    }
+
+    if contains_arch_marker(&name, &["armv7", "armv7l", "armv6", "arm"]) {
+        return Some(CpuArch::Arm);
+    }
+
+    if contains_arch_marker(&name, &["x86_64", "x86-64", "amd64", "x64", "win64"]) {
+        return Some(CpuArch::X86_64);
+    }
+
+    if contains_arch_marker(&name, &["x86_32", "x86-32", "win32"]) {
+        return Some(CpuArch::X86);
+    }
+
+    // Ambiguous "x86"
+    if contains_arch_marker(&name, &["x86"]) {
+        if name.contains("32") {
+            return Some(CpuArch::X86);
+        }
+        // Default ambiguous x86 to 64-bit
+        return Some(CpuArch::X86_64);
+    }
+
+    return None
+}
+
+pub fn parse_filetype(filename: &str,) -> Filetype {
+    let filename = filename.to_lowercase();
+
+    if filename.ends_with(".appimage") {
+        return Filetype::AppImage;
+    }
+
+    if filename.ends_with(".exe") {
+        return Filetype::WinExe;
+    }
+
+    if ARCHIVE_EXTENSIONS.iter().any(|ext| filename.ends_with(ext)) {
+        return Filetype::Archive;
+    }
+
+    if COMPRESSION_EXTENSIONS.iter().any(|ext| filename.ends_with(ext)) {
+        return Filetype::Compressed
+    }
+
+    if SCRIPT_EXTENSIONS.iter().any(|ext| filename.ends_with(ext)) {
+        return Filetype::Script
+    }
+
+    if CHECKSUM_EXTENSIONS.iter().any(|ext| filename.ends_with(ext)) {
+        return Filetype::Checksum
+    }
+
+    return Filetype::Binary
+}
+
+fn contains_arch_marker(filename: &str, markers: &[&str]) -> bool {
+    for marker in markers {
+        if let Some(mut index) = filename.find(marker) {
+            loop {
+                let valid_start = index == 0 ||
+                    !filename.chars().nth(index - 1).unwrap().is_alphanumeric();
+
+                let valid_end = index + marker.len() >= filename.len() ||
+                    !filename.chars().nth(index + marker.len()).unwrap().is_alphanumeric();
+
+                if valid_start && valid_end {
+                    return true;
+                }
+
+                // Find next occurrence
+                match filename[index + 1..].find(marker) {
+                    Some(offset) => index = index + 1 + offset,
+                    None => break,
+                }
+            }
+        }
+    }
+    false
+}

@@ -1,0 +1,67 @@
+use chrono::{DateTime, Utc};
+
+use crate::models::provider::asset::Asset;
+use crate::models::common::enums::Filetype;
+use crate::models::common::version::Version;
+
+pub struct Release {
+    pub id: u64,
+    pub tag: String,
+    pub name: String,
+    pub body: String,
+
+    pub is_draft: bool,
+    pub is_prerelease: bool,
+
+    pub assets: Vec<Asset>,
+    pub version: Version,
+
+    pub published_at: DateTime<Utc>,
+}
+
+impl Release {
+    pub fn new(
+        id: u64,
+        tag: String,
+        name: String,
+        body: String,
+
+        is_draft: bool,
+        is_prerelease: bool,
+
+        assets: Vec<Asset>,
+        version: Version,
+
+        created_at: DateTime<Utc>,
+        published_at: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            id,
+            tag,
+            name,
+            body,
+            is_draft,
+            is_prerelease,
+            created_at,
+            published_at,
+            assets,
+            version,
+        }
+    }
+
+    pub fn get_assets_by_filetype(&self, filetype: Filetype) -> Vec<&Asset> {
+        self.assets
+            .iter()
+            .filter(|a| a.filetype == filetype)
+            .collect()
+    }
+
+    pub fn get_asset_by_pattern(&self, pattern: &str) -> Option<&Asset> {
+        let pattern_lower = pattern.to_lowercase();
+        self.assets
+            .iter()
+            .find(|a| a.name.to_lowercase().contains(&pattern_lower))
+    }
+}
+
+// impl fmt::Display for Release
