@@ -1,5 +1,6 @@
-use std::str::FromStr;
 use serde::{Serialize, Deserialize};
+use anyhow::{Context, Result, bail};
+
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Version {
@@ -7,6 +8,29 @@ pub struct Version {
     pub minor: u32,
     pub patch: u32,
     pub is_prerelease: bool,
+}
+
+#[derive(Debug, Clone)]
+pub enum VersionParseError {
+    Empty,
+    InvalidFormat(String),
+    InvalidMajor(String),
+    InvalidMinor(String),
+    InvalidPatch(String),
+}
+
+impl std::error::Error for VersionParseError {}
+
+impl std::fmt::Display for VersionParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VersionParseError::Empty => write!(f, "Version string is empty"),
+            VersionParseError::InvalidFormat(s) => write!(f, "Invalid version format: {}", s),
+            VersionParseError::InvalidMajor(s) => write!(f, "Invalid major version: {}", s),
+            VersionParseError::InvalidMinor(s) => write!(f, "Invalid minor version: {}", s),
+            VersionParseError::InvalidPatch(s) => write!(f, "Invalid patch version: {}", s),
+        }
+    }
 }
 
 impl Version {
@@ -35,61 +59,41 @@ impl Version {
 
         return false
     }
-}
 
-#[derive(Debug, Clone)]
-pub enum VersionParseError {
-    Empty,
-    InvalidFormat(String),
-    InvalidMajor(String),
-    InvalidMinor(String),
-    InvalidPatch(String),
-}
-
-impl std::fmt::Display for VersionParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            VersionParseError::Empty => write!(f, "Version string is empty"),
-            VersionParseError::InvalidFormat(s) => write!(f, "Invalid version format: {}", s),
-            VersionParseError::InvalidMajor(s) => write!(f, "Invalid major version: {}", s),
-            VersionParseError::InvalidMinor(s) => write!(f, "Invalid minor version: {}", s),
-            VersionParseError::InvalidPatch(s) => write!(f, "Invalid patch version: {}", s),
-        }
-    }
-}
-
-impl std::error::Error for VersionParseError {}
-
-impl FromStr for Version {
-    type Err = VersionParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    pub fn parse(s: &str) -> Result<Self> {
         if s.trim().is_empty() {
-            return Err(VersionParseError::Empty);
+            bail!(
+                "Cannot parse empty version",
+            );
         }
 
         let parts: Vec<&str> = s.split('.').collect();
 
         if parts.is_empty() || parts.len() > 3 {
-            return Err(VersionParseError::InvalidFormat(s.to_string()));
+            bail!(
+                "Invalid version format",
+            );
         }
 
-        let major = parts[0]
-            .parse::<u32>()
-            .map_err(|_| VersionParseError::InvalidMajor(parts[0].to_string()))?;
+        let major = match parts[0].parse::<u32>() {
+            Ok(v) => v,
+            Err(_) => bail!("Invalid major")
+        };
 
         let minor = if parts.len() > 1 {
-            parts[1]
-                .parse::<u32>()
-                .map_err(|_| VersionParseError::InvalidMinor(parts[1].to_string()))?
+            match parts[1].parse::<u32>() {
+                Ok(v) => v,
+                Err(_) => bail!("Invalid minor")
+            }
         } else {
             0
         };
 
         let patch = if parts.len() > 2 {
-            parts[2]
-                .parse::<u32>()
-                .map_err(|_| VersionParseError::InvalidPatch(parts[2].to_string()))?
+            match parts[2].parse::<u32>() {
+                Ok(v) => v,
+                Err(_) => bail!("Invalid patch")
+            }
         } else {
             0
         };
@@ -97,4 +101,5 @@ impl FromStr for Version {
         Ok(Version::new(major, minor, patch, false))
     }
 }
+
 

@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
 
 use crate::models::common::enums::Filetype;
-use crate::utils::platform_info::{CpuArch, OSKind}
-use crate::models::common::cpu_arch::CpuArch;
+use crate::utils::platform_info::{CpuArch, OSKind};
 use crate::utils::filename_parser::{parse_filetype, parse_arch, parse_os};
 
+#[derive(Debug, Clone)]
 pub struct Asset {
     pub download_url: String,
     pub id: u64,

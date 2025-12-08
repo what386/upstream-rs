@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 
@@ -7,7 +9,8 @@ use crate::models::common::enums::{Channel, Provider, Filetype};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Package {
     pub name: String,
-    pub parent_repo_slug: String,
+    pub repo_slug: String,
+    pub id: String,
 
     pub pkg_kind: Filetype,
     pub version: Version,
@@ -25,7 +28,8 @@ pub struct Package {
 impl Package {
     pub fn new(
         name: String,
-        parent_repo_slug: String,
+        repo_slug: String,
+        id: String,
 
         pkg_kind: Filetype,
         version: Version,
@@ -41,7 +45,8 @@ impl Package {
     ) -> Self {
         Self {
             name,
-            parent_repo_slug,
+            repo_slug,
+            id,
 
             pkg_kind,
             version,
@@ -59,16 +64,18 @@ impl Package {
 
     pub fn with_defaults(
         name: String,
-        parent_repo_slug: String,
+        repo_slug: String,
         pkg_kind: Filetype,
         version: Version,
         provider: Provider,
         channel: Channel,
     ) -> Self {
         let now = Utc::now();
+        let id = Self::generate_id(&provider, &repo_slug, &channel, &name);
         Self {
             name,
-            parent_repo_slug,
+            repo_slug,
+            id,
 
             pkg_kind,
             version,
@@ -84,8 +91,30 @@ impl Package {
         }
     }
 
-    pub fn is_same(&self, other: &Self) -> bool {
-        self.provider == other.provider && self.parent_repo_slug == other.parent_repo_slug
+    /// Generate a deterministic ID based on provider, repo_slug, and channel.
+    /// This ensures the same package from the same source always has the same ID.
+    /// Format: "provider:repo_slug:channel:name"
+    fn generate_id(provider: &Provider, repo_slug: &str, channel: &Channel, name: &str) -> String {
+        format!("{}:{}:{}:{}",
+            provider.to_string(),
+            repo_slug.to_lowercase(),
+            channel.to_string(),
+            name.to_string(),
+        )
     }
 
-}
+    /// Check if this package is the same as another (same provider, repo, and channel).
+    pub fn is_same(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+
+    /// Get a human-readable display name for the package.
+    pub fn display_name(&self) -> String {
+        format!("{} ({})", self.name, self.channel)
+    }
+
+    /// Update the package ID if any identifying fields change.
+    /// Call this after modifying provider, repo_slug, or channel.
+    pub fn refresh_id(&mut self) {
+        self.id = Self::generate_id(&self.provider, &self.repo_slug, &self.channel, &self.name);
+    }}

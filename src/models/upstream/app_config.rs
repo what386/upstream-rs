@@ -15,6 +15,8 @@ impl Default for ProviderConfig {
     }
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub github: ProviderConfig,
     pub gitlab: ProviderConfig,

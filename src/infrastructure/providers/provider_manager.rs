@@ -1,299 +1,245 @@
-use chrono::{DateTime, Utc};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::fs;
 
-use crate::models::common::Version;
-use crate::models::provider::{Asset, Release};
-use crate::infrastructure::providers::{GithubAdapter};
+use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
+use crate::models::common::enums::{Filetype, Channel, Provider};
+use crate::models::upstream::Package;
+use crate::models::provider::{Asset, Release, asset};
+use crate::infrastructure::providers::github::{GithubClient, GithubAdapter};
+
+use anyhow::{Result, anyhow};
 
 #[derive(Debug, Clone)]
-pub struct AdapterManager{
-    github_adapter: GithubClient,
+pub struct Credentials {
+    pub github_token: Option<String>,
 }
 
-impl AdapterManager {
-    pub fn new(github_adapter: GithubAdapter,
-               github_credentials: String) {
-        let github_client: GithubClient = github_client.new();
-        let github_adapter = github_adapter.new(github_client);
-        Self {
-            github_adapter: github_adapter
-        }
+impl Credentials {
+    pub fn new(github_token: Option<String>) -> Self {
+        Self { github_token }
     }
 }
 
-public class ProviderManager
-{
-    private static readonly Architecture _architecture = RuntimeInformation.OSArchitecture;
-    private static readonly OSInfo.OSKind _operatingSystem = OSInfo.OS;
+pub struct ProviderManager {
+    github: GithubAdapter,
+    cache_path: PathBuf,
+    architecture_info: ArchitectureInfo,
+}
 
-    private readonly GithubClient _githubClient;
-    private readonly GithubAdapter _githubAdapter;
+impl ProviderManager {
+    pub fn new(credentials: Credentials) -> Result<Self> {
+        let architecture_info = ArchitectureInfo::new();
+        let github_client = GithubClient::new(credentials.github_token.as_deref());
+        let github = GithubAdapter::new(github_client?);
+        let cache_path = std::env::temp_dir().join("upstream_downloads");
+        fs::create_dir_all(&cache_path)?;
+        Ok(Self {
+            github,
+            cache_path,
+            architecture_info,
+        })
+    }
 
-    private readonly string _downloadCachePath;
-
-    public record PlatformInfo(
-        OSPlatform Platform,
-        Architecture Arch
-    );
-
-    public record Credentials
-    {
-        public string? GithubToken;
-
-        public Credentials(string? githubToken)
-        {
-            GithubToken = githubToken;
+    pub async fn get_latest_release(
+        &self,
+        slug: &str,
+        provider: &Provider,
+    ) -> Result<Release> {
+        match provider {
+            Provider::Github => self.github.get_latest_release(slug).await,
         }
     }
 
-    public ProviderManager(Credentials credentials)
-    {
-        _githubClient = new GithubClient(credentials.GithubToken);
-        _githubAdapter = new GithubAdapter(_githubClient);
-
-        _downloadCachePath = Path.Combine(
-            Path.GetTempPath(),
-            "upstream_downloads"
-        );
-        Directory.CreateDirectory(_downloadCachePath);
-    }
-
-    /// <summary>
-    /// Gets the latest release for a package from its configured provider.
-    /// </summary>
-    public async Task<Release> GetLatestPackageRelease(Package package)
-    {
-        return package.Provider switch
-        {
-            Provider.Github => await _githubAdapter.GetLatestRelease(package.Slug),
-            _ => throw new NotSupportedException($"Provider {package.Provider} is not supported")
-        };
-    }
-
-    /// <summary>
-    /// Gets the latest release for a repository from a specific provider.
-    /// </summary>
-    public async Task<Release> GetLatestRelease(string slug, Provider provider)
-    {
-        return provider switch
-        {
-            Provider.Github => await _githubAdapter.GetLatestRelease(slug),
-            _ => throw new NotSupportedException($"Provider {provider} is not supported")
-        };
-    }
-
-    /// <summary>
-    /// Gets all releases for a package from its configured provider.
-    /// </summary>
-    public async Task<Release[]> GetAllReleases(Package package, int perPage = 30)
-    {
-        return package.Provider switch
-        {
-            Provider.Github => await _githubAdapter.GetAllReleases(package.Slug, perPage),
-            _ => throw new NotSupportedException($"Provider {package.Provider} is not supported")
-        };
-    }
-
-    /// <summary>
-    /// Gets a specific release by tag from a package's provider.
-    /// </summary>
-    public async Task<Release> GetReleaseByTag(Package package, string tag)
-    {
-        return package.Provider switch
-        {
-            Provider.Github => await _githubAdapter.GetReleaseByTag(package.Slug, tag),
-            _ => throw new NotSupportedException($"Provider {package.Provider} is not supported")
-        };
-    }
-
-    /// <summary>
-    /// Checks if an update is available for the package based on its update channel.
-    /// </summary>
-    public async Task<bool> IsUpdateAvailable(Package package)
-    {
-        if (package.IsPaused)
-            return false;
-
-        try
-        {
-            var latest = await GetLatestPackageRelease(package);
-
-            // Filter based on update channel
-            if (!ShouldConsiderRelease(latest, package.Channel))
-                return false;
-
-            return latest.Version.IsNewerThan(package.Version);
-        }
-        catch
-        {
-            return false;
+    pub async fn get_all_releases(
+        &self,
+        slug: &str,
+        provider: Provider,
+        per_page: Option<u32>,
+    ) -> Result<Vec<Release>> {
+        match provider {
+            Provider::Github => self.github.get_all_releases(slug, per_page).await,
         }
     }
 
-    /// <summary>
-    /// Gets the recommended asset for a package from a release.
-    /// Prioritizes by AssetPattern, then by Filetype.
-    /// "Auto" defaults to appimages -> binaries -> archives.
-    /// </summary>
-    public bool TryGetRecommendedAsset(Release release, Package package, out Asset? asset, out string? message)
-    {
-        message = null;
+    pub async fn get_release_by_tag(
+        &self,
+        slug: &str,
+        tag: &str,
+        provider: &Provider,
+    ) -> Result<Release> {
+        match provider {
+            Provider::Github => self.github.get_release_by_tag(slug, tag).await,
+        }
+    }
 
-        // Priority 1: Use AssetPattern if specified
-        if (!string.IsNullOrWhiteSpace(package.AssetPattern))
-        {
-            var patternMatch = release.GetAssetByPattern(package.AssetPattern);
-            if (patternMatch != null && IsCompatibleArchitecture(patternMatch))
-            {
-                asset = patternMatch;
+    pub async fn download_asset(
+        &self,
+        asset: &Asset,
+        provider: &Provider,
+        progress: Option<&mut dyn FnMut(u64, u64)>,
+    ) -> Result<PathBuf> {
+        let file_name = Path::new(&asset.name)
+            .file_name()
+            .ok_or_else(|| anyhow!("Invalid asset name: {}", asset.name))?;
 
-                if (_architecture == Architecture.X64 && asset.TargetArch == Architecture.X86)
-                    message = "Fallback to 32-bit (x86) binary on 64-bit system";
+        let download_filepath = self.cache_path.join(file_name);
 
-                if (_architecture == Architecture.Arm64 && asset.TargetArch == Architecture.Arm)
-                    message = "Fallback to 32-bit (ARM) binary on 64-bit system";
-
-                return true;
+        match provider {
+            Provider::Github => {
+                self.github
+                    .download_asset(asset, &download_filepath, progress)
+                    .await?;
             }
         }
 
-        Asset? kindMatch = null;
+        Ok(download_filepath)
+    }
 
-        // Priority 2: Use specific Filetype
-        kindMatch = GetAssetByKindFiltered(release, package);
+    pub async fn download_recommended_asset(
+        &self,
+        release: &Release,
+        package: &Package,
+        progress: Option<&mut dyn FnMut(u64, u64)>,
+    ) -> Result<PathBuf> {
+        let asset = self.find_recommended_asset(release, package)?;
+        let path = self.download_asset(&asset, &package.provider, progress).await?;
+        Ok(path)
+    }
 
-        if (kindMatch != null)
-        {
-            asset = kindMatch;
-
-            if (_architecture == Architecture.X64 && asset.TargetArch == Architecture.X86)
-                message = "Fallback to 32-bit (x86) binary on 64-bit system";
-
-            if (_architecture == Architecture.Arm64 && asset.TargetArch == Architecture.Arm)
-                message = "Fallback to 32-bit (ARM) binary on 64-bit system";
-
-            return true;
+    pub async fn check_for_update(
+        &self,
+        package: &Package,
+    ) -> Result<Option<Release>> {
+        if package.is_paused {
+            return Ok(None);
         }
 
-        asset = null;
-        message = "Failed to find compatible asset";
-        return false;
+        let release = self
+            .get_latest_release(&package.repo_slug, &package.provider)
+            .await?;
+
+        if Self::is_valid_update(package, &release) {
+            Ok(Some(release))
+        } else {
+            Ok(None)
+        }
     }
 
-    /// <summary>
-    /// Downloads an asset for a package to a local path.
-    /// </summary>
-    public async Task<string> DownloadAsset(
-        Asset asset,
-        Provider provider,
-        IProgress<(long downloadedBytes, long totalBytes)>? downloadProgress = null)
-    {
-        string fileName = Path.GetFileName(asset.Name);
-        string downloadPath = Path.Combine(_downloadCachePath, fileName);
-
-        switch (provider)
-        {
-            case Provider.Github:
-                await _githubAdapter.DownloadAsset(asset, downloadPath, downloadProgress);
-                break;
+    fn is_valid_update(package: &Package, release: &Release) -> bool {
+        if package.is_paused {
+            return false;
         }
 
-        return downloadPath;
-    }
-
-    public Asset? GetAssetByKindFiltered(Release release, Package package)
-    {
-        var assets = release.Assets.Where(a => a.Filetype == package.Filetype).ToList();
-        if (!assets.Any())
-            return null;
-
-        var compatibleAssets = assets
-            .Where(a => IsCompatibleArchitecture(a) && IsCompatibleOS(a))
-            .ToList();
-
-        if (!compatibleAssets.Any())
-            return null;
-
-        // Score each asset and return the best one
-        return compatibleAssets
-            .Select(a => new { Asset = a, Score = CalculateAssetScore(a, package) })
-            .OrderByDescending(x => x.Score)
-            .First()
-            .Asset;
-    }
-
-    private int CalculateAssetScore(Asset asset, Package package)
-    {
-        string name = asset.Name.ToLowerInvariant();
-        int score = 0;
-
-        if (asset.TargetArch.Equals(_architecture))
-            score += 80; // Architecture match bonus
-
-        if (asset.TargetOS.Equals(_operatingSystem))
-            score += 60; // OS match bonus
-
-        if (!name.Contains(package.Name.ToLowerInvariant()))
-            score -= 40; // Name mismatch penalty- could be metadata
-
-        if (asset.Size < 100000) // 100kb
-            score -= 20; // Very small files are suspicious
-
-        if (asset.Filetype == Filetype.Archive)
-        {
-            if (name.EndsWith(".tar.gz") || name.EndsWith(".tgz"))
-                score += 10; // preserves file permissions
-            else if (name.EndsWith(".zip"))
-                score += 5;
-        }
-
-        if (asset.Filetype == Filetype.Compressed)
-        {
-            if (name.EndsWith(".br"))
-                score += 10; // often smaller than gzip
-            else if (name.EndsWith(".gz"))
-                score += 5;
-        }
-
-        return score;
-    }
-
-    private bool IsCompatibleOS(Asset asset)
-    {
-        if (!asset.TargetOS.HasValue)
-            return true; // unknown -> assume possible
-
-        return asset.TargetOS.Value.Equals(_operatingSystem);
-    }
-
-    private bool IsCompatibleArchitecture(Asset asset)
-    {
-        if (!asset.TargetArch.HasValue)
-            return true; // unknown -> assume possible
-
-        var target = asset.TargetArch.Value;
-        var host = _architecture;
-
-        // x64 can run x86
-        if (host == Architecture.X64 && target == Architecture.X86)
-            return true;
-
-        // arm64 can run arm32
-        if (host == Architecture.Arm64 && target == Architecture.Arm)
-            return true;
-
-        // otherwise, different arch is bad
-        return target == host;
-    }
-
-    private static bool ShouldConsiderRelease(Release release, Channel channel)
-    {
-        return channel switch
-        {
-            Channel.Stable => !release.IsDraft && !release.IsPrerelease,
-            Channel.Beta => !release.IsDraft,
-            Channel.Nightly => !release.IsDraft,
-            Channel.All => true,
-            _ => false
+        let consider_release = match package.channel {
+            Channel::Stable => !release.is_draft && !release.is_prerelease,
+            Channel::Beta | Channel::Nightly => !release.is_draft,
+            Channel::All => true,
         };
+
+        consider_release && release.version.is_newer_than(&package.version)
     }
+
+    fn is_potentially_compatible(&self, asset: &Asset) -> bool {
+        // OS check
+        if let Some(target_os) = &asset.target_os {
+            if *target_os != self.architecture_info.os_kind {
+                return false;
+            }
+        }
+
+        // Architecture check
+        if let Some(target_arch) = &asset.target_arch {
+            if *target_arch == self.architecture_info.cpu_arch {
+                return true;
+            }
+
+            // Compatibility fallbacks
+            if self.architecture_info.cpu_arch == CpuArch::X86_64 && *target_arch == CpuArch::X86 {
+                return true;
+            }
+
+            if self.architecture_info.cpu_arch == CpuArch::Aarch64 && *target_arch == CpuArch::Arm {
+                return true;
+            }
+
+            return *target_arch == self.architecture_info.cpu_arch;
+        }
+
+        true
+    }
+
+    fn score_asset(&self, asset: &Asset, package: &Package) -> i32 {
+        let name = asset.name.to_lowercase();
+        let mut score = 0;
+
+        // Architecture match bonus
+        if let Some(target_arch) = &asset.target_arch {
+            if *target_arch == self.architecture_info.cpu_arch {
+                score += 80;
+            } else if self.architecture_info.cpu_arch == CpuArch::X86_64 && *target_arch == CpuArch::X86 {
+                score += 30;
+            } else if self.architecture_info.cpu_arch == CpuArch::Aarch64 && *target_arch == CpuArch::Arm {
+                score += 30;
+            }
+        }
+
+        // Archive format preference
+        if asset.filetype == Filetype::Archive {
+            if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
+                score += 10;
+            } else if name.ends_with(".zip") {
+                score += 5;
+            }
+        }
+
+        // Compression format preference
+        if asset.filetype == Filetype::Compressed {
+            if name.ends_with(".br") {
+                score += 10;
+            } else if name.ends_with(".gz") {
+                score += 5;
+            }
+        }
+
+        // Package name match
+        if !name.contains(&package.name.to_lowercase()) {
+            score -= 40;
+        }
+
+        // Very small files
+        if asset.size < 100_000 {
+            score -= 20;
+        }
+
+        score
+    }
+
+    fn find_recommended_asset(
+        &self,
+        release: &Release,
+        package: &Package,
+    ) -> Result<Asset> {
+        let compatible_assets: Vec<&Asset> = release
+            .assets
+            .iter()
+            .filter(|a| self.is_potentially_compatible(a))
+            .collect();
+
+        compatible_assets
+            .into_iter()
+            .max_by_key(|a| self.score_asset(a, package))
+            .cloned()
+            .ok_or_else(|| {
+                anyhow!(
+                    "No compatible assets found for {} on {}",
+                    format_arch(&self.architecture_info.cpu_arch),
+                    format_os(&self.architecture_info.os_kind)
+                )
+            })
+    }
+
+    pub fn get_architecture_info(&self) -> &ArchitectureInfo {
+        &self.architecture_info
+    }
+}
+

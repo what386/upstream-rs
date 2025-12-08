@@ -4,6 +4,7 @@ use crate::models::provider::asset::Asset;
 use crate::models::common::enums::Filetype;
 use crate::models::common::version::Version;
 
+#[derive(Debug, Clone)]
 pub struct Release {
     pub id: u64,
     pub tag: String,
@@ -32,7 +33,6 @@ impl Release {
         assets: Vec<Asset>,
         version: Version,
 
-        created_at: DateTime<Utc>,
         published_at: DateTime<Utc>,
     ) -> Self {
         Self {
@@ -42,7 +42,6 @@ impl Release {
             body,
             is_draft,
             is_prerelease,
-            created_at,
             published_at,
             assets,
             version,

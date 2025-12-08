@@ -22,7 +22,6 @@ pub enum CpuArch {
     Aarch64,
     Ppc,
     Ppc64,
-    Ppc64Le,
     Riscv64,
     S390x,
     Unknown,
@@ -50,7 +49,6 @@ impl FromStr for CpuArch {
             "aarch64" => Ok(Self::Aarch64),
             "powerpc" => Ok(Self::Ppc),
             "powerpc64" => Ok(Self::Ppc64),
-            "powerpc64le" => Ok(Self::Ppc64Le),
             "riscv64" => Ok(Self::Riscv64),
             "s390x" => Ok(Self::S390x),
             _ => Ok(Self::Unknown),
@@ -84,7 +82,6 @@ pub struct ArchitectureInfo {
 }
 
 impl ArchitectureInfo {
-    /// Compile-time detection - uses cfg attributes resolved at compile time
     pub fn new_compiletime() -> Self {
         let is_os_64_bit = cfg!(target_pointer_width = "64");
 
@@ -100,8 +97,6 @@ impl ArchitectureInfo {
         let cpu_arch = CpuArch::Ppc;
         #[cfg(target_arch = "powerpc64")]
         let cpu_arch = CpuArch::Ppc64;
-        #[cfg(target_arch = "powerpc64le")]
-        let cpu_arch = CpuArch::Ppc64Le;
         #[cfg(target_arch = "riscv64")]
         let cpu_arch = CpuArch::Riscv64;
         #[cfg(target_arch = "s390x")]
@@ -113,7 +108,6 @@ impl ArchitectureInfo {
             target_arch = "aarch64",
             target_arch = "powerpc",
             target_arch = "powerpc64",
-            target_arch = "powerpc64le",
             target_arch = "riscv64",
             target_arch = "s390x"
         )))]
@@ -162,5 +156,33 @@ impl ArchitectureInfo {
 impl Default for ArchitectureInfo {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub fn format_arch(arch: &CpuArch) -> &str {
+    match arch {
+        CpuArch::X86 => "x86",
+        CpuArch::X86_64 => "x86_64",
+        CpuArch::Arm => "ARM",
+        CpuArch::Aarch64 => "ARM64",
+        CpuArch::Ppc => "PowerPC",
+        CpuArch::Ppc64 => "PowerPC64",
+        CpuArch::Riscv64 => "RISC-V 64",
+        CpuArch::S390x => "s390x",
+        CpuArch::Unknown => "Unknown",
+    }
+}
+
+pub fn format_os(os: &OSKind) -> &str {
+    match os {
+        OSKind::Windows => "Windows",
+        OSKind::MacOS => "macOS",
+        OSKind::Linux => "Linux",
+        OSKind::FreeBSD => "FreeBSD",
+        OSKind::OpenBSD => "OpenBSD",
+        OSKind::NetBSD => "NetBSD",
+        OSKind::Android => "Android",
+        OSKind::IOS => "iOS",
+        OSKind::Unknown => "Unknown OS",
     }
 }

@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 
-use crate::models::common::version::String;
 use crate::models::common::enums::{Channel, Provider};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
