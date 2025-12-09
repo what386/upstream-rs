@@ -4,8 +4,8 @@ use std::fs;
 use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
 use crate::models::common::enums::{Filetype, Channel, Provider};
 use crate::models::upstream::Package;
-use crate::models::provider::{Asset, Release, asset};
-use crate::infrastructure::providers::github::{GithubClient, GithubAdapter};
+use crate::models::provider::{Asset, Release};
+use crate::services::providers::github::{GithubClient, GithubAdapter};
 
 use anyhow::{Result, anyhow};
 

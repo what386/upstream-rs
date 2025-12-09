@@ -1,7 +1,6 @@
 mod models;
 mod utils;
-mod infrastructure;
-mod upstream_paths;
+mod services;
 
 fn main() {
     println!("Hello, world!");

@@ -24,7 +24,7 @@ pub fn parse_os(filename: &str) -> Option<OSKind> {
     let name = filename.to_lowercase();
 
     // Windows
-    if contains_arch_marker(&name, &[".exe", ".msi", ".dll", "windows", "win64", "win32", "win-", "-win", "mingw", "msvc"]) {
+    if contains_arch_marker(&name, &[".exe", ".msi", ".dll", "windows", "win64", "win32", "win-", "-win", "msvc"]) {
         return Some(OSKind::Windows);
     }
 
@@ -37,6 +37,7 @@ pub fn parse_os(filename: &str) -> Option<OSKind> {
     if contains_arch_marker(&name, &["macos", "darwin", "osx", "mac-", "-mac", ".dmg", ".app"]) {
         return Some(OSKind::MacOS);
     }
+
     // Android
     if contains_arch_marker(&name, &["android", ".apk", ".aab"]) {
         return Some(OSKind::Android);
