@@ -8,16 +8,11 @@ use bzip2::read::BzDecoder;
 use tar::Archive;
 use zip::ZipArchive;
 
-/// Supports:
-/// - .zip
-/// - .gz (single file or .tar.gz)
-/// - .bz2 (single file or .tar.bz2)
-/// - .tar
-
-/// Decompress a file into the output folder.
-pub fn decompress(input: impl AsRef<Path>, output: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
-    let input = input.as_ref();
-    let output = output.as_ref();
+/// Decompress a file into the output folder and return the root path extracted.
+///
+/// - Single files return the file path
+/// - Archives return the root directory if possible, otherwise the common prefix
+pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
     std::fs::create_dir_all(output)?;
 
     let ext = input
@@ -26,7 +21,6 @@ pub fn decompress(input: impl AsRef<Path>, output: impl AsRef<Path>) -> Result<V
         .unwrap_or("")
         .to_lowercase();
 
-    // Handle multi-part extensions (.tar.gz, .tar.bz2)
     let file_name = input.file_name().unwrap().to_string_lossy();
     let name = file_name.to_lowercase();
 
@@ -49,11 +43,11 @@ pub fn decompress(input: impl AsRef<Path>, output: impl AsRef<Path>) -> Result<V
 
 // ---------------- ZIP ----------------
 
-fn decompress_zip(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
+fn decompress_zip(input: &Path, output: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
     let mut archive = ZipArchive::new(file)?;
 
-    let mut files = Vec::new();
+    let mut paths = Vec::new();
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
@@ -67,20 +61,20 @@ fn decompress_zip(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
             }
             let mut out = File::create(&out_path)?;
             std::io::copy(&mut file, &mut out)?;
-            files.push(out_path);
+            paths.push(out_path);
         }
     }
 
-    Ok(files)
+    Ok(common_root(&paths, output))
 }
 
 // ---------------- TAR ----------------
 
-fn unpack_tar(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
+fn unpack_tar(input: &Path, output: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
     let mut archive = Archive::new(file);
-    let mut files = Vec::new();
 
+    let mut paths = Vec::new();
     for entry in archive.entries()? {
         let mut entry = entry?;
         let path = output.join(entry.path()?);
@@ -88,20 +82,20 @@ fn unpack_tar(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
             std::fs::create_dir_all(parent)?;
         }
         entry.unpack(&path)?;
-        files.push(path);
+        paths.push(path);
     }
 
-    Ok(files)
+    Ok(common_root(&paths, output))
 }
 
 // ---------------- GZIP ----------------
 
-fn decompress_tar_gz(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
+fn decompress_tar_gz(input: &Path, output: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
     let tar = GzDecoder::new(file);
     let mut archive = Archive::new(tar);
 
-    let mut files = Vec::new();
+    let mut paths = Vec::new();
     for entry in archive.entries()? {
         let mut entry = entry?;
         let path = output.join(entry.path()?);
@@ -109,13 +103,13 @@ fn decompress_tar_gz(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
             std::fs::create_dir_all(parent)?;
         }
         entry.unpack(&path)?;
-        files.push(path);
+        paths.push(path);
     }
 
-    Ok(files)
+    Ok(common_root(&paths, output))
 }
 
-fn decompress_gz_single(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
+fn decompress_gz_single(input: &Path, output: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
     let mut decoder = GzDecoder::new(file);
 
@@ -127,17 +121,17 @@ fn decompress_gz_single(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
     let mut out = File::create(&out_path)?;
     std::io::copy(&mut decoder, &mut out)?;
 
-    Ok(vec![out_path])
+    Ok(out_path)
 }
 
 // ---------------- BZIP2 ----------------
 
-fn decompress_tar_bz2(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
+fn decompress_tar_bz2(input: &Path, output: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
     let tar = BzDecoder::new(file);
     let mut archive = Archive::new(tar);
 
-    let mut files = Vec::new();
+    let mut paths = Vec::new();
     for entry in archive.entries()? {
         let mut entry = entry?;
         let path = output.join(entry.path()?);
@@ -145,13 +139,13 @@ fn decompress_tar_bz2(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
             std::fs::create_dir_all(parent)?;
         }
         entry.unpack(&path)?;
-        files.push(path);
+        paths.push(path);
     }
 
-    Ok(files)
+    Ok(common_root(&paths, output))
 }
 
-fn decompress_bz2_single(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
+fn decompress_bz2_single(input: &Path, output: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
     let mut decoder = BzDecoder::new(file);
 
@@ -163,5 +157,31 @@ fn decompress_bz2_single(input: &Path, output: &Path) -> Result<Vec<PathBuf>> {
     let mut out = File::create(&out_path)?;
     std::io::copy(&mut decoder, &mut out)?;
 
-    Ok(vec![out_path])
+    Ok(out_path)
 }
+
+// ---------------- HELPER ----------------
+
+/// Determine the common root of extracted paths
+fn common_root(paths: &[PathBuf], output: &Path) -> PathBuf {
+    if paths.is_empty() {
+        return output.to_path_buf();
+    }
+
+    let mut iter = paths.iter();
+    let first = iter.next().unwrap();
+    let mut components: Vec<_> = first.strip_prefix(output).unwrap().components().collect();
+
+    for path in iter {
+        let path_comps: Vec<_> = path.strip_prefix(output).unwrap().components().collect();
+        components = components
+            .iter()
+            .zip(path_comps.iter())
+            .take_while(|(a, b)| a == b)
+            .map(|(a, _)| a.clone())
+            .collect();
+    }
+
+    output.join(components.iter().fold(PathBuf::new(), |acc, c| acc.join(c.as_os_str())))
+}
+

@@ -4,22 +4,19 @@ use std::process::Command;
 use anyhow::{Context, Result};
 
 use crate::models::upstream::Package;
+use crate::utils::upstream_paths::PATHS;
 
 /// ------------------------------------------
 /// Manages symbolic links for binary aliases.
 /// ------------------------------------------
 
 /// Creates a symbolic link in the binaries directory pointing to the target file.
-pub fn add_link(package: &Package, symlink_dir: &Path) -> Result<()> {
-    let exec_path = package.exec_path
-        .as_ref()
-        .context("Exec path not set")?;
-
+pub fn add_link(exec_path: &Path, name: &str) -> Result<()> {
     if !Path::new(exec_path).exists() {
-        anyhow::bail!("Target file not found: {}", exec_path);
+        anyhow::bail!("Target file not found");
     }
 
-    let symlink = symlink_dir.join(&package.name);
+    let symlink = PATHS.symlinks_dir.join(name);
 
     // Remove existing symlink if present
     if symlink.exists() {
@@ -28,13 +25,12 @@ pub fn add_link(package: &Package, symlink_dir: &Path) -> Result<()> {
     }
 
     create_symlink(exec_path, &symlink)?;
-
     Ok(())
 }
 
 /// Removes a symbolic link by its package name.
-pub fn remove_link(package: &Package, symlink_dir: &Path) -> Result<()> {
-    let symlink = symlink_dir.join(&package.name);
+pub fn remove_link(name: &str) -> Result<()> {
+    let symlink = PATHS.symlinks_dir.join(name);
 
     if symlink.exists() {
         fs::remove_file(&symlink)
@@ -44,28 +40,23 @@ pub fn remove_link(package: &Package, symlink_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn get_symlink(package: &Package, symlink_dir: &Path) -> Option<PathBuf> {
-    let symlink = symlink_dir.join(&package.name);
+/// Gets the path to a symlink if it exists.
+pub fn get_symlink(name: &str) -> Option<PathBuf> {
+    let symlink = PATHS.symlinks_dir.join(name);
 
-    if symlink.exists() {
-        Some(symlink)
-    } else {
-        None
-    }
+    // Simpler: just check exists() and return in one expression
+    symlink.exists().then_some(symlink)
 }
 
+#[cfg(unix)]
+fn create_symlink(target_path: &Path, symlink: &Path) -> Result<()> {
+    std::os::unix::fs::symlink(target_path, symlink)
+        .context("Failed to create symlink")
+}
+
+// may be unused: windows support is in question
+#[cfg(windows)]
 fn create_symlink(target_path: &str, symlink: &Path) -> Result<()> {
-    let output = Command::new("ln")
-        .arg("-s")
-        .arg(target_path)
-        .arg(symlink)
-        .output()
-        .context("Failed to execute ln")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Failed to create symlink: {}", stderr);
-    }
-
-    Ok(())
+    std::os::windows::fs::symlink_file(target_path, symlink)
+        .context("Failed to create symlink")
 }

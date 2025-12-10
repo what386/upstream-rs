@@ -7,7 +7,6 @@ use crate::models::common::enums::{Channel, Provider};
 pub struct Repository {
     pub name: String,
     pub owner: String,
-
     pub slug: String,
 
     pub provider: Provider,
@@ -21,16 +20,16 @@ impl Repository {
     pub fn new(
         name: String,
         owner: String,
+        slug: String,
         provider: Provider,
         channel: Channel,
         last_updated: DateTime<Utc>,
         latest_tag: Option<String>,
     ) -> Self {
-        let slug = format!("{}{}", name, owner);
         Self {
             name,
             owner,
-            slug: slug,
+            slug,
             provider,
             channel,
             last_updated,
@@ -42,7 +41,7 @@ impl Repository {
         name: String,
         owner: String,
         provider: Provider,
-        channel: Option<Channel>,
+        channel: Channel,
     ) -> Self {
         let now = Utc::now();
         let slug = format!("{}{}", name, owner);
@@ -50,14 +49,16 @@ impl Repository {
             name,
             owner,
             slug: slug,
+
             provider,
-            channel: channel.unwrap_or(Channel::Stable),
+            channel: channel,
             last_updated: now,
             latest_tag: None,
         }
     }
 
-    pub fn slug(&self) -> String {
-        format!("{}/{}", self.owner, self.name)
+    /// Get a human-readable display name for the repo.
+    pub fn display_name(&self) -> String {
+        format!("{}: {} ({})", self.provider, self.slug, self.channel)
     }
 }

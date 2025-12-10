@@ -95,17 +95,32 @@ impl ProviderManager {
         Ok(download_filepath)
     }
 
-    pub async fn download_recommended_asset(
+    pub fn find_recommended_asset(
         &self,
         release: &Release,
         package: &Package,
-        progress: Option<&mut dyn FnMut(u64, u64)>,
-    ) -> Result<PathBuf> {
-        let asset = self.find_recommended_asset(release, package)?;
-        let path = self.download_asset(&asset, &package.provider, progress).await?;
-        Ok(path)
+    ) -> Result<Asset> {
+        let compatible_assets: Vec<&Asset> = release
+            .assets
+            .iter()
+            .filter(|a| self.is_potentially_compatible(a))
+            .collect();
+
+        compatible_assets
+            .into_iter()
+            .max_by_key(|a| self.score_asset(a, package))
+            .cloned()
+            .ok_or_else(|| {
+                anyhow!(
+                    "No compatible assets found for {} on {}",
+                    format_arch(&self.architecture_info.cpu_arch),
+                    format_os(&self.architecture_info.os_kind)
+                )
+            })
     }
 
+
+    /* TODO: make better
     pub async fn check_for_update(
         &self,
         package: &Package,
@@ -124,6 +139,7 @@ impl ProviderManager {
             Ok(None)
         }
     }
+    */
 
     fn is_valid_update(package: &Package, release: &Release) -> bool {
         if package.is_paused {
@@ -212,34 +228,6 @@ impl ProviderManager {
         }
 
         score
-    }
-
-    fn find_recommended_asset(
-        &self,
-        release: &Release,
-        package: &Package,
-    ) -> Result<Asset> {
-        let compatible_assets: Vec<&Asset> = release
-            .assets
-            .iter()
-            .filter(|a| self.is_potentially_compatible(a))
-            .collect();
-
-        compatible_assets
-            .into_iter()
-            .max_by_key(|a| self.score_asset(a, package))
-            .cloned()
-            .ok_or_else(|| {
-                anyhow!(
-                    "No compatible assets found for {} on {}",
-                    format_arch(&self.architecture_info.cpu_arch),
-                    format_os(&self.architecture_info.os_kind)
-                )
-            })
-    }
-
-    pub fn get_architecture_info(&self) -> &ArchitectureInfo {
-        &self.architecture_info
     }
 }
 

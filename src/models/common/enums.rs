@@ -7,7 +7,6 @@ pub enum Filetype {
     Binary,
     Compressed,
     Archive,
-    Script,
     WinExe,
     Checksum,
 }

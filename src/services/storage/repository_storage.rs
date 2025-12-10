@@ -1,18 +1,17 @@
-use std::collections::HashMap;
 use std::fs;
 use std::io;
-use std::path::Path;
+
 use crate::models::upstream::Repository;
+use crate::utils::upstream_paths::PATHS;
 
 pub struct RepositoryStorage {
-    repositories_file_path: String,
     repositories: Vec<Repository>,
 }
 
 impl RepositoryStorage {
-    pub fn new(repositories_file_path: String) -> io::Result<Self> {
+    /// Creates a new RepositoryStorage and loads existing repositories.
+    pub fn new() -> io::Result<Self> {
         let mut storage = Self {
-            repositories_file_path,
             repositories: Vec::new(),
         };
         storage.load_repositories()?;
@@ -20,45 +19,30 @@ impl RepositoryStorage {
     }
 
     /// Load all repositories from the repositories.json file.
-    pub fn load_repositories(&mut self) -> io::Result<()> {
-        if !Path::new(&self.repositories_file_path).exists() {
+    fn load_repositories(&mut self) -> io::Result<()> {
+        let path = &PATHS.repositories_file;
+
+        if !path.exists() {
             self.repositories = Vec::new();
             return Ok(());
         }
 
-        let json = fs::read_to_string(&self.repositories_file_path)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to load repositories: {}", e)))?;
+        let json = fs::read_to_string(path)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
         self.repositories = serde_json::from_str(&json)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to parse repositories: {}", e)))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
         Ok(())
     }
 
     /// Save all repositories to the repositories.json file.
-    pub fn save_repositories(&self) -> io::Result<()> {
+    fn save_repositories(&self) -> io::Result<()> {
         let json = serde_json::to_string_pretty(&self.repositories)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to serialize: {}", e)))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
-        fs::write(&self.repositories_file_path, json)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to save repositories: {}", e)))
-    }
-
-    pub fn deduplicate_repositories(&mut self) -> io::Result<()> {
-        let mut seen = HashMap::new();
-
-        // Keep the most recently updated repository for each slug
-        for repository in &self.repositories {
-            let entry = seen.entry(repository.slug.clone())
-                .or_insert_with(|| repository.clone());
-
-            if repository.last_updated > entry.last_updated {
-                *entry = repository.clone();
-            }
-        }
-
-        self.repositories = seen.into_values().collect();
-        self.save_repositories()
+        fs::write(&PATHS.repositories_file, json)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
     }
 
     /// Get all stored repositories.
@@ -73,6 +57,7 @@ impl RepositoryStorage {
 
     /// Add or update a repository in the storage.
     pub fn add_or_update_repository(&mut self, repository: Repository) -> io::Result<()> {
+        // Remove any existing repository with the same slug
         self.repositories.retain(|r| r.slug != repository.slug);
         self.repositories.push(repository);
         self.save_repositories()
@@ -94,5 +79,12 @@ impl RepositoryStorage {
         } else {
             Ok(false)
         }
+    }
+}
+
+// Implement Default for convenience
+impl Default for RepositoryStorage {
+    fn default() -> Self {
+        Self::new().expect("Failed to initialize RepositoryStorage")
     }
 }

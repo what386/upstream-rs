@@ -4,16 +4,15 @@ use std::io;
 use std::path::Path;
 
 use crate::models::upstream::AppConfig;
+use crate::utils::upstream_paths::PATHS;
 
 pub struct ConfigStorage {
-    config_file_path: String,
     config: AppConfig,
 }
 
 impl ConfigStorage {
-    pub fn new(config_file_path: String) -> io::Result<Self> {
+    pub fn new() -> io::Result<Self> {
         let mut storage = Self {
-            config_file_path,
             config: AppConfig::default(),
         };
         storage.load_config()?;
@@ -22,11 +21,11 @@ impl ConfigStorage {
 
     /// Loads configuration from config.json, or creates default if it doesn't exist.
     pub fn load_config(&mut self) -> io::Result<()> {
-        if !Path::new(&self.config_file_path).exists() {
+        if !Path::new(&PATHS.config_file).exists() {
             return self.save_config();
         }
 
-        let json = fs::read_to_string(&self.config_file_path)
+        let json = fs::read_to_string(&PATHS.config_file)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to load config: {}", e)))?;
 
         self.config = serde_json::from_str(&json)
@@ -40,7 +39,7 @@ impl ConfigStorage {
         let json = serde_json::to_string_pretty(&self.config)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to serialize config: {}", e)))?;
 
-        fs::write(&self.config_file_path, json)
+        fs::write(&PATHS.config_file, json)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to save config: {}", e)))
     }
 
