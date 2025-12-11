@@ -10,11 +10,6 @@ const COMPRESSION_EXTENSIONS: &'static [&'static str] = &[
     ".gz", ".br", ".bz2"
 ];
 
-const SCRIPT_EXTENSIONS: &'static [&'static str] = &[
-    ".sh", ".bash", ".zsh", ".fish", ".ps1",
-    ".py", ".js", ".ts", ".lua", ".rb", ".txt"
-];
-
 const CHECKSUM_EXTENSIONS: &'static [&'static str] = &[
     ".sha256", ".sha512", ".sha1", ".md5",
     ".sig", ".asc", ".minisig", ".sum"
@@ -114,10 +109,6 @@ pub fn parse_filetype(filename: &str,) -> Filetype {
 
     if COMPRESSION_EXTENSIONS.iter().any(|ext| filename.ends_with(ext)) {
         return Filetype::Compressed
-    }
-
-    if SCRIPT_EXTENSIONS.iter().any(|ext| filename.ends_with(ext)) {
-        return Filetype::Script
     }
 
     if CHECKSUM_EXTENSIONS.iter().any(|ext| filename.ends_with(ext)) {

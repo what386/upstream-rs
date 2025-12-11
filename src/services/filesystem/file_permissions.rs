@@ -2,11 +2,6 @@ use std::{fs, path::PathBuf};
 use std::path::Path;
 use std::os::unix::fs::PermissionsExt;
 use anyhow::{Context, Result};
-use crate::models::upstream::Package;
-
-/// ----------------------------------------------------------------------------------
-/// Manages file permissions, specifically setting executable permissions on binaries.
-/// ----------------------------------------------------------------------------------
 
 /// Sets executable permissions on a file for user, group, and others.
 pub fn make_executable(exec_path: &Path) -> Result<()> {

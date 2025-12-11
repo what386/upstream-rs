@@ -1,14 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use anyhow::{Context, Result};
 
-use crate::models::upstream::Package;
 use crate::utils::upstream_paths::PATHS;
-
-/// ------------------------------------------
-/// Manages symbolic links for binary aliases.
-/// ------------------------------------------
 
 /// Creates a symbolic link in the binaries directory pointing to the target file.
 pub fn add_link(exec_path: &Path, name: &str) -> Result<()> {
@@ -25,6 +19,7 @@ pub fn add_link(exec_path: &Path, name: &str) -> Result<()> {
     }
 
     create_symlink(exec_path, &symlink)?;
+
     Ok(())
 }
 

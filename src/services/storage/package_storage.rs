@@ -1,6 +1,8 @@
 use std::fs;
 use std::io;
 
+use anyhow::{Result, anyhow};
+
 use crate::models::upstream::Package;
 use crate::utils::upstream_paths::PATHS;
 
@@ -10,7 +12,7 @@ pub struct PackageStorage {
 
 impl PackageStorage {
     /// Creates a new PackageStorage and loads existing packages.
-    pub fn new() -> io::Result<Self> {
+    pub fn new() -> Result<Self> {
         let mut storage = Self {
             packages: Vec::new(),
         };
@@ -19,7 +21,7 @@ impl PackageStorage {
     }
 
     /// Load all packages from the packages.json file.
-    fn load_packages(&mut self) -> io::Result<()> {
+    fn load_packages(&mut self) -> Result<()> {
         let path = &PATHS.packages_file;
 
         if !path.exists() {
@@ -33,9 +35,7 @@ impl PackageStorage {
                 Ok(())
             }
             Err(e) => {
-                eprintln!("Warning: Failed to load packages: {}", e);
-                self.packages = Vec::new();
-                Ok(())
+                Err(anyhow!("Warning: Failed to load packages: {}", e))
             }
         }
     }
@@ -61,7 +61,7 @@ impl PackageStorage {
 
     /// Add or update a package in the repository.
     pub fn add_or_update_package(&mut self, package: Package) -> io::Result<()> {
-        self.packages.retain(|p| !p.is_same(&package));
+        self.packages.retain(|p| !p.is_same_as(&package));
         self.packages.push(package);
         self.save_packages()
     }
@@ -69,7 +69,7 @@ impl PackageStorage {
     /// Remove a package from the repository.
     pub fn remove_package(&mut self, package: &Package) -> io::Result<bool> {
         let initial_len = self.packages.len();
-        self.packages.retain(|p| !p.is_same(package));
+        self.packages.retain(|p| !p.is_same_as(package));
 
         if self.packages.len() < initial_len {
             self.save_packages()?;
@@ -90,11 +90,5 @@ impl PackageStorage {
         } else {
             Ok(false)
         }
-    }
-}
-
-impl Default for PackageStorage {
-    fn default() -> Self {
-        Self::new().expect("Failed to initialize PackageStorage")
     }
 }

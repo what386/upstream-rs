@@ -3,7 +3,6 @@ use std::fs;
 use std::path::Path;
 use anyhow::{Context, Result};
 
-use crate::models::upstream::Package;
 use crate::utils::upstream_paths::PATHS;
 
 /// Creates or updates the `path.sh` file
@@ -33,9 +32,9 @@ pub fn initialize() -> Result<()> {
 }
 
 /// Adds a package's installation path to PATH by appending an export line.
-pub fn add_to_paths(install_path: &Path) -> Result<String> {
+pub fn add_to_paths(install_path: &Path) -> Result<()> {
 
-    if !Path::new(install_path).is_dir() {
+    if !install_path.is_dir() {
         anyhow::bail!("Package install directory not found: {}", install_path.to_string_lossy());
     }
 
@@ -55,15 +54,11 @@ pub fn add_to_paths(install_path: &Path) -> Result<String> {
             .context("Failed to write paths file")?;
     }
 
-    Ok(export_line)
+    Ok(())
 }
 
 /// Removes a package's PATH entry from `path.sh`.
-pub fn remove_from_paths(package: &Package) -> Result<()> {
-    let install_path = package.install_path
-        .as_ref()
-        .context("Install path not set")?;
-
+pub fn remove_from_paths(install_path: &Path) -> Result<()> {
     let mut content = fs::read_to_string(&PATHS.paths_file)
         .context("Failed to read paths file")?;
 

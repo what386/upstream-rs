@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 
 use crate::models::common::version::Version;
-use crate::models::common::enums::{Channel, Filetype};
+use crate::models::common::enums::{Channel, Filetype, Provider};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Package {
@@ -15,6 +15,7 @@ pub struct Package {
     pub pkg_kind: Filetype,
     pub version: Version,
     pub channel: Channel,
+    pub provider: Provider,
 
     pub has_icon: bool,
     pub is_paused: bool,
@@ -32,6 +33,7 @@ impl Package {
         pkg_kind: Filetype,
         version: Version,
         channel: Channel,
+        provider: Provider,
 
         has_icon: bool,
         is_paused: bool,
@@ -47,6 +49,7 @@ impl Package {
             pkg_kind,
             version,
             channel,
+            provider,
 
             has_icon,
             is_paused,
@@ -63,6 +66,7 @@ impl Package {
         pkg_kind: Filetype,
         version: Version,
         channel: Channel,
+        provider: Provider,
     ) -> Self {
         let now = Utc::now();
         Self {
@@ -72,6 +76,7 @@ impl Package {
             pkg_kind,
             version,
             channel,
+            provider,
 
             has_icon: false,
             is_paused: false,
@@ -82,7 +87,8 @@ impl Package {
         }
     }
 
-    pub fn is_same(&self, other: &Package) -> bool {
+    pub fn is_same_as(&self, other: &Package) -> bool {
+        self.provider == other.provider &&
         self.repo_slug == other.repo_slug &&
         self.channel == other.channel &&
         self.name == other.name
@@ -90,6 +96,6 @@ impl Package {
 
     /// Get a human-readable display name for the package.
     pub fn display_name(&self) -> String {
-        format!("{} ({})", self.name, self.channel)
+        format!("{} ({}:{})", self.name, self.channel, self.repo_slug)
     }
 }

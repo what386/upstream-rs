@@ -20,18 +20,18 @@ macro_rules! emit {
     }};
 }
 
-pub async fn perform_install(
+pub async fn perform_upgrade(
     package: Package,
     provider_manager: &ProviderManager,
     progress: Option<&mut dyn FnMut(u64, u64)>,
     message: &mut Option<&mut dyn FnMut(String)>
 ) -> Result<Package> {
-    if package.install_path != None {
-        return Err(anyhow!("Package '{}' is already installed", package.name));
-    }
-
     emit!(format!("Fetching latest release ..."), message);
     let latest_release = provider_manager.get_latest_release(&package.repo_slug, &package.provider).await?;
+
+    if !latest_release.version.is_newer_than(&package.version) {
+        return Err(anyhow!("Nothing to do - '{}' is up to date.", package.name));
+    }
 
     emit!(format!("Selecting asset from '{}'", latest_release.name), message);
     let best_asset = provider_manager.find_recommended_asset(&latest_release, &package)?;
@@ -39,7 +39,7 @@ pub async fn perform_install(
     emit!(format!("Downloading '{}' ...", best_asset.name), message);
     let download_path = provider_manager.download_asset(&best_asset, &package.provider , progress).await?;
 
-    emit!(format!("Installing package ..."), message);
+    emit!(format!("Upgrading package ..."), message);
     let installed_package = match package.pkg_kind {
         Filetype::AppImage => handle_appimage(&download_path, package, message),
         Filetype::Compressed => handle_compressed(&download_path, package, message),
@@ -60,13 +60,19 @@ fn handle_archive(asset_path: &Path, mut package: Package, message: &mut Option<
         .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
     let out_path = PATHS.archives_dir.join(dirname);
 
-    emit!(format!("Moving directory to '{}' ...", out_path.to_string_lossy()), message);
+    emit!(format!("Removing old install ..."), message);
+    fs::remove_dir_all(&out_path)?;
+
+    shell_integration::remove_from_paths(&out_path)?;
+    emit!(format!("Removed '{}' from PATH", package.name), message);
+
+    emit!(format!("Moving new directory to '{}' ...", out_path.to_string_lossy()), message);
     fs::rename(extracted_path, &out_path)?;
 
     shell_integration::add_to_paths(&out_path)?;
-    emit!(format!("Added '{}' to PATH", &out_path.to_string_lossy()), message);
+    emit!(format!("Added '{}' to PATH", out_path.to_string_lossy()), message);
 
-    emit!(format!("Searching for executable"), message);
+    emit!(format!("Searching for executable ..."), message);
     if let Some(exec_path) = file_permissions::find_executable(&out_path, &package.name) {
         let exec_name = exec_path.file_name().unwrap().to_string_lossy();
         emit!(format!("Found executable: {}", exec_name), message);
@@ -78,8 +84,10 @@ fn handle_archive(asset_path: &Path, mut package: Package, message: &mut Option<
         emit!(format!("Could not automatically locate executable"), message);
         package.exec_path = None;
     }
+
     package.install_path = Some(out_path.clone());
     package.last_upgraded = Utc::now();
+
     Ok(package)
 }
 
@@ -102,7 +110,13 @@ fn handle_file(asset_path: &Path, mut package: Package, message: &mut Option<&mu
         .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
     let out_path = PATHS.binaries_dir.join(filename);
 
-    emit!(format!("Moving file to '{}' ...", out_path.to_string_lossy()), message);
+    emit!(format!("Removing old install ..."), message);
+    fs::remove_file(&out_path)?;
+
+    symlink_handling::remove_link(&package.name)?;
+    emit!(format!("Removed symlink for '{}'", package.name ), message);
+
+    emit!(format!("Moving new files to '{}' ...", out_path.to_string_lossy()), message);
     fs::rename(asset_path, &out_path)?;
 
     file_permissions::make_executable(&out_path)?;
