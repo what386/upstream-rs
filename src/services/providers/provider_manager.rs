@@ -22,17 +22,16 @@ impl Credentials {
 
 pub struct ProviderManager {
     github: GithubAdapter,
-    cache_path: PathBuf,
+    cache_path: &Path,
     architecture_info: ArchitectureInfo,
 }
 
 impl ProviderManager {
-    pub fn new(credentials: Credentials) -> Result<Self> {
+    pub fn new(credentials: Credentials, cache_path: &Path) -> Result<Self> {
         let architecture_info = ArchitectureInfo::new();
         let github_client = GithubClient::new(credentials.github_token.as_deref());
         let github = GithubAdapter::new(github_client?);
-        let cache_path = std::env::temp_dir().join("upstream_downloads");
-        fs::create_dir_all(&cache_path)?;
+        fs::create_dir_all(cache_path)?;
         Ok(Self {
             github,
             cache_path,
@@ -119,28 +118,6 @@ impl ProviderManager {
             })
     }
 
-
-    /* TODO: make better
-    pub async fn check_for_update(
-        &self,
-        package: &Package,
-    ) -> Result<Option<Release>> {
-        if package.is_paused {
-            return Ok(None);
-        }
-
-        let release = self
-            .get_latest_release(&package.repo_slug, &package.provider)
-            .await?;
-
-        if Self::is_valid_update(package, &release) {
-            Ok(Some(release))
-        } else {
-            Ok(None)
-        }
-    }
-    */
-
     fn is_valid_update(package: &Package, release: &Release) -> bool {
         if package.is_paused {
             return false;
@@ -201,7 +178,9 @@ impl ProviderManager {
 
         // Archive format preference
         if asset.filetype == Filetype::Archive {
-            if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
+            if name.ends_with(".tar.bz2") || name.ends_with(".tbz") {
+                score += 15;
+            } else if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
                 score += 10;
             } else if name.ends_with(".zip") {
                 score += 5;
@@ -210,7 +189,7 @@ impl ProviderManager {
 
         // Compression format preference
         if asset.filetype == Filetype::Compressed {
-            if name.ends_with(".br") {
+            if name.ends_with(".bz2") {
                 score += 10;
             } else if name.ends_with(".gz") {
                 score += 5;
@@ -230,4 +209,3 @@ impl ProviderManager {
         score
     }
 }
-

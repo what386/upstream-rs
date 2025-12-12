@@ -12,7 +12,7 @@ pub struct Package {
     pub name: String,
     pub repo_slug: String,
 
-    pub pkg_kind: Filetype,
+    pub filetype: Filetype,
     pub version: Version,
     pub channel: Channel,
     pub provider: Provider,
@@ -46,7 +46,7 @@ impl Package {
             name,
             repo_slug,
 
-            pkg_kind,
+            filetype: pkg_kind,
             version,
             channel,
             provider,
@@ -73,7 +73,7 @@ impl Package {
             name,
             repo_slug,
 
-            pkg_kind,
+            filetype: pkg_kind,
             version,
             channel,
             provider,

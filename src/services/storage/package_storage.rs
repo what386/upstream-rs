@@ -41,7 +41,7 @@ impl PackageStorage {
     }
 
     /// Save all packages to the packages.json file.
-    fn save_packages(&self) -> io::Result<()> {
+    pub fn save_packages(&self) -> io::Result<()> {
         let json = serde_json::to_string_pretty(&self.packages)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
@@ -59,10 +59,15 @@ impl PackageStorage {
         self.packages.iter().find(|p| p.name == name)
     }
 
+    /// get a package by mame. (mutable)
+    pub fn get_mut_package_by_name(&mut self, name: &str) -> Option<&mut Package> {
+        self.packages.iter_mut().find(|p| p.name == name)
+    }
+
     /// Add or update a package in the repository.
-    pub fn add_or_update_package(&mut self, package: Package) -> io::Result<()> {
+    pub fn add_or_update_package(&mut self, package: &Package) -> io::Result<()> {
         self.packages.retain(|p| !p.is_same_as(&package));
-        self.packages.push(package);
+        self.packages.push(package.clone());
         self.save_packages()
     }
 
