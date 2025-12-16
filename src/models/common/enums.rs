@@ -1,7 +1,9 @@
 use serde::{Serialize, Deserialize};
+use clap::ValueEnum;
 use std::fmt;
+use std::str::FromStr;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 pub enum Filetype {
     AppImage,
     Binary,
@@ -11,7 +13,7 @@ pub enum Filetype {
     Checksum,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 pub enum Channel {
     Stable,
     Beta,
@@ -22,6 +24,17 @@ pub enum Channel {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Provider {
     Github,
+}
+
+impl FromStr for Provider {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "github" => Ok(Provider::Github),
+            _ => Err(format!("Unknown provider: {}", s)),
+        }
+    }
 }
 
 impl fmt::Display for Channel{

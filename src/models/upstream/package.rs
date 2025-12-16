@@ -64,17 +64,17 @@ impl Package {
         name: String,
         repo_slug: String,
         pkg_kind: Filetype,
-        version: Version,
         channel: Channel,
         provider: Provider,
     ) -> Self {
         let now = Utc::now();
+        let version = Version::new(0, 0, 0, false);
         Self {
             name,
             repo_slug,
 
             filetype: pkg_kind,
-            version,
+            version: version,
             channel,
             provider,
 

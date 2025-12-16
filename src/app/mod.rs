@@ -1,3 +1,3 @@
-pub mod commands;
 pub mod features;
+pub mod commands;
 

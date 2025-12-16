@@ -65,9 +65,9 @@ impl PackageStorage {
     }
 
     /// Add or update a package in the repository.
-    pub fn add_or_update_package(&mut self, package: &Package) -> io::Result<()> {
+    pub fn add_or_update_package(&mut self, package: Package) -> io::Result<()> {
         self.packages.retain(|p| !p.is_same_as(&package));
-        self.packages.push(package.clone());
+        self.packages.push(package);
         self.save_packages()
     }
 

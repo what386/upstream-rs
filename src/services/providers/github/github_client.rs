@@ -76,12 +76,16 @@ impl GithubClient {
         Ok(data)
     }
 
-    pub async fn download_file(
+    pub async fn download_file<F>(
         &self,
         url: &str,
         destination: &Path,
-        mut progress: Option<&mut dyn FnMut(u64, u64)>,
-    ) -> Result<()> {
+        progress: &mut Option<F>,
+    ) -> Result<()>
+    where
+        F: FnMut(u64, u64),
+    {
+
         let response = self.client.get(url)
             .send()
             .await
@@ -109,7 +113,7 @@ impl GithubClient {
 
             total_read += chunk.len() as u64;
 
-            if let Some(cb) = &mut progress {
+            if let Some(cb) = progress.as_mut() {
                 cb(total_read, total_bytes);
             }
         }

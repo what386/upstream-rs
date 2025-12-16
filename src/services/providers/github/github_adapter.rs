@@ -19,14 +19,17 @@ impl GithubAdapter {
         Self { client }
     }
 
-    pub async fn download_asset(
+    pub async fn download_asset<F>(
         &self,
         asset: &Asset,
-        destination_path: impl AsRef<Path>,
-        progress_callback: Option<&mut dyn FnMut(u64, u64)>,
-    ) -> Result<()> {
+        destination_path: &Path,
+        dl_callback: &mut Option<F>,
+    ) -> Result<()>
+    where
+        F: FnMut(u64, u64)
+    {
         self.client
-            .download_file(&asset.download_url, destination_path.as_ref(), progress_callback)
+            .download_file(&asset.download_url, destination_path, dl_callback)
             .await
     }
 

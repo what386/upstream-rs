@@ -22,19 +22,16 @@ impl Credentials {
 
 pub struct ProviderManager {
     github: GithubAdapter,
-    cache_path: &Path,
     architecture_info: ArchitectureInfo,
 }
 
 impl ProviderManager {
-    pub fn new(credentials: Credentials, cache_path: &Path) -> Result<Self> {
+    pub fn new(credentials: Credentials) -> Result<Self> {
         let architecture_info = ArchitectureInfo::new();
         let github_client = GithubClient::new(credentials.github_token.as_deref());
         let github = GithubAdapter::new(github_client?);
-        fs::create_dir_all(cache_path)?;
         Ok(Self {
             github,
-            cache_path,
             architecture_info,
         })
     }
@@ -71,22 +68,28 @@ impl ProviderManager {
         }
     }
 
-    pub async fn download_asset(
+    pub async fn download_asset<F>(
         &self,
         asset: &Asset,
         provider: &Provider,
-        progress: Option<&mut dyn FnMut(u64, u64)>,
-    ) -> Result<PathBuf> {
+        cache_path: &Path,
+        dl_progress: &mut Option<F>,
+    ) -> Result<PathBuf>
+    where
+        F: FnMut(u64, u64)
+    {
         let file_name = Path::new(&asset.name)
             .file_name()
             .ok_or_else(|| anyhow!("Invalid asset name: {}", asset.name))?;
 
-        let download_filepath = self.cache_path.join(file_name);
+        fs::create_dir_all(cache_path)?;
+
+        let download_filepath = cache_path.join(file_name);
 
         match provider {
             Provider::Github => {
                 self.github
-                    .download_asset(asset, &download_filepath, progress)
+                    .download_asset(asset, &download_filepath, dl_progress)
                     .await?;
             }
         }
