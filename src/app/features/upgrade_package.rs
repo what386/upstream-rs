@@ -121,7 +121,7 @@ where
     }
 
     message!(message_callback, "Selecting asset from '{}'", latest_release.name);
-    let best_asset = provider_manager.find_recommended_asset(&latest_release, &package)?;
+    let best_asset = provider_manager.find_recommended_asset(&latest_release, package)?;
 
     message!(message_callback, "Downloading '{}' ...", best_asset.name);
     let download_path = provider_manager.download_asset(&best_asset, &package.provider, download_cache, progress_callback).await?;
@@ -223,7 +223,7 @@ where
     message!(message_callback, "Removed symlink for '{}'", package.name);
 
     message!(message_callback, "Moving new files to '{}' ...", out_path.to_string_lossy());
-    if let Err(_) = fs::rename(asset_path, &out_path) {
+    if fs::rename(asset_path, &out_path).is_err() {
         fs::copy(asset_path, &out_path)?;
         fs::remove_file(asset_path)?;
     }

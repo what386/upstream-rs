@@ -59,7 +59,7 @@ impl GithubAdapter {
 
     fn convert_asset(dto: GithubAssetDto) -> Asset {
         let created_at = Self::parse_timestamp(&dto.created_at);
-        return Asset::new(
+        Asset::new(
             dto.browser_download_url,
             dto.id as u64,
             dto.name,

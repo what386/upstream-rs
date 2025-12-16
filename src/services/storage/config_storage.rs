@@ -26,7 +26,7 @@ impl ConfigStorage {
         }
 
         let json = fs::read_to_string(&PATHS.config_file)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to load config: {}", e)))?;
+            .map_err(|e| io::Error::other(format!("Failed to load config: {}", e)))?;
 
         self.config = serde_json::from_str(&json)
             .unwrap_or_default();
@@ -37,10 +37,10 @@ impl ConfigStorage {
     /// Saves the current configuration to config.json.
     pub fn save_config(&self) -> io::Result<()> {
         let json = serde_json::to_string_pretty(&self.config)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to serialize config: {}", e)))?;
+            .map_err(|e| io::Error::other(format!("Failed to serialize config: {}", e)))?;
 
         fs::write(&PATHS.config_file, json)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to save config: {}", e)))
+            .map_err(|e| io::Error::other(format!("Failed to save config: {}", e)))
     }
 
     /// Gets a configuration value at the given key path (e.g., "github.apiToken" or "rateLimit").

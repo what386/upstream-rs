@@ -147,7 +147,7 @@ where
     H: FnMut(&str),
 {
     message!(message_callback, "Extracting '{}' ...", asset_path.file_name().unwrap().to_string_lossy());
-    let extracted_path = file_decompressor::decompress(asset_path, &cache_path)?;
+    let extracted_path = file_decompressor::decompress(asset_path, cache_path)?;
 
     let dirname = extracted_path.file_name()
         .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
@@ -186,7 +186,7 @@ where
     H: FnMut(&str),
 {
     message!(message_callback, "Extracting '{}' ...", asset_path.file_name().unwrap().to_string_lossy());
-    let extracted_path = file_decompressor::decompress(asset_path, &cache_path)?;
+    let extracted_path = file_decompressor::decompress(asset_path, cache_path)?;
     handle_file(&extracted_path, package, message_callback)
 }
 
@@ -215,7 +215,7 @@ where
     let out_path = PATHS.binaries_dir.join(filename);
 
     message!(message_callback, "Moving file to '{}' ...", out_path.to_string_lossy());
-    if let Err(_) = fs::rename(asset_path, &out_path) {
+    if fs::rename(asset_path, &out_path).is_err() {
         fs::copy(asset_path, &out_path)?;
         fs::remove_file(asset_path)?;
     }

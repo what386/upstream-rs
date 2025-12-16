@@ -43,10 +43,10 @@ impl PackageStorage {
     /// Save all packages to the packages.json file.
     pub fn save_packages(&self) -> io::Result<()> {
         let json = serde_json::to_string_pretty(&self.packages)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| io::Error::other(e.to_string()))?;
 
         fs::write(&PATHS.packages_file, json)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
+            .map_err(|e| io::Error::other(e.to_string()))
     }
 
     /// Get all stored packages.

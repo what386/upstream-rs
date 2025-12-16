@@ -74,7 +74,7 @@ impl Package {
             repo_slug,
 
             filetype: pkg_kind,
-            version: version,
+            version,
             channel,
             provider,
 

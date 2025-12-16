@@ -57,7 +57,7 @@ impl Version {
             return !self.is_prerelease;
         }
 
-        return false
+        false
     }
 
     pub fn parse(s: &str) -> Result<Self> {

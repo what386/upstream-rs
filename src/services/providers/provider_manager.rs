@@ -137,11 +137,10 @@ impl ProviderManager {
 
     fn is_potentially_compatible(&self, asset: &Asset) -> bool {
         // OS check
-        if let Some(target_os) = &asset.target_os {
-            if *target_os != self.architecture_info.os_kind {
+        if let Some(target_os) = &asset.target_os
+            && *target_os != self.architecture_info.os_kind {
                 return false;
             }
-        }
 
         // Architecture check
         if let Some(target_arch) = &asset.target_arch {

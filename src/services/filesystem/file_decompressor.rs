@@ -178,7 +178,7 @@ fn common_root(paths: &[PathBuf], output: &Path) -> PathBuf {
             .iter()
             .zip(path_comps.iter())
             .take_while(|(a, b)| a == b)
-            .map(|(a, _)| a.clone())
+            .map(|(a, _)| *a)
             .collect();
     }
 

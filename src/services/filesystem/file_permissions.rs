@@ -55,15 +55,12 @@ pub fn find_executable(directory_path: &Path, name: &str) -> Option<PathBuf> {
     //    e.g. "cool-app" -> "cool-app-x86_64", "cool-app-v1"
     if let Ok(entries) = fs::read_dir(directory_path) {
         for entry in entries.flatten() {
-            if let Ok(file_type) = entry.file_type() {
-                if file_type.is_file() {
-                    if let Some(file_name) = entry.file_name().to_str() {
-                        if file_name.to_lowercase().starts_with(&name.to_lowercase()) {
+            if let Ok(file_type) = entry.file_type()
+                && file_type.is_file()
+                    && let Some(file_name) = entry.file_name().to_str()
+                        && file_name.to_lowercase().starts_with(&name.to_lowercase()) {
                             return Some(entry.path());
                         }
-                    }
-                }
-            }
         }
     }
 

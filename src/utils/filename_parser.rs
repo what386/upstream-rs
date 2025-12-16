@@ -1,16 +1,16 @@
 use crate::models::common::enums::Filetype;
 use crate::utils::platform_info::{CpuArch, OSKind};
 
-const ARCHIVE_EXTENSIONS: &'static [&'static str] = &[
+const ARCHIVE_EXTENSIONS: &[&str] = &[
     ".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2",
     ".tbz2", ".tar.xz", ".txz", ".7z", ".rar"
 ];
 
-const COMPRESSION_EXTENSIONS: &'static [&'static str] = &[
+const COMPRESSION_EXTENSIONS: &[&str] = &[
     ".gz", ".br", ".bz2"
 ];
 
-const CHECKSUM_EXTENSIONS: &'static [&'static str] = &[
+const CHECKSUM_EXTENSIONS: &[&str] = &[
     ".sha256", ".sha512", ".sha1", ".md5",
     ".sig", ".asc", ".minisig", ".sum"
 ];
@@ -58,7 +58,7 @@ pub fn parse_os(filename: &str) -> Option<OSKind> {
         return Some(OSKind::NetBSD);
     }
 
-    return None
+    None
 }
 
 pub fn parse_arch(filename: &str) -> Option<CpuArch> {
@@ -89,7 +89,7 @@ pub fn parse_arch(filename: &str) -> Option<CpuArch> {
         return Some(CpuArch::X86_64);
     }
 
-    return None
+    None
 }
 
 pub fn parse_filetype(filename: &str,) -> Filetype {
@@ -115,7 +115,7 @@ pub fn parse_filetype(filename: &str,) -> Filetype {
         return Filetype::Checksum
     }
 
-    return Filetype::Binary
+    Filetype::Binary
 }
 
 fn contains_arch_marker(filename: &str, markers: &[&str]) -> bool {

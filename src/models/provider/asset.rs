@@ -35,7 +35,7 @@ impl Asset {
             name,
             size,
             created_at,
-            filetype: filetype,
+            filetype,
             target_os: os,
             target_arch: arch,
         }
