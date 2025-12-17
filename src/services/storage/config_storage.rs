@@ -1,31 +1,35 @@
 use std::collections::HashMap;
-use std::fs;
-use std::io;
+use std::{fs, io};
 use std::path::Path;
+use std::path::PathBuf;
+use anyhow::Result;
 
 use crate::models::upstream::AppConfig;
-use crate::utils::upstream_paths::PATHS;
 
 pub struct ConfigStorage {
     config: AppConfig,
+    config_file: PathBuf
 }
 
 impl ConfigStorage {
-    pub fn new() -> io::Result<Self> {
+    pub fn new(config_file: &PathBuf) -> Result<Self> {
         let mut storage = Self {
             config: AppConfig::default(),
+            config_file: config_file.clone(),
         };
+
         storage.load_config()?;
+
         Ok(storage)
     }
 
     /// Loads configuration from config.json, or creates default if it doesn't exist.
-    pub fn load_config(&mut self) -> io::Result<()> {
-        if !Path::new(&PATHS.config_file).exists() {
+    pub fn load_config(&mut self) -> Result<()> {
+        if !Path::new(&self.config_file).exists() {
             return self.save_config();
         }
 
-        let json = fs::read_to_string(&PATHS.config_file)
+        let json = fs::read_to_string(&self.config_file)
             .map_err(|e| io::Error::other(format!("Failed to load config: {}", e)))?;
 
         self.config = serde_json::from_str(&json)
@@ -35,12 +39,14 @@ impl ConfigStorage {
     }
 
     /// Saves the current configuration to config.json.
-    pub fn save_config(&self) -> io::Result<()> {
+    pub fn save_config(&self) -> Result<()> {
         let json = serde_json::to_string_pretty(&self.config)
             .map_err(|e| io::Error::other(format!("Failed to serialize config: {}", e)))?;
 
-        fs::write(&PATHS.config_file, json)
-            .map_err(|e| io::Error::other(format!("Failed to save config: {}", e)))
+        fs::write(&self.config_file, json)
+            .map_err(|e| io::Error::other(format!("Failed to save config: {}", e)))?;
+
+        Ok(())
     }
 
     /// Gets a configuration value at the given key path (e.g., "github.apiToken" or "rateLimit").
@@ -107,7 +113,7 @@ impl ConfigStorage {
     }
 
     /// Resets all configuration to defaults.
-    pub fn reset_to_defaults(&mut self) -> io::Result<()> {
+    pub fn reset_to_defaults(&mut self) -> Result<()> {
         self.config = AppConfig::default();
         self.save_config()
     }

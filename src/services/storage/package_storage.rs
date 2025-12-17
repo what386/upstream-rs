@@ -1,35 +1,35 @@
-use std::fs;
-use std::io;
+use std::{fs, io};
+use std::path::PathBuf;
 
 use anyhow::{Result, anyhow};
 
 use crate::models::upstream::Package;
-use crate::utils::upstream_paths::PATHS;
 
 pub struct PackageStorage {
     packages: Vec<Package>,
+    packages_file: PathBuf
 }
 
 impl PackageStorage {
-    /// Creates a new PackageStorage and loads existing packages.
-    pub fn new() -> Result<Self> {
+    pub fn new(packages_file: &PathBuf) -> Result<Self> {
         let mut storage = Self {
             packages: Vec::new(),
+            packages_file: packages_file.clone(),
         };
+
         storage.load_packages()?;
+
         Ok(storage)
     }
 
     /// Load all packages from the packages.json file.
     fn load_packages(&mut self) -> Result<()> {
-        let path = &PATHS.packages_file;
-
-        if !path.exists() {
+        if !&self.packages_file.exists() {
             self.packages = Vec::new();
             return Ok(());
         }
 
-        match fs::read_to_string(path) {
+        match fs::read_to_string(&self.packages_file) {
             Ok(json) => {
                 self.packages = serde_json::from_str(&json).unwrap_or_default();
                 Ok(())
@@ -41,17 +41,24 @@ impl PackageStorage {
     }
 
     /// Save all packages to the packages.json file.
-    pub fn save_packages(&self) -> io::Result<()> {
+    pub fn save_packages(&self) -> Result<()> {
         let json = serde_json::to_string_pretty(&self.packages)
             .map_err(|e| io::Error::other(e.to_string()))?;
 
-        fs::write(&PATHS.packages_file, json)
-            .map_err(|e| io::Error::other(e.to_string()))
+        fs::write(&self.packages_file, json)
+            .map_err(|e| io::Error::other(e.to_string()))?;
+
+        Ok(())
     }
 
     /// Get all stored packages.
     pub fn get_all_packages(&self) -> &[Package] {
         &self.packages
+    }
+
+    /// Get all stored packages. (mutable)
+    pub fn get_mut_all_packages(&mut self) -> &mut [Package] {
+        &mut self.packages
     }
 
     /// Get a package by name.
@@ -65,14 +72,14 @@ impl PackageStorage {
     }
 
     /// Add or update a package in the repository.
-    pub fn add_or_update_package(&mut self, package: Package) -> io::Result<()> {
+    pub fn add_or_update_package(&mut self, package: Package) -> Result<()> {
         self.packages.retain(|p| !p.is_same_as(&package));
         self.packages.push(package);
         self.save_packages()
     }
 
     /// Remove a package from the repository.
-    pub fn remove_package(&mut self, package: &Package) -> io::Result<bool> {
+    pub fn remove_package(&mut self, package: &Package) -> Result<bool> {
         let initial_len = self.packages.len();
         self.packages.retain(|p| !p.is_same_as(package));
 
@@ -85,7 +92,7 @@ impl PackageStorage {
     }
 
     /// Remove a package from the repository by name.
-    pub fn remove_package_by_name(&mut self, name: &str) -> io::Result<bool> {
+    pub fn remove_package_by_name(&mut self, name: &str) -> Result<bool> {
         let initial_len = self.packages.len();
         self.packages.retain(|p| p.name != name);
 
