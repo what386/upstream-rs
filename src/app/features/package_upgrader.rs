@@ -172,7 +172,7 @@ impl<'a> PackageUpgrader<'a> {
         package.version = latest_release.version.clone();
 
         message!(message_callback, "Selecting asset from '{}'", latest_release.name);
-        let best_asset = provider_manager.find_recommended_asset(&latest_release, &package)?;
+        let best_asset = provider_manager.find_recommended_asset(&latest_release, package)?;
 
         message!(message_callback, "Downloading '{}' ...", best_asset.name);
         let download_path = provider_manager

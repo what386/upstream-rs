@@ -12,10 +12,10 @@ pub struct ConfigStorage {
 }
 
 impl ConfigStorage {
-    pub fn new(config_file: &PathBuf) -> Result<Self> {
+    pub fn new(config_file: &Path) -> Result<Self> {
         let mut storage = Self {
             config: AppConfig::default(),
-            config_file: config_file.clone(),
+            config_file: config_file.to_path_buf(),
         };
 
         storage.load_config()?;

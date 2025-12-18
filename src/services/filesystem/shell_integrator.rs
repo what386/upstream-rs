@@ -26,18 +26,18 @@ impl<'a> ShellIntegrator<'a> {
 
         if !self.paths_file.exists() {
             let content = format!("{HEADER}{path_line}\n");
-            fs::write(&self.paths_file, content)
+            fs::write(self.paths_file, content)
                 .context("Failed to create paths file")?;
             return Ok(());
         }
 
         // Ensure the line exists exactly once
-        let existing = fs::read_to_string(&self.paths_file)
+        let existing = fs::read_to_string(self.paths_file)
             .context("Failed to read paths file")?;
 
         if !existing.contains(&path_line) {
             let updated = format!("{existing}{path_line}\n");
-            fs::write(&self.paths_file, updated)
+            fs::write(self.paths_file, updated)
                 .context("Failed to update paths file")?;
         }
 
@@ -53,7 +53,7 @@ impl<'a> ShellIntegrator<'a> {
             );
         }
 
-        let mut content = fs::read_to_string(&self.paths_file)
+        let mut content = fs::read_to_string(self.paths_file)
             .context("Failed to read paths file")?;
 
         let escaped = install_path.to_string_lossy()
@@ -64,7 +64,7 @@ impl<'a> ShellIntegrator<'a> {
 
         if !content.contains(&export_line) {
             content.push_str(&format!("{export_line}\n"));
-            fs::write(&self.paths_file, &content)
+            fs::write(self.paths_file, &content)
                 .context("Failed to write paths file")?;
         }
 
@@ -73,7 +73,7 @@ impl<'a> ShellIntegrator<'a> {
 
     /// Removes a package's PATH entry from `path.sh`
     pub fn remove_from_paths(&self, install_path: &Path) -> Result<()> {
-        let mut content = fs::read_to_string(&self.paths_file)
+        let mut content = fs::read_to_string(self.paths_file)
             .context("Failed to read paths file")?;
 
         let escaped = install_path.to_string_lossy()
@@ -85,7 +85,7 @@ impl<'a> ShellIntegrator<'a> {
         content = content.replace(&format!("{export_line}\n"), "");
         content = content.replace(&export_line, "");
 
-        fs::write(&self.paths_file, content)
+        fs::write(self.paths_file, content)
             .context("Failed to write paths file")?;
 
         Ok(())

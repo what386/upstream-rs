@@ -57,7 +57,7 @@ impl<'a> SymlinkManager<'a> {
             return Ok(symlinks);
         }
 
-        for entry in fs::read_dir(&self.symlinks_dir)
+        for entry in fs::read_dir(self.symlinks_dir)
             .context("Failed to read symlinks directory")?
         {
             let entry = entry?;

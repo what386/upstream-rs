@@ -1,5 +1,5 @@
 use std::{fs, io};
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 
 use anyhow::{Result, anyhow};
 
@@ -11,10 +11,10 @@ pub struct PackageStorage {
 }
 
 impl PackageStorage {
-    pub fn new(packages_file: &PathBuf) -> Result<Self> {
+    pub fn new(packages_file: &Path) -> Result<Self> {
         let mut storage = Self {
             packages: Vec::new(),
-            packages_file: packages_file.clone(),
+            packages_file: packages_file.to_path_buf(),
         };
 
         storage.load_packages()?;
