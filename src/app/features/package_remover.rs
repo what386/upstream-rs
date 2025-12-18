@@ -1,10 +1,16 @@
 use std::fs;
 use anyhow::{Result, anyhow};
 
-use crate::models::upstream::{Package};
-use crate::services::filesystem::{ShellIntegrator, SymlinkManager};
-use crate::services::storage::package_storage::PackageStorage;
-use crate::utils::static_paths::UpstreamPaths;
+use crate::{
+    models::{
+        upstream::Package,
+    },
+    services::{
+        filesystem::{ShellIntegrator, SymlinkManager},
+        storage::package_storage::PackageStorage,
+    },
+    utils::static_paths::UpstreamPaths,
+};
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{

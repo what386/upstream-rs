@@ -12,7 +12,7 @@ pub struct Package {
     pub name: String,
     pub repo_slug: String,
 
-    pub filetype: Filetype,
+    pub package_kind: Filetype,
     pub version: Version,
     pub channel: Channel,
     pub provider: Provider,
@@ -26,41 +26,7 @@ pub struct Package {
 }
 
 impl Package {
-    pub fn new(
-        name: String,
-        repo_slug: String,
-
-        pkg_kind: Filetype,
-        version: Version,
-        channel: Channel,
-        provider: Provider,
-
-        has_icon: bool,
-        is_paused: bool,
-        install_path: Option<PathBuf>,
-        exec_path: Option<PathBuf>,
-
-        last_upgraded: DateTime<Utc>,
-    ) -> Self {
-        Self {
-            name,
-            repo_slug,
-
-            filetype: pkg_kind,
-            version,
-            channel,
-            provider,
-
-            has_icon,
-            is_paused,
-            install_path,
-            exec_path,
-
-            last_upgraded,
-        }
-    }
-
-    pub fn with_defaults(
+    pub fn new_with_defaults(
         name: String,
         repo_slug: String,
         pkg_kind: Filetype,
@@ -73,8 +39,8 @@ impl Package {
             name,
             repo_slug,
 
-            filetype: pkg_kind,
-            version,
+            package_kind: pkg_kind,
+            version: version,
             channel,
             provider,
 
@@ -94,7 +60,6 @@ impl Package {
         self.name == other.name
     }
 
-    /// Get a human-readable display name for the package.
     pub fn display_name(&self) -> String {
         format!("{} ({}:{})", self.name, self.channel, self.repo_slug)
     }

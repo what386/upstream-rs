@@ -23,3 +23,20 @@ pub struct AppConfig {
     pub gitlab: ProviderConfig,
 }
 
+impl AppConfig {
+    pub fn github_api_token(&self) -> Option<&str> {
+        self.github.api_token.as_deref()
+    }
+
+    pub fn github_rate_limit(&self) -> u32 {
+        self.github.rate_limit
+    }
+
+    pub fn gitlab_api_token(&self) -> Option<&str> {
+        self.gitlab.api_token.as_deref()
+    }
+
+    pub fn gitlab_rate_limit(&self) -> u32 {
+        self.gitlab.rate_limit
+    }
+}

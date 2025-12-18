@@ -25,7 +25,7 @@ pub fn parse_os(filename: &str) -> Option<OSKind> {
 
     // iOS
     if contains_arch_marker(&name, &["ios", "iphone", "ipad"]) {
-        return Some(OSKind::IOS);
+        return Some(OSKind::Ios);
     }
 
     // macOS/Darwin

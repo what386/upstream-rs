@@ -1,23 +1,19 @@
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::{fs, path::{Path, PathBuf}};
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 
-use crate::models::common::enums::Filetype;
-use crate::models::upstream::Package;
-use crate::services::providers::provider_manager::ProviderManager;
-use crate::services::filesystem::{file_decompressor, file_permissions, ShellIntegrator, SymlinkManager};
-use crate::services::storage::package_storage::PackageStorage;
-
-use crate::utils::static_paths::UpstreamPaths;
-
-macro_rules! message {
-    ($cb:expr, $($arg:tt)*) => {{
-        if let Some(cb) = $cb.as_mut() {
-            cb(&format!($($arg)*));
-        }
-    }};
-}
+use crate::{
+    models::{
+        common::enums::Filetype,
+        upstream::Package,
+    },
+    services::{
+        providers::provider_manager::ProviderManager,
+        filesystem::{file_decompressor, file_permissions, ShellIntegrator, SymlinkManager},
+        storage::package_storage::PackageStorage,
+    },
+    utils::static_paths::UpstreamPaths,
+};
 
 pub struct PackageUpgrader<'a> {
     provider_manager: &'a ProviderManager,
@@ -180,7 +176,7 @@ impl<'a> PackageUpgrader<'a> {
             .await?;
 
         message!(message_callback, "Upgrading package ...");
-        match package.filetype {
+        match package.package_kind {
             Filetype::AppImage => Self::handle_appimage(&download_path, package, paths, extract_cache, message_callback),
             Filetype::Compressed => Self::handle_compressed(&download_path, package, paths, extract_cache, message_callback),
             Filetype::Archive => Self::handle_archive(&download_path, package, paths, extract_cache, message_callback),

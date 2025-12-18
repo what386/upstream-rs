@@ -62,5 +62,3 @@ impl Release {
             .find(|a| a.name.to_lowercase().contains(&pattern_lower))
     }
 }
-
-// impl fmt::Display for Release

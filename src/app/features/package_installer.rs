@@ -1,15 +1,19 @@
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::{fs, path::{Path, PathBuf}};
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 
-use crate::models::common::enums::Filetype;
-use crate::models::upstream::Package;
-use crate::services::providers::provider_manager::ProviderManager;
-use crate::services::filesystem::{file_decompressor, file_permissions, ShellIntegrator, SymlinkManager};
-use crate::services::storage::package_storage::PackageStorage;
-
-use crate::utils::static_paths::UpstreamPaths;
+use crate::{
+    models::{
+        common::enums::Filetype,
+        upstream::Package,
+    },
+    services::{
+        providers::provider_manager::ProviderManager,
+        filesystem::{file_decompressor, file_permissions, ShellIntegrator, SymlinkManager},
+        storage::package_storage::PackageStorage,
+    },
+    utils::static_paths::UpstreamPaths,
+};
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -145,7 +149,7 @@ impl<'a> PackageInstaller<'a> {
             .await?;
 
         message!(message_callback, "Installing package ...");
-        match package.filetype {
+        match package.package_kind {
             Filetype::AppImage => self.handle_appimage(&download_path, package, message_callback),
             Filetype::Compressed => self.handle_compressed(&download_path, package, message_callback),
             Filetype::Archive => self.handle_archive(&download_path, package, message_callback),

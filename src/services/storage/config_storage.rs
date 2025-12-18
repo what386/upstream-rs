@@ -3,6 +3,7 @@ use std::{fs, io};
 use std::path::Path;
 use std::path::PathBuf;
 use anyhow::Result;
+use serde::de::DeserializeOwned;
 
 use crate::models::upstream::AppConfig;
 
@@ -48,25 +49,12 @@ impl ConfigStorage {
 
         Ok(())
     }
+    pub fn get_config(&self) -> &AppConfig {
+        &self.config
+    }
 
-    /// Gets a configuration value at the given key path (e.g., "github.apiToken" or "rateLimit").
-    pub fn try_get_value(&self, key_path: &str) -> Result<serde_json::Value, String> {
-        if key_path.trim().is_empty() {
-            return Err("Key path cannot be empty".to_string());
-        }
-
-        let config_json = serde_json::to_value(&self.config)
-            .map_err(|e| format!("Failed to serialize config: {}", e))?;
-
-        let keys: Vec<&str> = key_path.split('.').collect();
-        let mut current = &config_json;
-
-        for (i, key) in keys.iter().enumerate() {
-            current = current.get(key)
-                .ok_or_else(|| format!("Key path not found: {}", keys[..=i].join(".")))?;
-        }
-
-        Ok(current.clone())
+    pub fn get_mut_config(&mut self) -> &mut AppConfig {
+        &mut self.config
     }
 
     /// Sets a configuration value at the given key path (e.g., "github.apiToken" or "rateLimit").
@@ -104,6 +92,42 @@ impl ConfigStorage {
 
         self.save_config()
             .map_err(|e| format!("Failed to save config: {}", e))
+    }
+
+
+
+    /// Gets a configuration value at the given key path (e.g., "github.apiToken" or "rateLimit").
+    pub fn try_get_value<T>(&self, key_path: &str) -> Result<T, String>
+    where
+        T: DeserializeOwned,
+    {
+        let value = self.get_value(key_path)?;
+
+        serde_json::from_value::<T>(value)
+            .map_err(|e| format!(
+                "Failed to deserialize config value at '{}': {}",
+                key_path, e
+            ))
+    }
+
+    fn get_value(&self, key_path: &str) -> Result<serde_json::Value, String> {
+        if key_path.trim().is_empty() {
+            return Err("Key path cannot be empty".to_string());
+        }
+
+        let config_json = serde_json::to_value(&self.config)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+
+        let keys: Vec<&str> = key_path.split('.').collect();
+        let mut current = &config_json;
+
+        for (i, key) in keys.iter().enumerate() {
+            current = current
+                .get(key)
+                .ok_or_else(|| format!("Key path not found: {}", keys[..=i].join(".")))?;
+        }
+
+        Ok(current.clone())
     }
 
     /// Gets all configuration keys and values as a flattened dictionary with dot-notation paths.

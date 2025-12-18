@@ -10,7 +10,7 @@ pub enum OSKind {
     OpenBSD,
     NetBSD,
     Android,
-    IOS,
+    Ios,
     Unknown,
 }
 
@@ -68,7 +68,7 @@ impl FromStr for OSKind {
             "openbsd" => Ok(Self::OpenBSD),
             "netbsd" => Ok(Self::NetBSD),
             "android" => Ok(Self::Android),
-            "ios" => Ok(Self::IOS),
+            "ios" => Ok(Self::Ios),
             _ => Ok(Self::Unknown),
         }
     }
@@ -128,7 +128,7 @@ impl ArchitectureInfo {
         #[cfg(target_os = "android")]
         let os_kind = OSKind::Android;
         #[cfg(target_os = "ios")]
-        let os_kind = OSKind::IOS;
+        let os_kind = OSKind::Ios;
         #[cfg(not(any(
             target_os = "windows",
             target_os = "macos",
@@ -182,7 +182,7 @@ pub fn format_os(os: &OSKind) -> &str {
         OSKind::OpenBSD => "OpenBSD",
         OSKind::NetBSD => "NetBSD",
         OSKind::Android => "Android",
-        OSKind::IOS => "iOS",
+        OSKind::Ios => "iOS",
         OSKind::Unknown => "Unknown OS",
     }
 }

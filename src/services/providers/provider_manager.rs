@@ -9,26 +9,17 @@ use crate::services::providers::github::{GithubClient, GithubAdapter};
 
 use anyhow::{Result, anyhow};
 
-#[derive(Debug, Clone)]
-pub struct Credentials {
-    pub github_token: Option<String>,
-}
-
-impl Credentials {
-    pub fn new(github_token: Option<String>) -> Self {
-        Self { github_token }
-    }
-}
-
 pub struct ProviderManager {
     github: GithubAdapter,
     architecture_info: ArchitectureInfo,
 }
 
 impl ProviderManager {
-    pub fn new(credentials: Credentials) -> Result<Self> {
+    pub fn new(
+        github_token: Option<&str>
+    ) -> Result<Self> {
         let architecture_info = ArchitectureInfo::new();
-        let github_client = GithubClient::new(credentials.github_token.as_deref());
+        let github_client = GithubClient::new(github_token);
         let github = GithubAdapter::new(github_client?);
         Ok(Self {
             github,
