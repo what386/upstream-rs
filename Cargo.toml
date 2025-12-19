@@ -19,3 +19,10 @@ tar = "0.4"
 zip = "0.6"
 bzip2 = "0.4"
 indicatif = "0.18"
+
+[profile.release]
+opt-level = "s"     # Optimize for size, but dont cut speed much
+lto = true          # Link-time optimization
+codegen-units = 1   # Better optimization, slower compile
+strip = true        # Remove debug symbols
+panic = "abort"     # Don't include unwinding code

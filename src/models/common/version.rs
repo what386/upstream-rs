@@ -1,6 +1,7 @@
+use std::fmt;
+
 use serde::{Serialize, Deserialize};
 use anyhow::{Result, bail};
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Version {
@@ -102,4 +103,12 @@ impl Version {
     }
 }
 
-
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_prerelease {
+            write!(f, "{}.{}.{}-pre", self.major, self.minor, self.patch)
+        } else {
+            write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+        }
+    }
+}

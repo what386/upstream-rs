@@ -142,7 +142,7 @@ impl<'a> PackageUpgrader<'a> {
         for name in names {
             message!(message_callback, "Checking '{}' ...", name);
 
-            let package = self.package_storage.get_mut_package_by_name(&name)
+            let package = self.package_storage.get_mut_package_by_name(name)
                 .ok_or(anyhow!("Package '{}' not found", name))?;
 
             match Self::perform_install(

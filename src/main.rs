@@ -3,14 +3,11 @@ mod models;
 mod services;
 mod utils;
 
-use clap::Parser;
-use anyhow::Result;
+// TODO: Initialization (setting up PATH and things)
 
-use {
-    app::{
-        cli::args::Cli,
-    },
-};
+use clap::Parser;
+
+use app::cli::args::Cli;
 
 #[tokio::main]
 async fn main() {

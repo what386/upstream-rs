@@ -1,9 +1,10 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, builder::Str};
 
 use crate::models::common::enums::{Channel, Filetype, Provider};
 
 #[derive(Parser)]
 #[command(name = "upstream")]
+#[command(version)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -37,5 +38,8 @@ pub enum Commands {
 
         #[arg(long, default_value_t = false)]
         force_option: bool,
+    },
+    List {
+        name: Option<String>,
     }
 }

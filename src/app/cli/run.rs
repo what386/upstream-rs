@@ -14,6 +14,9 @@ impl Cli {
 
             Commands::Upgrade { names, force_option } =>
                 operations::upgrade::run(names, force_option).await,
+
+            Commands::List { name } =>
+                operations::list::run(name),
         }
     }
 }

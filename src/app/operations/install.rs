@@ -43,8 +43,7 @@ pub async fn run(
     pb.set_style(
         ProgressStyle::with_template(
             "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})"
-        )?
-        .progress_chars("⠋⠙⠹⠸⠼⠴⠦⠧"),
+        )?,
     );
 
     // Borrow pb for the closures

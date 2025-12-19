@@ -97,6 +97,7 @@ impl ProviderManager {
             .assets
             .iter()
             .filter(|a| self.is_potentially_compatible(a))
+            .filter(|a| a.filetype == package.package_kind)
             .collect();
 
         compatible_assets
