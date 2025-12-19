@@ -19,7 +19,7 @@ pub fn run(package_name: Option<String>) -> Result<()> {
             .get_package_by_name(name)
             .ok_or_else(|| anyhow!("Package '{}' is not installed.", name))?;
 
-        println!("{}", display_all(&package));
+        println!("{}", display_all(package));
     } else {
         println!("{}", display_compact_header());
 

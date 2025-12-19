@@ -2,7 +2,7 @@ use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{
-    app::features::package_remover::PackageRemover,
+    application::features::package_remover::PackageRemover,
     services::{
         storage::package_storage::PackageStorage,
     },

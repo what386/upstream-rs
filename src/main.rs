@@ -1,4 +1,4 @@
-mod app;
+mod application;
 mod models;
 mod services;
 mod utils;
@@ -7,7 +7,7 @@ mod utils;
 
 use clap::Parser;
 
-use app::cli::args::Cli;
+use application::cli::args::Cli;
 
 #[tokio::main]
 async fn main() {

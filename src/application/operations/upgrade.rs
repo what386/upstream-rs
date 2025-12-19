@@ -1,7 +1,7 @@
 use anyhow::{Ok, Result};
 
 use crate::{
-    app::{
+    application::{
         features::package_upgrader::PackageUpgrader,
     },
     services::{

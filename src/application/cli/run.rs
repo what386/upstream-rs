@@ -1,7 +1,7 @@
 use anyhow::Result;
 
-use crate::app::operations;
-use crate::app::cli::args::{Cli, Commands};
+use crate::application::operations;
+use crate::application::cli::args::{Cli, Commands};
 
 impl Cli {
     pub async fn run(self) -> Result<()> {

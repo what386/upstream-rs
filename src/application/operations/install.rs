@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    app::{
+    application::{
         features::package_installer::PackageInstaller,
     },
     models::{
