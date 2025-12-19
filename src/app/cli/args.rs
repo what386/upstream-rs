@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 
 use crate::models::common::enums::{Channel, Filetype, Provider};
 
@@ -12,12 +12,13 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     Install {
-        provider: Provider,
-
         repo_slug: String,
 
+        #[arg(default_value_t = Provider::Github)]
+        provider: Provider,
+
         #[arg(short, long, value_enum)]
-        package_kind: Filetype,
+        kind: Filetype,
 
         #[arg(short, long, value_enum)]
         name: String,
@@ -26,16 +27,15 @@ pub enum Commands {
         channel: Channel,
     },
     Remove {
-        name: String,
+        names: Vec<String>,
+
+        #[arg(long, default_value_t = false)]
+        purge_option: bool,
     },
-}
+    Upgrade {
+        names: Option<Vec<String>>,
 
-#[derive(ValueEnum, Clone, Debug)]
-pub enum Source {
-    Github,
-}
-
-#[derive(ValueEnum, Clone, Debug)]
-pub enum InstallType {
-    Placeholder,
+        #[arg(long, default_value_t = false)]
+        force_option: bool,
+    }
 }

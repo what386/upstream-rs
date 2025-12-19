@@ -38,7 +38,8 @@ impl<'a> PackageRemover<'a> {
 
     pub fn remove_bulk<H, G>(
         &mut self,
-        package_names: Vec<String>,
+        package_names: &Vec<String>,
+        purge_option: &bool,
         message_callback: &mut Option<H>,
         overall_progress_callback: &mut Option<G>,
     ) -> Result<()>
@@ -53,7 +54,7 @@ impl<'a> PackageRemover<'a> {
         for package_name in package_names {
             message!(message_callback, "Removing '{}' ...", package_name);
 
-            match self.remove_single(&package_name, message_callback) {
+            match self.remove_single(package_name, purge_option, message_callback) {
                 Ok(_) => message!(message_callback, "Package removed!"),
                 Err(e) => {
                     message!(message_callback, "Removal failed: {}", e);
@@ -77,6 +78,7 @@ impl<'a> PackageRemover<'a> {
     pub fn remove_single<H>(
         &mut self,
         package_name: &str,
+        purge_option: &bool,
         message_callback: &mut Option<H>,
     ) -> Result<()>
     where
@@ -88,8 +90,13 @@ impl<'a> PackageRemover<'a> {
 
         Self::perform_remove(self.paths, package, message_callback)?;
             self.package_storage.save_packages()?;
-            Ok(())
+
+        if *purge_option {
+            Self::purge_configs(self.paths, package_name, message_callback)?;
         }
+
+        Ok(())
+    }
 
     fn perform_remove<H>(
         paths: &UpstreamPaths,
@@ -122,6 +129,18 @@ impl<'a> PackageRemover<'a> {
 
         package.install_path = None;
         package.exec_path = None;
+
+        Ok(())
+    }
+
+    fn purge_configs<H>(
+        paths: &UpstreamPaths,
+        package_name: &str,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
 
         Ok(())
     }

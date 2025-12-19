@@ -18,13 +18,13 @@ use crate::{
 use indicatif::{ProgressBar, ProgressStyle};
 
 pub async fn run(
-    channel: Channel,
-    provider: Provider,
-    package_kind: Filetype,
     repo_slug: String,
+    provider: Provider,
+    kind: Filetype,
     name: String,
+    channel: Channel,
 ) -> Result<()> {
-    println!("Installing {:?} from {}", name, provider);
+    println!("Installing {} from {} ...", name, provider);
 
     let paths = UpstreamPaths::new();
 
@@ -37,7 +37,7 @@ pub async fn run(
 
     let mut package_installer = PackageInstaller::new(&provider_manager, &mut package_storage, &paths)?;
 
-    let package = Package::new_with_defaults(name, repo_slug, package_kind, channel, provider);
+    let package = Package::new_with_defaults(name, repo_slug, kind, channel, provider);
 
     let pb = ProgressBar::new(0);
     pb.set_style(

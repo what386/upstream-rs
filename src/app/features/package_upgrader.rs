@@ -15,6 +15,14 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
+macro_rules! message {
+    ($cb:expr, $($arg:tt)*) => {{
+        if let Some(cb) = $cb.as_mut() {
+            cb(&format!($($arg)*));
+        }
+    }};
+}
+
 pub struct PackageUpgrader<'a> {
     provider_manager: &'a ProviderManager,
     package_storage: &'a mut PackageStorage,
@@ -47,6 +55,7 @@ impl<'a> PackageUpgrader<'a> {
 
     pub async fn upgrade_all<F, G, H>(
         &mut self,
+        force_option: &bool,
         download_progress_callback: &mut Option<F>,
         overall_progress_callback: &mut Option<G>,
         message_callback: &mut Option<H>,
@@ -77,6 +86,7 @@ impl<'a> PackageUpgrader<'a> {
                 package,
                 self.provider_manager,
                 self.paths,
+                force_option,
                 &self.download_cache,
                 &self.extract_cache,
                 download_progress_callback,
@@ -106,15 +116,76 @@ impl<'a> PackageUpgrader<'a> {
         if failures > 0 {
             message!(message_callback, "{} package(s) failed to upgrade", failures);
         }
+
+        Ok(())
+    }
+
+    pub async fn upgrade_bulk<F, G, H>(
+        &mut self,
+        names: &Vec<String>,
+        force_option: &bool,
+        download_progress_callback: &mut Option<F>,
+        overall_progress_callback: &mut Option<G>,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        F: FnMut(u64, u64),
+        G: FnMut(u32, u32),
+        H: FnMut(&str),
+    {
+
+        let total = names.len() as u32;
+        let mut completed = 0;
+        let mut failures = 0;
+        let mut upgraded = 0;
+
+        for name in names {
+            message!(message_callback, "Checking '{}' ...", name);
+
+            let package = self.package_storage.get_mut_package_by_name(&name)
+                .ok_or(anyhow!("Package '{}' not found", name))?;
+
+            match Self::perform_install(
+                package,
+                self.provider_manager,
+                self.paths,
+                force_option,
+                &self.download_cache,
+                &self.extract_cache,
+                download_progress_callback,
+                message_callback,
+            ).await {
+                Ok(true) => {
+                    message!(message_callback, "Package '{}' upgraded!", name);
+                    upgraded += 1;
+                },
+                Ok(false) => {
+                    message!(message_callback, "Package '{}' is already up to date.", name);
+                },
+                Err(e) => {
+                    message!(message_callback, "Upgrade failed for '{}': {}", name, e);
+                    failures += 1;
+                }
+            }
+
+            completed += 1;
+            if let Some(cb) = overall_progress_callback.as_mut() {
+                cb(completed, total);
+            }
+        }
+
+        self.package_storage.save_packages()?;
+
         message!(message_callback, "Completed: {} upgraded, {} up-to-date, {} failed",
                  upgraded, total - upgraded - failures, failures);
 
         Ok(())
     }
 
-    pub async fn install_single<F, H>(
+    pub async fn upgrade_single<F, H>(
         &mut self,
         package_name: &str,
+        force_option: &bool,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<bool>
@@ -129,6 +200,7 @@ impl<'a> PackageUpgrader<'a> {
             package,
             self.provider_manager,
             self.paths,
+            force_option,
             &self.download_cache,
             &self.extract_cache,
             download_progress_callback,
@@ -146,6 +218,7 @@ impl<'a> PackageUpgrader<'a> {
         package: &mut Package,
         provider_manager: &ProviderManager,
         paths: &UpstreamPaths,
+        force_option: &bool,
         download_cache: &Path,
         extract_cache: &Path,
         download_progress_callback: &mut Option<F>,
@@ -160,9 +233,11 @@ impl<'a> PackageUpgrader<'a> {
             .get_latest_release(&package.repo_slug, &package.provider)
             .await?;
 
-        if !latest_release.version.is_newer_than(&package.version) {
-            message!(message_callback, "Nothing to do - '{}' is up to date.", package.name);
-            return Ok(false);
+        if !*force_option { // ignore version 'new-ness' if force
+            if !latest_release.version.is_newer_than(&package.version) {
+                message!(message_callback, "Nothing to do - '{}' is up to date.", package.name);
+                return Ok(false);
+            }
         }
 
         package.version = latest_release.version.clone();

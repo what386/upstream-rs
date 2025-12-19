@@ -1,11 +1,16 @@
-
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 
-use crate::models::common::version::Version;
-use crate::models::common::enums::{Channel, Filetype, Provider};
+use crate::models::common::{
+    version::Version,
+    enums::{
+        Channel,
+        Filetype,
+        Provider
+    }
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Package {
