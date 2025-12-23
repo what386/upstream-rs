@@ -26,6 +26,9 @@ pub enum Commands {
 
         #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
         channel: Channel,
+
+        #[arg(long, default_value_t = false)]
+        create_entry: bool,
     },
     Remove {
         names: Vec<String>,
@@ -41,5 +44,9 @@ pub enum Commands {
     },
     List {
         name: Option<String>,
-    }
+    },
+    Init {
+        #[arg(long, default_value_t = false)]
+        clean: bool,
+    },
 }

@@ -2,12 +2,12 @@ use std::fs;
 use std::path::Path;
 use anyhow::{Context, Result};
 
-pub struct ShellIntegrator<'a> {
+pub struct ShellManager<'a> {
     paths_file: &'a Path,
     symlinks_dir: &'a Path,
 }
 
-impl<'a> ShellIntegrator<'a> {
+impl<'a> ShellManager<'a> {
     pub fn new(paths_file: &'a Path, symlinks_dir: &'a Path) -> Self {
         Self {
             paths_file,

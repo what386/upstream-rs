@@ -17,13 +17,14 @@ pub struct Package {
     pub name: String,
     pub repo_slug: String,
 
-    pub package_kind: Filetype,
+    pub filetype: Filetype,
     pub version: Version,
     pub channel: Channel,
     pub provider: Provider,
 
-    pub has_icon: bool,
+
     pub is_paused: bool,
+    pub icon_path: Option<PathBuf>,
     pub install_path: Option<PathBuf>,
     pub exec_path: Option<PathBuf>,
 
@@ -31,7 +32,7 @@ pub struct Package {
 }
 
 impl Package {
-    pub fn new_with_defaults(
+    pub fn with_defaults(
         name: String,
         repo_slug: String,
         pkg_kind: Filetype,
@@ -44,13 +45,13 @@ impl Package {
             name,
             repo_slug,
 
-            package_kind: pkg_kind,
+            filetype: pkg_kind,
             version,
             channel,
             provider,
 
-            has_icon: false,
             is_paused: false,
+            icon_path: None,
             install_path: None,
             exec_path: None,
 
@@ -63,9 +64,5 @@ impl Package {
         self.repo_slug == other.repo_slug &&
         self.channel == other.channel &&
         self.name == other.name
-    }
-
-    pub fn display_name(&self) -> String {
-        format!("{} ({}:{})", self.name, self.channel, self.repo_slug)
     }
 }

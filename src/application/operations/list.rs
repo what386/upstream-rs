@@ -50,8 +50,8 @@ fn display_all(package: &Package) -> String {
          Channel: {}\n\
          Provider: {}\n\
          Type: {:?}\n\
-         Icon: {}\n\
          Paused: {}\n\
+         Icon: {}\n\
          Install Path: {}\n\
          Executable Path: {}\n\
          Last Upgraded: {}",
@@ -60,8 +60,9 @@ fn display_all(package: &Package) -> String {
         package.version,
         package.channel,
         package.provider,
-        package.package_kind,
-        if package.has_icon { "Yes" } else { "No" },
+        package.filetype,
+        // TODO: display icon path
+        if package.icon_path.is_some(){ "Yes" } else { "None" },
         if package.is_paused { "Yes" } else { "No" },
         install_path,
         exec_path,
@@ -76,6 +77,12 @@ fn display_compact(package: &Package) -> String {
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| "-".to_string());
 
+    let icon_path = package
+        .icon_path
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "✗".to_string());
+
     format!(
         "{:<20} {:<15} {:<10} {:<8} {:<8} {:<3} {:<3} {:<}",
         package.name,
@@ -83,7 +90,7 @@ fn display_compact(package: &Package) -> String {
         package.version,
         package.channel,
         package.provider,
-        if package.has_icon { "✓" } else { "✗" },
+        icon_path,
         if package.is_paused { "P" } else { "-" },
         install_path
     )

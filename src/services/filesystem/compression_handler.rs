@@ -185,3 +185,27 @@ fn common_root(paths: &[PathBuf], output: &Path) -> PathBuf {
     output.join(components.iter().fold(PathBuf::new(), |acc, c| acc.join(c.as_os_str())))
 }
 
+/*
+/// Determine the common root of extracted paths
+fn common_root(paths: &[PathBuf], output: &Path) -> PathBuf {
+    if paths.is_empty() {
+        return output.to_path_buf();
+    }
+
+    let mut iter = paths.iter();
+    let first = iter.next().unwrap();
+    let mut components: Vec<_> = first.strip_prefix(output).unwrap().components().collect();
+
+    for path in iter {
+        let path_comps: Vec<_> = path.strip_prefix(output).unwrap().components().collect();
+        components = components
+            .iter()
+            .zip(path_comps.iter())
+            .take_while(|(a, b)| a == b)
+            .map(|(a, _)| *a)
+            .collect();
+    }
+
+    output.join(components.iter().fold(PathBuf::new(), |acc, c| acc.join(c.as_os_str())))
+}
+*/

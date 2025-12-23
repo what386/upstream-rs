@@ -2,11 +2,9 @@ use std::fs;
 use anyhow::{Result, anyhow};
 
 use crate::{
-    models::{
-        upstream::Package,
-    },
+    models::upstream::Package,
     services::{
-        filesystem::{ShellIntegrator, SymlinkManager},
+        filesystem::{DesktopManager, ShellManager, SymlinkManager},
         storage::package_storage::PackageStorage,
     },
     utils::static_paths::UpstreamPaths,
@@ -111,7 +109,7 @@ impl<'a> PackageRemover<'a> {
 
         message!(message_callback, "Removing '{}' from PATH ...", install_path.display());
 
-        ShellIntegrator::new(&paths.config.paths_file, &paths.integration.symlinks_dir).remove_from_paths(install_path)?;
+        ShellManager::new(&paths.config.paths_file, &paths.integration.symlinks_dir).remove_from_paths(install_path)?;
 
         message!(message_callback, "Removing symlink for '{}'", package.name);
 
@@ -125,6 +123,15 @@ impl<'a> PackageRemover<'a> {
             fs::remove_file(install_path)?;
         } else {
             return Err(anyhow!("Install path is invalid: {}", install_path.display()));
+        }
+
+        if let Some(icon_path) = &package.icon_path {
+            message!(message_callback, "Removing .desktop entry ...");
+            let desktop_manager = DesktopManager::new(paths)?;
+            let _ = desktop_manager.remove_entry(&package.name);
+
+            fs::remove_file(icon_path)?;
+            message!(message_callback, "Removed stored icon: {}", &icon_path.display());
         }
 
         package.install_path = None;
@@ -141,6 +148,7 @@ impl<'a> PackageRemover<'a> {
     where
         H: FnMut(&str),
     {
+        // TODO: implement
 
         Ok(())
     }

@@ -8,9 +8,7 @@ use crate::{
         upstream::Package,
     },
     services::{
-        providers::provider_manager::ProviderManager,
-        filesystem::{file_decompressor, file_permissions, ShellIntegrator, SymlinkManager},
-        storage::package_storage::PackageStorage,
+        filesystem::{DesktopManager, IconManager, ShellManager, SymlinkManager, compression_handler, permission_handler}, providers::provider_manager::ProviderManager, storage::package_storage::PackageStorage
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -72,8 +70,11 @@ impl<'a> PackageInstaller<'a> {
         for package in packages {
             message!(message_callback, "Installing '{}' ...", package.name);
 
+            let use_icon = &package.icon_path.is_some();
+
             match self.install_single(
                 package,
+                use_icon,
                 download_progress_callback,
                 message_callback,
             ).await {
@@ -102,6 +103,7 @@ impl<'a> PackageInstaller<'a> {
     pub async fn install_single<F, H>(
         &mut self,
         package: Package,
+        add_entry: &bool,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<()>
@@ -109,11 +111,32 @@ impl<'a> PackageInstaller<'a> {
         F: FnMut(u64, u64),
         H: FnMut(&str),
     {
-        let installed_package = self.perform_install(
+        let mut installed_package = self.perform_install(
             package,
             download_progress_callback,
             message_callback,
         ).await?;
+
+        if *add_entry {
+            let icon_manager = IconManager::new(self.paths)?;
+            let desktop_manager = DesktopManager::new(self.paths)?;
+
+            let icon_path = icon_manager.add_icon(
+                &installed_package.name,
+                &installed_package.install_path.as_ref().unwrap(),
+                &installed_package.filetype
+            ).await?;
+
+            installed_package.icon_path = Some(icon_path);
+
+            let _ = desktop_manager.create_desktop_entry(
+                &installed_package.name,
+                &installed_package.exec_path.as_ref().unwrap(),
+                &installed_package.icon_path.as_ref().unwrap(),
+                None,
+                None
+            )?;
+        }
 
         self.package_storage.add_or_update_package(installed_package)?;
 
@@ -149,7 +172,7 @@ impl<'a> PackageInstaller<'a> {
             .await?;
 
         message!(message_callback, "Installing package ...");
-        match package.package_kind {
+        match package.filetype {
             Filetype::AppImage => self.handle_appimage(&download_path, package, message_callback),
             Filetype::Compressed => self.handle_compressed(&download_path, package, message_callback),
             Filetype::Archive => self.handle_archive(&download_path, package, message_callback),
@@ -167,23 +190,29 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
     {
         let filename = asset_path.file_name().unwrap().display();
-        message!(message_callback, "Extracting '{filename}' ...");
+        message!(message_callback, "Extracting directory '{filename}' ...");
 
-        let extracted_path = file_decompressor::decompress(asset_path, &self.extract_cache)?;
+        let extracted_path = compression_handler::decompress(asset_path, &self.extract_cache)?;
+
+        if extracted_path.is_file() {
+            return self.handle_file(&extracted_path, package, message_callback);
+        }
+
         let dirname = extracted_path.file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
+
         let out_path = self.paths.install.archives_dir.join(dirname);
 
         message!(message_callback, "Moving directory to '{}' ...", out_path.display());
         fs::rename(extracted_path, &out_path)?;
 
-        ShellIntegrator::new(&self.paths.config.paths_file, &self.paths.integration.symlinks_dir).add_to_paths(&out_path)?;
+        ShellManager::new(&self.paths.config.paths_file, &self.paths.integration.symlinks_dir).add_to_paths(&out_path)?;
 
         message!(message_callback, "Added '{}' to PATH", out_path.display());
 
         message!(message_callback, "Searching for executable ...");
-        package.exec_path = if let Some(exec_path) = file_permissions::find_executable(&out_path, &package.name) {
-            file_permissions::make_executable(&exec_path)?;
+        package.exec_path = if let Some(exec_path) = permission_handler::find_executable(&out_path, &package.name) {
+            permission_handler::make_executable(&exec_path)?;
             message!(message_callback, "Added executable permission for '{}'", exec_path.file_name().unwrap().display());
             Some(exec_path)
         } else {
@@ -205,8 +234,8 @@ impl<'a> PackageInstaller<'a> {
     where
         H: FnMut(&str),
     {
-        message!(message_callback, "Extracting '{}' ...", asset_path.file_name().unwrap().display());
-        let extracted_path = file_decompressor::decompress(asset_path, &self.extract_cache)?;
+        message!(message_callback, "Extracting file '{}' ...", asset_path.file_name().unwrap().display());
+        let extracted_path = compression_handler::decompress(asset_path, &self.extract_cache)?;
         self.handle_file(&extracted_path, package, message_callback)
     }
 
@@ -243,7 +272,7 @@ impl<'a> PackageInstaller<'a> {
                 fs::remove_file(asset_path)
             })?;
 
-        file_permissions::make_executable(&out_path)?;
+        permission_handler::make_executable(&out_path)?;
         message!(message_callback, "Made '{}' executable", filename.display());
 
         SymlinkManager::new(&self.paths.integration.symlinks_dir).add_link(&out_path, &package.name)?;
@@ -259,8 +288,7 @@ impl<'a> PackageInstaller<'a> {
 
 impl<'a> Drop for PackageInstaller<'a> {
     fn drop(&mut self) {
-        // Clean up temp directories when installer is dropped
-        let temp_path = std::env::temp_dir().join("upstream");
-        let _ = fs::remove_dir_all(&temp_path);
+        let _ = fs::remove_dir_all(&self.extract_cache);
+        let _ = fs::remove_dir_all(&self.download_cache);
     }
 }

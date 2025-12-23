@@ -1,7 +1,12 @@
-pub mod file_permissions;
-pub mod shell_integrator;
-pub mod symlink_manager;
-pub mod file_decompressor;
+pub mod permission_handler;
+pub mod compression_handler;
 
-pub use shell_integrator::ShellIntegrator;
-pub use symlink_manager::SymlinkManager;
+mod desktop_handler;
+mod shell_handler;
+mod symlink_handler;
+mod icon_handler;
+
+pub use shell_handler::ShellManager;
+pub use symlink_handler::SymlinkManager;
+pub use icon_handler::IconManager;
+pub use desktop_handler::DesktopManager;

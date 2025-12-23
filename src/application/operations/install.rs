@@ -1,16 +1,13 @@
 use anyhow::Result;
 
 use crate::{
-    application::{
-        features::package_installer::PackageInstaller,
-    },
+    application::features::package_installer::PackageInstaller,
     models::{
         common::enums::{Channel, Filetype, Provider},
         upstream::Package,
     },
     services::{
-        providers::provider_manager::ProviderManager,
-        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+        providers::provider_manager::ProviderManager, storage::{config_storage::ConfigStorage, package_storage::PackageStorage}
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -23,6 +20,7 @@ pub async fn run(
     kind: Filetype,
     name: String,
     channel: Channel,
+    create_entry: bool,
 ) -> Result<()> {
     println!("Installing {} from {} ...", name, provider);
 
@@ -37,7 +35,7 @@ pub async fn run(
 
     let mut package_installer = PackageInstaller::new(&provider_manager, &mut package_storage, &paths)?;
 
-    let package = Package::new_with_defaults(name, repo_slug, kind, channel, provider);
+    let package = Package::with_defaults(name, repo_slug, kind, channel, provider);
 
     let pb = ProgressBar::new(0);
     pb.set_style(
@@ -59,6 +57,7 @@ pub async fn run(
 
     package_installer.install_single(
         package,
+        &create_entry,
         &mut download_progress_callback,
         &mut message_callback,
     ).await?;

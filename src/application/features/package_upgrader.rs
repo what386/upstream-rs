@@ -9,7 +9,7 @@ use crate::{
     },
     services::{
         providers::provider_manager::ProviderManager,
-        filesystem::{file_decompressor, file_permissions, ShellIntegrator, SymlinkManager},
+        filesystem::{compression_handler, permission_handler, ShellManager, SymlinkManager},
         storage::package_storage::PackageStorage,
     },
     utils::static_paths::UpstreamPaths,
@@ -251,7 +251,7 @@ impl<'a> PackageUpgrader<'a> {
             .await?;
 
         message!(message_callback, "Upgrading package ...");
-        match package.package_kind {
+        match package.filetype {
             Filetype::AppImage => Self::handle_appimage(&download_path, package, paths, extract_cache, message_callback),
             Filetype::Compressed => Self::handle_compressed(&download_path, package, paths, extract_cache, message_callback),
             Filetype::Archive => Self::handle_archive(&download_path, package, paths, extract_cache, message_callback),
@@ -272,9 +272,9 @@ impl<'a> PackageUpgrader<'a> {
         H: FnMut(&str),
     {
         let filename = asset_path.file_name().unwrap().display();
-        message!(message_callback, "Extracting '{filename}' ...");
+        message!(message_callback, "AAEAEA Extracting '{filename}' ...");
 
-        let extracted_path = file_decompressor::decompress(asset_path, extract_cache)?;
+        let extracted_path = compression_handler::decompress(asset_path, extract_cache)?;
         let dirname = extracted_path.file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
         let out_path = paths.install.archives_dir.join(dirname);
@@ -282,14 +282,14 @@ impl<'a> PackageUpgrader<'a> {
         message!(message_callback, "Moving directory to '{}' ...", out_path.display());
         fs::rename(extracted_path, &out_path)?;
 
-        ShellIntegrator::new(&paths.config.paths_file, &paths.integration.symlinks_dir)
+        ShellManager::new(&paths.config.paths_file, &paths.integration.symlinks_dir)
             .add_to_paths(&out_path)?;
 
         message!(message_callback, "Added '{}' to PATH", out_path.display());
 
         message!(message_callback, "Searching for executable ...");
-        package.exec_path = if let Some(exec_path) = file_permissions::find_executable(&out_path, &package.name) {
-            file_permissions::make_executable(&exec_path)?;
+        package.exec_path = if let Some(exec_path) = permission_handler::find_executable(&out_path, &package.name) {
+            permission_handler::make_executable(&exec_path)?;
             message!(message_callback, "Added executable permission for '{}'", exec_path.file_name().unwrap().display());
             Some(exec_path)
         } else {
@@ -312,8 +312,8 @@ impl<'a> PackageUpgrader<'a> {
     where
         H: FnMut(&str),
     {
-        message!(message_callback, "Extracting '{}' ...", asset_path.file_name().unwrap().display());
-        let extracted_path = file_decompressor::decompress(asset_path, extract_cache)?;
+        message!(message_callback, "AEAEAE Extracting '{}' ...", asset_path.file_name().unwrap().display());
+        let extracted_path = compression_handler::decompress(asset_path, extract_cache)?;
         Self::handle_file(&extracted_path, package, paths, message_callback)
     }
 
@@ -351,7 +351,7 @@ impl<'a> PackageUpgrader<'a> {
                 fs::remove_file(asset_path)
             })?;
 
-        file_permissions::make_executable(&out_path)?;
+        permission_handler::make_executable(&out_path)?;
         message!(message_callback, "Made '{}' executable", filename.display());
 
         SymlinkManager::new(&paths.integration.symlinks_dir)

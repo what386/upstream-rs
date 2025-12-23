@@ -14,8 +14,8 @@ pub struct AppDirs {
 impl AppDirs {
     pub fn new() -> Self {
         let user_dir = dirs::home_dir().unwrap();
-        let config_dir = user_dir.join(".config/upstream");
         let data_dir = user_dir.join(".upstream");
+        let config_dir = user_dir.join(".config/upstream");
         let metadata_dir = data_dir.join("metadata");
 
         Self {
@@ -59,29 +59,21 @@ impl InstallPaths {
             archives_dir: dirs.data_dir.join("archives"),
         }
     }
-
-    pub fn for_filetype(&self, filetype: Filetype) -> &Path {
-        match filetype {
-            Filetype::AppImage => &self.appimages_dir,
-            Filetype::Archive => &self.archives_dir,
-            _ => &self.binaries_dir,
-        }
-    }
 }
 
 /// Paths for system integration (symlinks, XDG dirs)
 pub struct IntegrationPaths {
     pub symlinks_dir: PathBuf,
-    pub scripts_dir: PathBuf,
     pub xdg_applications_dir: PathBuf,
     pub xdg_icons_dir: PathBuf,
+    pub icons_dir: PathBuf,
 }
 
 impl IntegrationPaths {
     pub fn new(dirs: &AppDirs) -> Self {
         Self {
             symlinks_dir: dirs.data_dir.join("symlinks"),
-            scripts_dir: dirs.data_dir.join("scripts"),
+            icons_dir: dirs.data_dir.join("icons"),
             xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
             xdg_icons_dir: dirs.user_dir.join(".local/share/icons"),
         }
