@@ -1,6 +1,6 @@
+use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
-use anyhow::{Context, Result};
 
 pub struct ShellManager<'a> {
     paths_file: &'a Path,
@@ -26,19 +26,16 @@ impl<'a> ShellManager<'a> {
 
         if !self.paths_file.exists() {
             let content = format!("{HEADER}{path_line}\n");
-            fs::write(self.paths_file, content)
-                .context("Failed to create paths file")?;
+            fs::write(self.paths_file, content).context("Failed to create paths file")?;
             return Ok(());
         }
 
         // Ensure the line exists exactly once
-        let existing = fs::read_to_string(self.paths_file)
-            .context("Failed to read paths file")?;
+        let existing = fs::read_to_string(self.paths_file).context("Failed to read paths file")?;
 
         if !existing.contains(&path_line) {
             let updated = format!("{existing}{path_line}\n");
-            fs::write(self.paths_file, updated)
-                .context("Failed to update paths file")?;
+            fs::write(self.paths_file, updated).context("Failed to update paths file")?;
         }
 
         Ok(())
@@ -53,10 +50,11 @@ impl<'a> ShellManager<'a> {
             );
         }
 
-        let mut content = fs::read_to_string(self.paths_file)
-            .context("Failed to read paths file")?;
+        let mut content =
+            fs::read_to_string(self.paths_file).context("Failed to read paths file")?;
 
-        let escaped = install_path.to_string_lossy()
+        let escaped = install_path
+            .to_string_lossy()
             .replace('$', "\\$")
             .replace('"', "\\\"");
 
@@ -64,8 +62,7 @@ impl<'a> ShellManager<'a> {
 
         if !content.contains(&export_line) {
             content.push_str(&format!("{export_line}\n"));
-            fs::write(self.paths_file, &content)
-                .context("Failed to write paths file")?;
+            fs::write(self.paths_file, &content).context("Failed to write paths file")?;
         }
 
         Ok(())
@@ -73,10 +70,11 @@ impl<'a> ShellManager<'a> {
 
     /// Removes a package's PATH entry from `path.sh`
     pub fn remove_from_paths(&self, install_path: &Path) -> Result<()> {
-        let mut content = fs::read_to_string(self.paths_file)
-            .context("Failed to read paths file")?;
+        let mut content =
+            fs::read_to_string(self.paths_file).context("Failed to read paths file")?;
 
-        let escaped = install_path.to_string_lossy()
+        let escaped = install_path
+            .to_string_lossy()
             .replace('$', "\\$")
             .replace('"', "\\\"");
 
@@ -85,8 +83,7 @@ impl<'a> ShellManager<'a> {
         content = content.replace(&format!("{export_line}\n"), "");
         content = content.replace(&export_line, "");
 
-        fs::write(self.paths_file, content)
-            .context("Failed to write paths file")?;
+        fs::write(self.paths_file, content).context("Failed to write paths file")?;
 
         Ok(())
     }

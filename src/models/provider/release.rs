@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 
-use crate::models::provider::asset::Asset;
 use crate::models::common::enums::Filetype;
 use crate::models::common::version::Version;
+use crate::models::provider::asset::Asset;
 
 #[derive(Debug, Clone)]
 pub struct Release {

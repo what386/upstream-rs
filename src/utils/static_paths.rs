@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-
-
 /// Root directories for the application
 pub struct AppDirs {
     pub user_dir: PathBuf,

@@ -26,12 +26,7 @@ impl<'a> IconManager<'a> {
         })
     }
 
-    pub async fn add_icon(
-        &self,
-        name: &str,
-        path: &Path,
-        filetype: &Filetype,
-    ) -> Result<PathBuf> {
+    pub async fn add_icon(&self, name: &str, path: &Path, filetype: &Filetype) -> Result<PathBuf> {
         let system_icons = &self.paths.integration.xdg_icons_dir;
 
         let icon_path = match filetype {
@@ -39,21 +34,19 @@ impl<'a> IconManager<'a> {
                 let extract_path = self.extract_appimage(name, path).await?;
                 Self::search_for_best_icon(&extract_path, name)
                     .or_else(|| Self::search_for_best_icon(system_icons, name))
-            },
-            Filetype::Archive => {
-                Self::search_for_best_icon(path, name)
-                    .or_else(|| Self::search_for_best_icon(system_icons, name))
-            },
-            _ => {
-                Self::search_for_best_icon(system_icons, name)
-            },
-        }.ok_or_else(|| anyhow!("Could not find icon"))?;
+            }
+            Filetype::Archive => Self::search_for_best_icon(path, name)
+                .or_else(|| Self::search_for_best_icon(system_icons, name)),
+            _ => Self::search_for_best_icon(system_icons, name),
+        }
+        .ok_or_else(|| anyhow!("Could not find icon"))?;
 
         self.copy_icon_to_output(&icon_path)
     }
 
     fn copy_icon_to_output(&self, icon_path: &Path) -> Result<PathBuf> {
-        let filename = icon_path.file_name()
+        let filename = icon_path
+            .file_name()
             .ok_or_else(|| anyhow!("Invalid icon path"))?;
 
         let output_path = self.paths.integration.icons_dir.join(filename);
@@ -69,7 +62,7 @@ impl<'a> IconManager<'a> {
 
         let mut process = Command::new(appimage_path)
             .arg("--appimage-extract")
-            .current_dir(extract_path)  // Set working directory
+            .current_dir(extract_path) // Set working directory
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
@@ -119,11 +112,11 @@ impl<'a> IconManager<'a> {
 
         let path_str = path.to_string_lossy().to_lowercase();
 
-        let file_stem = path.file_stem()
+        let file_stem = path
+            .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("")
             .to_lowercase();
-
 
         if path_str.ends_with(".svg") {
             score += 100; // Vector format, scalable
@@ -143,12 +136,19 @@ impl<'a> IconManager<'a> {
             score += 50;
         }
 
-        if path_str.contains("icons/") || path_str.contains("pixmaps/") || path_str.contains(".diricon") {
+        if path_str.contains("icons/")
+            || path_str.contains("pixmaps/")
+            || path_str.contains(".diricon")
+        {
             score += 30;
         }
 
-        if file_stem.contains("screenshot") || file_stem.contains("banner") || file_stem.contains("splash")
-            || file_stem.contains("background") || file_stem.contains("preview") {
+        if file_stem.contains("screenshot")
+            || file_stem.contains("banner")
+            || file_stem.contains("splash")
+            || file_stem.contains("background")
+            || file_stem.contains("preview")
+        {
             score -= 30;
         }
 
@@ -166,13 +166,17 @@ impl<'a> IconManager<'a> {
 
         if let Ok(metadata) = fs::metadata(path) {
             let size = metadata.len();
-            if size > 10_000_000 { // > 10MB, probably not an icon
+            if size > 10_000_000 {
+                // > 10MB, probably not an icon
                 score -= 100;
-            } else if size > 1_000_000 { // > 1MB, suspicious
+            } else if size > 1_000_000 {
+                // > 1MB, suspicious
                 score -= 50;
-            } else if (1024..=500_000).contains(&size) { // Reasonable icon size
+            } else if (1024..=500_000).contains(&size) {
+                // Reasonable icon size
                 score += 10;
-            } else if size < 512 { // Too small to be useful
+            } else if size < 512 {
+                // Too small to be useful
                 score -= 20;
             }
         }

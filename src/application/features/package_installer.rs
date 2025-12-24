@@ -1,14 +1,19 @@
-use std::{fs, path::{Path, PathBuf}};
 use anyhow::{Result, anyhow};
 use chrono::Utc;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::{
-    models::{
-        common::enums::Filetype,
-        upstream::Package,
-    },
+    models::{common::enums::Filetype, upstream::Package},
     services::{
-        filesystem::{DesktopManager, IconManager, ShellManager, SymlinkManager, compression_handler, permission_handler}, providers::provider_manager::ProviderManager, storage::package_storage::PackageStorage
+        filesystem::{
+            DesktopManager, IconManager, ShellManager, SymlinkManager, compression_handler,
+            permission_handler,
+        },
+        providers::provider_manager::ProviderManager,
+        storage::package_storage::PackageStorage,
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -72,15 +77,18 @@ impl<'a> PackageInstaller<'a> {
 
             let use_icon = &package.icon_path.is_some();
 
-            match self.install_single(
-                package,
-                use_icon,
-                download_progress_callback,
-                message_callback,
-            ).await {
+            match self
+                .install_single(
+                    package,
+                    use_icon,
+                    download_progress_callback,
+                    message_callback,
+                )
+                .await
+            {
                 Ok(_) => {
                     message!(message_callback, "Package installed!");
-                },
+                }
                 Err(e) => {
                     message!(message_callback, "Install failed: {}", e);
                     failures += 1;
@@ -94,7 +102,11 @@ impl<'a> PackageInstaller<'a> {
         }
 
         if failures > 0 {
-            message!(message_callback, "{} package(s) failed to install", failures);
+            message!(
+                message_callback,
+                "{} package(s) failed to install",
+                failures
+            );
         }
 
         Ok(())
@@ -111,21 +123,21 @@ impl<'a> PackageInstaller<'a> {
         F: FnMut(u64, u64),
         H: FnMut(&str),
     {
-        let mut installed_package = self.perform_install(
-            package,
-            download_progress_callback,
-            message_callback,
-        ).await?;
+        let mut installed_package = self
+            .perform_install(package, download_progress_callback, message_callback)
+            .await?;
 
         if *add_entry {
             let icon_manager = IconManager::new(self.paths)?;
             let desktop_manager = DesktopManager::new(self.paths)?;
 
-            let icon_path = icon_manager.add_icon(
-                &installed_package.name,
-                installed_package.install_path.as_ref().unwrap(),
-                &installed_package.filetype
-            ).await?;
+            let icon_path = icon_manager
+                .add_icon(
+                    &installed_package.name,
+                    installed_package.install_path.as_ref().unwrap(),
+                    &installed_package.filetype,
+                )
+                .await?;
 
             installed_package.icon_path = Some(icon_path);
 
@@ -134,11 +146,12 @@ impl<'a> PackageInstaller<'a> {
                 installed_package.exec_path.as_ref().unwrap(),
                 installed_package.icon_path.as_ref().unwrap(),
                 None,
-                None
+                None,
             )?;
         }
 
-        self.package_storage.add_or_update_package(installed_package)?;
+        self.package_storage
+            .add_or_update_package(installed_package)?;
 
         Ok(())
     }
@@ -158,23 +171,38 @@ impl<'a> PackageInstaller<'a> {
         }
 
         message!(message_callback, "Fetching latest release ...");
-        let latest_release = self.provider_manager
+        let latest_release = self
+            .provider_manager
             .get_latest_release(&package.repo_slug, &package.provider)
             .await?;
         package.version = latest_release.version.clone();
 
-        message!(message_callback, "Selecting asset from '{}'", latest_release.name);
-        let best_asset = self.provider_manager.find_recommended_asset(&latest_release, &package)?;
+        message!(
+            message_callback,
+            "Selecting asset from '{}'",
+            latest_release.name
+        );
+        let best_asset = self
+            .provider_manager
+            .find_recommended_asset(&latest_release, &package)?;
 
         message!(message_callback, "Downloading '{}' ...", best_asset.name);
-        let download_path = self.provider_manager
-            .download_asset(&best_asset, &package.provider, &self.download_cache, download_progress_callback)
+        let download_path = self
+            .provider_manager
+            .download_asset(
+                &best_asset,
+                &package.provider,
+                &self.download_cache,
+                download_progress_callback,
+            )
             .await?;
 
         message!(message_callback, "Installing package ...");
         match package.filetype {
             Filetype::AppImage => self.handle_appimage(&download_path, package, message_callback),
-            Filetype::Compressed => self.handle_compressed(&download_path, package, message_callback),
+            Filetype::Compressed => {
+                self.handle_compressed(&download_path, package, message_callback)
+            }
             Filetype::Archive => self.handle_archive(&download_path, package, message_callback),
             _ => self.handle_file(&download_path, package, message_callback),
         }
@@ -198,25 +226,43 @@ impl<'a> PackageInstaller<'a> {
             return self.handle_file(&extracted_path, package, message_callback);
         }
 
-        let dirname = extracted_path.file_name()
+        let dirname = extracted_path
+            .file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
 
         let out_path = self.paths.install.archives_dir.join(dirname);
 
-        message!(message_callback, "Moving directory to '{}' ...", out_path.display());
+        message!(
+            message_callback,
+            "Moving directory to '{}' ...",
+            out_path.display()
+        );
         fs::rename(extracted_path, &out_path)?;
 
-        ShellManager::new(&self.paths.config.paths_file, &self.paths.integration.symlinks_dir).add_to_paths(&out_path)?;
+        ShellManager::new(
+            &self.paths.config.paths_file,
+            &self.paths.integration.symlinks_dir,
+        )
+        .add_to_paths(&out_path)?;
 
         message!(message_callback, "Added '{}' to PATH", out_path.display());
 
         message!(message_callback, "Searching for executable ...");
-        package.exec_path = if let Some(exec_path) = permission_handler::find_executable(&out_path, &package.name) {
+        package.exec_path = if let Some(exec_path) =
+            permission_handler::find_executable(&out_path, &package.name)
+        {
             permission_handler::make_executable(&exec_path)?;
-            message!(message_callback, "Added executable permission for '{}'", exec_path.file_name().unwrap().display());
+            message!(
+                message_callback,
+                "Added executable permission for '{}'",
+                exec_path.file_name().unwrap().display()
+            );
             Some(exec_path)
         } else {
-            message!(message_callback, "Could not automatically locate executable");
+            message!(
+                message_callback,
+                "Could not automatically locate executable"
+            );
             None
         };
 
@@ -234,7 +280,11 @@ impl<'a> PackageInstaller<'a> {
     where
         H: FnMut(&str),
     {
-        message!(message_callback, "Extracting file '{}' ...", asset_path.file_name().unwrap().display());
+        message!(
+            message_callback,
+            "Extracting file '{}' ...",
+            asset_path.file_name().unwrap().display()
+        );
         let extracted_path = compression_handler::decompress(asset_path, &self.extract_cache)?;
         self.handle_file(&extracted_path, package, message_callback)
     }
@@ -248,23 +298,33 @@ impl<'a> PackageInstaller<'a> {
     where
         H: FnMut(&str),
     {
-        let filename = asset_path.file_name()
+        let filename = asset_path
+            .file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
         let out_path = self.paths.install.appimages_dir.join(filename);
 
-        message!(message_callback, "Moving file to '{}' ...", out_path.display());
-        fs::rename(asset_path, &out_path)
-            .or_else(|_| {
-                fs::copy(asset_path, &out_path)?;
-                fs::remove_file(asset_path)
-            })?;
+        message!(
+            message_callback,
+            "Moving file to '{}' ...",
+            out_path.display()
+        );
+        fs::rename(asset_path, &out_path).or_else(|_| {
+            fs::copy(asset_path, &out_path)?;
+            fs::remove_file(asset_path)
+        })?;
 
         permission_handler::make_executable(&out_path)?;
         message!(message_callback, "Made '{}' executable", filename.display());
 
-        SymlinkManager::new(&self.paths.integration.symlinks_dir).add_link(&out_path, &package.name)?;
+        SymlinkManager::new(&self.paths.integration.symlinks_dir)
+            .add_link(&out_path, &package.name)?;
 
-        message!(message_callback, "Created symlink: {} → {}", package.name, out_path.display());
+        message!(
+            message_callback,
+            "Created symlink: {} → {}",
+            package.name,
+            out_path.display()
+        );
 
         package.install_path = Some(out_path.clone());
         package.exec_path = Some(out_path);
@@ -281,23 +341,33 @@ impl<'a> PackageInstaller<'a> {
     where
         H: FnMut(&str),
     {
-        let filename = asset_path.file_name()
+        let filename = asset_path
+            .file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
         let out_path = self.paths.install.binaries_dir.join(filename);
 
-        message!(message_callback, "Moving file to '{}' ...", out_path.display());
-        fs::rename(asset_path, &out_path)
-            .or_else(|_| {
-                fs::copy(asset_path, &out_path)?;
-                fs::remove_file(asset_path)
-            })?;
+        message!(
+            message_callback,
+            "Moving file to '{}' ...",
+            out_path.display()
+        );
+        fs::rename(asset_path, &out_path).or_else(|_| {
+            fs::copy(asset_path, &out_path)?;
+            fs::remove_file(asset_path)
+        })?;
 
         permission_handler::make_executable(&out_path)?;
         message!(message_callback, "Made '{}' executable", filename.display());
 
-        SymlinkManager::new(&self.paths.integration.symlinks_dir).add_link(&out_path, &package.name)?;
+        SymlinkManager::new(&self.paths.integration.symlinks_dir)
+            .add_link(&out_path, &package.name)?;
 
-        message!(message_callback, "Created symlink: {} → {}", package.name, out_path.display());
+        message!(
+            message_callback,
+            "Created symlink: {} → {}",
+            package.name,
+            out_path.display()
+        );
 
         package.install_path = Some(out_path.clone());
         package.exec_path = Some(out_path);

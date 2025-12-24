@@ -6,7 +6,7 @@ use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
 
 use crate::services::providers::github::github_client::{
-    GithubClient, GithubReleaseDto, GithubAssetDto
+    GithubAssetDto, GithubClient, GithubReleaseDto,
 };
 
 #[derive(Debug, Clone)]
@@ -26,7 +26,7 @@ impl GithubAdapter {
         dl_callback: &mut Option<F>,
     ) -> Result<()>
     where
-        F: FnMut(u64, u64)
+        F: FnMut(u64, u64),
     {
         self.client
             .download_file(&asset.download_url, destination_path, dl_callback)
@@ -54,7 +54,10 @@ impl GithubAdapter {
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
         let dtos = self.client.get_all_releases(slug, per_page).await?;
-        Ok(dtos.into_iter().map(|dto| self.convert_release(dto)).collect())
+        Ok(dtos
+            .into_iter()
+            .map(|dto| self.convert_release(dto))
+            .collect())
     }
 
     fn convert_asset(dto: GithubAssetDto) -> Asset {
@@ -69,10 +72,7 @@ impl GithubAdapter {
     }
 
     fn convert_release(&self, dto: GithubReleaseDto) -> Release {
-        let assets: Vec<Asset> = dto.assets
-            .into_iter()
-            .map(Self::convert_asset)
-            .collect();
+        let assets: Vec<Asset> = dto.assets.into_iter().map(Self::convert_asset).collect();
         let version = Self::parse_version(&dto.tag_name);
         Release {
             id: dto.id as u64,
@@ -89,12 +89,14 @@ impl GithubAdapter {
 
     fn parse_version(tag: &str) -> Version {
         let tag = tag.trim();
-        let tag = tag.strip_prefix('v')
+        let tag = tag
+            .strip_prefix('v')
             .or_else(|| tag.strip_prefix('V'))
             .unwrap_or(tag);
 
         const PREFIXES: &[&str] = &["release-", "rel-", "ver-", "version-"];
-        let cleaned = PREFIXES.iter()
+        let cleaned = PREFIXES
+            .iter()
             .find_map(|prefix| {
                 tag.to_lowercase()
                     .strip_prefix(prefix)

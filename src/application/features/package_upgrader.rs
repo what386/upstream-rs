@@ -1,24 +1,20 @@
-use std::{fs, path::{Path, PathBuf}};
-use anyhow::{Result, anyhow};
-use chrono::Utc;
 use crate::{
-    models::{
-        common::enums::Filetype,
-        upstream::Package,
-    },
+    models::{common::enums::Filetype, upstream::Package},
     services::{
-        providers::provider_manager::ProviderManager,
         filesystem::{
-            compression_handler,
+            DesktopManager, IconManager, ShellManager, SymlinkManager, compression_handler,
             permission_handler,
-            ShellManager,
-            SymlinkManager,
-            DesktopManager,
-            IconManager,
         },
+        providers::provider_manager::ProviderManager,
         storage::package_storage::PackageStorage,
     },
     utils::static_paths::UpstreamPaths,
+};
+use anyhow::{Result, anyhow};
+use chrono::Utc;
+use std::{
+    fs,
+    path::{Path, PathBuf},
 };
 
 macro_rules! message {
@@ -71,7 +67,8 @@ impl<'a> PackageUpgrader<'a> {
         G: FnMut(u32, u32),
         H: FnMut(&str),
     {
-        let package_names: Vec<String> = self.package_storage
+        let package_names: Vec<String> = self
+            .package_storage
             .get_all_packages()
             .iter()
             .map(|p| p.name.clone())
@@ -85,7 +82,9 @@ impl<'a> PackageUpgrader<'a> {
         for name in package_names {
             message!(message_callback, "Checking '{}' ...", name);
 
-            let package = self.package_storage.get_mut_package_by_name(&name)
+            let package = self
+                .package_storage
+                .get_mut_package_by_name(&name)
                 .ok_or(anyhow!("Package '{}' not found", name))?;
 
             match Self::perform_upgrade(
@@ -97,14 +96,20 @@ impl<'a> PackageUpgrader<'a> {
                 &self.extract_cache,
                 download_progress_callback,
                 message_callback,
-            ).await {
+            )
+            .await
+            {
                 Ok(true) => {
                     message!(message_callback, "Package '{}' upgraded!", name);
                     upgraded += 1;
-                },
+                }
                 Ok(false) => {
-                    message!(message_callback, "Package '{}' is already up to date.", name);
-                },
+                    message!(
+                        message_callback,
+                        "Package '{}' is already up to date.",
+                        name
+                    );
+                }
                 Err(e) => {
                     message!(message_callback, "Upgrade failed for '{}': {}", name, e);
                     failures += 1;
@@ -120,7 +125,11 @@ impl<'a> PackageUpgrader<'a> {
         self.package_storage.save_packages()?;
 
         if failures > 0 {
-            message!(message_callback, "{} package(s) failed to upgrade", failures);
+            message!(
+                message_callback,
+                "{} package(s) failed to upgrade",
+                failures
+            );
         }
 
         Ok(())
@@ -147,7 +156,9 @@ impl<'a> PackageUpgrader<'a> {
         for name in names {
             message!(message_callback, "Checking '{}' ...", name);
 
-            let package = self.package_storage.get_mut_package_by_name(name)
+            let package = self
+                .package_storage
+                .get_mut_package_by_name(name)
                 .ok_or(anyhow!("Package '{}' not found", name))?;
 
             match Self::perform_upgrade(
@@ -159,14 +170,20 @@ impl<'a> PackageUpgrader<'a> {
                 &self.extract_cache,
                 download_progress_callback,
                 message_callback,
-            ).await {
+            )
+            .await
+            {
                 Ok(true) => {
                     message!(message_callback, "Package '{}' upgraded!", name);
                     upgraded += 1;
-                },
+                }
                 Ok(false) => {
-                    message!(message_callback, "Package '{}' is already up to date.", name);
-                },
+                    message!(
+                        message_callback,
+                        "Package '{}' is already up to date.",
+                        name
+                    );
+                }
                 Err(e) => {
                     message!(message_callback, "Upgrade failed for '{}': {}", name, e);
                     failures += 1;
@@ -180,8 +197,13 @@ impl<'a> PackageUpgrader<'a> {
         }
 
         self.package_storage.save_packages()?;
-        message!(message_callback, "Completed: {} upgraded, {} up-to-date, {} failed",
-                 upgraded, total - upgraded - failures, failures);
+        message!(
+            message_callback,
+            "Completed: {} upgraded, {} up-to-date, {} failed",
+            upgraded,
+            total - upgraded - failures,
+            failures
+        );
 
         Ok(())
     }
@@ -197,7 +219,9 @@ impl<'a> PackageUpgrader<'a> {
         F: FnMut(u64, u64),
         H: FnMut(&str),
     {
-        let package = self.package_storage.get_mut_package_by_name(package_name)
+        let package = self
+            .package_storage
+            .get_mut_package_by_name(package_name)
             .ok_or(anyhow!("Package '{}' is not installed.", package_name))?;
 
         let was_upgraded = Self::perform_upgrade(
@@ -209,7 +233,8 @@ impl<'a> PackageUpgrader<'a> {
             &self.extract_cache,
             download_progress_callback,
             message_callback,
-        ).await?;
+        )
+        .await?;
 
         if was_upgraded {
             self.package_storage.save_packages()?;
@@ -233,14 +258,20 @@ impl<'a> PackageUpgrader<'a> {
         for package in packages {
             message!(message_callback, "Checking '{}' ...", package.name);
 
-            match self.provider_manager
+            match self
+                .provider_manager
                 .get_latest_release(&package.repo_slug, &package.provider)
                 .await
             {
                 Ok(latest_release) => {
                     if latest_release.version.is_newer_than(&package.version) {
-                        message!(message_callback, "Update available for '{}': {} → {}",
-                                package.name, package.version, latest_release.version);
+                        message!(
+                            message_callback,
+                            "Update available for '{}': {} → {}",
+                            package.name,
+                            package.version,
+                            latest_release.version
+                        );
                         updates.push((
                             package.name.clone(),
                             package.version.to_string(),
@@ -249,9 +280,14 @@ impl<'a> PackageUpgrader<'a> {
                     } else {
                         message!(message_callback, "'{}' is up to date", package.name);
                     }
-                },
+                }
                 Err(e) => {
-                    message!(message_callback, "Failed to check '{}': {}", package.name, e);
+                    message!(
+                        message_callback,
+                        "Failed to check '{}': {}",
+                        package.name,
+                        e
+                    );
                 }
             }
         }
@@ -269,18 +305,25 @@ impl<'a> PackageUpgrader<'a> {
     where
         H: FnMut(&str),
     {
-        let package = self.package_storage.get_package_by_name(package_name)
+        let package = self
+            .package_storage
+            .get_package_by_name(package_name)
             .ok_or(anyhow!("Package '{}' is not installed.", package_name))?;
 
         message!(message_callback, "Checking '{}' ...", package.name);
 
-        let latest_release = self.provider_manager
+        let latest_release = self
+            .provider_manager
             .get_latest_release(&package.repo_slug, &package.provider)
             .await?;
 
         if latest_release.version.is_newer_than(&package.version) {
-            message!(message_callback, "Update available: {} → {}",
-                    package.version, latest_release.version);
+            message!(
+                message_callback,
+                "Update available: {} → {}",
+                package.version,
+                latest_release.version
+            );
             Ok(Some((
                 package.version.to_string(),
                 latest_release.version.to_string(),
@@ -310,20 +353,32 @@ impl<'a> PackageUpgrader<'a> {
             .get_latest_release(&package.repo_slug, &package.provider)
             .await?;
 
-        if !*force_option
-            && !latest_release.version.is_newer_than(&package.version) {
-                message!(message_callback, "Nothing to do - '{}' is up to date.", package.name);
-                return Ok(false);
-            }
+        if !*force_option && !latest_release.version.is_newer_than(&package.version) {
+            message!(
+                message_callback,
+                "Nothing to do - '{}' is up to date.",
+                package.name
+            );
+            return Ok(false);
+        }
 
         package.version = latest_release.version.clone();
 
-        message!(message_callback, "Selecting asset from '{}'", latest_release.name);
+        message!(
+            message_callback,
+            "Selecting asset from '{}'",
+            latest_release.name
+        );
         let best_asset = provider_manager.find_recommended_asset(&latest_release, package)?;
 
         message!(message_callback, "Downloading '{}' ...", best_asset.name);
         let download_path = provider_manager
-            .download_asset(&best_asset, &package.provider, download_cache, download_progress_callback)
+            .download_asset(
+                &best_asset,
+                &package.provider,
+                download_cache,
+                download_progress_callback,
+            )
             .await?;
 
         message!(message_callback, "Upgrading package ...");
@@ -332,9 +387,27 @@ impl<'a> PackageUpgrader<'a> {
         let had_desktop_integration = package.icon_path.is_some();
 
         match package.filetype {
-            Filetype::AppImage => Self::handle_appimage(&download_path, package, paths, extract_cache, message_callback)?,
-            Filetype::Compressed => Self::handle_compressed(&download_path, package, paths, extract_cache, message_callback)?,
-            Filetype::Archive => Self::handle_archive(&download_path, package, paths, extract_cache, message_callback)?,
+            Filetype::AppImage => Self::handle_appimage(
+                &download_path,
+                package,
+                paths,
+                extract_cache,
+                message_callback,
+            )?,
+            Filetype::Compressed => Self::handle_compressed(
+                &download_path,
+                package,
+                paths,
+                extract_cache,
+                message_callback,
+            )?,
+            Filetype::Archive => Self::handle_archive(
+                &download_path,
+                package,
+                paths,
+                extract_cache,
+                message_callback,
+            )?,
             _ => Self::handle_file(&download_path, package, paths, message_callback)?,
         }
 
@@ -344,11 +417,13 @@ impl<'a> PackageUpgrader<'a> {
             let icon_manager = IconManager::new(paths)?;
             let desktop_manager = DesktopManager::new(paths)?;
 
-            let icon_path = icon_manager.add_icon(
-                &package.name,
-                package.install_path.as_ref().unwrap(),
-                &package.filetype
-            ).await?;
+            let icon_path = icon_manager
+                .add_icon(
+                    &package.name,
+                    package.install_path.as_ref().unwrap(),
+                    &package.filetype,
+                )
+                .await?;
             package.icon_path = Some(icon_path);
 
             let _ = desktop_manager.create_desktop_entry(
@@ -356,7 +431,7 @@ impl<'a> PackageUpgrader<'a> {
                 package.exec_path.as_ref().unwrap(),
                 package.icon_path.as_ref().unwrap(),
                 None,
-                None
+                None,
             )?;
 
             message!(message_callback, "Desktop integration updated");
@@ -385,11 +460,16 @@ impl<'a> PackageUpgrader<'a> {
             return Self::handle_file(&extracted_path, package, paths, message_callback);
         }
 
-        let dirname = extracted_path.file_name()
+        let dirname = extracted_path
+            .file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
         let out_path = paths.install.archives_dir.join(dirname);
 
-        message!(message_callback, "Moving directory to '{}' ...", out_path.display());
+        message!(
+            message_callback,
+            "Moving directory to '{}' ...",
+            out_path.display()
+        );
         fs::rename(extracted_path, &out_path)?;
 
         ShellManager::new(&paths.config.paths_file, &paths.integration.symlinks_dir)
@@ -397,12 +477,21 @@ impl<'a> PackageUpgrader<'a> {
         message!(message_callback, "Added '{}' to PATH", out_path.display());
 
         message!(message_callback, "Searching for executable ...");
-        package.exec_path = if let Some(exec_path) = permission_handler::find_executable(&out_path, &package.name) {
+        package.exec_path = if let Some(exec_path) =
+            permission_handler::find_executable(&out_path, &package.name)
+        {
             permission_handler::make_executable(&exec_path)?;
-            message!(message_callback, "Added executable permission for '{}'", exec_path.file_name().unwrap().display());
+            message!(
+                message_callback,
+                "Added executable permission for '{}'",
+                exec_path.file_name().unwrap().display()
+            );
             Some(exec_path)
         } else {
-            message!(message_callback, "Could not automatically locate executable");
+            message!(
+                message_callback,
+                "Could not automatically locate executable"
+            );
             None
         };
 
@@ -422,7 +511,11 @@ impl<'a> PackageUpgrader<'a> {
     where
         H: FnMut(&str),
     {
-        message!(message_callback, "Extracting file '{}' ...", asset_path.file_name().unwrap().display());
+        message!(
+            message_callback,
+            "Extracting file '{}' ...",
+            asset_path.file_name().unwrap().display()
+        );
         let extracted_path = compression_handler::decompress(asset_path, extract_cache)?;
         Self::handle_file(&extracted_path, package, paths, message_callback)
     }
@@ -437,23 +530,31 @@ impl<'a> PackageUpgrader<'a> {
     where
         H: FnMut(&str),
     {
-        let filename = asset_path.file_name()
+        let filename = asset_path
+            .file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
         let out_path = paths.install.appimages_dir.join(filename);
 
-        message!(message_callback, "Moving file to '{}' ...", out_path.display());
-        fs::rename(asset_path, &out_path)
-            .or_else(|_| {
-                fs::copy(asset_path, &out_path)?;
-                fs::remove_file(asset_path)
-            })?;
+        message!(
+            message_callback,
+            "Moving file to '{}' ...",
+            out_path.display()
+        );
+        fs::rename(asset_path, &out_path).or_else(|_| {
+            fs::copy(asset_path, &out_path)?;
+            fs::remove_file(asset_path)
+        })?;
 
         permission_handler::make_executable(&out_path)?;
         message!(message_callback, "Made '{}' executable", filename.display());
 
-        SymlinkManager::new(&paths.integration.symlinks_dir)
-            .add_link(&out_path, &package.name)?;
-        message!(message_callback, "Created symlink: {} → {}", package.name, out_path.display());
+        SymlinkManager::new(&paths.integration.symlinks_dir).add_link(&out_path, &package.name)?;
+        message!(
+            message_callback,
+            "Created symlink: {} → {}",
+            package.name,
+            out_path.display()
+        );
 
         package.install_path = Some(out_path.clone());
         package.exec_path = Some(out_path);
@@ -471,23 +572,31 @@ impl<'a> PackageUpgrader<'a> {
     where
         H: FnMut(&str),
     {
-        let filename = asset_path.file_name()
+        let filename = asset_path
+            .file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
         let out_path = paths.install.binaries_dir.join(filename);
 
-        message!(message_callback, "Moving file to '{}' ...", out_path.display());
-        fs::rename(asset_path, &out_path)
-            .or_else(|_| {
-                fs::copy(asset_path, &out_path)?;
-                fs::remove_file(asset_path)
-            })?;
+        message!(
+            message_callback,
+            "Moving file to '{}' ...",
+            out_path.display()
+        );
+        fs::rename(asset_path, &out_path).or_else(|_| {
+            fs::copy(asset_path, &out_path)?;
+            fs::remove_file(asset_path)
+        })?;
 
         permission_handler::make_executable(&out_path)?;
         message!(message_callback, "Made '{}' executable", filename.display());
 
-        SymlinkManager::new(&paths.integration.symlinks_dir)
-            .add_link(&out_path, &package.name)?;
-        message!(message_callback, "Created symlink: {} → {}", package.name, out_path.display());
+        SymlinkManager::new(&paths.integration.symlinks_dir).add_link(&out_path, &package.name)?;
+        message!(
+            message_callback,
+            "Created symlink: {} → {}",
+            package.name,
+            out_path.display()
+        );
 
         package.install_path = Some(out_path.clone());
         package.exec_path = Some(out_path);

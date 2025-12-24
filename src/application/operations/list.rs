@@ -1,8 +1,7 @@
 use anyhow::{Result, anyhow};
 
 use crate::{
-    models::upstream::Package,
-    services::storage::package_storage::PackageStorage,
+    models::upstream::Package, services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -62,7 +61,11 @@ fn display_all(package: &Package) -> String {
         package.provider,
         package.filetype,
         // TODO: display icon path
-        if package.icon_path.is_some(){ "Yes" } else { "None" },
+        if package.icon_path.is_some() {
+            "Yes"
+        } else {
+            "None"
+        },
         if package.is_paused { "Yes" } else { "No" },
         install_path,
         exec_path,

@@ -1,9 +1,9 @@
+use anyhow::{Context, Result, bail};
 use reqwest::{Client, header};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-use anyhow::{Context, Result, bail};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GithubAssetDto {
@@ -40,7 +40,7 @@ impl GithubClient {
         headers.insert(
             header::USER_AGENT,
             header::HeaderValue::from_str(&user_agent)
-                .context("Failed to create user agent header")?
+                .context("Failed to create user agent header")?,
         );
 
         if let Some(token) = token {
@@ -48,7 +48,7 @@ impl GithubClient {
             headers.insert(
                 header::AUTHORIZATION,
                 header::HeaderValue::from_str(&auth_value)
-                    .context("Failed to create authorization header")?
+                    .context("Failed to create authorization header")?,
             );
         }
 
@@ -61,15 +61,19 @@ impl GithubClient {
     }
 
     async fn get_json<T: for<'de> Deserialize<'de>>(&self, url: &str) -> Result<T> {
-        let response = self.client.get(url)
+        let response = self
+            .client
+            .get(url)
             .send()
             .await
             .context(format!("Failed to send request to {}", url))?;
 
-        response.error_for_status_ref()
+        response
+            .error_for_status_ref()
             .context(format!("GitHub API returned error for {}", url))?;
 
-        let data = response.json::<T>()
+        let data = response
+            .json::<T>()
             .await
             .context("Failed to parse JSON response")?;
 
@@ -85,13 +89,15 @@ impl GithubClient {
     where
         F: FnMut(u64, u64),
     {
-
-        let response = self.client.get(url)
+        let response = self
+            .client
+            .get(url)
             .send()
             .await
             .context(format!("Failed to download from {}", url))?;
 
-        response.error_for_status_ref()
+        response
+            .error_for_status_ref()
             .context("Download request failed")?;
 
         let total_bytes = response.content_length().unwrap_or(0);
@@ -118,9 +124,7 @@ impl GithubClient {
             }
         }
 
-        file.flush()
-            .await
-            .context("Failed to flush file")?;
+        file.flush().await.context("Failed to flush file")?;
 
         if total_bytes > 0 && total_read != total_bytes {
             bail!(
@@ -187,7 +191,8 @@ impl GithubClient {
                 owner_repo, per_page, page
             );
 
-            let batch: Vec<GithubReleaseDto> = self.get_json(&url)
+            let batch: Vec<GithubReleaseDto> = self
+                .get_json(&url)
                 .await
                 .context(format!("Failed to get releases page {}", page))?;
 
@@ -208,11 +213,7 @@ impl GithubClient {
         Ok(releases)
     }
 
-    pub async fn get_asset_by_id(
-        &self,
-        owner_repo: &str,
-        asset_id: i64,
-    ) -> Result<GithubAssetDto> {
+    pub async fn get_asset_by_id(&self, owner_repo: &str, asset_id: i64) -> Result<GithubAssetDto> {
         let url = format!(
             "https://api.github.com/repos/{}/releases/assets/{}",
             owner_repo, asset_id

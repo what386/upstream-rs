@@ -1,15 +1,11 @@
 use anyhow::Result;
 
 use crate::{
-    application::{
-        features::upstream_init::{initialize, cleanup},
-    },
+    application::features::upstream_init::{cleanup, initialize},
     utils::static_paths::UpstreamPaths,
 };
 
-pub fn run(
-    cleanup_option: bool,
-) -> Result<()> {
+pub fn run(cleanup_option: bool) -> Result<()> {
     let paths = UpstreamPaths::new();
 
     if cleanup_option {

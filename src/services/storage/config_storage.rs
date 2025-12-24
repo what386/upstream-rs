@@ -1,15 +1,15 @@
-use std::collections::HashMap;
-use std::{fs, io};
-use std::path::Path;
-use std::path::PathBuf;
 use anyhow::Result;
 use serde::de::DeserializeOwned;
+use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
+use std::{fs, io};
 
 use crate::models::upstream::AppConfig;
 
 pub struct ConfigStorage {
     config: AppConfig,
-    config_file: PathBuf
+    config_file: PathBuf,
 }
 
 impl ConfigStorage {
@@ -33,8 +33,7 @@ impl ConfigStorage {
         let json = fs::read_to_string(&self.config_file)
             .map_err(|e| io::Error::other(format!("Failed to load config: {}", e)))?;
 
-        self.config = serde_json::from_str(&json)
-            .unwrap_or_default();
+        self.config = serde_json::from_str(&json).unwrap_or_default();
 
         Ok(())
     }
@@ -71,7 +70,8 @@ impl ConfigStorage {
 
         // Navigate to parent
         for (i, key) in keys[..keys.len() - 1].iter().enumerate() {
-            current = current.get_mut(key)
+            current = current
+                .get_mut(key)
                 .ok_or_else(|| format!("Key path not found: {}", keys[..=i].join(".")))?;
 
             if current.is_null() {
@@ -80,7 +80,8 @@ impl ConfigStorage {
         }
 
         let final_key = keys[keys.len() - 1];
-        let target = current.get_mut(final_key)
+        let target = current
+            .get_mut(final_key)
             .ok_or_else(|| format!("Unknown key: {}", key_path))?;
 
         // Try to convert the string value to the appropriate JSON type
@@ -94,8 +95,6 @@ impl ConfigStorage {
             .map_err(|e| format!("Failed to save config: {}", e))
     }
 
-
-
     /// Gets a configuration value at the given key path (e.g., "github.apiToken" or "rateLimit").
     pub fn try_get_value<T>(&self, key_path: &str) -> Result<T, String>
     where
@@ -103,11 +102,12 @@ impl ConfigStorage {
     {
         let value = self.get_value(key_path)?;
 
-        serde_json::from_value::<T>(value)
-            .map_err(|e| format!(
+        serde_json::from_value::<T>(value).map_err(|e| {
+            format!(
                 "Failed to deserialize config value at '{}': {}",
                 key_path, e
-            ))
+            )
+        })
     }
 
     fn get_value(&self, key_path: &str) -> Result<serde_json::Value, String> {
@@ -187,7 +187,11 @@ impl ConfigStorage {
         result
     }
 
-    fn convert_value(&self, value: &str, target: &serde_json::Value) -> Result<serde_json::Value, String> {
+    fn convert_value(
+        &self,
+        value: &str,
+        target: &serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
         // Try to parse as JSON first (handles numbers, bools, nulls, strings)
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(value) {
             return Ok(parsed);

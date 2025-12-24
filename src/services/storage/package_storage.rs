@@ -1,5 +1,5 @@
+use std::path::{Path, PathBuf};
 use std::{fs, io};
-use std::path::{PathBuf, Path};
 
 use anyhow::{Result, anyhow};
 
@@ -7,7 +7,7 @@ use crate::models::upstream::Package;
 
 pub struct PackageStorage {
     packages: Vec<Package>,
-    packages_file: PathBuf
+    packages_file: PathBuf,
 }
 
 impl PackageStorage {
@@ -34,9 +34,7 @@ impl PackageStorage {
                 self.packages = serde_json::from_str(&json).unwrap_or_default();
                 Ok(())
             }
-            Err(e) => {
-                Err(anyhow!("Warning: Failed to load packages: {}", e))
-            }
+            Err(e) => Err(anyhow!("Warning: Failed to load packages: {}", e)),
         }
     }
 
@@ -45,8 +43,7 @@ impl PackageStorage {
         let json = serde_json::to_string_pretty(&self.packages)
             .map_err(|e| io::Error::other(e.to_string()))?;
 
-        fs::write(&self.packages_file, json)
-            .map_err(|e| io::Error::other(e.to_string()))?;
+        fs::write(&self.packages_file, json).map_err(|e| io::Error::other(e.to_string()))?;
 
         Ok(())
     }

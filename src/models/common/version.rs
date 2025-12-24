@@ -1,7 +1,7 @@
 use std::fmt;
 
-use serde::{Serialize, Deserialize};
 use anyhow::{Result, bail};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Version {
@@ -63,28 +63,24 @@ impl Version {
 
     pub fn parse(s: &str) -> Result<Self> {
         if s.trim().is_empty() {
-            bail!(
-                "Cannot parse empty version",
-            );
+            bail!("Cannot parse empty version",);
         }
 
         let parts: Vec<&str> = s.split('.').collect();
 
         if parts.is_empty() || parts.len() > 3 {
-            bail!(
-                "Invalid version format",
-            );
+            bail!("Invalid version format",);
         }
 
         let major = match parts[0].parse::<u32>() {
             Ok(v) => v,
-            Err(_) => bail!("Invalid major")
+            Err(_) => bail!("Invalid major"),
         };
 
         let minor = if parts.len() > 1 {
             match parts[1].parse::<u32>() {
                 Ok(v) => v,
-                Err(_) => bail!("Invalid minor")
+                Err(_) => bail!("Invalid minor"),
             }
         } else {
             0
@@ -93,7 +89,7 @@ impl Version {
         let patch = if parts.len() > 2 {
             match parts[2].parse::<u32>() {
                 Ok(v) => v,
-                Err(_) => bail!("Invalid patch")
+                Err(_) => bail!("Invalid patch"),
             }
         } else {
             0

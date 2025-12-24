@@ -1,11 +1,11 @@
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
-use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
-use crate::models::common::enums::{Filetype, Channel, Provider};
-use crate::models::upstream::Package;
+use crate::models::common::enums::{Channel, Filetype, Provider};
 use crate::models::provider::{Asset, Release};
-use crate::services::providers::github::{GithubClient, GithubAdapter};
+use crate::models::upstream::Package;
+use crate::services::providers::github::{GithubAdapter, GithubClient};
+use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
 
 use anyhow::{Result, anyhow};
 
@@ -15,9 +15,7 @@ pub struct ProviderManager {
 }
 
 impl ProviderManager {
-    pub fn new(
-        github_token: Option<&str>
-    ) -> Result<Self> {
+    pub fn new(github_token: Option<&str>) -> Result<Self> {
         let architecture_info = ArchitectureInfo::new();
         let github_client = GithubClient::new(github_token);
         let github = GithubAdapter::new(github_client?);
@@ -27,11 +25,7 @@ impl ProviderManager {
         })
     }
 
-    pub async fn get_latest_release(
-        &self,
-        slug: &str,
-        provider: &Provider,
-    ) -> Result<Release> {
+    pub async fn get_latest_release(&self, slug: &str, provider: &Provider) -> Result<Release> {
         match provider {
             Provider::Github => self.github.get_latest_release(slug).await,
         }
@@ -67,7 +61,7 @@ impl ProviderManager {
         dl_progress: &mut Option<F>,
     ) -> Result<PathBuf>
     where
-        F: FnMut(u64, u64)
+        F: FnMut(u64, u64),
     {
         let file_name = Path::new(&asset.name)
             .file_name()
@@ -88,11 +82,7 @@ impl ProviderManager {
         Ok(download_filepath)
     }
 
-    pub fn find_recommended_asset(
-        &self,
-        release: &Release,
-        package: &Package,
-    ) -> Result<Asset> {
+    pub fn find_recommended_asset(&self, release: &Release, package: &Package) -> Result<Asset> {
         let compatible_assets: Vec<&Asset> = release
             .assets
             .iter()
@@ -130,9 +120,10 @@ impl ProviderManager {
     fn is_potentially_compatible(&self, asset: &Asset) -> bool {
         // OS check
         if let Some(target_os) = &asset.target_os
-            && *target_os != self.architecture_info.os_kind {
-                return false;
-            }
+            && *target_os != self.architecture_info.os_kind
+        {
+            return false;
+        }
 
         // Architecture check
         if let Some(target_arch) = &asset.target_arch {
@@ -163,9 +154,13 @@ impl ProviderManager {
         if let Some(target_arch) = &asset.target_arch {
             if *target_arch == self.architecture_info.cpu_arch {
                 score += 80;
-            } else if self.architecture_info.cpu_arch == CpuArch::X86_64 && *target_arch == CpuArch::X86 {
+            } else if self.architecture_info.cpu_arch == CpuArch::X86_64
+                && *target_arch == CpuArch::X86
+            {
                 score += 30;
-            } else if self.architecture_info.cpu_arch == CpuArch::Aarch64 && *target_arch == CpuArch::Arm {
+            } else if self.architecture_info.cpu_arch == CpuArch::Aarch64
+                && *target_arch == CpuArch::Arm
+            {
                 score += 30;
             }
         }

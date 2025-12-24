@@ -1,9 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    application::{
-        features::package_upgrader::PackageUpgrader,
-    },
+    application::features::package_upgrader::PackageUpgrader,
     services::{
         providers::provider_manager::ProviderManager,
         storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
@@ -12,17 +10,14 @@ use crate::{
 };
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
-pub async fn run(
-    names: Option<Vec<String>>,
-    force_option: bool,
-    check_option: bool,
-) -> Result<()> {
+pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: bool) -> Result<()> {
     let paths = UpstreamPaths::new();
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let github_token = config.get_config().github.api_token.as_deref();
     let provider_manager = ProviderManager::new(github_token)?;
-    let mut package_upgrader = PackageUpgrader::new(&provider_manager, &mut package_storage, &paths)?;
+    let mut package_upgrader =
+        PackageUpgrader::new(&provider_manager, &mut package_storage, &paths)?;
 
     // Handle --check flag
     if check_option {
@@ -32,11 +27,9 @@ pub async fn run(
     // Normal upgrade flow
     let mp = MultiProgress::new();
     let overall_pb = mp.add(ProgressBar::new(0));
-    overall_pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} Upgraded {pos}/{len} packages"
-        )?,
-    );
+    overall_pb.set_style(ProgressStyle::with_template(
+        "{spinner:.green} Upgraded {pos}/{len} packages",
+    )?);
 
     let overall_pb_ref = overall_pb.clone();
     let mut overall_progress_callback = Some(move |done: u32, total: u32| {
@@ -45,11 +38,9 @@ pub async fn run(
     });
 
     let download_pb = mp.add(ProgressBar::new(0));
-    download_pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})"
-        )?,
-    );
+    download_pb.set_style(ProgressStyle::with_template(
+        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+    )?);
 
     let download_pb_ref = &download_pb;
     let mut download_progress_callback = Some(move |downloaded: u64, total: u64| {
@@ -63,12 +54,14 @@ pub async fn run(
     });
 
     if names.is_none() {
-        package_upgrader.upgrade_all(
-            &force_option,
-            &mut download_progress_callback,
-            &mut overall_progress_callback,
-            &mut message_callback
-        ).await?;
+        package_upgrader
+            .upgrade_all(
+                &force_option,
+                &mut download_progress_callback,
+                &mut overall_progress_callback,
+                &mut message_callback,
+            )
+            .await?;
 
         download_pb.finish_and_clear();
         overall_pb.finish_with_message("Upgrade complete!");
@@ -77,20 +70,24 @@ pub async fn run(
 
     let name_vec = names.unwrap();
     if name_vec.len() > 1 {
-        package_upgrader.upgrade_bulk(
-            &name_vec,
-            &force_option,
-            &mut download_progress_callback,
-            &mut overall_progress_callback,
-            &mut message_callback
-        ).await?;
+        package_upgrader
+            .upgrade_bulk(
+                &name_vec,
+                &force_option,
+                &mut download_progress_callback,
+                &mut overall_progress_callback,
+                &mut message_callback,
+            )
+            .await?;
     } else {
-        package_upgrader.upgrade_single(
-            &name_vec[0],
-            &force_option,
-            &mut download_progress_callback,
-            &mut message_callback
-        ).await?;
+        package_upgrader
+            .upgrade_single(
+                &name_vec[0],
+                &force_option,
+                &mut download_progress_callback,
+                &mut message_callback,
+            )
+            .await?;
     }
 
     download_pb.finish_and_clear();
@@ -115,7 +112,9 @@ async fn run_check(
         // Check all packages
         None => {
             println!("Checking for updates...\n");
-            let updates = package_upgrader.check_updates(&mut message_callback).await?;
+            let updates = package_upgrader
+                .check_updates(&mut message_callback)
+                .await?;
 
             if updates.is_empty() {
                 println!("\n✓ All packages are up to date!");
@@ -125,18 +124,21 @@ async fn run_check(
                     println!("  {} {} → {}", name, current, latest);
                 }
             }
-        },
+        }
 
         // Check specific package(s)
         Some(name_vec) => {
             if name_vec.len() == 1 {
                 // Single package check
                 let package_name = &name_vec[0];
-                match package_upgrader.check_single_update(package_name, &mut message_callback).await? {
+                match package_upgrader
+                    .check_single_update(package_name, &mut message_callback)
+                    .await?
+                {
                     Some((current, latest)) => {
                         println!("\n✓ Update available for '{}':", package_name);
                         println!("  {} → {}", current, latest);
-                    },
+                    }
                     None => {
                         println!("\n✓ '{}' is up to date", package_name);
                     }
@@ -149,13 +151,16 @@ async fn run_check(
                 let mut not_found = Vec::new();
 
                 for name in &name_vec {
-                    match package_upgrader.check_single_update(name, &mut message_callback).await {
+                    match package_upgrader
+                        .check_single_update(name, &mut message_callback)
+                        .await
+                    {
                         Ok(Some((current, latest))) => {
                             updates_found.push((name.clone(), current, latest));
-                        },
+                        }
                         Ok(None) => {
                             up_to_date.push(name.clone());
-                        },
+                        }
                         Err(_) => {
                             not_found.push(name.clone());
                         }

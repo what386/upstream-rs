@@ -2,24 +2,25 @@ use crate::models::common::enums::Filetype;
 use crate::utils::platform_info::{CpuArch, OSKind};
 
 const ARCHIVE_EXTENSIONS: &[&str] = &[
-    ".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2",
-    ".tbz2", ".tar.xz", ".txz", ".7z", ".rar"
+    ".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar.xz", ".txz", ".7z", ".rar",
 ];
 
-const COMPRESSION_EXTENSIONS: &[&str] = &[
-    ".gz", ".br", ".bz2"
-];
+const COMPRESSION_EXTENSIONS: &[&str] = &[".gz", ".br", ".bz2"];
 
 const CHECKSUM_EXTENSIONS: &[&str] = &[
-    ".sha256", ".sha512", ".sha1", ".md5",
-    ".sig", ".asc", ".minisig", ".sum"
+    ".sha256", ".sha512", ".sha1", ".md5", ".sig", ".asc", ".minisig", ".sum",
 ];
 
 pub fn parse_os(filename: &str) -> Option<OSKind> {
     let name = filename.to_lowercase();
 
     // Windows
-    if contains_marker(&name, &[".exe", ".msi", ".dll", "windows", "win64", "win32", "win", "msvc"]) {
+    if contains_marker(
+        &name,
+        &[
+            ".exe", ".msi", ".dll", "windows", "win64", "win32", "win", "msvc",
+        ],
+    ) {
         return Some(OSKind::Windows);
     }
 
@@ -92,7 +93,7 @@ pub fn parse_arch(filename: &str) -> Option<CpuArch> {
     None
 }
 
-pub fn parse_filetype(filename: &str,) -> Filetype {
+pub fn parse_filetype(filename: &str) -> Filetype {
     let filename = filename.to_lowercase();
 
     if filename.ends_with(".appimage") {
@@ -107,12 +108,18 @@ pub fn parse_filetype(filename: &str,) -> Filetype {
         return Filetype::Archive;
     }
 
-    if COMPRESSION_EXTENSIONS.iter().any(|ext| filename.ends_with(ext)) {
-        return Filetype::Compressed
+    if COMPRESSION_EXTENSIONS
+        .iter()
+        .any(|ext| filename.ends_with(ext))
+    {
+        return Filetype::Compressed;
     }
 
-    if CHECKSUM_EXTENSIONS.iter().any(|ext| filename.ends_with(ext)) {
-        return Filetype::Checksum
+    if CHECKSUM_EXTENSIONS
+        .iter()
+        .any(|ext| filename.ends_with(ext))
+    {
+        return Filetype::Checksum;
     }
 
     Filetype::Binary
@@ -129,11 +136,15 @@ fn contains_marker(filename: &str, markers: &[&str]) -> bool {
 
         if let Some(mut index) = filename.find(marker) {
             loop {
-                let valid_start = index == 0 ||
-                    !filename.chars().nth(index - 1).unwrap().is_alphanumeric();
+                let valid_start =
+                    index == 0 || !filename.chars().nth(index - 1).unwrap().is_alphanumeric();
 
-                let valid_end = index + marker.len() >= filename.len() ||
-                    !filename.chars().nth(index + marker.len()).unwrap().is_alphanumeric();
+                let valid_end = index + marker.len() >= filename.len()
+                    || !filename
+                        .chars()
+                        .nth(index + marker.len())
+                        .unwrap()
+                        .is_alphanumeric();
 
                 if valid_start && valid_end {
                     return true;

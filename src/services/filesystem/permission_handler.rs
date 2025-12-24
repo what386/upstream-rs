@@ -1,11 +1,10 @@
-use std::{fs, path::PathBuf};
-use std::path::Path;
-use std::os::unix::fs::PermissionsExt;
 use anyhow::{Context, Result};
+use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
+use std::{fs, path::PathBuf};
 
 /// Sets executable permissions on a file for user, group, and others.
 pub fn make_executable(exec_path: &Path) -> Result<()> {
-
     if !exec_path.exists() {
         anyhow::bail!("Invalid executable path: {}", exec_path.to_string_lossy());
     }
@@ -57,10 +56,11 @@ pub fn find_executable(directory_path: &Path, name: &str) -> Option<PathBuf> {
         for entry in entries.flatten() {
             if let Ok(file_type) = entry.file_type()
                 && file_type.is_file()
-                    && let Some(file_name) = entry.file_name().to_str()
-                        && file_name.to_lowercase().starts_with(&name.to_lowercase()) {
-                            return Some(entry.path());
-                        }
+                && let Some(file_name) = entry.file_name().to_str()
+                && file_name.to_lowercase().starts_with(&name.to_lowercase())
+            {
+                return Some(entry.path());
+            }
         }
     }
 

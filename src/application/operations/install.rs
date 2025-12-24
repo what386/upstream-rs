@@ -8,7 +8,8 @@ use crate::{
         upstream::Package,
     },
     services::{
-        providers::provider_manager::ProviderManager, storage::{config_storage::ConfigStorage, package_storage::PackageStorage}
+        providers::provider_manager::ProviderManager,
+        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -32,16 +33,15 @@ pub async fn run(
 
     let provider_manager = ProviderManager::new(github_token)?;
 
-    let mut package_installer = PackageInstaller::new(&provider_manager, &mut package_storage, &paths)?;
+    let mut package_installer =
+        PackageInstaller::new(&provider_manager, &mut package_storage, &paths)?;
 
     let package = Package::with_defaults(name, repo_slug, kind, channel, provider);
 
     let pb = ProgressBar::new(0);
-    pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})"
-        )?,
-    );
+    pb.set_style(ProgressStyle::with_template(
+        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+    )?);
 
     // Borrow pb for the closures
     let pb_ref = &pb;
@@ -54,12 +54,14 @@ pub async fn run(
         pb_ref.println(msg);
     });
 
-    package_installer.install_single(
-        package,
-        &create_entry,
-        &mut download_progress_callback,
-        &mut message_callback,
-    ).await?;
+    package_installer
+        .install_single(
+            package,
+            &create_entry,
+            &mut download_progress_callback,
+            &mut message_callback,
+        )
+        .await?;
 
     // Set pb to 100%
     pb.set_position(pb.length().unwrap_or(0));

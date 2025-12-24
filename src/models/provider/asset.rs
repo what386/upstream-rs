@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 
 use crate::models::common::enums::Filetype;
+use crate::utils::filename_parser::{parse_arch, parse_filetype, parse_os};
 use crate::utils::platform_info::{CpuArch, OSKind};
-use crate::utils::filename_parser::{parse_filetype, parse_arch, parse_os};
 
 #[derive(Debug, Clone)]
 pub struct Asset {

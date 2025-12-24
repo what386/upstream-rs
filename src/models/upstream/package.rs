@@ -1,15 +1,11 @@
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::models::common::{
+    enums::{Channel, Filetype, Provider},
     version::Version,
-    enums::{
-        Channel,
-        Filetype,
-        Provider
-    }
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,7 +17,6 @@ pub struct Package {
     pub version: Version,
     pub channel: Channel,
     pub provider: Provider,
-
 
     pub is_paused: bool,
     pub icon_path: Option<PathBuf>,
@@ -60,9 +55,9 @@ impl Package {
     }
 
     pub fn is_same_as(&self, other: &Package) -> bool {
-        self.provider == other.provider &&
-        self.repo_slug == other.repo_slug &&
-        self.channel == other.channel &&
-        self.name == other.name
+        self.provider == other.provider
+            && self.repo_slug == other.repo_slug
+            && self.channel == other.channel
+            && self.name == other.name
     }
 }

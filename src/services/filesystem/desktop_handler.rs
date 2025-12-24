@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fs, path::{Path, PathBuf}};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Result, anyhow};
 
@@ -25,14 +29,14 @@ impl<'a> DesktopManager<'a> {
     // TODO: extract .desktop info from appimages
 
     pub fn remove_entry(&self, name: &str) -> Result<()> {
-        let path = self.find_desktop_entry(name)
+        let path = self
+            .find_desktop_entry(name)
             .ok_or_else(|| anyhow!("Could not find icon to create desktop file."))?;
 
         fs::remove_file(&path)?;
 
         Ok(())
     }
-
 
     pub fn create_desktop_entry(
         &self,
@@ -51,7 +55,10 @@ impl<'a> DesktopManager<'a> {
             content.push_str(&format!("Comment={}\n", cmt));
         }
 
-        content.push_str(&format!("Categories={}\n", categories.unwrap_or("Application;")));
+        content.push_str(&format!(
+            "Categories={}\n",
+            categories.unwrap_or("Application;")
+        ));
         content.push_str("Terminal=false\n");
 
         let entry = format!("{}.desktop", name);
@@ -61,7 +68,6 @@ impl<'a> DesktopManager<'a> {
 
         Ok(out_path)
     }
-
 
     fn find_desktop_entry(&self, name: &str) -> Option<PathBuf> {
         let appdir = &self.paths.integration.xdg_applications_dir;

@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
@@ -37,7 +37,7 @@ impl FromStr for Provider {
     }
 }
 
-impl fmt::Display for Channel{
+impl fmt::Display for Channel {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Channel::Stable => write!(f, "Stable"),
@@ -48,7 +48,7 @@ impl fmt::Display for Channel{
     }
 }
 
-impl fmt::Display for Provider{
+impl fmt::Display for Provider {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Provider::Github => write!(f, "Github"),

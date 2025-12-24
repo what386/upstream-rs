@@ -3,17 +3,10 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{
     application::features::package_remover::PackageRemover,
-    services::{
-        storage::package_storage::PackageStorage,
-    },
-    utils::static_paths::UpstreamPaths,
+    services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
 };
 
-pub fn run(
-    names: Vec<String>,
-    purge: bool,
-) -> Result<()> {
-
+pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
     let paths = UpstreamPaths::new();
 
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
@@ -22,10 +15,8 @@ pub fn run(
 
     let overall_pb = ProgressBar::new(0);
     overall_pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} Removed {pos}/{len} packages"
-        )?
-        .progress_chars("⠋⠙⠹⠸⠼⠴⠦⠧"),
+        ProgressStyle::with_template("{spinner:.green} Removed {pos}/{len} packages")?
+            .progress_chars("⠋⠙⠹⠸⠼⠴⠦⠧"),
     );
 
     let overall_pb_ref = overall_pb.clone();
@@ -46,11 +37,7 @@ pub fn run(
             &mut overall_progress_callback,
         )?;
     } else {
-        package_remover.remove_single(
-            &names[0],
-            &purge,
-            &mut message_callback,
-        )?;
+        package_remover.remove_single(&names[0], &purge, &mut message_callback)?;
     }
 
     println!("Package removed!");

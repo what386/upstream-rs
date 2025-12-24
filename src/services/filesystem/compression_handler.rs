@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
-use std::path::{Path, PathBuf};
+use anyhow::{Result, anyhow};
 use std::fs::File;
+use std::path::{Path, PathBuf};
 
-use flate2::read::GzDecoder;
 use bzip2::read::BzDecoder;
+use flate2::read::GzDecoder;
 
 use tar::Archive;
 use zip::ZipArchive;
@@ -182,7 +182,11 @@ fn common_root(paths: &[PathBuf], output: &Path) -> PathBuf {
             .collect();
     }
 
-    output.join(components.iter().fold(PathBuf::new(), |acc, c| acc.join(c.as_os_str())))
+    output.join(
+        components
+            .iter()
+            .fold(PathBuf::new(), |acc, c| acc.join(c.as_os_str())),
+    )
 }
 
 /*
