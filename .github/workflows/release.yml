@@ -26,12 +26,12 @@ jobs:
       - name: Archive binary
         run: |
           mkdir dist
-          cp target/${{ matrix.target }}/release/upstream-rs* dist/
+          cp target/${{ matrix.target }}/release/upstream-rs dist/upstream-rs-${{ matrix.target }}
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: upstream-rs${{ matrix.target }}
-          path: dist/*
+          name: upstream-rs-${{ matrix.target }}
+          path: dist/upstream-rs-${{ matrix.target }}
   release:
     name: Create GitHub Release
     needs: build
