@@ -310,12 +310,11 @@ impl<'a> PackageUpgrader<'a> {
             .get_latest_release(&package.repo_slug, &package.provider)
             .await?;
 
-        if !*force_option {
-            if !latest_release.version.is_newer_than(&package.version) {
+        if !*force_option
+            && !latest_release.version.is_newer_than(&package.version) {
                 message!(message_callback, "Nothing to do - '{}' is up to date.", package.name);
                 return Ok(false);
             }
-        }
 
         package.version = latest_release.version.clone();
 
