@@ -27,17 +27,15 @@ impl<'a> IconManager<'a> {
     }
 
     pub async fn add_icon(&self, name: &str, path: &Path, filetype: &Filetype) -> Result<PathBuf> {
-        let system_icons = &self.paths.integration.xdg_icons_dir;
-
         let icon_path = match filetype {
             Filetype::AppImage => {
                 let extract_path = self.extract_appimage(name, path).await?;
                 Self::search_for_best_icon(&extract_path, name)
-                    .or_else(|| Self::search_for_best_icon(system_icons, name))
+                    .or_else(|| Self::search_system_icons(name))
             }
             Filetype::Archive => Self::search_for_best_icon(path, name)
-                .or_else(|| Self::search_for_best_icon(system_icons, name)),
-            _ => Self::search_for_best_icon(system_icons, name),
+                .or_else(|| Self::search_system_icons(name)),
+            _ => Self::search_system_icons(name),
         }
         .ok_or_else(|| anyhow!("Could not find icon"))?;
 
@@ -83,6 +81,89 @@ impl<'a> IconManager<'a> {
         }
 
         Ok(squashfs_root)
+    }
+
+    fn search_system_icons(name: &str) -> Option<PathBuf> {
+        let home_dir = std::env::var("HOME").ok()?;
+
+        // Common icon directories in order of priority
+        let icon_dirs = vec![
+            PathBuf::from(format!("{}/.local/share/icons", home_dir)),
+            PathBuf::from(format!("{}/.icons", home_dir)),
+            PathBuf::from("/usr/share/icons"),
+            PathBuf::from("/usr/local/share/icons"),
+            PathBuf::from("/usr/share/pixmaps"),
+            PathBuf::from("/usr/local/share/pixmaps"),
+        ];
+
+        let name_lower = name.to_lowercase();
+        let extensions = [".svg", ".png", ".xpm", ".ico"];
+
+        // Strategy 1: Check exact matches first (fastest)
+        for dir in &icon_dirs {
+            if !dir.exists() {
+                continue;
+            }
+
+            for ext in extensions {
+                let exact_match = dir.join(format!("{}{}", name, ext));
+                if exact_match.exists() {
+                    return Some(exact_match);
+                }
+            }
+        }
+
+        // Strategy 2: Check common theme subdirectories
+        let common_subdirs = ["hicolor/48x48/apps", "hicolor/scalable/apps", "hicolor/256x256/apps"];
+        for dir in &icon_dirs {
+            for subdir in common_subdirs {
+                let theme_dir = dir.join(subdir);
+                if !theme_dir.exists() {
+                    continue;
+                }
+
+                for ext in extensions {
+                    let icon_path = theme_dir.join(format!("{}{}", name, ext));
+                    if icon_path.exists() {
+                        return Some(icon_path);
+                    }
+                }
+            }
+        }
+
+        // Strategy 3: Only if nothing found, do recursive search
+        let mut all_candidates = Vec::new();
+
+        for dir in icon_dirs {
+            if !dir.exists() {
+                continue;
+            }
+
+            for ext in extensions {
+                // Limit glob depth or use walkdir with max_depth for better performance
+                if let Ok(entries) = glob::glob(&format!("{}/**/*{}*{}", dir.display(), name_lower, ext)) {
+                    // Take first 50 candidates max to avoid scanning everything
+                    all_candidates.extend(entries.flatten().take(50));
+
+                    // Early exit if we found good candidates
+                    if all_candidates.len() >= 10 {
+                        break;
+                    }
+                }
+            }
+
+            if all_candidates.len() >= 10 {
+                break;
+            }
+        }
+
+        if all_candidates.is_empty() {
+            return None;
+        }
+
+        all_candidates
+            .into_iter()
+            .max_by_key(|path| Self::score_icon(path, name))
     }
 
     fn search_for_best_icon(dir: &Path, name: &str) -> Option<PathBuf> {
