@@ -32,16 +32,19 @@ impl<'a> IconManager<'a> {
         path: &Path,
         filetype: &Filetype,
     ) -> Result<PathBuf> {
+        let system_icons = &self.paths.integration.xdg_icons_dir;
+
         let icon_path = match filetype {
             Filetype::AppImage => {
                 let extract_path = self.extract_appimage(name, path).await?;
                 Self::search_for_best_icon(&extract_path, name)
+                    .or_else(|| Self::search_for_best_icon(system_icons, name))
             },
             Filetype::Archive => {
                 Self::search_for_best_icon(path, name)
+                    .or_else(|| Self::search_for_best_icon(system_icons, name))
             },
             _ => {
-                let system_icons = &self.paths.integration.xdg_icons_dir;
                 Self::search_for_best_icon(system_icons, name)
             },
         }.ok_or_else(|| anyhow!("Could not find icon"))?;
@@ -66,7 +69,7 @@ impl<'a> IconManager<'a> {
 
         let mut process = Command::new(appimage_path)
             .arg("--appimage-extract")
-            .current_dir(extract_path)
+            .current_dir(extract_path)  // Set working directory
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
@@ -82,13 +85,17 @@ impl<'a> IconManager<'a> {
 
         let squashfs_root = extract_path.join("squashfs-root");
 
+        if !squashfs_root.exists() {
+            return Err(anyhow!("Error extracting appimage"));
+        }
+
         Ok(squashfs_root)
     }
 
     fn search_for_best_icon(dir: &Path, name: &str) -> Option<PathBuf> {
         let mut all_candidates = Vec::new();
 
-        for ext in vec![".svg", ".png", ".xpm", ".ico"] {
+        for ext in [".svg", ".png", ".xpm", ".ico"] {
             let exact_match = dir.join(format!("{}{}", name, ext));
             if exact_match.exists() {
                 all_candidates.push(exact_match);
@@ -163,7 +170,7 @@ impl<'a> IconManager<'a> {
                 score -= 100;
             } else if size > 1_000_000 { // > 1MB, suspicious
                 score -= 50;
-            } else if size >= 1024 && size <= 500_000 { // Reasonable icon size
+            } else if (1024..=500_000).contains(&size) { // Reasonable icon size
                 score += 10;
             } else if size < 512 { // Too small to be useful
                 score -= 20;

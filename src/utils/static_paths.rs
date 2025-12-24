@@ -1,6 +1,5 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use crate::models::common::enums::Filetype;
 
 
 /// Root directories for the application

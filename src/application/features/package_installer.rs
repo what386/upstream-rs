@@ -123,7 +123,7 @@ impl<'a> PackageInstaller<'a> {
 
             let icon_path = icon_manager.add_icon(
                 &installed_package.name,
-                &installed_package.install_path.as_ref().unwrap(),
+                installed_package.install_path.as_ref().unwrap(),
                 &installed_package.filetype
             ).await?;
 
@@ -131,8 +131,8 @@ impl<'a> PackageInstaller<'a> {
 
             let _ = desktop_manager.create_desktop_entry(
                 &installed_package.name,
-                &installed_package.exec_path.as_ref().unwrap(),
-                &installed_package.icon_path.as_ref().unwrap(),
+                installed_package.exec_path.as_ref().unwrap(),
+                installed_package.icon_path.as_ref().unwrap(),
                 None,
                 None
             )?;
@@ -242,14 +242,34 @@ impl<'a> PackageInstaller<'a> {
     fn handle_appimage<H>(
         &self,
         asset_path: &Path,
-        package: Package,
+        mut package: Package,
         message_callback: &mut Option<H>,
     ) -> Result<Package>
     where
         H: FnMut(&str),
     {
-        // TODO: logic that unpacks appimage to get app icon/name
-        self.handle_file(asset_path, package, message_callback)
+        let filename = asset_path.file_name()
+            .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
+        let out_path = self.paths.install.appimages_dir.join(filename);
+
+        message!(message_callback, "Moving file to '{}' ...", out_path.display());
+        fs::rename(asset_path, &out_path)
+            .or_else(|_| {
+                fs::copy(asset_path, &out_path)?;
+                fs::remove_file(asset_path)
+            })?;
+
+        permission_handler::make_executable(&out_path)?;
+        message!(message_callback, "Made '{}' executable", filename.display());
+
+        SymlinkManager::new(&self.paths.integration.symlinks_dir).add_link(&out_path, &package.name)?;
+
+        message!(message_callback, "Created symlink: {} → {}", package.name, out_path.display());
+
+        package.install_path = Some(out_path.clone());
+        package.exec_path = Some(out_path);
+        package.last_upgraded = Utc::now();
+        Ok(package)
     }
 
     fn handle_file<H>(

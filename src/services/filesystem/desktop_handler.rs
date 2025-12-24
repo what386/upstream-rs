@@ -26,7 +26,7 @@ impl<'a> DesktopManager<'a> {
 
     pub fn remove_entry(&self, name: &str) -> Result<()> {
         let path = self.find_desktop_entry(name)
-            .ok_or_else(|| anyhow!("Could not find icon"))?;
+            .ok_or_else(|| anyhow!("Could not find icon to create desktop file."))?;
 
         fs::remove_file(&path)?;
 

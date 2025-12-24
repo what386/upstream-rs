@@ -1,4 +1,5 @@
 use anyhow::Result;
+use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{
     application::features::package_installer::PackageInstaller,
@@ -11,8 +12,6 @@ use crate::{
     },
     utils::static_paths::UpstreamPaths,
 };
-
-use indicatif::{ProgressBar, ProgressStyle};
 
 pub async fn run(
     repo_slug: String,
@@ -61,6 +60,9 @@ pub async fn run(
         &mut download_progress_callback,
         &mut message_callback,
     ).await?;
+
+    // Set pb to 100%
+    pb.set_position(pb.length().unwrap_or(0));
 
     pb.finish_with_message("Install complete");
 

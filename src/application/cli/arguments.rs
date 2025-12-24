@@ -25,7 +25,7 @@ pub enum Commands {
         name: String,
 
         #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
-        channel: Channel,
+        update_channel: Channel,
 
         #[arg(long, default_value_t = false)]
         create_entry: bool,
@@ -34,13 +34,16 @@ pub enum Commands {
         names: Vec<String>,
 
         #[arg(long, default_value_t = false)]
-        purge_option: bool,
+        purge: bool,
     },
     Upgrade {
         names: Option<Vec<String>>,
 
         #[arg(long, default_value_t = false)]
-        force_option: bool,
+        force: bool,
+
+        #[arg(long, default_value_t = false)]
+        check: bool,
     },
     List {
         name: Option<String>,
