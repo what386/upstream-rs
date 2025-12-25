@@ -2,7 +2,7 @@ use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{
-    application::features::package_installer::PackageInstaller,
+    application::operations::package_install::PackageInstaller,
     models::{
         common::enums::{Channel, Filetype, Provider},
         upstream::Package,

@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    application::features::upstream_init::{cleanup, initialize},
+    application::operations::upstream_init::{cleanup, initialize},
     utils::static_paths::UpstreamPaths,
 };
 
