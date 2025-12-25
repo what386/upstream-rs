@@ -179,8 +179,8 @@ Shows metadata like install path, provider, asset type, update channel, last upd
 
 Upstream automatically detects your OS and CPU:
 
-* Linux → x86_64, ARM64
-* macOS → x86_64, ARM64
+* Linux → x86, ARM
+* macOS → x86, ARM
 
 It selects the best asset for your system based on filename patterns and extensions.
 If installs fail, please open an issue.
