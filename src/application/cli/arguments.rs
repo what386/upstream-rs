@@ -26,7 +26,7 @@ pub enum Commands {
         repo_slug: String,
 
         /// Source provider hosting the repository
-        #[arg(default_value_t = Provider::Github)]
+        #[arg(short, long, default_value_t = Provider::Github)]
         provider: Provider,
 
         /// File type to install (e.g. binary, archive, app-image)
@@ -38,7 +38,7 @@ pub enum Commands {
         name: String,
 
         /// Update channel to track (stable, beta, nightly, etc.)
-        #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
+        #[arg(long, value_enum, default_value_t = Channel::Stable)]
         update_channel: Channel,
 
         /// Whether to create a .desktop entry
