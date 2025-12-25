@@ -1,43 +1,61 @@
 # Upstream Package Manager
 
-**Upstream** is a rootless, GitHub-centric package manager designed to install and update software on Unix-like systems. It supports multiple asset types, tracks releases, and automatically selects the best asset for your system architecture.
+**Upstream** is a rootless, GitHub-centric package manager for Unix-like systems. It installs and updates software from releases, supports multiple asset types, tracks update channels, and automatically selects the best asset for your OS and CPU architecture.
 
 ---
 
-## Features
+## **Features**
 
-- Install packages directly from git-like repository releases.
-- Auto-detect system architecture (x86_64, ARM64) and OS (Linux, macOS).
-- Supports multiple asset types: appimages, binaries, archives, and compressed files.
-- Rootless, user-level installation.
+* Install packages directly from git-like repository releases.
+* Automatically detect system architecture (x86_64, ARM64) and OS (Linux, macOS).
+* Supports binaries, archives, appimages, and compressed files.
+* Rootless, user-level installation.
+* Track multiple update channels (stable, beta, nightly).
 
 ---
 
-## Installation
+## **Installation**
 
-#### todo: install via bash script. this way, upstream can install/upgrade itself.
+### **Auto (Recommended)**
 
-### Auto:
-
-Run the following command (rootless):
+The easiest way to install **Upstream** is via the install script. This downloads the latest binary, sets it up in your user path, and enables self-updates.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/what386/upstream/main/install.sh | bash
 ```
 
-### Manual:
+This method ensures **Upstream** can update itself in the future.
 
-#### Linux
+---
 
-1. Download the [latest release](https://github.com/what386/upstream/releases/latest) for your platform
+### **Manual Installation (Linux)**
 
-#### MacOS
+1. Download the [latest release](https://github.com/what386/upstream/releases/latest) for your platform.
 
-_(Coming soon? I don't have a Mac, so I can't test MacOS. It should work, though.)_
+2. Ensure that it is executable:
 
-### Build from source
+```bash
+chmod +x path/to/upstream-rs
+```
 
-Clone the repository and build with cargo:
+> ⚠️ Manual installation **does not enable self-updates**.
+> To enable self-updates, install Upstream through itself:
+
+```bash
+{path/to/upstream-rs} install what386/upstream-rs -k binary -n upstream
+```
+
+---
+
+### **Manual Installation (MacOS)**
+
+MacOS support is experimental. Running Upstream on MacOS **may** work, but testing is limited. Please report any issues.
+
+---
+
+### **Build from Source**
+
+Requires both [Rust and Cargo](https://www.rust-lang.org/tools/install):
 
 ```bash
 git clone https://github.com/what386/upstream.git
@@ -45,92 +63,125 @@ cd upstream
 cargo build --release
 ```
 
-The executable will be located in **./target/release/upstream-rs**
+Executable location:
+
+```text
+./target/release/upstream-rs
+```
 
 ---
 
-## Usage
+## **Usage**
 
-Upstream provides a set of commands for installing, updating, managing, and inspecting packages.
-For detailed information on flags and options, run:
+All commands can display help:
 
 ```bash
 upstream <command> --help
 ```
 
-### Install a Package
+---
+
+### **Initialize hooks**
 
 ```bash
-upstream install <owner>/<repo> -k <type> -n <name>
+upstream --init
 ```
 
-Installs a package from a supported provider (e.g., GitHub).
-Defaults to Github if the provider is not specified.
+* Hooks Upstream into your system's PATH, for command-line applications.
+* Use `--clean` to remove existing hooks.
 
 ---
 
-### Update Packages
+### **Install a Package**
 
 ```bash
-upstream upgrade [<package>]
+upstream install <owner>/<repo> -k <type> -n <name> [--update-channel <channel>] [--create-entry]
 ```
 
-Installs available updates for all packages, or a specific package if provided.
-To check for updates without installing them, use the "--check" flag.
-Run without arguments to update all packages.
+Example:
+
+```bash
+upstream install what386/mytool -k binary -n mytool --update-channel stable --create-entry
+```
+
+* `repo_slug` → repository identifier (e.g., `owner/repo`).
+* `-k` / `--kind` → asset type (`binary`, `archive`, `appimage`, `compressed`).
+* `-n` / `--name` → local alias for the installed package.
+* `--update-channel` → track `stable`, `beta`, or `nightly` releases.
+* `--create-entry` → optional .desktop entry creation.
 
 ---
 
-### Remove
+### **Remove Packages**
 
 ```bash
-upstream remove <package>
+upstream remove <package1> <package2> ... [--purge]
 ```
 
-Uninstalls a package.
+* Uninstall one or more packages.
+* `--purge` → also remove configuration data.
 
 ---
 
-### List Packages
+### **Upgrade Packages**
+
+```bash
+upstream upgrade [<package1> <package2> ...] [--force] [--check]
+```
+
+* Updates specified packages or **all packages** if no names are given.
+* `--force` → reinstall even if already up to date.
+* `--check` → see available updates without applying them.
+
+---
+
+### **List Installed Packages**
 
 ```bash
 upstream list [<package>]
 ```
 
-Displays metadata about packages.
-Run without arguments to list all packages.
+* No arguments → list all installed packages with metadata.
+* With a package name → show detailed metadata for that package.
 
 ---
 
-### Package Info
+### **Configuration Management**
+
+```bash
+upstream config <action> [options]
+```
+
+Available actions:
+
+| Action  | Description                                                                                                  |
+| ------- | ------------------------------------------------------------------------------------------------------------ |
+| `set`   | Set one or more configuration keys (`key.path=value`). Example: `upstream config set github.apiToken=abc123` |
+| `get`   | Retrieve one or more keys. Example: `upstream config get github.apiToken`                                    |
+| `list`  | List all keys and their values.                                                                              |
+| `show`  | Show the full configuration as JSON.                                                                         |
+| `edit`  | Open the configuration file in your editor.                                                                  |
+| `reset` | Reset configuration to defaults.                                                                             |
+
+---
+
+### **View Package Info**
 
 ```bash
 upstream info <package>
 ```
 
-Shows install path, provider, asset type, last update, and other metadata.
+Shows metadata like install path, provider, asset type, update channel, last update, and more.
 
 ---
 
-## Architecture Detection
+## **Architecture Detection**
 
-Upstream automatically detects your OS and CPU architecture:
+Upstream automatically detects your OS and CPU:
 
-- Linux (x86 or ARM)
-- macOS (x86 or ARM)
+* Linux → x86_64, ARM64
+* macOS → x86_64, ARM64
 
-It selects the most appropriate release asset by matching filename patterns and extensions.
-If you encounter broken application installs, please open an issue.
+It selects the best asset for your system based on filename patterns and extensions.
+If installs fail, please open an issue.
 
----
-
-## Configuration
-
-You can set provider-specific configuration keys such as API tokens:
-
-```bash
-upstream config --set-key github.apiToken=xxx
-```
-
-Upstream uses tokens automatically when required.
-A GitHub token is optional but recommended to avoid rate limits.
