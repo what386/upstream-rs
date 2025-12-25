@@ -15,13 +15,23 @@
 
 ## Installation
 
-#### todo: install via bash script. this way, upstream-rs can install/upgrade itself.
+#### todo: install via bash script. this way, upstream can install/upgrade itself.
 
-### Linux
+### Auto:
 
-1. Download the [latest release](https://github.com/what386/upstream-rs/releases/latest) for your platform
+Run the following command (rootless):
 
-### MacOS
+```bash
+curl -fsSL https://raw.githubusercontent.com/what386/upstream/main/install.sh | bash
+```
+
+### Manual:
+
+#### Linux
+
+1. Download the [latest release](https://github.com/what386/upstream/releases/latest) for your platform
+
+#### MacOS
 
 _(Coming soon? I don't have a Mac, so I can't test MacOS. It should work, though.)_
 
@@ -30,8 +40,8 @@ _(Coming soon? I don't have a Mac, so I can't test MacOS. It should work, though
 Clone the repository and build with cargo:
 
 ```bash
-git clone https://github.com/what386/upstream-rs.git
-cd upstream-rs
+git clone https://github.com/what386/upstream.git
+cd upstream
 cargo build --release
 ```
 
@@ -45,13 +55,13 @@ Upstream provides a set of commands for installing, updating, managing, and insp
 For detailed information on flags and options, run:
 
 ```bash
-upstream-rs <command> --help
+upstream <command> --help
 ```
 
 ### Install a Package
 
 ```bash
-upstream-rs install <owner>/<repo> -k <type> -n <name>
+upstream install <owner>/<repo> -k <type> -n <name>
 ```
 
 Installs a package from a supported provider (e.g., GitHub).
@@ -62,7 +72,7 @@ Defaults to Github if the provider is not specified.
 ### Update Packages
 
 ```bash
-upstream-rs upgrade [<package>]
+upstream upgrade [<package>]
 ```
 
 Installs available updates for all packages, or a specific package if provided.
@@ -74,7 +84,7 @@ Run without arguments to update all packages.
 ### Remove
 
 ```bash
-upstream-rs remove <package>
+upstream remove <package>
 ```
 
 Uninstalls a package.
@@ -84,7 +94,7 @@ Uninstalls a package.
 ### List Packages
 
 ```bash
-upstream-rs list [<package>]
+upstream list [<package>]
 ```
 
 Displays metadata about packages.
@@ -95,7 +105,7 @@ Run without arguments to list all packages.
 ### Package Info
 
 ```bash
-upstream-rs info <package>
+upstream info <package>
 ```
 
 Shows install path, provider, asset type, last update, and other metadata.
@@ -119,7 +129,7 @@ If you encounter broken application installs, please open an issue.
 You can set provider-specific configuration keys such as API tokens:
 
 ```bash
-upstream-rs config --set-key github.apiToken=xxx
+upstream config --set-key github.apiToken=xxx
 ```
 
 Upstream uses tokens automatically when required.
