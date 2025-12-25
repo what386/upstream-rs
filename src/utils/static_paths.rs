@@ -62,7 +62,6 @@ impl InstallPaths {
 pub struct IntegrationPaths {
     pub symlinks_dir: PathBuf,
     pub xdg_applications_dir: PathBuf,
-    pub xdg_icons_dir: PathBuf,
     pub icons_dir: PathBuf,
 }
 
@@ -72,7 +71,6 @@ impl IntegrationPaths {
             symlinks_dir: dirs.data_dir.join("symlinks"),
             icons_dir: dirs.data_dir.join("icons"),
             xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
-            xdg_icons_dir: dirs.user_dir.join(".local/share/icons"),
         }
     }
 }
