@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    application::features::package_upgrader::PackageUpgrader,
+    application::operations::package_upgrade::PackageUpgrader,
     services::{
         providers::provider_manager::ProviderManager,
         storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
@@ -16,12 +16,12 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let github_token = config.get_config().github.api_token.as_deref();
     let provider_manager = ProviderManager::new(github_token)?;
-    let mut package_upgrader =
+    let mut package_upgrade =
         PackageUpgrader::new(&provider_manager, &mut package_storage, &paths)?;
 
     // Handle --check flag
     if check_option {
-        return run_check(package_upgrader, names).await;
+        return run_check(package_upgrade, names).await;
     }
 
     // Normal upgrade flow
@@ -54,7 +54,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     });
 
     if names.is_none() {
-        package_upgrader
+        package_upgrade
             .upgrade_all(
                 &force_option,
                 &mut download_progress_callback,
@@ -70,7 +70,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
 
     let name_vec = names.unwrap();
     if name_vec.len() > 1 {
-        package_upgrader
+        package_upgrade
             .upgrade_bulk(
                 &name_vec,
                 &force_option,
@@ -80,7 +80,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
             )
             .await?;
     } else {
-        package_upgrader
+        package_upgrade
             .upgrade_single(
                 &name_vec[0],
                 &force_option,
@@ -101,7 +101,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
 //                                xyz is up to date!"
 // maybe use a spinner, too?
 async fn run_check(
-    package_upgrader: PackageUpgrader<'_>,
+    package_upgrade: PackageUpgrader<'_>,
     names: Option<Vec<String>>,
 ) -> Result<()> {
     let mut message_callback = Some(|msg: &str| {
@@ -112,7 +112,7 @@ async fn run_check(
         // Check all packages
         None => {
             println!("Checking for updates...\n");
-            let updates = package_upgrader
+            let updates = package_upgrade
                 .check_updates(&mut message_callback)
                 .await?;
 
@@ -131,7 +131,7 @@ async fn run_check(
             if name_vec.len() == 1 {
                 // Single package check
                 let package_name = &name_vec[0];
-                match package_upgrader
+                match package_upgrade
                     .check_single_update(package_name, &mut message_callback)
                     .await?
                 {
@@ -151,7 +151,7 @@ async fn run_check(
                 let mut not_found = Vec::new();
 
                 for name in &name_vec {
-                    match package_upgrader
+                    match package_upgrade
                         .check_single_update(name, &mut message_callback)
                         .await
                     {

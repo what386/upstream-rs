@@ -2,7 +2,7 @@ use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{
-    application::features::package_remover::PackageRemover,
+    application::operations::package_remove::PackageRemover,
     services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
 };
 
@@ -15,8 +15,7 @@ pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
 
     let overall_pb = ProgressBar::new(0);
     overall_pb.set_style(
-        ProgressStyle::with_template("{spinner:.green} Removed {pos}/{len} packages")?
-            .progress_chars("⠋⠙⠹⠸⠼⠴⠦⠧"),
+        ProgressStyle::with_template("{spinner:.green} Removed {pos}/{len} packages")?,
     );
 
     let overall_pb_ref = overall_pb.clone();

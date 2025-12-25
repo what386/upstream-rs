@@ -1,4 +1,6 @@
-pub mod package_installer;
-pub mod package_remover;
-pub mod package_upgrader;
-pub mod upstream_init;
+pub mod init;
+pub mod install;
+pub mod list;
+pub mod remove;
+pub mod upgrade;
+pub mod config;
