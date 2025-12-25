@@ -58,8 +58,8 @@ MacOS support is experimental. Running Upstream on MacOS **may** work, but testi
 Requires both [Rust and Cargo](https://www.rust-lang.org/tools/install):
 
 ```bash
-git clone https://github.com/what386/upstream.git
-cd upstream
+git clone https://github.com/what386/upstream-rs.git
+cd upstream-rs
 cargo build --release
 ```
 
