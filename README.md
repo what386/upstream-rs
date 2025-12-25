@@ -184,4 +184,3 @@ Upstream automatically detects your OS and CPU:
 
 It selects the best asset for your system based on filename patterns and extensions.
 If installs fail, please open an issue.
-
