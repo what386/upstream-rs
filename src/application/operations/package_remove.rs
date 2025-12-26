@@ -83,22 +83,24 @@ impl<'a> PackageRemover<'a> {
     {
         let package = self
             .package_storage
-            .get_mut_package_by_name(package_name)
+            .get_package_by_name(package_name)
             .ok_or_else(|| anyhow!("Package '{}' is not installed.", package_name))?;
 
         Self::perform_remove(self.paths, package, message_callback)?;
 
-        self.package_storage.save_packages()?;
+        self.package_storage.remove_package_by_name(&package_name)?;
 
         if *purge_option {
-            Self::purge_configs(self.paths, package_name, message_callback)?;
+            // TODO: implement. currently does nothing
+            // match name in .config/* and remove that folder?
+            Self::purge_configs(self.paths, &package_name, message_callback)?;
         }
 
         Ok(())
     }
     fn perform_remove<H>(
         paths: &UpstreamPaths,
-        package: &mut Package,
+        package: &Package,
         message_callback: &mut Option<H>,
     ) -> Result<()>
     where
@@ -157,9 +159,6 @@ impl<'a> PackageRemover<'a> {
                 &icon_path.display()
             );
         }
-
-        package.install_path = None;
-        package.exec_path = None;
 
         Ok(())
     }
