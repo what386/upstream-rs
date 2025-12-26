@@ -3,7 +3,7 @@ mod models;
 mod services;
 mod utils;
 
-// TODO: Initialization (setting up PATH and things)
+use console::style;
 
 use clap::Parser;
 
@@ -22,17 +22,20 @@ async fn main() {
     if let Err(err) = cli.run().await {
         #[cfg(debug_assertions)]
         {
-            eprintln!("{:?}", err);
+
+            eprintln!("{:?}", style(err).red());
         }
 
         #[cfg(not(debug_assertions))]
         {
             eprintln!(
                 "{}",
-                err.chain()
-                    .map(|e| e.to_string())
-                    .collect::<Vec<_>>()
-                    .join("\n")
+                style(
+                    err.chain()
+                        .map(|e| e.to_string())
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                ).red()
             );
         }
 
