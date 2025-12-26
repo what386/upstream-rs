@@ -78,7 +78,6 @@ impl<'a> PackageUpgrader<'a> {
         let total = package_names.len() as u32;
         let mut completed = 0;
         let mut failures = 0;
-        let mut upgraded = 0;
 
         for name in package_names {
             message!(message_callback, "Checking '{}' ...", name);
@@ -106,10 +105,11 @@ impl<'a> PackageUpgrader<'a> {
                         "{}",
                         style(format!("Package '{}' upgraded", name)).green()
                     );
-                    upgraded += 1;
+                    completed += 1;
                 }
                 Ok(false) => {
                     message!(message_callback, "Package '{}' is already up to date", name);
+                    completed += 1;
                 }
                 Err(e) => {
                     message!(
@@ -122,7 +122,6 @@ impl<'a> PackageUpgrader<'a> {
                 }
             }
 
-            completed += 1;
             if let Some(cb) = overall_progress_callback.as_mut() {
                 cb(completed, total);
             }
