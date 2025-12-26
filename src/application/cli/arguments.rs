@@ -14,7 +14,7 @@ pub struct Cli {
     pub init: bool,
 
     /// Clean initialization (remove existing hooks)
-    #[arg(long,  default_value_t = false, requires = "init")]
+    #[arg(long, default_value_t = false, requires = "init")]
     pub clean: bool,
 }
 

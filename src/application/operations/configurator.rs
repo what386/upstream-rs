@@ -1,5 +1,6 @@
-use anyhow::Result;
 use crate::services::storage::config_storage::ConfigStorage;
+use anyhow::Result;
+use console::style;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -20,11 +21,7 @@ impl<'a> ConfigUpdater<'a> {
 
     /// Sets a configuration value using dot-notation key path.
     /// Example: "parent.child=value" or "github.apiToken=abc123"
-    pub fn set_key<H>(
-        &mut self,
-        set_key: &str,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
+    pub fn set_key<H>(&mut self, set_key: &str, message_callback: &mut Option<H>) -> Result<()>
     where
         H: FnMut(&str),
     {
@@ -36,18 +33,18 @@ impl<'a> ConfigUpdater<'a> {
             .try_set_value(&key_path, &value)
             .map_err(|e| anyhow::anyhow!("Failed to set config value: {}", e))?;
 
-        message!(message_callback, "Configuration updated successfully");
+        message!(
+            message_callback,
+            "{}",
+            style("Configuration updated successfully").green()
+        );
 
         Ok(())
     }
 
     /// Gets a configuration value using dot-notation key path.
     /// Example: "parent.child" or "github.apiToken"
-    pub fn get_key<H>(
-        &self,
-        get_key: &str,
-        message_callback: &mut Option<H>,
-    ) -> Result<String>
+    pub fn get_key<H>(&self, get_key: &str, message_callback: &mut Option<H>) -> Result<String>
     where
         H: FnMut(&str),
     {
@@ -66,7 +63,12 @@ impl<'a> ConfigUpdater<'a> {
 
         let value_str = Self::format_value(&value);
 
-        message!(message_callback, "{} = {}", key_path, value_str);
+        message!(
+            message_callback,
+            "{} = {}",
+            key_path,
+            style(&value_str).cyan()
+        );
 
         Ok(value_str)
     }
@@ -95,8 +97,9 @@ impl<'a> ConfigUpdater<'a> {
         if failures > 0 {
             message!(
                 message_callback,
-                "{} key(s) failed to be set",
-                failures
+                "{} {}",
+                failures,
+                style("key(s) failed to be set").red()
             );
         }
 
@@ -120,7 +123,13 @@ impl<'a> ConfigUpdater<'a> {
                     results.push((get_key.clone(), value));
                 }
                 Err(e) => {
-                    message!(message_callback, "Failed to get '{}': {}", get_key, e);
+                    message!(
+                        message_callback,
+                        "{} '{}': {}",
+                        style("Failed to get").red(),
+                        get_key,
+                        e
+                    );
                 }
             }
         }

@@ -14,9 +14,9 @@ pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
     let mut package_remover = PackageRemover::new(&mut package_storage, &paths);
 
     let overall_pb = ProgressBar::new(0);
-    overall_pb.set_style(
-        ProgressStyle::with_template("{spinner:.green} Removed {pos}/{len} packages")?,
-    );
+    overall_pb.set_style(ProgressStyle::with_template(
+        "{spinner:.green} Removed {pos}/{len} packages",
+    )?);
 
     let overall_pb_ref = overall_pb.clone();
     let mut overall_progress_callback = Some(move |done: u32, total: u32| {

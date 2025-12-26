@@ -1,3 +1,5 @@
+use console::style;
+
 use crate::{
     models::{common::enums::Filetype, upstream::Package},
     services::{
@@ -100,18 +102,23 @@ impl<'a> PackageUpgrader<'a> {
             .await
             {
                 Ok(true) => {
-                    message!(message_callback, "Package '{}' upgraded!", name);
+                    message!(
+                        message_callback,
+                        "{}",
+                        style(format!("Package '{}' upgraded", name)).green()
+                    );
                     upgraded += 1;
                 }
                 Ok(false) => {
-                    message!(
-                        message_callback,
-                        "Package '{}' is already up to date.",
-                        name
-                    );
+                    message!(message_callback, "Package '{}' is already up to date", name);
                 }
                 Err(e) => {
-                    message!(message_callback, "Upgrade failed for '{}': {}", name, e);
+                    message!(
+                        message_callback,
+                        "{} {}",
+                        style(format!("Upgrade failed for '{}':", name)).red(),
+                        e
+                    );
                     failures += 1;
                 }
             }
@@ -174,18 +181,23 @@ impl<'a> PackageUpgrader<'a> {
             .await
             {
                 Ok(true) => {
-                    message!(message_callback, "Package '{}' upgraded!", name);
+                    message!(
+                        message_callback,
+                        "{}",
+                        style(format!("Package '{}' upgraded", name)).green()
+                    );
                     upgraded += 1;
                 }
                 Ok(false) => {
-                    message!(
-                        message_callback,
-                        "Package '{}' is already up to date.",
-                        name
-                    );
+                    message!(message_callback, "Package '{}' is already up to date", name);
                 }
                 Err(e) => {
-                    message!(message_callback, "Upgrade failed for '{}': {}", name, e);
+                    message!(
+                        message_callback,
+                        "{} {}",
+                        style(format!("Upgrade failed for '{}':", name)).red(),
+                        e
+                    );
                     failures += 1;
                 }
             }
@@ -267,8 +279,8 @@ impl<'a> PackageUpgrader<'a> {
                     if latest_release.version.is_newer_than(&package.version) {
                         message!(
                             message_callback,
-                            "Update available for '{}': {} → {}",
-                            package.name,
+                            "{} {} → {}",
+                            style(format!("Update available for '{}':", package.name)).green(),
                             package.version,
                             latest_release.version
                         );
@@ -284,8 +296,8 @@ impl<'a> PackageUpgrader<'a> {
                 Err(e) => {
                     message!(
                         message_callback,
-                        "Failed to check '{}': {}",
-                        package.name,
+                        "{} {}",
+                        style(format!("Failed to check '{}':", package.name)).red(),
                         e
                     );
                 }
@@ -320,7 +332,8 @@ impl<'a> PackageUpgrader<'a> {
         if latest_release.version.is_newer_than(&package.version) {
             message!(
                 message_callback,
-                "Update available: {} → {}",
+                "{} {} → {}",
+                style("Update available:").green(),
                 package.version,
                 latest_release.version
             );
@@ -356,7 +369,7 @@ impl<'a> PackageUpgrader<'a> {
         if !*force_option && !latest_release.version.is_newer_than(&package.version) {
             message!(
                 message_callback,
-                "Nothing to do - '{}' is up to date.",
+                "Nothing to do - '{}' is up to date",
                 package.name
             );
             return Ok(false);
@@ -490,7 +503,8 @@ impl<'a> PackageUpgrader<'a> {
         } else {
             message!(
                 message_callback,
-                "Could not automatically locate executable"
+                "{}",
+                style("Could not automatically locate executable").yellow()
             );
             None
         };
