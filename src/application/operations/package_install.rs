@@ -198,7 +198,7 @@ impl<'a> PackageInstaller<'a> {
 
         message!(message_callback, "Verifying checksum ...");
 
-        let checksum_verifier = ChecksumVerifier::new(&self.provider_manager, &self.download_cache);
+        let checksum_verifier = ChecksumVerifier::new(self.provider_manager, &self.download_cache);
 
         let verified = checksum_verifier
             .try_verify_file(

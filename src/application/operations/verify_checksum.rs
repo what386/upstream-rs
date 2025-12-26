@@ -110,7 +110,7 @@ impl<'a> ChecksumVerifier<'a> {
         // If this fails, it's a real error
         let path = self
             .provider_manager
-            .download_asset(asset, provider, &self.download_cache, dl_progress)
+            .download_asset(asset, provider, self.download_cache, dl_progress)
             .await?;
 
         Ok(Some(path))

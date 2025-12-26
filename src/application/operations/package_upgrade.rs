@@ -394,7 +394,7 @@ impl<'a> PackageUpgrader<'a> {
             )
             .await?;
 
-        let checksum_verifier = ChecksumVerifier::new(&provider_manager, &download_cache);
+        let checksum_verifier = ChecksumVerifier::new(provider_manager, download_cache);
 
         let verified = checksum_verifier
             .try_verify_file(
