@@ -1,18 +1,17 @@
 use console::style;
 
 use crate::{
-    models::{common::enums::Filetype, upstream::Package},
-    services::{
+    application::operations::verify_checksum::ChecksumVerifier, models::{common::enums::Filetype, upstream::Package}, services::{
         filesystem::{
             DesktopManager, IconManager, ShellManager, SymlinkManager, compression_handler,
             permission_handler,
         },
         providers::provider_manager::ProviderManager,
         storage::package_storage::PackageStorage,
-    },
-    utils::static_paths::UpstreamPaths,
+    }, utils::static_paths::UpstreamPaths
 };
-use anyhow::{Result, anyhow};
+
+use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
 use std::{
     fs,
@@ -385,6 +384,7 @@ impl<'a> PackageUpgrader<'a> {
         let best_asset = provider_manager.find_recommended_asset(&latest_release, package)?;
 
         message!(message_callback, "Downloading '{}' ...", best_asset.name);
+
         let download_path = provider_manager
             .download_asset(
                 &best_asset,
@@ -393,6 +393,29 @@ impl<'a> PackageUpgrader<'a> {
                 download_progress_callback,
             )
             .await?;
+
+        let checksum_verifier = ChecksumVerifier::new(&provider_manager, &download_cache);
+
+        let verified = checksum_verifier
+            .try_verify_file(
+                &download_path,
+                &latest_release,
+                &package.provider,
+                download_progress_callback,
+            )
+            .await
+            .context("Failed to verify checksum")?;
+
+        if verified {
+            message!(message_callback, "{}", style("Checksum verified").green());
+        } else {
+            message!(
+                message_callback,
+                "{}",
+                style("No checksum available, skipping verification").yellow()
+            );
+        }
+
 
         message!(message_callback, "Upgrading package ...");
 
