@@ -29,7 +29,7 @@ pub enum Commands {
         #[arg(short, long, default_value_t = Provider::Github)]
         provider: Provider,
 
-        /// File type to install (e.g. binary, archive, app-image)
+        /// File type to install
         #[arg(short, long, value_enum)]
         kind: Filetype,
 
@@ -37,11 +37,11 @@ pub enum Commands {
         #[arg(short, long)]
         name: String,
 
-        /// Update channel to track (stable, beta, nightly, etc.)
+        /// Update channel to track
         #[arg(long, value_enum, default_value_t = Channel::Stable)]
         update_channel: Channel,
 
-        /// Whether to create a .desktop entry
+        /// Whether to create a .desktop entry (default = no)
         #[arg(long, default_value_t = false)]
         create_entry: bool,
     },
