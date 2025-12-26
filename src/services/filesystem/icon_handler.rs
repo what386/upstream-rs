@@ -33,8 +33,9 @@ impl<'a> IconManager<'a> {
                 Self::search_for_best_icon(&extract_path, name)
                     .or_else(|| Self::search_system_icons(name))
             }
-            Filetype::Archive => Self::search_for_best_icon(path, name)
-                .or_else(|| Self::search_system_icons(name)),
+            Filetype::Archive => {
+                Self::search_for_best_icon(path, name).or_else(|| Self::search_system_icons(name))
+            }
             _ => Self::search_system_icons(name),
         }
         .ok_or_else(|| anyhow!("Could not find icon"))?;
@@ -114,7 +115,11 @@ impl<'a> IconManager<'a> {
         }
 
         // Strategy 2: Check common theme subdirectories
-        let common_subdirs = ["hicolor/48x48/apps", "hicolor/scalable/apps", "hicolor/256x256/apps"];
+        let common_subdirs = [
+            "hicolor/48x48/apps",
+            "hicolor/scalable/apps",
+            "hicolor/256x256/apps",
+        ];
         for dir in &icon_dirs {
             for subdir in common_subdirs {
                 let theme_dir = dir.join(subdir);
@@ -141,7 +146,9 @@ impl<'a> IconManager<'a> {
 
             for ext in extensions {
                 // Limit glob depth or use walkdir with max_depth for better performance
-                if let Ok(entries) = glob::glob(&format!("{}/**/*{}*{}", dir.display(), name_lower, ext)) {
+                if let Ok(entries) =
+                    glob::glob(&format!("{}/**/*{}*{}", dir.display(), name_lower, ext))
+                {
                     // Take first 50 candidates max to avoid scanning everything
                     all_candidates.extend(entries.flatten().take(50));
 

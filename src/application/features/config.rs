@@ -1,9 +1,8 @@
-use anyhow::Result;
 use crate::{
     application::operations::configurator::ConfigUpdater,
-    services::storage::config_storage::ConfigStorage,
-    utils::static_paths::UpstreamPaths,
+    services::storage::config_storage::ConfigStorage, utils::static_paths::UpstreamPaths,
 };
+use anyhow::Result;
 
 pub fn run_set(set_keys: Vec<String>) -> Result<()> {
     let paths = UpstreamPaths::new();

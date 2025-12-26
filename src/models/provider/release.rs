@@ -55,6 +55,10 @@ impl Release {
             .collect()
     }
 
+    pub fn get_asset_by_name(&self, name: &str) -> Option<&Asset> {
+        self.assets.iter().find(|a| a.name == name)
+    }
+
     pub fn get_asset_by_pattern(&self, pattern: &str) -> Option<&Asset> {
         let pattern_lower = pattern.to_lowercase();
         self.assets
