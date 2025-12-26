@@ -1,5 +1,6 @@
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
+use console::style;
 
 use crate::{
     application::operations::package_install::PackageInstaller,
@@ -67,6 +68,8 @@ pub async fn run(
     pb.set_position(pb.length().unwrap_or(0));
 
     pb.finish_with_message("Install complete");
+
+    println!("{}", style("Install completed!").green());
 
     Ok(())
 }

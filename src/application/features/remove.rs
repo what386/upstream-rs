@@ -1,4 +1,5 @@
 use anyhow::Result;
+use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{
@@ -39,7 +40,7 @@ pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
         package_remover.remove_single(&names[0], &purge, &mut message_callback)?;
     }
 
-    println!("Package removed!");
+    println!("{}", style("Package removed!").green());
 
     Ok(())
 }

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use console::style;
 
 use crate::{
     application::operations::package_upgrade::PackageUpgrader,
@@ -92,6 +93,9 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
 
     download_pb.finish_and_clear();
     overall_pb.finish_with_message("Upgrade complete!");
+
+    println!("{}", style("Upgrade completed!").green());
+
     Ok(())
 }
 
@@ -112,9 +116,9 @@ async fn run_check(package_upgrade: PackageUpgrader<'_>, names: Option<Vec<Strin
             let updates = package_upgrade.check_updates(&mut message_callback).await?;
 
             if updates.is_empty() {
-                println!("\n✓ All packages are up to date!");
+                println!("{}", style("\nAll packages are up to date!").green());
             } else {
-                println!("\n{} update(s) available:\n", updates.len());
+                println!("\n{} {}", updates.len(), style("updates available:\n").yellow());
                 for (name, current, latest) in updates {
                     println!("  {} {} → {}", name, current, latest);
                 }
@@ -131,11 +135,11 @@ async fn run_check(package_upgrade: PackageUpgrader<'_>, names: Option<Vec<Strin
                     .await?
                 {
                     Some((current, latest)) => {
-                        println!("\n✓ Update available for '{}':", package_name);
+                        println!("{} {}:", style("\nUpdate available for").yellow(), package_name);
                         println!("  {} → {}", current, latest);
                     }
                     None => {
-                        println!("\n✓ '{}' is up to date", package_name);
+                        println!("{} {}", package_name, style("is up to date!").green());
                     }
                 }
             } else {
@@ -162,25 +166,24 @@ async fn run_check(package_upgrade: PackageUpgrader<'_>, names: Option<Vec<Strin
                     }
                 }
 
-                // Print results
                 if !updates_found.is_empty() {
-                    println!("\n{} update(s) available:\n", updates_found.len());
+                    println!("\n{} {}", updates_found.len(), style("updates available:\n").yellow());
                     for (name, current, latest) in updates_found {
                         println!("  {} {} → {}", name, current, latest);
                     }
                 }
 
                 if !up_to_date.is_empty() {
-                    println!("\n{} package(s) up to date:", up_to_date.len());
+                    println!("\n{} {}", up_to_date.len(), style("package(s) up to date:").green());
                     for name in up_to_date {
-                        println!("  ✓ {}", name);
+                        println!("  {}", name);
                     }
                 }
 
                 if !not_found.is_empty() {
-                    println!("\n{} package(s) not found:", not_found.len());
+                    println!("\n{} {}", not_found.len(), style("package(s) not found:").red());
                     for name in not_found {
-                        println!("  ✗ {}", name);
+                        println!("  {}", name);
                     }
                 }
             }
