@@ -38,6 +38,7 @@ fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
     fs::create_dir_all(&paths.install.appimages_dir)?;
     fs::create_dir_all(&paths.install.binaries_dir)?;
     fs::create_dir_all(&paths.install.archives_dir)?;
+    fs::create_dir_all(&paths.integration.icons_dir)?;
     fs::create_dir_all(&paths.integration.symlinks_dir)?;
     Ok(())
 }
