@@ -1,14 +1,17 @@
 use console::style;
 
 use crate::{
-    application::operations::verify_checksum::ChecksumVerifier, models::{common::enums::Filetype, upstream::Package}, services::{
+    application::operations::verify_checksum::ChecksumVerifier,
+    models::{common::enums::Filetype, upstream::Package},
+    services::{
         filesystem::{
             DesktopManager, IconManager, ShellManager, SymlinkManager, compression_handler,
             permission_handler,
         },
         providers::provider_manager::ProviderManager,
         storage::package_storage::PackageStorage,
-    }, utils::static_paths::UpstreamPaths
+    },
+    utils::static_paths::UpstreamPaths,
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -414,7 +417,6 @@ impl<'a> PackageUpgrader<'a> {
                 style("No checksum available, skipping verification").yellow()
             );
         }
-
 
         message!(message_callback, "Upgrading package ...");
 

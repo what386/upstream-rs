@@ -118,7 +118,11 @@ async fn run_check(package_upgrade: PackageUpgrader<'_>, names: Option<Vec<Strin
             if updates.is_empty() {
                 println!("{}", style("\nAll packages are up to date!").green());
             } else {
-                println!("\n{} {}", updates.len(), style("updates available:\n").yellow());
+                println!(
+                    "\n{} {}",
+                    updates.len(),
+                    style("updates available:\n").yellow()
+                );
                 for (name, current, latest) in updates {
                     println!("  {} {} → {}", name, current, latest);
                 }
@@ -135,7 +139,11 @@ async fn run_check(package_upgrade: PackageUpgrader<'_>, names: Option<Vec<Strin
                     .await?
                 {
                     Some((current, latest)) => {
-                        println!("{} {}:", style("\nUpdate available for").yellow(), package_name);
+                        println!(
+                            "{} {}:",
+                            style("\nUpdate available for").yellow(),
+                            package_name
+                        );
                         println!("  {} → {}", current, latest);
                     }
                     None => {
@@ -167,21 +175,33 @@ async fn run_check(package_upgrade: PackageUpgrader<'_>, names: Option<Vec<Strin
                 }
 
                 if !updates_found.is_empty() {
-                    println!("\n{} {}", updates_found.len(), style("updates available:\n").yellow());
+                    println!(
+                        "\n{} {}",
+                        updates_found.len(),
+                        style("updates available:\n").yellow()
+                    );
                     for (name, current, latest) in updates_found {
                         println!("  {} {} → {}", name, current, latest);
                     }
                 }
 
                 if !up_to_date.is_empty() {
-                    println!("\n{} {}", up_to_date.len(), style("package(s) up to date:").green());
+                    println!(
+                        "\n{} {}",
+                        up_to_date.len(),
+                        style("package(s) up to date:").green()
+                    );
                     for name in up_to_date {
                         println!("  {}", name);
                     }
                 }
 
                 if !not_found.is_empty() {
-                    println!("\n{} {}", not_found.len(), style("package(s) not found:").red());
+                    println!(
+                        "\n{} {}",
+                        not_found.len(),
+                        style("package(s) not found:").red()
+                    );
                     for name in not_found {
                         println!("  {}", name);
                     }

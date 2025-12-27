@@ -59,7 +59,7 @@ impl Cli {
                 PackageAction::SetKey { name, keys } => features::package::run_set_key(name, keys),
                 PackageAction::GetKey { name, keys } => features::package::run_get_key(name, keys),
                 PackageAction::Metadata { name } => features::package::run_metadata(name),
-            }
+            },
         }
     }
 }
