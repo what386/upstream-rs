@@ -66,7 +66,7 @@ fn display_all(package: &Package) -> String {
         } else {
             "None"
         },
-        if package.is_paused { "Yes" } else { "No" },
+        if package.is_pinned { "Yes" } else { "No" },
         install_path,
         exec_path,
         package.last_upgraded.format("%Y-%m-%d %H:%M:%S UTC")
@@ -94,7 +94,7 @@ fn display_compact(package: &Package) -> String {
         package.channel,
         package.provider,
         icon_path,
-        if package.is_paused { "P" } else { "-" },
+        if package.is_pinned { "P" } else { "-" },
         install_path
     )
 }
