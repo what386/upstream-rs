@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::application::cli::arguments::{Cli, Commands, ConfigAction};
+use crate::application::cli::arguments::{Cli, Commands, ConfigAction, PackageAction};
 use crate::application::features;
 
 impl Cli {
@@ -15,6 +15,7 @@ impl Cli {
                 provider,
                 kind,
                 name,
+                pattern,
                 update_channel,
                 create_entry,
             } => {
@@ -23,6 +24,7 @@ impl Cli {
                     provider,
                     kind,
                     name,
+                    pattern,
                     update_channel,
                     create_entry,
                 )
@@ -50,6 +52,12 @@ impl Cli {
                 ConfigAction::Edit => features::config::run_edit(),
                 ConfigAction::Reset => features::config::run_reset(),
             },
+
+            Commands::Package { action } => match action {
+                // TODO: implement
+                PackageAction::Pin { name } => {Ok(())},
+                PackageAction::Unpin { name } => {Ok(())},
+            }
         }
     }
 }
