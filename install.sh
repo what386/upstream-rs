@@ -12,7 +12,7 @@ GITHUB_REPO="upstream-rs"
 BINARY_NAME="upstream-rs"
 
 INSTALL_COMMANDS=(
-    "--init"
+    "init"
     "install what386/upstream-rs -k binary -n upstream"
 )
 

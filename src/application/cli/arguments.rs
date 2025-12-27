@@ -8,14 +8,6 @@ use crate::models::common::enums::{Channel, Filetype, Provider};
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
-
-    /// Initialize upstream by hooking into PATH
-    #[arg(long, default_value_t = false)]
-    pub init: bool,
-
-    /// Clean initialization (remove existing hooks)
-    #[arg(long, default_value_t = false, requires = "init")]
-    pub clean: bool,
 }
 
 #[derive(Subcommand)]
@@ -87,6 +79,12 @@ pub enum Commands {
     Package {
         #[command(subcommand)]
         action: PackageAction,
+    },
+    /// Initialize upstream by hooking into PATH
+    Init {
+        /// Clean initialization (remove existing hooks first)
+        #[arg(long)]
+        clean: bool,
     },
 }
 
