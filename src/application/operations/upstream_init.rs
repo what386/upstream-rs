@@ -42,11 +42,23 @@ fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
     Ok(())
 }
 
+
+// add:
+// export PATH="/home/{username}/.upstream/symlinks:$PATH"
+// as newline to this file
 fn create_metadata_files(paths: &UpstreamPaths) -> io::Result<()> {
     if !paths.config.paths_file.exists() {
+        let export_line = format!(
+            r#"export PATH="{}:$PATH""#,
+            paths.integration.symlinks_dir.display()
+        );
+
         fs::write(
             &paths.config.paths_file,
-            "#!/bin/bash\n# Upstream managed PATH additions\n",
+            format!(
+                "#!/bin/bash\n# Upstream managed PATH additions\n{}\n",
+                export_line
+            ),
         )?;
     }
     Ok(())
@@ -132,3 +144,4 @@ pub fn cleanup(paths: &UpstreamPaths) -> io::Result<()> {
     }
     Ok(())
 }
+
