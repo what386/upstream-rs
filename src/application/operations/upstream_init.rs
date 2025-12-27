@@ -6,7 +6,7 @@ use crate::utils::static_paths::UpstreamPaths;
 
 // The line to source in shell configs
 const SOURCE_LINE_BASH: &str =
-    "[ -f $HOME/.upstream/metadata/paths.sh ] && source $HOME/.config/upstream/metadata/paths.sh";
+    "[ -f $HOME/.upstream/metadata/paths.sh ] && source $HOME/.upstream/metadata/paths.sh";
 const SOURCE_LINE_FISH: &str = "source $HOME/.upstream/metadata/paths.sh";
 
 pub fn initialize(paths: &UpstreamPaths) -> io::Result<()> {
