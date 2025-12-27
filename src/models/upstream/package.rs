@@ -19,6 +19,7 @@ pub struct Package {
     pub provider: Provider,
 
     pub is_paused: bool,
+    pub pattern: Option<String>,
     pub icon_path: Option<PathBuf>,
     pub install_path: Option<PathBuf>,
     pub exec_path: Option<PathBuf>,
@@ -31,6 +32,7 @@ impl Package {
         name: String,
         repo_slug: String,
         pkg_kind: Filetype,
+        pattern: Option<String>,
         channel: Channel,
         provider: Provider,
     ) -> Self {
@@ -46,6 +48,7 @@ impl Package {
             provider,
 
             is_paused: false,
+            pattern,
             icon_path: None,
             install_path: None,
             exec_path: None,

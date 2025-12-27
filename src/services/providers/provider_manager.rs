@@ -210,6 +210,13 @@ impl ProviderManager {
             score -= 20;
         }
 
+        // TODO: store assethint in package to reuse for upgrade
+        if let Some(asset_hint) = &package.pattern {
+            if name.contains(asset_hint) {
+                score += 50;
+            }
+        }
+
         score
     }
 }
