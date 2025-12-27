@@ -54,9 +54,12 @@ impl Cli {
             },
 
             Commands::Package { action } => match action {
-                // TODO: implement
+                // TODO: implement all
                 PackageAction::Pin { name } => {Ok(())},
                 PackageAction::Unpin { name } => {Ok(())},
+                PackageAction::Set { name, key_pair } => {Ok(())},
+                PackageAction::Get { name, key } => {Ok(())},
+                PackageAction::Repair { names } => {Ok(())},
             }
         }
     }
