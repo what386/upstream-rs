@@ -20,6 +20,7 @@ pub async fn run(
     provider: Provider,
     kind: Filetype,
     name: String,
+    pattern: Option<String>,
     channel: Channel,
     create_entry: bool,
 ) -> Result<()> {
@@ -37,7 +38,7 @@ pub async fn run(
     let mut package_installer =
         PackageInstaller::new(&provider_manager, &mut package_storage, &paths)?;
 
-    let package = Package::with_defaults(name, repo_slug, kind, channel, provider);
+    let package = Package::with_defaults(name, repo_slug, kind, pattern, channel, provider);
 
     let pb = ProgressBar::new(0);
     pb.set_style(ProgressStyle::with_template(

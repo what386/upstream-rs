@@ -25,10 +25,6 @@ pub enum Commands {
         /// Repository identifier (e.g. `owner/repo`)
         repo_slug: String,
 
-        /// Source provider hosting the repository
-        #[arg(short, long, default_value_t = Provider::Github)]
-        provider: Provider,
-
         /// File type to install
         #[arg(short, long, value_enum)]
         kind: Filetype,
@@ -36,6 +32,15 @@ pub enum Commands {
         /// Name to register the installed application under
         #[arg(short, long)]
         name: String,
+
+        /// Pattern to use as a hint for which package to install.
+        #[arg(short, long)]
+        pattern: Option<String>,
+
+        /// Source provider hosting the repository
+        #[arg(long, default_value_t = Provider::Github)]
+        provider: Provider,
+
 
         /// Update channel to track
         #[arg(long, value_enum, default_value_t = Channel::Stable)]
@@ -79,6 +84,11 @@ pub enum Commands {
         #[command(subcommand)]
         action: ConfigAction,
     },
+    /// Manage package flags and metadata
+    Package {
+        #[command(subcommand)]
+        action: PackageAction,
+    }
 }
 
 #[derive(Subcommand)]
@@ -102,3 +112,23 @@ pub enum ConfigAction {
     /// Reset configuration to defaults
     Reset,
 }
+
+#[derive(Subcommand)]
+pub enum PackageAction{
+    /// Pin a package to it's current version
+    Pin {
+        /// Name of package to pin
+        name: String,
+    },
+    /// Unpin a package and allow it to get updates.
+    Unpin {
+        /// Name of package to unpin
+        name: String,
+    },
+}
+
+
+
+
+
+
