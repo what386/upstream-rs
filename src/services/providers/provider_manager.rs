@@ -104,7 +104,7 @@ impl ProviderManager {
     }
 
     fn is_valid_update(package: &Package, release: &Release) -> bool {
-        if package.is_paused {
+        if package.is_pinned {
             return false;
         }
 
