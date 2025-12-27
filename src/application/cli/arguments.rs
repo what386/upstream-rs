@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, builder::Str};
+use clap::{Parser, Subcommand};
 
 use crate::models::common::enums::{Channel, Filetype, Provider};
 
