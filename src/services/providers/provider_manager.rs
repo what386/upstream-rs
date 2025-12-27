@@ -185,13 +185,28 @@ impl ProviderManager {
             }
         }
 
+        // Binary format preference
+        if asset.filetype == Filetype::Binary {
+            if Path::new(&name).extension().is_none() {
+                score += 10;
+            }
+        }
+
+        if name.contains("static") {
+            score += 5;
+        }
+
+        if name.contains("debug") || name.contains("symbols") {
+            score -= 20;
+        }
+
         // Package name match
         if !name.contains(&package.name.to_lowercase()) {
             score -= 40;
         }
 
-        // Very small files
-        if asset.size < 100_000 {
+        // Very small files, or absurdly large files
+        if asset.size < 100_000 || asset.size > 500_000_000 {
             score -= 20;
         }
 

@@ -255,7 +255,7 @@ impl<'a> IconManager<'a> {
         if let Ok(metadata) = fs::metadata(path) {
             let size = metadata.len();
             if size > 10_000_000 {
-                // > 10MB, probably not an icon
+                // > 10MB, not an icon
                 score -= 100;
             } else if size > 1_000_000 {
                 // > 1MB, suspicious
