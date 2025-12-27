@@ -54,12 +54,11 @@ impl Cli {
             },
 
             Commands::Package { action } => match action {
-                // TODO: implement all
-                PackageAction::Pin { name } => {Ok(())},
-                PackageAction::Unpin { name } => {Ok(())},
-                PackageAction::Set { name, key_pair } => {Ok(())},
-                PackageAction::Get { name, key } => {Ok(())},
-                PackageAction::Repair { names } => {Ok(())},
+                PackageAction::Pin { name } => features::package::run_pin(name),
+                PackageAction::Unpin { name } => features::package::run_unpin(name),
+                PackageAction::SetKey { name, keys } => features::package::run_set_key(name, keys),
+                PackageAction::GetKey { name, keys } => features::package::run_get_key(name, keys),
+                PackageAction::Metadata { name } => features::package::run_metadata(name),
             }
         }
     }

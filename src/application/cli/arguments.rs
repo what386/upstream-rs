@@ -126,30 +126,23 @@ pub enum PackageAction{
         name: String,
     },
     /// Get a list of raw package metadata
-    Get {
+    GetKey {
         /// Name of package
         name: String,
 
-        /// Key to list
-        key: Option<String>,
+        /// Configuration keys to retrieve (e.g., "install_path")
+        keys: Vec<String>,
     },
     /// Manually set package metadata
-    Set {
+    SetKey {
         /// Name of package
         name: String,
 
-        /// Key pair to update
-        key_pair: Option<String>,
+        /// Configuration keys to set (e.g., "is_pinned=false")
+        keys: Vec<String>,
     },
-    /// Attempt to fix broken package installs
-    Repair {
-        /// Names of packages to repair
-        names: Option<Vec<String>>
-    }
+    /// List all package metadata
+    Metadata {
+        name: String,
+    },
 }
-
-
-
-
-
-
