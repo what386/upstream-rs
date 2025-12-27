@@ -1,6 +1,6 @@
 use anyhow::Result;
-use indicatif::{ProgressBar, ProgressStyle};
 use console::style;
+use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{
     application::operations::package_install::PackageInstaller,

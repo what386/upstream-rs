@@ -22,7 +22,6 @@ async fn main() {
     if let Err(err) = cli.run().await {
         #[cfg(debug_assertions)]
         {
-
             eprintln!("{:?}", style(err).red());
         }
 
@@ -35,7 +34,8 @@ async fn main() {
                         .map(|e| e.to_string())
                         .collect::<Vec<_>>()
                         .join("\n")
-                ).red()
+                )
+                .red()
             );
         }
 

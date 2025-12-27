@@ -47,11 +47,7 @@ impl<'a> MetadataManager<'a> {
         message!(
             message_callback,
             "{}",
-            style(format!(
-                "Package '{}' pinned at version {}",
-                name, version
-            ))
-            .green()
+            style(format!("Package '{}' pinned at version {}", name, version)).green()
         );
 
         Ok(())
@@ -128,7 +124,8 @@ impl<'a> MetadataManager<'a> {
             .map_err(|e| anyhow::anyhow!("Failed to deserialize updated package: {}", e))?;
 
         // Update in storage
-        self.package_storage.add_or_update_package(updated_package)?;
+        self.package_storage
+            .add_or_update_package(updated_package)?;
 
         message!(
             message_callback,
@@ -287,11 +284,7 @@ impl<'a> MetadataManager<'a> {
     }
 
     /// Sets a nested value in JSON using dot notation.
-    fn set_nested_value(
-        json: &mut serde_json::Value,
-        path: &str,
-        value: &str,
-    ) -> Result<()> {
+    fn set_nested_value(json: &mut serde_json::Value, path: &str, value: &str) -> Result<()> {
         let keys: Vec<&str> = path.split('.').collect();
 
         if keys.is_empty() {
@@ -326,7 +319,8 @@ impl<'a> MetadataManager<'a> {
     ) -> Result<serde_json::Value> {
         match existing {
             serde_json::Value::Bool(_) => {
-                let bool_val = value_str.parse::<bool>()
+                let bool_val = value_str
+                    .parse::<bool>()
                     .map_err(|_| anyhow::anyhow!("Expected boolean value, got '{}'", value_str))?;
                 Ok(serde_json::Value::Bool(bool_val))
             }
@@ -336,12 +330,13 @@ impl<'a> MetadataManager<'a> {
                 } else if let Ok(float_val) = value_str.parse::<f64>() {
                     Ok(serde_json::json!(float_val))
                 } else {
-                    Err(anyhow::anyhow!("Expected numeric value, got '{}'", value_str))
+                    Err(anyhow::anyhow!(
+                        "Expected numeric value, got '{}'",
+                        value_str
+                    ))
                 }
             }
-            serde_json::Value::String(_) => {
-                Ok(serde_json::Value::String(value_str.to_string()))
-            }
+            serde_json::Value::String(_) => Ok(serde_json::Value::String(value_str.to_string())),
             serde_json::Value::Null => {
                 if value_str == "null" {
                     Ok(serde_json::Value::Null)
@@ -358,8 +353,12 @@ impl<'a> MetadataManager<'a> {
             }
             _ => {
                 // For objects/arrays, try to parse as JSON
-                serde_json::from_str(value_str)
-                    .map_err(|_| anyhow::anyhow!("Cannot set complex type from string. Expected JSON, got '{}'", value_str))
+                serde_json::from_str(value_str).map_err(|_| {
+                    anyhow::anyhow!(
+                        "Cannot set complex type from string. Expected JSON, got '{}'",
+                        value_str
+                    )
+                })
             }
         }
     }

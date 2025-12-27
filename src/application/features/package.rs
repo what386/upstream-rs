@@ -1,7 +1,6 @@
 use crate::{
     application::operations::package_metadata::MetadataManager,
-    services::storage::package_storage::PackageStorage,
-    utils::static_paths::UpstreamPaths,
+    services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
 

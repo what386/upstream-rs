@@ -72,7 +72,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 cargo install --force upstream-rs
 ```
 
-> ⚠️ Installing via Cargo **does not enable self-updates** via Upstream’s "upgrade" mechanism. Use the auto-install script for self-contained updates.
+> ⚠️ Installing via Cargo **does not enable self-updates** via Upstream’s "upgrade" mechanism. Use the auto-install script for self-contained updates, or use cargo to update Upstream.
 
 ---
 

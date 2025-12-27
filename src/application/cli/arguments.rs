@@ -41,7 +41,6 @@ pub enum Commands {
         #[arg(long, default_value_t = Provider::Github)]
         provider: Provider,
 
-
         /// Update channel to track
         #[arg(long, value_enum, default_value_t = Channel::Stable)]
         update_channel: Channel,
@@ -88,7 +87,7 @@ pub enum Commands {
     Package {
         #[command(subcommand)]
         action: PackageAction,
-    }
+    },
 }
 
 #[derive(Subcommand)]
@@ -114,7 +113,7 @@ pub enum ConfigAction {
 }
 
 #[derive(Subcommand)]
-pub enum PackageAction{
+pub enum PackageAction {
     /// Pin a package to it's current version
     Pin {
         /// Name of package to pin
@@ -142,7 +141,5 @@ pub enum PackageAction{
         keys: Vec<String>,
     },
     /// List all package metadata
-    Metadata {
-        name: String,
-    },
+    Metadata { name: String },
 }
