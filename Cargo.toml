@@ -2,6 +2,12 @@
 name = "upstream-rs"
 version = "0.3.2"
 edition = "2024"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+description = "Fetch package updates directly from upstream sources."
+repository = "https://github.com/what386/upstream-rs"
+keywords = ["update", "package", "upstream", "rust"]
+categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
