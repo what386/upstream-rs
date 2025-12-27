@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, builder::Str};
 
 use crate::models::common::enums::{Channel, Filetype, Provider};
 
@@ -120,11 +120,27 @@ pub enum PackageAction{
         /// Name of package to pin
         name: String,
     },
-    /// Unpin a package and allow it to get updates.
+    /// Unpin a package and allow it to get updates
     Unpin {
         /// Name of package to unpin
         name: String,
     },
+    /// Get a list of raw package metadata
+    Get {
+        name: String,
+
+        key: Option<String>,
+    },
+    /// Manually set package metadata
+    Set {
+        name: String,
+
+        key_pair: Option<String>,
+    },
+    /// Attempt to fix broken package installs
+    Repair {
+        names: Option<Vec<String>>
+    }
 }
 
 
