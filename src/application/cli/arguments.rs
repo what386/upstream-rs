@@ -127,18 +127,23 @@ pub enum PackageAction{
     },
     /// Get a list of raw package metadata
     Get {
+        /// Name of package
         name: String,
 
+        /// Key to list
         key: Option<String>,
     },
     /// Manually set package metadata
     Set {
+        /// Name of package
         name: String,
 
+        /// Key pair to update
         key_pair: Option<String>,
     },
     /// Attempt to fix broken package installs
     Repair {
+        /// Names of packages to repair
         names: Option<Vec<String>>
     }
 }
