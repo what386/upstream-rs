@@ -18,7 +18,7 @@ pub struct Package {
     pub channel: Channel,
     pub provider: Provider,
 
-    pub is_paused: bool,
+    pub is_pinned: bool,
     pub pattern: Option<String>,
     pub icon_path: Option<PathBuf>,
     pub install_path: Option<PathBuf>,
@@ -47,7 +47,7 @@ impl Package {
             channel,
             provider,
 
-            is_paused: false,
+            is_pinned: false,
             pattern,
             icon_path: None,
             install_path: None,
