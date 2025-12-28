@@ -31,19 +31,17 @@ impl Package {
     pub fn with_defaults(
         name: String,
         repo_slug: String,
-        pkg_kind: Filetype,
+        filetype: Filetype,
         pattern: Option<String>,
         channel: Channel,
         provider: Provider,
     ) -> Self {
-        let now = Utc::now();
-        let version = Version::new(0, 0, 0, false);
         Self {
             name,
             repo_slug,
 
-            filetype: pkg_kind,
-            version,
+            filetype,
+            version: Version::new(0, 0, 0, false),
             channel,
             provider,
 
@@ -53,7 +51,7 @@ impl Package {
             install_path: None,
             exec_path: None,
 
-            last_upgraded: now,
+            last_upgraded: Utc::now(),
         }
     }
 
