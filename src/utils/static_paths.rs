@@ -36,7 +36,7 @@ pub struct ConfigPaths {
 impl ConfigPaths {
     pub fn new(dirs: &AppDirs) -> Self {
         Self {
-            config_file: dirs.config_dir.join("config.json"),
+            config_file: dirs.config_dir.join("config.toml"),
             packages_file: dirs.metadata_dir.join("packages.json"),
             paths_file: dirs.metadata_dir.join("paths.sh"),
         }
