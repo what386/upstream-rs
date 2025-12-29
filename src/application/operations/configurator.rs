@@ -1,6 +1,7 @@
 use crate::services::storage::config_storage::ConfigStorage;
 use anyhow::Result;
 use console::style;
+use toml;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -20,7 +21,7 @@ impl<'a> ConfigUpdater<'a> {
     }
 
     /// Sets a configuration value using dot-notation key path.
-    /// Example: "parent.child=value" or "github.apiToken=abc123"
+    /// Example: "parent.child=value" or "github.api_token=abc123"
     pub fn set_key<H>(&mut self, set_key: &str, message_callback: &mut Option<H>) -> Result<()>
     where
         H: FnMut(&str),
@@ -43,7 +44,7 @@ impl<'a> ConfigUpdater<'a> {
     }
 
     /// Gets a configuration value using dot-notation key path.
-    /// Example: "parent.child" or "github.apiToken"
+    /// Example: "parent.child" or "github.api_token"
     pub fn get_key<H>(&self, get_key: &str, message_callback: &mut Option<H>) -> Result<String>
     where
         H: FnMut(&str),
@@ -56,7 +57,7 @@ impl<'a> ConfigUpdater<'a> {
 
         message!(message_callback, "Getting value for '{}'", key_path);
 
-        let value: serde_json::Value = self
+        let value: toml::Value = self
             .config_storage
             .try_get_value(key_path)
             .map_err(|e| anyhow::anyhow!("Failed to get config value: {}", e))?;
@@ -159,15 +160,16 @@ impl<'a> ConfigUpdater<'a> {
     }
 
     /// Formats a JSON value as a string for display.
-    fn format_value(value: &serde_json::Value) -> String {
+    fn format_value(value: &toml::Value) -> String {
         match value {
-            serde_json::Value::String(s) => s.clone(),
-            serde_json::Value::Null => "null".to_string(),
-            serde_json::Value::Bool(b) => b.to_string(),
-            serde_json::Value::Number(n) => n.to_string(),
-            serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-                serde_json::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string())
+            toml::Value::String(s) => s.clone(),
+            toml::Value::Integer(i) => i.to_string(),
+            toml::Value::Float(f) => f.to_string(),
+            toml::Value::Boolean(b) => b.to_string(),
+            toml::Value::Table(_) | toml::Value::Array(_) => {
+                toml::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string())
             }
+            toml::Value::Datetime(dt) => dt.to_string(),
         }
     }
 }
