@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use dirs;
 
 /// Root directories for the application
 pub struct AppDirs {
@@ -11,8 +12,9 @@ pub struct AppDirs {
 impl AppDirs {
     pub fn new() -> Self {
         let user_dir = dirs::home_dir().unwrap();
+        let config_dir = dirs::config_dir().unwrap().join("upstream");
+
         let data_dir = user_dir.join(".upstream");
-        let config_dir = user_dir.join(".config/upstream");
         let metadata_dir = data_dir.join("metadata");
 
         Self {
@@ -34,7 +36,7 @@ pub struct ConfigPaths {
 impl ConfigPaths {
     pub fn new(dirs: &AppDirs) -> Self {
         Self {
-            config_file: dirs.config_dir.join("config.json"),
+            config_file: dirs.config_dir.join("config.toml"),
             packages_file: dirs.metadata_dir.join("packages.json"),
             paths_file: dirs.metadata_dir.join("paths.sh"),
         }
