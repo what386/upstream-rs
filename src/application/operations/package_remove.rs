@@ -88,12 +88,12 @@ impl<'a> PackageRemover<'a> {
 
         Self::perform_remove(self.paths, package, message_callback)?;
 
-        self.package_storage.remove_package_by_name(&package_name)?;
+        self.package_storage.remove_package_by_name(package_name)?;
 
         if *purge_option {
             // TODO: implement. currently does nothing
             // match name in .config/* and remove that folder?
-            Self::purge_configs(self.paths, &package_name, message_callback)?;
+            Self::purge_configs(self.paths, package_name, message_callback)?;
         }
 
         Ok(())

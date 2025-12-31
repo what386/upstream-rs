@@ -186,11 +186,10 @@ impl ProviderManager {
         }
 
         // Binary format preference
-        if asset.filetype == Filetype::Binary {
-            if Path::new(&name).extension().is_none() {
+        if asset.filetype == Filetype::Binary
+            && Path::new(&name).extension().is_none() {
                 score += 10;
             }
-        }
 
         if name.contains("static") {
             score += 5;
@@ -211,11 +210,10 @@ impl ProviderManager {
         }
 
         // TODO: store assethint in package to reuse for upgrade
-        if let Some(asset_hint) = &package.pattern {
-            if name.contains(asset_hint) {
+        if let Some(asset_hint) = &package.pattern
+            && name.contains(asset_hint) {
                 score += 50;
             }
-        }
 
         score
     }
