@@ -6,8 +6,7 @@ use crate::{
     },
     utils::static_paths::UpstreamPaths,
 };
-
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use console::style;
 use std::fs;
 
@@ -49,13 +48,18 @@ impl<'a> PackageRemover<'a> {
 
         for package_name in package_names {
             message!(message_callback, "Removing '{}' ...", package_name);
-            match self.remove_single(package_name, purge_option, message_callback) {
+
+            match self
+                .remove_single(package_name, purge_option, message_callback)
+                .context(format!("Failed to remove package '{}'", package_name))
+            {
                 Ok(_) => message!(message_callback, "{}", style("Package removed").green()),
                 Err(e) => {
                     message!(message_callback, "{} {}", style("Removal failed:").red(), e);
                     failures += 1;
                 }
             }
+
             completed += 1;
             if let Some(cb) = overall_progress_callback.as_mut() {
                 cb(completed, total);
@@ -72,6 +76,7 @@ impl<'a> PackageRemover<'a> {
 
         Ok(())
     }
+
     pub fn remove_single<H>(
         &mut self,
         package_name: &str,
@@ -84,20 +89,23 @@ impl<'a> PackageRemover<'a> {
         let package = self
             .package_storage
             .get_package_by_name(package_name)
-            .ok_or_else(|| anyhow!("Package '{}' is not installed.", package_name))?;
+            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
 
-        Self::perform_remove(self.paths, package, message_callback)?;
+        Self::perform_remove(self.paths, package, message_callback)
+            .context(format!("Failed to perform removal operations for '{}'", package_name))?;
 
-        self.package_storage.remove_package_by_name(&package_name)?;
+        self.package_storage
+            .remove_package_by_name(package_name)
+            .context(format!("Failed to remove '{}' from package storage", package_name))?;
 
         if *purge_option {
-            // TODO: implement. currently does nothing
-            // match name in .config/* and remove that folder?
-            Self::purge_configs(self.paths, &package_name, message_callback)?;
+            Self::purge_configs(self.paths, package_name, message_callback)
+                .context(format!("Failed to purge configuration files for '{}'", package_name))?;
         }
 
         Ok(())
     }
+
     fn perform_remove<H>(
         paths: &UpstreamPaths,
         package: &Package,
@@ -109,7 +117,7 @@ impl<'a> PackageRemover<'a> {
         let install_path = package
             .install_path
             .as_ref()
-            .ok_or_else(|| anyhow!("Package '{}' is not installed", package.name))?;
+            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
 
         message!(
             message_callback,
@@ -118,11 +126,17 @@ impl<'a> PackageRemover<'a> {
         );
 
         ShellManager::new(&paths.config.paths_file, &paths.integration.symlinks_dir)
-            .remove_from_paths(install_path)?;
+            .remove_from_paths(install_path)
+            .context(format!(
+                "Failed to remove '{}' from PATH configuration",
+                install_path.display()
+            ))?;
 
         message!(message_callback, "Removing symlink for '{}'", package.name);
 
-        SymlinkManager::new(&paths.integration.symlinks_dir).remove_link(&package.name)?;
+        SymlinkManager::new(&paths.integration.symlinks_dir)
+            .remove_link(&package.name)
+            .context(format!("Failed to remove symlink for '{}'", package.name))?;
 
         if install_path.is_dir() {
             message!(
@@ -130,17 +144,25 @@ impl<'a> PackageRemover<'a> {
                 "Removing directory: {}",
                 install_path.display()
             );
-            fs::remove_dir_all(install_path)?;
+            fs::remove_dir_all(install_path)
+                .context(format!(
+                    "Failed to remove installation directory at '{}'",
+                    install_path.display()
+                ))?;
         } else if install_path.is_file() {
             message!(
                 message_callback,
                 "Removing file: {}",
                 install_path.display()
             );
-            fs::remove_file(install_path)?;
+            fs::remove_file(install_path)
+                .context(format!(
+                    "Failed to remove installation file at '{}'",
+                    install_path.display()
+                ))?;
         } else {
             return Err(anyhow!(
-                "Install path is invalid: {}",
+                "Install path '{}' is neither a file nor directory (may have been manually removed)",
                 install_path.display()
             ));
         }
@@ -148,15 +170,23 @@ impl<'a> PackageRemover<'a> {
         if let Some(icon_path) = &package.icon_path {
             message!(message_callback, "Removing .desktop entry ...");
 
-            let desktop_manager = DesktopManager::new(paths)?;
-            let _ = desktop_manager.remove_entry(&package.name);
+            let desktop_manager = DesktopManager::new(paths)
+                .context("Failed to initialize desktop manager")?;
 
-            fs::remove_file(icon_path)?;
+            desktop_manager
+                .remove_entry(&package.name)
+                .context(format!("Failed to remove desktop entry for '{}'", package.name))?;
+
+            fs::remove_file(icon_path)
+                .context(format!(
+                    "Failed to remove icon file at '{}'",
+                    icon_path.display()
+                ))?;
 
             message!(
                 message_callback,
                 "Removed stored icon: {}",
-                &icon_path.display()
+                icon_path.display()
             );
         }
 
@@ -172,6 +202,16 @@ impl<'a> PackageRemover<'a> {
         H: FnMut(&str),
     {
         // TODO: implement
+        // - Search for config directories matching package_name
+        // - Prompt user or log which configs are being removed
+        // - Add context for each removal operation
+
+        message!(
+            message_callback,
+            "Purge option enabled, but configuration removal not yet implemented for '{}'",
+            package_name
+        );
+
         Ok(())
     }
 }
