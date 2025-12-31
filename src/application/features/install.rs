@@ -21,6 +21,7 @@ pub async fn run(
     kind: Filetype,
     name: String,
     pattern: Option<String>,
+    version: Option<String>,
     channel: Channel,
     create_entry: bool,
 ) -> Result<()> {
@@ -59,6 +60,7 @@ pub async fn run(
     package_installer
         .install_single(
             package,
+            &version,
             &create_entry,
             &mut download_progress_callback,
             &mut message_callback,
