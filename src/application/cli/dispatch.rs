@@ -5,12 +5,8 @@ use crate::application::features;
 
 impl Cli {
     pub async fn run(self) -> Result<()> {
-
-
         match self.command {
-            Commands::Init { clean } => {
-                features::init::run(clean)
-            },
+            Commands::Init { clean } => features::init::run(clean),
             Commands::Install {
                 repo_slug,
                 provider,

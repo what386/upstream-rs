@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use dirs;
+use std::path::PathBuf;
 
 /// Root directories for the application
 pub struct AppDirs {

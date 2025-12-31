@@ -1,10 +1,11 @@
-use clap::{Parser, Subcommand};
 use crate::models::common::enums::{Channel, Filetype, Provider};
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "upstream")]
 #[command(about = "A package manager for Github releases.")]
-#[command(long_about = "Upstream is a lightweight package manager that installs and manages \
+#[command(
+    long_about = "Upstream is a lightweight package manager that installs and manages \
     applications directly from GitHub releases (and other providers).\n\n\
     Install binaries, AppImages, and other artifacts with automatic updates, \
     version pinning, and simple configuration management.\n\n\
@@ -12,7 +13,8 @@ use crate::models::common::enums::{Channel, Filetype, Provider};
     upstream install neovim/neovim -k appimage -n nvim\n  \
     upstream upgrade                # Upgrade all packages\n  \
     upstream list                   # Show installed packages\n  \
-    upstream config set github.apiToken=ghp_xxx")]
+    upstream config set github.apiToken=ghp_xxx"
+)]
 #[command(version)]
 pub struct Cli {
     #[command(subcommand)]
@@ -59,12 +61,14 @@ pub enum Commands {
     },
 
     /// Remove one or more installed packages
-    #[command(long_about = "Uninstall packages and optionally remove cached data.\n\n\
+    #[command(
+        long_about = "Uninstall packages and optionally remove cached data.\n\n\
         By default, removes the package binary/files but preserves cached release data. \
         Use --purge to remove everything.\n\n\
         EXAMPLES:\n  \
         upstream remove nvim\n  \
-        upstream remove rg fd bat --purge")]
+        upstream remove rg fd bat --purge"
+    )]
     Remove {
         /// Names of packages to remove
         names: Vec<String>,
@@ -123,13 +127,15 @@ pub enum Commands {
     },
 
     /// Manage package-specific settings and metadata
-    #[command(long_about = "Control package behavior and view internal metadata.\n\n\
+    #[command(
+        long_about = "Control package behavior and view internal metadata.\n\n\
         Pin packages to prevent upgrades, view installation details, or manually \
         adjust package metadata when needed.\n\n\
         EXAMPLES:\n  \
         upstream package pin nvim\n  \
         upstream package metadata nvim\n  \
-        upstream package get-key nvim install_path")]
+        upstream package get-key nvim install_path"
+    )]
     Package {
         #[command(subcommand)]
         action: PackageAction,
