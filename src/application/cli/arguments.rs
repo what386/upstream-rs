@@ -45,6 +45,9 @@ pub enum Commands {
         #[arg(short, long)]
         pattern: Option<String>,
 
+        #[arg(short, long)]
+        version: Option<String>,
+
         /// Source provider hosting the repository
         #[arg(long, default_value_t = Provider::Github)]
         provider: Provider,

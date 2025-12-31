@@ -17,6 +17,7 @@ impl Cli {
                 kind,
                 name,
                 pattern,
+                version,
                 update_channel,
                 create_entry,
             } => {
@@ -26,6 +27,7 @@ impl Cli {
                     kind,
                     name,
                     pattern,
+                    version,
                     update_channel,
                     create_entry,
                 )
