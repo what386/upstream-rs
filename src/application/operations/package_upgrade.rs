@@ -443,6 +443,10 @@ impl<'a> PackageUpgrader<'a> {
         // Store whether we had desktop integration before
         let had_desktop_integration = package.icon_path.is_some();
 
+        // Remove old installation before installing new version
+        Self::remove_old_installation(package, paths, message_callback)
+            .context(format!("Failed to remove old installation of '{}'", package.name))?;
+
         match package.filetype {
             Filetype::AppImage => Self::handle_appimage(
                 &download_path,
@@ -506,6 +510,80 @@ impl<'a> PackageUpgrader<'a> {
         }
 
         Ok(true)
+    }
+
+    /// Remove the old installation of a package
+    fn remove_old_installation<H>(
+        package: &Package,
+        paths: &UpstreamPaths,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        let install_path = match &package.install_path {
+            Some(path) => path,
+            None => return Ok(()), // Nothing to remove if not installed
+        };
+
+        message!(
+            message_callback,
+            "Removing old installation at '{}' ...",
+            install_path.display()
+        );
+
+        // Remove from PATH if it's an archive
+        if package.filetype == Filetype::Archive {
+            ShellManager::new(&paths.config.paths_file, &paths.integration.symlinks_dir)
+                .remove_from_paths(install_path)
+                .context(format!(
+                    "Failed to remove '{}' from PATH configuration",
+                    install_path.display()
+                ))?;
+        }
+
+        // Remove symlink
+        SymlinkManager::new(&paths.integration.symlinks_dir)
+            .remove_link(&package.name)
+            .context(format!("Failed to remove symlink for '{}'", package.name))?;
+
+        // Remove the actual installation
+        if install_path.is_dir() {
+            fs::remove_dir_all(install_path)
+                .context(format!(
+                    "Failed to remove old installation directory at '{}'",
+                    install_path.display()
+                ))?;
+        } else if install_path.is_file() {
+            fs::remove_file(install_path)
+                .context(format!(
+                    "Failed to remove old installation file at '{}'",
+                    install_path.display()
+                ))?;
+        }
+
+        // Remove old desktop integration if it exists
+        if package.icon_path.is_some() {
+            let desktop_manager = DesktopManager::new(paths)
+                .context("Failed to initialize desktop manager")?;
+
+            // Ignore errors when removing desktop entry - it might not exist
+            let _ = desktop_manager.remove_entry(&package.name);
+
+            if let Some(icon_path) = &package.icon_path {
+                if icon_path.exists() {
+                    fs::remove_file(icon_path)
+                        .context(format!(
+                            "Failed to remove old icon file at '{}'",
+                            icon_path.display()
+                        ))?;
+                }
+            }
+        }
+
+        message!(message_callback, "Old installation removed");
+
+        Ok(())
     }
 
     fn handle_archive<H>(
