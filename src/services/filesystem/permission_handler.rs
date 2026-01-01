@@ -9,20 +9,15 @@ pub fn make_executable(exec_path: &Path) -> Result<()> {
         anyhow::bail!("Invalid executable path: {}", exec_path.to_string_lossy());
     }
 
-    match fs::metadata(exec_path) {
-        Ok(metadata) => {
-            let mut permissions = metadata.permissions();
-            let mode = permissions.mode();
+    let metadata = fs::metadata(exec_path).context("Could not read metadata")?;
 
-            permissions.set_mode(mode | 0o111);
+    let mut permissions = metadata.permissions();
+    let mode = permissions.mode();
 
-            fs::set_permissions(exec_path, permissions)
-                .context("Failed to set executable permissions")?;
-        }
-        Err(e) => {
-            return Err(e).context("Failed to read metadata");
-        }
-    }
+    permissions.set_mode(mode | 0o111);
+
+    fs::set_permissions(exec_path, permissions)
+        .context("Failed to set executable permissions")?;
 
     Ok(())
 }
