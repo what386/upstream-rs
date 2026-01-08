@@ -26,11 +26,10 @@ pub enum Commands {
         Downloads the specified file type from the latest release (or specified channel) \
         and registers it under the given name for future updates.\n\n\
         EXAMPLES:\n  \
-        upstream install BurntSushi/ripgrep -k binary -n rg\n  \
-        upstream install neovim/neovim -k appimage -n nvim --create-entry\n  \
-        upstream install user/repo -k binary -n app -p 'x86_64-linux'")]
+        upstream install rg BurntSushi/ripgrep -k binary\n  \
+        upstream install nvim neovim/neovim --create-entry")]
     Install {
-        /// Name to register the installed application under
+        /// Name to register the application under
         name: String,
 
         /// Repository identifier (e.g. `owner/repo`)
