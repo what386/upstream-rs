@@ -3,14 +3,15 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 pub enum Filetype {
     AppImage,
-    Binary,
-    Compressed,
     Archive,
+    Compressed,
+    Binary,
     WinExe,
     Checksum,
+    Auto, // select automatically
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]

@@ -30,33 +30,33 @@ pub enum Commands {
         upstream install neovim/neovim -k appimage -n nvim --create-entry\n  \
         upstream install user/repo -k binary -n app -p 'x86_64-linux'")]
     Install {
+        /// Name to register the installed application under
+        name: String,
+
         /// Repository identifier (e.g. `owner/repo`)
         repo_slug: String,
 
-        /// File type to install
-        #[arg(short, long, value_enum)]
-        kind: Filetype,
-
-        /// Name to register the installed application under
-        #[arg(short, long)]
-        name: String,
-
-        /// Pattern to use as a hint for which package to install
-        #[arg(short, long)]
-        pattern: Option<String>,
-
+        /// Version tag to install (defaults to latest)
         #[arg(short, long)]
         version: Option<String>,
 
+        /// File type to install
+        #[arg(short, long, value_enum, default_value_t = Filetype::Auto)]
+        kind: Filetype,
+
         /// Source provider hosting the repository
-        #[arg(long, default_value_t = Provider::Github)]
+        #[arg(short = 'p', long, default_value_t = Provider::Github)]
         provider: Provider,
 
         /// Update channel to track
-        #[arg(long, value_enum, default_value_t = Channel::Stable)]
-        update_channel: Channel,
+        #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
+        channel: Channel,
 
-        /// Create a .desktop entry for GUI applications
+        /// Match pattern to use as a hint for which package to install
+        #[arg(short = 'P', long)]
+        pattern: Option<String>,
+
+        /// Whether or not to create a .desktop entry for GUI applications
         #[arg(long, default_value_t = false)]
         create_entry: bool,
     },

@@ -83,11 +83,17 @@ impl ProviderManager {
     }
 
     pub fn find_recommended_asset(&self, release: &Release, package: &Package) -> Result<Asset> {
+        let target_filetype = if package.filetype == Filetype::Auto {
+            Self::resolve_auto_filetype(release)?
+        } else {
+            package.filetype
+        };
+
         let compatible_assets: Vec<&Asset> = release
             .assets
             .iter()
             .filter(|a| self.is_potentially_compatible(a))
-            .filter(|a| a.filetype == package.filetype)
+            .filter(|a| a.filetype == target_filetype)
             .collect();
 
         compatible_assets
@@ -101,6 +107,23 @@ impl ProviderManager {
                     format_os(&self.architecture_info.os_kind)
                 )
             })
+    }
+
+    pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {
+        let priority = [
+            Filetype::AppImage,
+            Filetype::Archive,
+            Filetype::Compressed,
+            Filetype::Binary,
+        ];
+
+        priority
+            .iter()
+            .find(|&&filetype| {
+                release.assets.iter().any(|asset| asset.filetype == filetype)
+            })
+            .copied()
+            .ok_or_else(|| anyhow!("No compatible filetype found in release assets"))
     }
 
     fn is_valid_update(package: &Package, release: &Release) -> bool {
