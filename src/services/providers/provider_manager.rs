@@ -126,6 +126,7 @@ impl ProviderManager {
             .ok_or_else(|| anyhow!("No compatible filetype found in release assets"))
     }
 
+    // TODO: implement
     fn is_valid_update(package: &Package, release: &Release) -> bool {
         if package.is_pinned {
             return false;
