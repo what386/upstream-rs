@@ -16,13 +16,13 @@ use crate::{
 };
 
 pub async fn run(
-    repo_slug: String,
-    provider: Provider,
-    kind: Filetype,
     name: String,
-    pattern: Option<String>,
+    repo_slug: String,
+    kind: Filetype,
     version: Option<String>,
+    provider: Provider,
     channel: Channel,
+    pattern: Option<String>,
     create_entry: bool,
 ) -> Result<()> {
     println!("Installing {} from {} ...", name, provider);

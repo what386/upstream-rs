@@ -12,23 +12,23 @@ impl Cli {
                 features::init::run(clean)
             },
             Commands::Install {
-                repo_slug,
-                provider,
-                kind,
                 name,
-                pattern,
+                repo_slug,
+                kind,
                 version,
-                update_channel,
+                provider,
+                channel,
+                pattern,
                 create_entry,
             } => {
                 features::install::run(
-                    repo_slug,
-                    provider,
-                    kind,
                     name,
-                    pattern,
+                    repo_slug,
+                    kind,
                     version,
-                    update_channel,
+                    provider,
+                    channel,
+                    pattern,
                     create_entry,
                 )
                 .await
