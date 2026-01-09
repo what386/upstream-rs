@@ -9,7 +9,7 @@ use crate::models::common::enums::{Channel, Filetype, Provider};
     Install binaries, AppImages, and other artifacts with automatic updates, \
     version pinning, and simple configuration management.\n\n\
     EXAMPLES:\n  \
-    upstream install neovim/neovim -k appimage -n nvim\n  \
+    upstream install nvim neovim/neovim --desktop\n  \
     upstream upgrade                # Upgrade all packages\n  \
     upstream list                   # Show installed packages\n  \
     upstream config set github.apiToken=ghp_xxx")]
@@ -27,7 +27,7 @@ pub enum Commands {
         and registers it under the given name for future updates.\n\n\
         EXAMPLES:\n  \
         upstream install rg BurntSushi/ripgrep -k binary\n  \
-        upstream install nvim neovim/neovim --create-entry")]
+        upstream install dust bootandy/dust -k archive")]
     Install {
         /// Name to register the application under
         name: String,
@@ -56,8 +56,8 @@ pub enum Commands {
         pattern: Option<String>,
 
         /// Whether or not to create a .desktop entry for GUI applications
-        #[arg(long, default_value_t = false)]
-        create_entry: bool,
+        #[arg(short, long, default_value_t = false)]
+        desktop: bool,
     },
 
     /// Remove one or more installed packages
@@ -110,7 +110,7 @@ pub enum Commands {
         name: Option<String>,
     },
 
-    /// Manage upstream configuration
+    /// Manage global upstream configuration
     #[command(long_about = "View and modify upstream's configuration.\n\n\
         Configuration is stored in TOML format and includes settings like \
         API tokens, default providers, and installation preferences.\n\n\
