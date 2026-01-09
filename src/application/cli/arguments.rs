@@ -4,7 +4,8 @@ use crate::models::common::enums::{Channel, Filetype, Provider};
 #[derive(Parser)]
 #[command(name = "upstream")]
 #[command(about = "A package manager for Github releases.")]
-#[command(long_about = "Upstream is a lightweight package manager that installs and manages \
+#[command(long_about =
+    "Upstream is a lightweight package manager that installs and manages \
     applications directly from GitHub releases (and other providers).\n\n\
     Install binaries, AppImages, and other artifacts with automatic updates, \
     version pinning, and simple configuration management.\n\n\
@@ -22,7 +23,8 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Install a package from a GitHub release
-    #[command(long_about = "Install a new package from a repository release.\n\n\
+    #[command(long_about =
+        "Install a new package from a repository release.\n\n\
         Downloads the specified file type from the latest release (or specified channel) \
         and registers it under the given name for future updates.\n\n\
         EXAMPLES:\n  \
@@ -61,7 +63,8 @@ pub enum Commands {
     },
 
     /// Remove one or more installed packages
-    #[command(long_about = "Uninstall packages and optionally remove cached data.\n\n\
+    #[command(long_about =
+        "Uninstall packages and optionally remove cached data.\n\n\
         By default, removes the package binary/files but preserves cached release data. \
         Use --purge to remove everything.\n\n\
         EXAMPLES:\n  \
@@ -77,7 +80,8 @@ pub enum Commands {
     },
 
     /// Upgrade installed packages to their latest versions
-    #[command(long_about = "Check for and install updates to packages.\n\n\
+    #[command(long_about =
+        "Check for and install updates to packages.\n\n\
         Without arguments, upgrades all packages. Specify package names to upgrade \
         only those packages. Use --check to preview available updates.\n\n\
         EXAMPLES:\n  \
@@ -99,7 +103,8 @@ pub enum Commands {
     },
 
     /// List installed packages and their metadata
-    #[command(long_about = "Display information about installed packages.\n\n\
+    #[command(long_about =
+        "Display information about installed packages.\n\n\
         Without arguments, shows a summary of all installed packages. \
         Provide a package name to see detailed information.\n\n\
         EXAMPLES:\n  \
@@ -110,8 +115,9 @@ pub enum Commands {
         name: Option<String>,
     },
 
-    /// Manage global upstream configuration
-    #[command(long_about = "View and modify upstream's configuration.\n\n\
+    /// Manage upstream configuration
+    #[command(long_about =
+        "View and modify upstream's configuration.\n\n\
         Configuration is stored in TOML format and includes settings like \
         API tokens, default providers, and installation preferences.\n\n\
         EXAMPLES:\n  \
@@ -125,7 +131,8 @@ pub enum Commands {
     },
 
     /// Manage package-specific settings and metadata
-    #[command(long_about = "Control package behavior and view internal metadata.\n\n\
+    #[command(long_about =
+        "Control package behavior and view internal metadata.\n\n\
         Pin packages to prevent upgrades, view installation details, or manually \
         adjust package metadata when needed.\n\n\
         EXAMPLES:\n  \
@@ -138,7 +145,8 @@ pub enum Commands {
     },
 
     /// Initialize upstream by adding it to your shell PATH
-    #[command(long_about = "Set up upstream for first-time use.\n\n\
+    #[command(long_about =
+        "Set up upstream for first-time use.\n\n\
         Adds upstream's bin directory to your PATH by modifying shell configuration \
         files (.bashrc, .zshrc, etc.). Run this once after installation.\n\n\
         EXAMPLES:\n  \
@@ -154,7 +162,8 @@ pub enum Commands {
 #[derive(Subcommand)]
 pub enum ConfigAction {
     /// Set configuration values
-    #[command(long_about = "Set one or more configuration values.\n\n\
+    #[command(long_about =
+        "Set one or more configuration values.\n\n\
         Use dot notation for nested keys. Multiple key=value pairs can be set at once.\n\n\
         EXAMPLES:\n  \
         upstream config set github.apiToken=ghp_xxx\n  \
@@ -165,7 +174,8 @@ pub enum ConfigAction {
     },
 
     /// Get configuration values
-    #[command(long_about = "Retrieve one or more configuration values.\n\n\
+    #[command(long_about =
+        "Retrieve one or more configuration values.\n\n\
         Use dot notation to access nested keys.\n\n\
         EXAMPLES:\n  \
         upstream config get github.apiToken\n  \
