@@ -19,7 +19,7 @@ impl Cli {
                 provider,
                 channel,
                 pattern,
-                create_entry,
+                desktop,
             } => {
                 features::install::run(
                     name,
@@ -29,7 +29,7 @@ impl Cli {
                     provider,
                     channel,
                     pattern,
-                    create_entry,
+                    desktop,
                 )
                 .await
             }
