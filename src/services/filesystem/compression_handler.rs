@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
+use xz2::read::XzDecoder;
 
 use tar::Archive;
 use zip::ZipArchive;
@@ -32,10 +33,15 @@ pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
         return decompress_tar_bz2(input, output);
     }
 
+    if name.ends_with(".tar.xz") || name.ends_with(".txz") {  // Add this
+        return decompress_tar_xz(input, output);
+    }
+
     match ext.as_str() {
         "zip" => decompress_zip(input, output),
         "gz" => decompress_gz_single(input, output),
         "bz2" => decompress_bz2_single(input, output),
+        "xz" => decompress_xz_single(input, output),  // Add this
         "tar" => unpack_tar(input, output),
         _ => Err(anyhow!("Unsupported format: {}", input.display())),
     }
@@ -86,6 +92,38 @@ fn unpack_tar(input: &Path, output: &Path) -> Result<PathBuf> {
     }
 
     Ok(common_root(&paths, output))
+}
+
+// ---------------- XZ ----------------
+fn decompress_tar_xz(input: &Path, output: &Path) -> Result<PathBuf> {
+    let file = File::open(input)?;
+    let tar = XzDecoder::new(file);
+    let mut archive = Archive::new(tar);
+    let mut paths = Vec::new();
+
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let path = output.join(entry.path()?);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        entry.unpack(&path)?;
+        paths.push(path);
+    }
+
+    Ok(common_root(&paths, output))
+}
+
+fn decompress_xz_single(input: &Path, output: &Path) -> Result<PathBuf> {
+    let file = File::open(input)?;
+    let mut decoder = XzDecoder::new(file);
+    let out_name = input
+        .file_stem()
+        .ok_or_else(|| anyhow!("Cannot derive output name"))?;
+    let out_path = output.join(out_name);
+    let mut out = File::create(&out_path)?;
+    std::io::copy(&mut decoder, &mut out)?;
+    Ok(out_path)
 }
 
 // ---------------- GZIP ----------------
@@ -188,28 +226,3 @@ fn common_root(paths: &[PathBuf], output: &Path) -> PathBuf {
             .fold(PathBuf::new(), |acc, c| acc.join(c.as_os_str())),
     )
 }
-
-/*
-/// Determine the common root of extracted paths
-fn common_root(paths: &[PathBuf], output: &Path) -> PathBuf {
-    if paths.is_empty() {
-        return output.to_path_buf();
-    }
-
-    let mut iter = paths.iter();
-    let first = iter.next().unwrap();
-    let mut components: Vec<_> = first.strip_prefix(output).unwrap().components().collect();
-
-    for path in iter {
-        let path_comps: Vec<_> = path.strip_prefix(output).unwrap().components().collect();
-        components = components
-            .iter()
-            .zip(path_comps.iter())
-            .take_while(|(a, b)| a == b)
-            .map(|(a, _)| *a)
-            .collect();
-    }
-
-    output.join(components.iter().fold(PathBuf::new(), |acc, c| acc.join(c.as_os_str())))
-}
-*/
