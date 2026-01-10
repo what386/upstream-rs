@@ -98,10 +98,15 @@ impl<'a> ChecksumVerifier<'a> {
     where
         F: FnMut(u64, u64),
     {
-        let checksum_asset = release.get_asset_by_name("checksums.txt").or_else(|| {
-            let name = format!("{asset_name}.sha256");
-            release.get_asset_by_name(&name)
-        });
+
+        let checksum_asset = release
+            .get_asset_by_name("checksums.txt")
+            .or_else(|| release.get_asset_by_name("sha256sums.txt"))
+            .or_else(|| release.get_asset_by_name("sha256sum.txt"))
+            .or_else(|| {
+                let name = format!("{asset_name}.sha256");
+                release.get_asset_by_name(&name)
+            });
 
         let Some(asset) = checksum_asset else {
             return Ok(None); // no checksum advertised
