@@ -610,6 +610,7 @@ impl<'a> PackageUpgrader<'a> {
         let dirname = extracted_path
             .file_name()
             .ok_or_else(|| anyhow!("Invalid extracted path: no filename"))?;
+
         let out_path = paths.install.archives_dir.join(dirname);
 
         message!(
@@ -618,42 +619,61 @@ impl<'a> PackageUpgrader<'a> {
             out_path.display()
         );
 
-        fs::rename(&extracted_path, &out_path)
-            .context(format!(
-                "Failed to move extracted directory from '{}' to '{}'",
-                extracted_path.display(),
-                out_path.display()
-            ))?;
+        fs::rename(&extracted_path, &out_path).context(format!(
+            "Failed to move extracted directory from '{}' to '{}'",
+            extracted_path.display(),
+            out_path.display()
+        ))?;
 
-        ShellManager::new(&paths.config.paths_file, &paths.integration.symlinks_dir)
-            .add_to_paths(&out_path)
-            .context(format!("Failed to add '{}' to PATH", out_path.display()))?;
+        let shell_manager = ShellManager::new(
+            &paths.config.paths_file,
+            &paths.integration.symlinks_dir,
+        );
 
-        message!(message_callback, "Added '{}' to PATH", out_path.display());
         message!(message_callback, "Searching for executable ...");
 
-        package.exec_path = if let Some(exec_path) =
-            permission_handler::find_executable(&out_path, &package.name)
-        {
-            permission_handler::make_executable(&exec_path)
-                .context(format!("Failed to make '{}' executable", exec_path.display()))?;
-            message!(
-                message_callback,
-                "Added executable permission for '{}'",
-                exec_path.file_name().unwrap().display()
-            );
-            Some(exec_path)
-        } else {
+        let Some(exec_path) = permission_handler::find_executable(&out_path, &package.name) else {
             message!(
                 message_callback,
                 "{}",
                 style("Could not automatically locate executable").yellow()
             );
-            None
+
+            // Fallback: add out_path to PATH
+            shell_manager
+                .add_to_paths(&out_path)
+                .context(format!("Failed to add '{}' to PATH", out_path.display()))?;
+            message!(message_callback, "Added '{}' to PATH", out_path.display());
+
+            package.exec_path = None;
+            package.install_path = Some(out_path);
+            package.last_upgraded = Utc::now();
+            return Ok(());
         };
 
+        permission_handler::make_executable(&exec_path)
+            .context(format!("Failed to make '{}' executable", exec_path.display()))?;
+
+        message!(
+            message_callback,
+            "Added executable permission for '{}'",
+            exec_path.file_name().unwrap().display()
+        );
+
+        // Happy path: add parent directory of executable to PATH
+        let path_to_add = exec_path
+            .parent()
+            .ok_or_else(|| anyhow!("Executable has no parent directory"))?;
+
+        shell_manager
+            .add_to_paths(path_to_add)
+            .context(format!("Failed to add '{}' to PATH", path_to_add.display()))?;
+        message!(message_callback, "Added '{}' to PATH", path_to_add.display());
+
+        package.exec_path = Some(exec_path);
         package.install_path = Some(out_path);
         package.last_upgraded = Utc::now();
+
         Ok(())
     }
 
