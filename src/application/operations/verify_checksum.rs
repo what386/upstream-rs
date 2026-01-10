@@ -3,7 +3,6 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-
 use crate::{
     models::{common::enums::Provider, provider::Release},
     services::providers::provider_manager::ProviderManager,
@@ -65,24 +64,30 @@ impl<'a> ChecksumVerifier<'a> {
             return Err(anyhow!("Checksum file is empty or invalid"));
         }
 
-        let checksum_entry = entries
-            .iter()
-            .find(|entry| entry.filename == asset_filename)
-            .or_else(|| {
-                // If exact match not found, try matching just the basename
-                entries.iter().find(|entry| {
-                    Path::new(&entry.filename)
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        == Some(asset_filename)
+        let checksum_entry = if entries.len() == 1 && entries[0].filename.is_empty() {
+            // Bare hash file - assume it's for the asset we're verifying
+            &entries[0]
+        } else {
+            // Standard multi-entry checksum file
+            entries
+                .iter()
+                .find(|entry| entry.filename == asset_filename)
+                .or_else(|| {
+                    // If exact match not found, try matching just the basename
+                    entries.iter().find(|entry| {
+                        Path::new(&entry.filename)
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            == Some(asset_filename)
+                    })
                 })
-            })
-            .ok_or_else(|| {
-                anyhow!(
-                    "No checksum found for asset '{}' in checksum file",
-                    asset_filename
-                )
-            })?;
+                .ok_or_else(|| {
+                    anyhow!(
+                        "No checksum found for asset '{}' in checksum file",
+                        asset_filename
+                    )
+                })?
+        };
 
         // Verify the checksum
         Self::verify_checksum(asset_path, checksum_entry)
@@ -98,7 +103,6 @@ impl<'a> ChecksumVerifier<'a> {
     where
         F: FnMut(u64, u64),
     {
-
         let checksum_asset = release
             .get_asset_by_name("checksums.txt")
             .or_else(|| release.get_asset_by_name("sha256sums.txt"))
@@ -126,7 +130,6 @@ impl<'a> ChecksumVerifier<'a> {
 
         for line in contents.lines() {
             let line = line.trim();
-
             // Skip empty lines and comments
             if line.is_empty() || line.starts_with('#') {
                 continue;
@@ -137,10 +140,12 @@ impl<'a> ChecksumVerifier<'a> {
             // 2. "digest *filename" (asterisk before filename, binary mode)
             // 3. "digest filename" (single space)
             // 4. "filename: digest" (colon-separated)
-
+            // 5. "digest" (bare hash, no filename)
             if let Some(entry) = Self::parse_standard_format(line) {
                 entries.push(entry);
             } else if let Some(entry) = Self::parse_colon_format(line) {
+                entries.push(entry);
+            } else if let Some(entry) = Self::parse_bare_hash(line) {
                 entries.push(entry);
             }
         }
@@ -153,9 +158,7 @@ impl<'a> ChecksumVerifier<'a> {
         // "abc123  filename.tar.gz"
         // "abc123 *filename.tar.gz"
         // "abc123 filename.tar.gz"
-
         let parts: Vec<&str> = line.splitn(2, |c: char| c.is_whitespace()).collect();
-
         if parts.len() != 2 {
             return None;
         }
@@ -183,9 +186,7 @@ impl<'a> ChecksumVerifier<'a> {
 
     fn parse_colon_format(line: &str) -> Option<ChecksumEntry> {
         // Handle format like: "filename.tar.gz: abc123"
-
         let parts: Vec<&str> = line.splitn(2, ':').collect();
-
         if parts.len() != 2 {
             return None;
         }
@@ -207,6 +208,29 @@ impl<'a> ChecksumVerifier<'a> {
         Some(ChecksumEntry {
             algo,
             filename: filename.to_string(),
+            digest: digest.to_lowercase(),
+        })
+    }
+
+    fn parse_bare_hash(line: &str) -> Option<ChecksumEntry> {
+        // Handle bare hash format (just the digest, no filename)
+        let digest = line.trim();
+
+        if digest.is_empty() {
+            return None;
+        }
+
+        // Determine algorithm based on digest length
+        let algo = match digest.len() {
+            64 => HashAlgo::Sha256,
+            128 => HashAlgo::Sha512,
+            _ => return None, // Unknown hash length
+        };
+
+        // Use empty filename - indicates bare hash file
+        Some(ChecksumEntry {
+            algo,
+            filename: String::new(),
             digest: digest.to_lowercase(),
         })
     }
