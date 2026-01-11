@@ -5,4 +5,3 @@ pub mod package_remove;
 pub mod package_upgrade;
 pub mod upstream_init;
 pub mod verify_checksum;
-pub mod package_lists;
