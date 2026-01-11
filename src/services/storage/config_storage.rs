@@ -67,9 +67,7 @@ impl ConfigStorage {
         let keys: Vec<&str> = key_path.split('.').collect();
         let (path, final_key) = keys.split_at(keys.len() - 1);
 
-        let mut current = root
-            .as_table_mut()
-            .ok_or("Config root is not a table")?;
+        let mut current = root.as_table_mut().ok_or("Config root is not a table")?;
 
         for key in path {
             current = current
@@ -117,7 +115,8 @@ impl ConfigStorage {
 
     /// Gets all configuration keys and values as flattened dot-notation paths.
     pub fn get_flattened_config(&self) -> HashMap<String, String> {
-        let root = toml::Value::try_from(&self.config).unwrap_or(toml::Value::Table(Default::default()));
+        let root =
+            toml::Value::try_from(&self.config).unwrap_or(toml::Value::Table(Default::default()));
         self.flatten_value(&root, "", 10, 0)
     }
 
@@ -184,4 +183,3 @@ impl ConfigStorage {
         Ok(toml::Value::String(value.to_string()))
     }
 }
-

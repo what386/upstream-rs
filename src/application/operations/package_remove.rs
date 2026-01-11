@@ -91,16 +91,23 @@ impl<'a> PackageRemover<'a> {
             .get_package_by_name(package_name)
             .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
 
-        Self::perform_remove(self.paths, package, message_callback)
-            .context(format!("Failed to perform removal operations for '{}'", package_name))?;
+        Self::perform_remove(self.paths, package, message_callback).context(format!(
+            "Failed to perform removal operations for '{}'",
+            package_name
+        ))?;
 
         self.package_storage
             .remove_package_by_name(package_name)
-            .context(format!("Failed to remove '{}' from package storage", package_name))?;
+            .context(format!(
+                "Failed to remove '{}' from package storage",
+                package_name
+            ))?;
 
         if *purge_option {
-            Self::purge_configs(self.paths, package_name, message_callback)
-                .context(format!("Failed to purge configuration files for '{}'", package_name))?;
+            Self::purge_configs(self.paths, package_name, message_callback).context(format!(
+                "Failed to purge configuration files for '{}'",
+                package_name
+            ))?;
         }
 
         Ok(())
@@ -144,22 +151,20 @@ impl<'a> PackageRemover<'a> {
                 "Removing directory: {}",
                 install_path.display()
             );
-            fs::remove_dir_all(install_path)
-                .context(format!(
-                    "Failed to remove installation directory at '{}'",
-                    install_path.display()
-                ))?;
+            fs::remove_dir_all(install_path).context(format!(
+                "Failed to remove installation directory at '{}'",
+                install_path.display()
+            ))?;
         } else if install_path.is_file() {
             message!(
                 message_callback,
                 "Removing file: {}",
                 install_path.display()
             );
-            fs::remove_file(install_path)
-                .context(format!(
-                    "Failed to remove installation file at '{}'",
-                    install_path.display()
-                ))?;
+            fs::remove_file(install_path).context(format!(
+                "Failed to remove installation file at '{}'",
+                install_path.display()
+            ))?;
         } else {
             return Err(anyhow!(
                 "Install path '{}' is neither a file nor directory (may have been manually removed)",
@@ -170,18 +175,20 @@ impl<'a> PackageRemover<'a> {
         if let Some(icon_path) = &package.icon_path {
             message!(message_callback, "Removing .desktop entry ...");
 
-            let desktop_manager = DesktopManager::new(paths)
-                .context("Failed to initialize desktop manager")?;
+            let desktop_manager =
+                DesktopManager::new(paths).context("Failed to initialize desktop manager")?;
 
             desktop_manager
                 .remove_entry(&package.name)
-                .context(format!("Failed to remove desktop entry for '{}'", package.name))?;
-
-            fs::remove_file(icon_path)
                 .context(format!(
-                    "Failed to remove icon file at '{}'",
-                    icon_path.display()
+                    "Failed to remove desktop entry for '{}'",
+                    package.name
                 ))?;
+
+            fs::remove_file(icon_path).context(format!(
+                "Failed to remove icon file at '{}'",
+                icon_path.display()
+            ))?;
 
             message!(
                 message_callback,

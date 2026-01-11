@@ -43,7 +43,6 @@ fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
     Ok(())
 }
 
-
 // add:
 // export PATH="/home/{username}/.upstream/symlinks:$PATH"
 // as newline to this file
@@ -145,4 +144,3 @@ pub fn cleanup(paths: &UpstreamPaths) -> io::Result<()> {
     }
     Ok(())
 }
-
