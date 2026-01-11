@@ -6,8 +6,8 @@ echo "Updating dev branch..."
 git checkout dev
 git pull github dev
 git pull gitea dev
-git push github
-git push gitea
+git push github dev
+git push gitea dev
 
 echo "Switching to main branch..."
 git checkout main
