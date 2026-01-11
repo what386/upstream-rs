@@ -2,12 +2,24 @@
 
 set -euo pipefail
 
+echo "Updating dev branch..."
+git checkout dev
+git pull github dev
+git pull gitea dev
+git push github
+git push gitea
+
 echo "Switching to main branch..."
 git checkout main
-git pull origin main
+git pull github main
+git pull gitea main
 
 echo "Merging dev into main..."
 git merge dev -m "Merge dev into main"
+
+echo "Pushing main branch to remotes..."
+git push github main
+git push gitea main
 
 VERSION=$(grep '^version' Cargo.toml | head -n 1 | awk -F\" '{print $2}')
 if [ -z "$VERSION" ]; then
@@ -18,6 +30,8 @@ echo "Version from Cargo.toml: $VERSION"
 
 echo "Creating git tag: v$VERSION"
 git tag -a "v$VERSION" -m "Release version $VERSION"
+echo "Pushing tag to remotes..."
+git push github "v$VERSION"
+git push gitea "v$VERSION"
 
-echo "Pushing tag to origin..."
-git push origin "v$VERSION"
+echo "Done! Merged dev into main and created tag v$VERSION."
