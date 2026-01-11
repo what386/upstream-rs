@@ -586,14 +586,13 @@ impl<'a> PackageUpgrader<'a> {
             // Ignore errors when removing desktop entry - it might not exist
             let _ = desktop_manager.remove_entry(&package.name);
 
-            if let Some(icon_path) = &package.icon_path {
-                if icon_path.exists() {
+            if let Some(icon_path) = &package.icon_path
+                && icon_path.exists() {
                     fs::remove_file(icon_path).context(format!(
                         "Failed to remove old icon file at '{}'",
                         icon_path.display()
                     ))?;
                 }
-            }
         }
 
         message!(message_callback, "Old installation removed");

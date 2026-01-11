@@ -3,7 +3,6 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Result, anyhow};
-use std::path::PathBuf;
 
 pub fn run(package_name: Option<String>) -> Result<()> {
     let paths = UpstreamPaths::new();
@@ -18,19 +17,17 @@ pub fn run(package_name: Option<String>) -> Result<()> {
         println!("{}", display_all(package));
     } else {
         let packages = package_storage.get_all_packages();
-        display_compact_table(&packages);
+        display_compact_table(packages);
     }
     Ok(())
 }
 
 fn shorten_home_path(path: &str) -> String {
-    if let Some(home) = dirs::home_dir() {
-        if let Some(home_str) = home.to_str() {
-            if path.starts_with(home_str) {
+    if let Some(home) = dirs::home_dir()
+        && let Some(home_str) = home.to_str()
+            && path.starts_with(home_str) {
                 return path.replacen(home_str, "~", 1);
             }
-        }
-    }
     path.to_string()
 }
 
