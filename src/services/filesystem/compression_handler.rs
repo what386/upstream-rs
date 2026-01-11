@@ -200,11 +200,10 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
         std::collections::HashSet::new();
 
     for path in paths {
-        if let Ok(relative) = path.strip_prefix(extract_dir) {
-            if let Some(first_component) = relative.components().next() {
+        if let Ok(relative) = path.strip_prefix(extract_dir)
+            && let Some(first_component) = relative.components().next() {
                 top_level_entries.insert(extract_dir.join(first_component.as_os_str()));
             }
-        }
     }
 
     // If there's exactly one top-level entry and it's a directory, flatten it
