@@ -1,10 +1,10 @@
 use anyhow::{Result, anyhow};
-use std::fs::File;
-use std::path::{Path, PathBuf};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
-use xz2::read::XzDecoder;
+use std::fs::File;
+use std::path::{Path, PathBuf};
 use tar::Archive;
+use xz2::read::XzDecoder;
 use zip::ZipArchive;
 
 /// Decompress a file into the output folder and return the root path extracted.
@@ -196,7 +196,8 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
     }
 
     // Collect all top-level entries (immediate children of extract_dir)
-    let mut top_level_entries: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+    let mut top_level_entries: std::collections::HashSet<PathBuf> =
+        std::collections::HashSet::new();
 
     for path in paths {
         if let Ok(relative) = path.strip_prefix(extract_dir) {

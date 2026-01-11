@@ -120,7 +120,10 @@ impl ProviderManager {
         priority
             .iter()
             .find(|&&filetype| {
-                release.assets.iter().any(|asset| asset.filetype == filetype)
+                release
+                    .assets
+                    .iter()
+                    .any(|asset| asset.filetype == filetype)
             })
             .copied()
             .ok_or_else(|| anyhow!("No compatible filetype found in release assets"))

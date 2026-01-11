@@ -1,11 +1,11 @@
+use crate::{
+    models::{common::enums::Provider, provider::Release},
+    services::providers::provider_manager::ProviderManager,
+};
 use anyhow::{Result, anyhow};
 use std::{
     fs,
     path::{Path, PathBuf},
-};
-use crate::{
-    models::{common::enums::Provider, provider::Release},
-    services::providers::provider_manager::ProviderManager,
 };
 
 enum HashAlgo {

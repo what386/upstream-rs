@@ -45,10 +45,14 @@ impl<'a> PackageInstaller<'a> {
         let download_cache = temp_path.join("downloads");
         let extract_cache = temp_path.join("extracts");
 
-        fs::create_dir_all(&download_cache)
-            .context(format!("Failed to create download cache directory at '{}'", download_cache.display()))?;
-        fs::create_dir_all(&extract_cache)
-            .context(format!("Failed to create extraction cache directory at '{}'", extract_cache.display()))?;
+        fs::create_dir_all(&download_cache).context(format!(
+            "Failed to create download cache directory at '{}'",
+            download_cache.display()
+        ))?;
+        fs::create_dir_all(&extract_cache).context(format!(
+            "Failed to create extraction cache directory at '{}'",
+            extract_cache.display()
+        ))?;
 
         Ok(Self {
             provider_manager,
@@ -132,15 +136,23 @@ impl<'a> PackageInstaller<'a> {
         let package_name = package.name.clone();
 
         let mut installed_package = self
-            .perform_install(package, version, download_progress_callback, message_callback)
+            .perform_install(
+                package,
+                version,
+                download_progress_callback,
+                message_callback,
+            )
             .await
-            .context(format!("Failed to perform installation for '{}'", package_name))?;
+            .context(format!(
+                "Failed to perform installation for '{}'",
+                package_name
+            ))?;
 
         if *add_entry {
-            let icon_manager = IconManager::new(self.paths)
-                .context("Failed to initialize icon manager")?;
-            let desktop_manager = DesktopManager::new(self.paths)
-                .context("Failed to initialize desktop manager")?;
+            let icon_manager =
+                IconManager::new(self.paths).context("Failed to initialize icon manager")?;
+            let desktop_manager =
+                DesktopManager::new(self.paths).context("Failed to initialize desktop manager")?;
 
             let icon_path = icon_manager
                 .add_icon(
@@ -149,23 +161,33 @@ impl<'a> PackageInstaller<'a> {
                     &installed_package.filetype,
                 )
                 .await
-                .context(format!("Failed to add icon for '{}'", installed_package.name))?;
+                .context(format!(
+                    "Failed to add icon for '{}'",
+                    installed_package.name
+                ))?;
 
             installed_package.icon_path = Some(icon_path);
 
-            let _ = desktop_manager.create_desktop_entry(
-                &installed_package.name,
-                installed_package.exec_path.as_ref().unwrap(),
-                installed_package.icon_path.as_ref().unwrap(),
-                None,
-                None,
-            )
-            .context(format!("Failed to create desktop entry for '{}'", installed_package.name))?;
+            let _ = desktop_manager
+                .create_desktop_entry(
+                    &installed_package.name,
+                    installed_package.exec_path.as_ref().unwrap(),
+                    installed_package.icon_path.as_ref().unwrap(),
+                    None,
+                    None,
+                )
+                .context(format!(
+                    "Failed to create desktop entry for '{}'",
+                    installed_package.name
+                ))?;
         }
 
         self.package_storage
             .add_or_update_package(installed_package.clone())
-            .context(format!("Failed to save package '{}' to storage", installed_package.name))?;
+            .context(format!(
+                "Failed to save package '{}' to storage",
+                installed_package.name
+            ))?;
 
         Ok(())
     }
@@ -186,7 +208,11 @@ impl<'a> PackageInstaller<'a> {
         }
 
         let latest_release = if let Some(version_tag) = version {
-            message!(message_callback, "Fetching release for version '{}' ...", version_tag);
+            message!(
+                message_callback,
+                "Fetching release for version '{}' ...",
+                version_tag
+            );
             self.provider_manager
                 .get_release_by_tag(&package.repo_slug, version_tag, &package.provider)
                 .await
@@ -199,7 +225,10 @@ impl<'a> PackageInstaller<'a> {
             self.provider_manager
                 .get_latest_release(&package.repo_slug, &package.provider)
                 .await
-                .context(format!("Failed to fetch latest release for '{}'", package.repo_slug))?
+                .context(format!(
+                    "Failed to fetch latest release for '{}'",
+                    package.repo_slug
+                ))?
         };
 
         package.version = latest_release.version.clone();
@@ -257,13 +286,17 @@ impl<'a> PackageInstaller<'a> {
         message!(message_callback, "Installing package ...");
 
         match package.filetype {
-            Filetype::AppImage => self.handle_appimage(&download_path, package, message_callback)
+            Filetype::AppImage => self
+                .handle_appimage(&download_path, package, message_callback)
                 .context("Failed to install AppImage"),
-            Filetype::Compressed => self.handle_compressed(&download_path, package, message_callback)
+            Filetype::Compressed => self
+                .handle_compressed(&download_path, package, message_callback)
                 .context("Failed to install compressed file"),
-            Filetype::Archive => self.handle_archive(&download_path, package, message_callback)
+            Filetype::Archive => self
+                .handle_archive(&download_path, package, message_callback)
                 .context("Failed to install archive"),
-            _ => self.handle_file(&download_path, package, message_callback)
+            _ => self
+                .handle_file(&download_path, package, message_callback)
                 .context("Failed to install file"),
         }
     }
@@ -331,8 +364,10 @@ impl<'a> PackageInstaller<'a> {
             return Ok(package);
         };
 
-        permission_handler::make_executable(&exec_path)
-            .context(format!("Failed to make '{}' executable", exec_path.display()))?;
+        permission_handler::make_executable(&exec_path).context(format!(
+            "Failed to make '{}' executable",
+            exec_path.display()
+        ))?;
 
         message!(
             message_callback,
@@ -344,11 +379,14 @@ impl<'a> PackageInstaller<'a> {
             .parent()
             .ok_or_else(|| anyhow!("Executable has no parent directory"))?;
 
-
         shell_manager
             .add_to_paths(path_to_add)
             .context(format!("Failed to add '{}' to PATH", path_to_add.display()))?;
-        message!(message_callback, "Added '{}' to PATH", path_to_add.display());
+        message!(
+            message_callback,
+            "Added '{}' to PATH",
+            path_to_add.display()
+        );
 
         package.exec_path = Some(exec_path);
         package.install_path = Some(out_path);
@@ -367,11 +405,7 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
     {
         let filename = asset_path.file_name().unwrap().display();
-        message!(
-            message_callback,
-            "Extracting file '{}' ...",
-            filename
-        );
+        message!(message_callback, "Extracting file '{}' ...", filename);
 
         let extracted_path = compression_handler::decompress(asset_path, &self.extract_cache)
             .context(format!("Failed to decompress '{}'", filename))?;
@@ -401,15 +435,24 @@ impl<'a> PackageInstaller<'a> {
 
         fs::rename(asset_path, &out_path)
             .or_else(|_| {
-                fs::copy(asset_path, &out_path)
-                    .context(format!("Failed to copy AppImage to '{}'", out_path.display()))?;
-                fs::remove_file(asset_path)
-                    .context(format!("Failed to remove temporary file '{}'", asset_path.display()))
+                fs::copy(asset_path, &out_path).context(format!(
+                    "Failed to copy AppImage to '{}'",
+                    out_path.display()
+                ))?;
+                fs::remove_file(asset_path).context(format!(
+                    "Failed to remove temporary file '{}'",
+                    asset_path.display()
+                ))
             })
-            .context(format!("Failed to move AppImage to '{}'", out_path.display()))?;
+            .context(format!(
+                "Failed to move AppImage to '{}'",
+                out_path.display()
+            ))?;
 
-        permission_handler::make_executable(&out_path)
-            .context(format!("Failed to make AppImage '{}' executable", filename.to_string_lossy()))?;
+        permission_handler::make_executable(&out_path).context(format!(
+            "Failed to make AppImage '{}' executable",
+            filename.to_string_lossy()
+        ))?;
 
         message!(message_callback, "Made '{}' executable", filename.display());
 
@@ -454,13 +497,17 @@ impl<'a> PackageInstaller<'a> {
             .or_else(|_| {
                 fs::copy(asset_path, &out_path)
                     .context(format!("Failed to copy binary to '{}'", out_path.display()))?;
-                fs::remove_file(asset_path)
-                    .context(format!("Failed to remove temporary file '{}'", asset_path.display()))
+                fs::remove_file(asset_path).context(format!(
+                    "Failed to remove temporary file '{}'",
+                    asset_path.display()
+                ))
             })
             .context(format!("Failed to move binary to '{}'", out_path.display()))?;
 
-        permission_handler::make_executable(&out_path)
-            .context(format!("Failed to make binary '{}' executable", filename.to_string_lossy()))?;
+        permission_handler::make_executable(&out_path).context(format!(
+            "Failed to make binary '{}' executable",
+            filename.to_string_lossy()
+        ))?;
 
         message!(message_callback, "Made '{}' executable", filename.display());
 

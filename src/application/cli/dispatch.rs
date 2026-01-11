@@ -6,9 +6,7 @@ use crate::application::features;
 impl Cli {
     pub async fn run(self) -> Result<()> {
         match self.command {
-            Commands::Init { clean } => {
-                features::init::run(clean)
-            },
+            Commands::Init { clean } => features::init::run(clean),
             Commands::Install {
                 name,
                 repo_slug,
@@ -20,14 +18,7 @@ impl Cli {
                 desktop,
             } => {
                 features::install::run(
-                    name,
-                    repo_slug,
-                    kind,
-                    version,
-                    provider,
-                    channel,
-                    pattern,
-                    desktop,
+                    name, repo_slug, kind, version, provider, channel, pattern, desktop,
                 )
                 .await
             }

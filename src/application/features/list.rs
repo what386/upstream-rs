@@ -1,9 +1,9 @@
-use anyhow::{Result, anyhow};
-use std::path::PathBuf;
 use crate::{
     models::upstream::Package, services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
+use anyhow::{Result, anyhow};
+use std::path::PathBuf;
 
 pub fn run(package_name: Option<String>) -> Result<()> {
     let paths = UpstreamPaths::new();
@@ -114,14 +114,20 @@ fn display_compact_table(packages: &[Package]) {
     // Print header with proper padding
     println!(
         "{:<width_name$} {:<width_repo$} {:<width_ver$} {:<width_chan$} {:<width_prov$} {:<3} {:<3} {:<}",
-        "Name", "Repo", "Version", "Channel", "Provider", "I", "P", "Install Path",
+        "Name",
+        "Repo",
+        "Version",
+        "Channel",
+        "Provider",
+        "I",
+        "P",
+        "Install Path",
         width_name = widths.name,
         width_repo = widths.repo,
         width_ver = widths.version,
         width_chan = widths.channel,
         width_prov = widths.provider
     );
-
 
     // Print rows
     for package in packages {
@@ -131,7 +137,11 @@ fn display_compact_table(packages: &[Package]) {
             .map(|p| shorten_home_path(&p.display().to_string()))
             .unwrap_or_else(|| "-".to_string());
 
-        let icon_indicator = if package.icon_path.is_some() { "✓" } else { "-" };
+        let icon_indicator = if package.icon_path.is_some() {
+            "✓"
+        } else {
+            "-"
+        };
         let pin_indicator = if package.is_pinned { "P" } else { "-" };
 
         let width_name = widths.name;

@@ -1,4 +1,3 @@
-use console::style;
 use crate::{
     application::operations::verify_checksum::ChecksumVerifier,
     models::{common::enums::Filetype, upstream::Package},
@@ -14,6 +13,7 @@ use crate::{
 };
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
+use console::style;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -45,10 +45,14 @@ impl<'a> PackageUpgrader<'a> {
         let download_cache = temp_path.join("downloads");
         let extract_cache = temp_path.join("extracts");
 
-        fs::create_dir_all(&download_cache)
-            .context(format!("Failed to create download cache directory at '{}'", download_cache.display()))?;
-        fs::create_dir_all(&extract_cache)
-            .context(format!("Failed to create extraction cache directory at '{}'", extract_cache.display()))?;
+        fs::create_dir_all(&download_cache).context(format!(
+            "Failed to create download cache directory at '{}'",
+            download_cache.display()
+        ))?;
+        fs::create_dir_all(&extract_cache).context(format!(
+            "Failed to create extraction cache directory at '{}'",
+            extract_cache.display()
+        ))?;
 
         Ok(Self {
             provider_manager,
@@ -258,9 +262,10 @@ impl<'a> PackageUpgrader<'a> {
         .context(format!("Failed to upgrade package '{}'", package_name))?;
 
         if was_upgraded {
-            self.package_storage
-                .save_packages()
-                .context(format!("Failed to save updated information for '{}'", package_name))?;
+            self.package_storage.save_packages().context(format!(
+                "Failed to save updated information for '{}'",
+                package_name
+            ))?;
         }
 
         Ok(was_upgraded)
@@ -285,8 +290,10 @@ impl<'a> PackageUpgrader<'a> {
                 .provider_manager
                 .get_latest_release(&package.repo_slug, &package.provider)
                 .await
-                .context(format!("Failed to fetch latest release for '{}'", package.name))
-            {
+                .context(format!(
+                    "Failed to fetch latest release for '{}'",
+                    package.name
+                )) {
                 Ok(latest_release) => {
                     if latest_release.version.is_newer_than(&package.version) {
                         message!(
@@ -340,7 +347,10 @@ impl<'a> PackageUpgrader<'a> {
             .provider_manager
             .get_latest_release(&package.repo_slug, &package.provider)
             .await
-            .context(format!("Failed to fetch latest release for '{}'", package_name))?;
+            .context(format!(
+                "Failed to fetch latest release for '{}'",
+                package_name
+            ))?;
 
         if latest_release.version.is_newer_than(&package.version) {
             message!(
@@ -379,7 +389,10 @@ impl<'a> PackageUpgrader<'a> {
         let latest_release = provider_manager
             .get_latest_release(&package.repo_slug, &package.provider)
             .await
-            .context(format!("Failed to fetch latest release for '{}'", package.repo_slug))?;
+            .context(format!(
+                "Failed to fetch latest release for '{}'",
+                package.repo_slug
+            ))?;
 
         if !*force_option && !latest_release.version.is_newer_than(&package.version) {
             message!(
@@ -444,8 +457,10 @@ impl<'a> PackageUpgrader<'a> {
         let had_desktop_integration = package.icon_path.is_some();
 
         // Remove old installation before installing new version
-        Self::remove_old_installation(package, paths, message_callback)
-            .context(format!("Failed to remove old installation of '{}'", package.name))?;
+        Self::remove_old_installation(package, paths, message_callback).context(format!(
+            "Failed to remove old installation of '{}'",
+            package.name
+        ))?;
 
         match package.filetype {
             Filetype::AppImage => Self::handle_appimage(
@@ -480,10 +495,10 @@ impl<'a> PackageUpgrader<'a> {
         if had_desktop_integration {
             message!(message_callback, "Updating desktop integration ...");
 
-            let icon_manager = IconManager::new(paths)
-                .context("Failed to initialize icon manager")?;
-            let desktop_manager = DesktopManager::new(paths)
-                .context("Failed to initialize desktop manager")?;
+            let icon_manager =
+                IconManager::new(paths).context("Failed to initialize icon manager")?;
+            let desktop_manager =
+                DesktopManager::new(paths).context("Failed to initialize desktop manager")?;
 
             let icon_path = icon_manager
                 .add_icon(
@@ -504,7 +519,10 @@ impl<'a> PackageUpgrader<'a> {
                     None,
                     None,
                 )
-                .context(format!("Failed to update desktop entry for '{}'", package.name))?;
+                .context(format!(
+                    "Failed to update desktop entry for '{}'",
+                    package.name
+                ))?;
 
             message!(message_callback, "Desktop integration updated");
         }
@@ -549,34 +567,31 @@ impl<'a> PackageUpgrader<'a> {
 
         // Remove the actual installation
         if install_path.is_dir() {
-            fs::remove_dir_all(install_path)
-                .context(format!(
-                    "Failed to remove old installation directory at '{}'",
-                    install_path.display()
-                ))?;
+            fs::remove_dir_all(install_path).context(format!(
+                "Failed to remove old installation directory at '{}'",
+                install_path.display()
+            ))?;
         } else if install_path.is_file() {
-            fs::remove_file(install_path)
-                .context(format!(
-                    "Failed to remove old installation file at '{}'",
-                    install_path.display()
-                ))?;
+            fs::remove_file(install_path).context(format!(
+                "Failed to remove old installation file at '{}'",
+                install_path.display()
+            ))?;
         }
 
         // Remove old desktop integration if it exists
         if package.icon_path.is_some() {
-            let desktop_manager = DesktopManager::new(paths)
-                .context("Failed to initialize desktop manager")?;
+            let desktop_manager =
+                DesktopManager::new(paths).context("Failed to initialize desktop manager")?;
 
             // Ignore errors when removing desktop entry - it might not exist
             let _ = desktop_manager.remove_entry(&package.name);
 
             if let Some(icon_path) = &package.icon_path {
                 if icon_path.exists() {
-                    fs::remove_file(icon_path)
-                        .context(format!(
-                            "Failed to remove old icon file at '{}'",
-                            icon_path.display()
-                        ))?;
+                    fs::remove_file(icon_path).context(format!(
+                        "Failed to remove old icon file at '{}'",
+                        icon_path.display()
+                    ))?;
                 }
             }
         }
@@ -625,10 +640,8 @@ impl<'a> PackageUpgrader<'a> {
             out_path.display()
         ))?;
 
-        let shell_manager = ShellManager::new(
-            &paths.config.paths_file,
-            &paths.integration.symlinks_dir,
-        );
+        let shell_manager =
+            ShellManager::new(&paths.config.paths_file, &paths.integration.symlinks_dir);
 
         message!(message_callback, "Searching for executable ...");
 
@@ -651,8 +664,10 @@ impl<'a> PackageUpgrader<'a> {
             return Ok(());
         };
 
-        permission_handler::make_executable(&exec_path)
-            .context(format!("Failed to make '{}' executable", exec_path.display()))?;
+        permission_handler::make_executable(&exec_path).context(format!(
+            "Failed to make '{}' executable",
+            exec_path.display()
+        ))?;
 
         message!(
             message_callback,
@@ -668,7 +683,11 @@ impl<'a> PackageUpgrader<'a> {
         shell_manager
             .add_to_paths(path_to_add)
             .context(format!("Failed to add '{}' to PATH", path_to_add.display()))?;
-        message!(message_callback, "Added '{}' to PATH", path_to_add.display());
+        message!(
+            message_callback,
+            "Added '{}' to PATH",
+            path_to_add.display()
+        );
 
         package.exec_path = Some(exec_path);
         package.install_path = Some(out_path);
@@ -688,11 +707,7 @@ impl<'a> PackageUpgrader<'a> {
         H: FnMut(&str),
     {
         let filename = asset_path.file_name().unwrap().display();
-        message!(
-            message_callback,
-            "Extracting file '{}' ...",
-            filename
-        );
+        message!(message_callback, "Extracting file '{}' ...", filename);
 
         let extracted_path = compression_handler::decompress(asset_path, extract_cache)
             .context(format!("Failed to decompress '{}'", filename))?;
@@ -723,15 +738,24 @@ impl<'a> PackageUpgrader<'a> {
 
         fs::rename(asset_path, &out_path)
             .or_else(|_| {
-                fs::copy(asset_path, &out_path)
-                    .context(format!("Failed to copy AppImage to '{}'", out_path.display()))?;
-                fs::remove_file(asset_path)
-                    .context(format!("Failed to remove temporary file '{}'", asset_path.display()))
+                fs::copy(asset_path, &out_path).context(format!(
+                    "Failed to copy AppImage to '{}'",
+                    out_path.display()
+                ))?;
+                fs::remove_file(asset_path).context(format!(
+                    "Failed to remove temporary file '{}'",
+                    asset_path.display()
+                ))
             })
-            .context(format!("Failed to move AppImage to '{}'", out_path.display()))?;
+            .context(format!(
+                "Failed to move AppImage to '{}'",
+                out_path.display()
+            ))?;
 
-        permission_handler::make_executable(&out_path)
-            .context(format!("Failed to make AppImage '{}' executable", filename.to_string_lossy()))?;
+        permission_handler::make_executable(&out_path).context(format!(
+            "Failed to make AppImage '{}' executable",
+            filename.to_string_lossy()
+        ))?;
 
         message!(message_callback, "Made '{}' executable", filename.display());
 
@@ -776,13 +800,17 @@ impl<'a> PackageUpgrader<'a> {
             .or_else(|_| {
                 fs::copy(asset_path, &out_path)
                     .context(format!("Failed to copy binary to '{}'", out_path.display()))?;
-                fs::remove_file(asset_path)
-                    .context(format!("Failed to remove temporary file '{}'", asset_path.display()))
+                fs::remove_file(asset_path).context(format!(
+                    "Failed to remove temporary file '{}'",
+                    asset_path.display()
+                ))
             })
             .context(format!("Failed to move binary to '{}'", out_path.display()))?;
 
-        permission_handler::make_executable(&out_path)
-            .context(format!("Failed to make binary '{}' executable", filename.to_string_lossy()))?;
+        permission_handler::make_executable(&out_path).context(format!(
+            "Failed to make binary '{}' executable",
+            filename.to_string_lossy()
+        ))?;
 
         message!(message_callback, "Made '{}' executable", filename.display());
 
