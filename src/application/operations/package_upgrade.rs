@@ -384,6 +384,11 @@ impl<'a> PackageUpgrader<'a> {
         F: FnMut(u64, u64),
         H: FnMut(&str),
     {
+        if package.is_pinned {
+            message!(message_callback, "Upgrade skipped: '{}' is pinned.", package.name);
+            return Ok(false);
+        }
+
         message!(message_callback, "Fetching latest release ...");
 
         let latest_release = provider_manager
