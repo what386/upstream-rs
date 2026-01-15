@@ -175,14 +175,14 @@ impl GithubClient {
             .context(format!("Failed to get latest release for {}", owner_repo))
     }
 
-    pub async fn get_all_releases(
+    pub async fn get_releases(
         &self,
         owner_repo: &str,
         per_page: Option<u32>,
+        max_total: Option<u32>,
     ) -> Result<Vec<GithubReleaseDto>> {
         let per_page = per_page.unwrap_or(30);
         let mut page = 1;
-
         let mut releases = Vec::new();
 
         loop {
@@ -190,7 +190,6 @@ impl GithubClient {
                 "https://api.github.com/repos/{}/releases?per_page={}&page={}",
                 owner_repo, per_page, page
             );
-
             let batch: Vec<GithubReleaseDto> = self
                 .get_json(&url)
                 .await
@@ -200,10 +199,18 @@ impl GithubClient {
                 break;
             }
 
-            let batch_len = batch.len();
             releases.extend(batch);
 
-            if batch_len < per_page as usize {
+            // Check if we've hit the total limit
+            if let Some(max) = max_total {
+                if releases.len() >= max as usize {
+                    releases.truncate(max as usize);
+                    break;
+                }
+            }
+
+            // Check if this was a partial page (last page)
+            if releases.len() % per_page as usize != 0 {
                 break;
             }
 

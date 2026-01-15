@@ -48,12 +48,13 @@ impl GithubAdapter {
         Ok(self.convert_release(dto))
     }
 
-    pub async fn get_all_releases(
+    pub async fn get_releases(
         &self,
         slug: &str,
         per_page: Option<u32>,
+        max_total: Option<u32>,
     ) -> Result<Vec<Release>> {
-        let dtos = self.client.get_all_releases(slug, per_page).await?;
+        let dtos = self.client.get_releases(slug, per_page, max_total).await?;
         Ok(dtos
             .into_iter()
             .map(|dto| self.convert_release(dto))

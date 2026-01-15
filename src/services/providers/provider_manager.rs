@@ -25,20 +25,76 @@ impl ProviderManager {
         })
     }
 
-    pub async fn get_latest_release(&self, slug: &str, provider: &Provider) -> Result<Release> {
+    pub async fn get_latest_release(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        channel: &Channel,
+    ) -> Result<Release> {
+        match channel {
+            Channel::Stable => {
+                self.get_latest_stable_release(slug, provider).await
+            }
+            Channel::Nightly => {
+                self.get_latest_nightly_release(slug, provider).await
+            }
+        }
+    }
+
+    pub fn is_nightly_release(tag: &str) -> bool {
+        let tag_lower = tag.to_lowercase();
+
+        // Common nightly patterns
+        tag_lower.contains("nightly") ||
+        tag_lower.contains("canary") ||
+        tag_lower.contains("edge") ||
+        tag_lower.contains("unstable")
+    }
+
+    pub async fn get_latest_nightly_release(&self, slug: &str, provider: &Provider) -> Result<Release> {
+        let releases = self.get_releases(slug, provider, Some(20), Some(20)).await?;
+
+        releases
+            .into_iter()
+            .filter(|r| !r.is_draft)
+            .filter(|r| Self::is_nightly_release(&r.tag))
+            .max_by(|a, b| a.version.cmp(&b.version))
+            .ok_or_else(|| anyhow!(
+                "No nightly releases found for '{}'.",
+                slug
+            ))
+    }
+
+    pub async fn get_latest_stable_release(&self, slug: &str, provider: &Provider) -> Result<Release> {
         match provider {
             Provider::Github => self.github.get_latest_release(slug).await,
         }
     }
 
-    pub async fn get_all_releases(
+    pub async fn get_all_nightly_releases(
         &self,
         slug: &str,
-        provider: Provider,
+        provider: &Provider,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
+        let releases = self.get_releases(slug, provider, per_page, None).await?;
+
+        Ok(releases
+            .into_iter()
+            .filter(|r| !r.is_draft)
+            .filter(|r| Self::is_nightly_release(&r.tag))
+            .collect())
+    }
+
+    pub async fn get_releases(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        per_page: Option<u32>,
+        max_total: Option<u32>,
+    ) -> Result<Vec<Release>> {
         match provider {
-            Provider::Github => self.github.get_all_releases(slug, per_page).await,
+            Provider::Github => self.github.get_releases(slug, per_page, max_total).await,
         }
     }
 
@@ -127,21 +183,6 @@ impl ProviderManager {
             })
             .copied()
             .ok_or_else(|| anyhow!("No compatible filetype found in release assets"))
-    }
-
-    // TODO: implement
-    fn is_valid_update(package: &Package, release: &Release) -> bool {
-        if package.is_pinned {
-            return false;
-        }
-
-        let consider_release = match package.channel {
-            Channel::Stable => !release.is_draft && !release.is_prerelease,
-            Channel::Beta | Channel::Nightly => !release.is_draft,
-            Channel::All => true,
-        };
-
-        consider_release && release.version.is_newer_than(&package.version)
     }
 
     fn is_potentially_compatible(&self, asset: &Asset) -> bool {

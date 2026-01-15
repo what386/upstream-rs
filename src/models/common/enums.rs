@@ -17,9 +17,7 @@ pub enum Filetype {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 pub enum Channel {
     Stable,
-    Beta,
     Nightly,
-    All,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -42,9 +40,7 @@ impl fmt::Display for Channel {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Channel::Stable => write!(f, "Stable"),
-            Channel::Beta => write!(f, "Beta"),
             Channel::Nightly => write!(f, "Nightly"),
-            Channel::All => write!(f, "All"),
         }
     }
 }
