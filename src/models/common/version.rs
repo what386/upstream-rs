@@ -11,30 +11,6 @@ pub struct Version {
     pub is_prerelease: bool,
 }
 
-// TODO: implement?
-#[derive(Debug, Clone)]
-pub enum VersionParseError {
-    Empty,
-    InvalidFormat(String),
-    InvalidMajor(String),
-    InvalidMinor(String),
-    InvalidPatch(String),
-}
-
-impl std::error::Error for VersionParseError {}
-
-impl std::fmt::Display for VersionParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            VersionParseError::Empty => write!(f, "Version string is empty"),
-            VersionParseError::InvalidFormat(s) => write!(f, "Invalid version format: {}", s),
-            VersionParseError::InvalidMajor(s) => write!(f, "Invalid major version: {}", s),
-            VersionParseError::InvalidMinor(s) => write!(f, "Invalid minor version: {}", s),
-            VersionParseError::InvalidPatch(s) => write!(f, "Invalid patch version: {}", s),
-        }
-    }
-}
-
 impl Version {
     pub fn new(major: u32, minor: u32, patch: u32, is_prerelease: bool) -> Self {
         Self {
@@ -98,6 +74,28 @@ impl Version {
 
         Ok(Version::new(major, minor, patch, false))
     }
+
+    pub fn cmp(&self, other: &Version) -> std::cmp::Ordering {
+        match self.major.cmp(&other.major) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.minor.cmp(&other.minor) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.patch.cmp(&other.patch) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        // Stable releases are "greater than" prereleases for the same version
+        match (self.is_prerelease, other.is_prerelease) {
+            (false, true) => std::cmp::Ordering::Greater,
+            (true, false) => std::cmp::Ordering::Less,
+            _ => std::cmp::Ordering::Equal,
+        }
+    }
 }
 
 impl fmt::Display for Version {
@@ -107,5 +105,18 @@ impl fmt::Display for Version {
         } else {
             write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
         }
+    }
+}
+
+// Implement PartialOrd and Ord for proper comparison
+impl PartialOrd for Version {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Version {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        Version::cmp(self, other)
     }
 }
