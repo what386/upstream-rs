@@ -6,9 +6,9 @@ use crate::{
             PackageUpgrader,
             PackageChecker,
         },
-        providers::provider_manager::ProviderManager,
         storage::package_storage::PackageStorage,
     },
+    providers::provider_manager::ProviderManager,
     utils::static_paths::UpstreamPaths,
 };
 

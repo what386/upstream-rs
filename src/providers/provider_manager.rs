@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::models::common::enums::{Channel, Filetype, Provider};
 use crate::models::provider::{Asset, Release};
 use crate::models::upstream::Package;
-use crate::services::providers::github::{GithubAdapter, GithubClient};
+use crate::providers::github::{GithubAdapter, GithubClient};
 use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
 
 use anyhow::{Result, anyhow};

@@ -1,6 +1,6 @@
 use crate::{
     models::upstream::Package,
-    services::providers::provider_manager::ProviderManager,
+    providers::provider_manager::ProviderManager,
 };
 
 use anyhow::{Context, Result};

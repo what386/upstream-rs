@@ -3,8 +3,8 @@ use crate::{
     services::{
         integration::{DesktopManager, IconManager},
         packaging::{PackageInstaller, PackageRemover},
-        providers::provider_manager::ProviderManager,
     },
+    providers::provider_manager::ProviderManager,
     utils::static_paths::UpstreamPaths,
 };
 

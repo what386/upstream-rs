@@ -3,10 +3,8 @@ use console::style;
 
 use crate::{
     application::operations::upgrade_operation::UpgradeOperation,
-    services::{
-        providers::provider_manager::ProviderManager,
-        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
-    },
+    providers::provider_manager::ProviderManager,
+    services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};

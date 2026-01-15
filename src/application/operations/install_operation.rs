@@ -1,8 +1,8 @@
 use crate::{
     models::upstream::Package,
+    providers::provider_manager::ProviderManager,
     services::{
         integration::{DesktopManager, IconManager},
-        providers::provider_manager::ProviderManager,
         storage::package_storage::PackageStorage,
     },
     utils::static_paths::UpstreamPaths,
