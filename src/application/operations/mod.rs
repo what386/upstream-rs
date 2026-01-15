@@ -1,7 +1,6 @@
-pub mod configurator;
-pub mod package_install;
-pub mod package_metadata;
-pub mod package_remove;
-pub mod package_upgrade;
-pub mod upstream_init;
-pub mod verify_checksum;
+pub mod config_operation;
+pub mod install_operation;
+pub mod metadata_operation;
+pub mod remove_operation;
+pub mod upgrade_operation;
+pub mod init_operation;

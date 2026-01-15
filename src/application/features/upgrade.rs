@@ -2,7 +2,7 @@ use anyhow::Result;
 use console::style;
 
 use crate::{
-    application::operations::package_upgrade::PackageUpgrader,
+    application::operations::upgrade_operation::UpgradeOperation,
     services::{
         providers::provider_manager::ProviderManager,
         storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
@@ -18,7 +18,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     let github_token = config.get_config().github.api_token.as_deref();
     let provider_manager = ProviderManager::new(github_token)?;
     let mut package_upgrade =
-        PackageUpgrader::new(&provider_manager, &mut package_storage, &paths)?;
+        UpgradeOperation::new(&provider_manager, &mut package_storage, &paths)?;
 
     // Handle --check flag
     if check_option {
@@ -104,7 +104,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
 // instead of "checking xyz... -> checking xyz...
 //                                xyz is up to date!"
 // maybe use a spinner, too?
-async fn run_check(package_upgrade: PackageUpgrader<'_>, names: Option<Vec<String>>) -> Result<()> {
+async fn run_check(package_upgrade: UpgradeOperation<'_>, names: Option<Vec<String>>) -> Result<()> {
     let mut message_callback = Some(|msg: &str| {
         println!("{}", msg);
     });

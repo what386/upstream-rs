@@ -3,7 +3,7 @@ use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{
-    application::operations::package_remove::PackageRemover,
+    application::operations::remove_operation::RemoveOperation,
     services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
 };
 
@@ -12,7 +12,7 @@ pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
 
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
 
-    let mut package_remover = PackageRemover::new(&mut package_storage, &paths);
+    let mut package_remover = RemoveOperation::new(&mut package_storage, &paths);
 
     let overall_pb = ProgressBar::new(0);
     overall_pb.set_style(ProgressStyle::with_template(
