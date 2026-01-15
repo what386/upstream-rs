@@ -1,7 +1,7 @@
 use crate::{
     models::upstream::Package,
     services::{
-        filesystem::{DesktopManager, IconManager},
+        integration::{DesktopManager, IconManager},
         providers::provider_manager::ProviderManager,
         storage::package_storage::PackageStorage,
     },
