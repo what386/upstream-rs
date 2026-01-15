@@ -1,6 +1,6 @@
 use crate::{
     models::{common::enums::Provider, provider::Release},
-    services::providers::provider_manager::ProviderManager,
+    providers::provider_manager::ProviderManager,
 };
 use anyhow::{Result, anyhow};
 use std::{

@@ -8,8 +8,8 @@ use crate::{
         common::enums::{Channel, Filetype, Provider},
         upstream::Package,
     },
+    providers::provider_manager::ProviderManager,
     services::{
-        providers::provider_manager::ProviderManager,
         storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     },
     utils::static_paths::UpstreamPaths,

@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
 
-use crate::services::providers::github::github_client::{
+use crate::providers::github::github_client::{
     GithubAssetDto, GithubClient, GithubReleaseDto,
 };
 
