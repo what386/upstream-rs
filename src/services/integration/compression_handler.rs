@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use tar::Archive;
 use xz2::read::XzDecoder;
 use zip::ZipArchive;
+use zstd::stream::read::Decoder as ZstdDecoder;
 
 /// Decompress a file into the output folder and return the root path extracted.
 ///
@@ -48,14 +49,49 @@ pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
         return decompress_tar_xz(input, &extract_dir);
     }
 
+    if name.ends_with(".tar.zst") || name.ends_with(".tzst") {
+        return decompress_tar_zst(input, &extract_dir);
+    }
+
     match ext.as_str() {
         "zip" => decompress_zip(input, &extract_dir),
         "gz" => decompress_gz_single(input, &extract_dir),
         "bz2" => decompress_bz2_single(input, &extract_dir),
         "xz" => decompress_xz_single(input, &extract_dir),
+        "zst" => decompress_zst_single(input, &extract_dir),  // Add this line
         "tar" => unpack_tar(input, &extract_dir),
         _ => Err(anyhow!("Unsupported format: {}", input.display())),
     }
+}
+
+// ---------------- ZSTD ----------------
+fn decompress_tar_zst(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
+    let file = File::open(input)?;
+    let tar = ZstdDecoder::new(file)?;
+    let mut archive = Archive::new(tar);
+    let mut paths = Vec::new();
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let path = extract_dir.join(entry.path()?);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        entry.unpack(&path)?;
+        paths.push(path);
+    }
+    common_root(&paths, extract_dir)
+}
+
+fn decompress_zst_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
+    let file = File::open(input)?;
+    let mut decoder = ZstdDecoder::new(file)?;
+    let out_name = input
+        .file_stem()
+        .ok_or_else(|| anyhow!("Cannot derive output name"))?;
+    let out_path = extract_dir.join(out_name);
+    let mut out = File::create(&out_path)?;
+    std::io::copy(&mut decoder, &mut out)?;
+    Ok(out_path)
 }
 
 // ---------------- ZIP ----------------

@@ -1,6 +1,6 @@
 [package]
 name = "upstream-rs"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -33,6 +33,7 @@ sha2 = "0.10"
 console = "0.16"
 toml = "0.9.10"
 xz2 = "0.1.7"
+zstd = "0.13.3"
 
 [profile.release]
 opt-level = "s"     # Optimize for size, but dont cut speed much
