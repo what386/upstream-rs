@@ -34,4 +34,6 @@ echo "Pushing tag to remotes..."
 git push github "v$VERSION"
 git push gitea "v$VERSION"
 
+git checkout dev
+
 echo "Done! Merged dev into main and created tag v$VERSION."
