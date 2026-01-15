@@ -11,14 +11,15 @@ impl Cli {
                 name,
                 repo_slug,
                 kind,
-                version,
+                tag,
                 provider,
                 channel,
-                pattern,
+                match_pattern,
+                exclude_pattern,
                 desktop,
             } => {
                 features::install::run(
-                    name, repo_slug, kind, version, provider, channel, pattern, desktop,
+                    name, repo_slug, kind, tag, provider, channel, match_pattern, exclude_pattern, desktop,
                 )
                 .await
             }

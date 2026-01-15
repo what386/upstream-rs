@@ -19,7 +19,8 @@ pub struct Package {
     pub provider: Provider,
 
     pub is_pinned: bool,
-    pub pattern: Option<String>,
+    pub match_pattern: Option<String>,
+    pub exclude_pattern: Option<String>,
     pub icon_path: Option<PathBuf>,
     pub install_path: Option<PathBuf>,
     pub exec_path: Option<PathBuf>,
@@ -32,7 +33,8 @@ impl Package {
         name: String,
         repo_slug: String,
         filetype: Filetype,
-        pattern: Option<String>,
+        match_pattern: Option<String>,
+        exclude_pattern: Option<String>,
         channel: Channel,
         provider: Provider,
     ) -> Self {
@@ -46,7 +48,8 @@ impl Package {
             provider,
 
             is_pinned: false,
-            pattern,
+            match_pattern,
+            exclude_pattern,
             icon_path: None,
             install_path: None,
             exec_path: None,
