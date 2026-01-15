@@ -39,7 +39,7 @@ pub enum Commands {
 
         /// Version tag to install (defaults to latest)
         #[arg(short, long)]
-        version: Option<String>,
+        tag: Option<String>,
 
         /// File type to install
         #[arg(short, long, value_enum, default_value_t = Filetype::Auto)]
@@ -53,9 +53,13 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
         channel: Channel,
 
-        /// Match pattern to use as a hint for which package to install
-        #[arg(short = 'P', long)]
-        pattern: Option<String>,
+        /// Match pattern to use as a hint for which asset to prefer
+        #[arg(short = 'm', long, name = "match")]
+        match_pattern: Option<String>,
+
+        /// Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")
+        #[arg(short = 'e', long, name = "exclude")]
+        exclude_pattern: Option<String>,
 
         /// Whether or not to create a .desktop entry for GUI applications
         #[arg(short, long, default_value_t = false)]

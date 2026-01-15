@@ -22,7 +22,8 @@ pub async fn run(
     version: Option<String>,
     provider: Provider,
     channel: Channel,
-    pattern: Option<String>,
+    match_pattern: Option<String>,
+    exclude_pattern: Option<String>,
     create_entry: bool,
 ) -> Result<()> {
     println!("Installing {} from {} ...", name, provider);
@@ -39,7 +40,7 @@ pub async fn run(
     let mut package_installer =
         InstallOperation::new(&provider_manager, &mut package_storage, &paths)?;
 
-    let package = Package::with_defaults(name, repo_slug, kind, pattern, channel, provider);
+    let package = Package::with_defaults(name, repo_slug, kind, match_pattern, exclude_pattern, channel, provider);
 
     let pb = ProgressBar::new(0);
     pb.set_style(ProgressStyle::with_template(

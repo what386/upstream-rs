@@ -277,11 +277,14 @@ impl ProviderManager {
             score -= 20;
         }
 
-        // TODO: store assethint in package to reuse for upgrade
-        if let Some(asset_hint) = &package.pattern
-            && name.contains(asset_hint) {
-                score += 50;
-            }
+        // User prefs
+        if let Some(pattern) = &package.match_pattern && name.contains(pattern) {
+            score += 100;
+        }
+
+        if let Some(antipattern) = &package.exclude_pattern && name.contains(antipattern) {
+            score -= 100;
+        }
 
         score
     }
