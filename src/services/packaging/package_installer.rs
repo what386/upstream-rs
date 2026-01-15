@@ -1,7 +1,7 @@
 use crate::{
     models::{common::enums::Filetype, provider::Release, upstream::Package},
     services::{
-        filesystem::{ShellManager, SymlinkManager, compression_handler, permission_handler}, packaging::ChecksumVerifier, providers::provider_manager::ProviderManager
+        integration::{ShellManager, SymlinkManager, compression_handler, permission_handler}, packaging::ChecksumVerifier, providers::provider_manager::ProviderManager
     },
     utils::static_paths::UpstreamPaths,
 };

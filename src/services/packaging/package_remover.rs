@@ -1,6 +1,6 @@
 use crate::{
     models::upstream::Package,
-    services::filesystem::{DesktopManager, ShellManager, SymlinkManager},
+    services::integration::{DesktopManager, ShellManager, SymlinkManager},
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
