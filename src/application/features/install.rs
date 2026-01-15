@@ -3,7 +3,7 @@ use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{
-    application::operations::package_install::PackageInstaller,
+    application::operations::install_operation::InstallOperation,
     models::{
         common::enums::{Channel, Filetype, Provider},
         upstream::Package,
@@ -37,7 +37,7 @@ pub async fn run(
     let provider_manager = ProviderManager::new(github_token)?;
 
     let mut package_installer =
-        PackageInstaller::new(&provider_manager, &mut package_storage, &paths)?;
+        InstallOperation::new(&provider_manager, &mut package_storage, &paths)?;
 
     let package = Package::with_defaults(name, repo_slug, kind, pattern, channel, provider);
 

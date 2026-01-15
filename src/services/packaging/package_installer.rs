@@ -1,16 +1,11 @@
 use crate::{
-    application::operations::verify_checksum::ChecksumVerifier,
-    models::{common::enums::Filetype, upstream::Package},
+    models::{common::enums::Filetype, provider::Release, upstream::Package},
     services::{
-        filesystem::{
-            DesktopManager, IconManager, ShellManager, SymlinkManager, compression_handler,
-            permission_handler,
-        },
-        providers::provider_manager::ProviderManager,
-        storage::package_storage::PackageStorage,
+        filesystem::{ShellManager, SymlinkManager, compression_handler, permission_handler}, packaging::ChecksumVerifier, providers::provider_manager::ProviderManager
     },
     utils::static_paths::UpstreamPaths,
 };
+
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
 use console::style;
@@ -29,7 +24,6 @@ macro_rules! message {
 
 pub struct PackageInstaller<'a> {
     provider_manager: &'a ProviderManager,
-    package_storage: &'a mut PackageStorage,
     paths: &'a UpstreamPaths,
     download_cache: PathBuf,
     extract_cache: PathBuf,
@@ -38,7 +32,6 @@ pub struct PackageInstaller<'a> {
 impl<'a> PackageInstaller<'a> {
     pub fn new(
         provider_manager: &'a ProviderManager,
-        package_storage: &'a mut PackageStorage,
         paths: &'a UpstreamPaths,
     ) -> Result<Self> {
         let temp_path = std::env::temp_dir().join(format!("upstream-{}", std::process::id()));
@@ -56,146 +49,18 @@ impl<'a> PackageInstaller<'a> {
 
         Ok(Self {
             provider_manager,
-            package_storage,
             paths,
             download_cache,
             extract_cache,
         })
     }
 
-    pub async fn install_bulk<F, G, H>(
-        &mut self,
-        packages: Vec<Package>,
-        download_progress_callback: &mut Option<F>,
-        overall_progress_callback: &mut Option<G>,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        F: FnMut(u64, u64),
-        G: FnMut(u32, u32),
-        H: FnMut(&str),
-    {
-        let total = packages.len() as u32;
-        let mut completed = 0;
-        let mut failures = 0;
-
-        for package in packages {
-            let package_name = package.name.clone();
-            message!(message_callback, "Installing '{}' ...", package_name);
-            let use_icon = &package.icon_path.is_some();
-
-            match self
-                .install_single(
-                    package,
-                    &None,
-                    use_icon,
-                    download_progress_callback,
-                    message_callback,
-                )
-                .await
-                .context(format!("Failed to install package '{}'", package_name))
-            {
-                Ok(_) => {
-                    message!(message_callback, "{}", style("Package installed").green());
-                }
-                Err(e) => {
-                    message!(message_callback, "{} {}", style("Install failed:").red(), e);
-                    failures += 1;
-                }
-            }
-
-            completed += 1;
-            if let Some(cb) = overall_progress_callback.as_mut() {
-                cb(completed, total);
-            }
-        }
-
-        if failures > 0 {
-            message!(
-                message_callback,
-                "{} package(s) failed to install",
-                failures
-            );
-        }
-
-        Ok(())
-    }
-
-    pub async fn install_single<F, H>(
-        &mut self,
-        package: Package,
-        version: &Option<String>,
-        add_entry: &bool,
-        download_progress_callback: &mut Option<F>,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
-    {
-        let package_name = package.name.clone();
-
-        let mut installed_package = self
-            .perform_install(
-                package,
-                version,
-                download_progress_callback,
-                message_callback,
-            )
-            .await
-            .context(format!(
-                "Failed to perform installation for '{}'",
-                package_name
-            ))?;
-
-        if *add_entry {
-            let icon_manager =
-                IconManager::new(self.paths).context("Failed to initialize icon manager")?;
-            let desktop_manager =
-                DesktopManager::new(self.paths).context("Failed to initialize desktop manager")?;
-
-            let icon_path = icon_manager
-                .add_icon(
-                    &installed_package.name,
-                    installed_package.install_path.as_ref().unwrap(),
-                    &installed_package.filetype,
-                )
-                .await
-                .context(format!(
-                    "Failed to add icon for '{}'",
-                    installed_package.name
-                ))?;
-
-            installed_package.icon_path = Some(icon_path);
-
-            let _ = desktop_manager
-                .create_desktop_entry(
-                    &installed_package.name,
-                    installed_package.exec_path.as_ref().unwrap(),
-                    installed_package.icon_path.as_ref().unwrap(),
-                    None,
-                    None,
-                )
-                .context(format!(
-                    "Failed to create desktop entry for '{}'",
-                    installed_package.name
-                ))?;
-        }
-
-        self.package_storage
-            .add_or_update_package(installed_package.clone())
-            .context(format!(
-                "Failed to save package '{}' to storage",
-                installed_package.name
-            ))?;
-
-        Ok(())
-    }
-
-    async fn perform_install<F, H>(
+    /// Install package files from a release
+    /// Returns the updated package with installation paths set
+    pub async fn install_package_files<F, H>(
         &self,
         mut package: Package,
-        version: &Option<String>,
+        release: &Release,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<Package>
@@ -203,45 +68,15 @@ impl<'a> PackageInstaller<'a> {
         F: FnMut(u64, u64),
         H: FnMut(&str),
     {
-        if package.install_path.is_some() {
-            return Err(anyhow!("Package '{}' is already installed", package.name));
-        }
-
-        let latest_release = if let Some(version_tag) = version {
-            message!(
-                message_callback,
-                "Fetching release for version '{}' ...",
-                version_tag
-            );
-            self.provider_manager
-                .get_release_by_tag(&package.repo_slug, version_tag, &package.provider)
-                .await
-                .context(format!(
-                    "Failed to fetch release '{}' for '{}'. Verify the version tag exists",
-                    version_tag, package.repo_slug
-                ))?
-        } else {
-            message!(message_callback, "Fetching latest release ...");
-            self.provider_manager
-                .get_latest_release(&package.repo_slug, &package.provider)
-                .await
-                .context(format!(
-                    "Failed to fetch latest release for '{}'",
-                    package.repo_slug
-                ))?
-        };
-
-        package.version = latest_release.version.clone();
-
         message!(
             message_callback,
             "Selecting asset from '{}'",
-            latest_release.name
+            release.name
         );
 
         let best_asset = self
             .provider_manager
-            .find_recommended_asset(&latest_release, &package)
+            .find_recommended_asset(release, &package)
             .context(format!(
                 "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
                 package.name, package.filetype
@@ -266,7 +101,7 @@ impl<'a> PackageInstaller<'a> {
         let verified = checksum_verifier
             .try_verify_file(
                 &download_path,
-                &latest_release,
+                release,
                 &package.provider,
                 download_progress_callback,
             )
@@ -284,6 +119,8 @@ impl<'a> PackageInstaller<'a> {
         }
 
         message!(message_callback, "Installing package ...");
+
+        package.version = release.version.clone();
 
         match package.filetype {
             Filetype::AppImage => self
@@ -323,7 +160,6 @@ impl<'a> PackageInstaller<'a> {
         let dirname = extracted_path
             .file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
-
         let out_path = self.paths.install.archives_dir.join(dirname);
 
         message!(
@@ -351,13 +187,11 @@ impl<'a> PackageInstaller<'a> {
                 "{}",
                 style("Could not automatically locate executable").yellow()
             );
-
             // Fallback: add out_path to PATH
             shell_manager
                 .add_to_paths(&out_path)
                 .context(format!("Failed to add '{}' to PATH", out_path.display()))?;
             message!(message_callback, "Added '{}' to PATH", out_path.display());
-
             package.exec_path = None;
             package.install_path = Some(out_path);
             package.last_upgraded = Utc::now();
@@ -382,6 +216,7 @@ impl<'a> PackageInstaller<'a> {
         shell_manager
             .add_to_paths(path_to_add)
             .context(format!("Failed to add '{}' to PATH", path_to_add.display()))?;
+
         message!(
             message_callback,
             "Added '{}' to PATH",
@@ -391,7 +226,6 @@ impl<'a> PackageInstaller<'a> {
         package.exec_path = Some(exec_path);
         package.install_path = Some(out_path);
         package.last_upgraded = Utc::now();
-
         Ok(package)
     }
 

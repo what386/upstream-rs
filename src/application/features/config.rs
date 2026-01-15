@@ -1,5 +1,5 @@
 use crate::{
-    application::operations::configurator::ConfigUpdater,
+    application::operations::config_operation::ConfigUpdater,
     services::storage::config_storage::ConfigStorage, utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
