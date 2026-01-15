@@ -42,7 +42,7 @@ pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
     if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
         return decompress_tar_gz(input, &extract_dir);
     }
-    if name.ends_with(".tar.bz2") || name.ends_with(".tbz") {
+    if name.ends_with(".tar.bz2") || name.ends_with(".tbz2") || name.ends_with(".tbz") {
         return decompress_tar_bz2(input, &extract_dir);
     }
     if name.ends_with(".tar.xz") || name.ends_with(".txz") {
