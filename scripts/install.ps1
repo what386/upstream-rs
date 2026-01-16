@@ -28,6 +28,9 @@ function Write-ColorOutput {
 }
 
 function Detect-Arch {
+    # Try multiple methods to detect architecture
+
+    # Method 1: Using RuntimeInformation (PowerShell Core)
     $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
 
     switch ($arch) {
@@ -35,8 +38,25 @@ function Detect-Arch {
         ([System.Runtime.InteropServices.Architecture]::Arm64) { return "aarch64" }
         ([System.Runtime.InteropServices.Architecture]::Arm)   { return "armv7" }
         ([System.Runtime.InteropServices.Architecture]::X86)   { return "i686" }
-        default { return "unknown" }
     }
+
+    $envArch = $env:PROCESSOR_ARCHITECTURE
+
+    switch ($envArch) {
+        "AMD64" { return "x86_64" }
+        "ARM64" { return "aarch64" }
+        "ARM"   { return "armv7" }
+        "x86"   { return "i686" }
+    }
+
+    switch ($wmiArch) {
+        9  { return "x86_64" }  # x64
+        12 { return "aarch64" } # ARM64
+        5  { return "armv7" }   # ARM
+        0  { return "i686" }    # x86
+    }
+
+    return "unknown"
 }
 
 function Main {
@@ -45,7 +65,15 @@ function Main {
     $ARCH = Detect-Arch
 
     if ($ARCH -eq "unknown") {
-        Write-ColorOutput "Error: Unsupported architecture ($ARCH)" $RED
+        Write-ColorOutput "Error: Unsupported architecture" $RED
+        Write-Host "Debug info:"
+        Write-Host "  PROCESSOR_ARCHITECTURE: $env:PROCESSOR_ARCHITECTURE"
+        Write-Host "  PROCESSOR_ARCHITEW6432: $env:PROCESSOR_ARCHITEW6432"
+        try {
+            Write-Host "  RuntimeInformation: $([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)"
+        } catch {
+            Write-Host "  RuntimeInformation: Not available"
+        }
         exit 1
     }
 
@@ -92,7 +120,6 @@ function Main {
         exit 1
     }
     finally {
-        # Cleanup
         if (Test-Path $TMP_DIR) {
             Remove-Item -Recurse -Force $TMP_DIR
         }
