@@ -43,7 +43,7 @@ impl<'a> PackageRemover<'a> {
             install_path.display()
         );
 
-        ShellManager::new(&self.paths.config.paths_file, &self.paths.integration.symlinks_dir)
+        ShellManager::new(&self.paths.config.paths_file)
             .remove_from_paths(install_path)
             .context(format!(
                 "Failed to remove '{}' from PATH configuration",

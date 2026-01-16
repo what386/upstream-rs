@@ -176,10 +176,7 @@ impl<'a> PackageInstaller<'a> {
             out_path.display()
         ))?;
 
-        let shell_manager = ShellManager::new(
-            &self.paths.config.paths_file,
-            &self.paths.integration.symlinks_dir,
-        );
+        let shell_manager = ShellManager::new(&self.paths.config.paths_file);
 
         message!(message_callback, "Searching for executable ...");
 
