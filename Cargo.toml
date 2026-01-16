@@ -1,12 +1,12 @@
 [package]
 name = "upstream-rs"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 description = "Fetch package updates directly from the source."
 repository = "https://github.com/what386/upstream-rs"
-keywords = ["update", "package", "upstream", "linux"]
+keywords = ["update", "package", "linux", "windows"]
 categories = ["command-line-utilities", "development-tools"]
 
 exclude = [
