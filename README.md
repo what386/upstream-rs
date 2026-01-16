@@ -43,8 +43,16 @@
 
 The easiest way to install **Upstream** is via the install script. This downloads the latest binary, sets it up in your user path, and enables self-updates.
 
+#### Linux and MacOS
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install.sh | bash
+```
+
+#### Windows
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install.ps1 | iex
 ```
 
 - Ensures **Upstream** can update itself automatically.
