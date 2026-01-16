@@ -27,21 +27,6 @@ function Write-ColorOutput {
     Write-Host "${Color}${Message}${NC}"
 }
 
-function Detect-OS {
-    if ($IsWindows -or $env:OS -match "Windows") {
-        return "pc-windows-msvc"
-    }
-    elseif ($IsLinux) {
-        return "unknown-linux-gnu"
-    }
-    elseif ($IsMacOS) {
-        return "apple-darwin"
-    }
-    else {
-        return "unknown"
-    }
-}
-
 function Detect-Arch {
     $arch = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
 
@@ -57,30 +42,22 @@ function Detect-Arch {
 function Main {
     Write-ColorOutput "Starting installation..." $GREEN
 
-    $OS = Detect-OS
     $ARCH = Detect-Arch
 
-    if ($OS -eq "unknown" -or $ARCH -eq "unknown") {
-        Write-ColorOutput "Error: Unsupported OS ($OS) or architecture ($ARCH)" $RED
+    if ($ARCH -eq "unknown") {
+        Write-ColorOutput "Error: Unsupported architecture ($ARCH)" $RED
         exit 1
     }
 
-    Write-Host "Detected OS: $OS"
     Write-Host "Detected Architecture: $ARCH"
 
-    $DOWNLOAD_URL = "https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/${BINARY_NAME}-${ARCH}-${OS}"
-
-    # Add .exe extension for Windows
-    if ($OS -match "windows") {
-        $DOWNLOAD_URL = "${DOWNLOAD_URL}.exe"
-        $BINARY_NAME = "${BINARY_NAME}.exe"
-    }
+    $DOWNLOAD_URL = "https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/${BINARY_NAME}-${ARCH}-pc-windows-msvc.exe"
 
     Write-Host "Downloading from: $DOWNLOAD_URL"
 
     # Create temporary directory
     $TMP_DIR = New-Item -ItemType Directory -Path ([System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), [System.IO.Path]::GetRandomFileName()))
-    $TMP_FILE = Join-Path $TMP_DIR $BINARY_NAME
+    $TMP_FILE = Join-Path $TMP_DIR "${BINARY_NAME}.exe"
 
     try {
         # Download file
