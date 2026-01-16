@@ -20,7 +20,6 @@ detect_os() {
     case "$(uname -s)" in
     Linux*) echo "unknown-linux-gnu" ;;
     Darwin*) echo "apple-darwin" ;;
-    CYGWIN* | MINGW* | MSYS*) echo "windows" ;;
     *) echo "unknown" ;;
     esac
 }
@@ -50,11 +49,6 @@ main() {
     echo "Detected Architecture: $ARCH"
 
     DOWNLOAD_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/${BINARY_NAME}-${ARCH}-${OS}"
-
-    # Add .exe extension for Windows
-    if [ "$OS" = "windows" ]; then
-        DOWNLOAD_URL="${DOWNLOAD_URL}.exe"
-    fi
 
     echo "Downloading from: $DOWNLOAD_URL"
 
