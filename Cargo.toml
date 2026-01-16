@@ -35,6 +35,10 @@ toml = "0.9.10"
 xz2 = "0.1.7"
 zstd = "0.13.3"
 
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+winapi = { version = "0.3", features = ["winuser"] }
+
 [profile.release]
 opt-level = "s"     # Optimize for size, but dont cut speed much
 lto = true          # Link-time optimization
