@@ -10,10 +10,12 @@ use clap::Parser;
 
 use application::cli::arguments::Cli;
 
+/*
 #[cfg(target_os = "windows")]
 compile_error!(
     "Upstream is planned to be *Nix-only. If you'd like something similar, try out Scoop! (https://scoop.sh/)"
 );
+*/
 
 #[tokio::main]
 async fn main() {

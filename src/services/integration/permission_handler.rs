@@ -1,9 +1,14 @@
 use anyhow::{Context, Result};
+
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+
 use std::path::Path;
 use std::{fs, path::PathBuf};
 
 /// Sets executable permissions on a file for user, group, and others.
+
+#[cfg(unix)]
 pub fn make_executable(exec_path: &Path) -> Result<()> {
     if !exec_path.exists() {
         anyhow::bail!("Invalid executable path: {}", exec_path.to_string_lossy());
@@ -24,6 +29,11 @@ pub fn make_executable(exec_path: &Path) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+#[cfg(windows)]
+pub fn make_executable(exec_path: &Path) -> Result<()> {
     Ok(())
 }
 
