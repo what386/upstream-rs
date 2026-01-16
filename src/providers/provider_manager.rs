@@ -166,11 +166,20 @@ impl ProviderManager {
     }
 
     pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {
+
+        #[cfg(unix)]
         let priority = [
             Filetype::AppImage,
             Filetype::Archive,
             Filetype::Compressed,
             Filetype::Binary,
+        ];
+
+        #[cfg(windows)]
+        let priority = [
+            Filetype::WinExe,
+            Filetype::Archive,
+            Filetype::Compressed,
         ];
 
         priority
