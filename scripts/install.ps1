@@ -28,19 +28,13 @@ function Write-ColorOutput {
 }
 
 function Detect-Arch {
-    # Use PROCESSOR_ARCHITECTURE environment variable for native arch
-    $arch = $env:PROCESSOR_ARCHITECTURE
-
-    # Fallback to PROCESSOR_ARCHITEW6432 if running 32-bit process on 64-bit Windows
-    if ($env:PROCESSOR_ARCHITEW6432) {
-        $arch = $env:PROCESSOR_ARCHITEW6432
-    }
+    $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
 
     switch ($arch) {
-        "AMD64" { return "x86_64" }
-        "ARM64" { return "aarch64" }
-        "ARM" { return "armv7" }
-        "x86" { return "i686" }
+        ([System.Runtime.InteropServices.Architecture]::X64)   { return "x86_64" }
+        ([System.Runtime.InteropServices.Architecture]::Arm64) { return "aarch64" }
+        ([System.Runtime.InteropServices.Architecture]::Arm)   { return "armv7" }
+        ([System.Runtime.InteropServices.Architecture]::X86)   { return "i686" }
         default { return "unknown" }
     }
 }
@@ -52,8 +46,6 @@ function Main {
 
     if ($ARCH -eq "unknown") {
         Write-ColorOutput "Error: Unsupported architecture ($ARCH)" $RED
-        Write-Host "PROCESSOR_ARCHITECTURE: $env:PROCESSOR_ARCHITECTURE"
-        Write-Host "PROCESSOR_ARCHITEW6432: $env:PROCESSOR_ARCHITEW6432"
         exit 1
     }
 
