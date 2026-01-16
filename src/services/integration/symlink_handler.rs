@@ -2,6 +2,9 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[cfg(windows)]
+use std::ffi::OsStr;
+
 pub struct SymlinkManager<'a> {
     symlinks_dir: &'a Path,
 }
@@ -69,7 +72,14 @@ impl<'a> SymlinkManager<'a> {
     }
 
     #[cfg(windows)]
-    fn create_symlink(target_path: &Path, symlink: &Path) -> Result<()> {
-        std::os::windows::fs::symlink_file(target_path, symlink).context("Failed to create symlink")
+    fn create_symlink(target_path: &Path, link: &Path) -> Result<()> {
+        let link = if link.extension() != Some(OsStr::new("exe")) {
+            link.with_extension("exe")
+        } else {
+            link.to_path_buf()
+        };
+
+        fs::hard_link(target_path, &link)
+            .context("Failed to create hardlink")
     }
 }
