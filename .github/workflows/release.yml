@@ -14,8 +14,13 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            binary_ext: ""
           - os: macos-latest
             target: x86_64-apple-darwin
+            binary_ext: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_ext: ".exe"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -26,12 +31,13 @@ jobs:
       - name: Archive binary
         run: |
           mkdir dist
-          cp target/${{ matrix.target }}/release/upstream-rs dist/upstream-rs-${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/upstream-rs${{ matrix.binary_ext }} dist/upstream-rs-${{ matrix.target }}${{ matrix.binary_ext }}
+        shell: bash
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: upstream-rs-${{ matrix.target }}
-          path: dist/upstream-rs-${{ matrix.target }}
+          path: dist/upstream-rs-${{ matrix.target }}${{ matrix.binary_ext }}
   release:
     name: Create GitHub Release
     needs: build
