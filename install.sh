@@ -13,7 +13,7 @@ BINARY_NAME="upstream-rs"
 
 INSTALL_COMMANDS=(
     "init"
-    "install what386/upstream-rs -k binary -n upstream"
+    "install upstream what386/upstream-rs -k binary"
 )
 
 detect_os() {
