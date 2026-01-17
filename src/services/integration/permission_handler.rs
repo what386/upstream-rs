@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 
+use std::fmt::format;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
@@ -39,6 +40,9 @@ pub fn make_executable(exec_path: &Path) -> Result<()> {
 
 /// Finds any potential executables in a directory.
 pub fn find_executable(directory_path: &Path, name: &str) -> Option<PathBuf> {
+    #[cfg(windows)]
+    let name = &format!("{}.exe", name);
+
     // 1. bin/<name>
     let bin_path = directory_path.join("bin").join(name);
     if bin_path.is_file() {
