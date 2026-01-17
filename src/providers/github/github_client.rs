@@ -202,12 +202,11 @@ impl GithubClient {
             releases.extend(batch);
 
             // Check if we've hit the total limit
-            if let Some(max) = max_total {
-                if releases.len() >= max as usize {
+            if let Some(max) = max_total
+                && releases.len() >= max as usize {
                     releases.truncate(max as usize);
                     break;
                 }
-            }
 
             // Check if this was a partial page (last page)
             if releases.len() % per_page as usize != 0 {
