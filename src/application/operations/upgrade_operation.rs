@@ -1,14 +1,9 @@
 use crate::{
+    providers::provider_manager::ProviderManager,
     services::{
-        packaging::{
-            PackageInstaller,
-            PackageRemover,
-            PackageUpgrader,
-            PackageChecker,
-        },
+        packaging::{PackageChecker, PackageInstaller, PackageRemover, PackageUpgrader},
         storage::package_storage::PackageStorage,
     },
-    providers::provider_manager::ProviderManager,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -38,12 +33,7 @@ impl<'a> UpgradeOperation<'a> {
         let installer = PackageInstaller::new(provider_manager, paths)?;
         let remover = PackageRemover::new(paths);
 
-        let upgrader = PackageUpgrader::new(
-            provider_manager,
-            installer,
-            remover,
-            paths,
-        );
+        let upgrader = PackageUpgrader::new(provider_manager, installer, remover, paths);
 
         let checker = PackageChecker::new(provider_manager);
 
@@ -104,19 +94,15 @@ impl<'a> UpgradeOperation<'a> {
         for name in names {
             message!(message_callback, "Checking '{}' ...", name);
 
-            let package = self.package_storage
+            let package = self
+                .package_storage
                 .get_package_by_name(name)
                 .ok_or_else(|| anyhow!("Package '{}' is not installed", name))?
                 .clone();
 
             match self
                 .upgrader
-                .upgrade(
-                    &package,
-                    *force_option,
-                    download_progress,
-                    message_callback,
-                )
+                .upgrade(&package, *force_option, download_progress, message_callback)
                 .await
                 .context(format!("Failed to upgrade package '{}'", name))
             {
@@ -130,11 +116,7 @@ impl<'a> UpgradeOperation<'a> {
                     upgraded += 1;
                 }
                 Ok(None) => {
-                    message!(
-                        message_callback,
-                        "Package '{}' is already up to date",
-                        name
-                    );
+                    message!(message_callback, "Package '{}' is already up to date", name);
                 }
                 Err(e) => {
                     message!(
@@ -179,19 +161,15 @@ impl<'a> UpgradeOperation<'a> {
         F: FnMut(u64, u64),
         H: FnMut(&str),
     {
-        let package = self.package_storage
+        let package = self
+            .package_storage
             .get_package_by_name(package_name)
             .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?
             .clone();
 
         let upgraded = self
             .upgrader
-            .upgrade(
-                &package,
-                *force_option,
-                download_progress,
-                message_callback,
-            )
+            .upgrade(&package, *force_option, download_progress, message_callback)
             .await?;
 
         if let Some(updated) = upgraded {
@@ -252,7 +230,8 @@ impl<'a> UpgradeOperation<'a> {
     where
         H: FnMut(&str),
     {
-        let package = self.package_storage
+        let package = self
+            .package_storage
             .get_package_by_name(package_name)
             .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
 
@@ -276,4 +255,3 @@ impl<'a> UpgradeOperation<'a> {
         }
     }
 }
-

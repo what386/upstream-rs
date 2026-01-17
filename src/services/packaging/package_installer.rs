@@ -1,10 +1,10 @@
 use crate::{
     models::{common::enums::Filetype, provider::Release, upstream::Package},
+    providers::provider_manager::ProviderManager,
     services::{
         integration::{ShellManager, SymlinkManager, compression_handler, permission_handler},
         packaging::ChecksumVerifier,
     },
-    providers::provider_manager::ProviderManager,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -32,10 +32,7 @@ pub struct PackageInstaller<'a> {
 }
 
 impl<'a> PackageInstaller<'a> {
-    pub fn new(
-        provider_manager: &'a ProviderManager,
-        paths: &'a UpstreamPaths,
-    ) -> Result<Self> {
+    pub fn new(provider_manager: &'a ProviderManager, paths: &'a UpstreamPaths) -> Result<Self> {
         let temp_path = std::env::temp_dir().join(format!("upstream-{}", std::process::id()));
         let download_cache = temp_path.join("downloads");
         let extract_cache = temp_path.join("extracts");
@@ -70,11 +67,7 @@ impl<'a> PackageInstaller<'a> {
         F: FnMut(u64, u64),
         H: FnMut(&str),
     {
-        message!(
-            message_callback,
-            "Selecting asset from '{}'",
-            release.name
-        );
+        message!(message_callback, "Selecting asset from '{}'", release.name);
 
         let best_asset = self
             .provider_manager

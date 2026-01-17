@@ -79,7 +79,6 @@ impl<'a> SymlinkManager<'a> {
             link.to_path_buf()
         };
 
-        fs::hard_link(target_path, &link)
-            .context("Failed to create hardlink")
+        fs::hard_link(target_path, &link).context("Failed to create hardlink")
     }
 }

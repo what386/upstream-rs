@@ -1,7 +1,7 @@
 mod application;
 mod models;
-mod services;
 mod providers;
+mod services;
 mod utils;
 
 use console::style;

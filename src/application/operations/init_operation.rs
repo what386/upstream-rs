@@ -1,7 +1,7 @@
+use crate::utils::static_paths::UpstreamPaths;
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
-use crate::utils::static_paths::UpstreamPaths;
 
 // Unix shell source lines
 const SOURCE_LINE_BASH: &str =
@@ -39,18 +39,23 @@ fn get_installed_shells() -> io::Result<Vec<String>> {
 
 #[cfg(windows)]
 fn add_to_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
-    use winreg::enums::*;
     use winreg::RegKey;
+    use winreg::enums::*;
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let env_key = hkcu.open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to open registry key: {}", e)))?;
+    let env_key = hkcu
+        .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
+        .map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!("Failed to open registry key: {}", e),
+            )
+        })?;
 
     let symlinks_path = paths.integration.symlinks_dir.display().to_string();
 
     // Get current PATH
-    let current_path: String = env_key.get_value("Path")
-        .unwrap_or_else(|_| String::new());
+    let current_path: String = env_key.get_value("Path").unwrap_or_else(|_| String::new());
 
     // Check if our path is already in PATH
     let path_entries: Vec<&str> = current_path.split(';').collect();
@@ -65,7 +70,8 @@ fn add_to_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
         format!("{};{}", symlinks_path, current_path)
     };
 
-    env_key.set_value("Path", &new_path)
+    env_key
+        .set_value("Path", &new_path)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to set PATH: {}", e)))?;
 
     // Broadcast WM_SETTINGCHANGE to notify other applications
@@ -77,8 +83,10 @@ fn add_to_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
 #[cfg(windows)]
 fn broadcast_environment_change() {
     use std::ptr;
-    use winapi::um::winuser::{SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE};
     use winapi::shared::minwindef::LPARAM;
+    use winapi::um::winuser::{
+        HWND_BROADCAST, SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_SETTINGCHANGE,
+    };
 
     unsafe {
         let env_string: Vec<u16> = "Environment\0".encode_utf16().collect();
@@ -224,18 +232,23 @@ pub fn cleanup(paths: &UpstreamPaths) -> io::Result<()> {
 
 #[cfg(windows)]
 fn remove_from_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
-    use winreg::enums::*;
     use winreg::RegKey;
+    use winreg::enums::*;
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let env_key = hkcu.open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to open registry key: {}", e)))?;
+    let env_key = hkcu
+        .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
+        .map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!("Failed to open registry key: {}", e),
+            )
+        })?;
 
     let symlinks_path = paths.integration.symlinks_dir.display().to_string();
 
     // Get current PATH
-    let current_path: String = env_key.get_value("Path")
-        .unwrap_or_else(|_| String::new());
+    let current_path: String = env_key.get_value("Path").unwrap_or_else(|_| String::new());
 
     // Remove our path from PATH
     let path_entries: Vec<&str> = current_path
@@ -245,7 +258,8 @@ fn remove_from_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
 
     let new_path = path_entries.join(";");
 
-    env_key.set_value("Path", &new_path)
+    env_key
+        .set_value("Path", &new_path)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to set PATH: {}", e)))?;
 
     // Broadcast WM_SETTINGCHANGE to notify other applications
