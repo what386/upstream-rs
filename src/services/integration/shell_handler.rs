@@ -8,9 +8,7 @@ pub struct ShellManager<'a> {
 
 impl<'a> ShellManager<'a> {
     pub fn new(paths_file: &'a Path) -> Self {
-        Self {
-            paths_file,
-        }
+        Self { paths_file }
     }
 
     /// Adds a package's installation path to PATH
@@ -73,8 +71,8 @@ impl<'a> ShellManager<'a> {
 
     #[cfg(windows)]
     fn add_to_windows_registry(&self, path: &Path) -> Result<()> {
-        use winreg::enums::*;
         use winreg::RegKey;
+        use winreg::enums::*;
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         let env_key = hkcu
@@ -111,8 +109,8 @@ impl<'a> ShellManager<'a> {
 
     #[cfg(windows)]
     fn remove_from_windows_registry(&self, path: &Path) -> Result<()> {
-        use winreg::enums::*;
         use winreg::RegKey;
+        use winreg::enums::*;
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         let env_key = hkcu
@@ -147,7 +145,7 @@ impl<'a> ShellManager<'a> {
         use std::ptr;
         use winapi::shared::minwindef::LPARAM;
         use winapi::um::winuser::{
-            SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE,
+            HWND_BROADCAST, SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_SETTINGCHANGE,
         };
 
         unsafe {

@@ -9,9 +9,7 @@ use crate::{
         upstream::Package,
     },
     providers::provider_manager::ProviderManager,
-    services::{
-        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
-    },
+    services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
 
@@ -40,7 +38,15 @@ pub async fn run(
     let mut package_installer =
         InstallOperation::new(&provider_manager, &mut package_storage, &paths)?;
 
-    let package = Package::with_defaults(name, repo_slug, kind, match_pattern, exclude_pattern, channel, provider);
+    let package = Package::with_defaults(
+        name,
+        repo_slug,
+        kind,
+        match_pattern,
+        exclude_pattern,
+        channel,
+        provider,
+    );
 
     let pb = ProgressBar::new(0);
     pb.set_style(ProgressStyle::with_template(

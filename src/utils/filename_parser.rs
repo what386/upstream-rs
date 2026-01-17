@@ -2,7 +2,8 @@ use crate::models::common::enums::Filetype;
 use crate::utils::platform_info::{CpuArch, OSKind};
 
 const ARCHIVE_EXTENSIONS: &[&str] = &[
-    ".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tbz", ".tar.xz", ".txz", ".7z", ".rar", ".tar.zst", ".tzst",
+    ".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tbz", ".tar.xz", ".txz", ".7z",
+    ".rar", ".tar.zst", ".tzst",
 ];
 
 const COMPRESSION_EXTENSIONS: &[&str] = &[".gz", ".br", ".bz2", ".zst"];

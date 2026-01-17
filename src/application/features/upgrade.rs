@@ -102,7 +102,10 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
 // instead of "checking xyz... -> checking xyz...
 //                                xyz is up to date!"
 // maybe use a spinner, too?
-async fn run_check(package_upgrade: UpgradeOperation<'_>, names: Option<Vec<String>>) -> Result<()> {
+async fn run_check(
+    package_upgrade: UpgradeOperation<'_>,
+    names: Option<Vec<String>>,
+) -> Result<()> {
     let mut message_callback = Some(|msg: &str| {
         println!("{}", msg);
     });

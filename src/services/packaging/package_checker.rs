@@ -1,7 +1,4 @@
-use crate::{
-    models::upstream::Package,
-    providers::provider_manager::ProviderManager,
-};
+use crate::{models::upstream::Package, providers::provider_manager::ProviderManager};
 
 use anyhow::{Context, Result};
 
@@ -15,17 +12,10 @@ impl<'a> PackageChecker<'a> {
     }
 
     /// Returns (current_version, latest_version) if update is available
-    pub async fn check_one(
-        &self,
-        package: &Package,
-    ) -> Result<Option<(String, String)>> {
+    pub async fn check_one(&self, package: &Package) -> Result<Option<(String, String)>> {
         let latest = self
             .provider_manager
-            .get_latest_release(
-                &package.repo_slug,
-                &package.provider,
-                &package.channel,
-            )
+            .get_latest_release(&package.repo_slug, &package.provider, &package.channel)
             .await
             .context(format!(
                 "Failed to fetch latest release for '{}'",
@@ -43,10 +33,7 @@ impl<'a> PackageChecker<'a> {
     }
 
     /// Returns a list of packages with updates available
-    pub async fn check_all(
-        &self,
-        packages: &[Package],
-    ) -> Result<Vec<(String, String, String)>> {
+    pub async fn check_all(&self, packages: &[Package]) -> Result<Vec<(String, String, String)>> {
         let mut updates = Vec::new();
 
         for pkg in packages {

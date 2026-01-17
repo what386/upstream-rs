@@ -1,10 +1,10 @@
 use crate::{
     models::upstream::Package,
+    providers::provider_manager::ProviderManager,
     services::{
         integration::{DesktopManager, IconManager},
         packaging::{PackageInstaller, PackageRemover},
     },
-    providers::provider_manager::ProviderManager,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -70,11 +70,7 @@ impl<'a> PackageUpgrader<'a> {
 
         let latest_release = self
             .provider_manager
-            .get_latest_release(
-                &package.repo_slug,
-                &package.provider,
-                &package.channel,
-            )
+            .get_latest_release(&package.repo_slug, &package.provider, &package.channel)
             .await
             .context(format!(
                 "Failed to fetch latest release for '{}'",
@@ -82,11 +78,7 @@ impl<'a> PackageUpgrader<'a> {
             ))?;
 
         if !force && !latest_release.version.is_newer_than(&package.version) {
-            message!(
-                message_callback,
-                "'{}' is already up to date",
-                package.name
-            );
+            message!(message_callback, "'{}' is already up to date", package.name);
             return Ok(None);
         }
 
@@ -161,4 +153,3 @@ impl<'a> PackageUpgrader<'a> {
         Ok(Some(updated_package))
     }
 }
-

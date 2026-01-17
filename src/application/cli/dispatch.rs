@@ -19,7 +19,15 @@ impl Cli {
                 desktop,
             } => {
                 features::install::run(
-                    name, repo_slug, kind, tag, provider, channel, match_pattern, exclude_pattern, desktop,
+                    name,
+                    repo_slug,
+                    kind,
+                    tag,
+                    provider,
+                    channel,
+                    match_pattern,
+                    exclude_pattern,
+                    desktop,
                 )
                 .await
             }

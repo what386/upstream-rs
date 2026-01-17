@@ -206,11 +206,7 @@ impl<'a> InstallOperation<'a> {
             // LATEST VERSION
             message!(message_callback, "Fetching latest release ...");
             self.provider_manager
-                .get_latest_release(
-                    &package.repo_slug,
-                    &package.provider,
-                    &package.channel,
-                )
+                .get_latest_release(&package.repo_slug, &package.provider, &package.channel)
                 .await
                 .context(format!(
                     "Failed to fetch latest {} release for '{}'",
@@ -219,7 +215,12 @@ impl<'a> InstallOperation<'a> {
         };
 
         self.installer
-            .install_package_files(package, &release, download_progress_callback, message_callback)
+            .install_package_files(
+                package,
+                &release,
+                download_progress_callback,
+                message_callback,
+            )
             .await
     }
 }

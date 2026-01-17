@@ -25,9 +25,10 @@ pub fn run(package_name: Option<String>) -> Result<()> {
 fn shorten_home_path(path: &str) -> String {
     if let Some(home) = dirs::home_dir()
         && let Some(home_str) = home.to_str()
-            && path.starts_with(home_str) {
-                return path.replacen(home_str, "~", 1);
-            }
+        && path.starts_with(home_str)
+    {
+        return path.replacen(home_str, "~", 1);
+    }
     path.to_string()
 }
 

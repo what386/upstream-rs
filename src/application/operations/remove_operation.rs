@@ -1,8 +1,7 @@
-use crate::{
-    services::storage::package_storage::PackageStorage,
-    utils::static_paths::UpstreamPaths,
-};
 use crate::services::packaging::PackageRemover;
+use crate::{
+    services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
+};
 use anyhow::{Context, Result, anyhow};
 use console::style;
 

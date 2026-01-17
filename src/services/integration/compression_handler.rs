@@ -58,7 +58,7 @@ pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
         "gz" => decompress_gz_single(input, &extract_dir),
         "bz2" => decompress_bz2_single(input, &extract_dir),
         "xz" => decompress_xz_single(input, &extract_dir),
-        "zst" => decompress_zst_single(input, &extract_dir),  // Add this line
+        "zst" => decompress_zst_single(input, &extract_dir), // Add this line
         "tar" => unpack_tar(input, &extract_dir),
         _ => Err(anyhow!("Unsupported format: {}", input.display())),
     }
@@ -237,9 +237,10 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
 
     for path in paths {
         if let Ok(relative) = path.strip_prefix(extract_dir)
-            && let Some(first_component) = relative.components().next() {
-                top_level_entries.insert(extract_dir.join(first_component.as_os_str()));
-            }
+            && let Some(first_component) = relative.components().next()
+        {
+            top_level_entries.insert(extract_dir.join(first_component.as_os_str()));
+        }
     }
 
     // If there's exactly one top-level entry and it's a directory, flatten it

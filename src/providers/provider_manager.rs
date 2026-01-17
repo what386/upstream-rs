@@ -32,12 +32,8 @@ impl ProviderManager {
         channel: &Channel,
     ) -> Result<Release> {
         match channel {
-            Channel::Stable => {
-                self.get_latest_stable_release(slug, provider).await
-            }
-            Channel::Nightly => {
-                self.get_latest_nightly_release(slug, provider).await
-            }
+            Channel::Stable => self.get_latest_stable_release(slug, provider).await,
+            Channel::Nightly => self.get_latest_nightly_release(slug, provider).await,
         }
     }
 
@@ -45,27 +41,34 @@ impl ProviderManager {
         let tag_lower = tag.to_lowercase();
 
         // Common nightly patterns
-        tag_lower.contains("nightly") ||
-        tag_lower.contains("canary") ||
-        tag_lower.contains("edge") ||
-        tag_lower.contains("unstable")
+        tag_lower.contains("nightly")
+            || tag_lower.contains("canary")
+            || tag_lower.contains("edge")
+            || tag_lower.contains("unstable")
     }
 
-    pub async fn get_latest_nightly_release(&self, slug: &str, provider: &Provider) -> Result<Release> {
-        let releases = self.get_releases(slug, provider, Some(20), Some(20)).await?;
+    pub async fn get_latest_nightly_release(
+        &self,
+        slug: &str,
+        provider: &Provider,
+    ) -> Result<Release> {
+        let releases = self
+            .get_releases(slug, provider, Some(20), Some(20))
+            .await?;
 
         releases
             .into_iter()
             .filter(|r| !r.is_draft)
             .filter(|r| Self::is_nightly_release(&r.tag))
             .max_by(|a, b| a.version.cmp(&b.version))
-            .ok_or_else(|| anyhow!(
-                "No nightly releases found for '{}'.",
-                slug
-            ))
+            .ok_or_else(|| anyhow!("No nightly releases found for '{}'.", slug))
     }
 
-    pub async fn get_latest_stable_release(&self, slug: &str, provider: &Provider) -> Result<Release> {
+    pub async fn get_latest_stable_release(
+        &self,
+        slug: &str,
+        provider: &Provider,
+    ) -> Result<Release> {
         match provider {
             Provider::Github => self.github.get_latest_release(slug).await,
         }
@@ -166,7 +169,6 @@ impl ProviderManager {
     }
 
     pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {
-
         #[cfg(unix)]
         let priority = [
             Filetype::AppImage,
@@ -176,11 +178,7 @@ impl ProviderManager {
         ];
 
         #[cfg(windows)]
-        let priority = [
-            Filetype::WinExe,
-            Filetype::Archive,
-            Filetype::Compressed,
-        ];
+        let priority = [Filetype::WinExe, Filetype::Archive, Filetype::Compressed];
 
         priority
             .iter()
@@ -263,10 +261,9 @@ impl ProviderManager {
         }
 
         // Binary format preference
-        if asset.filetype == Filetype::Binary
-            && Path::new(&name).extension().is_none() {
-                score += 10;
-            }
+        if asset.filetype == Filetype::Binary && Path::new(&name).extension().is_none() {
+            score += 10;
+        }
 
         if name.contains("static") {
             score += 5;
@@ -287,11 +284,15 @@ impl ProviderManager {
         }
 
         // User prefs
-        if let Some(pattern) = &package.match_pattern && name.contains(pattern) {
+        if let Some(pattern) = &package.match_pattern
+            && name.contains(pattern)
+        {
             score += 100;
         }
 
-        if let Some(antipattern) = &package.exclude_pattern && name.contains(antipattern) {
+        if let Some(antipattern) = &package.exclude_pattern
+            && name.contains(antipattern)
+        {
             score -= 100;
         }
 
