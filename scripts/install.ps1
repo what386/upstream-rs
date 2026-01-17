@@ -16,7 +16,7 @@ $BINARY_NAME = "upstream-rs"
 
 $INSTALL_COMMANDS = @(
     "init",
-    "install upstream what386/upstream-rs -k binary"
+    "install upstream what386/upstream-rs -k win-exe"
 )
 
 function Write-ColorOutput {
