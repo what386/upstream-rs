@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 
-use std::fmt::format;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
