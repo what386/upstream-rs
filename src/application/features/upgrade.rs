@@ -1,12 +1,10 @@
 use anyhow::Result;
 use console::style;
-
 use crate::{
     application::operations::upgrade_operation::UpgradeOperation,
     providers::provider_manager::ProviderManager,
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
-    models::common::enums::Provider
 };
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
@@ -17,17 +15,11 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     let github_token = config.get_config().github.api_token.as_deref();
     let gitlab_token = config.get_config().gitlab.api_token.as_deref();
 
-    // Get all unique providers from installed packages
+    // Get GitLab base_url from installed packages
     let packages = package_storage.get_all_packages();
     let gitlab_base_url = packages
         .iter()
-        .find_map(|p| {
-            if let Provider::Gitlab { base_url } = &p.provider {
-                Some(base_url.as_str())
-            } else {
-                None
-            }
-        });
+        .find_map(|p| p.base_url.as_deref());
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitlab_base_url)?;
     let mut package_upgrade =

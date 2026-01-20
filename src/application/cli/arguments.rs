@@ -49,6 +49,10 @@ pub enum Commands {
         #[arg(short = 'p', long, default_value_t = Provider::Github)]
         provider: Provider,
 
+        /// Custom base URL. Defaults to provider's root
+        #[arg(long, requires = "provider")]
+        base_url: Option<String>,
+
         /// Update channel to track
         #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
         channel: Channel,

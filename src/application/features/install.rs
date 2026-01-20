@@ -19,6 +19,7 @@ pub async fn run(
     kind: Filetype,
     version: Option<String>,
     provider: Provider,
+    base_url: Option<String>,
     channel: Channel,
     match_pattern: Option<String>,
     exclude_pattern: Option<String>,
@@ -34,7 +35,7 @@ pub async fn run(
     let github_token = config.get_config().github.api_token.as_deref();
     let gitlab_token = config.get_config().gitlab.api_token.as_deref();
 
-    let provider_manager = ProviderManager::new(github_token, gitlab_token, provider.base_url())?;
+    let provider_manager = ProviderManager::new(github_token, gitlab_token, base_url.as_deref())?;
 
     let mut package_installer =
         InstallOperation::new(&provider_manager, &mut package_storage, &paths)?;
@@ -47,6 +48,7 @@ pub async fn run(
         exclude_pattern,
         channel,
         provider,
+        base_url,
     );
 
     let pb = ProgressBar::new(0);
