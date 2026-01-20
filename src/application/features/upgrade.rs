@@ -6,6 +6,7 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
+    models::common::enums::Provider
 };
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
@@ -14,7 +15,21 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let github_token = config.get_config().github.api_token.as_deref();
-    let provider_manager = ProviderManager::new(github_token)?;
+    let gitlab_token = config.get_config().gitlab.api_token.as_deref();
+
+    // Get all unique providers from installed packages
+    let packages = package_storage.get_all_packages();
+    let gitlab_base_url = packages
+        .iter()
+        .find_map(|p| {
+            if let Provider::Gitlab { base_url } = &p.provider {
+                Some(base_url.as_str())
+            } else {
+                None
+            }
+        });
+
+    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitlab_base_url)?;
     let mut package_upgrade =
         UpgradeOperation::new(&provider_manager, &mut package_storage, &paths)?;
 

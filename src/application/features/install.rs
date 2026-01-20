@@ -32,8 +32,9 @@ pub async fn run(
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
 
     let github_token = config.get_config().github.api_token.as_deref();
+    let gitlab_token = config.get_config().gitlab.api_token.as_deref();
 
-    let provider_manager = ProviderManager::new(github_token)?;
+    let provider_manager = ProviderManager::new(github_token, gitlab_token, provider.base_url())?;
 
     let mut package_installer =
         InstallOperation::new(&provider_manager, &mut package_storage, &paths)?;
