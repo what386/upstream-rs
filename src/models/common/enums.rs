@@ -20,6 +20,15 @@ pub enum Channel {
     Nightly,
 }
 
+impl fmt::Display for Channel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Channel::Stable => write!(f, "Stable"),
+            Channel::Nightly => write!(f, "Nightly"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Provider {
     Github,
@@ -32,25 +41,17 @@ impl FromStr for Provider {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "github" => Ok(Provider::Github),
-            _ => Err(format!("Unknown provider: {}", s)),
+            "gitlab" => Ok(Provider::Gitlab),
+            _ => Err(format!("Unknown provider: {}", s))
         }
     }
 }
 
-impl fmt::Display for Channel {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for Provider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Channel::Stable => write!(f, "Stable"),
-            Channel::Nightly => write!(f, "Nightly"),
-        }
-    }
-}
-
-impl fmt::Display for Provider {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Provider::Github => write!(f, "Github"),
-            Provider::Gitlab => write!(f, "Gitlab"),
+            Provider::Github => write!(f, "github"),
+            Provider::Gitlab => write!(f, "gitlab"),
         }
     }
 }

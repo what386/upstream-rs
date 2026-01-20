@@ -55,6 +55,12 @@ pub struct GitlabClient {
 
 impl GitlabClient {
     pub fn new(token: Option<&str>, base_url: Option<&str>) -> Result<Self> {
+        let mut base = base_url.unwrap_or("https://gitlab.com").to_string();
+
+        if !base.starts_with("http://") && !base.starts_with("https://") {
+            base = format!("https://{}", base);
+        }
+
         let mut headers = header::HeaderMap::new();
         let user_agent = format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         headers.insert(
@@ -78,7 +84,7 @@ impl GitlabClient {
 
         Ok(Self {
             client,
-            base_url: base_url.unwrap_or("https://gitlab.com").to_string(),
+            base_url: base,
         })
     }
 
