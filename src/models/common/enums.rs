@@ -23,6 +23,16 @@ pub enum Channel {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Provider {
     Github,
+    Gitlab { base_url: String },
+}
+
+impl Provider {
+    pub fn base_url(&self) -> Option<&str> {
+        match self {
+            Provider::Github => None,
+            Provider::Gitlab { base_url } => Some(base_url.as_str()),
+        }
+    }
 }
 
 impl FromStr for Provider {
@@ -49,6 +59,7 @@ impl fmt::Display for Provider {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Provider::Github => write!(f, "Github"),
+            Provider::Gitlab { base_url } => write!(f, "Gitlab: {}", &base_url),
         }
     }
 }
