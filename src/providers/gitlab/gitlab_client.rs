@@ -6,36 +6,56 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GithubAssetDto {
-    pub id: i64,
+pub struct GitlabAssetDto {
     pub name: String,
-    pub browser_download_url: String,
-    pub size: i64,
-    pub content_type: String,
-    pub created_at: String,
+    pub url: String,
+    pub size: Option<i64>,
+    #[serde(rename = "type")]
+    pub asset_type: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GithubReleaseDto {
+pub struct GitlabLinkDto {
     pub id: i64,
+    pub name: String,
+    pub url: String,
+    pub direct_asset_url: Option<String>,
+    pub link_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitlabSourceDto {
+    pub format: String,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitlabAssetsDto {
+    pub count: i64,
+    pub sources: Vec<GitlabSourceDto>,
+    pub links: Vec<GitlabLinkDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitlabReleaseDto {
     pub tag_name: String,
     pub name: String,
-    pub body: String,
-    pub prerelease: bool,
-    pub draft: bool,
-    pub published_at: String,
-    pub assets: Vec<GithubAssetDto>,
+    pub description: String,
+    pub created_at: String,
+    pub released_at: Option<String>,
+    pub upcoming_release: Option<bool>,
+    pub assets: GitlabAssetsDto,
 }
 
 #[derive(Debug, Clone)]
-pub struct GithubClient {
+pub struct GitlabClient {
     client: Client,
+    base_url: String,
 }
 
-impl GithubClient {
-    pub fn new(token: Option<&str>) -> Result<Self> {
+impl GitlabClient {
+    pub fn new(token: Option<&str>, base_url: Option<&str>) -> Result<Self> {
         let mut headers = header::HeaderMap::new();
-
         let user_agent = format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         headers.insert(
             header::USER_AGENT,
@@ -44,11 +64,10 @@ impl GithubClient {
         );
 
         if let Some(token) = token {
-            let auth_value = format!("Bearer {}", token);
             headers.insert(
-                header::AUTHORIZATION,
-                header::HeaderValue::from_str(&auth_value)
-                    .context("Failed to create authorization header")?,
+                "PRIVATE-TOKEN",
+                header::HeaderValue::from_str(token)
+                    .context("Failed to create private token header")?,
             );
         }
 
@@ -57,7 +76,10 @@ impl GithubClient {
             .build()
             .context("Failed to build HTTP client")?;
 
-        Ok(Self { client })
+        Ok(Self {
+            client,
+            base_url: base_url.unwrap_or("https://gitlab.com").to_string(),
+        })
     }
 
     async fn get_json<T: for<'de> Deserialize<'de>>(&self, url: &str) -> Result<T> {
@@ -70,7 +92,7 @@ impl GithubClient {
 
         response
             .error_for_status_ref()
-            .context(format!("GitHub API returned error for {}", url))?;
+            .context(format!("GitLab API returned error for {}", url))?;
 
         let data = response
             .json::<T>()
@@ -101,7 +123,6 @@ impl GithubClient {
             .context("Download request failed")?;
 
         let total_bytes = response.content_length().unwrap_or(0);
-
         let mut file = File::create(destination)
             .await
             .context(format!("Failed to create file at {:?}", destination))?;
@@ -112,13 +133,11 @@ impl GithubClient {
         use futures_util::StreamExt;
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.context("Failed to read download chunk")?;
-
             file.write_all(&chunk)
                 .await
                 .context("Failed to write to file")?;
 
             total_read += chunk.len() as u64;
-
             if let Some(cb) = progress.as_mut() {
                 cb(total_read, total_bytes);
             }
@@ -137,60 +156,42 @@ impl GithubClient {
         Ok(())
     }
 
+    fn encode_project_path(project_path: &str) -> String {
+        project_path.replace('/', "%2F")
+    }
+
     pub async fn get_release_by_tag(
         &self,
-        owner_repo: &str,
+        project_path: &str,
         tag: &str,
-    ) -> Result<GithubReleaseDto> {
+    ) -> Result<GitlabReleaseDto> {
+        let encoded_path = Self::encode_project_path(project_path);
         let url = format!(
-            "https://api.github.com/repos/{}/releases/tags/{}",
-            owner_repo, tag
+            "{}/api/v4/projects/{}/releases/{}",
+            self.base_url, encoded_path, tag
         );
         self.get_json(&url)
             .await
             .context(format!("Failed to get release for tag {}", tag))
     }
 
-    pub async fn get_release_by_id(
-        &self,
-        owner_repo: &str,
-        release_id: i64,
-    ) -> Result<GithubReleaseDto> {
-        let url = format!(
-            "https://api.github.com/repos/{}/releases/{}",
-            owner_repo, release_id
-        );
-        self.get_json(&url)
-            .await
-            .context(format!("Failed to get release with ID {}", release_id))
-    }
-
-    pub async fn get_latest_release(&self, owner_repo: &str) -> Result<GithubReleaseDto> {
-        let url = format!(
-            "https://api.github.com/repos/{}/releases/latest",
-            owner_repo
-        );
-        self.get_json(&url)
-            .await
-            .context(format!("Failed to get latest release for {}", owner_repo))
-    }
-
     pub async fn get_releases(
         &self,
-        owner_repo: &str,
+        project_path: &str,
         per_page: Option<u32>,
         max_total: Option<u32>,
-    ) -> Result<Vec<GithubReleaseDto>> {
-        let per_page = per_page.unwrap_or(30);
+    ) -> Result<Vec<GitlabReleaseDto>> {
+        let per_page = per_page.unwrap_or(20).min(100);
+        let encoded_path = Self::encode_project_path(project_path);
         let mut page = 1;
         let mut releases = Vec::new();
 
         loop {
             let url = format!(
-                "https://api.github.com/repos/{}/releases?per_page={}&page={}",
-                owner_repo, per_page, page
+                "{}/api/v4/projects/{}/releases?per_page={}&page={}",
+                self.base_url, encoded_path, per_page, page
             );
-            let batch: Vec<GithubReleaseDto> = self
+            let batch: Vec<GitlabReleaseDto> = self
                 .get_json(&url)
                 .await
                 .context(format!("Failed to get releases page {}", page))?;
@@ -201,7 +202,6 @@ impl GithubClient {
 
             releases.extend(batch);
 
-            // Check if we've hit the total limit
             if let Some(max) = max_total
                 && releases.len() >= max as usize
             {
@@ -209,7 +209,6 @@ impl GithubClient {
                 break;
             }
 
-            // Check if this was a partial page (last page)
             if releases.len() % per_page as usize != 0 {
                 break;
             }
@@ -218,15 +217,5 @@ impl GithubClient {
         }
 
         Ok(releases)
-    }
-
-    pub async fn get_asset_by_id(&self, owner_repo: &str, asset_id: i64) -> Result<GithubAssetDto> {
-        let url = format!(
-            "https://api.github.com/repos/{}/releases/assets/{}",
-            owner_repo, asset_id
-        );
-        self.get_json(&url)
-            .await
-            .context(format!("Failed to get asset with ID {}", asset_id))
     }
 }

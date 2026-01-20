@@ -5,22 +5,34 @@ use crate::models::common::enums::{Channel, Filetype, Provider};
 use crate::models::provider::{Asset, Release};
 use crate::models::upstream::Package;
 use crate::providers::github::{GithubAdapter, GithubClient};
+use crate::providers::gitlab::{GitlabAdapter, GitlabClient};
 use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
 
 use anyhow::{Result, anyhow};
 
 pub struct ProviderManager {
     github: GithubAdapter,
+    gitlab: GitlabAdapter,
     architecture_info: ArchitectureInfo,
 }
 
 impl ProviderManager {
-    pub fn new(github_token: Option<&str>) -> Result<Self> {
+    pub fn new(
+        github_token: Option<&str>,
+        gitlab_token: Option<&str>,
+        gitlab_base_url: Option<&str>,
+    ) -> Result<Self> {
         let architecture_info = ArchitectureInfo::new();
-        let github_client = GithubClient::new(github_token);
-        let github = GithubAdapter::new(github_client?);
+
+        let github_client = GithubClient::new(github_token)?;
+        let gitlab_client = GitlabClient::new(gitlab_token, gitlab_base_url)?;
+
+        let github = GithubAdapter::new(github_client);
+        let gitlab = GitlabAdapter::new(gitlab_client);
+
         Ok(Self {
             github,
+            gitlab,
             architecture_info,
         })
     }
@@ -71,6 +83,7 @@ impl ProviderManager {
     ) -> Result<Release> {
         match provider {
             Provider::Github => self.github.get_latest_release(slug).await,
+            Provider::Gitlab { base_url: _ } => self.gitlab.get_latest_release(slug).await,
         }
     }
 
@@ -98,6 +111,7 @@ impl ProviderManager {
     ) -> Result<Vec<Release>> {
         match provider {
             Provider::Github => self.github.get_releases(slug, per_page, max_total).await,
+            Provider::Gitlab { base_url: _ } => self.gitlab.get_releases(slug, per_page, max_total).await,
         }
     }
 
@@ -109,6 +123,7 @@ impl ProviderManager {
     ) -> Result<Release> {
         match provider {
             Provider::Github => self.github.get_release_by_tag(slug, tag).await,
+            Provider::Gitlab { base_url: _ } => self.gitlab.get_release_by_tag(slug, tag).await,
         }
     }
 
@@ -131,11 +146,8 @@ impl ProviderManager {
         let download_filepath = cache_path.join(file_name);
 
         match provider {
-            Provider::Github => {
-                self.github
-                    .download_asset(asset, &download_filepath, dl_progress)
-                    .await?;
-            }
+            Provider::Github => self.github.download_asset(asset, &download_filepath, dl_progress).await?,
+            Provider::Gitlab { base_url: _ } => self.gitlab.download_asset(asset, &download_filepath, dl_progress).await?,
         }
 
         Ok(download_filepath)
@@ -178,7 +190,11 @@ impl ProviderManager {
         ];
 
         #[cfg(windows)]
-        let priority = [Filetype::WinExe, Filetype::Archive, Filetype::Compressed];
+        let priority = [
+            Filetype::WinExe,
+            Filetype::Archive,
+            Filetype::Compressed
+        ];
 
         priority
             .iter()
