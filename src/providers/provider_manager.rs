@@ -83,7 +83,7 @@ impl ProviderManager {
     ) -> Result<Release> {
         match provider {
             Provider::Github => self.github.get_latest_release(slug).await,
-            Provider::Gitlab { base_url: _ } => self.gitlab.get_latest_release(slug).await,
+            Provider::Gitlab => self.gitlab.get_latest_release(slug).await,
         }
     }
 
@@ -111,7 +111,7 @@ impl ProviderManager {
     ) -> Result<Vec<Release>> {
         match provider {
             Provider::Github => self.github.get_releases(slug, per_page, max_total).await,
-            Provider::Gitlab { base_url: _ } => self.gitlab.get_releases(slug, per_page, max_total).await,
+            Provider::Gitlab => self.gitlab.get_releases(slug, per_page, max_total).await,
         }
     }
 
@@ -123,7 +123,7 @@ impl ProviderManager {
     ) -> Result<Release> {
         match provider {
             Provider::Github => self.github.get_release_by_tag(slug, tag).await,
-            Provider::Gitlab { base_url: _ } => self.gitlab.get_release_by_tag(slug, tag).await,
+            Provider::Gitlab => self.gitlab.get_release_by_tag(slug, tag).await,
         }
     }
 
@@ -147,7 +147,7 @@ impl ProviderManager {
 
         match provider {
             Provider::Github => self.github.download_asset(asset, &download_filepath, dl_progress).await?,
-            Provider::Gitlab { base_url: _ } => self.gitlab.download_asset(asset, &download_filepath, dl_progress).await?,
+            Provider::Gitlab => self.gitlab.download_asset(asset, &download_filepath, dl_progress).await?,
         }
 
         Ok(download_filepath)

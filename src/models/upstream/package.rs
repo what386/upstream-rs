@@ -17,6 +17,7 @@ pub struct Package {
     pub version: Version,
     pub channel: Channel,
     pub provider: Provider,
+    pub base_url: Option<String>,
 
     pub is_pinned: bool,
     pub match_pattern: Option<String>,
@@ -37,6 +38,7 @@ impl Package {
         exclude_pattern: Option<String>,
         channel: Channel,
         provider: Provider,
+        base_url: Option<String>,
     ) -> Self {
         Self {
             name,
@@ -46,6 +48,7 @@ impl Package {
             version: Version::new(0, 0, 0, false),
             channel,
             provider,
+            base_url,
 
             is_pinned: false,
             match_pattern,
@@ -63,5 +66,6 @@ impl Package {
             && self.repo_slug == other.repo_slug
             && self.channel == other.channel
             && self.name == other.name
+            && self.base_url == other.base_url
     }
 }
