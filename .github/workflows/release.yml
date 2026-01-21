@@ -15,9 +15,6 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             binary_ext: ""
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            binary_ext: ""
           - os: macos-latest
             target: x86_64-apple-darwin
             binary_ext: ""
@@ -26,9 +23,6 @@ jobs:
             binary_ext: ""
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary_ext: ".exe"
-          - os: windows-latest
-            target: aarch64-pc-windows-msvc
             binary_ext: ".exe"
     steps:
       - uses: actions/checkout@v4
