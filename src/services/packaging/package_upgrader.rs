@@ -87,7 +87,7 @@ impl<'a> PackageUpgrader<'a> {
         message!(
             message_callback,
             "{}",
-            style(format!("Upgrading '{}' ...", package.name)).green()
+            style(format!("Upgrading '{}' ...", package.name)).cyan()
         );
 
         // Remove old installation

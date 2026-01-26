@@ -25,7 +25,7 @@ pub async fn run(
     exclude_pattern: Option<String>,
     create_entry: bool,
 ) -> Result<()> {
-    println!("Installing {} from {} ...", name, provider);
+    println!("{}", style(format!("Installing {} from {} ...", &name, &provider)).cyan());
 
     let paths = UpstreamPaths::new();
 
