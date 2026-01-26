@@ -1,24 +1,41 @@
 use crate::{
-    models::upstream::Package, services::storage::package_storage::PackageStorage,
+    models::upstream::Package,
+    services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
+
 use anyhow::{Result, anyhow};
 
 pub fn run(package_name: Option<String>) -> Result<()> {
     let paths = UpstreamPaths::new();
     let package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let pkgfile = &paths.config.packages_file.display();
-    println!("{}", pkgfile);
 
-    if let Some(name) = package_name.as_ref() {
-        let package = package_storage
-            .get_package_by_name(name)
-            .ok_or_else(|| anyhow!("Package '{}' is not installed.", name))?;
-        println!("{}", display_all(package));
-    } else {
-        let packages = package_storage.get_all_packages();
-        display_compact_table(packages);
+    println!("{}", paths.config.packages_file.display());
+
+    match package_name {
+        Some(name) => display_single_package(&package_storage, &name),
+        None => display_all_packages(&package_storage),
     }
+}
+
+fn display_single_package(storage: &PackageStorage, name: &str) -> Result<()> {
+    let package = storage
+        .get_package_by_name(name)
+        .ok_or_else(|| anyhow!("Package '{}' is not installed.", name))?;
+
+    println!("{}", format_package_details(package));
+    Ok(())
+}
+
+fn display_all_packages(storage: &PackageStorage) -> Result<()> {
+    let packages = storage.get_all_packages();
+
+    if packages.is_empty() {
+        println!("No packages installed.");
+        return Ok(());
+    }
+
+    print_package_table(packages);
     Ok(())
 }
 
@@ -32,23 +49,12 @@ fn shorten_home_path(path: &str) -> String {
     path.to_string()
 }
 
-fn display_all(package: &Package) -> String {
-    let install_path = package
-        .install_path
-        .as_ref()
-        .map(|p| shorten_home_path(&p.display().to_string()))
-        .unwrap_or_else(|| "-".to_string());
-    let exec_path = package
-        .exec_path
-        .as_ref()
-        .map(|p| shorten_home_path(&p.display().to_string()))
-        .unwrap_or_else(|| "-".to_string());
-    let icon_path = package
-        .icon_path
-        .as_ref()
-        .map(|p| shorten_home_path(&p.display().to_string()))
-        .unwrap_or_else(|| "None".to_string());
+fn format_path(path: Option<&std::path::PathBuf>, default: &str) -> String {
+    path.map(|p| shorten_home_path(&p.display().to_string()))
+        .unwrap_or_else(|| default.to_string())
+}
 
+fn format_package_details(package: &Package) -> String {
     format!(
         "Package: {} ({})\n\
          Version: {}\n\
@@ -67,9 +73,9 @@ fn display_all(package: &Package) -> String {
         package.provider,
         package.filetype,
         if package.is_pinned { "Yes" } else { "No" },
-        icon_path,
-        install_path,
-        exec_path,
+        format_path(package.icon_path.as_ref(), "None"),
+        format_path(package.install_path.as_ref(), "-"),
+        format_path(package.exec_path.as_ref(), "-"),
         package.last_upgraded.format("%Y-%m-%d %H:%M:%S UTC")
     )
 }
@@ -82,82 +88,73 @@ struct ColumnWidths {
     provider: usize,
 }
 
-fn calculate_column_widths(packages: &[Package]) -> ColumnWidths {
-    let mut widths = ColumnWidths {
-        name: "Name".len(),
-        repo: "Repo".len(),
-        version: "Version".len(),
-        channel: "Channel".len(),
-        provider: "Provider".len(),
-    };
+impl ColumnWidths {
+    fn from_packages(packages: &[Package]) -> Self {
+        let mut widths = Self {
+            name: "Name".len(),
+            repo: "Repo".len(),
+            version: "Version".len(),
+            channel: "Channel".len(),
+            provider: "Provider".len(),
+        };
 
-    for package in packages {
-        widths.name = widths.name.max(package.name.len());
-        widths.repo = widths.repo.max(package.repo_slug.len());
-        widths.version = widths.version.max(package.version.to_string().len());
-        widths.channel = widths.channel.max(package.channel.to_string().len());
-        widths.provider = widths.provider.max(package.provider.to_string().len());
+        for package in packages {
+            widths.name = widths.name.max(package.name.len());
+            widths.repo = widths.repo.max(package.repo_slug.len());
+            widths.version = widths.version.max(package.version.to_string().len());
+            widths.channel = widths.channel.max(package.channel.to_string().len());
+            widths.provider = widths.provider.max(package.provider.to_string().len());
+        }
+
+        widths
     }
-
-    widths
 }
 
-fn display_compact_table(packages: &[Package]) {
-    if packages.is_empty() {
-        return;
-    }
+fn print_package_table(packages: &[Package]) {
+    let widths = ColumnWidths::from_packages(packages);
 
-    let widths = calculate_column_widths(packages);
+    print_table_header(&widths);
 
-    // Print header with proper padding
-    println!(
-        "{:<width_name$} {:<width_repo$} {:<width_ver$} {:<width_chan$} {:<width_prov$} {:<3} {:<3} {:<}",
-        "Name",
-        "Repo",
-        "Version",
-        "Channel",
-        "Provider",
-        "I",
-        "P",
-        "Install Path",
-        width_name = widths.name,
-        width_repo = widths.repo,
-        width_ver = widths.version,
-        width_chan = widths.channel,
-        width_prov = widths.provider
-    );
-
-    // Print rows
     for package in packages {
-        let install_path = package
-            .install_path
-            .as_ref()
-            .map(|p| shorten_home_path(&p.display().to_string()))
-            .unwrap_or_else(|| "-".to_string());
-
-        let icon_indicator = if package.icon_path.is_some() {
-            "✓"
-        } else {
-            "-"
-        };
-        let pin_indicator = if package.is_pinned { "P" } else { "-" };
-
-        let width_name = widths.name;
-        let width_repo = widths.repo;
-        let width_ver = widths.version;
-        let width_chan = widths.channel;
-        let width_prov = widths.provider;
-
-        println!(
-            "{:<width_name$} {:<width_repo$} {:<width_ver$} {:<width_chan$} {:<width_prov$} {:<3} {:<3} {:<}",
-            package.name,
-            package.repo_slug,
-            package.version.to_string(),
-            package.channel.to_string(),
-            package.provider.to_string(),
-            icon_indicator,
-            pin_indicator,
-            install_path,
-        );
+        print_package_row(package, &widths);
     }
+
+    println!("\nTotal: {} packages", packages.len());
+}
+
+fn print_table_header(widths: &ColumnWidths) {
+    println!(
+        "{:<name$} {:<repo$} {:<ver$} {:<chan$} {:<prov$} {:<3} {:<3} {:<12} {}",
+        "Name", "Repo", "Version", "Channel", "Provider", "I", "P", "Last Updated", "Install Path",
+        name = widths.name,
+        repo = widths.repo,
+        ver = widths.version,
+        chan = widths.channel,
+        prov = widths.provider
+    );
+}
+
+fn print_package_row(package: &Package, widths: &ColumnWidths) {
+    let install_path = format_path(package.install_path.as_ref(), "-");
+    let icon_indicator = if package.icon_path.is_some() { "✓" } else { "-" };
+    let pin_indicator = if package.is_pinned { "P" } else { "-" };
+    let last_updated = package.last_upgraded.format("%Y-%m-%d").to_string();
+
+    println!(
+        "{:<name$} {:<repo$} {:<ver$} {:<chan$} {:<prov$} {:<3} {:<3} {:<12} {}",
+        package.name,
+        package.repo_slug,
+        package.version.to_string(),
+        package.channel.to_string(),
+        package.provider.to_string(),
+        icon_indicator,
+        pin_indicator,
+        last_updated,
+        install_path,
+        name = widths.name,
+        repo = widths.repo,
+        ver = widths.version,
+        chan = widths.channel,
+        prov = widths.provider
+    );
 }
