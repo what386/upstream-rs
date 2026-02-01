@@ -1,0 +1,105 @@
+#!/bin/bash
+# src/git/hooks/post-commit
+# tally-managed-hook
+
+set -e
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+find_project_root() {
+    local dir="$PWD"
+    while [ "$dir" != "/" ]; do
+        if [ -d "$dir/.tally" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir=$(dirname "$dir")
+    done
+    return 1
+}
+
+PROJECT_ROOT=$(find_project_root)
+if [ -z "$PROJECT_ROOT" ]; then
+    exit 0
+fi
+
+COMMIT_SHORT=$(git rev-parse --short HEAD)
+COMMIT_MSG=$(git log -1 --pretty=%B)
+
+cd "$PROJECT_ROOT"
+
+if ! command -v tally &>/dev/null; then
+    exit 0
+fi
+
+# Extract everything after "done:" (case-insensitive)
+# Stop at next section or empty line
+parse_done_section() {
+    echo "$1" | awk '
+        BEGIN {
+            in_done=0
+            IGNORECASE=1
+        }
+
+        # Start of done section
+        /^done:[[:space:]]*$/ {
+            in_done=1
+            next
+        }
+
+        # Stop at empty line
+        in_done==1 && /^[[:space:]]*$/ {
+            exit
+        }
+
+        # Stop at new section (word followed by colon)
+        in_done==1 && /^[a-zA-Z]+:[[:space:]]*$/ {
+            exit
+        }
+
+        # Print lines in done section (strip leading bullets/dashes if present)
+        in_done==1 {
+            # Remove leading * or - if present
+            sub(/^[[:space:]]*[*\-][[:space:]]*/, "")
+            # Remove leading whitespace
+            sub(/^[[:space:]]+/, "")
+            if (length($0) > 0) print $0
+        }
+    '
+}
+
+DONE_TASKS=$(parse_done_section "$COMMIT_MSG")
+
+if [ -n "$DONE_TASKS" ]; then
+    echo -e "${GREEN}tally: Processing completed tasks from commit $COMMIT_SHORT${NC}"
+
+    SUCCESS_COUNT=0
+    FAIL_COUNT=0
+
+    while IFS= read -r task_line; do
+        if [ -n "$task_line" ]; then
+            echo -e "  ${YELLOW}→${NC} $task_line"
+
+            if tally done "$task_line" --commit "$COMMIT_SHORT" 2>/dev/null; then
+                echo -e "    ${GREEN}✓${NC} Marked as done"
+                SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+            else
+                echo -e "    ${RED}✗${NC} No matching task found"
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+            fi
+        fi
+    done <<<"$DONE_TASKS"
+
+    if [ $SUCCESS_COUNT -gt 0 ]; then
+        echo -e "${GREEN}✓ Completed $SUCCESS_COUNT task(s)${NC}"
+    fi
+    if [ $FAIL_COUNT -gt 0 ]; then
+        echo -e "${YELLOW}⚠ $FAIL_COUNT task(s) not found${NC}"
+    fi
+fi
+
+exit 0
