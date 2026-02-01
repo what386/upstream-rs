@@ -57,6 +57,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum **/* > SHA256SUMS.txt
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
