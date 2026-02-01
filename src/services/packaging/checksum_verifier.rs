@@ -104,12 +104,12 @@ impl<'a> ChecksumVerifier<'a> {
         F: FnMut(u64, u64),
     {
         let checksum_asset = release
-            .get_asset_by_name("checksums.txt")
-            .or_else(|| release.get_asset_by_name("sha256sums.txt"))
-            .or_else(|| release.get_asset_by_name("sha256sum.txt"))
+            .get_asset_by_name_invariant("checksums.txt")
+            .or_else(|| release.get_asset_by_name_invariant("sha256sums.txt"))
+            .or_else(|| release.get_asset_by_name_invariant("sha256sum.txt"))
             .or_else(|| {
                 let name = format!("{asset_name}.sha256");
-                release.get_asset_by_name(&name)
+                release.get_asset_by_name_invariant(&name)
             });
 
         let Some(asset) = checksum_asset else {
