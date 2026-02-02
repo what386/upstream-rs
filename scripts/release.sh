@@ -29,10 +29,9 @@ fi
 echo "Version from Cargo.toml: $VERSION"
 
 echo "Creating git tag: v$VERSION"
-git tag -a "v$VERSION" -m "Release version $VERSION"
-echo "Pushing tag to remotes..."
+tally tag "v$VERSION"
+echo "Pushing tag to github..."
 git push github "v$VERSION"
-git push gitea "v$VERSION"
 
 git checkout dev
 
