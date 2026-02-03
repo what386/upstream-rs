@@ -6,15 +6,6 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GitlabAssetDto {
-    pub name: String,
-    pub url: String,
-    pub size: Option<i64>,
-    #[serde(rename = "type")]
-    pub asset_type: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GitlabLinkDto {
     pub id: i64,
     pub name: String,

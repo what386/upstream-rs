@@ -36,11 +36,6 @@ impl GithubAdapter {
         Ok(self.convert_release(dto))
     }
 
-    pub async fn get_release_by_id(&self, slug: &str, release_id: i64) -> Result<Release> {
-        let dto = self.client.get_release_by_id(slug, release_id).await?;
-        Ok(self.convert_release(dto))
-    }
-
     pub async fn get_latest_release(&self, slug: &str) -> Result<Release> {
         let dto = self.client.get_latest_release(slug).await?;
         Ok(self.convert_release(dto))
