@@ -63,6 +63,10 @@ impl Cli {
                 PackageAction::GetKey { name, keys } => features::package::run_get_key(name, keys),
                 PackageAction::Metadata { name } => features::package::run_metadata(name),
             },
+
+            Commands::Export { path, full } => features::export::run_export(path, full).await,
+            Commands::Import { path } => features::import::run_import(path).await,
+
         }
     }
 }
