@@ -1,5 +1,5 @@
 use crate::{
-    application::features::package, models::{common::enums::Filetype, provider::Release, upstream::Package}, providers::provider_manager::ProviderManager, services::{
+        models::{common::enums::Filetype, provider::Release, upstream::Package}, providers::provider_manager::ProviderManager, services::{
         integration::{ShellManager, SymlinkManager, compression_handler, permission_handler},
         packaging::ChecksumVerifier,
     }, utils::static_paths::UpstreamPaths
