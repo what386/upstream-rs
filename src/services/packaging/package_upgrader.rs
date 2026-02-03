@@ -1,11 +1,8 @@
 use crate::{
-    models::upstream::Package,
-    providers::provider_manager::ProviderManager,
-    services::{
+    application::features::package, models::{common::enums::Channel, upstream::Package}, providers::provider_manager::ProviderManager, services::{
         integration::{DesktopManager, IconManager},
         packaging::{PackageInstaller, PackageRemover},
-    },
-    utils::static_paths::UpstreamPaths,
+    }, utils::static_paths::UpstreamPaths
 };
 
 use anyhow::{Context, Result};
@@ -77,9 +74,17 @@ impl<'a> PackageUpgrader<'a> {
                 package.name
             ))?;
 
-        if !force && !latest_release.version.is_newer_than(&package.version) {
-            message!(message_callback, "'{}' is already up to date", package.name);
-            return Ok(None);
+        if !force {
+            let up_to_date = if package.channel == Channel::Nightly {
+                latest_release.published_at <= package.last_upgraded
+            } else {
+                !latest_release.version.is_newer_than(&package.version)
+            };
+
+            if up_to_date {
+                message!(message_callback, "'{}' is already up to date", package.name);
+                return Ok(None);
+            }
         }
 
         let had_desktop_integration = package.icon_path.is_some();
