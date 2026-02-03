@@ -2,7 +2,7 @@ use std::{fs, path::{Path, PathBuf}};
 use anyhow::Result;
 use crate::{
     models::{
-        common::{desktop_entry::DesktopEntry, enums::Filetype},
+        common::{DesktopEntry, enums::Filetype},
     },
     services::integration::appimage_extractor::AppImageExtractor,
     utils::static_paths::UpstreamPaths,
