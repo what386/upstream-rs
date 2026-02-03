@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] consider removing dead functions (low) #cleanup
-      @created 2026-02-02 02:43
-
 - [ ] extract appimages for icons (high) #feature #bugfix
       @created 2026-02-03 02:32
 
@@ -18,4 +15,9 @@
       @created 2026-02-01 00:10
       @completed 2026-02-03 02:13
       @completed_commit 51c4cb0
+
+- [x] consider removing dead functions (low) #cleanup
+      @created 2026-02-02 02:43
+      @completed 2026-02-03 02:49
+      @completed_commit 7669a1a
 
