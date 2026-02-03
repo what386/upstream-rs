@@ -140,6 +140,7 @@ impl<'a> InstallOperation<'a> {
                     &installed_package.name,
                     installed_package.install_path.as_ref().unwrap(),
                     &installed_package.filetype,
+                    message_callback
                 )
                 .await
                 .context(format!(

@@ -1,11 +1,8 @@
 use crate::{
-    models::{common::enums::Filetype, provider::Release, upstream::Package},
-    providers::provider_manager::ProviderManager,
-    services::{
+    application::features::package, models::{common::enums::Filetype, provider::Release, upstream::Package}, providers::provider_manager::ProviderManager, services::{
         integration::{ShellManager, SymlinkManager, compression_handler, permission_handler},
         packaging::ChecksumVerifier,
-    },
-    utils::static_paths::UpstreamPaths,
+    }, utils::static_paths::UpstreamPaths
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -76,6 +73,11 @@ impl<'a> PackageInstaller<'a> {
                 "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
                 package.name, package.filetype
             ))?;
+
+        if package.filetype == Filetype::Auto {
+            message!(message_callback, "Resolved filetype to '{:?}'", &best_asset.filetype);
+            package.filetype = best_asset.filetype;
+        }
 
         message!(message_callback, "Downloading '{}' ...", best_asset.name);
 

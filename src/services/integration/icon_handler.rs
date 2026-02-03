@@ -1,12 +1,22 @@
-use std::fs;
+use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
 use anyhow::{Result, anyhow};
+use serde::de;
 use tokio::process::Command;
 
 use crate::models::common::enums::Filetype;
+use crate::services::integration::permission_handler;
 use crate::utils::static_paths::UpstreamPaths;
+
+macro_rules! message {
+    ($cb:expr, $($arg:tt)*) => {{
+        if let Some(cb) = $cb.as_mut() {
+            cb(&format!($($arg)*));
+        }
+    }};
+}
 
 pub struct IconManager<'a> {
     paths: &'a UpstreamPaths,
@@ -26,19 +36,31 @@ impl<'a> IconManager<'a> {
         })
     }
 
-    pub async fn add_icon(&self, name: &str, path: &Path, filetype: &Filetype) -> Result<PathBuf> {
+    pub async fn add_icon<H>(
+        &self,
+        name: &str,
+        path: &Path,
+        filetype: &Filetype,
+        message_callback: &mut Option<H>,
+    ) -> Result<PathBuf>
+    where
+        H: FnMut(&str),
+    {
+
         let icon_path = match filetype {
             Filetype::AppImage => {
-                let extract_path = self.extract_appimage(name, path).await?;
-                Self::search_for_best_icon(&extract_path, name)
-                    .or_else(|| Self::search_system_icons(name))
+                let extract_path =
+                    self.extract_appimage(name, path, message_callback).await?;
+
+                Self::search_for_best_icon(&extract_path, name, message_callback)
+                    .or_else(|| Self::search_system_icons(name, message_callback))
             }
             Filetype::Archive => {
-                Self::search_for_best_icon(path, name).or_else(|| Self::search_system_icons(name))
+                Self::search_for_best_icon(path, name, message_callback)
+                    .or_else(|| Self::search_system_icons(name, message_callback))
             }
-            _ => Self::search_system_icons(name),
-        }
-        .ok_or_else(|| anyhow!("Could not find icon"))?;
+            _ => Self::search_system_icons(name, message_callback),
+        }.ok_or_else(|| anyhow!("Could not find icon"))?;
 
         self.copy_icon_to_output(&icon_path)
     }
@@ -55,39 +77,55 @@ impl<'a> IconManager<'a> {
         Ok(output_path)
     }
 
-    async fn extract_appimage(&self, name: &str, appimage_path: &Path) -> Result<PathBuf> {
+    async fn extract_appimage<H>(
+        &self,
+        name: &str,
+        appimage_path: &Path,
+        message_callback: &mut Option<H>,
+    ) -> Result<PathBuf>
+    where
+        H: FnMut(&str),
+    {
         let extract_path = &self.extract_cache.join(name);
         fs::create_dir_all(extract_path)?;
 
-        let mut process = Command::new(appimage_path)
+        let temp_appimage = extract_path.join("appimage");
+        fs::copy(appimage_path, &temp_appimage)?;
+
+        permission_handler::make_executable(&temp_appimage)?;
+
+        message!(message_callback, "Extracting AppImage...");
+
+        let status = Command::new(&temp_appimage)
             .arg("--appimage-extract")
-            .current_dir(extract_path) // Set working directory
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
+            .current_dir(extract_path)
+            .stdout(File::open("/dev/null")?)
+            .status()
+            .await?;
 
-        // TODO: message callback
-        //if let Some(stdout) = process.stdout.take() {
-        //    let reader = BufReader::new(stdout);
-        //    for line in reader.lines().flatten() {
-        //    }
-        //}
-
-        process.wait().await?;
+        if !status.success() {
+            return Err(anyhow!("AppImage extraction failed with status {}", status));
+        }
 
         let squashfs_root = extract_path.join("squashfs-root");
 
-        if !squashfs_root.exists() {
-            return Err(anyhow!("Error extracting appimage"));
-        }
+        message!(message_callback, "AppImage Extracted!");
 
         Ok(squashfs_root)
     }
 
-    fn search_system_icons(name: &str) -> Option<PathBuf> {
+
+    fn search_system_icons<H>(
+        name: &str,
+        message_callback: &mut Option<H>,
+    ) -> Option<PathBuf>
+    where
+        H: FnMut(&str),
+    {
+        message!(message_callback, "Searching system icon themes…");
+
         let home_dir = std::env::var("HOME").ok()?;
 
-        // Common icon directories in order of priority
         let icon_dirs = vec![
             PathBuf::from(format!("{}/.local/share/icons", home_dir)),
             PathBuf::from(format!("{}/.icons", home_dir)),
@@ -100,7 +138,7 @@ impl<'a> IconManager<'a> {
         let name_lower = name.to_lowercase();
         let extensions = [".svg", ".png", ".xpm", ".ico"];
 
-        // Strategy 1: Check exact matches first (fastest)
+        // Strategy 1: exact matches
         for dir in &icon_dirs {
             if !dir.exists() {
                 continue;
@@ -109,17 +147,24 @@ impl<'a> IconManager<'a> {
             for ext in extensions {
                 let exact_match = dir.join(format!("{}{}", name, ext));
                 if exact_match.exists() {
+                    message!(
+                        message_callback,
+                        "Found system icon: {}",
+                        exact_match.display()
+                    );
                     return Some(exact_match);
                 }
             }
         }
 
-        // Strategy 2: Check common theme subdirectories
+        message!(message_callback, "Scanning themed icon directories…");
+
         let common_subdirs = [
             "hicolor/48x48/apps",
             "hicolor/scalable/apps",
             "hicolor/256x256/apps",
         ];
+
         for dir in &icon_dirs {
             for subdir in common_subdirs {
                 let theme_dir = dir.join(subdir);
@@ -130,13 +175,19 @@ impl<'a> IconManager<'a> {
                 for ext in extensions {
                     let icon_path = theme_dir.join(format!("{}{}", name, ext));
                     if icon_path.exists() {
+                        message!(
+                            message_callback,
+                            "Found themed icon: {}",
+                            icon_path.display()
+                        );
                         return Some(icon_path);
                     }
                 }
             }
         }
 
-        // Strategy 3: Only if nothing found, do recursive search
+        message!(message_callback, "Falling back to recursive icon search…");
+
         let mut all_candidates = Vec::new();
 
         for dir in icon_dirs {
@@ -145,14 +196,10 @@ impl<'a> IconManager<'a> {
             }
 
             for ext in extensions {
-                // Limit glob depth or use walkdir with max_depth for better performance
                 if let Ok(entries) =
                     glob::glob(&format!("{}/**/*{}*{}", dir.display(), name_lower, ext))
                 {
-                    // Take first 50 candidates max to avoid scanning everything
                     all_candidates.extend(entries.flatten().take(50));
-
-                    // Early exit if we found good candidates
                     if all_candidates.len() >= 10 {
                         break;
                     }
@@ -165,15 +212,38 @@ impl<'a> IconManager<'a> {
         }
 
         if all_candidates.is_empty() {
+            message!(message_callback, "No system icons found");
             return None;
         }
 
-        all_candidates
+        let best = all_candidates
             .into_iter()
-            .max_by_key(|path| Self::score_icon(path, name))
+            .max_by_key(|path| Self::score_icon(path, name));
+
+        if let Some(ref path) = best {
+            message!(
+                message_callback,
+                "Selected best system icon: {}",
+                path.display()
+            );
+        }
+
+        best
     }
 
-    fn search_for_best_icon(dir: &Path, name: &str) -> Option<PathBuf> {
+    fn search_for_best_icon<H>(
+        dir: &Path,
+        name: &str,
+        message_callback: &mut Option<H>,
+    ) -> Option<PathBuf>
+    where
+        H: FnMut(&str),
+    {
+        message!(
+            message_callback,
+            "Searching extracted files for icons…"
+        );
+
         let mut all_candidates = Vec::new();
 
         for ext in [".svg", ".png", ".xpm", ".ico"] {
@@ -181,18 +251,30 @@ impl<'a> IconManager<'a> {
             if exact_match.exists() {
                 all_candidates.push(exact_match);
             }
+
             if let Ok(entries) = glob::glob(&format!("{}/**/*{}*{}", dir.display(), name, ext)) {
                 all_candidates.extend(entries.flatten());
             }
         }
 
         if all_candidates.is_empty() {
+            message!(message_callback, "No icons found in extracted files");
             return None;
         }
 
-        all_candidates
+        let best = all_candidates
             .into_iter()
-            .max_by_key(|path| Self::score_icon(path, name))
+            .max_by_key(|path| Self::score_icon(path, name));
+
+        if let Some(ref path) = best {
+            message!(
+                message_callback,
+                "Selected extracted icon: {}",
+                path.display()
+            );
+        }
+
+        best
     }
 
     fn score_icon(path: &Path, app_name: &str) -> i32 {

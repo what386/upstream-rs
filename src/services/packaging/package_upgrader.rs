@@ -132,6 +132,7 @@ impl<'a> PackageUpgrader<'a> {
                     &updated_package.name,
                     updated_package.install_path.as_ref().unwrap(),
                     &updated_package.filetype,
+                    message_callback
                 )
                 .await
                 .context(format!(
