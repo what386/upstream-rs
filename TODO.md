@@ -8,6 +8,9 @@
 - [ ] consider removing dead functions (low) #cleanup
       @created 2026-02-02 02:43
 
+- [ ] extract appimages for icons (high) #feature #bugfix
+      @created 2026-02-03 02:32
+
 
 ## Completed
 
