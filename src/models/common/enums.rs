@@ -1,5 +1,5 @@
-use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
+use clap::ValueEnum;
 use std::fmt;
 use std::str::FromStr;
 
@@ -12,6 +12,22 @@ pub enum Filetype {
     WinExe,
     Checksum,
     Auto, // select automatically
+}
+
+impl fmt::Display for Filetype {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Filetype::AppImage => "AppImage",
+            Filetype::Archive => "Compressed archive",
+            Filetype::Compressed => "Compressed file",
+            Filetype::Binary => "Binary",
+            Filetype::WinExe => "Windows executable",
+            Filetype::Checksum => "Checksum",
+            Filetype::Auto => "Auto",
+        };
+
+        write!(f, "{s}")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
