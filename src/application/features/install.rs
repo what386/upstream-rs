@@ -53,7 +53,7 @@ pub async fn run(
 
     let pb = ProgressBar::new(0);
     pb.set_style(ProgressStyle::with_template(
-        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta}) {msg}",
     )?);
 
     // Borrow pb for the closures
