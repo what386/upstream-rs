@@ -1,4 +1,4 @@
-use crate::{models::upstream::Package, providers::provider_manager::ProviderManager};
+use crate::{models::{common::enums::Channel, upstream::Package}, providers::provider_manager::ProviderManager};
 
 use anyhow::{Context, Result};
 
@@ -13,7 +13,7 @@ impl<'a> PackageChecker<'a> {
 
     /// Returns (current_version, latest_version) if update is available
     pub async fn check_one(&self, package: &Package) -> Result<Option<(String, String)>> {
-        let latest = self
+        let latest_release = self
             .provider_manager
             .get_latest_release(&package.repo_slug, &package.provider, &package.channel)
             .await
@@ -22,26 +22,16 @@ impl<'a> PackageChecker<'a> {
                 package.name
             ))?;
 
-        if latest.version.is_newer_than(&package.version) {
-            Ok(Some((
-                package.version.to_string(),
-                latest.version.to_string(),
-            )))
+        let up_to_date = if package.channel == Channel::Nightly {
+            latest_release.published_at <= package.last_upgraded
         } else {
-            Ok(None)
-        }
-    }
+            !latest_release.version.is_newer_than(&package.version)
+        };
 
-    /// Returns a list of packages with updates available
-    pub async fn check_all(&self, packages: &[Package]) -> Result<Vec<(String, String, String)>> {
-        let mut updates = Vec::new();
-
-        for pkg in packages {
-            if let Some((current, latest)) = self.check_one(pkg).await? {
-                updates.push((pkg.name.clone(), current, latest));
-            }
+        if up_to_date {
+            return Ok(None);
         }
 
-        Ok(updates)
+        Ok(Some((package.version.to_string(), latest_release.version.to_string())))
     }
 }
