@@ -8,6 +8,9 @@
 - [ ] fix resolved filetype callback to use proper display function (low) #bugfix
       @created 2026-02-03 03:09
 
+- [ ] add appimage embedded .desktop file extraction (low) #feature
+      @created 2026-02-03 03:45
+
 
 ## Completed
 
