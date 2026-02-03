@@ -2,7 +2,7 @@ use crate::{
     models::upstream::Package,
     providers::provider_manager::ProviderManager,
     services::{
-        integration::{DesktopManager, IconManager},
+        integration::{AppImageExtractor, DesktopManager, IconManager},
         storage::package_storage::PackageStorage,
     },
     utils::static_paths::UpstreamPaths,
@@ -130,10 +130,11 @@ impl<'a> InstallOperation<'a> {
             ))?;
 
         if *add_entry {
-            let icon_manager =
-                IconManager::new(self.paths).context("Failed to initialize icon manager")?;
-            let desktop_manager =
-                DesktopManager::new(self.paths).context("Failed to initialize desktop manager")?;
+            let appimage_extractor = AppImageExtractor::new()
+                .context("Failed to initialize appimage extractor")?;
+
+            let icon_manager = IconManager::new(self.paths, &appimage_extractor);
+            let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
 
             let icon_path = icon_manager
                 .add_icon(
@@ -153,11 +154,15 @@ impl<'a> InstallOperation<'a> {
             let _ = desktop_manager
                 .create_desktop_entry(
                     &installed_package.name,
-                    installed_package.exec_path.as_ref().unwrap(),
-                    installed_package.icon_path.as_ref().unwrap(),
+                    &installed_package.install_path.as_ref().unwrap(),
+                    &installed_package.exec_path.as_ref().unwrap(),
+                    &installed_package.icon_path.as_ref().unwrap(),
+                    &installed_package.filetype,
                     None,
                     None,
+                    message_callback,
                 )
+                .await
                 .context(format!(
                     "Failed to create desktop entry for '{}'",
                     installed_package.name

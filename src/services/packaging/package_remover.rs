@@ -84,27 +84,13 @@ impl<'a> PackageRemover<'a> {
         }
 
         if let Some(icon_path) = &package.icon_path {
-            message!(message_callback, "Removing .desktop entry ...");
+            message!(message_callback, "Removing desktop entry ...");
+            DesktopManager::remove_entry(self.paths, &package.name)
+                .context(format!("Failed to remove desktop entry for '{}'", package.name))?;
 
-            let desktop_manager =
-                DesktopManager::new(self.paths).context("Failed to initialize desktop manager")?;
-            desktop_manager
-                .remove_entry(&package.name)
-                .context(format!(
-                    "Failed to remove desktop entry for '{}'",
-                    package.name
-                ))?;
-
-            fs::remove_file(icon_path).context(format!(
-                "Failed to remove icon file at '{}'",
-                icon_path.display()
-            ))?;
-
-            message!(
-                message_callback,
-                "Removed stored icon: {}",
-                icon_path.display()
-            );
+            fs::remove_file(icon_path)
+                .context(format!("Failed to remove icon file at '{}'", icon_path.display()))?;
+            message!(message_callback, "Removed stored icon: {}", icon_path.display());
         }
 
         Ok(())
