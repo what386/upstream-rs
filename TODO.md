@@ -8,6 +8,9 @@
 - [ ] extract appimages for icons (high) #feature #bugfix
       @created 2026-02-03 02:32
 
+- [ ] fix resolved filetype callback to use proper display function (low) #bugfix
+      @created 2026-02-03 03:09
+
 
 ## Completed
 
