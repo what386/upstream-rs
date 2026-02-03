@@ -1,4 +1,4 @@
-# TODO — upstream-cli v0.9.0
+# TODO — upstream-cli v1.0.0
 
 @created: 2026-01-31
 @modified: 2026-02-03
@@ -23,15 +23,18 @@
 - [x] extract appimages for icons (high) #feature #bugfix
       @created 2026-02-03 02:32
       @completed 2026-02-03 03:25
+      @completed_version 1.0.0
       @completed_commit d5a89fc
 
 - [x] fix resolved filetype callback to use proper display function (low) #bugfix
       @created 2026-02-03 03:09
       @completed 2026-02-03 14:30
+      @completed_version 1.0.0
       @completed_commit eb8e608
 
 - [x] add appimage embedded .desktop file extraction (low) #feature
       @created 2026-02-03 03:45
       @completed 2026-02-03 14:51
+      @completed_version 1.0.0
       @completed_commit 0cc8ded
 

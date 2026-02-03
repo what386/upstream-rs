@@ -78,7 +78,12 @@
       "commit": "d5a89fc",
       "completed_at": "2026-02-03T03:25:03.087429819Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -90,7 +95,12 @@
       "commit": "eb8e608",
       "completed_at": "2026-02-03T14:30:12.569205730Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -102,6 +112,63 @@
       "commit": "0cc8ded",
       "completed_at": "2026-02-03T14:51:09.391254256Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "extract appimages for icons",
+      "priority": "High",
+      "tags": [
+        "feature",
+        "bugfix"
+      ],
+      "commit": "d5a89fc",
+      "completed_at": "2026-02-03T03:25:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "fix resolved filetype callback to use proper display function",
+      "priority": "Low",
+      "tags": [
+        "bugfix"
+      ],
+      "commit": "eb8e608",
+      "completed_at": "2026-02-03T14:30:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "add appimage embedded .desktop file extraction",
+      "priority": "Low",
+      "tags": [
+        "feature"
+      ],
+      "commit": "0cc8ded",
+      "completed_at": "2026-02-03T14:51:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0,
+      "is_prerelease": false
+    }
   }
 ]
