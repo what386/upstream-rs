@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] fix resolved filetype callback to use proper display function (low) #bugfix
-      @created 2026-02-03 03:09
-
 - [ ] add appimage embedded .desktop file extraction (low) #feature
       @created 2026-02-03 03:45
 
@@ -30,4 +27,9 @@
       @created 2026-02-03 02:32
       @completed 2026-02-03 03:25
       @completed_commit d5a89fc
+
+- [x] fix resolved filetype callback to use proper display function (low) #bugfix
+      @created 2026-02-03 03:09
+      @completed 2026-02-03 14:30
+      @completed_commit eb8e608
 

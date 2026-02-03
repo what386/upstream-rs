@@ -79,5 +79,17 @@
       "completed_at": "2026-02-03T03:25:03.087429819Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "fix resolved filetype callback to use proper display function",
+      "priority": "Low",
+      "tags": [
+        "bugfix"
+      ],
+      "commit": "eb8e608",
+      "completed_at": "2026-02-03T14:30:12.569205730Z"
+    },
+    "version": null
   }
 ]
