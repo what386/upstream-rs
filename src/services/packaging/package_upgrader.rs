@@ -1,5 +1,5 @@
 use crate::{
-    application::features::package, models::{common::enums::Channel, upstream::Package}, providers::provider_manager::ProviderManager, services::{
+    models::{common::enums::Channel, upstream::Package}, providers::provider_manager::ProviderManager, services::{
         integration::{DesktopManager, IconManager},
         packaging::{PackageInstaller, PackageRemover},
     }, utils::static_paths::UpstreamPaths
