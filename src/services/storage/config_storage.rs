@@ -57,10 +57,6 @@ impl ConfigStorage {
         &self.config
     }
 
-    pub fn get_mut_config(&mut self) -> &mut AppConfig {
-        &mut self.config
-    }
-
     /// Sets a configuration value at the given key path (e.g., "github.api_token").
     pub fn try_set_value(&mut self, key_path: &str, value: &str) -> Result<(), String> {
         if key_path.trim().is_empty() {

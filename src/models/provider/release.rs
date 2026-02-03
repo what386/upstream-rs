@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
 
-use crate::models::common::enums::Filetype;
 use crate::models::common::version::Version;
 use crate::models::provider::asset::Asset;
 
@@ -48,25 +47,7 @@ impl Release {
         }
     }
 
-    pub fn get_assets_by_filetype(&self, filetype: Filetype) -> Vec<&Asset> {
-        self.assets
-            .iter()
-            .filter(|a| a.filetype == filetype)
-            .collect()
-    }
-
-    pub fn get_asset_by_name(&self, name: &str) -> Option<&Asset> {
-        self.assets.iter().find(|a| a.name == name)
-    }
-
     pub fn get_asset_by_name_invariant(&self, name: &str) -> Option<&Asset> {
         self.assets.iter().find(|a| a.name.to_lowercase() == name.to_lowercase())
-    }
-
-    pub fn get_asset_by_pattern(&self, pattern: &str) -> Option<&Asset> {
-        let pattern_lower = pattern.to_lowercase();
-        self.assets
-            .iter()
-            .find(|a| a.name.to_lowercase().contains(&pattern_lower))
     }
 }

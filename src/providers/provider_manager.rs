@@ -87,21 +87,6 @@ impl ProviderManager {
         }
     }
 
-    pub async fn get_all_nightly_releases(
-        &self,
-        slug: &str,
-        provider: &Provider,
-        per_page: Option<u32>,
-    ) -> Result<Vec<Release>> {
-        let releases = self.get_releases(slug, provider, per_page, None).await?;
-
-        Ok(releases
-            .into_iter()
-            .filter(|r| !r.is_draft)
-            .filter(|r| Self::is_nightly_release(&r.tag))
-            .collect())
-    }
-
     pub async fn get_releases(
         &self,
         slug: &str,

@@ -151,20 +151,6 @@ impl GithubClient {
             .context(format!("Failed to get release for tag {}", tag))
     }
 
-    pub async fn get_release_by_id(
-        &self,
-        owner_repo: &str,
-        release_id: i64,
-    ) -> Result<GithubReleaseDto> {
-        let url = format!(
-            "https://api.github.com/repos/{}/releases/{}",
-            owner_repo, release_id
-        );
-        self.get_json(&url)
-            .await
-            .context(format!("Failed to get release with ID {}", release_id))
-    }
-
     pub async fn get_latest_release(&self, owner_repo: &str) -> Result<GithubReleaseDto> {
         let url = format!(
             "https://api.github.com/repos/{}/releases/latest",
@@ -218,15 +204,5 @@ impl GithubClient {
         }
 
         Ok(releases)
-    }
-
-    pub async fn get_asset_by_id(&self, owner_repo: &str, asset_id: i64) -> Result<GithubAssetDto> {
-        let url = format!(
-            "https://api.github.com/repos/{}/releases/assets/{}",
-            owner_repo, asset_id
-        );
-        self.get_json(&url)
-            .await
-            .context(format!("Failed to get asset with ID {}", asset_id))
     }
 }

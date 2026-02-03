@@ -21,6 +21,13 @@ impl Version {
         }
     }
 
+    pub fn is_same(&self, other: &Version) -> bool {
+        self.major == other.major
+        && self.minor != other.minor
+        && self.patch != other.patch
+        && self.is_prerelease != other.is_prerelease
+    }
+
     pub fn is_newer_than(&self, other: &Version) -> bool {
         if self.major != other.major {
             return self.major > other.major;

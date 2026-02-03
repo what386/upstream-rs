@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[cfg(windows)]
 use std::ffi::OsStr;
@@ -40,30 +40,6 @@ impl<'a> SymlinkManager<'a> {
         }
 
         Ok(())
-    }
-
-    /// Gets the path to a symlink if it exists
-    pub fn get_symlink(&self, name: &str) -> Option<PathBuf> {
-        let symlink = self.symlinks_dir.join(name);
-        symlink.exists().then_some(symlink)
-    }
-
-    /// Lists all symlinks in the directory
-    pub fn list_symlinks(&self) -> Result<Vec<String>> {
-        let mut symlinks = Vec::new();
-
-        if !self.symlinks_dir.exists() {
-            return Ok(symlinks);
-        }
-
-        for entry in fs::read_dir(self.symlinks_dir).context("Failed to read symlinks directory")? {
-            let entry = entry?;
-            if let Some(name) = entry.file_name().to_str() {
-                symlinks.push(name.to_string());
-            }
-        }
-
-        Ok(symlinks)
     }
 
     #[cfg(unix)]

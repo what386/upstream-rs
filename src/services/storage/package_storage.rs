@@ -53,11 +53,6 @@ impl PackageStorage {
         &self.packages
     }
 
-    /// Get all stored packages. (mutable)
-    pub fn get_mut_all_packages(&mut self) -> &mut [Package] {
-        &mut self.packages
-    }
-
     /// Get a package by name.
     pub fn get_package_by_name(&self, name: &str) -> Option<&Package> {
         self.packages.iter().find(|p| p.name == name)
@@ -73,19 +68,6 @@ impl PackageStorage {
         self.packages.retain(|p| !p.is_same_as(&package));
         self.packages.push(package);
         self.save_packages()
-    }
-
-    /// Remove a package from the repository.
-    pub fn remove_package(&mut self, package: &Package) -> Result<bool> {
-        let initial_len = self.packages.len();
-        self.packages.retain(|p| !p.is_same_as(package));
-
-        if self.packages.len() < initial_len {
-            self.save_packages()?;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 
     /// Remove a package from the repository by name.
