@@ -1,5 +1,5 @@
 use std::{fs, path::{Path, PathBuf}};
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use crate::{
     models::{
         common::{desktop_entry::DesktopEntry, enums::Filetype},
