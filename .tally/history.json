@@ -66,5 +66,18 @@
       "patch": 0,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "extract appimages for icons",
+      "priority": "High",
+      "tags": [
+        "feature",
+        "bugfix"
+      ],
+      "commit": "d5a89fc",
+      "completed_at": "2026-02-03T03:25:03.087429819Z"
+    },
+    "version": null
   }
 ]

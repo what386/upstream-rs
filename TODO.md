@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] extract appimages for icons (high) #feature #bugfix
-      @created 2026-02-03 02:32
-
 - [ ] fix resolved filetype callback to use proper display function (low) #bugfix
       @created 2026-02-03 03:09
 
@@ -25,4 +22,9 @@
       @completed 2026-02-03 02:49
       @completed_version 0.9.0
       @completed_commit 7669a1a
+
+- [x] extract appimages for icons (high) #feature #bugfix
+      @created 2026-02-03 02:32
+      @completed 2026-02-03 03:25
+      @completed_commit d5a89fc
 
