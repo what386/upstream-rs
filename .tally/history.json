@@ -9,7 +9,12 @@
       "commit": "51c4cb0",
       "completed_at": "2026-02-03T02:13:09.271199128Z"
     },
-    "version": null
+    "version": {
+      "major": 0,
+      "minor": 9,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -21,6 +26,45 @@
       "commit": "7669a1a",
       "completed_at": "2026-02-03T02:49:24.957506661Z"
     },
-    "version": null
+    "version": {
+      "major": 0,
+      "minor": 9,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "add export/import for packages",
+      "priority": "Medium",
+      "tags": [
+        "feature"
+      ],
+      "commit": "51c4cb0",
+      "completed_at": "2026-02-03T02:13:00Z"
+    },
+    "version": {
+      "major": 0,
+      "minor": 9,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "consider removing dead functions",
+      "priority": "Low",
+      "tags": [
+        "cleanup"
+      ],
+      "commit": "7669a1a",
+      "completed_at": "2026-02-03T02:49:00Z"
+    },
+    "version": {
+      "major": 0,
+      "minor": 9,
+      "patch": 0,
+      "is_prerelease": false
+    }
   }
 ]
