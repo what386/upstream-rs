@@ -23,7 +23,7 @@ impl PackageStorage {
     }
 
     /// Load all packages from the packages.json file.
-    fn load_packages(&mut self) -> Result<()> {
+    pub fn load_packages(&mut self) -> Result<()> {
         if !&self.packages_file.exists() {
             self.packages = Vec::new();
             return Ok(());
