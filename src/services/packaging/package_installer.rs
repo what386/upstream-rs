@@ -75,7 +75,7 @@ impl<'a> PackageInstaller<'a> {
             ))?;
 
         if package.filetype == Filetype::Auto {
-            message!(message_callback, "Resolved filetype to '{:?}'", &best_asset.filetype);
+            message!(message_callback, "Resolved filetype to '{}'", &best_asset.filetype);
             package.filetype = best_asset.filetype;
         }
 
