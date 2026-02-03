@@ -44,6 +44,12 @@ impl ConfigStorage {
         fs::write(&self.config_file, toml)
             .map_err(|e| io::Error::other(format!("Failed to save config: {}", e)))?;
 
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&self.config_file, fs::Permissions::from_mode(0o600))?;
+        }
+
         Ok(())
     }
 
