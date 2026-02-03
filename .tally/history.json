@@ -91,5 +91,17 @@
       "completed_at": "2026-02-03T14:30:12.569205730Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "add appimage embedded .desktop file extraction",
+      "priority": "Low",
+      "tags": [
+        "feature"
+      ],
+      "commit": "0cc8ded",
+      "completed_at": "2026-02-03T14:51:09.391254256Z"
+    },
+    "version": null
   }
 ]
