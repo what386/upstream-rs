@@ -20,33 +20,6 @@ pub struct Release {
 }
 
 impl Release {
-    pub fn new(
-        id: u64,
-        tag: String,
-        name: String,
-        body: String,
-
-        is_draft: bool,
-        is_prerelease: bool,
-
-        assets: Vec<Asset>,
-        version: Version,
-
-        published_at: DateTime<Utc>,
-    ) -> Self {
-        Self {
-            id,
-            tag,
-            name,
-            body,
-            is_draft,
-            is_prerelease,
-            published_at,
-            assets,
-            version,
-        }
-    }
-
     pub fn get_asset_by_name_invariant(&self, name: &str) -> Option<&Asset> {
         self.assets.iter().find(|a| a.name.to_lowercase() == name.to_lowercase())
     }
