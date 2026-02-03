@@ -1,6 +1,6 @@
 use crate::{
     models::{common::enums::Channel, upstream::Package}, providers::provider_manager::ProviderManager, services::{
-        integration::{DesktopManager, IconManager},
+        integration::{AppImageExtractor, DesktopManager, IconManager},
         packaging::{PackageInstaller, PackageRemover},
     }, utils::static_paths::UpstreamPaths
 };
@@ -122,10 +122,11 @@ impl<'a> PackageUpgrader<'a> {
         if had_desktop_integration {
             message!(message_callback, "Restoring desktop integration ...");
 
-            let icon_manager =
-                IconManager::new(self.paths).context("Failed to initialize icon manager")?;
-            let desktop_manager =
-                DesktopManager::new(self.paths).context("Failed to initialize desktop manager")?;
+            let appimage_extractor = AppImageExtractor::new()
+                .context("Failed to initialize appimage extractor")?;
+
+            let icon_manager = IconManager::new(self.paths, &appimage_extractor);
+            let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
 
             let icon_path = icon_manager
                 .add_icon(
@@ -136,22 +137,26 @@ impl<'a> PackageUpgrader<'a> {
                 )
                 .await
                 .context(format!(
-                    "Failed to restore icon for '{}'",
+                    "Failed to add icon for '{}'",
                     updated_package.name
                 ))?;
 
             updated_package.icon_path = Some(icon_path);
 
-            desktop_manager
+            let _ = desktop_manager
                 .create_desktop_entry(
                     &updated_package.name,
-                    updated_package.exec_path.as_ref().unwrap(),
-                    updated_package.icon_path.as_ref().unwrap(),
+                    &updated_package.install_path.as_ref().unwrap(),
+                    &updated_package.exec_path.as_ref().unwrap(),
+                    &updated_package.icon_path.as_ref().unwrap(),
+                    &updated_package.filetype,
                     None,
                     None,
+                    message_callback,
                 )
+                .await
                 .context(format!(
-                    "Failed to restore desktop entry for '{}'",
+                    "Failed to create desktop entry for '{}'",
                     updated_package.name
                 ))?;
         }
