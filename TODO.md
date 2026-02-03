@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] add appimage embedded .desktop file extraction (low) #feature
-      @created 2026-02-03 03:45
-
 
 ## Completed
 
@@ -32,4 +29,9 @@
       @created 2026-02-03 03:09
       @completed 2026-02-03 14:30
       @completed_commit eb8e608
+
+- [x] add appimage embedded .desktop file extraction (low) #feature
+      @created 2026-02-03 03:45
+      @completed 2026-02-03 14:51
+      @completed_commit 0cc8ded
 
