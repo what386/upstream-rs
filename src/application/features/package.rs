@@ -56,9 +56,8 @@ pub fn run_set_key(name: String, keys: Vec<String>) -> Result<()> {
 
 pub fn run_get_key(name: String, keys: Vec<String>) -> Result<()> {
     let paths = UpstreamPaths::new();
-    let package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut package_storage_mut = package_storage;
-    let package_manager = MetadataManager::new(&mut package_storage_mut);
+    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
+    let package_manager = MetadataManager::new(&mut package_storage);
 
     let mut message_callback = Some(move |msg: &str| {
         println!("{}", msg);
