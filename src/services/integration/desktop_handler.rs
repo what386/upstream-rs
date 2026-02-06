@@ -34,7 +34,7 @@ impl<'a> DesktopManager<'a> {
         name: &str,
         install_path: &Path,
         exec_path: &Path,
-        icon_path: &Path,
+        icon_path: Option<&Path>,
         filetype: &Filetype,
         comment: Option<&str>,
         categories: Option<&str>,
