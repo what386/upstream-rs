@@ -149,14 +149,14 @@ impl<'a> InstallOperation<'a> {
                     installed_package.name
                 ))?;
 
-            installed_package.icon_path = Some(icon_path);
+            installed_package.icon_path = icon_path;
 
             let _ = desktop_manager
                 .create_desktop_entry(
                     &installed_package.name,
                     &installed_package.install_path.as_ref().unwrap(),
                     &installed_package.exec_path.as_ref().unwrap(),
-                    &installed_package.icon_path.as_ref().unwrap(),
+                    installed_package.icon_path.as_deref(),
                     &installed_package.filetype,
                     None,
                     None,

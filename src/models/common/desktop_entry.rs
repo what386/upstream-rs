@@ -24,9 +24,13 @@ impl DesktopEntry {
     }
 
     /// Sanitize fields that must always be overridden
-    pub fn sanitize(mut self, exec: &Path, icon: &Path) -> DesktopEntry {
+    pub fn sanitize(mut self, exec: &Path, icon: Option<&Path>) -> DesktopEntry {
         self.exec = Some(exec.display().to_string());
-        self.icon = Some(icon.display().to_string());
+        self.icon = Some(
+            icon
+                .map(|path| path.display().to_string())
+                .unwrap_or_default(),
+        );
         self.terminal = false;
         self
     }

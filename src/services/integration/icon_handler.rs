@@ -31,7 +31,7 @@ impl<'a> IconManager<'a> {
         path: &Path,
         filetype: &Filetype,
         message_callback: &mut Option<H>,
-    ) -> Result<PathBuf>
+    ) -> Result<Option<PathBuf>>
     where
         H: FnMut(&str),
     {
@@ -46,10 +46,14 @@ impl<'a> IconManager<'a> {
                     .or_else(|| Self::search_system_icons(name, message_callback))
             }
             _ => Self::search_system_icons(name, message_callback),
-        }
-        .ok_or_else(|| anyhow!("Could not find icon"))?;
+        };
 
-        self.copy_icon_to_output(&icon_path)
+        let Some(icon_path) = icon_path else {
+            message!(message_callback, "No icon found; using empty Icon field in .desktop file");
+            return Ok(None);
+        };
+
+        self.copy_icon_to_output(&icon_path).map(Some)
     }
 
     fn copy_icon_to_output(&self, icon_path: &Path) -> Result<PathBuf> {
