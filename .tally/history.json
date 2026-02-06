@@ -179,6 +179,26 @@
       "commit": null,
       "completed_at": "2026-02-06T21:38:45.963860302Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 2,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "fix archives not respecting the name argument",
+      "priority": "High",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-02-06T21:38:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 2,
+      "is_prerelease": false
+    }
   }
 ]
