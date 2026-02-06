@@ -211,6 +211,28 @@
       "commit": null,
       "completed_at": "2026-02-06T22:13:49.368789820Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 3,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "fallback for missing icon? maybe include a default icon when lookup fails",
+      "priority": "Medium",
+      "tags": [
+        "feature"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-06T22:13:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 3,
+      "is_prerelease": false
+    }
   }
 ]
