@@ -217,6 +217,18 @@ impl<'a> PackageInstaller<'a> {
             path_to_add.display()
         );
 
+        let symlink_manager = SymlinkManager::new(&self.paths.integration.symlinks_dir);
+
+        symlink_manager.add_link(&exec_path, &package.name)
+            .context(format!("Failed to create symlink for '{}'", package.name))?;
+
+        message!(
+            message_callback,
+            "Created symlink: {} → {}",
+            package.name,
+            out_path.display()
+        );
+
         package.exec_path = Some(exec_path);
         package.install_path = Some(out_path);
         package.last_upgraded = Utc::now();
