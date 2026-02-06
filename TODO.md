@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] fallback for missing icon? maybe include a default icon when lookup fails #feature
-      @created 2026-02-04 03:11
-
 
 ## Completed
 
@@ -15,4 +12,8 @@
       @created 2026-02-06 21:38
       @completed 2026-02-06 21:38
       @completed_version 1.0.2
+
+- [x] fallback for missing icon? maybe include a default icon when lookup fails #feature
+      @created 2026-02-04 03:11
+      @completed 2026-02-06 22:13
 
