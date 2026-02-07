@@ -245,6 +245,28 @@
       "commit": null,
       "completed_at": "2026-02-07T04:35:33.088142351Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 4,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Fix GitHub latest-release JSON parsing when fields are null",
+      "priority": "High",
+      "tags": [
+        "bug"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-07T04:35:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 4,
+      "is_prerelease": false
+    }
   }
 ]
