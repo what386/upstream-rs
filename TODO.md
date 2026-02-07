@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.0.3
+# TODO — upstream-cli v1.0.4
 
 @created: 2026-01-31
 @modified: 2026-02-07
@@ -21,4 +21,5 @@
 - [x] Fix GitHub latest-release JSON parsing when fields are null (high) #bug
       @created 2026-02-07 04:34
       @completed 2026-02-07 04:35
+      @completed_version 1.0.4
 
