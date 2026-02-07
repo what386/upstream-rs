@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] Fix GitHub latest-release JSON parsing when fields are null (high) #bug
-      @created 2026-02-07 04:34
-
 
 ## Completed
 
@@ -20,4 +17,8 @@
       @created 2026-02-04 03:11
       @completed 2026-02-06 22:13
       @completed_version 1.0.3
+
+- [x] Fix GitHub latest-release JSON parsing when fields are null (high) #bug
+      @created 2026-02-07 04:34
+      @completed 2026-02-07 04:35
 
