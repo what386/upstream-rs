@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
 use reqwest::{Client, header};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
@@ -8,28 +8,80 @@ use tokio::io::AsyncWriteExt;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GithubAssetDto {
     pub id: i64,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
     pub name: String,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
     pub browser_download_url: String,
     pub size: i64,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
     pub content_type: String,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
     pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GithubReleaseDto {
     pub id: i64,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
     pub tag_name: String,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
     pub name: String,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
     pub body: String,
     pub prerelease: bool,
     pub draft: bool,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
     pub published_at: String,
     pub assets: Vec<GithubAssetDto>,
+}
+
+fn deserialize_nullable_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Option::<String>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 #[derive(Debug, Clone)]
 pub struct GithubClient {
     client: Client,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GithubReleaseDto;
+
+    #[test]
+    fn github_release_dto_accepts_nullable_string_fields() {
+        let json = r#"
+        {
+          "id": 1,
+          "tag_name": "v1.0.0",
+          "name": null,
+          "body": null,
+          "prerelease": false,
+          "draft": false,
+          "published_at": null,
+          "assets": [
+            {
+              "id": 42,
+              "name": "tree-sitter-linux.tar.gz",
+              "browser_download_url": "https://example.com/asset.tar.gz",
+              "size": 1234,
+              "content_type": null,
+              "created_at": null
+            }
+          ]
+        }
+        "#;
+
+        let parsed = serde_json::from_str::<GithubReleaseDto>(json).expect("valid release JSON");
+        assert_eq!(parsed.name, "");
+        assert_eq!(parsed.body, "");
+        assert_eq!(parsed.published_at, "");
+        assert_eq!(parsed.assets[0].content_type, "");
+        assert_eq!(parsed.assets[0].created_at, "");
+    }
 }
 
 impl GithubClient {
