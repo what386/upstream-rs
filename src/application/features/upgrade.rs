@@ -63,11 +63,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     if names.is_none() {
         println!(
             "{}",
-            style(format!(
-                "Upgrading {} package(s)",
-                installed_package_count
-            ))
-            .cyan()
+            style(format!("Upgrading {} package(s)", installed_package_count)).cyan()
         );
         package_upgrade
             .upgrade_all(
