@@ -165,13 +165,15 @@ pub enum Commands {
     },
 
     /// Import packages from a manifest or full snapshot
-    #[command(long_about = "Import packages from a previously exported manifest or snapshot.\n\n\
+    #[command(
+        long_about = "Import packages from a previously exported manifest or snapshot.\n\n\
         Reads a manifest and reinstalls each package, or restores a full snapshot \
         created with 'upstream export --full'. Packages that are already installed \
         will be skipped.\n\n\
         EXAMPLES:\n  \
         upstream import ./packages.json           # Import from manifest\n  \
-        upstream import ./backup.tar.gz           # Restore full snapshot")]
+        upstream import ./backup.tar.gz           # Restore full snapshot"
+    )]
     Import {
         /// Path to the manifest or snapshot archive
         path: std::path::PathBuf,
@@ -291,5 +293,4 @@ pub enum PackageAction {
         /// Name of package
         name: String,
     },
-
 }

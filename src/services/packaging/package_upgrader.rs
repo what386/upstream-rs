@@ -1,8 +1,11 @@
 use crate::{
-    models::{common::enums::Channel, upstream::Package}, providers::provider_manager::ProviderManager, services::{
+    models::{common::enums::Channel, upstream::Package},
+    providers::provider_manager::ProviderManager,
+    services::{
         integration::{AppImageExtractor, DesktopManager, IconManager},
         packaging::{PackageInstaller, PackageRemover},
-    }, utils::static_paths::UpstreamPaths
+    },
+    utils::static_paths::UpstreamPaths,
 };
 
 use anyhow::{Context, Result};
@@ -122,8 +125,8 @@ impl<'a> PackageUpgrader<'a> {
         if had_desktop_integration {
             message!(message_callback, "Restoring desktop integration ...");
 
-            let appimage_extractor = AppImageExtractor::new()
-                .context("Failed to initialize appimage extractor")?;
+            let appimage_extractor =
+                AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
 
             let icon_manager = IconManager::new(self.paths, &appimage_extractor);
             let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
@@ -133,13 +136,10 @@ impl<'a> PackageUpgrader<'a> {
                     &updated_package.name,
                     updated_package.install_path.as_ref().unwrap(),
                     &updated_package.filetype,
-                    message_callback
+                    message_callback,
                 )
                 .await
-                .context(format!(
-                    "Failed to add icon for '{}'",
-                    updated_package.name
-                ))?;
+                .context(format!("Failed to add icon for '{}'", updated_package.name))?;
 
             updated_package.icon_path = icon_path;
 

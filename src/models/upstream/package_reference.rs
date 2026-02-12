@@ -1,10 +1,8 @@
-use serde::{Deserialize, Serialize};
-use crate::{
-    models::{
-        common::enums::{Channel, Filetype, Provider},
-        upstream::Package,
-    },
+use crate::models::{
+    common::enums::{Channel, Filetype, Provider},
+    upstream::Package,
 };
+use serde::{Deserialize, Serialize};
 
 /// The bare minimum needed to install a package. Essentially the args to
 /// `Package::with_defaults` — no install state, no paths, no version.

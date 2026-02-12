@@ -98,10 +98,8 @@ impl<'a> ImportOperation<'a> {
         G: FnMut(u32, u32),
         H: FnMut(&str),
     {
-        let content = fs::read_to_string(path).context(format!(
-            "Failed to read manifest from '{}'",
-            path.display()
-        ))?;
+        let content = fs::read_to_string(path)
+            .context(format!("Failed to read manifest from '{}'", path.display()))?;
 
         let manifest: ImportManifest =
             serde_json::from_str(&content).context("Failed to parse manifest")?;
@@ -145,15 +143,10 @@ impl<'a> ImportOperation<'a> {
                 .yellow()
             );
 
-            let installer =
-                PackageInstaller::new(self.provider_manager, self.paths)?;
+            let installer = PackageInstaller::new(self.provider_manager, self.paths)?;
             let remover = PackageRemover::new(self.paths);
-            let upgrader = PackageUpgrader::new(
-                self.provider_manager,
-                installer,
-                remover,
-                self.paths,
-            );
+            let upgrader =
+                PackageUpgrader::new(self.provider_manager, installer, remover, self.paths);
 
             for reference in &to_upgrade {
                 let package = self
@@ -178,19 +171,10 @@ impl<'a> ImportOperation<'a> {
                     }
                     Ok(None) => {
                         // Shouldn't happen with force=true, but harmless
-                        message!(
-                            message_callback,
-                            "'{}' already up to date",
-                            reference.name
-                        );
+                        message!(message_callback, "'{}' already up to date", reference.name);
                     }
                     Err(e) => {
-                        message!(
-                            message_callback,
-                            "{} {}",
-                            style("Upgrade failed:").red(),
-                            e
-                        );
+                        message!(message_callback, "{} {}", style("Upgrade failed:").red(), e);
                     }
                 }
             }
@@ -206,11 +190,8 @@ impl<'a> ImportOperation<'a> {
 
             let packages: Vec<_> = to_install.into_iter().map(|r| r.into_package()).collect();
 
-            let mut install_op = InstallOperation::new(
-                self.provider_manager,
-                self.package_storage,
-                self.paths,
-            )?;
+            let mut install_op =
+                InstallOperation::new(self.provider_manager, self.package_storage, self.paths)?;
 
             install_op
                 .install_bulk(

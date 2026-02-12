@@ -1,11 +1,10 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use anyhow::{Result, anyhow};
 use crate::{
-    models::common::enums::Filetype,
-    services::integration::appimage_extractor::AppImageExtractor,
+    models::common::enums::Filetype, services::integration::appimage_extractor::AppImageExtractor,
     utils::static_paths::UpstreamPaths,
 };
+use anyhow::{Result, anyhow};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -41,15 +40,16 @@ impl<'a> IconManager<'a> {
                 Self::search_for_best_icon(&squashfs_root, name, message_callback)
                     .or_else(|| Self::search_system_icons(name, message_callback))
             }
-            Filetype::Archive => {
-                Self::search_for_best_icon(path, name, message_callback)
-                    .or_else(|| Self::search_system_icons(name, message_callback))
-            }
+            Filetype::Archive => Self::search_for_best_icon(path, name, message_callback)
+                .or_else(|| Self::search_system_icons(name, message_callback)),
             _ => Self::search_system_icons(name, message_callback),
         };
 
         let Some(icon_path) = icon_path else {
-            message!(message_callback, "No icon found; using empty Icon field in .desktop file");
+            message!(
+                message_callback,
+                "No icon found; using empty Icon field in .desktop file"
+            );
             return Ok(None);
         };
 
@@ -90,7 +90,11 @@ impl<'a> IconManager<'a> {
             for ext in extensions {
                 let exact_match = dir.join(format!("{}{}", name, ext));
                 if exact_match.exists() {
-                    message!(message_callback, "Found system icon: {}", exact_match.display());
+                    message!(
+                        message_callback,
+                        "Found system icon: {}",
+                        exact_match.display()
+                    );
                     return Some(exact_match);
                 }
             }
@@ -112,7 +116,11 @@ impl<'a> IconManager<'a> {
                 for ext in extensions {
                     let icon_path = theme_dir.join(format!("{}{}", name, ext));
                     if icon_path.exists() {
-                        message!(message_callback, "Found themed icon: {}", icon_path.display());
+                        message!(
+                            message_callback,
+                            "Found themed icon: {}",
+                            icon_path.display()
+                        );
                         return Some(icon_path);
                     }
                 }
@@ -151,7 +159,11 @@ impl<'a> IconManager<'a> {
             .max_by_key(|path| Self::score_icon(path, name));
 
         if let Some(ref path) = best {
-            message!(message_callback, "Selected best system icon: {}", path.display());
+            message!(
+                message_callback,
+                "Selected best system icon: {}",
+                path.display()
+            );
         }
         best
     }
@@ -187,7 +199,11 @@ impl<'a> IconManager<'a> {
             .max_by_key(|path| Self::score_icon(path, name));
 
         if let Some(ref path) = best {
-            message!(message_callback, "Selected extracted icon: {}", path.display());
+            message!(
+                message_callback,
+                "Selected extracted icon: {}",
+                path.display()
+            );
         }
         best
     }
@@ -217,7 +233,10 @@ impl<'a> IconManager<'a> {
         if file_stem.contains("icon") {
             score += 50;
         }
-        if path_str.contains("icons/") || path_str.contains("pixmaps/") || path_str.contains(".diricon") {
+        if path_str.contains("icons/")
+            || path_str.contains("pixmaps/")
+            || path_str.contains(".diricon")
+        {
             score += 30;
         }
         if file_stem.contains("screenshot")

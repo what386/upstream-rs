@@ -131,8 +131,16 @@ impl ProviderManager {
         let download_filepath = cache_path.join(file_name);
 
         match provider {
-            Provider::Github => self.github.download_asset(asset, &download_filepath, dl_progress).await?,
-            Provider::Gitlab => self.gitlab.download_asset(asset, &download_filepath, dl_progress).await?,
+            Provider::Github => {
+                self.github
+                    .download_asset(asset, &download_filepath, dl_progress)
+                    .await?
+            }
+            Provider::Gitlab => {
+                self.gitlab
+                    .download_asset(asset, &download_filepath, dl_progress)
+                    .await?
+            }
         }
 
         Ok(download_filepath)
@@ -175,11 +183,7 @@ impl ProviderManager {
         ];
 
         #[cfg(windows)]
-        let priority = [
-            Filetype::WinExe,
-            Filetype::Archive,
-            Filetype::Compressed
-        ];
+        let priority = [Filetype::WinExe, Filetype::Archive, Filetype::Compressed];
 
         priority
             .iter()

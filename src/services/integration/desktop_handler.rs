@@ -1,11 +1,12 @@
-use std::{fs, path::{Path, PathBuf}};
-use anyhow::Result;
 use crate::{
-    models::{
-        common::{DesktopEntry, enums::Filetype},
-    },
+    models::common::{DesktopEntry, enums::Filetype},
     services::integration::appimage_extractor::AppImageExtractor,
     utils::static_paths::UpstreamPaths,
+};
+use anyhow::Result;
+use std::{
+    fs,
+    path::{Path, PathBuf},
 };
 
 macro_rules! message {
@@ -44,7 +45,10 @@ impl<'a> DesktopManager<'a> {
         H: FnMut(&str),
     {
         let entry = if *filetype == Filetype::AppImage {
-            let squashfs_root = self.extractor.extract(name, install_path, message_callback).await?;
+            let squashfs_root = self
+                .extractor
+                .extract(name, install_path, message_callback)
+                .await?;
             self.find_and_parse_desktop_file(&squashfs_root, name, message_callback)
                 .unwrap_or_default()
         } else {
@@ -129,7 +133,11 @@ impl<'a> DesktopManager<'a> {
             // Prefer one whose stem matches the package name.
             found.sort_by_key(|p| {
                 let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-                if stem.eq_ignore_ascii_case(name) { 0 } else { 1 }
+                if stem.eq_ignore_ascii_case(name) {
+                    0
+                } else {
+                    1
+                }
             });
 
             if let Some(path) = found.first() {
@@ -156,13 +164,13 @@ impl<'a> DesktopManager<'a> {
             };
             let value = value.trim().to_string();
             match key.trim() {
-                "Name"       => entry.name = Some(value),
-                "Comment"    => entry.comment = Some(value),
-                "Exec"       => entry.exec = Some(value),
-                "Icon"       => entry.icon = Some(value),
+                "Name" => entry.name = Some(value),
+                "Comment" => entry.comment = Some(value),
+                "Exec" => entry.exec = Some(value),
+                "Icon" => entry.icon = Some(value),
                 "Categories" => entry.categories = Some(value),
-                "Terminal"   => entry.terminal = value.eq_ignore_ascii_case("true"),
-                _            => {}
+                "Terminal" => entry.terminal = value.eq_ignore_ascii_case("true"),
+                _ => {}
             }
         }
 

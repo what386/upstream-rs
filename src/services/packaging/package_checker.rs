@@ -1,4 +1,7 @@
-use crate::{models::{common::enums::Channel, upstream::Package}, providers::provider_manager::ProviderManager};
+use crate::{
+    models::{common::enums::Channel, upstream::Package},
+    providers::provider_manager::ProviderManager,
+};
 
 use anyhow::{Context, Result};
 
@@ -32,6 +35,9 @@ impl<'a> PackageChecker<'a> {
             return Ok(None);
         }
 
-        Ok(Some((package.version.to_string(), latest_release.version.to_string())))
+        Ok(Some((
+            package.version.to_string(),
+            latest_release.version.to_string(),
+        )))
     }
 }

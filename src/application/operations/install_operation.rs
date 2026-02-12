@@ -130,8 +130,8 @@ impl<'a> InstallOperation<'a> {
             ))?;
 
         if *add_entry {
-            let appimage_extractor = AppImageExtractor::new()
-                .context("Failed to initialize appimage extractor")?;
+            let appimage_extractor =
+                AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
 
             let icon_manager = IconManager::new(self.paths, &appimage_extractor);
             let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
@@ -141,7 +141,7 @@ impl<'a> InstallOperation<'a> {
                     &installed_package.name,
                     installed_package.install_path.as_ref().unwrap(),
                     &installed_package.filetype,
-                    message_callback
+                    message_callback,
                 )
                 .await
                 .context(format!(

@@ -66,7 +66,6 @@ impl Cli {
 
             Commands::Export { path, full } => features::export::run_export(path, full).await,
             Commands::Import { path } => features::import::run_import(path).await,
-
         }
     }
 }
