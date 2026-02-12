@@ -37,24 +37,7 @@ impl<'a> PackageRemover<'a> {
             .as_ref()
             .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
 
-        message!(
-            message_callback,
-            "Removing '{}' from PATH ...",
-            install_path.display()
-        );
-
-        ShellManager::new(&self.paths.config.paths_file)
-            .remove_from_paths(install_path)
-            .context(format!(
-                "Failed to remove '{}' from PATH configuration",
-                install_path.display()
-            ))?;
-
-        message!(message_callback, "Removing symlink for '{}'", package.name);
-
-        SymlinkManager::new(&self.paths.integration.symlinks_dir)
-            .remove_link(&package.name)
-            .context(format!("Failed to remove symlink for '{}'", package.name))?;
+        self.remove_runtime_integrations(package, message_callback)?;
 
         if install_path.is_dir() {
             message!(
@@ -99,6 +82,81 @@ impl<'a> PackageRemover<'a> {
                 "Removed stored icon: {}",
                 icon_path.display()
             );
+        }
+
+        Ok(())
+    }
+
+    /// Remove PATH and symlink state for a package without deleting installed files.
+    pub fn remove_runtime_integrations<H>(
+        &self,
+        package: &Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        let install_path = package
+            .install_path
+            .as_ref()
+            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
+
+        message!(
+            message_callback,
+            "Removing '{}' from PATH ...",
+            install_path.display()
+        );
+
+        ShellManager::new(&self.paths.config.paths_file)
+            .remove_from_paths(install_path)
+            .context(format!(
+                "Failed to remove '{}' from PATH configuration",
+                install_path.display()
+            ))?;
+
+        message!(message_callback, "Removing symlink for '{}'", package.name);
+        SymlinkManager::new(&self.paths.integration.symlinks_dir)
+            .remove_link(&package.name)
+            .context(format!("Failed to remove symlink for '{}'", package.name))?;
+
+        Ok(())
+    }
+
+    /// Restore PATH and symlink state for a previously installed package.
+    pub fn restore_runtime_integrations<H>(
+        &self,
+        package: &Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        let install_path = package
+            .install_path
+            .as_ref()
+            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
+
+        if install_path.is_dir() {
+            message!(
+                message_callback,
+                "Restoring '{}' to PATH ...",
+                install_path.display()
+            );
+            ShellManager::new(&self.paths.config.paths_file)
+                .add_to_paths(install_path)
+                .context(format!(
+                    "Failed to restore '{}' in PATH configuration",
+                    install_path.display()
+                ))?;
+        }
+
+        if let Some(exec_path) = package.exec_path.as_ref()
+            && exec_path.exists()
+        {
+            message!(message_callback, "Restoring symlink for '{}'", package.name);
+            SymlinkManager::new(&self.paths.integration.symlinks_dir)
+                .add_link(exec_path, &package.name)
+                .context(format!("Failed to restore symlink for '{}'", package.name))?;
         }
 
         Ok(())

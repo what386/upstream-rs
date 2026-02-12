@@ -10,6 +10,10 @@ use crate::{
 
 use anyhow::{Context, Result};
 use console::style;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -27,6 +31,23 @@ pub struct PackageUpgrader<'a> {
 }
 
 impl<'a> PackageUpgrader<'a> {
+    fn backup_path(install_path: &Path) -> Result<PathBuf> {
+        let file_name = install_path.file_name().ok_or_else(|| {
+            anyhow::anyhow!("Install path '{}' has no filename", install_path.display())
+        })?;
+        Ok(install_path.with_file_name(format!("{}.old", file_name.to_string_lossy())))
+    }
+
+    fn remove_path_if_exists(path: &Path) -> Result<()> {
+        if path.is_dir() {
+            fs::remove_dir_all(path)
+                .context(format!("Failed to remove directory '{}'", path.display()))?;
+        } else if path.is_file() {
+            fs::remove_file(path).context(format!("Failed to remove file '{}'", path.display()))?;
+        }
+        Ok(())
+    }
+
     pub fn new(
         provider_manager: &'a ProviderManager,
         installer: PackageInstaller<'a>,
@@ -110,16 +131,45 @@ impl<'a> PackageUpgrader<'a> {
             style(format!("Upgrading '{}' ...", package.name)).cyan()
         );
 
-        // Remove old installation
-        self.remover
-            .remove_package_files(package, message_callback)
-            .context(format!(
-                "Failed to remove old installation of '{}'",
+        let original_install_path = package
+            .install_path
+            .as_ref()
+            .ok_or_else(|| {
+                anyhow::anyhow!("Package '{}' has no install path recorded", package.name)
+            })?
+            .clone();
+        let backup_path = Self::backup_path(&original_install_path)?;
+
+        Self::remove_path_if_exists(&backup_path)?;
+
+        message!(
+            message_callback,
+            "Backing up existing install to '{}' ...",
+            backup_path.display()
+        );
+        fs::rename(&original_install_path, &backup_path).context(format!(
+            "Failed to back up '{}' to '{}'",
+            original_install_path.display(),
+            backup_path.display()
+        ))?;
+
+        // Remove runtime integrations (PATH/symlink) but keep desktop assets
+        if let Err(e) = self
+            .remover
+            .remove_runtime_integrations(package, message_callback)
+        {
+            let _ = fs::rename(&backup_path, &original_install_path);
+            let _ = self
+                .remover
+                .restore_runtime_integrations(package, message_callback);
+            return Err(e).context(format!(
+                "Failed to remove runtime integration for '{}'",
                 package.name
-            ))?;
+            ));
+        }
 
         // Install new version
-        let mut updated_package = self
+        let install_result = self
             .installer
             .install_package_files(
                 package.clone(),
@@ -127,11 +177,39 @@ impl<'a> PackageUpgrader<'a> {
                 download_progress,
                 message_callback,
             )
-            .await
-            .context(format!(
-                "Failed to install new version of '{}'",
-                package.name
-            ))?;
+            .await;
+        let mut updated_package = match install_result {
+            Ok(updated_package) => updated_package,
+            Err(install_err) => {
+                message!(
+                    message_callback,
+                    "{}",
+                    style(format!(
+                        "Upgrade failed for '{}', rolling back ...",
+                        package.name
+                    ))
+                    .yellow()
+                );
+
+                let _ = Self::remove_path_if_exists(&original_install_path);
+                fs::rename(&backup_path, &original_install_path).context(format!(
+                    "Upgrade failed for '{}': {}. Rollback failed while restoring backup",
+                    package.name, install_err
+                ))?;
+
+                self.remover
+                    .restore_runtime_integrations(package, message_callback)
+                    .context(format!(
+                        "Upgrade failed for '{}': {}. Rollback failed while restoring runtime links",
+                        package.name, install_err
+                    ))?;
+
+                return Err(install_err).context(format!(
+                    "Failed to install new version of '{}' (previous version restored)",
+                    package.name
+                ));
+            }
+        };
 
         // Restore desktop integration if it existed before
         if had_desktop_integration {
@@ -172,6 +250,9 @@ impl<'a> PackageUpgrader<'a> {
                     updated_package.name
                 ))?;
         }
+
+        Self::remove_path_if_exists(&backup_path)
+            .context(format!("Failed to remove backup for '{}'", package.name))?;
 
         Ok(Some(updated_package))
     }
