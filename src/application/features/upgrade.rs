@@ -1,5 +1,7 @@
 use crate::{
-    application::operations::upgrade_operation::UpgradeOperation,
+    application::operations::upgrade_operation::{
+        UpdateCheckRow, UpdateCheckStatus, UpgradeOperation,
+    },
     providers::provider_manager::ProviderManager,
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
@@ -107,109 +109,122 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
 // instead of "checking xyz... -> checking xyz...
 //                                xyz is up to date!"
 // maybe use a spinner, too?
+fn truncate_cell(value: &str, max: usize) -> String {
+    let char_count = value.chars().count();
+    if char_count <= max {
+        return value.to_string();
+    }
+
+    let mut out = String::new();
+    for ch in value.chars().take(max.saturating_sub(3)) {
+        out.push(ch);
+    }
+    out.push_str("...");
+    out
+}
+
+fn render_check_table(rows: &[UpdateCheckRow]) {
+    if rows.is_empty() {
+        println!("No installed packages to check.");
+        return;
+    }
+
+    let mut available = 0_u32;
+    let mut up_to_date = 0_u32;
+    let mut failed = 0_u32;
+    let mut not_installed = 0_u32;
+    let mut display_rows: Vec<&UpdateCheckRow> = Vec::new();
+
+    for row in rows {
+        match &row.status {
+            UpdateCheckStatus::UpdateAvailable { current, latest } => {
+                available += 1;
+                let _ = (current, latest);
+                display_rows.push(row);
+            }
+            UpdateCheckStatus::UpToDate { current } => {
+                up_to_date += 1;
+                let _ = current;
+            }
+            UpdateCheckStatus::Failed { error } => {
+                failed += 1;
+                let _ = error;
+                display_rows.push(row);
+            }
+            UpdateCheckStatus::NotInstalled => {
+                not_installed += 1;
+                display_rows.push(row);
+            }
+        }
+    }
+
+    println!("Looking for updates...\n");
+
+    if !display_rows.is_empty() {
+        println!(
+            "{:<3} {:<5} {:<28} {:<10} {:<3} {:<10} {}",
+            "ID", "State", "Name", "Branch", "Op", "Remote", "Version"
+        );
+    }
+
+    for (idx, row) in display_rows.iter().enumerate() {
+        let (status, op, version) = match &row.status {
+            UpdateCheckStatus::UpdateAvailable { current, latest } => (
+                "[✓]".to_string(),
+                "u".to_string(),
+                format!("{current} -> {latest}"),
+            ),
+            UpdateCheckStatus::Failed { error } => {
+                ("[!]".to_string(), "!".to_string(), truncate_cell(error, 32))
+            }
+            UpdateCheckStatus::NotInstalled => (
+                "[x]".to_string(),
+                "?".to_string(),
+                "not installed".to_string(),
+            ),
+            UpdateCheckStatus::UpToDate { .. } => continue,
+        };
+
+        let branch = row
+            .channel
+            .as_ref()
+            .map(|c| c.to_string().to_lowercase())
+            .unwrap_or_else(|| "-".to_string());
+        let remote = row
+            .provider
+            .as_ref()
+            .map(std::string::ToString::to_string)
+            .unwrap_or_else(|| "-".to_string());
+
+        println!(
+            "{:>2}. {:<5} {:<28} {:<10} {:<3} {:<10} {}",
+            idx + 1,
+            status,
+            truncate_cell(&row.name, 28),
+            truncate_cell(&branch, 10),
+            op,
+            truncate_cell(&remote, 10),
+            version
+        );
+    }
+
+    println!();
+    println!(
+        "Checks complete. {} available, {} up to date, {} failed, {} not installed.",
+        available, up_to_date, failed, not_installed
+    );
+}
+
 async fn run_check(
     package_upgrade: UpgradeOperation<'_>,
     names: Option<Vec<String>>,
 ) -> Result<()> {
-    let mut message_callback = Some(|msg: &str| {
-        println!("{}", msg);
-    });
+    let rows = match names {
+        None => package_upgrade.check_all_detailed().await,
+        Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
+    };
 
-    match names {
-        // Check all packages
-        None => {
-            println!("Checking for updates...\n");
-            let updates = package_upgrade.check_updates(&mut message_callback).await?;
-
-            if updates.is_empty() {
-                println!("{}", style("\nAll packages are up to date!").green());
-            } else {
-                println!(
-                    "\n{} {}",
-                    updates.len(),
-                    style("updates available:\n").yellow()
-                );
-                for (name, current, latest) in updates {
-                    println!("  {} {} → {}", name, current, latest);
-                }
-            }
-        }
-
-        // Check specific package(s)
-        Some(name_vec) => {
-            if name_vec.len() == 1 {
-                // Single package check
-                let package_name = &name_vec[0];
-                match package_upgrade
-                    .check_single_update(package_name, &mut message_callback)
-                    .await?
-                {
-                    Some((current, latest)) => {
-                        println!(
-                            "{} {}:",
-                            style("\nUpdate available for").yellow(),
-                            package_name
-                        );
-                        println!("  {} → {}", current, latest);
-                    }
-                    None => {
-                        println!("{} {}", package_name, style("is up to date!").green());
-                    }
-                }
-            } else {
-                // Multiple packages check
-                println!("Checking specified packages...\n");
-                let mut updates_found = Vec::new();
-                let mut up_to_date = Vec::new();
-                let mut not_found = Vec::new();
-
-                let results = package_upgrade
-                    .check_selected_updates(&name_vec, &mut message_callback)
-                    .await;
-
-                for (name, result) in results {
-                    match result {
-                        Ok(Some((current, latest))) => updates_found.push((name, current, latest)),
-                        Ok(None) => up_to_date.push(name),
-                        Err(_) => not_found.push(name),
-                    };
-                }
-
-                if !updates_found.is_empty() {
-                    println!(
-                        "\n{} {}",
-                        updates_found.len(),
-                        style("updates available:\n").yellow()
-                    );
-                    for (name, current, latest) in updates_found {
-                        println!("  {} {} → {}", name, current, latest);
-                    }
-                }
-
-                if !up_to_date.is_empty() {
-                    println!(
-                        "\n{} {}",
-                        up_to_date.len(),
-                        style("package(s) up to date:").green()
-                    );
-                    for name in up_to_date {
-                        println!("  {}", name);
-                    }
-                }
-
-                if !not_found.is_empty() {
-                    println!(
-                        "\n{} {}",
-                        not_found.len(),
-                        style("package(s) not found:").red()
-                    );
-                    for name in not_found {
-                        println!("  {}", name);
-                    }
-                }
-            }
-        }
-    }
+    render_check_table(&rows);
 
     Ok(())
 }

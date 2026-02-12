@@ -1,4 +1,5 @@
 use crate::{
+    models::common::enums::{Channel, Provider},
     providers::provider_manager::ProviderManager,
     services::{
         packaging::{PackageChecker, PackageInstaller, PackageRemover, PackageUpgrader},
@@ -27,6 +28,20 @@ pub struct UpgradeOperation<'a> {
     package_storage: &'a mut PackageStorage,
 }
 
+pub enum UpdateCheckStatus {
+    UpdateAvailable { current: String, latest: String },
+    UpToDate { current: String },
+    Failed { error: String },
+    NotInstalled,
+}
+
+pub struct UpdateCheckRow {
+    pub name: String,
+    pub channel: Option<Channel>,
+    pub provider: Option<Provider>,
+    pub status: UpdateCheckStatus,
+}
+
 impl<'a> UpgradeOperation<'a> {
     async fn check_packages_parallel(
         &self,
@@ -49,6 +64,40 @@ impl<'a> UpgradeOperation<'a> {
         checked
             .into_iter()
             .map(|(_, pkg, result)| (pkg, result))
+            .collect()
+    }
+
+    async fn check_installed_packages_detailed(
+        &self,
+        packages: Vec<crate::models::upstream::Package>,
+    ) -> Vec<UpdateCheckRow> {
+        self.check_packages_parallel(packages)
+            .await
+            .into_iter()
+            .map(|(pkg, result)| match result {
+                Ok(Some((current, latest))) => UpdateCheckRow {
+                    name: pkg.name,
+                    channel: Some(pkg.channel),
+                    provider: Some(pkg.provider),
+                    status: UpdateCheckStatus::UpdateAvailable { current, latest },
+                },
+                Ok(None) => UpdateCheckRow {
+                    name: pkg.name,
+                    channel: Some(pkg.channel),
+                    provider: Some(pkg.provider),
+                    status: UpdateCheckStatus::UpToDate {
+                        current: pkg.version.to_string(),
+                    },
+                },
+                Err(error) => UpdateCheckRow {
+                    name: pkg.name,
+                    channel: Some(pkg.channel),
+                    provider: Some(pkg.provider),
+                    status: UpdateCheckStatus::Failed {
+                        error: error.to_string(),
+                    },
+                },
+            })
             .collect()
     }
 
@@ -208,127 +257,41 @@ impl<'a> UpgradeOperation<'a> {
         }
     }
 
-    pub async fn check_updates<H>(
-        &self,
-        message_callback: &mut Option<H>,
-    ) -> Result<Vec<(String, String, String)>>
-    where
-        H: FnMut(&str),
-    {
-        let packages: Vec<_> = self.package_storage.get_all_packages().to_vec();
-        let mut updates = Vec::new();
-
-        for (pkg, result) in self.check_packages_parallel(packages).await {
-            message!(message_callback, "Checking '{}' ...", pkg.name);
-            match result {
-                Ok(Some((current, latest))) => {
-                    message!(
-                        message_callback,
-                        "{} {} → {}",
-                        style(format!("Update available for '{}':", pkg.name)).green(),
-                        current,
-                        latest
-                    );
-                    updates.push((pkg.name.clone(), current, latest));
-                }
-                Ok(None) => {
-                    message!(message_callback, "'{}' is up to date", pkg.name);
-                }
-                Err(e) => {
-                    message!(
-                        message_callback,
-                        "{} {}",
-                        style(format!("Failed to check '{}':", pkg.name)).red(),
-                        e
-                    );
-                }
-            }
-        }
-
-        Ok(updates)
+    pub async fn check_all_detailed(&self) -> Vec<UpdateCheckRow> {
+        let packages = self.package_storage.get_all_packages().to_vec();
+        self.check_installed_packages_detailed(packages).await
     }
 
-    pub async fn check_selected_updates<H>(
-        &self,
-        package_names: &[String],
-        message_callback: &mut Option<H>,
-    ) -> Vec<(String, Result<Option<(String, String)>>)>
-    where
-        H: FnMut(&str),
-    {
-        let mut results = Vec::new();
+    pub async fn check_selected_detailed(&self, package_names: &[String]) -> Vec<UpdateCheckRow> {
+        let mut rows: Vec<Option<UpdateCheckRow>> =
+            (0..package_names.len()).map(|_| None).collect();
         let mut selected_packages = Vec::new();
+        let mut selected_indices = Vec::new();
 
-        for name in package_names {
+        for (idx, name) in package_names.iter().enumerate() {
             match self.package_storage.get_package_by_name(name) {
-                Some(package) => selected_packages.push(package.clone()),
-                None => results.push((
-                    name.clone(),
-                    Err(anyhow!("Package '{}' is not installed", name)),
-                )),
+                Some(package) => {
+                    selected_packages.push(package.clone());
+                    selected_indices.push(idx);
+                }
+                None => {
+                    rows[idx] = Some(UpdateCheckRow {
+                        name: name.clone(),
+                        channel: None,
+                        provider: None,
+                        status: UpdateCheckStatus::NotInstalled,
+                    })
+                }
             }
         }
 
-        for (pkg, result) in self.check_packages_parallel(selected_packages).await {
-            message!(message_callback, "Checking '{}' ...", pkg.name);
-            match &result {
-                Ok(Some((current, latest))) => {
-                    message!(
-                        message_callback,
-                        "{} {} → {}",
-                        style(format!("Update available for '{}':", pkg.name)).green(),
-                        current,
-                        latest
-                    );
-                }
-                Ok(None) => {
-                    message!(message_callback, "'{}' is up to date", pkg.name);
-                }
-                Err(e) => {
-                    message!(
-                        message_callback,
-                        "{} {}",
-                        style(format!("Failed to check '{}':", pkg.name)).red(),
-                        e
-                    );
-                }
-            }
-            results.push((pkg.name.clone(), result));
+        let checked_rows = self
+            .check_installed_packages_detailed(selected_packages)
+            .await;
+        for (row_idx, checked_row) in selected_indices.into_iter().zip(checked_rows) {
+            rows[row_idx] = Some(checked_row);
         }
 
-        results
-    }
-
-    pub async fn check_single_update<H>(
-        &self,
-        package_name: &str,
-        message_callback: &mut Option<H>,
-    ) -> Result<Option<(String, String)>>
-    where
-        H: FnMut(&str),
-    {
-        let package = self
-            .package_storage
-            .get_package_by_name(package_name)
-            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
-
-        message!(message_callback, "Checking '{}' ...", package.name);
-
-        match self.checker.check_one(package).await? {
-            Some((current, latest)) => {
-                message!(
-                    message_callback,
-                    "{} {} → {}",
-                    style("Update available:").green(),
-                    current,
-                    latest
-                );
-                Ok(Some((current, latest)))
-            }
-            None => {
-                message!(message_callback, "'{}' is up to date", package.name);
-                Ok(None)
-            }
-        }
+        rows.into_iter().flatten().collect()
     }
 }
