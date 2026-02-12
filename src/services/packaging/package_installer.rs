@@ -14,6 +14,7 @@ use console::style;
 use std::{
     fs,
     path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 macro_rules! message {
@@ -32,6 +33,26 @@ pub struct PackageInstaller<'a> {
 }
 
 impl<'a> PackageInstaller<'a> {
+    fn package_cache_key(package_name: &str) -> String {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+
+        let sanitized = package_name
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>();
+
+        format!("{}-{}", sanitized, timestamp)
+    }
+
     pub fn new(provider_manager: &'a ProviderManager, paths: &'a UpstreamPaths) -> Result<Self> {
         let temp_path = std::env::temp_dir().join(format!("upstream-{}", std::process::id()));
         let download_cache = temp_path.join("downloads");
@@ -67,6 +88,18 @@ impl<'a> PackageInstaller<'a> {
         F: FnMut(u64, u64),
         H: FnMut(&str),
     {
+        let cache_key = Self::package_cache_key(&package.name);
+        let package_download_cache = self.download_cache.join(&cache_key);
+        let package_extract_cache = self.extract_cache.join(&cache_key);
+        fs::create_dir_all(&package_download_cache).context(format!(
+            "Failed to create package download cache '{}'",
+            package_download_cache.display()
+        ))?;
+        fs::create_dir_all(&package_extract_cache).context(format!(
+            "Failed to create package extraction cache '{}'",
+            package_extract_cache.display()
+        ))?;
+
         message!(message_callback, "Selecting asset from '{}'", release.name);
 
         let best_asset = self
@@ -93,7 +126,7 @@ impl<'a> PackageInstaller<'a> {
             .download_asset(
                 &best_asset,
                 &package.provider,
-                &self.download_cache,
+                &package_download_cache,
                 download_progress_callback,
             )
             .await
@@ -101,7 +134,8 @@ impl<'a> PackageInstaller<'a> {
 
         message!(message_callback, "Verifying checksum ...");
 
-        let checksum_verifier = ChecksumVerifier::new(self.provider_manager, &self.download_cache);
+        let checksum_verifier =
+            ChecksumVerifier::new(self.provider_manager, &package_download_cache);
         let verified = checksum_verifier
             .try_verify_file(
                 &download_path,
@@ -131,10 +165,20 @@ impl<'a> PackageInstaller<'a> {
                 .handle_appimage(&download_path, package, message_callback)
                 .context("Failed to install AppImage"),
             Filetype::Compressed => self
-                .handle_compressed(&download_path, package, message_callback)
+                .handle_compressed(
+                    &download_path,
+                    &package_extract_cache,
+                    package,
+                    message_callback,
+                )
                 .context("Failed to install compressed file"),
             Filetype::Archive => self
-                .handle_archive(&download_path, package, message_callback)
+                .handle_archive(
+                    &download_path,
+                    &package_extract_cache,
+                    package,
+                    message_callback,
+                )
                 .context("Failed to install archive"),
             _ => self
                 .handle_file(&download_path, package, message_callback)
@@ -145,6 +189,7 @@ impl<'a> PackageInstaller<'a> {
     fn handle_archive<H>(
         &self,
         asset_path: &Path,
+        extract_cache: &Path,
         mut package: Package,
         message_callback: &mut Option<H>,
     ) -> Result<Package>
@@ -154,7 +199,7 @@ impl<'a> PackageInstaller<'a> {
         let filename = asset_path.file_name().unwrap().display();
         message!(message_callback, "Extracting directory '{filename}' ...");
 
-        let extracted_path = compression_handler::decompress(asset_path, &self.extract_cache)
+        let extracted_path = compression_handler::decompress(asset_path, extract_cache)
             .context(format!("Failed to extract archive '{}'", filename))?;
 
         if extracted_path.is_file() {
@@ -246,6 +291,7 @@ impl<'a> PackageInstaller<'a> {
     fn handle_compressed<H>(
         &self,
         asset_path: &Path,
+        extract_cache: &Path,
         package: Package,
         message_callback: &mut Option<H>,
     ) -> Result<Package>
@@ -255,7 +301,7 @@ impl<'a> PackageInstaller<'a> {
         let filename = asset_path.file_name().unwrap().display();
         message!(message_callback, "Extracting file '{}' ...", filename);
 
-        let extracted_path = compression_handler::decompress(asset_path, &self.extract_cache)
+        let extracted_path = compression_handler::decompress(asset_path, extract_cache)
             .context(format!("Failed to decompress '{}'", filename))?;
 
         self.handle_file(&extracted_path, package, message_callback)

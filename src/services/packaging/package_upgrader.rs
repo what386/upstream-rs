@@ -46,6 +46,18 @@ impl<'a> PackageUpgrader<'a> {
     /// Returns:
     /// - Ok(None) => no upgrade needed
     /// - Ok(Some(Package)) => upgraded package
+    pub async fn upgrade_quiet(&self, package: &Package, force: bool) -> Result<Option<Package>> {
+        let mut no_download_progress: Option<fn(u64, u64)> = None;
+        let mut no_messages: Option<fn(&str)> = None;
+        self.upgrade(package, force, &mut no_download_progress, &mut no_messages)
+            .await
+    }
+
+    /// Upgrade a single package.
+    ///
+    /// Returns:
+    /// - Ok(None) => no upgrade needed
+    /// - Ok(Some(Package)) => upgraded package
     pub async fn upgrade<F, H>(
         &self,
         package: &Package,

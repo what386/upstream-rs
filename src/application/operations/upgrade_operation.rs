@@ -13,6 +13,7 @@ use console::style;
 use futures_util::stream::{self, StreamExt};
 
 const CHECK_CONCURRENCY: usize = 8;
+const UPGRADE_CONCURRENCY: usize = 4;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -166,24 +167,34 @@ impl<'a> UpgradeOperation<'a> {
         let mut completed = 0;
         let mut failures = 0;
         let mut upgraded = 0;
+        let force = *force_option;
+        let upgrader = &self.upgrader;
 
-        for name in names {
-            message!(message_callback, "Checking '{}' ...", name);
+        let packages: Vec<_> = names
+            .iter()
+            .map(|name| {
+                self.package_storage
+                    .get_package_by_name(name)
+                    .ok_or_else(|| anyhow!("Package '{}' is not installed", name))
+                    .cloned()
+            })
+            .collect::<Result<Vec<_>>>()?;
 
-            let package = self
-                .package_storage
-                .get_package_by_name(name)
-                .ok_or_else(|| anyhow!("Package '{}' is not installed", name))?
-                .clone();
-
-            match self
-                .upgrader
-                .upgrade(&package, *force_option, download_progress, message_callback)
+        let mut updated_packages = Vec::new();
+        let mut pending = stream::iter(packages.into_iter().map(|package| async move {
+            let name = package.name.clone();
+            let result = upgrader
+                .upgrade_quiet(&package, force)
                 .await
-                .context(format!("Failed to upgrade package '{}'", name))
-            {
+                .context(format!("Failed to upgrade package '{}'", name));
+            (name, result)
+        }))
+        .buffer_unordered(UPGRADE_CONCURRENCY);
+
+        while let Some((name, result)) = pending.next().await {
+            match result {
                 Ok(Some(updated)) => {
-                    self.package_storage.add_or_update_package(updated)?;
+                    updated_packages.push(updated);
                     message!(
                         message_callback,
                         "{}",
@@ -210,6 +221,14 @@ impl<'a> UpgradeOperation<'a> {
                 cb(completed, total);
             }
         }
+
+        // Save storage updates once parallel workers are done.
+        for updated in updated_packages {
+            self.package_storage.add_or_update_package(updated)?;
+        }
+
+        // Bulk mode uses per-package workers; a single shared download progress bar is noisy.
+        let _ = download_progress;
 
         self.package_storage
             .save_packages()

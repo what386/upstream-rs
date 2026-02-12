@@ -1,6 +1,12 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
+use std::sync::{Mutex, OnceLock};
+
+fn paths_file_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
 
 pub struct ShellManager<'a> {
     paths_file: &'a Path,
@@ -22,6 +28,9 @@ impl<'a> ShellManager<'a> {
 
         #[cfg(unix)]
         {
+            let _guard = paths_file_lock()
+                .lock()
+                .map_err(|_| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
             let mut content =
                 fs::read_to_string(self.paths_file).context("Failed to read paths file")?;
             let escaped = install_path
@@ -48,6 +57,9 @@ impl<'a> ShellManager<'a> {
     pub fn remove_from_paths(&self, install_path: &Path) -> Result<()> {
         #[cfg(unix)]
         {
+            let _guard = paths_file_lock()
+                .lock()
+                .map_err(|_| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
             let mut content =
                 fs::read_to_string(self.paths_file).context("Failed to read paths file")?;
             let escaped = install_path
