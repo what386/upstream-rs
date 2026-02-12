@@ -20,6 +20,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     // Get GitLab base_url from installed packages
     let packages = package_storage.get_all_packages();
     let gitlab_base_url = packages.iter().find_map(|p| p.base_url.as_deref());
+    let installed_package_count = packages.len();
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitlab_base_url)?;
     let mut package_upgrade =
@@ -60,6 +61,14 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     });
 
     if names.is_none() {
+        println!(
+            "{}",
+            style(format!(
+                "Upgrading {} package(s)",
+                installed_package_count
+            ))
+            .cyan()
+        );
         package_upgrade
             .upgrade_all(
                 &force_option,
@@ -75,6 +84,10 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     }
 
     let name_vec = names.unwrap();
+    println!(
+        "{}",
+        style(format!("Upgrading ({}) package(s)", name_vec.len())).cyan()
+    );
     if name_vec.len() > 1 {
         package_upgrade
             .upgrade_bulk(
