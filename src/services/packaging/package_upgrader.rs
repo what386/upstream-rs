@@ -234,7 +234,7 @@ impl<'a> PackageUpgrader<'a> {
             updated_package.icon_path = icon_path;
 
             let _ = desktop_manager
-                .create_desktop_entry(
+                .create_entry(
                     &updated_package.name,
                     &updated_package.install_path.as_ref().unwrap(),
                     &updated_package.exec_path.as_ref().unwrap(),
