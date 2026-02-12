@@ -8,6 +8,15 @@ fn paths_file_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
+#[cfg(windows)]
+fn normalize_windows_path(path: &str) -> String {
+    let mut normalized = path.replace('/', "\\").trim().to_ascii_lowercase();
+    while normalized.ends_with('\\') {
+        normalized.pop();
+    }
+    normalized
+}
+
 pub struct ShellManager<'a> {
     paths_file: &'a Path,
 }
@@ -92,13 +101,17 @@ impl<'a> ShellManager<'a> {
             .context("Failed to open registry Environment key")?;
 
         let target_path = path.to_string_lossy().to_string();
+        let target_norm = normalize_windows_path(&target_path);
 
         // Get current PATH
         let current_path: String = env_key.get_value("Path").unwrap_or_else(|_| String::new());
 
         // Check if path is already in PATH
         let path_entries: Vec<&str> = current_path.split(';').collect();
-        if path_entries.iter().any(|&p| p.trim() == target_path) {
+        if path_entries
+            .iter()
+            .any(|&p| normalize_windows_path(p) == target_norm)
+        {
             return Ok(()); // Already in PATH
         }
 
@@ -130,6 +143,7 @@ impl<'a> ShellManager<'a> {
             .context("Failed to open registry Environment key")?;
 
         let target_path = path.to_string_lossy().to_string();
+        let target_norm = normalize_windows_path(&target_path);
 
         // Get current PATH
         let current_path: String = env_key.get_value("Path").unwrap_or_else(|_| String::new());
@@ -137,7 +151,7 @@ impl<'a> ShellManager<'a> {
         // Remove target path from PATH
         let path_entries: Vec<&str> = current_path
             .split(';')
-            .filter(|&p| p.trim() != target_path)
+            .filter(|&p| normalize_windows_path(p) != target_norm)
             .collect();
 
         let new_path = path_entries.join(";");
