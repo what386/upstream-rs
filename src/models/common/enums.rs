@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
@@ -58,7 +58,7 @@ impl FromStr for Provider {
         match s.to_lowercase().as_str() {
             "github" => Ok(Provider::Github),
             "gitlab" => Ok(Provider::Gitlab),
-            _ => Err(format!("Unknown provider: {}", s))
+            _ => Err(format!("Unknown provider: {}", s)),
         }
     }
 }

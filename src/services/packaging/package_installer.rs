@@ -1,8 +1,11 @@
 use crate::{
-        models::{common::enums::Filetype, provider::Release, upstream::Package}, providers::provider_manager::ProviderManager, services::{
+    models::{common::enums::Filetype, provider::Release, upstream::Package},
+    providers::provider_manager::ProviderManager,
+    services::{
         integration::{ShellManager, SymlinkManager, compression_handler, permission_handler},
         packaging::ChecksumVerifier,
-    }, utils::static_paths::UpstreamPaths
+    },
+    utils::static_paths::UpstreamPaths,
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -75,7 +78,11 @@ impl<'a> PackageInstaller<'a> {
             ))?;
 
         if package.filetype == Filetype::Auto {
-            message!(message_callback, "Resolved filetype to '{}'", &best_asset.filetype);
+            message!(
+                message_callback,
+                "Resolved filetype to '{}'",
+                &best_asset.filetype
+            );
             package.filetype = best_asset.filetype;
         }
 
@@ -219,7 +226,8 @@ impl<'a> PackageInstaller<'a> {
 
         let symlink_manager = SymlinkManager::new(&self.paths.integration.symlinks_dir);
 
-        symlink_manager.add_link(&exec_path, &package.name)
+        symlink_manager
+            .add_link(&exec_path, &package.name)
             .context(format!("Failed to create symlink for '{}'", package.name))?;
 
         message!(

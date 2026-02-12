@@ -5,8 +5,7 @@ use std::path::PathBuf;
 
 use crate::{
     application::operations::export_operation::ExportOperation,
-    services::storage::package_storage::PackageStorage,
-    utils::static_paths::UpstreamPaths,
+    services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
 };
 
 pub async fn run_export(path: PathBuf, full: bool) -> Result<()> {
@@ -16,7 +15,7 @@ pub async fn run_export(path: PathBuf, full: bool) -> Result<()> {
 
     let pb = ProgressBar::new(0);
     pb.set_style(ProgressStyle::with_template(
-        "{msg}\n{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})"
+        "{msg}\n{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
     )?);
 
     let pb_ref = &pb;
@@ -33,11 +32,7 @@ pub async fn run_export(path: PathBuf, full: bool) -> Result<()> {
     if full {
         println!("{}", style("Creating full snapshot ...").cyan());
 
-        export_op.export_snapshot(
-            &path,
-            &mut progress_callback,
-            &mut message_callback,
-        )?;
+        export_op.export_snapshot(&path, &mut progress_callback, &mut message_callback)?;
 
         pb.set_position(pb.length().unwrap_or(0));
         pb.finish_with_message("Snapshot complete");
@@ -61,4 +56,3 @@ pub async fn run_export(path: PathBuf, full: bool) -> Result<()> {
 
     Ok(())
 }
-

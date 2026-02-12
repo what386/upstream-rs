@@ -1,6 +1,5 @@
 use crate::{
-    models::upstream::Package,
-    services::storage::package_storage::PackageStorage,
+    models::upstream::Package, services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -125,7 +124,15 @@ fn print_package_table(packages: &[Package]) {
 fn print_table_header(widths: &ColumnWidths) {
     println!(
         "{:<name$} {:<repo$} {:<ver$} {:<chan$} {:<prov$} {:<3} {:<3} {:<12} {}",
-        "Name", "Repo", "Version", "Channel", "Provider", "I", "P", "Last Updated", "Install Path",
+        "Name",
+        "Repo",
+        "Version",
+        "Channel",
+        "Provider",
+        "I",
+        "P",
+        "Last Updated",
+        "Install Path",
         name = widths.name,
         repo = widths.repo,
         ver = widths.version,
@@ -136,7 +143,11 @@ fn print_table_header(widths: &ColumnWidths) {
 
 fn print_package_row(package: &Package, widths: &ColumnWidths) {
     let install_path = format_path(package.install_path.as_ref(), "-");
-    let icon_indicator = if package.icon_path.is_some() { "✓" } else { "-" };
+    let icon_indicator = if package.icon_path.is_some() {
+        "✓"
+    } else {
+        "-"
+    };
     let pin_indicator = if package.is_pinned { "P" } else { "-" };
     let last_updated = package.last_upgraded.format("%Y-%m-%d").to_string();
 

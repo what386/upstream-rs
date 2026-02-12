@@ -1,13 +1,13 @@
-use anyhow::Result;
-use console::style;
-use indicatif::{ProgressBar, ProgressStyle};
-use std::path::PathBuf;
 use crate::{
     application::operations::import_operation::ImportOperation,
     providers::provider_manager::ProviderManager,
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
+use anyhow::Result;
+use console::style;
+use indicatif::{ProgressBar, ProgressStyle};
+use std::path::PathBuf;
 
 pub async fn run_import(path: PathBuf) -> Result<()> {
     let paths = UpstreamPaths::new();
@@ -18,10 +18,12 @@ pub async fn run_import(path: PathBuf) -> Result<()> {
     let gitlab_token = config.get_config().gitlab.api_token.as_deref();
     let provider_manager = ProviderManager::new(github_token, gitlab_token, None)?;
 
-    let mut import_op =
-        ImportOperation::new(&provider_manager, &mut package_storage, &paths);
+    let mut import_op = ImportOperation::new(&provider_manager, &mut package_storage, &paths);
 
-    println!("{}", style(format!("Importing from '{}' ...", path.display())).cyan());
+    println!(
+        "{}",
+        style(format!("Importing from '{}' ...", path.display())).cyan()
+    );
 
     let pb = ProgressBar::new(0);
     pb.set_style(ProgressStyle::with_template(

@@ -21,6 +21,8 @@ pub struct Release {
 
 impl Release {
     pub fn get_asset_by_name_invariant(&self, name: &str) -> Option<&Asset> {
-        self.assets.iter().find(|a| a.name.to_lowercase() == name.to_lowercase())
+        self.assets
+            .iter()
+            .find(|a| a.name.to_lowercase() == name.to_lowercase())
     }
 }

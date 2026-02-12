@@ -84,13 +84,7 @@ impl GitlabAdapter {
             let name = format!("source.{}", source.format);
             let created_at = Self::parse_timestamp(&dto.created_at);
 
-            assets.push(Asset::new(
-                source.url,
-                asset_id,
-                name,
-                0,
-                created_at,
-            ));
+            assets.push(Asset::new(source.url, asset_id, name, 0, created_at));
         }
 
         let version = Self::parse_version(&dto.tag_name);

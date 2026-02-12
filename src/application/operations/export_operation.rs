@@ -1,16 +1,15 @@
 use crate::{
-    models::upstream::PackageReference,
-    services::storage::package_storage::PackageStorage,
+    models::upstream::PackageReference, services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
-use flate2::write::GzEncoder;
 use flate2::Compression;
+use flate2::write::GzEncoder;
 use serde::Serialize;
+use std::path::PathBuf;
 use std::{fs, path::Path};
 use tar::Builder;
 use walkdir::WalkDir;
-use std::path::PathBuf;
 
 /// The manifest written by a light export.
 #[derive(Serialize)]
@@ -34,11 +33,7 @@ impl<'a> ExportOperation<'a> {
     }
 
     /// Light export: write a JSON manifest of PackageReferences.
-    pub fn export_manifest<H>(
-        &self,
-        output: &Path,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
+    pub fn export_manifest<H>(&self, output: &Path, message_callback: &mut Option<H>) -> Result<()>
     where
         H: FnMut(&str),
     {
@@ -64,15 +59,17 @@ impl<'a> ExportOperation<'a> {
             packages: references,
         };
 
-        let json = serde_json::to_string_pretty(&manifest)
-            .context("Failed to serialise manifest")?;
+        let json =
+            serde_json::to_string_pretty(&manifest).context("Failed to serialise manifest")?;
 
         if let Some(cb) = message_callback {
             cb("Writing manifest file...");
         }
 
-        fs::write(output, json)
-            .context(format!("Failed to write manifest to '{}'", output.display()))
+        fs::write(output, json).context(format!(
+            "Failed to write manifest to '{}'",
+            output.display()
+        ))
     }
 
     /// Full export: tarball the entire .upstream directory.
@@ -106,10 +103,7 @@ impl<'a> ExportOperation<'a> {
             .collect::<Result<_, _>>()
             .context("Failed while walking upstream directory")?;
 
-        let total_files = entries
-            .iter()
-            .filter(|e| e.file_type().is_file())
-            .count() as u64;
+        let total_files = entries.iter().filter(|e| e.file_type().is_file()).count() as u64;
 
         if let Some(cb) = progress_callback {
             cb(0, total_files);
@@ -138,24 +132,18 @@ impl<'a> ExportOperation<'a> {
             }
 
             if entry.file_type().is_dir() {
-                tar.append_dir(&archive_path, path).context(format!(
-                    "Failed to append directory '{}'",
-                    path.display()
-                ))?;
+                tar.append_dir(&archive_path, path)
+                    .context(format!("Failed to append directory '{}'", path.display()))?;
             } else if entry.file_type().is_file() {
                 if let Some(cb) = message_callback {
                     cb(&format!("Archiving {}", rel_path.display()));
                 }
 
-                let mut file = fs::File::open(path).context(format!(
-                    "Failed to open file '{}'",
-                    path.display()
-                ))?;
+                let mut file = fs::File::open(path)
+                    .context(format!("Failed to open file '{}'", path.display()))?;
 
-                tar.append_file(&archive_path, &mut file).context(format!(
-                    "Failed to append file '{}'",
-                    path.display()
-                ))?;
+                tar.append_file(&archive_path, &mut file)
+                    .context(format!("Failed to append file '{}'", path.display()))?;
 
                 processed += 1;
 
@@ -169,7 +157,6 @@ impl<'a> ExportOperation<'a> {
             cb("Finalising archive...");
         }
 
-        tar.finish()
-            .context("Failed to finalise snapshot archive")
+        tar.finish().context("Failed to finalise snapshot archive")
     }
 }

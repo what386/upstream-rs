@@ -27,8 +27,7 @@ impl DesktopEntry {
     pub fn sanitize(mut self, exec: &Path, icon: Option<&Path>) -> DesktopEntry {
         self.exec = Some(exec.display().to_string());
         self.icon = Some(
-            icon
-                .map(|path| path.display().to_string())
+            icon.map(|path| path.display().to_string())
                 .unwrap_or_default(),
         );
         self.terminal = false;
