@@ -9,6 +9,9 @@ use crate::{
 
 use anyhow::{Context, Result, anyhow};
 use console::style;
+use futures_util::stream::{self, StreamExt};
+
+const CHECK_CONCURRENCY: usize = 8;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -25,6 +28,30 @@ pub struct UpgradeOperation<'a> {
 }
 
 impl<'a> UpgradeOperation<'a> {
+    async fn check_packages_parallel(
+        &self,
+        packages: Vec<crate::models::upstream::Package>,
+    ) -> Vec<(
+        crate::models::upstream::Package,
+        Result<Option<(String, String)>>,
+    )> {
+        let mut checked = stream::iter(packages.into_iter().enumerate().map(
+            |(idx, pkg)| async move {
+                let result = self.checker.check_one(&pkg).await;
+                (idx, pkg, result)
+            },
+        ))
+        .buffer_unordered(CHECK_CONCURRENCY)
+        .collect::<Vec<_>>()
+        .await;
+
+        checked.sort_by_key(|(idx, _, _)| *idx);
+        checked
+            .into_iter()
+            .map(|(_, pkg, result)| (pkg, result))
+            .collect()
+    }
+
     pub fn new(
         provider_manager: &'a ProviderManager,
         package_storage: &'a mut PackageStorage,
@@ -188,13 +215,12 @@ impl<'a> UpgradeOperation<'a> {
     where
         H: FnMut(&str),
     {
-        let packages = self.package_storage.get_all_packages();
+        let packages: Vec<_> = self.package_storage.get_all_packages().to_vec();
         let mut updates = Vec::new();
 
-        for pkg in packages {
+        for (pkg, result) in self.check_packages_parallel(packages).await {
             message!(message_callback, "Checking '{}' ...", pkg.name);
-
-            match self.checker.check_one(pkg).await {
+            match result {
                 Ok(Some((current, latest))) => {
                     message!(
                         message_callback,
@@ -220,6 +246,57 @@ impl<'a> UpgradeOperation<'a> {
         }
 
         Ok(updates)
+    }
+
+    pub async fn check_selected_updates<H>(
+        &self,
+        package_names: &[String],
+        message_callback: &mut Option<H>,
+    ) -> Vec<(String, Result<Option<(String, String)>>)>
+    where
+        H: FnMut(&str),
+    {
+        let mut results = Vec::new();
+        let mut selected_packages = Vec::new();
+
+        for name in package_names {
+            match self.package_storage.get_package_by_name(name) {
+                Some(package) => selected_packages.push(package.clone()),
+                None => results.push((
+                    name.clone(),
+                    Err(anyhow!("Package '{}' is not installed", name)),
+                )),
+            }
+        }
+
+        for (pkg, result) in self.check_packages_parallel(selected_packages).await {
+            message!(message_callback, "Checking '{}' ...", pkg.name);
+            match &result {
+                Ok(Some((current, latest))) => {
+                    message!(
+                        message_callback,
+                        "{} {} → {}",
+                        style(format!("Update available for '{}':", pkg.name)).green(),
+                        current,
+                        latest
+                    );
+                }
+                Ok(None) => {
+                    message!(message_callback, "'{}' is up to date", pkg.name);
+                }
+                Err(e) => {
+                    message!(
+                        message_callback,
+                        "{} {}",
+                        style(format!("Failed to check '{}':", pkg.name)).red(),
+                        e
+                    );
+                }
+            }
+            results.push((pkg.name.clone(), result));
+        }
+
+        results
     }
 
     pub async fn check_single_update<H>(

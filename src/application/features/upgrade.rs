@@ -1,11 +1,11 @@
-use anyhow::Result;
-use console::style;
 use crate::{
     application::operations::upgrade_operation::UpgradeOperation,
     providers::provider_manager::ProviderManager,
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
+use anyhow::Result;
+use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: bool) -> Result<()> {
@@ -17,9 +17,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
 
     // Get GitLab base_url from installed packages
     let packages = package_storage.get_all_packages();
-    let gitlab_base_url = packages
-        .iter()
-        .find_map(|p| p.base_url.as_deref());
+    let gitlab_base_url = packages.iter().find_map(|p| p.base_url.as_deref());
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitlab_base_url)?;
     let mut package_upgrade =
@@ -165,21 +163,16 @@ async fn run_check(
                 let mut up_to_date = Vec::new();
                 let mut not_found = Vec::new();
 
-                for name in &name_vec {
-                    match package_upgrade
-                        .check_single_update(name, &mut message_callback)
-                        .await
-                    {
-                        Ok(Some((current, latest))) => {
-                            updates_found.push((name.clone(), current, latest));
-                        }
-                        Ok(None) => {
-                            up_to_date.push(name.clone());
-                        }
-                        Err(_) => {
-                            not_found.push(name.clone());
-                        }
-                    }
+                let results = package_upgrade
+                    .check_selected_updates(&name_vec, &mut message_callback)
+                    .await;
+
+                for (name, result) in results {
+                    match result {
+                        Ok(Some((current, latest))) => updates_found.push((name, current, latest)),
+                        Ok(None) => up_to_date.push(name),
+                        Err(_) => not_found.push(name),
+                    };
                 }
 
                 if !updates_found.is_empty() {
