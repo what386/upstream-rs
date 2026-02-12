@@ -8,6 +8,15 @@ const SOURCE_LINE_BASH: &str =
     "[ -f $HOME/.upstream/metadata/paths.sh ] && source $HOME/.upstream/metadata/paths.sh";
 const SOURCE_LINE_FISH: &str = "source $HOME/.upstream/metadata/paths.sh";
 
+#[cfg(windows)]
+fn normalize_windows_path(path: &str) -> String {
+    let mut normalized = path.replace('/', "\\").trim().to_ascii_lowercase();
+    while normalized.ends_with('\\') {
+        normalized.pop();
+    }
+    normalized
+}
+
 pub fn initialize(paths: &UpstreamPaths) -> io::Result<()> {
     create_package_dirs(paths)?;
     create_metadata_files(paths)?;
@@ -53,13 +62,17 @@ fn add_to_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
         })?;
 
     let symlinks_path = paths.integration.symlinks_dir.display().to_string();
+    let symlinks_norm = normalize_windows_path(&symlinks_path);
 
     // Get current PATH
     let current_path: String = env_key.get_value("Path").unwrap_or_else(|_| String::new());
 
     // Check if our path is already in PATH
     let path_entries: Vec<&str> = current_path.split(';').collect();
-    if path_entries.iter().any(|&p| p.trim() == symlinks_path) {
+    if path_entries
+        .iter()
+        .any(|&p| normalize_windows_path(p) == symlinks_norm)
+    {
         return Ok(()); // Already in PATH
     }
 
@@ -246,6 +259,7 @@ fn remove_from_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
         })?;
 
     let symlinks_path = paths.integration.symlinks_dir.display().to_string();
+    let symlinks_norm = normalize_windows_path(&symlinks_path);
 
     // Get current PATH
     let current_path: String = env_key.get_value("Path").unwrap_or_else(|_| String::new());
@@ -253,7 +267,7 @@ fn remove_from_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
     // Remove our path from PATH
     let path_entries: Vec<&str> = current_path
         .split(';')
-        .filter(|&p| p.trim() != symlinks_path)
+        .filter(|&p| normalize_windows_path(p) != symlinks_norm)
         .collect();
 
     let new_path = path_entries.join(";");

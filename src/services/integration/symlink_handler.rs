@@ -10,6 +10,17 @@ pub struct SymlinkManager<'a> {
 }
 
 impl<'a> SymlinkManager<'a> {
+    fn platform_link_path(link: &Path) -> std::path::PathBuf {
+        #[cfg(windows)]
+        {
+            if link.extension() != Some(OsStr::new("exe")) {
+                return link.with_extension("exe");
+            }
+        }
+
+        link.to_path_buf()
+    }
+
     pub fn new(symlinks_dir: &'a Path) -> Self {
         Self { symlinks_dir }
     }
@@ -20,11 +31,16 @@ impl<'a> SymlinkManager<'a> {
             anyhow::bail!("Target file not found: {}", exec_path.display());
         }
 
-        let symlink = self.symlinks_dir.join(name);
+        let base_link = self.symlinks_dir.join(name);
+        let symlink = Self::platform_link_path(&base_link);
 
-        // Remove existing symlink if present
+        // Remove existing link if present.
         if symlink.exists() {
             fs::remove_file(&symlink).context("Failed to remove existing symlink")?;
+        }
+        // Cleanup stale pre-fix path variant on Windows.
+        if base_link != symlink && base_link.exists() {
+            fs::remove_file(&base_link).context("Failed to remove stale symlink")?;
         }
 
         Self::create_symlink(exec_path, &symlink)?;
@@ -33,10 +49,14 @@ impl<'a> SymlinkManager<'a> {
 
     /// Removes a symbolic link by its package name
     pub fn remove_link(&self, name: &str) -> Result<()> {
-        let symlink = self.symlinks_dir.join(name);
+        let base_link = self.symlinks_dir.join(name);
+        let symlink = Self::platform_link_path(&base_link);
 
         if symlink.exists() {
             fs::remove_file(&symlink).context("Failed to remove symlink")?;
+        }
+        if base_link != symlink && base_link.exists() {
+            fs::remove_file(&base_link).context("Failed to remove stale symlink")?;
         }
 
         Ok(())
@@ -49,12 +69,6 @@ impl<'a> SymlinkManager<'a> {
 
     #[cfg(windows)]
     fn create_symlink(target_path: &Path, link: &Path) -> Result<()> {
-        let link = if link.extension() != Some(OsStr::new("exe")) {
-            link.with_extension("exe")
-        } else {
-            link.to_path_buf()
-        };
-
-        fs::hard_link(target_path, &link).context("Failed to create hardlink")
+        fs::hard_link(target_path, link).context("Failed to create hardlink")
     }
 }
