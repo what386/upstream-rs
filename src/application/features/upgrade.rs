@@ -116,7 +116,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
             .await?;
 
         download_pb.finish_and_clear();
-        overall_pb.finish_with_message("Upgrade complete!");
+        overall_pb.finish_with_message("Upgrade complete");
         return Ok(());
     }
 
@@ -148,9 +148,8 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     }
 
     download_pb.finish_and_clear();
-    overall_pb.finish_with_message("Upgrade complete!");
-
-    println!("{}", style("Upgrade completed!").green());
+    overall_pb.finish_with_message("Upgrade complete");
+    println!("{}", style("Upgrade complete.").green());
 
     Ok(())
 }

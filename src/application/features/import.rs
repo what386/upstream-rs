@@ -56,7 +56,7 @@ pub async fn run_import(path: PathBuf) -> Result<()> {
 
     pb.set_position(pb.length().unwrap_or(0));
     pb.finish_with_message("Import complete");
-    println!("{}", style("Import completed!").green());
+    println!("{}", style("Import complete.").green());
 
     Ok(())
 }

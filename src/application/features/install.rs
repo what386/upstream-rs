@@ -103,8 +103,7 @@ pub async fn run(
     pb.set_position(pb.length().unwrap_or(0));
 
     pb.finish_with_message("Install complete");
-
-    println!("{}", style("Install completed!").green());
+    println!("{}", style("Install complete.").green());
 
     Ok(())
 }
