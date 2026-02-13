@@ -3,9 +3,9 @@ use crate::{
     services::integration::appimage_extractor::AppImageExtractor,
     utils::static_paths::UpstreamPaths,
 };
-use anyhow::Result;
 #[cfg(windows)]
 use anyhow::Context;
+use anyhow::Result;
 use std::{
     fs,
     path::{Path, PathBuf},
