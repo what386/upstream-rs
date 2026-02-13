@@ -9,8 +9,6 @@ pub fn run(package_name: Option<String>) -> Result<()> {
     let paths = UpstreamPaths::new();
     let package_storage = PackageStorage::new(&paths.config.packages_file)?;
 
-    println!("{}", paths.config.packages_file.display());
-
     match package_name {
         Some(name) => display_single_package(&package_storage, &name),
         None => display_all_packages(&package_storage),

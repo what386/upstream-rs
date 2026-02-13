@@ -33,7 +33,7 @@ impl<'a> RemoveOperation<'a> {
         purge_option: &bool,
         message_callback: &mut Option<H>,
         overall_progress_callback: &mut Option<G>,
-    ) -> Result<()>
+    ) -> Result<(u32, u32)>
     where
         H: FnMut(&str),
         G: FnMut(u32, u32),
@@ -70,7 +70,8 @@ impl<'a> RemoveOperation<'a> {
             );
         }
 
-        Ok(())
+        let removed = total - failures;
+        Ok((removed, failures))
     }
 
     pub fn remove_single<H>(

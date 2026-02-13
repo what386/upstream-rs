@@ -1,7 +1,8 @@
 use anyhow::Result;
 use console::style;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::PathBuf;
+use std::time::Duration;
 
 use crate::{
     application::operations::export_operation::ExportOperation,
@@ -14,9 +15,11 @@ pub async fn run_export(path: PathBuf, full: bool) -> Result<()> {
     let export_op = ExportOperation::new(&package_storage, &paths);
 
     let pb = ProgressBar::new(0);
+    pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     pb.set_style(ProgressStyle::with_template(
         "{msg}\n{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
     )?);
+    pb.enable_steady_tick(Duration::from_millis(120));
 
     let pb_ref = &pb;
 

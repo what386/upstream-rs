@@ -6,7 +6,8 @@ use crate::{
 };
 use anyhow::Result;
 use console::style;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use std::time::Duration;
 use std::path::PathBuf;
 
 pub async fn run_import(path: PathBuf) -> Result<()> {
@@ -26,9 +27,11 @@ pub async fn run_import(path: PathBuf) -> Result<()> {
     );
 
     let pb = ProgressBar::new(0);
+    pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     pb.set_style(ProgressStyle::with_template(
         "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
     )?);
+    pb.enable_steady_tick(Duration::from_millis(120));
 
     let pb_ref = &pb;
     let mut download_progress_callback = Some(move |downloaded: u64, total: u64| {
