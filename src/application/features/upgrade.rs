@@ -204,16 +204,16 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
         }
     }
 
-    println!("Looking for updates...\n");
+    println!("Checking for updates...\n");
 
     if !display_rows.is_empty() {
         println!(
-            "{:<3} {:<5} {:<28} {:<10} {:<3} {:<10} {}",
-            "ID", "State", "Name", "Branch", "Op", "Remote", "Version"
+            "{:<5} {:<28} {:<10} {:<3} {:<10} {}",
+            "State", "Name", "Branch", "Op", "Remote", "Version"
         );
     }
 
-    for (idx, row) in display_rows.iter().enumerate() {
+    for row in display_rows {
         let (status, op, version) = match &row.status {
             UpdateCheckStatus::UpdateAvailable { current, latest } => (
                 "[✓]".to_string(),
@@ -243,8 +243,7 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
             .unwrap_or_else(|| "-".to_string());
 
         println!(
-            "{:>2}. {:<5} {:<28} {:<10} {:<3} {:<10} {}",
-            idx + 1,
+            "{:<5} {:<28} {:<10} {:<3} {:<10} {}",
             status,
             truncate_cell(&row.name, 28),
             truncate_cell(&branch, 10),
