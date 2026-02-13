@@ -42,7 +42,7 @@ pub async fn run_export(path: PathBuf, full: bool) -> Result<()> {
 
         println!(
             "{}",
-            style(format!("Snapshot saved to '{}'", path.display())).green()
+            style(format!("Snapshot complete: saved to '{}'.", path.display())).green()
         );
     } else {
         println!("{}", style("Exporting package manifest ...").cyan());
@@ -53,7 +53,7 @@ pub async fn run_export(path: PathBuf, full: bool) -> Result<()> {
 
         println!(
             "{}",
-            style(format!("Manifest saved to '{}'", path.display())).green()
+            style(format!("Manifest complete: saved to '{}'.", path.display())).green()
         );
     }
 

@@ -53,13 +53,13 @@ pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
         } else {
             println!(
                 "{}",
-                style(format!("Removed {} package(s).", removed)).green()
+                style(format!("Removal complete: {} removed, 0 failed.", removed)).green()
             );
         }
     } else {
         package_remover.remove_single(&names[0], &purge, &mut message_callback)?;
         overall_pb.finish_and_clear();
-        println!("{}", style("Package removed!").green());
+        println!("{}", style("Removal complete: 1 removed, 0 failed.").green());
     }
 
     Ok(())
