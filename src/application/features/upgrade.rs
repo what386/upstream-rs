@@ -9,6 +9,15 @@ use crate::{
 use anyhow::Result;
 use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use std::collections::HashMap;
+use std::time::Duration;
+
+fn print_upgrade_titlebar() {
+    println!(
+        "    {:<28} {:<10} {:<3} {:<10} {}",
+        "Name", "Channel", "Op", "Remote", "Download"
+    );
+}
 
 pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: bool) -> Result<()> {
     let paths = UpstreamPaths::new();
@@ -33,6 +42,12 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
 
     // Normal upgrade flow
     let mp = MultiProgress::new();
+    let download_pb = mp.add(ProgressBar::new(0));
+    download_pb.set_style(ProgressStyle::with_template(
+        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+    )?);
+
+    // Keep overall summary at the bottom; task rows are inserted before it.
     let overall_pb = mp.add(ProgressBar::new(0));
     overall_pb.set_style(ProgressStyle::with_template(
         "{spinner:.green} Upgraded {pos}/{len} packages",
@@ -44,11 +59,6 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
         overall_pb_ref.set_position(done as u64);
     });
 
-    let download_pb = mp.add(ProgressBar::new(0));
-    download_pb.set_style(ProgressStyle::with_template(
-        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
-    )?);
-
     let download_pb_ref = &download_pb;
     let mut download_progress_callback = Some(move |downloaded: u64, total: u64| {
         download_pb_ref.set_length(total);
@@ -56,7 +66,37 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     });
 
     let message_pb = &overall_pb;
+    let mut progress_rows: HashMap<String, ProgressBar> = HashMap::new();
+    let mp_ref = &mp;
+    let overall_for_rows = overall_pb.clone();
     let mut message_callback = Some(move |msg: &str| {
+        if let Some(payload) = msg.strip_prefix("__UPGRADE_PROGRESS_ROW__ ") {
+            if let Some((name, row)) = payload.split_once('\t') {
+                let pb = progress_rows.entry(name.to_string()).or_insert_with(|| {
+                    let pb = mp_ref.insert_before(&overall_for_rows, ProgressBar::new_spinner());
+                    pb.set_style(
+                        ProgressStyle::with_template("{spinner:.cyan}{msg}")
+                            .expect("valid progress template"),
+                    );
+                    pb.enable_steady_tick(Duration::from_millis(120));
+                    pb
+                });
+                pb.set_message(row.to_string());
+            }
+            return;
+        }
+        if let Some(name) = msg.strip_prefix("__UPGRADE_PROGRESS_DONE__ ") {
+            if let Some(pb) = progress_rows.remove(name) {
+                pb.finish_and_clear();
+            }
+            return;
+        }
+        if msg == "__UPGRADE_PROGRESS_CLEAR__" {
+            for (_, pb) in progress_rows.drain() {
+                pb.finish_and_clear();
+            }
+            return;
+        }
         message_pb.println(msg);
     });
 
@@ -65,6 +105,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
             "{}",
             style(format!("Upgrading {} package(s)", installed_package_count)).cyan()
         );
+        print_upgrade_titlebar();
         package_upgrade
             .upgrade_all(
                 &force_option,
@@ -82,9 +123,10 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     let name_vec = names.unwrap();
     println!(
         "{}",
-        style(format!("Upgrading ({}) package(s)", name_vec.len())).cyan()
+        style(format!("Upgrading {} package(s)", name_vec.len())).cyan()
     );
     if name_vec.len() > 1 {
+        print_upgrade_titlebar();
         package_upgrade
             .upgrade_bulk(
                 &name_vec,
@@ -113,11 +155,6 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     Ok(())
 }
 
-// TODO: make update messages mutate in-place
-// e.g. "checking xyz... -> xyz is up to date!"
-// instead of "checking xyz... -> checking xyz...
-//                                xyz is up to date!"
-// maybe use a spinner, too?
 fn truncate_cell(value: &str, max: usize) -> String {
     let char_count = value.chars().count();
     if char_count <= max {
