@@ -9,8 +9,11 @@ use crate::{
 };
 
 use anyhow::{Context, Result, anyhow};
-use console::style;
 use futures_util::stream::{self, StreamExt};
+use indicatif::HumanBytes;
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
+use tokio::time::{self, Duration};
 
 const CHECK_CONCURRENCY: usize = 8;
 const UPGRADE_CONCURRENCY: usize = 4;
@@ -44,6 +47,47 @@ pub struct UpdateCheckRow {
 }
 
 impl<'a> UpgradeOperation<'a> {
+    fn truncate_error(value: &str, max: usize) -> String {
+        let char_count = value.chars().count();
+        if char_count <= max {
+            return value.to_string();
+        }
+
+        let mut out = String::new();
+        for ch in value.chars().take(max.saturating_sub(3)) {
+            out.push(ch);
+        }
+        out.push_str("...");
+        out
+    }
+
+    fn format_transfer(downloaded: u64, total: u64) -> String {
+        if total > 0 {
+            format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
+        } else if downloaded > 0 {
+            format!("{}", HumanBytes(downloaded))
+        } else {
+            "-".to_string()
+        }
+    }
+
+    fn render_progress_row(
+        name: &str,
+        channel: &Channel,
+        provider: &Provider,
+        downloaded: u64,
+        total: u64,
+    ) -> String {
+        format!(
+            " {:<28} {:<10} {:<3} {:<10} {}",
+            name,
+            channel.to_string().to_lowercase(),
+            "u",
+            provider.to_string(),
+            Self::format_transfer(downloaded, total)
+        )
+    }
+
     async fn check_packages_parallel(
         &self,
         packages: Vec<crate::models::upstream::Package>,
@@ -169,6 +213,9 @@ impl<'a> UpgradeOperation<'a> {
         let mut upgraded = 0;
         let force = *force_option;
         let upgrader = &self.upgrader;
+        let progress_state: Arc<Mutex<BTreeMap<String, (Channel, Provider, u64, u64)>>> =
+            Arc::new(Mutex::new(BTreeMap::new()));
+        let mut last_progress_render: BTreeMap<String, String> = BTreeMap::new();
 
         let packages: Vec<_> = names
             .iter()
@@ -181,46 +228,123 @@ impl<'a> UpgradeOperation<'a> {
             .collect::<Result<Vec<_>>>()?;
 
         let mut updated_packages = Vec::new();
-        let mut pending = stream::iter(packages.into_iter().map(|package| async move {
-            let name = package.name.clone();
-            let result = upgrader
-                .upgrade_quiet(&package, force)
-                .await
-                .context(format!("Failed to upgrade package '{}'", name));
-            (name, result)
+        let mut pending = stream::iter(packages.into_iter().map(|package| {
+            let state_ref = Arc::clone(&progress_state);
+            async move {
+                let name = package.name.clone();
+                let channel = package.channel.clone();
+                let provider = package.provider.clone();
+
+                if let Ok(mut state) = state_ref.lock() {
+                    state.insert(name.clone(), (channel.clone(), provider.clone(), 0, 0));
+                }
+
+                let mut downloaded: u64 = 0;
+                let mut bytes_total: u64 = 0;
+                let mut download_cb = Some(|d: u64, t: u64| {
+                    downloaded = d;
+                    bytes_total = t;
+                    if let Ok(mut state) = state_ref.lock() {
+                        state.insert(name.clone(), (channel.clone(), provider.clone(), d, t));
+                    }
+                });
+                let mut no_messages: Option<fn(&str)> = None;
+
+                let result = upgrader
+                    .upgrade(&package, force, &mut download_cb, &mut no_messages)
+                    .await
+                    .context(format!("Failed to upgrade package '{}'", name));
+                (name, channel, provider, downloaded, bytes_total, result)
+            }
         }))
         .buffer_unordered(UPGRADE_CONCURRENCY);
 
-        while let Some((name, result)) = pending.next().await {
+        let mut ticker = time::interval(Duration::from_millis(350));
+        ticker.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+
+        while completed < total {
+            tokio::select! {
+                maybe_item = pending.next() => {
+                    let Some((name, channel, provider, downloaded, bytes_total, result)) = maybe_item else {
+                        break;
+                    };
+
+                    if let Ok(mut state) = progress_state.lock() {
+                        state.remove(&name);
+                    }
+                    last_progress_render.remove(&name);
+                    message!(message_callback, "__UPGRADE_PROGRESS_DONE__ {}", name);
+
+            let transfer = Self::format_transfer(downloaded, bytes_total);
             match result {
                 Ok(Some(updated)) => {
                     updated_packages.push(updated);
                     message!(
                         message_callback,
-                        "{}",
-                        style(format!("Package '{}' upgraded", name)).green()
+                        "[✓] {:<28} {:<10} {:<3} {:<10} {}",
+                        name,
+                        channel.to_string().to_lowercase(),
+                        "u",
+                        provider.to_string(),
+                        transfer
                     );
                     upgraded += 1;
                 }
                 Ok(None) => {
-                    message!(message_callback, "Package '{}' is already up to date", name);
+                    message!(
+                        message_callback,
+                        "[=] {:<28} {:<10} {:<3} {:<10} {}",
+                        name,
+                        channel.to_string().to_lowercase(),
+                        "-",
+                        provider.to_string(),
+                        transfer
+                    );
                 }
                 Err(e) => {
                     message!(
                         message_callback,
-                        "{} {}",
-                        style(format!("Upgrade failed for '{}':", name)).red(),
-                        e
+                        "[!] {:<28} {:<10} {:<3} {:<10} {}",
+                        name,
+                        channel.to_string().to_lowercase(),
+                        "!",
+                        provider.to_string(),
+                        Self::truncate_error(&e.to_string(), 36)
                     );
                     failures += 1;
                 }
             }
 
-            completed += 1;
-            if let Some(cb) = overall_progress.as_mut() {
-                cb(completed, total);
+                    completed += 1;
+                    if let Some(cb) = overall_progress.as_mut() {
+                        cb(completed, total);
+                    }
+                }
+                _ = ticker.tick() => {
+                    if let Ok(state) = progress_state.lock() {
+                        for (name, (channel, provider, downloaded, total_bytes)) in state.iter() {
+                            let row = Self::render_progress_row(
+                                name,
+                                channel,
+                                provider,
+                                *downloaded,
+                                *total_bytes
+                            );
+                            let changed = last_progress_render
+                                .get(name)
+                                .map(|prev| prev != &row)
+                                .unwrap_or(true);
+                            if changed {
+                                message!(message_callback, "__UPGRADE_PROGRESS_ROW__ {}\t{}", name, row);
+                                last_progress_render.insert(name.clone(), row);
+                            }
+                        }
+                    }
+                }
             }
         }
+
+        message!(message_callback, "__UPGRADE_PROGRESS_CLEAR__");
 
         // Save storage updates once parallel workers are done.
         for updated in updated_packages {
