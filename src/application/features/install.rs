@@ -1,6 +1,7 @@
 use anyhow::Result;
 use console::style;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use std::time::{Duration, Instant};
 
 use crate::{
     application::operations::install_operation::InstallOperation,
@@ -25,6 +26,8 @@ pub async fn run(
     exclude_pattern: Option<String>,
     create_entry: bool,
 ) -> Result<()> {
+    const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
+
     println!(
         "{}",
         style(format!("Installing {} from {} ...", &name, &provider)).cyan()
@@ -55,15 +58,26 @@ pub async fn run(
     );
 
     let pb = ProgressBar::new(0);
+    pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     pb.set_style(ProgressStyle::with_template(
         "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta}) {msg}",
     )?);
+    pb.enable_steady_tick(Duration::from_millis(120));
 
     // Borrow pb for the closures
     let pb_ref = &pb;
-    let mut download_progress_callback = Some(move |downloaded: u64, total: u64| {
-        pb_ref.set_length(total);
-        pb_ref.set_position(downloaded);
+    let mut last_emit: Option<Instant> = None;
+    let mut last_progress: Option<(u64, u64)> = None;
+    let mut download_progress_callback = Some(|downloaded: u64, total: u64| {
+        last_progress = Some((downloaded, total));
+        let should_emit = last_emit
+            .map(|t| t.elapsed() >= PROGRESS_UPDATE_INTERVAL)
+            .unwrap_or(true);
+        if should_emit {
+            pb_ref.set_length(total);
+            pb_ref.set_position(downloaded);
+            last_emit = Some(Instant::now());
+        }
     });
 
     let mut message_callback = Some(move |msg: &str| {
@@ -79,6 +93,11 @@ pub async fn run(
             &mut message_callback,
         )
         .await?;
+
+    if let Some((downloaded, total)) = last_progress {
+        pb.set_length(total);
+        pb.set_position(downloaded);
+    }
 
     // Set pb to 100%
     pb.set_position(pb.length().unwrap_or(0));

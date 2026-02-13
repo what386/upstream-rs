@@ -12,6 +12,9 @@ use crate::services::packaging::PackageInstaller;
 
 use anyhow::{Context, Result, anyhow};
 use console::style;
+use std::time::{Duration, Instant};
+
+const INSTALL_PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -64,13 +67,27 @@ impl<'a> InstallOperation<'a> {
             message!(message_callback, "Installing '{}' ...", package_name);
 
             let use_icon = &package.icon_path.is_some();
+            let mut last_progress: Option<(u64, u64)> = None;
+            let mut last_emit: Option<Instant> = None;
+            let mut throttled_download_progress = download_progress_callback.as_mut().map(|cb| {
+                |downloaded: u64, total: u64| {
+                    last_progress = Some((downloaded, total));
+                    let should_emit = last_emit
+                        .map(|t| t.elapsed() >= INSTALL_PROGRESS_UPDATE_INTERVAL)
+                        .unwrap_or(true);
+                    if should_emit {
+                        cb(downloaded, total);
+                        last_emit = Some(Instant::now());
+                    }
+                }
+            });
 
             match self
                 .install_single(
                     package,
                     &None,
                     use_icon,
-                    download_progress_callback,
+                    &mut throttled_download_progress,
                     message_callback,
                 )
                 .await
@@ -83,6 +100,12 @@ impl<'a> InstallOperation<'a> {
                     message!(message_callback, "{} {}", style("Install failed:").red(), e);
                     failures += 1;
                 }
+            }
+
+            if let (Some((downloaded, total)), Some(cb)) =
+                (last_progress, download_progress_callback.as_mut())
+            {
+                cb(downloaded, total);
             }
 
             completed += 1;
