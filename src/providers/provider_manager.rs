@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::models::common::enums::{Channel, Filetype, Provider};
 use crate::models::provider::{Asset, Release};
 use crate::models::upstream::Package;
+use crate::providers::direct::DirectAdapter;
 use crate::providers::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::github::{GithubAdapter, GithubClient};
 use crate::providers::gitlab::{GitlabAdapter, GitlabClient};
@@ -17,6 +18,7 @@ pub struct ProviderManager {
     gitlab: GitlabAdapter,
     gitea: GiteaAdapter,
     http: HttpAdapter,
+    direct: DirectAdapter,
     architecture_info: ArchitectureInfo,
 }
 
@@ -37,13 +39,15 @@ impl ProviderManager {
         let github = GithubAdapter::new(github_client);
         let gitlab = GitlabAdapter::new(gitlab_client);
         let gitea = GiteaAdapter::new(gitea_client);
-        let http = HttpAdapter::new(http_client);
+        let http = HttpAdapter::new(http_client.clone());
+        let direct = DirectAdapter::new(http_client);
 
         Ok(Self {
             github,
             gitlab,
             gitea,
             http,
+            direct,
             architecture_info,
         })
     }
@@ -97,6 +101,7 @@ impl ProviderManager {
             Provider::Gitlab => self.gitlab.get_latest_release(slug).await,
             Provider::Gitea => self.gitea.get_latest_release(slug).await,
             Provider::Http => self.http.get_latest_release(slug).await,
+            Provider::Direct => self.direct.get_latest_release(slug).await,
         }
     }
 
@@ -112,6 +117,7 @@ impl ProviderManager {
             Provider::Gitlab => self.gitlab.get_releases(slug, per_page, max_total).await,
             Provider::Gitea => self.gitea.get_releases(slug, per_page, max_total).await,
             Provider::Http => self.http.get_releases(slug, per_page, max_total).await,
+            Provider::Direct => self.direct.get_releases(slug, per_page, max_total).await,
         }
     }
 
@@ -126,6 +132,7 @@ impl ProviderManager {
             Provider::Gitlab => self.gitlab.get_release_by_tag(slug, tag).await,
             Provider::Gitea => self.gitea.get_release_by_tag(slug, tag).await,
             Provider::Http => self.http.get_release_by_tag(slug, tag).await,
+            Provider::Direct => self.direct.get_release_by_tag(slug, tag).await,
         }
     }
 
@@ -165,6 +172,11 @@ impl ProviderManager {
             }
             Provider::Http => {
                 self.http
+                    .download_asset(asset, &download_filepath, dl_progress)
+                    .await?
+            }
+            Provider::Direct => {
+                self.direct
                     .download_asset(asset, &download_filepath, dl_progress)
                     .await?
             }
