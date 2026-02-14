@@ -1,5 +1,7 @@
-pub mod http_adapter;
 pub mod http_client;
+pub mod webscraper_adapter;
+pub mod direct_adapter;
 
-pub use http_adapter::HttpAdapter;
 pub use http_client::HttpClient;
+pub use webscraper_adapter::WebScraperAdapter;
+pub use direct_adapter::DirectAdapter;
