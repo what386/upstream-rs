@@ -7,7 +7,7 @@ use crate::models::upstream::Package;
 use crate::providers::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::github::{GithubAdapter, GithubClient};
 use crate::providers::gitlab::{GitlabAdapter, GitlabClient};
-use crate::providers::http::{DirectAdapter, WebScraperAdapter, HttpClient};
+use crate::providers::http::{DirectAdapter, HttpClient, WebScraperAdapter};
 use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
 
 use anyhow::{Result, anyhow};
