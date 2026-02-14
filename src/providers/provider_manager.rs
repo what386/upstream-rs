@@ -99,7 +99,7 @@ impl ProviderManager {
             Provider::Github => self.github.get_latest_release(slug).await,
             Provider::Gitlab => self.gitlab.get_latest_release(slug).await,
             Provider::Gitea => self.gitea.get_latest_release(slug).await,
-            Provider::Http => self.http.get_latest_release(slug).await,
+            Provider::WebScraper => self.http.get_latest_release(slug).await,
             Provider::Direct => self.direct.get_latest_release(slug).await,
         }
     }
@@ -115,7 +115,7 @@ impl ProviderManager {
             Provider::Github => self.github.get_releases(slug, per_page, max_total).await,
             Provider::Gitlab => self.gitlab.get_releases(slug, per_page, max_total).await,
             Provider::Gitea => self.gitea.get_releases(slug, per_page, max_total).await,
-            Provider::Http => self.http.get_releases(slug, per_page, max_total).await,
+            Provider::WebScraper => self.http.get_releases(slug, per_page, max_total).await,
             Provider::Direct => self.direct.get_releases(slug, per_page, max_total).await,
         }
     }
@@ -130,7 +130,7 @@ impl ProviderManager {
             Provider::Github => self.github.get_release_by_tag(slug, tag).await,
             Provider::Gitlab => self.gitlab.get_release_by_tag(slug, tag).await,
             Provider::Gitea => self.gitea.get_release_by_tag(slug, tag).await,
-            Provider::Http => self.http.get_release_by_tag(slug, tag).await,
+            Provider::WebScraper => self.http.get_release_by_tag(slug, tag).await,
             Provider::Direct => self.direct.get_release_by_tag(slug, tag).await,
         }
     }
@@ -169,7 +169,7 @@ impl ProviderManager {
                     .download_asset(asset, &download_filepath, dl_progress)
                     .await?
             }
-            Provider::Http => {
+            Provider::WebScraper => {
                 self.http
                     .download_asset(asset, &download_filepath, dl_progress)
                     .await?
