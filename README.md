@@ -244,7 +244,7 @@ upstream-rs remove <package1> <package2> ... [--purge]
 ```
 
 - Uninstall packages.
-- `--purge` → remove configuration data. (currently does not work.)
+- `--purge` → also remove package-named config/cache/data directories and upstream-owned desktop/icon artifacts when present.
 
 ---
 
