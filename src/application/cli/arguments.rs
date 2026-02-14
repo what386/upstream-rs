@@ -194,6 +194,20 @@ pub enum Commands {
         #[arg(long, default_value_t = false)]
         full: bool,
     },
+
+    /// Run diagnostics to detect installation and integration issues
+    #[command(
+        long_about = "Inspect upstream installation health and package state.\n\n\
+        Checks package paths, symlinks, shell PATH integration, and desktop/icon files. \
+        Reports OK/WARN/FAIL with actionable hints.\n\n\
+        EXAMPLES:\n  \
+        upstream doctor\n  \
+        upstream doctor nvim ripgrep"
+    )]
+    Doctor {
+        /// Package names to check (all installed packages if omitted)
+        names: Vec<String>,
+    },
 }
 
 #[derive(Subcommand)]
