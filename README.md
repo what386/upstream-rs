@@ -127,7 +127,7 @@ Executable location:
 Generate pre-built completion files for bash, zsh, fish, and powershell:
 
 ```bash
-./scripts/generate-completions.sh
+./scripts/completions.sh
 ```
 
 Files are written to:
@@ -279,14 +279,14 @@ upstream-rs config <action> [options]
 
 Available actions:
 
-| Action  | Description                                                                                      |
-| ------- | ------------------------------------------------------------------------------------------------ |
+| Action  | Description                                                                                         |
+| ------- | --------------------------------------------------------------------------------------------------- |
 | `set`   | Set configuration keys (`key.path=value`). Example: `upstream-rs config set github.apiToken=abc123` |
 | `get`   | Retrieve keys. Example: `upstream-rs config get github.apiToken`                                    |
-| `list`  | List all keys and their values.                                                                  |
-| `show`  | Show full configuration as JSON.                                                                 |
-| `edit`  | Open configuration file in editor.                                                               |
-| `reset` | Reset configuration to defaults.                                                                 |
+| `list`  | List all keys and their values.                                                                     |
+| `show`  | Show full configuration as JSON.                                                                    |
+| `edit`  | Open configuration file in editor.                                                                  |
+| `reset` | Reset configuration to defaults.                                                                    |
 
 ---
 
@@ -298,13 +298,13 @@ upstream-rs package <action> [options]
 
 Available actions:
 
-| Action     | Description |
-| ---------- | ----------- |
-| `pin`      | Pin a package to prevent upgrades. Example: `upstream-rs package pin nvim` |
-| `unpin`    | Unpin a package. Example: `upstream-rs package unpin nvim` |
-| `metadata` | Show full package metadata as JSON. Example: `upstream-rs package metadata nvim` |
+| Action     | Description                                                                                   |
+| ---------- | --------------------------------------------------------------------------------------------- |
+| `pin`      | Pin a package to prevent upgrades. Example: `upstream-rs package pin nvim`                    |
+| `unpin`    | Unpin a package. Example: `upstream-rs package unpin nvim`                                    |
+| `metadata` | Show full package metadata as JSON. Example: `upstream-rs package metadata nvim`              |
 | `get-key`  | Read specific metadata keys. Example: `upstream-rs package get-key nvim install_path version` |
-| `set-key`  | Update metadata keys manually. Example: `upstream-rs package set-key nvim is_pinned=false` |
+| `set-key`  | Update metadata keys manually. Example: `upstream-rs package set-key nvim is_pinned=false`    |
 
 ---
 
