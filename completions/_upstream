@@ -63,6 +63,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '--force[Force upgrade even if already up to date]' \
 '--check[Check for available upgrades without applying them]' \
+'--machine-readable[Use script-friendly check output\: one line per update, "name oldver newver"]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Packages to upgrade (upgrades all if omitted):_default' \

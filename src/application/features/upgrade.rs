@@ -19,7 +19,12 @@ fn print_upgrade_titlebar() {
     );
 }
 
-pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: bool) -> Result<()> {
+pub async fn run(
+    names: Option<Vec<String>>,
+    force_option: bool,
+    check_option: bool,
+    machine_readable: bool,
+) -> Result<()> {
     let paths = UpstreamPaths::new();
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
@@ -39,7 +44,7 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
 
     // Handle --check flag
     if check_option {
-        return run_check(package_upgrade, names).await;
+        return run_check(package_upgrade, names, machine_readable).await;
     }
 
     // Normal upgrade flow
@@ -264,13 +269,23 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
 async fn run_check(
     package_upgrade: UpgradeOperation<'_>,
     names: Option<Vec<String>>,
+    machine_readable: bool,
 ) -> Result<()> {
-    let rows = match names {
-        None => package_upgrade.check_all_detailed().await,
-        Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
-    };
-
-    render_check_table(&rows);
+    if machine_readable {
+        let updates = match names {
+            None => package_upgrade.check_all_machine_readable().await,
+            Some(name_vec) => package_upgrade.check_selected_machine_readable(&name_vec).await,
+        };
+        for (name, oldver, newver) in updates {
+            println!("{name} {oldver} {newver}");
+        }
+    } else {
+        let rows = match names {
+            None => package_upgrade.check_all_detailed().await,
+            Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
+        };
+        render_check_table(&rows);
+    }
 
     Ok(())
 }

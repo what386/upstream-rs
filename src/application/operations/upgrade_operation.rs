@@ -405,6 +405,18 @@ impl<'a> UpgradeOperation<'a> {
         self.check_installed_packages_detailed(packages).await
     }
 
+    pub async fn check_all_machine_readable(&self) -> Vec<(String, String, String)> {
+        let rows = self.check_all_detailed().await;
+        rows.into_iter()
+            .filter_map(|row| match row.status {
+                UpdateCheckStatus::UpdateAvailable { current, latest } => {
+                    Some((row.name, current, latest))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     pub async fn check_selected_detailed(&self, package_names: &[String]) -> Vec<UpdateCheckRow> {
         let mut rows: Vec<Option<UpdateCheckRow>> =
             (0..package_names.len()).map(|_| None).collect();
@@ -436,5 +448,20 @@ impl<'a> UpgradeOperation<'a> {
         }
 
         rows.into_iter().flatten().collect()
+    }
+
+    pub async fn check_selected_machine_readable(
+        &self,
+        package_names: &[String],
+    ) -> Vec<(String, String, String)> {
+        let rows = self.check_selected_detailed(package_names).await;
+        rows.into_iter()
+            .filter_map(|row| match row.status {
+                UpdateCheckStatus::UpdateAvailable { current, latest } => {
+                    Some((row.name, current, latest))
+                }
+                _ => None,
+            })
+            .collect()
     }
 }
