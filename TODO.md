@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.2.0
+# TODO — upstream-cli v1.2.1
 
 @created: 2026-01-31
 @modified: 2026-02-14
@@ -38,12 +38,15 @@
 - [x] Add verify and doctor commands for install integrity and system diagnostics (high) #feature #ops
       @created 2026-02-14 00:58
       @completed 2026-02-14 01:08
+      @completed_version 1.2.1
 
 - [x] Add conditional HTTP checks with ETag/Last-Modified to speed update scans #feature #http #performance
       @created 2026-02-14 00:58
       @completed 2026-02-14 01:25
+      @completed_version 1.2.1
 
 - [x] Generate and ship shell completions with synchronized CLI docs #feature #docs
       @created 2026-02-14 00:58
       @completed 2026-02-14 01:37
+      @completed_version 1.2.1
 

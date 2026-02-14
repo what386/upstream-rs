@@ -280,7 +280,12 @@
       "commit": null,
       "completed_at": "2026-02-14T01:08:52.141284074Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 2,
+      "patch": 1,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -294,7 +299,12 @@
       "commit": null,
       "completed_at": "2026-02-14T01:25:51.569841812Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 2,
+      "patch": 1,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -307,6 +317,66 @@
       "commit": null,
       "completed_at": "2026-02-14T01:37:19.833945939Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 2,
+      "patch": 1,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Add verify and doctor commands for install integrity and system diagnostics",
+      "priority": "High",
+      "tags": [
+        "feature",
+        "ops"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-14T01:08:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 2,
+      "patch": 1,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Add conditional HTTP checks with ETag/Last-Modified to speed update scans",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "http",
+        "performance"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-14T01:25:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 2,
+      "patch": 1,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Generate and ship shell completions with synchronized CLI docs",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "docs"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-14T01:37:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 2,
+      "patch": 1,
+      "is_prerelease": false
+    }
   }
 ]
