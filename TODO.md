@@ -23,6 +23,9 @@
 - [ ] Add verify and doctor commands for install integrity and system diagnostics (high) #feature #ops
       @created 2026-02-14 00:58
 
+- [ ] Improve cross-platform handling for Windows installers and macOS app bundles #feature #platform
+      @created 2026-02-14 00:58
+
 
 ## Completed
 
