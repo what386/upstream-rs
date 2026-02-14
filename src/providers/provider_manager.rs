@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::models::common::enums::{Channel, Filetype, Provider};
 use crate::models::provider::{Asset, Release};
 use crate::models::upstream::Package;
+use crate::providers::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::github::{GithubAdapter, GithubClient};
 use crate::providers::gitlab::{GitlabAdapter, GitlabClient};
 use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
@@ -13,6 +14,7 @@ use anyhow::{Result, anyhow};
 pub struct ProviderManager {
     github: GithubAdapter,
     gitlab: GitlabAdapter,
+    gitea: GiteaAdapter,
     architecture_info: ArchitectureInfo,
 }
 
@@ -20,19 +22,23 @@ impl ProviderManager {
     pub fn new(
         github_token: Option<&str>,
         gitlab_token: Option<&str>,
-        gitlab_base_url: Option<&str>,
+        gitea_token: Option<&str>,
+        provider_base_url: Option<&str>,
     ) -> Result<Self> {
         let architecture_info = ArchitectureInfo::new();
 
         let github_client = GithubClient::new(github_token)?;
-        let gitlab_client = GitlabClient::new(gitlab_token, gitlab_base_url)?;
+        let gitlab_client = GitlabClient::new(gitlab_token, provider_base_url)?;
+        let gitea_client = GiteaClient::new(gitea_token, provider_base_url)?;
 
         let github = GithubAdapter::new(github_client);
         let gitlab = GitlabAdapter::new(gitlab_client);
+        let gitea = GiteaAdapter::new(gitea_client);
 
         Ok(Self {
             github,
             gitlab,
+            gitea,
             architecture_info,
         })
     }
@@ -84,6 +90,7 @@ impl ProviderManager {
         match provider {
             Provider::Github => self.github.get_latest_release(slug).await,
             Provider::Gitlab => self.gitlab.get_latest_release(slug).await,
+            Provider::Gitea => self.gitea.get_latest_release(slug).await,
         }
     }
 
@@ -97,6 +104,7 @@ impl ProviderManager {
         match provider {
             Provider::Github => self.github.get_releases(slug, per_page, max_total).await,
             Provider::Gitlab => self.gitlab.get_releases(slug, per_page, max_total).await,
+            Provider::Gitea => self.gitea.get_releases(slug, per_page, max_total).await,
         }
     }
 
@@ -109,6 +117,7 @@ impl ProviderManager {
         match provider {
             Provider::Github => self.github.get_release_by_tag(slug, tag).await,
             Provider::Gitlab => self.gitlab.get_release_by_tag(slug, tag).await,
+            Provider::Gitea => self.gitea.get_release_by_tag(slug, tag).await,
         }
     }
 
@@ -138,6 +147,11 @@ impl ProviderManager {
             }
             Provider::Gitlab => {
                 self.gitlab
+                    .download_asset(asset, &download_filepath, dl_progress)
+                    .await?
+            }
+            Provider::Gitea => {
+                self.gitea
                     .download_asset(asset, &download_filepath, dl_progress)
                     .await?
             }
