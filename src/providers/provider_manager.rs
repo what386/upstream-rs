@@ -11,6 +11,7 @@ use crate::providers::http::{DirectAdapter, HttpClient, WebScraperAdapter};
 use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
 
 use anyhow::{Result, anyhow};
+use chrono::{DateTime, Utc};
 
 pub struct ProviderManager {
     github: GithubAdapter,
@@ -60,6 +61,30 @@ impl ProviderManager {
         match channel {
             Channel::Stable => self.get_latest_stable_release(slug, provider).await,
             Channel::Nightly => self.get_latest_nightly_release(slug, provider).await,
+        }
+    }
+
+    pub async fn get_latest_release_if_modified_since(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        channel: &Channel,
+        last_upgraded: Option<DateTime<Utc>>,
+    ) -> Result<Option<Release>> {
+        match provider {
+            Provider::WebScraper if channel == &Channel::Stable => {
+                self.http
+                    .get_latest_release_if_modified_since(slug, last_upgraded)
+                    .await
+            }
+            Provider::Direct if channel == &Channel::Stable => {
+                self.direct
+                    .get_latest_release_if_modified_since(slug, last_upgraded)
+                    .await
+            }
+            _ => Ok(Some(
+                self.get_latest_release(slug, provider, channel).await?,
+            )),
         }
     }
 

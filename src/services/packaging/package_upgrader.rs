@@ -89,14 +89,36 @@ impl<'a> PackageUpgrader<'a> {
 
         message!(message_callback, "Fetching latest release ...");
 
-        let latest_release = self
-            .provider_manager
-            .get_latest_release(&package.repo_slug, &package.provider, &package.channel)
-            .await
-            .context(format!(
-                "Failed to fetch latest release for '{}'",
-                package.name
-            ))?;
+        let latest_release = if force {
+            self.provider_manager
+                .get_latest_release(&package.repo_slug, &package.provider, &package.channel)
+                .await
+                .context(format!(
+                    "Failed to fetch latest release for '{}'",
+                    package.name
+                ))?
+        } else {
+            let maybe_release = self
+                .provider_manager
+                .get_latest_release_if_modified_since(
+                    &package.repo_slug,
+                    &package.provider,
+                    &package.channel,
+                    Some(package.last_upgraded),
+                )
+                .await
+                .context(format!(
+                    "Failed to fetch latest release for '{}'",
+                    package.name
+                ))?;
+
+            let Some(latest_release) = maybe_release else {
+                message!(message_callback, "'{}' is already up to date", package.name);
+                return Ok(None);
+            };
+
+            latest_release
+        };
 
         if !force {
             let up_to_date = if package.channel == Channel::Nightly {
