@@ -2,8 +2,8 @@ use crate::{
     models::upstream::Package, services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
-use console::Term;
 use anyhow::{Result, anyhow};
+use console::Term;
 
 pub fn run(package_name: Option<String>) -> Result<()> {
     let paths = UpstreamPaths::new();
@@ -96,7 +96,11 @@ fn format_package_details(package: &Package) -> String {
         package.provider,
         package.filetype,
         if package.is_pinned { "yes" } else { "no" },
-        if package.icon_path.is_some() { "yes" } else { "no" },
+        if package.icon_path.is_some() {
+            "yes"
+        } else {
+            "no"
+        },
         base_url,
         match_pattern,
         exclude_pattern,
@@ -119,7 +123,11 @@ struct ColumnWidths {
 
 impl ColumnWidths {
     fn from_packages(packages: &[Package], term_width: usize) -> Self {
-        let max_name = packages.iter().map(|p| p.name.chars().count()).max().unwrap_or(4);
+        let max_name = packages
+            .iter()
+            .map(|p| p.name.chars().count())
+            .max()
+            .unwrap_or(4);
         let max_repo = packages
             .iter()
             .map(|p| p.repo_slug.chars().count())
@@ -216,8 +224,15 @@ fn print_table_header(widths: &ColumnWidths) {
 }
 
 fn print_package_row(package: &Package, widths: &ColumnWidths) {
-    let install_path = truncate_cell(&format_path(package.install_path.as_ref(), "-"), widths.path);
-    let icon_indicator = if package.icon_path.is_some() { "I" } else { "-" };
+    let install_path = truncate_cell(
+        &format_path(package.install_path.as_ref(), "-"),
+        widths.path,
+    );
+    let icon_indicator = if package.icon_path.is_some() {
+        "I"
+    } else {
+        "-"
+    };
     let pin_indicator = if package.is_pinned { "P" } else { "-" };
     let flags = format!("{icon_indicator}{pin_indicator}");
     let last_updated = package.last_upgraded.format("%Y-%m-%d").to_string();

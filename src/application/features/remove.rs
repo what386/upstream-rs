@@ -59,7 +59,10 @@ pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
     } else {
         package_remover.remove_single(&names[0], &purge, &mut message_callback)?;
         overall_pb.finish_and_clear();
-        println!("{}", style("Removal complete: 1 removed, 0 failed.").green());
+        println!(
+            "{}",
+            style("Removal complete: 1 removed, 0 failed.").green()
+        );
     }
 
     Ok(())
