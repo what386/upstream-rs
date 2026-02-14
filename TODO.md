@@ -11,6 +11,9 @@
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
 
+- [ ] Improve HTTP/web scraping with site-specific extractors and smarter link filtering (high) #feature #http
+      @created 2026-02-14 00:58
+
 
 ## Completed
 
