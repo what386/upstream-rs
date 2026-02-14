@@ -50,6 +50,7 @@ pub enum Provider {
     Github,
     Gitlab,
     Gitea,
+    Http,
 }
 
 impl FromStr for Provider {
@@ -60,6 +61,7 @@ impl FromStr for Provider {
             "github" => Ok(Provider::Github),
             "gitlab" => Ok(Provider::Gitlab),
             "gitea" => Ok(Provider::Gitea),
+            "http" => Ok(Provider::Http),
             _ => Err(format!("Unknown provider: {}", s)),
         }
     }
@@ -71,6 +73,7 @@ impl std::fmt::Display for Provider {
             Provider::Github => write!(f, "github"),
             Provider::Gitlab => write!(f, "gitlab"),
             Provider::Gitea => write!(f, "gitea"),
+            Provider::Http => write!(f, "http"),
         }
     }
 }
