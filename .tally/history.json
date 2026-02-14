@@ -295,5 +295,18 @@
       "completed_at": "2026-02-14T01:25:51.569841812Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "Generate and ship shell completions with synchronized CLI docs",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "docs"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-14T01:37:19.833945939Z"
+    },
+    "version": null
   }
 ]

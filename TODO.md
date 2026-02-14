@@ -14,11 +14,9 @@
 - [ ] Improve cross-platform handling for Windows installers and macOS app bundles #feature #platform #investigating
       @created 2026-02-14 00:58
 
-- [ ] Generate and ship shell completions with synchronized CLI docs #feature #docs
-      @created 2026-02-14 00:58
-
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
+
 
 ## Completed
 
@@ -44,3 +42,8 @@
 - [x] Add conditional HTTP checks with ETag/Last-Modified to speed update scans #feature #http #performance
       @created 2026-02-14 00:58
       @completed 2026-02-14 01:25
+
+- [x] Generate and ship shell completions with synchronized CLI docs #feature #docs
+      @created 2026-02-14 00:58
+      @completed 2026-02-14 01:37
+
