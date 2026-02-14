@@ -49,6 +49,7 @@ impl fmt::Display for Channel {
 pub enum Provider {
     Github,
     Gitlab,
+    Gitea,
 }
 
 impl FromStr for Provider {
@@ -58,6 +59,7 @@ impl FromStr for Provider {
         match s.to_lowercase().as_str() {
             "github" => Ok(Provider::Github),
             "gitlab" => Ok(Provider::Gitlab),
+            "gitea" => Ok(Provider::Gitea),
             _ => Err(format!("Unknown provider: {}", s)),
         }
     }
@@ -68,6 +70,7 @@ impl std::fmt::Display for Provider {
         match self {
             Provider::Github => write!(f, "github"),
             Provider::Gitlab => write!(f, "gitlab"),
+            Provider::Gitea => write!(f, "gitea"),
         }
     }
 }

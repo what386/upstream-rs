@@ -25,13 +25,15 @@ pub async fn run(names: Option<Vec<String>>, force_option: bool, check_option: b
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let github_token = config.get_config().github.api_token.as_deref();
     let gitlab_token = config.get_config().gitlab.api_token.as_deref();
+    let gitea_token = config.get_config().gitea.api_token.as_deref();
 
-    // Get GitLab base_url from installed packages
+    // Get provider base_url from installed packages
     let packages = package_storage.get_all_packages();
-    let gitlab_base_url = packages.iter().find_map(|p| p.base_url.as_deref());
+    let provider_base_url = packages.iter().find_map(|p| p.base_url.as_deref());
     let installed_package_count = packages.len();
 
-    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitlab_base_url)?;
+    let provider_manager =
+        ProviderManager::new(github_token, gitlab_token, gitea_token, provider_base_url)?;
     let mut package_upgrade =
         UpgradeOperation::new(&provider_manager, &mut package_storage, &paths)?;
 

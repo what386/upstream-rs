@@ -40,8 +40,10 @@ pub async fn run(
 
     let github_token = config.get_config().github.api_token.as_deref();
     let gitlab_token = config.get_config().gitlab.api_token.as_deref();
+    let gitea_token = config.get_config().gitea.api_token.as_deref();
 
-    let provider_manager = ProviderManager::new(github_token, gitlab_token, base_url.as_deref())?;
+    let provider_manager =
+        ProviderManager::new(github_token, gitlab_token, gitea_token, base_url.as_deref())?;
 
     let mut package_installer =
         InstallOperation::new(&provider_manager, &mut package_storage, &paths)?;

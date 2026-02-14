@@ -7,8 +7,8 @@ use crate::{
 use anyhow::Result;
 use console::style;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
-use std::time::Duration;
 use std::path::PathBuf;
+use std::time::Duration;
 
 pub async fn run_import(path: PathBuf) -> Result<()> {
     let paths = UpstreamPaths::new();
@@ -17,7 +17,8 @@ pub async fn run_import(path: PathBuf) -> Result<()> {
 
     let github_token = config.get_config().github.api_token.as_deref();
     let gitlab_token = config.get_config().gitlab.api_token.as_deref();
-    let provider_manager = ProviderManager::new(github_token, gitlab_token, None)?;
+    let gitea_token = config.get_config().gitea.api_token.as_deref();
+    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token, None)?;
 
     let mut import_op = ImportOperation::new(&provider_manager, &mut package_storage, &paths);
 
