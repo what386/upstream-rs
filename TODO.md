@@ -11,21 +11,14 @@
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
 
-- [ ] Improve HTTP/web scraping with site-specific extractors and smarter link filtering (high) #feature #http
-      @created 2026-02-14 00:58
-
-- [ ] Add upgrade --dry-run and clearer asset diff output before apply #feature #ux
-      @created 2026-02-14 00:58
-
-- [ ] Improve cross-platform handling for Windows installers and macOS app bundles #feature #platform
+- [ ] Improve cross-platform handling for Windows installers and macOS app bundles #feature #platform #investigating
       @created 2026-02-14 00:58
 
 - [ ] Generate and ship shell completions with synchronized CLI docs #feature #docs
       @created 2026-02-14 00:58
 
-- [ ] package registry? #feature #website
+- [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
-
 
 ## Completed
 
@@ -51,4 +44,3 @@
 - [x] Add conditional HTTP checks with ETag/Last-Modified to speed update scans #feature #http #performance
       @created 2026-02-14 00:58
       @completed 2026-02-14 01:25
-
