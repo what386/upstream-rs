@@ -26,6 +26,9 @@
 - [ ] Improve cross-platform handling for Windows installers and macOS app bundles #feature #platform
       @created 2026-02-14 00:58
 
+- [ ] Generate and ship shell completions with synchronized CLI docs #feature #docs
+      @created 2026-02-14 00:58
+
 
 ## Completed
 
