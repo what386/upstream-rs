@@ -3,7 +3,6 @@ use crate::{
     services::storage::config_storage::ConfigStorage, utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
-use toml;
 
 pub fn run_set(set_keys: Vec<String>) -> Result<()> {
     let paths = UpstreamPaths::new();
@@ -126,17 +125,6 @@ pub fn run_edit() -> Result<()> {
     } else {
         eprintln!("Editor exited with error");
     }
-
-    Ok(())
-}
-
-pub fn run_show() -> Result<()> {
-    let paths = UpstreamPaths::new();
-    let config_storage = ConfigStorage::new(&paths.config.config_file)?;
-    let config = config_storage.get_config();
-
-    let toml = toml::to_string_pretty(config)?;
-    println!("{}", toml);
 
     Ok(())
 }

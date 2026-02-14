@@ -223,9 +223,6 @@ pub enum ConfigAction {
     /// List all configuration keys
     List,
 
-    /// Show the entire configuration as JSON
-    Show,
-
     /// Open configuration file in your default editor
     Edit,
 
