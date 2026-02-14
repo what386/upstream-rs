@@ -14,9 +14,6 @@
 - [ ] Improve HTTP/web scraping with site-specific extractors and smarter link filtering (high) #feature #http
       @created 2026-02-14 00:58
 
-- [ ] Add conditional HTTP checks with ETag/Last-Modified to speed update scans #feature #http #performance
-      @created 2026-02-14 00:58
-
 - [ ] Add upgrade --dry-run and clearer asset diff output before apply #feature #ux
       @created 2026-02-14 00:58
 
@@ -50,4 +47,8 @@
 - [x] Add verify and doctor commands for install integrity and system diagnostics (high) #feature #ops
       @created 2026-02-14 00:58
       @completed 2026-02-14 01:08
+
+- [x] Add conditional HTTP checks with ETag/Last-Modified to speed update scans #feature #http #performance
+      @created 2026-02-14 00:58
+      @completed 2026-02-14 01:25
 

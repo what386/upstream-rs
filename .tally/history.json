@@ -281,5 +281,19 @@
       "completed_at": "2026-02-14T01:08:52.141284074Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "Add conditional HTTP checks with ETag/Last-Modified to speed update scans",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "http",
+        "performance"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-14T01:25:51.569841812Z"
+    },
+    "version": null
   }
 ]
