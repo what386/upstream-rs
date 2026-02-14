@@ -1,10 +1,10 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow, bail};
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use std::path::Path;
 
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
-use crate::providers::http::http_client::HttpClient;
+use crate::providers::http::http_client::{ConditionalDiscoveryResult, HttpClient};
 
 #[derive(Debug, Clone)]
 pub struct WebScraperAdapter {
@@ -71,7 +71,24 @@ impl WebScraperAdapter {
     }
 
     pub async fn get_latest_release(&self, slug: &str) -> Result<Release> {
-        let mut infos = self.client.discover_assets(slug).await?;
+        self.get_latest_release_if_modified_since(slug, None)
+            .await?
+            .ok_or_else(|| anyhow!("Unexpected not-modified response for scraper provider"))
+    }
+
+    pub async fn get_latest_release_if_modified_since(
+        &self,
+        slug: &str,
+        last_upgraded: Option<DateTime<Utc>>,
+    ) -> Result<Option<Release>> {
+        let discovery = self
+            .client
+            .discover_assets_if_modified_since(slug, last_upgraded)
+            .await?;
+        let mut infos = match discovery {
+            ConditionalDiscoveryResult::NotModified => return Ok(None),
+            ConditionalDiscoveryResult::Assets(infos) => infos,
+        };
 
         let mut best_version: Option<Version> = None;
         for info in &infos {
@@ -153,7 +170,7 @@ impl WebScraperAdapter {
         } else {
             format!("Discovered {} assets", assets.len())
         };
-        Ok(Release {
+        Ok(Some(Release {
             id: 1,
             tag: "direct".to_string(),
             name: release_name,
@@ -163,7 +180,7 @@ impl WebScraperAdapter {
             assets,
             version,
             published_at,
-        })
+        }))
     }
 
     pub async fn get_releases(

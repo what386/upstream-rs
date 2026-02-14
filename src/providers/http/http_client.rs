@@ -19,11 +19,37 @@ pub struct HttpAssetInfo {
 }
 
 #[derive(Debug, Clone)]
+pub enum ConditionalProbeResult {
+    NotModified,
+    Asset(HttpAssetInfo),
+}
+
+#[derive(Debug, Clone)]
+pub enum ConditionalDiscoveryResult {
+    NotModified,
+    Assets(Vec<HttpAssetInfo>),
+}
+
+#[derive(Debug, Clone)]
 pub struct HttpClient {
     client: Client,
 }
 
 impl HttpClient {
+    fn format_http_date(dt: DateTime<Utc>) -> String {
+        dt.format("%a, %d %b %Y %H:%M:%S GMT").to_string()
+    }
+
+    fn add_if_modified_since(
+        mut request: reqwest::RequestBuilder,
+        last_upgraded: Option<DateTime<Utc>>,
+    ) -> reqwest::RequestBuilder {
+        if let Some(ts) = last_upgraded {
+            request = request.header(header::IF_MODIFIED_SINCE, Self::format_http_date(ts));
+        }
+        request
+    }
+
     fn parse_last_modified(value: Option<&header::HeaderValue>) -> Option<DateTime<Utc>> {
         let raw = value?.to_str().ok()?;
         DateTime::parse_from_rfc2822(raw)
@@ -122,36 +148,8 @@ impl HttpClient {
         }
     }
 
-    pub async fn discover_assets(&self, url_or_slug: &str) -> Result<Vec<HttpAssetInfo>> {
-        let url = Self::normalize_url(url_or_slug);
-        let response = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .context(format!("Failed to send request to {}", url))?;
-
-        response
-            .error_for_status_ref()
-            .context(format!("HTTP server returned error for {}", url))?;
-
-        let final_url = response.url().to_string();
-        let content_type = response
-            .headers()
-            .get(header::CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_lowercase();
-        let response_headers = response.headers().clone();
-
-        if !content_type.contains("text/html") {
-            return Ok(vec![Self::to_asset_info(&final_url, response.headers())]);
-        }
-
-        let base = reqwest::Url::parse(&final_url)
-            .context(format!("Failed to parse URL '{}'", final_url))?;
-        let body = response.text().await.context("Failed to read HTML body")?;
-        let hrefs = Self::extract_hrefs(&body);
+    fn extract_assets_from_html(base: &reqwest::Url, html: &str) -> Vec<HttpAssetInfo> {
+        let hrefs = Self::extract_hrefs(html);
 
         let mut seen = HashSet::new();
         let mut assets = Vec::new();
@@ -191,11 +189,54 @@ impl HttpClient {
                 });
             }
         }
+        assets
+    }
+
+    pub async fn discover_assets_if_modified_since(
+        &self,
+        url_or_slug: &str,
+        last_upgraded: Option<DateTime<Utc>>,
+    ) -> Result<ConditionalDiscoveryResult> {
+        let url = Self::normalize_url(url_or_slug);
+        let response = Self::add_if_modified_since(self.client.get(&url), last_upgraded)
+            .send()
+            .await
+            .context(format!("Failed to send request to {}", url))?;
+
+        if response.status() == StatusCode::NOT_MODIFIED {
+            return Ok(ConditionalDiscoveryResult::NotModified);
+        }
+
+        response
+            .error_for_status_ref()
+            .context(format!("HTTP server returned error for {}", url))?;
+
+        let final_url = response.url().to_string();
+        let content_type = response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_lowercase();
+        let response_headers = response.headers().clone();
+
+        if !content_type.contains("text/html") {
+            return Ok(ConditionalDiscoveryResult::Assets(vec![
+                Self::to_asset_info(&final_url, response.headers()),
+            ]));
+        }
+
+        let base = reqwest::Url::parse(&final_url)
+            .context(format!("Failed to parse URL '{}'", final_url))?;
+        let body = response.text().await.context("Failed to read HTML body")?;
+        let assets = Self::extract_assets_from_html(&base, &body);
 
         if assets.is_empty() {
-            Ok(vec![Self::to_asset_info(&final_url, &response_headers)])
+            Ok(ConditionalDiscoveryResult::Assets(vec![
+                Self::to_asset_info(&final_url, &response_headers),
+            ]))
         } else {
-            Ok(assets)
+            Ok(ConditionalDiscoveryResult::Assets(assets))
         }
     }
 
@@ -215,11 +256,32 @@ impl HttpClient {
     }
 
     pub async fn probe_asset(&self, url_or_slug: &str) -> Result<HttpAssetInfo> {
+        match self
+            .probe_asset_if_modified_since(url_or_slug, None)
+            .await?
+        {
+            ConditionalProbeResult::NotModified => {
+                bail!("Unexpected 304 Not Modified response without conditional timestamp")
+            }
+            ConditionalProbeResult::Asset(asset) => Ok(asset),
+        }
+    }
+
+    pub async fn probe_asset_if_modified_since(
+        &self,
+        url_or_slug: &str,
+        last_upgraded: Option<DateTime<Utc>>,
+    ) -> Result<ConditionalProbeResult> {
         let url = Self::normalize_url(url_or_slug);
 
-        let head_resp = self.client.head(&url).send().await;
+        let head_resp = Self::add_if_modified_since(self.client.head(&url), last_upgraded)
+            .send()
+            .await;
 
         let (size, last_modified, etag) = match head_resp {
+            Ok(resp) if resp.status() == StatusCode::NOT_MODIFIED => {
+                return Ok(ConditionalProbeResult::NotModified);
+            }
             Ok(resp) if resp.status().is_success() => {
                 let last_modified =
                     Self::parse_last_modified(resp.headers().get(header::LAST_MODIFIED));
@@ -230,12 +292,14 @@ impl HttpClient {
                 if resp.status() == StatusCode::METHOD_NOT_ALLOWED
                     || resp.status() == StatusCode::NOT_IMPLEMENTED =>
             {
-                let get_resp = self
-                    .client
-                    .get(&url)
+                let get_resp = Self::add_if_modified_since(self.client.get(&url), last_upgraded)
                     .send()
                     .await
                     .context(format!("Failed to send request to {}", url))?;
+
+                if get_resp.status() == StatusCode::NOT_MODIFIED {
+                    return Ok(ConditionalProbeResult::NotModified);
+                }
 
                 get_resp
                     .error_for_status_ref()
@@ -249,12 +313,14 @@ impl HttpClient {
                 bail!("HTTP server returned {} for {}", resp.status(), url);
             }
             Err(_) => {
-                let get_resp = self
-                    .client
-                    .get(&url)
+                let get_resp = Self::add_if_modified_since(self.client.get(&url), last_upgraded)
                     .send()
                     .await
                     .context(format!("Failed to send request to {}", url))?;
+
+                if get_resp.status() == StatusCode::NOT_MODIFIED {
+                    return Ok(ConditionalProbeResult::NotModified);
+                }
 
                 get_resp
                     .error_for_status_ref()
@@ -266,13 +332,13 @@ impl HttpClient {
             }
         };
 
-        Ok(HttpAssetInfo {
+        Ok(ConditionalProbeResult::Asset(HttpAssetInfo {
             name: Self::file_name_from_url(&url),
             download_url: url,
             size,
             last_modified,
             etag,
-        })
+        }))
     }
 
     pub async fn download_file<F>(

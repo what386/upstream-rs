@@ -1,10 +1,10 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow, bail};
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use std::path::Path;
 
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
-use crate::providers::http::http_client::HttpClient;
+use crate::providers::http::http_client::{ConditionalProbeResult, HttpClient};
 
 #[derive(Debug, Clone)]
 pub struct DirectAdapter {
@@ -70,7 +70,24 @@ impl DirectAdapter {
     }
 
     pub async fn get_latest_release(&self, slug: &str) -> Result<Release> {
-        let info = self.client.probe_asset(slug).await?;
+        self.get_latest_release_if_modified_since(slug, None)
+            .await?
+            .ok_or_else(|| anyhow!("Unexpected not-modified response for direct provider"))
+    }
+
+    pub async fn get_latest_release_if_modified_since(
+        &self,
+        slug: &str,
+        last_upgraded: Option<DateTime<Utc>>,
+    ) -> Result<Option<Release>> {
+        let probe = self
+            .client
+            .probe_asset_if_modified_since(slug, last_upgraded)
+            .await?;
+        let info = match probe {
+            ConditionalProbeResult::NotModified => return Ok(None),
+            ConditionalProbeResult::Asset(info) => info,
+        };
         let published_at = info.last_modified.unwrap_or_else(Utc::now);
         let version = Self::parse_version_from_filename(&info.name)
             .or_else(|| info.last_modified.map(Self::version_from_last_modified))
@@ -90,7 +107,7 @@ impl DirectAdapter {
             info.name
         };
 
-        Ok(Release {
+        Ok(Some(Release {
             id: 1,
             tag: "direct".to_string(),
             name: release_name,
@@ -100,7 +117,7 @@ impl DirectAdapter {
             assets: vec![asset],
             version,
             published_at,
-        })
+        }))
     }
 
     pub async fn get_releases(
