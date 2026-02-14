@@ -51,7 +51,6 @@ impl Cli {
                 ConfigAction::Set { keys } => features::config::run_set(keys),
                 ConfigAction::Get { keys } => features::config::run_get(keys),
                 ConfigAction::List => features::config::run_list(),
-                ConfigAction::Show => features::config::run_show(),
                 ConfigAction::Edit => features::config::run_edit(),
                 ConfigAction::Reset => features::config::run_reset(),
             },
