@@ -4,7 +4,9 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
+use dirs;
 use std::fs;
+use std::path::Path;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -171,15 +173,103 @@ impl<'a> PackageRemover<'a> {
     where
         H: FnMut(&str),
     {
-        // TODO: implement
-        // - Search for config directories matching package_name
-        // - Prompt user or log which configs are being removed
-        // - Add context for each removal operation
         message!(
             message_callback,
-            "Purge option enabled, but configuration removal not yet implemented for '{}'",
+            "Purging package data for '{}' ...",
             package_name
         );
+
+        // Remove known upstream-owned integration artifacts by package alias.
+        DesktopManager::remove_entry(self.paths, package_name).context(format!(
+            "Failed to remove desktop entry for '{}'",
+            package_name
+        ))?;
+        self.remove_matching_icons(package_name, message_callback)?;
+
+        // Best-effort XDG/user-dir cleanup for app-owned state.
+        let mut candidates = Vec::new();
+        if let Some(config_dir) = dirs::config_dir() {
+            candidates.push(config_dir.join(package_name));
+            candidates.push(config_dir.join(package_name.to_lowercase()));
+        }
+        if let Some(cache_dir) = dirs::cache_dir() {
+            candidates.push(cache_dir.join(package_name));
+            candidates.push(cache_dir.join(package_name.to_lowercase()));
+        }
+        if let Some(data_dir) = dirs::data_local_dir() {
+            candidates.push(data_dir.join(package_name));
+            candidates.push(data_dir.join(package_name.to_lowercase()));
+        }
+
+        // Dedup while preserving order.
+        let mut unique = Vec::new();
+        for path in candidates {
+            if !unique.contains(&path) {
+                unique.push(path);
+            }
+        }
+
+        for path in unique {
+            self.remove_path_if_exists(&path, message_callback)?;
+        }
+
+        Ok(())
+    }
+
+    fn remove_matching_icons<H>(
+        &self,
+        package_name: &str,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        let icons_dir = &self.paths.integration.icons_dir;
+        if !icons_dir.exists() {
+            return Ok(());
+        }
+
+        let package_name_lower = package_name.to_lowercase();
+        for entry in fs::read_dir(icons_dir).context(format!(
+            "Failed to read icons directory '{}'",
+            icons_dir.display()
+        ))? {
+            let entry = entry?;
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            if stem == package_name_lower {
+                self.remove_path_if_exists(&path, message_callback)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn remove_path_if_exists<H>(&self, path: &Path, message_callback: &mut Option<H>) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        if !path.exists() {
+            return Ok(());
+        }
+
+        if path.is_dir() {
+            message!(message_callback, "Purging directory: {}", path.display());
+            fs::remove_dir_all(path)
+                .context(format!("Failed to remove directory '{}'", path.display()))?;
+        } else if path.is_file() {
+            message!(message_callback, "Purging file: {}", path.display());
+            fs::remove_file(path).context(format!("Failed to remove file '{}'", path.display()))?;
+        }
+
         Ok(())
     }
 }
