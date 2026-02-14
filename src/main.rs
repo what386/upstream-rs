@@ -1,14 +1,8 @@
-mod application;
-mod models;
-mod providers;
-mod services;
-mod utils;
-
 use console::style;
 
 use clap::Parser;
 
-use application::cli::arguments::Cli;
+use upstream_rs::application::cli::arguments::Cli;
 
 /*
 #[cfg(target_os = "windows")]
