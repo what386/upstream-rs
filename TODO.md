@@ -26,6 +26,9 @@
 - [ ] Generate and ship shell completions with synchronized CLI docs #feature #docs
       @created 2026-02-14 00:58
 
+- [ ] package registry? #feature #website
+      @created 2026-02-14 01:09
+
 
 ## Completed
 
