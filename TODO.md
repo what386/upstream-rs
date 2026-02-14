@@ -17,6 +17,9 @@
 - [ ] Add conditional HTTP checks with ETag/Last-Modified to speed update scans #feature #http #performance
       @created 2026-02-14 00:58
 
+- [ ] Add upgrade --dry-run and clearer asset diff output before apply #feature #ux
+      @created 2026-02-14 00:58
+
 
 ## Completed
 
