@@ -71,32 +71,96 @@ impl HttpAdapter {
     }
 
     pub async fn get_latest_release(&self, slug: &str) -> Result<Release> {
-        let info = self.client.probe_asset(slug).await?;
-        let published_at = info.last_modified.unwrap_or_else(Utc::now);
-        let version = Self::parse_version_from_filename(&info.name)
-            .or_else(|| info.last_modified.map(Self::version_from_last_modified))
-            .unwrap_or_else(|| Version::new(0, 0, 0, false));
+        let mut infos = self.client.discover_assets(slug).await?;
 
-        let asset = Asset::new(
-            info.download_url,
-            1,
-            info.name.clone(),
-            info.size,
-            published_at,
-        );
-        let release_name = if let Some(etag) = info.etag {
-            format!("{} [{}]", info.name, etag)
+        let mut best_version: Option<Version> = None;
+        for info in &infos {
+            if let Some(version) = Self::parse_version_from_filename(&info.name) {
+                match &best_version {
+                    Some(prev) if prev.cmp(&version).is_ge() => {}
+                    _ => best_version = Some(version),
+                }
+            }
+        }
+
+        if best_version.is_none() {
+            let hydrate_limit = infos.len().min(24);
+            for idx in 0..hydrate_limit {
+                let url = infos[idx].download_url.clone();
+                if let Ok(probed) = self.client.probe_asset(&url).await {
+                    infos[idx].size = probed.size;
+                    infos[idx].last_modified = probed.last_modified;
+                    infos[idx].etag = probed.etag;
+                }
+            }
+        }
+
+        if best_version.is_none() {
+            for info in &infos {
+                if let Some(last_modified) = info.last_modified {
+                    let version = Self::version_from_last_modified(last_modified);
+                    match &best_version {
+                        Some(prev) if prev.cmp(&version).is_ge() => {}
+                        _ => best_version = Some(version),
+                    }
+                }
+            }
+        }
+
+        let selected_infos = if let Some(target_version) = &best_version {
+            let filtered: Vec<_> = infos
+                .iter()
+                .filter(|info| {
+                    Self::parse_version_from_filename(&info.name)
+                        .map(|v| v.cmp(target_version).is_eq())
+                        .unwrap_or(false)
+                })
+                .cloned()
+                .collect();
+            if filtered.is_empty() { infos } else { filtered }
         } else {
-            info.name.clone()
+            infos
+        };
+
+        let published_at = selected_infos
+            .iter()
+            .filter_map(|i| i.last_modified)
+            .max()
+            .unwrap_or_else(Utc::now);
+
+        let assets: Vec<Asset> = selected_infos
+            .iter()
+            .enumerate()
+            .map(|(idx, info)| {
+                Asset::new(
+                    info.download_url.clone(),
+                    (idx + 1) as u64,
+                    info.name.clone(),
+                    info.size,
+                    info.last_modified.unwrap_or(published_at),
+                )
+            })
+            .collect();
+
+        let version = best_version.unwrap_or_else(|| Version::new(0, 0, 0, false));
+        let release_name = if assets.len() == 1 {
+            let info = &selected_infos[0];
+            if let Some(etag) = &info.etag {
+                format!("{} [{}]", info.name, etag)
+            } else {
+                info.name.clone()
+            }
+        } else {
+            format!("Discovered {} assets", assets.len())
         };
         Ok(Release {
             id: 1,
             tag: "direct".to_string(),
             name: release_name,
-            body: "Direct HTTP asset".to_string(),
+            body: "Discovered from HTTP source".to_string(),
             is_draft: false,
             is_prerelease: false,
-            assets: vec![asset],
+            assets,
             version,
             published_at,
         })

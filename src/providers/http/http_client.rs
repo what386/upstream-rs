@@ -1,9 +1,13 @@
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Utc};
 use reqwest::{Client, StatusCode, header};
+use std::collections::HashSet;
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+
+use crate::models::common::enums::Filetype;
+use crate::utils::filename_parser::parse_filetype;
 
 #[derive(Debug, Clone)]
 pub struct HttpAssetInfo {
@@ -59,6 +63,139 @@ impl HttpClient {
             raw.to_string()
         } else {
             format!("https://{}", raw)
+        }
+    }
+
+    fn extract_hrefs(html: &str) -> Vec<String> {
+        let mut hrefs = Vec::new();
+        let lower = html.to_lowercase();
+        let bytes = lower.as_bytes();
+        let mut i = 0_usize;
+
+        while i + 6 < bytes.len() {
+            if &bytes[i..i + 5] != b"href=" {
+                i += 1;
+                continue;
+            }
+            let mut j = i + 5;
+            while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+                j += 1;
+            }
+            if j >= bytes.len() {
+                break;
+            }
+
+            let quote = bytes[j];
+            if quote == b'"' || quote == b'\'' {
+                let start = j + 1;
+                let mut end = start;
+                while end < bytes.len() && bytes[end] != quote {
+                    end += 1;
+                }
+                if end <= html.len() && start <= end {
+                    let href = html[start..end].trim();
+                    if !href.is_empty() {
+                        hrefs.push(href.to_string());
+                    }
+                }
+                i = end.saturating_add(1);
+                continue;
+            }
+
+            i = j.saturating_add(1);
+        }
+
+        hrefs
+    }
+
+    fn to_asset_info(url: &str, headers: &header::HeaderMap) -> HttpAssetInfo {
+        HttpAssetInfo {
+            name: Self::file_name_from_url(url),
+            download_url: url.to_string(),
+            size: headers
+                .get(header::CONTENT_LENGTH)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok())
+                .unwrap_or(0),
+            last_modified: Self::parse_last_modified(headers.get(header::LAST_MODIFIED)),
+            etag: Self::parse_etag(headers.get(header::ETAG)),
+        }
+    }
+
+    pub async fn discover_assets(&self, url_or_slug: &str) -> Result<Vec<HttpAssetInfo>> {
+        let url = Self::normalize_url(url_or_slug);
+        let response = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .context(format!("Failed to send request to {}", url))?;
+
+        response
+            .error_for_status_ref()
+            .context(format!("HTTP server returned error for {}", url))?;
+
+        let final_url = response.url().to_string();
+        let content_type = response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_lowercase();
+        let response_headers = response.headers().clone();
+
+        if !content_type.contains("text/html") {
+            return Ok(vec![Self::to_asset_info(&final_url, response.headers())]);
+        }
+
+        let base = reqwest::Url::parse(&final_url)
+            .context(format!("Failed to parse URL '{}'", final_url))?;
+        let body = response.text().await.context("Failed to read HTML body")?;
+        let hrefs = Self::extract_hrefs(&body);
+
+        let mut seen = HashSet::new();
+        let mut assets = Vec::new();
+        for href in hrefs {
+            if href.starts_with('#')
+                || href.starts_with("javascript:")
+                || href.starts_with("mailto:")
+                || href.starts_with("tel:")
+            {
+                continue;
+            }
+
+            let Ok(joined) = base.join(&href) else {
+                continue;
+            };
+            if joined.scheme() != "http" && joined.scheme() != "https" {
+                continue;
+            }
+
+            let joined_str = joined.to_string();
+            let name = Self::file_name_from_url(&joined_str);
+            if name.is_empty() {
+                continue;
+            }
+
+            if parse_filetype(&name) == Filetype::Checksum {
+                continue;
+            }
+
+            if seen.insert(joined_str.clone()) {
+                assets.push(HttpAssetInfo {
+                    download_url: joined_str,
+                    name,
+                    size: 0,
+                    last_modified: None,
+                    etag: None,
+                });
+            }
+        }
+
+        if assets.is_empty() {
+            Ok(vec![Self::to_asset_info(&final_url, &response_headers)])
+        } else {
+            Ok(assets)
         }
     }
 
