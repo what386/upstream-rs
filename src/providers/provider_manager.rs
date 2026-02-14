@@ -4,11 +4,10 @@ use std::path::{Path, PathBuf};
 use crate::models::common::enums::{Channel, Filetype, Provider};
 use crate::models::provider::{Asset, Release};
 use crate::models::upstream::Package;
-use crate::providers::direct::DirectAdapter;
 use crate::providers::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::github::{GithubAdapter, GithubClient};
 use crate::providers::gitlab::{GitlabAdapter, GitlabClient};
-use crate::providers::http::{HttpAdapter, HttpClient};
+use crate::providers::http::{DirectAdapter, WebScraperAdapter, HttpClient};
 use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
 
 use anyhow::{Result, anyhow};
@@ -17,7 +16,7 @@ pub struct ProviderManager {
     github: GithubAdapter,
     gitlab: GitlabAdapter,
     gitea: GiteaAdapter,
-    http: HttpAdapter,
+    http: WebScraperAdapter,
     direct: DirectAdapter,
     architecture_info: ArchitectureInfo,
 }
@@ -39,7 +38,7 @@ impl ProviderManager {
         let github = GithubAdapter::new(github_client);
         let gitlab = GitlabAdapter::new(gitlab_client);
         let gitea = GiteaAdapter::new(gitea_client);
-        let http = HttpAdapter::new(http_client.clone());
+        let http = WebScraperAdapter::new(http_client.clone());
         let direct = DirectAdapter::new(http_client);
 
         Ok(Self {

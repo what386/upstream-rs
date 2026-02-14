@@ -7,11 +7,11 @@ use crate::models::provider::{Asset, Release};
 use crate::providers::http::http_client::HttpClient;
 
 #[derive(Debug, Clone)]
-pub struct HttpAdapter {
+pub struct WebScraperAdapter {
     client: HttpClient,
 }
 
-impl HttpAdapter {
+impl WebScraperAdapter {
     fn parse_version_from_filename(filename: &str) -> Option<Version> {
         let lower = filename.to_lowercase();
         let mut sanitized = String::with_capacity(lower.len());
