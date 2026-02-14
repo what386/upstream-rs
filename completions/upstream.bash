@@ -1027,7 +1027,7 @@ _upstream() {
             return 0
             ;;
         upstream__upgrade)
-            opts="-h --force --check --help [NAMES]..."
+            opts="-h --force --check --machine-readable --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

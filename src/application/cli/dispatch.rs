@@ -43,7 +43,8 @@ impl Cli {
                 names,
                 force,
                 check,
-            } => features::upgrade::run(names, force, check).await,
+                machine_readable,
+            } => features::upgrade::run(names, force, check, machine_readable).await,
 
             Commands::List { name } => features::list::run(name),
 

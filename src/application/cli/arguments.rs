@@ -96,6 +96,7 @@ pub enum Commands {
         upstream upgrade              # Upgrade all\n  \
         upstream upgrade nvim rg      # Upgrade specific packages\n  \
         upstream upgrade --check      # Check for updates\n  \
+        upstream upgrade --check --machine-readable # Script-friendly output\n  \
         upstream upgrade nvim --force # Force reinstall")]
     Upgrade {
         /// Packages to upgrade (upgrades all if omitted)
@@ -108,6 +109,10 @@ pub enum Commands {
         /// Check for available upgrades without applying them
         #[arg(long, default_value_t = false)]
         check: bool,
+
+        /// Use script-friendly check output: one line per update, "name oldver newver"
+        #[arg(long, default_value_t = false, requires = "check")]
+        machine_readable: bool,
     },
 
     /// List installed packages and their metadata
