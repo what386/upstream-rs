@@ -20,6 +20,9 @@
 - [ ] Add upgrade --dry-run and clearer asset diff output before apply #feature #ux
       @created 2026-02-14 00:58
 
+- [ ] Add verify and doctor commands for install integrity and system diagnostics (high) #feature #ops
+      @created 2026-02-14 00:58
+
 
 ## Completed
 
