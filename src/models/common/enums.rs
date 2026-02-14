@@ -62,7 +62,7 @@ impl FromStr for Provider {
             "github" => Ok(Provider::Github),
             "gitlab" => Ok(Provider::Gitlab),
             "gitea" => Ok(Provider::Gitea),
-            "http" => Ok(Provider::WebScraper),
+            "scraper" => Ok(Provider::WebScraper),
             "direct" => Ok(Provider::Direct),
             _ => Err(format!("Unknown provider: {}", s)),
         }
@@ -75,7 +75,7 @@ impl std::fmt::Display for Provider {
             Provider::Github => write!(f, "github"),
             Provider::Gitlab => write!(f, "gitlab"),
             Provider::Gitea => write!(f, "gitea"),
-            Provider::WebScraper => write!(f, "http"),
+            Provider::WebScraper => write!(f, "scraper"),
             Provider::Direct => write!(f, "direct"),
         }
     }
