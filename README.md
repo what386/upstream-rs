@@ -33,7 +33,7 @@
 - Automatically detect system architecture (x86_64, ARM64) and OS (Linux, macOS).
 - Supports binaries, archives, AppImages, and compressed files.
 - Rootless, user-level installation.
-- Track multiple update channels (stable, nightly).
+- Track multiple update channels (stable, preview, nightly).
 - HTTP-backed providers for direct asset URLs (`direct`) and asset discovery from pages (`scraper`).
 
 ---
@@ -166,7 +166,7 @@ upstream-rs install mytool foo/my-cool-app --kind binary --desktop
 - `<repo_slug>` → repository identifier (`owner/repo`).
 - `-k` / `--kind` → asset type (`auto`, `app-image`, `archive`, `compressed`, `binary`, `win-exe`, `checksum`).
 - `-p` / `--provider` → provider to source from (`github`, `gitlab`, `gitea`, `scraper`, `direct`; default `github`).
-- `-c` / `--channel` → track `stable` or `nightly` (default `stable`).
+- `-c` / `--channel` → track `stable`, `preview`, or `nightly` (default `stable`).
 - `-t` / `--tag` → install a specific release tag.
 - `-m` / `--match-pattern` → prefer assets matching a pattern.
 - `-e` / `--exclude-pattern` → avoid assets matching a pattern.

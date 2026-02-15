@@ -33,6 +33,7 @@ impl fmt::Display for Filetype {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 pub enum Channel {
     Stable,
+    Preview,
     Nightly,
 }
 
@@ -40,6 +41,7 @@ impl fmt::Display for Channel {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Channel::Stable => write!(f, "Stable"),
+            Channel::Preview => write!(f, "Preview"),
             Channel::Nightly => write!(f, "Nightly"),
         }
     }
