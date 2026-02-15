@@ -66,7 +66,8 @@ impl GiteaAdapter {
 
     fn convert_release(&self, dto: GiteaReleaseDto) -> Release {
         let assets: Vec<Asset> = dto.assets.into_iter().map(Self::convert_asset).collect();
-        let version = Self::parse_version(&dto.tag_name);
+        let version =
+            Version::from_tag(&dto.tag_name).unwrap_or_else(|_| Version::new(0, 0, 0, false));
         Release {
             id: dto.id as u64,
             tag: dto.tag_name,
@@ -78,26 +79,6 @@ impl GiteaAdapter {
             assets,
             version,
         }
-    }
-
-    fn parse_version(tag: &str) -> Version {
-        let tag = tag.trim();
-        let tag = tag
-            .strip_prefix('v')
-            .or_else(|| tag.strip_prefix('V'))
-            .unwrap_or(tag);
-
-        const PREFIXES: &[&str] = &["release-", "rel-", "ver-", "version-"];
-        let cleaned = PREFIXES
-            .iter()
-            .find_map(|prefix| {
-                tag.to_lowercase()
-                    .strip_prefix(prefix)
-                    .map(|_| &tag[prefix.len()..])
-            })
-            .unwrap_or(tag);
-
-        Version::parse(cleaned).unwrap_or_else(|_| Version::new(0, 0, 0, false))
     }
 
     fn parse_timestamp(raw: &str) -> DateTime<Utc> {

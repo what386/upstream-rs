@@ -75,6 +75,79 @@ impl Version {
         Ok(Version::new(major, minor, patch, false))
     }
 
+    pub fn from_filename(s: &str) -> Result<Self> {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            bail!("Cannot parse empty version");
+        }
+
+        if let Some(candidate) = Self::find_triplet(trimmed) {
+            return Self::parse(&candidate);
+        }
+
+        Self::parse(trimmed)
+    }
+
+    pub fn from_tag(tag: &str) -> Result<Self> {
+        let tag = tag.trim();
+        let tag = tag
+            .strip_prefix('v')
+            .or_else(|| tag.strip_prefix('V'))
+            .unwrap_or(tag);
+
+        const PREFIXES: &[&str] = &["release-", "rel-", "ver-", "version-"];
+        let lowered = tag.to_lowercase();
+        let cleaned = PREFIXES
+            .iter()
+            .find_map(|prefix| lowered.strip_prefix(prefix).map(|_| &tag[prefix.len()..]))
+            .unwrap_or(tag);
+
+        Self::from_filename(cleaned).or_else(|_| Self::parse(cleaned))
+    }
+
+    fn find_triplet(s: &str) -> Option<String> {
+        let bytes = s.as_bytes();
+        let len = bytes.len();
+
+        let mut i = 0;
+        while i < len {
+            if !bytes[i].is_ascii_digit() {
+                i += 1;
+                continue;
+            }
+
+            let major_start = i;
+            while i < len && bytes[i].is_ascii_digit() {
+                i += 1;
+            }
+            if i >= len || bytes[i] != b'.' {
+                continue;
+            }
+
+            i += 1;
+            let minor_start = i;
+            while i < len && bytes[i].is_ascii_digit() {
+                i += 1;
+            }
+            if minor_start == i || i >= len || bytes[i] != b'.' {
+                continue;
+            }
+
+            i += 1;
+            let patch_start = i;
+            while i < len && bytes[i].is_ascii_digit() {
+                i += 1;
+            }
+            if patch_start == i {
+                continue;
+            }
+
+            return Some(s[major_start..i].to_string());
+        }
+
+        None
+    }
+
     pub fn cmp(&self, other: &Version) -> std::cmp::Ordering {
         match self.major.cmp(&other.major) {
             std::cmp::Ordering::Equal => {}
