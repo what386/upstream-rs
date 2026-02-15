@@ -13,31 +13,7 @@ pub struct WebScraperAdapter {
 
 impl WebScraperAdapter {
     fn parse_version_from_filename(filename: &str) -> Option<Version> {
-        let lower = filename.to_lowercase();
-        let mut sanitized = String::with_capacity(lower.len());
-        for ch in lower.chars() {
-            if ch.is_ascii_digit() || ch == '.' {
-                sanitized.push(ch);
-            } else {
-                sanitized.push(' ');
-            }
-        }
-
-        let mut best: Option<Version> = None;
-        for token in sanitized.split_whitespace() {
-            if token.chars().filter(|c| *c == '.').count() < 1 {
-                continue;
-            }
-            let candidate = token.trim_matches('.');
-            if let Ok(version) = Version::parse(candidate) {
-                match &best {
-                    Some(prev) if prev.cmp(&version).is_ge() => {}
-                    _ => best = Some(version),
-                }
-            }
-        }
-
-        best
+        Version::from_filename(filename).ok()
     }
 
     fn version_from_last_modified(dt: DateTime<Utc>) -> Version {
