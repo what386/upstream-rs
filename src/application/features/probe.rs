@@ -207,7 +207,10 @@ fn filter_by_channel(
     channel: &Channel,
 ) -> Vec<crate::models::provider::Release> {
     match channel {
-        Channel::Stable => releases.retain(|r| !ProviderManager::is_nightly_release(&r.tag)),
+        Channel::Stable => {
+            releases.retain(|r| !r.is_prerelease && !ProviderManager::is_nightly_release(&r.tag))
+        }
+        Channel::Preview => releases.retain(ProviderManager::is_preview_release),
         Channel::Nightly => releases.retain(|r| ProviderManager::is_nightly_release(&r.tag)),
     }
     releases
