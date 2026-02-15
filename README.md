@@ -43,7 +43,7 @@
 
 The easiest way to install **Upstream** is via the install script. This downloads the latest binary, sets it up in your user path, and enables self-updates.
 
-#### Linux and MacOS
+#### Linux
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install.sh | bash
@@ -53,6 +53,12 @@ curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/in
 
 ```powershell
 iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install.ps1 | iex
+```
+
+#### MacOS
+
+```zsh
+curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install.zsh | zsh
 ```
 
 - Ensures **Upstream** can update itself automatically.
@@ -119,76 +125,6 @@ Executable location:
 ```
 
 > Manual builds **do not enable self-updates**.
-
----
-
-### **Generate Shell Completions**
-
-Generate pre-built completion files for bash, zsh, fish, and powershell:
-
-```bash
-./scripts/completions.sh
-```
-
-Files are written to:
-
-```text
-./completions/
-```
-
-Install generated completions:
-
-#### Bash
-
-```bash
-mkdir -p ~/.local/share/bash-completion/completions
-cp completions/upstream.bash ~/.local/share/bash-completion/completions/upstream
-```
-
-Restart your shell, or run:
-
-```bash
-source ~/.bashrc
-```
-
-#### Zsh
-
-```bash
-mkdir -p ~/.zfunc
-cp completions/_upstream ~/.zfunc/_upstream
-```
-
-Ensure your `~/.zshrc` has:
-
-```bash
-fpath=(~/.zfunc $fpath)
-autoload -Uz compinit && compinit
-```
-
-Then restart your shell, or run:
-
-```bash
-source ~/.zshrc
-```
-
-#### Fish
-
-```bash
-mkdir -p ~/.config/fish/completions
-cp completions/upstream.fish ~/.config/fish/completions/upstream.fish
-```
-
-Open a new fish session.
-
-#### PowerShell
-
-```powershell
-New-Item -ItemType Directory -Force "$HOME\Documents\PowerShell\Completions" | Out-Null
-Copy-Item completions/_upstream.ps1 "$HOME\Documents\PowerShell\Completions\_upstream.ps1" -Force
-Add-Content $PROFILE 'if (Test-Path "$HOME\Documents\PowerShell\Completions\_upstream.ps1") { . "$HOME\Documents\PowerShell\Completions\_upstream.ps1" }'
-```
-
-Restart PowerShell.
 
 ---
 

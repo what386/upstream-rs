@@ -10,19 +10,12 @@ NC='\033[0m' # No Color
 GITHUB_USER="what386"
 GITHUB_REPO="upstream-rs"
 BINARY_NAME="upstream-rs"
+OS="unknown-linux-gnu"
 
 INSTALL_COMMANDS=(
     "init"
     "install upstream what386/upstream-rs -k binary"
 )
-
-detect_os() {
-    case "$(uname -s)" in
-    Linux*) echo "unknown-linux-gnu" ;;
-    Darwin*) echo "apple-darwin" ;;
-    *) echo "unknown" ;;
-    esac
-}
 
 detect_arch() {
     case "$(uname -m)" in
@@ -37,15 +30,8 @@ detect_arch() {
 main() {
     echo -e "${GREEN}Starting installation...${NC}"
 
-    OS=$(detect_os)
     ARCH=$(detect_arch)
 
-    if [ "$OS" = "unknown" ] || [ "$ARCH" = "unknown" ]; then
-        echo -e "${RED}Error: Unsupported OS ($OS) or architecture ($ARCH)${NC}"
-        exit 1
-    fi
-
-    echo "Detected OS: $OS"
     echo "Detected Architecture: $ARCH"
 
     DOWNLOAD_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/${BINARY_NAME}-${ARCH}-${OS}"
