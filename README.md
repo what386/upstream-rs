@@ -1,6 +1,6 @@
 # Upstream Package Manager
 
-**Upstream** is a rootless, GitHub-centric package manager for Unix-like systems. It installs and updates software from releases, supports multiple asset types, tracks update channels, and automatically selects the best asset for your OS and CPU architecture.
+**Upstream** is a rootless package manager for Unix-like systems. It installs and updates software from release providers and direct HTTP sources, supports multiple asset types, tracks update channels, and automatically selects the best asset for your OS and CPU architecture.
 
 ---
 
@@ -29,11 +29,12 @@
 
 ## **Features**
 
-- Install packages directly from GitHub repository releases.
+- Install packages from GitHub, GitLab, Gitea, and HTTP sources.
 - Automatically detect system architecture (x86_64, ARM64) and OS (Linux, macOS).
 - Supports binaries, archives, AppImages, and compressed files.
 - Rootless, user-level installation.
 - Track multiple update channels (stable, nightly).
+- HTTP-backed providers for direct asset URLs (`direct`) and asset discovery from pages (`scraper`).
 
 ---
 
@@ -164,12 +165,22 @@ upstream-rs install mytool foo/my-cool-app --kind binary --desktop
 - `<name>` → local alias used for future management.
 - `<repo_slug>` → repository identifier (`owner/repo`).
 - `-k` / `--kind` → asset type (`auto`, `app-image`, `archive`, `compressed`, `binary`, `win-exe`, `checksum`).
-- `-p` / `--provider` → provider to source from (`github` or `gitlab`, default `github`).
+- `-p` / `--provider` → provider to source from (`github`, `gitlab`, `gitea`, `scraper`, `direct`; default `github`).
 - `-c` / `--channel` → track `stable` or `nightly` (default `stable`).
 - `-t` / `--tag` → install a specific release tag.
 - `-m` / `--match-pattern` → prefer assets matching a pattern.
-- `-e` / `--exclude-pattern` → exclude assets matching a pattern.
+- `-e` / `--exclude-pattern` → avoid assets matching a pattern.
 - `-d` / `--desktop` → optional `.desktop` entry creation.
+
+HTTP provider examples:
+
+```bash
+# Install directly from a file URL
+upstream-rs install awesomeapp https://example.com/awesomeapp.tar.gz -p direct -k archive
+
+# Discover downloadable assets from a release page
+upstream-rs install mytool https://example.com/downloads -p scraper
+```
 
 ---
 
@@ -220,7 +231,6 @@ Available actions:
 | `set`   | Set configuration keys (`key.path=value`). Example: `upstream-rs config set github.apiToken=abc123` |
 | `get`   | Retrieve keys. Example: `upstream-rs config get github.apiToken`                                    |
 | `list`  | List all keys and their values.                                                                     |
-| `show`  | Show full configuration as JSON.                                                                    |
 | `edit`  | Open configuration file in editor.                                                                  |
 | `reset` | Reset configuration to defaults.                                                                    |
 
