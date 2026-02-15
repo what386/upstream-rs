@@ -46,7 +46,7 @@ The easiest way to install **Upstream** is via the install script. This download
 #### Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install.bash | bash
 ```
 
 #### Windows
