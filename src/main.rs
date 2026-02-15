@@ -1,15 +1,13 @@
-use console::style;
+pub mod application;
+pub mod models;
+pub mod providers;
+pub mod services;
+pub mod utils;
 
+use console::style;
 use clap::Parser;
 
-use upstream_rs::application::cli::arguments::Cli;
-
-/*
-#[cfg(target_os = "windows")]
-compile_error!(
-    "Upstream is planned to be *Nix-only. If you'd like something similar, try out Scoop! (https://scoop.sh/)"
-);
-*/
+use crate::application::cli::arguments::Cli;
 
 #[tokio::main]
 async fn main() {
