@@ -22,6 +22,12 @@ pub struct ProviderManager {
     architecture_info: ArchitectureInfo,
 }
 
+#[derive(Debug, Clone)]
+pub struct AssetCandidate {
+    pub asset: Asset,
+    pub score: i32,
+}
+
 impl ProviderManager {
     pub fn new(
         github_token: Option<&str>,
@@ -234,6 +240,32 @@ impl ProviderManager {
                     format_os(&self.architecture_info.os_kind)
                 )
             })
+    }
+
+    pub fn get_candidate_assets(
+        &self,
+        release: &Release,
+        package: &Package,
+    ) -> Result<Vec<AssetCandidate>> {
+        let target_filetype = if package.filetype == Filetype::Auto {
+            Self::resolve_auto_filetype(release)?
+        } else {
+            package.filetype
+        };
+
+        let mut candidates: Vec<AssetCandidate> = release
+            .assets
+            .iter()
+            .filter(|a| self.is_potentially_compatible(a))
+            .filter(|a| a.filetype == target_filetype)
+            .map(|asset| AssetCandidate {
+                asset: asset.clone(),
+                score: self.score_asset(asset, package),
+            })
+            .collect();
+
+        candidates.sort_by(|a, b| b.score.cmp(&a.score));
+        Ok(candidates)
     }
 
     pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {

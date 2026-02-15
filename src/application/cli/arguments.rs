@@ -127,6 +127,38 @@ pub enum Commands {
         name: Option<String>,
     },
 
+    /// Inspect releases visible from a provider without installing
+    #[command(long_about = "Probe a repository/source and show parsed releases.\n\n\
+        Useful for validating what upstream can see before installation.\n\n\
+        EXAMPLES:\n  \
+        upstream probe neovim/neovim\n  \
+        upstream probe https://ziglang.org/download/ -p scraper --limit 20\n  \
+        upstream probe owner/repo --channel nightly --verbose")]
+    Probe {
+        /// Repository identifier or URL to probe
+        repo_slug: String,
+
+        /// Source provider (defaults to github, or scraper for URLs)
+        #[arg(short = 'p', long)]
+        provider: Option<Provider>,
+
+        /// Custom base URL for self-hosted providers
+        #[arg(long)]
+        base_url: Option<String>,
+
+        /// Channel view to display
+        #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
+        channel: Channel,
+
+        /// Maximum number of releases to display
+        #[arg(long, default_value_t = 10)]
+        limit: u32,
+
+        /// Include scored candidate assets for each release
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
+    },
+
     /// Manage upstream configuration
     #[command(long_about = "View and modify upstream's configuration.\n\n\
         Configuration is stored in TOML format and includes settings like \

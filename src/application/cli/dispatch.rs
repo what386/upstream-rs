@@ -48,6 +48,15 @@ impl Cli {
 
             Commands::List { name } => features::list::run(name),
 
+            Commands::Probe {
+                repo_slug,
+                provider,
+                base_url,
+                channel,
+                limit,
+                verbose,
+            } => features::probe::run(repo_slug, provider, base_url, channel, limit, verbose).await,
+
             Commands::Config { action } => match action {
                 ConfigAction::Set { keys } => features::config::run_set(keys),
                 ConfigAction::Get { keys } => features::config::run_get(keys),
