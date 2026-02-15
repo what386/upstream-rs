@@ -18,12 +18,7 @@ impl<'a> PackageChecker<'a> {
     pub async fn check_one(&self, package: &Package) -> Result<Option<(String, String)>> {
         let Some(latest_release) = self
             .provider_manager
-            .get_latest_release_if_modified_since(
-                &package.repo_slug,
-                &package.provider,
-                &package.channel,
-                Some(package.last_upgraded),
-            )
+            .check_for_updates(package)
             .await
             .context(format!(
                 "Failed to fetch latest release for '{}'",
