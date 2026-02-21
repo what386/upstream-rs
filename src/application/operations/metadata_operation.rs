@@ -86,6 +86,60 @@ impl<'a> MetadataManager<'a> {
         Ok(())
     }
 
+    /// Renames a package alias without changing provider/repo/version metadata.
+    pub fn rename_package<H>(
+        &mut self,
+        old_name: &str,
+        new_name: &str,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        let old_name = old_name.trim();
+        let new_name = new_name.trim();
+
+        if old_name.is_empty() || new_name.is_empty() {
+            return Err(anyhow::anyhow!("Package names cannot be empty"));
+        }
+
+        if old_name == new_name {
+            message!(
+                message_callback,
+                "{}",
+                style("Old and new package names are identical; no changes made").yellow()
+            );
+            return Ok(());
+        }
+
+        if self.package_storage.get_package_by_name(new_name).is_some() {
+            return Err(anyhow::anyhow!("Package '{}' already exists", new_name));
+        }
+
+        message!(
+            message_callback,
+            "Renaming package '{}' -> '{}' ...",
+            old_name,
+            new_name
+        );
+
+        let package = self
+            .package_storage
+            .get_mut_package_by_name(old_name)
+            .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", old_name))?;
+
+        package.name = new_name.to_string();
+        self.package_storage.save_packages()?;
+
+        message!(
+            message_callback,
+            "{}",
+            style(format!("Package '{}' renamed to '{}'", old_name, new_name)).green()
+        );
+
+        Ok(())
+    }
+
     /// Sets a package metadata field using dot-notation key path.
     /// Example: "is_pinned=true" or "pattern=.*x86_64.*"
     pub fn set_key<H>(
