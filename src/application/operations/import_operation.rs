@@ -60,6 +60,7 @@ impl<'a> ImportOperation<'a> {
     pub async fn import<F, G, H>(
         &mut self,
         path: &Path,
+        skip_failed: bool,
         download_progress_callback: &mut Option<F>,
         overall_progress_callback: &mut Option<G>,
         message_callback: &mut Option<H>,
@@ -70,10 +71,18 @@ impl<'a> ImportOperation<'a> {
         H: FnMut(&str),
     {
         if is_snapshot(path) {
+            if skip_failed {
+                message!(
+                    message_callback,
+                    "{}",
+                    style("Note: --skip-failed has no effect for snapshot imports").yellow()
+                );
+            }
             self.import_snapshot(path, message_callback)
         } else {
             self.import_manifest(
                 path,
+                skip_failed,
                 download_progress_callback,
                 overall_progress_callback,
                 message_callback,
@@ -89,6 +98,7 @@ impl<'a> ImportOperation<'a> {
     async fn import_manifest<F, G, H>(
         &mut self,
         path: &Path,
+        skip_failed: bool,
         download_progress_callback: &mut Option<F>,
         overall_progress_callback: &mut Option<G>,
         message_callback: &mut Option<H>,
@@ -122,6 +132,7 @@ impl<'a> ImportOperation<'a> {
 
         let mut to_install = Vec::new();
         let mut to_upgrade = Vec::new();
+        let mut failures = 0_u32;
 
         for reference in &manifest.packages {
             if installed_names.contains(reference.name.as_str()) {
@@ -149,11 +160,23 @@ impl<'a> ImportOperation<'a> {
                 PackageUpgrader::new(self.provider_manager, installer, remover, self.paths);
 
             for reference in &to_upgrade {
-                let package = self
+                let Some(package) = self
                     .package_storage
                     .get_package_by_name(&reference.name)
-                    .ok_or_else(|| anyhow!("Package '{}' not found in storage", reference.name))?
-                    .clone();
+                    .cloned()
+                else {
+                    if skip_failed {
+                        failures += 1;
+                        message!(
+                            message_callback,
+                            "{} Package '{}' missing from storage; skipping",
+                            style("Upgrade failed:").red(),
+                            reference.name
+                        );
+                        continue;
+                    }
+                    return Err(anyhow!("Package '{}' not found in storage", reference.name));
+                };
 
                 message!(message_callback, "Upgrading '{}' ...", reference.name);
 
@@ -174,7 +197,15 @@ impl<'a> ImportOperation<'a> {
                         message!(message_callback, "'{}' already up to date", reference.name);
                     }
                     Err(e) => {
-                        message!(message_callback, "{} {}", style("Upgrade failed:").red(), e);
+                        if skip_failed {
+                            failures += 1;
+                            message!(message_callback, "{} {}", style("Upgrade failed:").red(), e);
+                        } else {
+                            return Err(e).context(format!(
+                                "Failed to upgrade package '{}'",
+                                reference.name
+                            ));
+                        }
                     }
                 }
             }
@@ -192,15 +223,61 @@ impl<'a> ImportOperation<'a> {
 
             let mut install_op =
                 InstallOperation::new(self.provider_manager, self.package_storage, self.paths)?;
+            let total = packages.len() as u32;
+            let mut completed = 0_u32;
 
-            install_op
-                .install_bulk(
-                    packages,
-                    download_progress_callback,
-                    overall_progress_callback,
-                    message_callback,
-                )
-                .await?;
+            for package in packages {
+                let package_name = package.name.clone();
+                let use_icon = package.icon_path.is_some();
+                message!(message_callback, "Installing '{}' ...", package_name);
+
+                let install_result = install_op
+                    .install_single(
+                        package,
+                        &None,
+                        &use_icon,
+                        download_progress_callback,
+                        message_callback,
+                    )
+                    .await
+                    .context(format!("Failed to install package '{}'", package_name));
+
+                match install_result {
+                    Ok(_) => {
+                        message!(
+                            message_callback,
+                            "{}",
+                            style(format!("'{}' installed", package_name)).green()
+                        );
+                    }
+                    Err(err) => {
+                        if skip_failed {
+                            failures += 1;
+                            message!(
+                                message_callback,
+                                "{} {}",
+                                style("Install failed:").red(),
+                                err
+                            );
+                        } else {
+                            return Err(err);
+                        }
+                    }
+                }
+
+                completed += 1;
+                if let Some(cb) = overall_progress_callback.as_mut() {
+                    cb(completed, total);
+                }
+            }
+        }
+
+        if skip_failed && failures > 0 {
+            message!(
+                message_callback,
+                "{} package(s) failed during import but were skipped",
+                failures
+            );
         }
 
         Ok(())
