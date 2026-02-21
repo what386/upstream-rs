@@ -441,5 +441,18 @@
       "completed_at": "2026-02-21T13:07:12.158874826Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "Move CLI command label Display impls into application/cli/labels.rs",
+      "priority": "Medium",
+      "tags": [
+        "refactor",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T13:13:20.152880975Z"
+    },
+    "version": null
   }
 ]
