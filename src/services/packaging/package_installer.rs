@@ -5,7 +5,7 @@ use crate::{
         integration::{ShellManager, SymlinkManager, compression_handler, permission_handler},
         packaging::ChecksumVerifier,
     },
-    utils::static_paths::UpstreamPaths,
+    utils::{fs_move, static_paths::UpstreamPaths},
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -217,7 +217,7 @@ impl<'a> PackageInstaller<'a> {
             out_path.display()
         );
 
-        fs::rename(&extracted_path, &out_path).context(format!(
+        fs_move::move_file_or_dir(&extracted_path, &out_path).context(format!(
             "Failed to move extracted directory from '{}' to '{}'",
             extracted_path.display(),
             out_path.display()
@@ -327,21 +327,10 @@ impl<'a> PackageInstaller<'a> {
             out_path.display()
         );
 
-        fs::rename(asset_path, &out_path)
-            .or_else(|_| {
-                fs::copy(asset_path, &out_path).context(format!(
-                    "Failed to copy AppImage to '{}'",
-                    out_path.display()
-                ))?;
-                fs::remove_file(asset_path).context(format!(
-                    "Failed to remove temporary file '{}'",
-                    asset_path.display()
-                ))
-            })
-            .context(format!(
-                "Failed to move AppImage to '{}'",
-                out_path.display()
-            ))?;
+        fs_move::move_file_or_dir(asset_path, &out_path).context(format!(
+            "Failed to move AppImage to '{}'",
+            out_path.display()
+        ))?;
 
         permission_handler::make_executable(&out_path).context(format!(
             "Failed to make AppImage '{}' executable",
@@ -387,15 +376,7 @@ impl<'a> PackageInstaller<'a> {
             out_path.display()
         );
 
-        fs::rename(asset_path, &out_path)
-            .or_else(|_| {
-                fs::copy(asset_path, &out_path)
-                    .context(format!("Failed to copy binary to '{}'", out_path.display()))?;
-                fs::remove_file(asset_path).context(format!(
-                    "Failed to remove temporary file '{}'",
-                    asset_path.display()
-                ))
-            })
+        fs_move::move_file_or_dir(asset_path, &out_path)
             .context(format!("Failed to move binary to '{}'", out_path.display()))?;
 
         permission_handler::make_executable(&out_path).context(format!(
