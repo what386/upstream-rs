@@ -17,9 +17,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] Fix cross-device (EXDEV) install moves from /tmp to ~/.upstream (high) #bug #platform
-      @created 2026-02-21 03:57
-
 
 ## Completed
 
@@ -52,4 +49,8 @@
       @created 2026-02-14 00:58
       @completed 2026-02-14 01:37
       @completed_version 1.2.1
+
+- [x] Fix cross-device (EXDEV) install moves from /tmp to ~/.upstream (high) #bug #platform
+      @created 2026-02-21 03:57
+      @completed 2026-02-21 03:58
 

@@ -378,5 +378,18 @@
       "patch": 1,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "Fix cross-device (EXDEV) install moves from /tmp to ~/.upstream",
+      "priority": "High",
+      "tags": [
+        "bug",
+        "platform"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T03:58:49.451116639Z"
+    },
+    "version": null
   }
 ]
