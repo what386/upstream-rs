@@ -20,13 +20,14 @@
 - [ ] lockfile (high) #feature #bugfix
       @created 2026-02-21 12:59
 
-- [ ] Refactor lock storage to acquire from Commands at dispatch start #refactor #reliability
-      @created 2026-02-21 13:07
-
 
 ## Completed
 
 - [x] Add lockfile to prevent concurrent mutating operations (high) #bug #reliability #ops
       @created 2026-02-21 13:00
       @completed 2026-02-21 13:01
+
+- [x] Refactor lock storage to acquire from Commands at dispatch start #refactor #reliability
+      @created 2026-02-21 13:07
+      @completed 2026-02-21 13:07
 

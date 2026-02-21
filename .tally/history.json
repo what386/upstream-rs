@@ -428,5 +428,18 @@
       "completed_at": "2026-02-21T13:01:49.835385839Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "Refactor lock storage to acquire from Commands at dispatch start",
+      "priority": "Medium",
+      "tags": [
+        "refactor",
+        "reliability"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T13:07:12.158874826Z"
+    },
+    "version": null
   }
 ]
