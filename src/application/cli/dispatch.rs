@@ -2,10 +2,16 @@ use anyhow::Result;
 
 use crate::application::cli::arguments::{Cli, Commands, ConfigAction, PackageAction};
 use crate::application::features;
+use crate::services::storage::lock_storage::LockStorage;
+use crate::utils::static_paths::UpstreamPaths;
 
 impl Cli {
     pub async fn run(self) -> Result<()> {
-        match self.command {
+        let command = self.command;
+        let paths = UpstreamPaths::new();
+        let _lock = LockStorage::acquire(&paths, &command)?;
+
+        match command {
             Commands::Init { clean } => features::init::run(clean),
             Commands::Install {
                 name,
