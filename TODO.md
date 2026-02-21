@@ -20,6 +20,9 @@
 - [ ] lockfile (high) #feature #bugfix
       @created 2026-02-21 12:59
 
+- [ ] Move CLI command label Display impls into application/cli/labels.rs #refactor #cli
+      @created 2026-02-21 13:12
+
 
 ## Completed
 
