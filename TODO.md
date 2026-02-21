@@ -20,6 +20,10 @@
 - [ ] lockfile (high) #feature #bugfix
       @created 2026-02-21 12:59
 
-- [ ] Add lockfile to prevent concurrent mutating operations (high) #bug #reliability #ops
+
+## Completed
+
+- [x] Add lockfile to prevent concurrent mutating operations (high) #bug #reliability #ops
       @created 2026-02-21 13:00
+      @completed 2026-02-21 13:01
 
