@@ -23,6 +23,9 @@
 - [ ] Add package rename command (high) #feature #cli
       @created 2026-02-21 13:19
 
+- [ ] Add init --check mode #feature #cli
+      @created 2026-02-21 13:19
+
 
 ## Completed
 
