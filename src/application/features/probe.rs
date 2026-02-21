@@ -33,7 +33,11 @@ pub async fn run(
 
     println!(
         "{}",
-        style(format!("Probing '{}' via {} ...", repo_slug, effective_provider)).cyan()
+        style(format!(
+            "Probing '{}' via {} ...",
+            repo_slug, effective_provider
+        ))
+        .cyan()
     );
 
     let mut releases = provider_manager

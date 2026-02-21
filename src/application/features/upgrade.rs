@@ -274,7 +274,11 @@ async fn run_check(
     if machine_readable {
         let updates = match names {
             None => package_upgrade.check_all_machine_readable().await,
-            Some(name_vec) => package_upgrade.check_selected_machine_readable(&name_vec).await,
+            Some(name_vec) => {
+                package_upgrade
+                    .check_selected_machine_readable(&name_vec)
+                    .await
+            }
         };
         for (name, oldver, newver) in updates {
             println!("{name} {oldver} {newver}");
