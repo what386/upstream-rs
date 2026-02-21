@@ -465,3 +465,7 @@ impl<'a> UpgradeOperation<'a> {
             .collect()
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/application/operations/upgrade_operation.rs"]
+mod tests;

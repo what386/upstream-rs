@@ -89,3 +89,7 @@ impl GiteaAdapter {
             .unwrap_or(DateTime::<Utc>::MIN_UTC)
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/providers/gitea/gitea_adapter.rs"]
+mod tests;

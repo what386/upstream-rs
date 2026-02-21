@@ -273,3 +273,7 @@ impl<'a> PackageRemover<'a> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/services/packaging/package_remover.rs"]
+mod tests;

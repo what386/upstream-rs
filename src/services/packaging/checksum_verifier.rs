@@ -279,3 +279,7 @@ impl<'a> ChecksumVerifier<'a> {
         Ok(computed_digest.to_lowercase() == checksum.digest.to_lowercase())
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/services/packaging/checksum_verifier.rs"]
+mod tests;

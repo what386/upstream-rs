@@ -160,3 +160,7 @@ impl<'a> ExportOperation<'a> {
         tar.finish().context("Failed to finalise snapshot archive")
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/application/operations/export_operation.rs"]
+mod tests;

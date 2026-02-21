@@ -361,3 +361,7 @@ macro_rules! message {
     }};
 }
 use message;
+
+#[cfg(test)]
+#[path = "../../../tests/application/operations/import_operation.rs"]
+mod tests;
