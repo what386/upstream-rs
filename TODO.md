@@ -20,6 +20,9 @@
 - [ ] lockfile (high) #feature #bugfix
       @created 2026-02-21 12:59
 
+- [ ] Add non-intrusive unit tests for CLI flags, metadata rename, init checks, import detection, and package storage #test #reliability
+      @created 2026-02-21 13:30
+
 
 ## Completed
 
