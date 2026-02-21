@@ -20,9 +20,6 @@
 - [ ] lockfile (high) #feature #bugfix
       @created 2026-02-21 12:59
 
-- [ ] Move CLI command label Display impls into application/cli/labels.rs #refactor #cli
-      @created 2026-02-21 13:12
-
 
 ## Completed
 
@@ -33,4 +30,8 @@
 - [x] Refactor lock storage to acquire from Commands at dispatch start #refactor #reliability
       @created 2026-02-21 13:07
       @completed 2026-02-21 13:07
+
+- [x] Move CLI command label Display impls into application/cli/labels.rs #refactor #cli
+      @created 2026-02-21 13:12
+      @completed 2026-02-21 13:13
 
