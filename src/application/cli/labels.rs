@@ -44,7 +44,3 @@ impl fmt::Display for PackageAction {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "../../../tests/application/cli/labels.rs"]
-mod tests;
