@@ -1,5 +1,8 @@
 use crate::{
-    models::{common::enums::Provider, provider::Release},
+    models::{
+        common::enums::Provider,
+        provider::{Asset, Release},
+    },
     providers::provider_manager::ProviderManager,
 };
 use anyhow::{Result, anyhow};
@@ -8,6 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum HashAlgo {
     Sha256,
     Sha512,
@@ -103,14 +107,7 @@ impl<'a> ChecksumVerifier<'a> {
     where
         F: FnMut(u64, u64),
     {
-        let checksum_asset = release
-            .get_asset_by_name_invariant("checksums.txt")
-            .or_else(|| release.get_asset_by_name_invariant("sha256sums.txt"))
-            .or_else(|| release.get_asset_by_name_invariant("sha256sum.txt"))
-            .or_else(|| {
-                let name = format!("{asset_name}.sha256");
-                release.get_asset_by_name_invariant(&name)
-            });
+        let checksum_asset = Self::find_checksum_asset(release, asset_name);
 
         let Some(asset) = checksum_asset else {
             return Ok(None); // no checksum advertised
@@ -123,6 +120,65 @@ impl<'a> ChecksumVerifier<'a> {
             .await?;
 
         Ok(Some(path))
+    }
+
+    fn find_checksum_asset<'r>(release: &'r Release, asset_name: &str) -> Option<&'r Asset> {
+        let basename = Path::new(asset_name)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(asset_name);
+
+        let specific_candidates = [
+            format!("{asset_name}.sha256"),
+            format!("{asset_name}.sha512"),
+            format!("{basename}.sha256"),
+            format!("{basename}.sha512"),
+            format!("{basename}.sha256sum"),
+            format!("{basename}.sha512sum"),
+        ];
+
+        for candidate in &specific_candidates {
+            if let Some(asset) = release.get_asset_by_name_invariant(candidate) {
+                return Some(asset);
+            }
+        }
+
+        // Common release-level checksum files.
+        const COMMON_NAMES: &[&str] = &[
+            "checksums.txt",
+            "checksums",
+            "checksum.txt",
+            "sha256sums.txt",
+            "sha256sum.txt",
+            "sha256sums",
+            "sha256sum",
+            "sha512sums.txt",
+            "sha512sum.txt",
+            "sha512sums",
+            "sha512sum",
+        ];
+        for name in COMMON_NAMES {
+            if let Some(asset) = release.get_asset_by_name_invariant(name) {
+                return Some(asset);
+            }
+        }
+
+        release
+            .assets
+            .iter()
+            .find(|asset| Self::is_checksum_filename(&asset.name))
+    }
+
+    fn is_checksum_filename(name: &str) -> bool {
+        let lowered = name.to_ascii_lowercase();
+        lowered.ends_with(".sha256")
+            || lowered.ends_with(".sha512")
+            || lowered.ends_with(".sha256sum")
+            || lowered.ends_with(".sha512sum")
+            || lowered.ends_with(".sha256.txt")
+            || lowered.ends_with(".sha512.txt")
+            || lowered.ends_with(".sum")
+            || lowered.contains("checksums")
     }
 
     fn parse_checksums(contents: &str) -> Vec<ChecksumEntry> {
@@ -145,12 +201,35 @@ impl<'a> ChecksumVerifier<'a> {
                 entries.push(entry);
             } else if let Some(entry) = Self::parse_colon_format(line) {
                 entries.push(entry);
+            } else if let Some(entry) = Self::parse_openssl_format(line) {
+                entries.push(entry);
             } else if let Some(entry) = Self::parse_bare_hash(line) {
                 entries.push(entry);
             }
         }
 
         entries
+    }
+
+    fn parse_digest(raw: &str) -> Option<(HashAlgo, String)> {
+        let mut token = raw.trim();
+        for prefix in ["sha256:", "sha256=", "sha512:", "sha512="] {
+            if token.len() >= prefix.len() && token[..prefix.len()].eq_ignore_ascii_case(prefix) {
+                token = &token[prefix.len()..];
+                break;
+            }
+        }
+        let token = token.trim();
+        if !token.chars().all(|ch| ch.is_ascii_hexdigit()) {
+            return None;
+        }
+        let algo = match token.len() {
+            64 => HashAlgo::Sha256,
+            128 => HashAlgo::Sha512,
+            _ => return None,
+        };
+
+        Some((algo, token.to_ascii_lowercase()))
     }
 
     fn parse_standard_format(line: &str) -> Option<ChecksumEntry> {
@@ -170,17 +249,12 @@ impl<'a> ChecksumVerifier<'a> {
             return None;
         }
 
-        // Determine algorithm based on digest length
-        let algo = match digest.len() {
-            64 => HashAlgo::Sha256,
-            128 => HashAlgo::Sha512,
-            _ => return None, // Unknown hash length
-        };
+        let (algo, normalized) = Self::parse_digest(digest)?;
 
         Some(ChecksumEntry {
             algo,
             filename: filename.to_string(),
-            digest: digest.to_lowercase(),
+            digest: normalized,
         })
     }
 
@@ -198,40 +272,59 @@ impl<'a> ChecksumVerifier<'a> {
             return None;
         }
 
-        // Determine algorithm based on digest length
-        let algo = match digest.len() {
-            64 => HashAlgo::Sha256,
-            128 => HashAlgo::Sha512,
-            _ => return None,
-        };
+        let (algo, normalized) = Self::parse_digest(digest)?;
 
         Some(ChecksumEntry {
             algo,
             filename: filename.to_string(),
-            digest: digest.to_lowercase(),
+            digest: normalized,
+        })
+    }
+
+    fn parse_openssl_format(line: &str) -> Option<ChecksumEntry> {
+        let (left, right) = line.split_once('=')?;
+        let left = left.trim();
+        let open = left.find('(')?;
+        let close = left.rfind(')')?;
+        if close <= open + 1 {
+            return None;
+        }
+
+        let algo_name = left[..open].trim();
+        let expected_algo = if algo_name.eq_ignore_ascii_case("sha256") {
+            HashAlgo::Sha256
+        } else if algo_name.eq_ignore_ascii_case("sha512") {
+            HashAlgo::Sha512
+        } else {
+            return None;
+        };
+
+        let filename = left[open + 1..close].trim();
+        if filename.is_empty() {
+            return None;
+        }
+
+        let (algo, normalized) = Self::parse_digest(right.trim())?;
+        if algo != expected_algo {
+            return None;
+        }
+
+        Some(ChecksumEntry {
+            algo,
+            filename: filename.to_string(),
+            digest: normalized,
         })
     }
 
     fn parse_bare_hash(line: &str) -> Option<ChecksumEntry> {
         // Handle bare hash format (just the digest, no filename)
-        let digest = line.trim();
-
-        if digest.is_empty() {
-            return None;
-        }
-
-        // Determine algorithm based on digest length
-        let algo = match digest.len() {
-            64 => HashAlgo::Sha256,
-            128 => HashAlgo::Sha512,
-            _ => return None, // Unknown hash length
-        };
+        let (algo, normalized) = Self::parse_digest(line.trim())?;
 
         // Use empty filename - indicates bare hash file
         Some(ChecksumEntry {
             algo,
             filename: String::new(),
-            digest: digest.to_lowercase(),
+            digest: normalized,
         })
     }
 
