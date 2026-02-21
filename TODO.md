@@ -26,6 +26,9 @@
 - [ ] Add init --check mode #feature #cli
       @created 2026-02-21 13:19
 
+- [ ] Add import --skip-failed mode (high) #feature #reliability
+      @created 2026-02-21 13:19
+
 
 ## Completed
 
