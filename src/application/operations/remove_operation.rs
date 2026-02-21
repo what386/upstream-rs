@@ -114,3 +114,7 @@ impl<'a> RemoveOperation<'a> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/application/operations/remove_operation.rs"]
+mod tests;

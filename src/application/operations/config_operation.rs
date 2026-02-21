@@ -173,3 +173,7 @@ impl<'a> ConfigUpdater<'a> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/application/operations/config_operation.rs"]
+mod tests;

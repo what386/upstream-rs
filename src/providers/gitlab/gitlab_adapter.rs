@@ -116,3 +116,7 @@ impl GitlabAdapter {
             .unwrap_or(DateTime::<Utc>::MIN_UTC)
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/providers/gitlab/gitlab_adapter.rs"]
+mod tests;

@@ -410,3 +410,7 @@ impl<'a> Drop for PackageInstaller<'a> {
         let _ = fs::remove_dir_all(&self.download_cache);
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/services/packaging/package_installer.rs"]
+mod tests;

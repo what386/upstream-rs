@@ -261,3 +261,7 @@ impl<'a> PackageUpgrader<'a> {
         Ok(Some(updated_package))
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/services/packaging/package_upgrader.rs"]
+mod tests;

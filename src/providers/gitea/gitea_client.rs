@@ -228,3 +228,7 @@ impl GiteaClient {
         Ok(releases)
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/providers/gitea/gitea_client.rs"]
+mod tests;

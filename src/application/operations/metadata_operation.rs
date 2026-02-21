@@ -430,3 +430,7 @@ impl<'a> MetadataManager<'a> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/application/operations/metadata_operation.rs"]
+mod tests;

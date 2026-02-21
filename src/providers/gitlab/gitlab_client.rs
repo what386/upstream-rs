@@ -216,3 +216,7 @@ impl GitlabClient {
         Ok(releases)
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/providers/gitlab/gitlab_client.rs"]
+mod tests;

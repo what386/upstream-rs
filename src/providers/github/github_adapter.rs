@@ -90,3 +90,7 @@ impl GithubAdapter {
             .unwrap_or(DateTime::<Utc>::MIN_UTC)
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/providers/github/github_adapter.rs"]
+mod tests;

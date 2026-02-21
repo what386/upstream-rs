@@ -96,3 +96,7 @@ impl UpstreamPaths {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/utils/static_paths.rs"]
+mod tests;

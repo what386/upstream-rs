@@ -45,3 +45,7 @@ impl PackageReference {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/models/upstream/package_reference.rs"]
+mod tests;

@@ -253,3 +253,7 @@ impl<'a> InstallOperation<'a> {
             .await
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/application/operations/install_operation.rs"]
+mod tests;
