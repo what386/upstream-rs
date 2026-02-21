@@ -20,6 +20,9 @@
 - [ ] lockfile (high) #feature #bugfix
       @created 2026-02-21 12:59
 
+- [ ] Add package rename command (high) #feature #cli
+      @created 2026-02-21 13:19
+
 
 ## Completed
 
