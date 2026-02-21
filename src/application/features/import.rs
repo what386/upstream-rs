@@ -10,7 +10,7 @@ use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::PathBuf;
 use std::time::Duration;
 
-pub async fn run_import(path: PathBuf) -> Result<()> {
+pub async fn run_import(path: PathBuf, skip_failed: bool) -> Result<()> {
     let paths = UpstreamPaths::new();
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
@@ -49,6 +49,7 @@ pub async fn run_import(path: PathBuf) -> Result<()> {
     import_op
         .import(
             &path,
+            skip_failed,
             &mut download_progress_callback,
             &mut overall_progress_callback,
             &mut message_callback,

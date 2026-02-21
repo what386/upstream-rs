@@ -12,7 +12,7 @@ impl Cli {
         let _lock = LockStorage::acquire(&paths, &command)?;
 
         match command {
-            Commands::Init { clean } => features::init::run(clean),
+            Commands::Init { clean, check } => features::init::run(clean, check),
             Commands::Install {
                 name,
                 repo_slug,
@@ -75,12 +75,17 @@ impl Cli {
                 PackageAction::Pin { name } => features::package::run_pin(name),
                 PackageAction::Unpin { name } => features::package::run_unpin(name),
                 PackageAction::SetKey { name, keys } => features::package::run_set_key(name, keys),
+                PackageAction::Rename { old_name, new_name } => {
+                    features::package::run_rename(old_name, new_name)
+                }
                 PackageAction::GetKey { name, keys } => features::package::run_get_key(name, keys),
                 PackageAction::Metadata { name } => features::package::run_metadata(name),
             },
 
             Commands::Export { path, full } => features::export::run_export(path, full).await,
-            Commands::Import { path } => features::import::run_import(path).await,
+            Commands::Import { path, skip_failed } => {
+                features::import::run_import(path, skip_failed).await
+            }
             Commands::Doctor { names } => features::doctor::run(names),
         }
     }

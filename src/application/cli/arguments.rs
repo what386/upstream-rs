@@ -199,6 +199,10 @@ pub enum Commands {
         /// Clean initialization (remove existing hooks first)
         #[arg(long)]
         clean: bool,
+
+        /// Check initialization status without making changes
+        #[arg(long, default_value_t = false, conflicts_with = "clean")]
+        check: bool,
     },
 
     /// Import packages from a manifest or full snapshot
@@ -214,6 +218,10 @@ pub enum Commands {
     Import {
         /// Path to the manifest or snapshot archive
         path: std::path::PathBuf,
+
+        /// Continue importing remaining packages when a package install/upgrade fails
+        #[arg(long, default_value_t = false)]
+        skip_failed: bool,
     },
 
     /// Export packages to a manifest or full snapshot
@@ -329,6 +337,20 @@ pub enum PackageAction {
 
         /// Metadata assignments (format: key=value)
         keys: Vec<String>,
+    },
+
+    /// Rename package alias without reinstalling
+    #[command(long_about = "Rename the local alias of an installed package.\n\n\
+        This changes how upstream tracks the package and updates integration aliases \
+        (symlink/desktop entry) when possible.\n\n\
+        EXAMPLE:\n  \
+        upstream package rename nvim neovim")]
+    Rename {
+        /// Existing package alias
+        old_name: String,
+
+        /// New package alias
+        new_name: String,
     },
 
     /// Display all metadata for a package

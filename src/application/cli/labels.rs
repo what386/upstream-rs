@@ -39,6 +39,7 @@ impl fmt::Display for PackageAction {
             PackageAction::Unpin { .. } => write!(f, "package unpin"),
             PackageAction::GetKey { .. } => write!(f, "package get-key"),
             PackageAction::SetKey { .. } => write!(f, "package set-key"),
+            PackageAction::Rename { .. } => write!(f, "package rename"),
             PackageAction::Metadata { .. } => write!(f, "package metadata"),
         }
     }
@@ -66,6 +67,16 @@ mod tests {
             }
             .to_string(),
             "package metadata"
+        );
+        assert_eq!(
+            Commands::Package {
+                action: PackageAction::Rename {
+                    old_name: "old".to_string(),
+                    new_name: "new".to_string()
+                }
+            }
+            .to_string(),
+            "package rename"
         );
     }
 }
