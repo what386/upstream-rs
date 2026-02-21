@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.3.2
+# TODO — upstream-cli v1.4.0
 
 @created: 2026-01-31
 @modified: 2026-02-21
@@ -23,28 +23,35 @@
 - [x] Add lockfile to prevent concurrent mutating operations (high) #bug #reliability #ops
       @created 2026-02-21 13:00
       @completed 2026-02-21 13:01
+      @completed_version 1.4.0
 
 - [x] Refactor lock storage to acquire from Commands at dispatch start #refactor #reliability
       @created 2026-02-21 13:07
       @completed 2026-02-21 13:07
+      @completed_version 1.4.0
 
 - [x] Move CLI command label Display impls into application/cli/labels.rs #refactor #cli
       @created 2026-02-21 13:12
       @completed 2026-02-21 13:13
+      @completed_version 1.4.0
 
 - [x] Add package rename command (high) #feature #cli
       @created 2026-02-21 13:19
       @completed 2026-02-21 13:24
+      @completed_version 1.4.0
 
 - [x] Add init --check mode #feature #cli
       @created 2026-02-21 13:19
       @completed 2026-02-21 13:24
+      @completed_version 1.4.0
 
 - [x] Add import --skip-failed mode (high) #feature #reliability
       @created 2026-02-21 13:19
       @completed 2026-02-21 13:24
+      @completed_version 1.4.0
 
 - [x] Add non-intrusive unit tests for CLI flags, metadata rename, init checks, import detection, and package storage #test #reliability
       @created 2026-02-21 13:30
       @completed 2026-02-21 13:30
+      @completed_version 1.4.0
 

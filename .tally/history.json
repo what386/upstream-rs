@@ -427,7 +427,12 @@
       "commit": null,
       "completed_at": "2026-02-21T13:01:49.835385839Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -440,7 +445,12 @@
       "commit": null,
       "completed_at": "2026-02-21T13:07:12.158874826Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -453,7 +463,12 @@
       "commit": null,
       "completed_at": "2026-02-21T13:13:20.152880975Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -466,7 +481,12 @@
       "commit": null,
       "completed_at": "2026-02-21T13:24:13.593223321Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -479,7 +499,12 @@
       "commit": null,
       "completed_at": "2026-02-21T13:24:13.632714635Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -492,7 +517,12 @@
       "commit": null,
       "completed_at": "2026-02-21T13:24:13.653941520Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -505,6 +535,138 @@
       "commit": null,
       "completed_at": "2026-02-21T13:30:13.746773235Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Add lockfile to prevent concurrent mutating operations",
+      "priority": "High",
+      "tags": [
+        "bug",
+        "reliability",
+        "ops"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T13:01:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Refactor lock storage to acquire from Commands at dispatch start",
+      "priority": "Medium",
+      "tags": [
+        "refactor",
+        "reliability"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T13:07:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Move CLI command label Display impls into application/cli/labels.rs",
+      "priority": "Medium",
+      "tags": [
+        "refactor",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T13:13:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Add package rename command",
+      "priority": "High",
+      "tags": [
+        "feature",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T13:24:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Add init --check mode",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T13:24:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Add import --skip-failed mode",
+      "priority": "High",
+      "tags": [
+        "feature",
+        "reliability"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T13:24:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Add non-intrusive unit tests for CLI flags, metadata rename, init checks, import detection, and package storage",
+      "priority": "Medium",
+      "tags": [
+        "test",
+        "reliability"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T13:30:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   }
 ]
