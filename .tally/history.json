@@ -414,5 +414,19 @@
       "patch": 2,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "Add lockfile to prevent concurrent mutating operations",
+      "priority": "High",
+      "tags": [
+        "bug",
+        "reliability",
+        "ops"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T13:01:49.835385839Z"
+    },
+    "version": null
   }
 ]
