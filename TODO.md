@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.3.0
+# TODO — upstream-cli v1.3.2
 
 @created: 2026-01-31
 @modified: 2026-02-21
@@ -53,4 +53,5 @@
 - [x] Fix cross-device (EXDEV) install moves from /tmp to ~/.upstream (high) #bug #platform
       @created 2026-02-21 03:57
       @completed 2026-02-21 03:58
+      @completed_version 1.3.2
 
