@@ -1,4 +1,5 @@
 use crate::utils::static_paths::UpstreamPaths;
+use std::collections::BTreeSet;
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
@@ -7,6 +8,11 @@ use std::path::Path;
 const SOURCE_LINE_BASH: &str =
     "[ -f $HOME/.upstream/metadata/paths.sh ] && source $HOME/.upstream/metadata/paths.sh";
 const SOURCE_LINE_FISH: &str = "source $HOME/.upstream/metadata/paths.sh";
+
+pub struct InitCheckReport {
+    pub ok: bool,
+    pub messages: Vec<String>,
+}
 
 #[cfg(windows)]
 fn normalize_windows_path(path: &str) -> String {
@@ -28,6 +34,42 @@ pub fn initialize(paths: &UpstreamPaths) -> io::Result<()> {
     update_shell_profiles(paths)?;
 
     Ok(())
+}
+
+pub fn check(paths: &UpstreamPaths) -> io::Result<InitCheckReport> {
+    let mut report = InitCheckReport {
+        ok: true,
+        messages: Vec::new(),
+    };
+
+    for (label, path) in [
+        ("config directory", &paths.dirs.config_dir),
+        ("data directory", &paths.dirs.data_dir),
+        ("metadata directory", &paths.dirs.metadata_dir),
+        ("symlinks directory", &paths.integration.symlinks_dir),
+        ("appimages directory", &paths.install.appimages_dir),
+        ("binaries directory", &paths.install.binaries_dir),
+        ("archives directory", &paths.install.archives_dir),
+    ] {
+        if path.exists() {
+            report
+                .messages
+                .push(format!("[OK] {} exists: {}", label, path.display()));
+        } else {
+            report.ok = false;
+            report
+                .messages
+                .push(format!("[FAIL] {} missing: {}", label, path.display()));
+        }
+    }
+
+    #[cfg(unix)]
+    check_unix_integration(paths, &mut report)?;
+
+    #[cfg(windows)]
+    check_windows_integration(paths, &mut report)?;
+
+    Ok(report)
 }
 
 #[cfg(unix)]
@@ -177,6 +219,88 @@ fn update_shell_profiles(paths: &UpstreamPaths) -> io::Result<()> {
 }
 
 #[cfg(unix)]
+fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -> io::Result<()> {
+    let expected_line = format!(
+        r#"export PATH="{}:$PATH""#,
+        paths.integration.symlinks_dir.display()
+    );
+
+    if !paths.config.paths_file.exists() {
+        report.ok = false;
+        report.messages.push(format!(
+            "[FAIL] PATH metadata file missing: {}",
+            paths.config.paths_file.display()
+        ));
+    } else {
+        let content = fs::read_to_string(&paths.config.paths_file)?;
+        if content.contains(&expected_line) {
+            report.messages.push(format!(
+                "[OK] PATH metadata file contains symlink export: {}",
+                paths.config.paths_file.display()
+            ));
+        } else {
+            report.ok = false;
+            report.messages.push(format!(
+                "[FAIL] PATH metadata file missing expected export line: {}",
+                paths.config.paths_file.display()
+            ));
+        }
+    }
+
+    let mut profiles_to_check: BTreeSet<(String, String)> = BTreeSet::new();
+    for shell_path in get_installed_shells()? {
+        let shell_name = Path::new(&shell_path)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        match shell_name.as_str() {
+            "bash" | "sh" => {
+                profiles_to_check.insert((".bashrc".to_string(), SOURCE_LINE_BASH.to_string()));
+            }
+            "zsh" => {
+                profiles_to_check.insert((".zshrc".to_string(), SOURCE_LINE_BASH.to_string()));
+            }
+            "fish" => {
+                profiles_to_check.insert((
+                    ".config/fish/config.fish".to_string(),
+                    SOURCE_LINE_FISH.to_string(),
+                ));
+            }
+            _ => {}
+        }
+    }
+
+    for (profile_rel, expected_line) in profiles_to_check {
+        let profile_path = paths.dirs.user_dir.join(&profile_rel);
+        if !profile_path.exists() {
+            report.ok = false;
+            report.messages.push(format!(
+                "[FAIL] Shell profile missing: {}",
+                profile_path.display()
+            ));
+            continue;
+        }
+
+        let content = fs::read_to_string(&profile_path)?;
+        if content.contains(&expected_line) {
+            report.messages.push(format!(
+                "[OK] Shell profile contains upstream hook: {}",
+                profile_path.display()
+            ));
+        } else {
+            report.ok = false;
+            report.messages.push(format!(
+                "[FAIL] Shell profile missing upstream hook: {}",
+                profile_path.display()
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(unix)]
 fn add_line_to_profile(paths: &UpstreamPaths, relative_path: &str, line: &str) -> io::Result<()> {
     let profile_path = paths.dirs.user_dir.join(relative_path);
 
@@ -278,6 +402,41 @@ fn remove_from_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
 
     // Broadcast WM_SETTINGCHANGE to notify other applications
     broadcast_environment_change();
+
+    Ok(())
+}
+
+#[cfg(windows)]
+fn check_windows_integration(
+    paths: &UpstreamPaths,
+    report: &mut InitCheckReport,
+) -> io::Result<()> {
+    use winreg::RegKey;
+    use winreg::enums::*;
+
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let env_key = hkcu
+        .open_subkey_with_flags("Environment", KEY_READ)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to open PATH: {}", e)))?;
+
+    let symlinks_path = paths.integration.symlinks_dir.display().to_string();
+    let symlinks_norm = normalize_windows_path(&symlinks_path);
+    let current_path: String = env_key.get_value("Path").unwrap_or_else(|_| String::new());
+
+    let in_path = current_path
+        .split(';')
+        .any(|p| normalize_windows_path(p) == symlinks_norm);
+
+    if in_path {
+        report
+            .messages
+            .push("[OK] Windows PATH contains upstream symlinks directory".to_string());
+    } else {
+        report.ok = false;
+        report
+            .messages
+            .push("[FAIL] Windows PATH missing upstream symlinks directory".to_string());
+    }
 
     Ok(())
 }
