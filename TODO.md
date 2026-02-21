@@ -17,3 +17,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
+- [ ] lockfile (high) #feature #bugfix
+      @created 2026-02-21 12:59
+
