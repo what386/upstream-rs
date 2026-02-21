@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use console::style;
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -18,6 +19,7 @@ struct DoctorReport {
     ok: u32,
     warn: u32,
     fail: u32,
+    hints: Vec<String>,
 }
 
 impl DoctorReport {
@@ -26,6 +28,7 @@ impl DoctorReport {
             ok: 0,
             warn: 0,
             fail: 0,
+            hints: Vec::new(),
         }
     }
 
@@ -44,6 +47,16 @@ impl DoctorReport {
                 self.fail += 1;
                 println!("{} {}", style("[FAIL]").red(), msg);
             }
+        }
+    }
+
+    fn hint(&mut self, hint: impl AsRef<str>) {
+        let text = hint.as_ref().trim();
+        if text.is_empty() {
+            return;
+        }
+        if !self.hints.iter().any(|existing| existing == text) {
+            self.hints.push(text.to_string());
         }
     }
 }
@@ -76,6 +89,43 @@ fn expected_link_path(base_dir: &Path, name: &str) -> PathBuf {
         }
     }
     base
+}
+
+fn normalized_link_package_name(path: &Path) -> Option<String> {
+    let file_name = path.file_name()?.to_string_lossy().to_string();
+    #[cfg(windows)]
+    {
+        return Some(file_name.trim_end_matches(".exe").to_string());
+    }
+    #[cfg(not(windows))]
+    {
+        Some(file_name)
+    }
+}
+
+fn find_stale_symlink_names(symlinks_dir: &Path, installed_names: &HashSet<String>) -> Vec<String> {
+    let Ok(entries) = fs::read_dir(symlinks_dir) else {
+        return Vec::new();
+    };
+
+    let mut stale = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+
+        let Some(name) = normalized_link_package_name(&path) else {
+            continue;
+        };
+        if !installed_names.contains(&name) {
+            stale.push(name);
+        }
+    }
+
+    stale.sort();
+    stale.dedup();
+    stale
 }
 
 #[cfg(unix)]
@@ -147,6 +197,7 @@ pub fn run(names: Vec<String>) -> Result<()> {
                 Level::Fail,
                 format!("{} missing: {}", label, path.display()),
             );
+            report.hint("Run `upstream init` to create missing upstream directories and metadata files.");
         }
     }
 
@@ -160,6 +211,7 @@ pub fn run(names: Vec<String>) -> Result<()> {
                 paths.config.config_file.display()
             ),
         );
+        report.hint("Run `upstream init` to generate the default config file.");
     }
 
     if paths.config.packages_file.exists() {
@@ -172,11 +224,32 @@ pub fn run(names: Vec<String>) -> Result<()> {
                 paths.config.packages_file.display()
             ),
         );
+        report.hint("Run `upstream init` to create package metadata storage.");
     }
 
     check_paths_file(&paths, &mut report);
 
     let all_packages = package_storage.get_all_packages();
+    let installed_names: HashSet<String> = all_packages.iter().map(|p| p.name.clone()).collect();
+
+    let stale_links = find_stale_symlink_names(&paths.integration.symlinks_dir, &installed_names);
+    if stale_links.is_empty() {
+        report.line(Level::Ok, "No stale symlinks detected");
+    } else {
+        report.line(
+            Level::Warn,
+            format!(
+                "Detected {} stale symlink(s): {}",
+                stale_links.len(),
+                stale_links.join(", ")
+            ),
+        );
+        report.hint(format!(
+            "Remove stale symlinks from '{}' or run package removals with --purge.",
+            paths.integration.symlinks_dir.display()
+        ));
+    }
+
     let mut selected = Vec::new();
     if names.is_empty() {
         selected.extend(all_packages.iter());
@@ -222,6 +295,10 @@ pub fn run(names: Vec<String>) -> Result<()> {
                     Level::Fail,
                     format!("{} has no install path", package_label),
                 );
+                report.hint(format!(
+                    "Package '{}' has stale metadata. Run `upstream remove {}` then reinstall.",
+                    package.name, package.name
+                ));
             }
         }
 
@@ -254,6 +331,10 @@ pub fn run(names: Vec<String>) -> Result<()> {
                     Level::Warn,
                     format!("{} has no executable path recorded", package_label),
                 );
+                report.hint(format!(
+                    "Try `upstream upgrade {} --force` to rebuild executable metadata.",
+                    package.name
+                ));
             }
         }
 
@@ -300,6 +381,10 @@ pub fn run(names: Vec<String>) -> Result<()> {
                         link_path.display()
                     ),
                 );
+                report.hint(format!(
+                    "Try `upstream upgrade {} --force` to recreate missing links.",
+                    package.name
+                ));
             }
         }
 
@@ -334,6 +419,10 @@ pub fn run(names: Vec<String>) -> Result<()> {
                             desktop_entry.display()
                         ),
                     );
+                    report.hint(format!(
+                        "Reinstall '{}' with desktop integration enabled to restore desktop entry.",
+                        package.name
+                    ));
                 }
             }
         }
@@ -344,6 +433,14 @@ pub fn run(names: Vec<String>) -> Result<()> {
         "Doctor summary: {} OK, {} warnings, {} failures",
         report.ok, report.warn, report.fail
     );
+
+    if !report.hints.is_empty() {
+        println!();
+        println!("{}", style("Suggested fixes:").cyan());
+        for hint in &report.hints {
+            println!(" - {}", hint);
+        }
+    }
 
     if report.fail > 0 {
         return Err(anyhow!(
@@ -363,3 +460,7 @@ pub fn run(names: Vec<String>) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../../../tests/application/features/doctor.rs"]
+mod tests;
