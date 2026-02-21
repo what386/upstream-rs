@@ -4,8 +4,8 @@ pub mod providers;
 pub mod services;
 pub mod utils;
 
-use console::style;
 use clap::Parser;
+use console::style;
 
 use crate::application::cli::arguments::Cli;
 
