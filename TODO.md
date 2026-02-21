@@ -20,9 +20,6 @@
 - [ ] lockfile (high) #feature #bugfix
       @created 2026-02-21 12:59
 
-- [ ] Add import --skip-failed mode (high) #feature #reliability
-      @created 2026-02-21 13:19
-
 
 ## Completed
 
@@ -43,6 +40,10 @@
       @completed 2026-02-21 13:24
 
 - [x] Add init --check mode #feature #cli
+      @created 2026-02-21 13:19
+      @completed 2026-02-21 13:24
+
+- [x] Add import --skip-failed mode (high) #feature #reliability
       @created 2026-02-21 13:19
       @completed 2026-02-21 13:24
 
