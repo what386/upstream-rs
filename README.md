@@ -93,7 +93,7 @@ cargo install --force upstream-rs
 
 ### **Manual Installation**
 
-1. Download the [latest release](https://github.com/what386/upstream-rs/releases/latest) for your platform.
+1. Download the [latest release](https://github.com/what386/upstream/releases/latest) for your platform.
 2. For Unix-like systems, Ensure it is executable:
 
 ```bash
@@ -104,7 +104,7 @@ chmod +x path/to/upstream-rs
 > To enable self-updates:
 
 ```bash
-{path/to/upstream-rs} install upstream what386/upstream-rs -k binary
+{path/to/upstream} install upstream what386/upstream-rs -k binary
 ```
 
 ---
@@ -115,7 +115,7 @@ Requires [Rust and Cargo](https://www.rust-lang.org/tools/install):
 
 ```bash
 git clone https://github.com/what386/upstream-rs.git
-cd upstream-rs
+cd upstream
 cargo build --release
 ```
 
@@ -134,7 +134,7 @@ Executable location:
 All commands support `--help`:
 
 ```bash
-upstream-rs <command> --help
+upstream <command> --help
 ```
 
 ---
@@ -142,24 +142,24 @@ upstream-rs <command> --help
 ### **Initialize Hooks**
 
 ```bash
-upstream-rs init
+upstream init
 ```
 
 - Hooks Upstream into your system’s PATH.
-- Use `upstream-rs init --clean` to remove existing hooks first.
+- Use `upstream init --clean` to remove existing hooks first.
 
 ---
 
 ### **Install a Package**
 
 ```bash
-upstream-rs install <name> <owner>/<repo> [--kind <type>] [--channel <channel>] [--desktop]
+upstream install <name> <owner>/<repo> [--kind <type>] [--channel <channel>] [--desktop]
 ```
 
 Example:
 
 ```bash
-upstream-rs install mytool foo/my-cool-app --kind binary --desktop
+upstream install mytool foo/my-cool-app --kind binary --desktop
 ```
 
 - `<name>` → local alias used for future management.
@@ -176,10 +176,10 @@ HTTP provider examples:
 
 ```bash
 # Install directly from a file URL
-upstream-rs install awesomeapp https://example.com/awesomeapp.tar.gz -p direct -k archive
+upstream install awesomeapp https://example.com/awesomeapp.tar.gz -p direct -k archive
 
 # Discover downloadable assets from a release page
-upstream-rs install mytool https://example.com/downloads -p scraper
+upstream install mytool https://example.com/downloads -p scraper
 ```
 
 ---
@@ -187,7 +187,7 @@ upstream-rs install mytool https://example.com/downloads -p scraper
 ### **Remove Packages**
 
 ```bash
-upstream-rs remove <package1> <package2> ... [--purge]
+upstream remove <package1> <package2> ... [--purge]
 ```
 
 - Uninstall packages.
@@ -198,7 +198,7 @@ upstream-rs remove <package1> <package2> ... [--purge]
 ### **Upgrade Packages**
 
 ```bash
-upstream-rs upgrade [<package1> <package2> ...] [--force] [--check]
+upstream upgrade [<package1> <package2> ...] [--force] [--check]
 ```
 
 - Updates specified packages, or **all** if no names are given.
@@ -210,7 +210,7 @@ upstream-rs upgrade [<package1> <package2> ...] [--force] [--check]
 ### **List Installed Packages**
 
 ```bash
-upstream-rs list [<package>]
+upstream list [<package>]
 ```
 
 - No arguments → list all installed packages with metadata.
@@ -221,44 +221,44 @@ upstream-rs list [<package>]
 ### **Configuration Management**
 
 ```bash
-upstream-rs config <action> [options]
+upstream config <action> [options]
 ```
 
 Available actions:
 
-| Action  | Description                                                                                         |
-| ------- | --------------------------------------------------------------------------------------------------- |
-| `set`   | Set configuration keys (`key.path=value`). Example: `upstream-rs config set github.apiToken=abc123` |
-| `get`   | Retrieve keys. Example: `upstream-rs config get github.apiToken`                                    |
-| `list`  | List all keys and their values.                                                                     |
-| `edit`  | Open configuration file in editor.                                                                  |
-| `reset` | Reset configuration to defaults.                                                                    |
+| Action  | Description                                                                                      |
+| ------- | ------------------------------------------------------------------------------------------------ |
+| `set`   | Set configuration keys (`key.path=value`). Example: `upstream config set github.apiToken=abc123` |
+| `get`   | Retrieve keys. Example: `upstream config get github.apiToken`                                    |
+| `list`  | List all keys and their values.                                                                  |
+| `edit`  | Open configuration file in editor.                                                               |
+| `reset` | Reset configuration to defaults.                                                                 |
 
 ---
 
 ### **Package Management**
 
 ```bash
-upstream-rs package <action> [options]
+upstream package <action> [options]
 ```
 
 Available actions:
 
-| Action     | Description                                                                                   |
-| ---------- | --------------------------------------------------------------------------------------------- |
-| `pin`      | Pin a package to prevent upgrades. Example: `upstream-rs package pin nvim`                    |
-| `unpin`    | Unpin a package. Example: `upstream-rs package unpin nvim`                                    |
-| `metadata` | Show full package metadata as JSON. Example: `upstream-rs package metadata nvim`              |
-| `get-key`  | Read specific metadata keys. Example: `upstream-rs package get-key nvim install_path version` |
-| `set-key`  | Update metadata keys manually. Example: `upstream-rs package set-key nvim is_pinned=false`    |
+| Action     | Description                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------ |
+| `pin`      | Pin a package to prevent upgrades. Example: `upstream package pin nvim`                    |
+| `unpin`    | Unpin a package. Example: `upstream package unpin nvim`                                    |
+| `metadata` | Show full package metadata as JSON. Example: `upstream package metadata nvim`              |
+| `get-key`  | Read specific metadata keys. Example: `upstream package get-key nvim install_path version` |
+| `set-key`  | Update metadata keys manually. Example: `upstream package set-key nvim is_pinned=false`    |
 
 ---
 
 ### **Import and Export**
 
 ```bash
-upstream-rs export <path> [--full]
-upstream-rs import <path>
+upstream export <path> [--full]
+upstream import <path>
 ```
 
 - `export <path>` writes a manifest of installed packages.
