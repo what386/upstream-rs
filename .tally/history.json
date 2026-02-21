@@ -467,5 +467,18 @@
       "completed_at": "2026-02-21T13:24:13.593223321Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "Add init --check mode",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-21T13:24:13.632714635Z"
+    },
+    "version": null
   }
 ]
