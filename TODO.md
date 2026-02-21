@@ -20,6 +20,9 @@
 - [ ] lockfile (high) #feature #bugfix
       @created 2026-02-21 12:59
 
+- [ ] Refactor lock storage to acquire from Commands at dispatch start #refactor #reliability
+      @created 2026-02-21 13:07
+
 
 ## Completed
 
