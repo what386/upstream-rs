@@ -20,9 +20,6 @@
 - [ ] lockfile (high) #feature #bugfix
       @created 2026-02-21 12:59
 
-- [ ] Add package rename command (high) #feature #cli
-      @created 2026-02-21 13:19
-
 - [ ] Add init --check mode #feature #cli
       @created 2026-02-21 13:19
 
@@ -43,4 +40,8 @@
 - [x] Move CLI command label Display impls into application/cli/labels.rs #refactor #cli
       @created 2026-02-21 13:12
       @completed 2026-02-21 13:13
+
+- [x] Add package rename command (high) #feature #cli
+      @created 2026-02-21 13:19
+      @completed 2026-02-21 13:24
 
