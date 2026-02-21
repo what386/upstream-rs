@@ -1,7 +1,7 @@
 # TODO — upstream-cli v1.3.0
 
 @created: 2026-01-31
-@modified: 2026-02-15
+@modified: 2026-02-21
 
 ## Tasks
 
@@ -16,6 +16,9 @@
 
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
+
+- [ ] Fix cross-device (EXDEV) install moves from /tmp to ~/.upstream (high) #bug #platform
+      @created 2026-02-21 03:57
 
 
 ## Completed
