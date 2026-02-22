@@ -1,14 +1,15 @@
-    use super::{GiteaClient, GiteaReleaseDto};
 
-    #[test]
-    fn new_normalizes_base_url_without_scheme() {
-        let client = GiteaClient::new(None, Some("gitea.example.com")).expect("client");
-        assert_eq!(client.base_url, "https://gitea.example.com");
-    }
+use super::{GiteaClient, GiteaReleaseDto};
 
-    #[test]
-    fn nullable_string_fields_deserialize_to_empty_strings() {
-        let json = r#"
+#[test]
+fn new_normalizes_base_url_without_scheme() {
+    let client = GiteaClient::new(None, Some("gitea.example.com")).expect("client");
+    assert_eq!(client.base_url, "https://gitea.example.com");
+}
+
+#[test]
+fn nullable_string_fields_deserialize_to_empty_strings() {
+    let json = r#"
         {
           "id": 7,
           "tag_name": null,
@@ -30,11 +31,11 @@
         }
         "#;
 
-        let parsed = serde_json::from_str::<GiteaReleaseDto>(json).expect("parse release");
-        assert_eq!(parsed.tag_name, "");
-        assert_eq!(parsed.name, "");
-        assert_eq!(parsed.body, "");
-        assert_eq!(parsed.published_at, "");
-        assert_eq!(parsed.assets[0].name, "");
-        assert_eq!(parsed.assets[0].browser_download_url, "");
-    }
+    let parsed = serde_json::from_str::<GiteaReleaseDto>(json).expect("parse release");
+    assert_eq!(parsed.tag_name, "");
+    assert_eq!(parsed.name, "");
+    assert_eq!(parsed.body, "");
+    assert_eq!(parsed.published_at, "");
+    assert_eq!(parsed.assets[0].name, "");
+    assert_eq!(parsed.assets[0].browser_download_url, "");
+}
