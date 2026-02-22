@@ -118,20 +118,25 @@ impl<'a> DesktopManager<'a> {
     where
         H: FnMut(&str),
     {
+        let fallback_entry = DesktopEntry {
+            comment: comment.map(String::from),
+            categories: categories.map(String::from),
+            ..DesktopEntry::default()
+        };
+
         let entry = if *filetype == Filetype::AppImage {
             let squashfs_root = self
                 .extractor
                 .extract(name, install_path, message_callback)
                 .await?;
-            self.find_and_parse_desktop_file(&squashfs_root, name, message_callback)
-                .unwrap_or_default()
+            fallback_entry
+                .merge(
+                    self.find_and_parse_desktop_file(&squashfs_root, name, message_callback)
+                        .unwrap_or_default(),
+                )
+                .ensure_name(name)
         } else {
-            DesktopEntry {
-                name: Some(name.to_string()),
-                comment: comment.map(String::from),
-                categories: categories.map(String::from),
-                ..DesktopEntry::default()
-            }
+            fallback_entry.ensure_name(name)
         };
 
         let entry = entry.sanitize(exec_path, icon_path);
@@ -199,25 +204,29 @@ impl<'a> DesktopManager<'a> {
     fn parse_desktop_file(path: &Path) -> Option<DesktopEntry> {
         let content = fs::read_to_string(path).ok()?;
         let mut entry = DesktopEntry::default();
+        let mut in_desktop_entry = false;
 
         for line in content.lines() {
             let trimmed = line.trim();
-            if trimmed.starts_with('#') || trimmed.starts_with('[') || !trimmed.contains('=') {
+            if trimmed.starts_with('[') {
+                in_desktop_entry = trimmed.eq_ignore_ascii_case("[Desktop Entry]");
+                continue;
+            }
+
+            if !in_desktop_entry
+                || trimmed.is_empty()
+                || trimmed.starts_with('#')
+                || trimmed.starts_with(';')
+                || !trimmed.contains('=')
+            {
                 continue;
             }
             let Some((key, value)) = trimmed.split_once('=') else {
                 continue;
             };
+            let key = key.trim().trim_start_matches('\u{feff}');
             let value = value.trim().to_string();
-            match key.trim() {
-                "Name" => entry.name = Some(value),
-                "Comment" => entry.comment = Some(value),
-                "Exec" => entry.exec = Some(value),
-                "Icon" => entry.icon = Some(value),
-                "Categories" => entry.categories = Some(value),
-                "Terminal" => entry.terminal = value.eq_ignore_ascii_case("true"),
-                _ => {}
-            }
+            entry.set_field(key, value);
         }
 
         Some(entry)
@@ -294,3 +303,7 @@ impl<'a> DesktopManager<'a> {
         Ok(shortcut_path)
     }
 }
+
+#[cfg(all(test, unix))]
+#[path = "../../../tests/services/integration/desktop_manager.rs"]
+mod tests;

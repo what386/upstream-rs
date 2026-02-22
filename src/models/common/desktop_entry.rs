@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 
 #[derive(Debug, Default)]
 pub struct DesktopEntry {
@@ -8,11 +8,15 @@ pub struct DesktopEntry {
     pub icon: Option<String>,
     pub categories: Option<String>,
     pub terminal: bool,
+    pub extras: BTreeMap<String, String>,
 }
 
 impl DesktopEntry {
     /// Merge another DesktopEntry into self, preferring `other` when present
     pub fn merge(self, other: DesktopEntry) -> DesktopEntry {
+        let mut extras = self.extras;
+        extras.extend(other.extras);
+
         DesktopEntry {
             name: other.name.or(self.name),
             comment: other.comment.or(self.comment),
@@ -20,7 +24,41 @@ impl DesktopEntry {
             icon: other.icon.or(self.icon),
             categories: other.categories.or(self.categories),
             terminal: other.terminal || self.terminal,
+            extras,
         }
+    }
+
+    /// Set a parsed key/value pair, storing unknown keys in `extras`.
+    pub fn set_field(&mut self, key: &str, value: String) {
+        match key {
+            "Name" => self.name = Some(value),
+            "Comment" => self.comment = Some(value),
+            "Exec" => self.exec = Some(value),
+            "Icon" => self.icon = Some(value),
+            "Categories" => self.categories = Some(value),
+            "Terminal" => self.terminal = value.eq_ignore_ascii_case("true"),
+            _ => {
+                self.extras.insert(key.to_string(), value);
+            }
+        }
+    }
+
+    pub fn ensure_name(mut self, fallback: &str) -> DesktopEntry {
+        if self.name.is_some() {
+            return self;
+        }
+
+        if let Some(localized_name) = self
+            .extras
+            .iter()
+            .find_map(|(key, value)| key.starts_with("Name[").then_some(value.as_str()))
+        {
+            self.name = Some(localized_name.to_string());
+            return self;
+        }
+
+        self.name = Some(fallback.to_string());
+        self
     }
 
     /// Sanitize fields that must always be overridden
@@ -60,6 +98,23 @@ impl DesktopEntry {
         ));
 
         out.push_str(&format!("Terminal={}\n", self.terminal));
+
+        for (key, value) in &self.extras {
+            if matches!(
+                key.as_str(),
+                "Type"
+                    | "Version"
+                    | "Name"
+                    | "Exec"
+                    | "Icon"
+                    | "Comment"
+                    | "Categories"
+                    | "Terminal"
+            ) {
+                continue;
+            }
+            out.push_str(&format!("{key}={value}\n"));
+        }
 
         out
     }
