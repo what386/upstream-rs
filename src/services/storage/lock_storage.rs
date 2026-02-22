@@ -35,7 +35,11 @@ impl LockStorage {
         Self::acquire_at_internal(lock_path, operation, true)
     }
 
-    fn acquire_at_internal(lock_path: &Path, operation: &str, allow_recovery: bool) -> Result<Self> {
+    fn acquire_at_internal(
+        lock_path: &Path,
+        operation: &str,
+        allow_recovery: bool,
+    ) -> Result<Self> {
         let lock_parent = lock_path
             .parent()
             .ok_or_else(|| anyhow!("Invalid lock path '{}'", lock_path.display()))?;

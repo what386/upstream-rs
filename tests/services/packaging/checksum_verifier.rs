@@ -117,7 +117,12 @@ async fn try_verify_file_returns_false_when_release_has_no_checksum_asset() {
     let mut progress: Option<fn(u64, u64)> = None;
 
     let verified = verifier
-        .try_verify_file(&asset_path, &empty_release(), &Provider::Github, &mut progress)
+        .try_verify_file(
+            &asset_path,
+            &empty_release(),
+            &Provider::Github,
+            &mut progress,
+        )
         .await
         .expect("verify without checksum");
     assert!(!verified);

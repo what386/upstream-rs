@@ -197,7 +197,9 @@ pub fn run(names: Vec<String>) -> Result<()> {
                 Level::Fail,
                 format!("{} missing: {}", label, path.display()),
             );
-            report.hint("Run `upstream init` to create missing upstream directories and metadata files.");
+            report.hint(
+                "Run `upstream init` to create missing upstream directories and metadata files.",
+            );
         }
     }
 
