@@ -11,6 +11,7 @@ categories = ["command-line-utilities", "development-tools"]
 
 exclude = [
     ".github",
+    ".tally",
     "scripts/",
 ]
 
