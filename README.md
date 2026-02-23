@@ -1,6 +1,6 @@
 # Upstream Package Manager
 
-**Upstream** is a rootless package manager for Unix-like systems. It installs and updates software from release providers and direct HTTP sources, supports multiple asset types, tracks update channels, and automatically selects the best asset for your OS and CPU architecture.
+**Upstream** is a rootless package manager for "raw" release channels. It installs and updates software from source-code providers like Github as well as direct HTTP sources. Upstream supports multiple asset types, tracks update channels, and automatically selects the best asset for your OS and CPU architecture.
 
 ---
 
