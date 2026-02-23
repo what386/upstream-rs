@@ -1,0 +1,35 @@
+#!/bin/env -S lash run
+
+set -euo pipefail
+
+// Remotes to publish on
+@define GITHUB true
+@define CARGO true
+
+if #argv == 0 || #argv > 1
+    echo "Invalid version"
+    exit 1
+end
+
+const version = argv[0]
+
+tally semver $version --auto
+
+git checkout main
+
+echo "Merging dev into main..."
+git merge dev -m "Merge dev into main"
+
+echo "Pushing main branch to remotes..."
+git push github main
+git push gitea main
+
+git tag $version
+
+@if defined(GITHUB) && GITHUB == "true"
+git push github $version
+@end
+
+@if defined(CARGO) && CARGO == "true"
+cargo publish
+@end
