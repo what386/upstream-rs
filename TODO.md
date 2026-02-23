@@ -17,6 +17,9 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
+- [ ] 'Local mode' that allows users to choose a specific directory to install to #feature #considering
+      @created 2026-02-23 20:40
+
 
 ## Completed
 
