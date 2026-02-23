@@ -668,5 +668,24 @@
       "patch": 0,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "Add --ignore-checksums flag for install and upgrade to skip checksum verification",
+      "priority": "High",
+      "tags": [
+        "feature",
+        "cli",
+        "security"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-23T17:24:20.083729357Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 1,
+      "is_prerelease": false
+    }
   }
 ]
