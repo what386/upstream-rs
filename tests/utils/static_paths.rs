@@ -1,4 +1,3 @@
-
 use super::UpstreamPaths;
 
 #[test]

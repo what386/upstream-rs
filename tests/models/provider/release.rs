@@ -1,4 +1,3 @@
-
 use super::Release;
 use crate::models::common::Version;
 use crate::models::provider::Asset;

@@ -1,4 +1,3 @@
-
 use super::decompress;
 use flate2::Compression;
 use flate2::write::GzEncoder;

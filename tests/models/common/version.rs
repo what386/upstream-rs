@@ -1,4 +1,3 @@
-
 use super::Version;
 
 #[test]

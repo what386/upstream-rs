@@ -1,4 +1,3 @@
-
 use super::{parse_arch, parse_filetype, parse_os};
 use crate::models::common::enums::Filetype;
 use crate::utils::platform_info::{CpuArch, OSKind};

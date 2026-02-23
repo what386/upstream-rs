@@ -1,4 +1,3 @@
-
 use super::ProviderManager;
 use crate::models::common::Version;
 use crate::models::common::enums::{Channel, Filetype, Provider};

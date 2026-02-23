@@ -1,4 +1,3 @@
-
 use super::{ConditionalDiscoveryResult, ConditionalProbeResult, HttpClient};
 use chrono::Utc;
 use std::io::{BufRead, BufReader, Write};

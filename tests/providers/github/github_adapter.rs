@@ -1,4 +1,3 @@
-
 use super::GithubAdapter;
 use crate::providers::github::github_client::{GithubAssetDto, GithubClient, GithubReleaseDto};
 

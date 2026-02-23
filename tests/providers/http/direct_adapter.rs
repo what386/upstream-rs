@@ -1,4 +1,3 @@
-
 use super::DirectAdapter;
 use crate::providers::http::HttpClient;
 use chrono::Utc;
