@@ -81,6 +81,7 @@ impl<'a> PackageInstaller<'a> {
         &self,
         mut package: Package,
         release: &Release,
+        ignore_checksums: bool,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<Package>
@@ -132,28 +133,36 @@ impl<'a> PackageInstaller<'a> {
             .await
             .context(format!("Failed to download asset '{}'", best_asset.name))?;
 
-        message!(message_callback, "Verifying checksum ...");
-
-        let checksum_verifier =
-            ChecksumVerifier::new(self.provider_manager, &package_download_cache);
-        let verified = checksum_verifier
-            .try_verify_file(
-                &download_path,
-                release,
-                &package.provider,
-                download_progress_callback,
-            )
-            .await
-            .context("Failed to verify checksum")?;
-
-        if verified {
-            message!(message_callback, "{}", style("Checksum verified").green());
-        } else {
+        if ignore_checksums {
             message!(
                 message_callback,
                 "{}",
-                style("No checksum available, skipping verification").yellow()
+                style("Skipping checksum verification (--ignore-checksums)").yellow()
             );
+        } else {
+            message!(message_callback, "Verifying checksum ...");
+
+            let checksum_verifier =
+                ChecksumVerifier::new(self.provider_manager, &package_download_cache);
+            let verified = checksum_verifier
+                .try_verify_file(
+                    &download_path,
+                    release,
+                    &package.provider,
+                    download_progress_callback,
+                )
+                .await
+                .context("Failed to verify checksum")?;
+
+            if verified {
+                message!(message_callback, "{}", style("Checksum verified").green());
+            } else {
+                message!(
+                    message_callback,
+                    "{}",
+                    style("No checksum available, skipping verification").yellow()
+                );
+            }
         }
 
         message!(message_callback, "Installing package ...");

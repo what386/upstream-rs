@@ -71,6 +71,7 @@ impl<'a> PackageUpgrader<'a> {
         &self,
         package: &Package,
         force: bool,
+        ignore_checksums: bool,
         download_progress: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<Option<Package>>
@@ -178,6 +179,7 @@ impl<'a> PackageUpgrader<'a> {
             .install_package_files(
                 package.clone(),
                 &latest_release,
+                ignore_checksums,
                 download_progress,
                 message_callback,
             )

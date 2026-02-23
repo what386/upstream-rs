@@ -49,6 +49,7 @@ impl<'a> InstallOperation<'a> {
     pub async fn install_bulk<F, G, H>(
         &mut self,
         packages: Vec<Package>,
+        ignore_checksums: bool,
         download_progress_callback: &mut Option<F>,
         overall_progress_callback: &mut Option<G>,
         message_callback: &mut Option<H>,
@@ -87,6 +88,7 @@ impl<'a> InstallOperation<'a> {
                     package,
                     &None,
                     use_icon,
+                    ignore_checksums,
                     &mut throttled_download_progress,
                     message_callback,
                 )
@@ -130,6 +132,7 @@ impl<'a> InstallOperation<'a> {
         package: Package,
         version: &Option<String>,
         add_entry: &bool,
+        ignore_checksums: bool,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<()>
@@ -143,6 +146,7 @@ impl<'a> InstallOperation<'a> {
             .perform_install(
                 package,
                 version,
+                ignore_checksums,
                 download_progress_callback,
                 message_callback,
             )
@@ -206,6 +210,7 @@ impl<'a> InstallOperation<'a> {
         &self,
         package: Package,
         version: &Option<String>,
+        ignore_checksums: bool,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<Package>
@@ -247,6 +252,7 @@ impl<'a> InstallOperation<'a> {
             .install_package_files(
                 package,
                 &release,
+                ignore_checksums,
                 download_progress_callback,
                 message_callback,
             )

@@ -29,7 +29,8 @@ pub enum Commands {
         and registers it under the given name for future updates.\n\n\
         EXAMPLES:\n  \
         upstream install rg BurntSushi/ripgrep -k binary\n  \
-        upstream install dust bootandy/dust -k archive")]
+        upstream install dust bootandy/dust -k archive\n  \
+        upstream install rg BurntSushi/ripgrep --ignore-checksums")]
     Install {
         /// Name to register the application under
         name: String,
@@ -68,6 +69,10 @@ pub enum Commands {
         /// Whether or not to create a .desktop entry for GUI applications
         #[arg(short, long, default_value_t = false)]
         desktop: bool,
+
+        /// Skip checksum verification for downloaded assets
+        #[arg(long, default_value_t = false)]
+        ignore_checksums: bool,
     },
 
     /// Remove one or more installed packages
@@ -97,7 +102,8 @@ pub enum Commands {
         upstream upgrade nvim rg      # Upgrade specific packages\n  \
         upstream upgrade --check      # Check for updates\n  \
         upstream upgrade --check --machine-readable # Script-friendly output\n  \
-        upstream upgrade nvim --force # Force reinstall")]
+        upstream upgrade nvim --force # Force reinstall\n  \
+        upstream upgrade --ignore-checksums")]
     Upgrade {
         /// Packages to upgrade (upgrades all if omitted)
         names: Option<Vec<String>>,
@@ -113,6 +119,10 @@ pub enum Commands {
         /// Use script-friendly check output: one line per update, "name oldver newver"
         #[arg(long, default_value_t = false, requires = "check")]
         machine_readable: bool,
+
+        /// Skip checksum verification for downloaded assets
+        #[arg(long, default_value_t = false)]
+        ignore_checksums: bool,
     },
 
     /// List installed packages and their metadata
@@ -363,4 +373,40 @@ pub enum PackageAction {
         /// Name of package
         name: String,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Cli, Commands};
+    use clap::Parser;
+
+    #[test]
+    fn install_parses_ignore_checksums_flag() {
+        let cli = Cli::parse_from([
+            "upstream",
+            "install",
+            "rg",
+            "BurntSushi/ripgrep",
+            "--ignore-checksums",
+        ]);
+
+        match cli.command {
+            Commands::Install {
+                ignore_checksums, ..
+            } => assert!(ignore_checksums),
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn upgrade_parses_ignore_checksums_flag() {
+        let cli = Cli::parse_from(["upstream", "upgrade", "--ignore-checksums"]);
+
+        match cli.command {
+            Commands::Upgrade {
+                ignore_checksums, ..
+            } => assert!(ignore_checksums),
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
 }

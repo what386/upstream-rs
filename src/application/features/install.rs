@@ -25,6 +25,7 @@ pub async fn run(
     match_pattern: Option<String>,
     exclude_pattern: Option<String>,
     create_entry: bool,
+    ignore_checksums: bool,
 ) -> Result<()> {
     const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
 
@@ -91,6 +92,7 @@ pub async fn run(
             package,
             &version,
             &create_entry,
+            ignore_checksums,
             &mut download_progress_callback,
             &mut message_callback,
         )

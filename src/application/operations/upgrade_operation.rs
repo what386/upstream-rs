@@ -168,6 +168,7 @@ impl<'a> UpgradeOperation<'a> {
     pub async fn upgrade_all<F, G, H>(
         &mut self,
         force_option: &bool,
+        ignore_checksums: bool,
         download_progress: &mut Option<F>,
         overall_progress: &mut Option<G>,
         message_callback: &mut Option<H>,
@@ -187,6 +188,7 @@ impl<'a> UpgradeOperation<'a> {
         self.upgrade_bulk(
             &names,
             force_option,
+            ignore_checksums,
             download_progress,
             overall_progress,
             message_callback,
@@ -198,6 +200,7 @@ impl<'a> UpgradeOperation<'a> {
         &mut self,
         names: &Vec<String>,
         force_option: &bool,
+        ignore_checksums: bool,
         download_progress: &mut Option<F>,
         overall_progress: &mut Option<G>,
         message_callback: &mut Option<H>,
@@ -251,7 +254,13 @@ impl<'a> UpgradeOperation<'a> {
                 let mut no_messages: Option<fn(&str)> = None;
 
                 let result = upgrader
-                    .upgrade(&package, force, &mut download_cb, &mut no_messages)
+                    .upgrade(
+                        &package,
+                        force,
+                        ignore_checksums,
+                        &mut download_cb,
+                        &mut no_messages,
+                    )
                     .await
                     .context(format!("Failed to upgrade package '{}'", name));
                 (name, channel, provider, downloaded, bytes_total, result)
@@ -373,6 +382,7 @@ impl<'a> UpgradeOperation<'a> {
         &mut self,
         package_name: &str,
         force_option: &bool,
+        ignore_checksums: bool,
         download_progress: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<bool>
@@ -388,7 +398,13 @@ impl<'a> UpgradeOperation<'a> {
 
         let upgraded = self
             .upgrader
-            .upgrade(&package, *force_option, download_progress, message_callback)
+            .upgrade(
+                &package,
+                *force_option,
+                ignore_checksums,
+                download_progress,
+                message_callback,
+            )
             .await?;
 
         if let Some(updated) = upgraded {

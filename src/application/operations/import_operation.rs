@@ -181,7 +181,13 @@ impl<'a> ImportOperation<'a> {
                 message!(message_callback, "Upgrading '{}' ...", reference.name);
 
                 match upgrader
-                    .upgrade(&package, true, download_progress_callback, message_callback)
+                    .upgrade(
+                        &package,
+                        true,
+                        false,
+                        download_progress_callback,
+                        message_callback,
+                    )
                     .await
                 {
                     Ok(Some(updated)) => {
@@ -236,6 +242,7 @@ impl<'a> ImportOperation<'a> {
                         package,
                         &None,
                         &use_icon,
+                        false,
                         download_progress_callback,
                         message_callback,
                     )
