@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.4.1
+# TODO — upstream-cli v1.4.2
 
 @created: 2026-01-31
 @modified: 2026-02-23
