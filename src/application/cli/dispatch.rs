@@ -24,6 +24,7 @@ impl Cli {
                 match_pattern,
                 exclude_pattern,
                 desktop,
+                ignore_checksums,
             } => {
                 features::install::run(
                     name,
@@ -36,6 +37,7 @@ impl Cli {
                     match_pattern,
                     exclude_pattern,
                     desktop,
+                    ignore_checksums,
                 )
                 .await
             }
@@ -50,7 +52,11 @@ impl Cli {
                 force,
                 check,
                 machine_readable,
-            } => features::upgrade::run(names, force, check, machine_readable).await,
+                ignore_checksums,
+            } => {
+                features::upgrade::run(names, force, check, machine_readable, ignore_checksums)
+                    .await
+            }
 
             Commands::List { name } => features::list::run(name),
 

@@ -76,7 +76,7 @@ async fn perform_install_rejects_already_installed_package_before_network_calls(
     let mut msg: Option<fn(&str)> = None;
 
     let err = op
-        .perform_install(package, &None, &mut dl, &mut msg)
+        .perform_install(package, &None, false, &mut dl, &mut msg)
         .await
         .expect_err("already-installed guard");
     assert!(err.to_string().contains("already installed"));

@@ -24,6 +24,7 @@ pub async fn run(
     force_option: bool,
     check_option: bool,
     machine_readable: bool,
+    ignore_checksums: bool,
 ) -> Result<()> {
     let paths = UpstreamPaths::new();
     let config = ConfigStorage::new(&paths.config.config_file)?;
@@ -116,6 +117,7 @@ pub async fn run(
         package_upgrade
             .upgrade_all(
                 &force_option,
+                ignore_checksums,
                 &mut download_progress_callback,
                 &mut overall_progress_callback,
                 &mut message_callback,
@@ -138,6 +140,7 @@ pub async fn run(
             .upgrade_bulk(
                 &name_vec,
                 &force_option,
+                ignore_checksums,
                 &mut download_progress_callback,
                 &mut overall_progress_callback,
                 &mut message_callback,
@@ -148,6 +151,7 @@ pub async fn run(
             .upgrade_single(
                 &name_vec[0],
                 &force_option,
+                ignore_checksums,
                 &mut download_progress_callback,
                 &mut message_callback,
             )
