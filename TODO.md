@@ -17,9 +17,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] Add --ignore-checksums flag for install and upgrade to skip checksum verification (high) #feature #cli #security
-      @created 2026-02-23 17:21
-
 
 ## Completed
 
@@ -57,4 +54,9 @@
       @created 2026-02-21 13:30
       @completed 2026-02-21 13:30
       @completed_version 1.4.0
+
+- [x] Add --ignore-checksums flag for install and upgrade to skip checksum verification (high) #feature #cli #security
+      @created 2026-02-23 17:21
+      @completed 2026-02-23 17:24
+      @completed_version 1.4.1
 
