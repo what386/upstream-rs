@@ -1,4 +1,3 @@
-
 use super::ConfigUpdater;
 use crate::services::storage::config_storage::ConfigStorage;
 use std::path::PathBuf;

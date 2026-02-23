@@ -1,4 +1,3 @@
-
 use super::{GitlabClient, GitlabReleaseDto};
 
 #[test]

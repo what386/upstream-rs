@@ -1,4 +1,3 @@
-
 use super::{is_cross_device, move_file_or_dir, move_file_or_dir_with_rename};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};

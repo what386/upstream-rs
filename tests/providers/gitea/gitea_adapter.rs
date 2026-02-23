@@ -1,4 +1,3 @@
-
 use super::GiteaAdapter;
 use crate::providers::gitea::gitea_client::{GiteaAssetDto, GiteaClient, GiteaReleaseDto};
 

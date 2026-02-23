@@ -1,4 +1,3 @@
-
 use super::Asset;
 use crate::models::common::enums::Filetype;
 use crate::utils::platform_info::{CpuArch, OSKind};

@@ -1,4 +1,3 @@
-
 use super::InstallOperation;
 use crate::models::common::enums::{Channel, Filetype, Provider};
 use crate::models::upstream::Package;

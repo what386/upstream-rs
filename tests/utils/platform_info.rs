@@ -1,4 +1,3 @@
-
 use super::{ArchitectureInfo, CpuArch, OSKind, format_arch, format_os};
 use std::str::FromStr;
 

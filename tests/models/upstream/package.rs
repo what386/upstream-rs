@@ -1,4 +1,3 @@
-
 use super::Package;
 use crate::models::common::enums::{Channel, Filetype, Provider};
 

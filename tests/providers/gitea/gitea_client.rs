@@ -1,4 +1,3 @@
-
 use super::{GiteaClient, GiteaReleaseDto};
 
 #[test]

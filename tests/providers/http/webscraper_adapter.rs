@@ -1,4 +1,3 @@
-
 use super::WebScraperAdapter;
 use crate::providers::http::HttpClient;
 use chrono::Utc;
