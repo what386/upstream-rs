@@ -1,7 +1,7 @@
 # TODO — upstream-cli v1.4.1
 
 @created: 2026-01-31
-@modified: 2026-02-22
+@modified: 2026-02-23
 
 ## Tasks
 
@@ -16,6 +16,9 @@
 
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
+
+- [ ] Add --ignore-checksums flag for install and upgrade to skip checksum verification (high) #feature #cli #security
+      @created 2026-02-23 17:21
 
 
 ## Completed
