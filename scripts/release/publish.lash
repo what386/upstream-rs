@@ -18,6 +18,8 @@ tally changelog > CHANGELOG.md
 
 git checkout main
 
+./preflight.lash $version
+
 echo "Merging dev into main..."
 git merge dev -m "Merge dev into main"
 
