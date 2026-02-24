@@ -358,12 +358,10 @@ impl ProviderManager {
         if let Some(target_arch) = &asset.target_arch {
             if *target_arch == self.architecture_info.cpu_arch {
                 score += 80;
-            } else if self.architecture_info.cpu_arch == CpuArch::X86_64
-                && *target_arch == CpuArch::X86
-            {
-                score += 30;
-            } else if self.architecture_info.cpu_arch == CpuArch::Aarch64
-                && *target_arch == CpuArch::Arm
+            } else if (self.architecture_info.cpu_arch == CpuArch::X86_64
+                && *target_arch == CpuArch::X86)
+                || (self.architecture_info.cpu_arch == CpuArch::Aarch64
+                    && *target_arch == CpuArch::Arm)
             {
                 score += 30;
             }

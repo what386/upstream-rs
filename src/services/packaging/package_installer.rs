@@ -174,8 +174,8 @@ impl<'a> PackageInstaller<'a> {
                 .handle_appimage(&download_path, package, message_callback)
                 .context("Failed to install AppImage"),
             Filetype::MacApp => BundleHandler::new(self.paths, &self.extract_cache)
-                    .install_app_bundle(&download_path, package, message_callback)
-                    .context("Failed to install macOS app bundle"),
+                .install_app_bundle(&download_path, package, message_callback)
+                .context("Failed to install macOS app bundle"),
             Filetype::MacDmg => BundleHandler::new(self.paths, &self.extract_cache)
                 .install_dmg(&download_path, package, message_callback)
                 .context("Failed to install macOS disk image"),

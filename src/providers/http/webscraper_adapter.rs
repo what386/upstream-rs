@@ -78,12 +78,12 @@ impl WebScraperAdapter {
 
         if best_version.is_none() {
             let hydrate_limit = infos.len().min(24);
-            for idx in 0..hydrate_limit {
-                let url = infos[idx].download_url.clone();
+            for info in infos.iter_mut().take(hydrate_limit) {
+                let url = info.download_url.clone();
                 if let Ok(probed) = self.client.probe_asset(&url).await {
-                    infos[idx].size = probed.size;
-                    infos[idx].last_modified = probed.last_modified;
-                    infos[idx].etag = probed.etag;
+                    info.size = probed.size;
+                    info.last_modified = probed.last_modified;
+                    info.etag = probed.etag;
                 }
             }
         }
