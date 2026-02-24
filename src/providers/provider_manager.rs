@@ -297,7 +297,12 @@ impl ProviderManager {
         return vec![Filetype::WinExe, Filetype::Archive, Filetype::Compressed];
 
         #[cfg(target_os = "macos")]
-        return vec![Filetype::Archive, Filetype::Compressed, Filetype::Binary];
+        return vec![
+            Filetype::MacApp,
+            Filetype::Archive,
+            Filetype::Compressed,
+            Filetype::Binary,
+        ];
     }
 
     pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {
