@@ -95,7 +95,7 @@ fn copy_symlink(src: &Path, dst: &Path) -> io::Result<()> {
 
     #[cfg(unix)]
     {
-        return std::os::unix::fs::symlink(link_target, dst);
+        std::os::unix::fs::symlink(link_target, dst)
     }
 
     #[cfg(windows)]

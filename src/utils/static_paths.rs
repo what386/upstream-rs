@@ -9,6 +9,12 @@ pub struct AppDirs {
     pub metadata_dir: PathBuf,
 }
 
+impl Default for AppDirs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AppDirs {
     pub fn new() -> Self {
         let user_dir = dirs::home_dir().unwrap();
@@ -83,6 +89,12 @@ pub struct UpstreamPaths {
     pub config: ConfigPaths,
     pub install: InstallPaths,
     pub integration: IntegrationPaths,
+}
+
+impl Default for UpstreamPaths {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl UpstreamPaths {

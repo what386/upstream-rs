@@ -14,8 +14,8 @@ use std::time::Duration;
 
 fn print_upgrade_titlebar() {
     println!(
-        "    {:<28} {:<10} {:<3} {:<10} {}",
-        "Name", "Channel", "Op", "Remote", "Download"
+        "    {:<28} {:<10} {:<3} {:<10} Download",
+        "Name", "Channel", "Op", "Remote"
     );
 }
 
@@ -218,8 +218,8 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
 
     if !display_rows.is_empty() {
         println!(
-            "{:<5} {:<28} {:<10} {:<3} {:<10} {}",
-            "State", "Name", "Branch", "Op", "Remote", "Version"
+            "{:<5} {:<28} {:<10} {:<3} {:<10} Version",
+            "State", "Name", "Branch", "Op", "Remote"
         );
     }
 
