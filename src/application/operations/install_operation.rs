@@ -1,4 +1,5 @@
 use crate::{
+    models::common::DesktopEntry,
     models::upstream::Package,
     providers::provider_manager::ProviderManager,
     services::{
@@ -178,15 +179,13 @@ impl<'a> InstallOperation<'a> {
 
             installed_package.icon_path = icon_path;
 
+            let desktop_entry = DesktopEntry::from_package(&installed_package);
+
             let _ = desktop_manager
                 .create_entry(
-                    &installed_package.name,
                     installed_package.install_path.as_ref().unwrap(),
-                    installed_package.exec_path.as_ref().unwrap(),
-                    installed_package.icon_path.as_deref(),
                     &installed_package.filetype,
-                    None,
-                    None,
+                    desktop_entry,
                     message_callback,
                 )
                 .await

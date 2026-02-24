@@ -5,9 +5,7 @@ use crate::{
 };
 #[cfg(windows)]
 use anyhow::Context;
-use anyhow::Result;
-#[cfg(target_os = "macos")]
-use anyhow::anyhow;
+use anyhow::{Result, anyhow};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -41,13 +39,9 @@ impl<'a> DesktopManager<'a> {
 
     pub async fn create_entry<H>(
         &self,
-        name: &str,
         install_path: &Path,
-        exec_path: &Path,
-        icon_path: Option<&Path>,
         filetype: &Filetype,
-        comment: Option<&str>,
-        categories: Option<&str>,
+        entry: DesktopEntry,
         message_callback: &mut Option<H>,
     ) -> Result<PathBuf>
     where
@@ -56,22 +50,23 @@ impl<'a> DesktopManager<'a> {
         #[cfg(target_os = "linux")]
         {
             return self
-                .create_unix_desktop_entry(
-                    name,
-                    install_path,
-                    exec_path,
-                    icon_path,
-                    filetype,
-                    comment,
-                    categories,
-                    message_callback,
-                )
+                .create_unix_desktop_entry(install_path, filetype, entry, message_callback)
                 .await;
         }
 
         #[cfg(target_os = "macos")]
         {
-            let _ = (icon_path, comment, categories);
+            let name = entry
+                .name
+                .as_deref()
+                .ok_or_else(|| anyhow!("Desktop entry name is required"))?;
+            let _ = (&entry.icon, &entry.comment, &entry.categories);
+            let exec_path = entry
+                .exec
+                .as_deref()
+                .map(Path::new)
+                .ok_or_else(|| anyhow!("Desktop entry exec path is required"))?;
+
             return self.create_macos_launcher(
                 name,
                 install_path,
@@ -83,13 +78,22 @@ impl<'a> DesktopManager<'a> {
 
         #[cfg(windows)]
         {
-            let _ = (
-                install_path,
-                filetype,
-                comment,
-                categories,
-                message_callback,
-            );
+            let name = entry
+                .name
+                .as_deref()
+                .ok_or_else(|| anyhow!("Desktop entry name is required"))?;
+            let _ = (install_path, filetype, message_callback);
+            let exec_path = entry
+                .exec
+                .as_deref()
+                .map(Path::new)
+                .ok_or_else(|| anyhow!("Desktop entry exec path is required"))?;
+            let icon_path = entry
+                .icon
+                .as_deref()
+                .filter(|icon| !icon.is_empty())
+                .map(Path::new);
+
             return self.create_windows_shortcut(name, exec_path, icon_path);
         }
     }
@@ -132,41 +136,35 @@ impl<'a> DesktopManager<'a> {
     #[cfg(target_os = "linux")]
     async fn create_unix_desktop_entry<H>(
         &self,
-        name: &str,
         install_path: &Path,
-        exec_path: &Path,
-        icon_path: Option<&Path>,
         filetype: &Filetype,
-        comment: Option<&str>,
-        categories: Option<&str>,
+        mut entry: DesktopEntry,
         message_callback: &mut Option<H>,
     ) -> Result<PathBuf>
     where
         H: FnMut(&str),
     {
-        let fallback_entry = DesktopEntry {
-            comment: comment.map(String::from),
-            categories: categories.map(String::from),
-            ..DesktopEntry::default()
-        };
+        let name = entry
+            .name
+            .as_deref()
+            .ok_or_else(|| anyhow!("Desktop entry name is required"))?
+            .to_string();
 
-        let entry = if *filetype == Filetype::AppImage {
+        entry = if *filetype == Filetype::AppImage {
             let squashfs_root = self
                 .extractor
-                .extract(name, install_path, message_callback)
+                .extract(&name, install_path, message_callback)
                 .await?;
-            fallback_entry
-                .merge(
-                    self.find_and_parse_desktop_file(&squashfs_root, name, message_callback)
-                        .unwrap_or_default(),
-                )
-                .ensure_name(name)
+            self.find_and_parse_desktop_file(&squashfs_root, &name, message_callback)
+                .unwrap_or_default()
+                .merge(entry)
+                .ensure_name(&name)
         } else {
-            fallback_entry.ensure_name(name)
+            entry.ensure_name(&name)
         };
 
-        let entry = entry.sanitize(exec_path, icon_path);
-        self.write_unix_entry(name, &entry)
+        entry.terminal = false;
+        self.write_unix_entry(&name, &entry)
     }
 
     #[cfg(target_os = "linux")]

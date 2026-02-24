@@ -1,5 +1,8 @@
 use crate::{
-    models::{common::enums::Channel, upstream::Package},
+    models::{
+        common::{DesktopEntry, enums::Channel},
+        upstream::Package,
+    },
     providers::provider_manager::ProviderManager,
     services::{
         integration::{AppImageExtractor, DesktopManager, IconManager},
@@ -239,15 +242,13 @@ impl<'a> PackageUpgrader<'a> {
 
             updated_package.icon_path = icon_path;
 
+            let desktop_entry = DesktopEntry::from_package(&updated_package);
+
             let _ = desktop_manager
                 .create_entry(
-                    &updated_package.name,
                     updated_package.install_path.as_ref().unwrap(),
-                    updated_package.exec_path.as_ref().unwrap(),
-                    updated_package.icon_path.as_deref(),
                     &updated_package.filetype,
-                    None,
-                    None,
+                    desktop_entry,
                     message_callback,
                 )
                 .await
