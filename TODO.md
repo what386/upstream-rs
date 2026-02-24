@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.4.2
+# TODO — upstream-cli v1.4.3
 
 @created: 2026-01-31
 @modified: 2026-02-24
@@ -25,4 +25,5 @@
 - [x] Improve cross-platform handling for Windows installers and macOS app bundles #feature #platform #investigating
       @created 2026-02-14 00:58
       @completed 2026-02-24 20:35
+      @completed_version 1.4.3
 

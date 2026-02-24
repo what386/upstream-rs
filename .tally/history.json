@@ -365,6 +365,30 @@
       "commit": null,
       "completed_at": "2026-02-24T20:35:04.732351266Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 3,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Improve cross-platform handling for Windows installers and macOS app bundles",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "platform",
+        "investigating"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-24T20:35:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 3,
+      "is_prerelease": false
+    }
   }
 ]
