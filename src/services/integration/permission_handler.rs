@@ -7,7 +7,6 @@ use std::path::Path;
 use std::{fs, path::PathBuf};
 
 /// Sets executable permissions on a file for user, group, and others.
-
 #[cfg(unix)]
 pub fn make_executable(exec_path: &Path) -> Result<()> {
     if !exec_path.exists() {

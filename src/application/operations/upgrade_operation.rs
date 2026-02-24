@@ -17,6 +17,8 @@ use tokio::time::{self, Duration};
 
 const CHECK_CONCURRENCY: usize = 8;
 const UPGRADE_CONCURRENCY: usize = 4;
+type ProgressEntry = (Channel, Provider, u64, u64);
+type ProgressState = Arc<Mutex<BTreeMap<String, ProgressEntry>>>;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -198,7 +200,7 @@ impl<'a> UpgradeOperation<'a> {
 
     pub async fn upgrade_bulk<F, G, H>(
         &mut self,
-        names: &Vec<String>,
+        names: &[String],
         force_option: &bool,
         ignore_checksums: bool,
         download_progress: &mut Option<F>,
@@ -216,8 +218,7 @@ impl<'a> UpgradeOperation<'a> {
         let mut upgraded = 0;
         let force = *force_option;
         let upgrader = &self.upgrader;
-        let progress_state: Arc<Mutex<BTreeMap<String, (Channel, Provider, u64, u64)>>> =
-            Arc::new(Mutex::new(BTreeMap::new()));
+        let progress_state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
         let mut last_progress_render: BTreeMap<String, String> = BTreeMap::new();
 
         let packages: Vec<_> = names

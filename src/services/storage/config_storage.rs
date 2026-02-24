@@ -119,7 +119,7 @@ impl ConfigStorage {
     pub fn get_flattened_config(&self) -> HashMap<String, String> {
         let root =
             toml::Value::try_from(&self.config).unwrap_or(toml::Value::Table(Default::default()));
-        self.flatten_value(&root, "", 10, 0)
+        Self::flatten_value(&root, "", 10, 0)
     }
 
     /// Resets all configuration to defaults.
@@ -129,7 +129,6 @@ impl ConfigStorage {
     }
 
     fn flatten_value(
-        &self,
         value: &toml::Value,
         prefix: &str,
         max_depth: usize,
@@ -161,7 +160,7 @@ impl ConfigStorage {
                     } else {
                         format!("{}.{}", prefix, key)
                     };
-                    result.extend(self.flatten_value(
+                    result.extend(Self::flatten_value(
                         val,
                         &new_prefix,
                         max_depth,
