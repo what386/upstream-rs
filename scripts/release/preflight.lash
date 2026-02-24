@@ -1,0 +1,47 @@
+#!/bin/env -S lash run
+
+set -euo pipefail
+
+if #argv == 0 || #argv > 1
+    echo "Usage: scripts/release/preflight.lash <version-or-tag>"
+    exit 1
+end
+
+const release_ref = argv[0]
+
+echo $"Running release preflight for {release_ref}..."
+
+const git_repo_ok = $sh "git rev-parse --is-inside-work-tree >/dev/null 2>&1 && echo yes || echo no"
+if git_repo_ok != "yes"
+    echo "Error: must run inside a git repository."
+    exit 1
+end
+
+const current_branch = $sh "git rev-parse --abbrev-ref HEAD | tr -d '\n'"
+if current_branch != "dev"
+    echo $"Error: expected current branch 'dev', found '{current_branch}'."
+    exit 1
+end
+
+const dirty = $sh "git status --porcelain"
+if dirty != ""
+    echo "Error: working tree is dirty. Commit or stash changes first."
+    exit 1
+end
+
+const local_tag_exists = $sh $"git rev-parse -q --verify refs/tags/{release_ref} >/dev/null 2>&1 && echo yes || echo no"
+if local_tag_exists == "yes"
+    echo $"Error: local tag '{release_ref}' already exists."
+    exit 1
+end
+
+const github_tag_exists = $sh $"git ls-remote --tags github refs/tags/{release_ref} | grep -q . && echo yes || echo no"
+if github_tag_exists == "yes"
+    echo $"Error: remote 'github' already has tag '{release_ref}'."
+    exit 1
+end
+
+echo "Running cargo tests..."
+cargo test --locked
+
+echo "Preflight checks passed."

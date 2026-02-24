@@ -34,3 +34,5 @@ git push github $version
 @if defined(CARGO) && CARGO == "true"
 cargo publish
 @end
+
+git checkout dev
