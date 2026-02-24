@@ -413,7 +413,7 @@ impl<'a> BundleHandler<'a> {
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (dmg_path, package, message_callback);
-            return Err(anyhow!("DMG installation is only supported on macOS hosts"));
+            Err(anyhow!("DMG installation is only supported on macOS hosts"))
         }
 
         #[cfg(target_os = "macos")]

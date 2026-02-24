@@ -168,12 +168,12 @@ impl LockStorage {
 
             // macOS/BSD fallback: `kill -0 <pid>` checks whether the process exists.
             // If the probe command is unavailable, avoid false stale detection.
-            return Command::new("kill")
+            Command::new("kill")
                 .arg("-0")
                 .arg(pid.to_string())
                 .status()
                 .map(|status| status.success())
-                .unwrap_or(true);
+                .unwrap_or(true)
         }
 
         #[cfg(not(unix))]

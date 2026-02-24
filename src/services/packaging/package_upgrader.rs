@@ -242,8 +242,8 @@ impl<'a> PackageUpgrader<'a> {
             let _ = desktop_manager
                 .create_entry(
                     &updated_package.name,
-                    &updated_package.install_path.as_ref().unwrap(),
-                    &updated_package.exec_path.as_ref().unwrap(),
+                    updated_package.install_path.as_ref().unwrap(),
+                    updated_package.exec_path.as_ref().unwrap(),
                     updated_package.icon_path.as_deref(),
                     &updated_package.filetype,
                     None,
