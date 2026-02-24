@@ -62,8 +62,16 @@ jobs:
         run: |
           cd dist
           sha256sum **/* > SHA256SUMS.txt
+      - name: Read changelog section for tag
+        id: release_notes
+        run: |
+          {
+            echo "body<<__RELEASE_NOTES__"
+            ./scripts/changelog_for_tag.sh "${GITHUB_REF_NAME}"
+            echo "__RELEASE_NOTES__"
+          } >> "$GITHUB_OUTPUT"
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
-          body_path: CHANGELOG.md
+          body: ${{ steps.release_notes.outputs.body }}
           files: dist/**/*
