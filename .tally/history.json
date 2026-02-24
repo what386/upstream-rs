@@ -3,51 +3,87 @@
     "change": {
       "description": "add export/import for packages",
       "priority": "Medium",
-      "tags": ["feature"],
+      "tags": [
+        "feature"
+      ],
       "commit": "51c4cb0",
       "completed_at": "2026-02-03T02:13:09.271199128Z"
     },
-    "version": { "major": 0, "minor": 9, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 0,
+      "minor": 9,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "consider removing dead functions",
       "priority": "Low",
-      "tags": ["cleanup"],
+      "tags": [
+        "cleanup"
+      ],
       "commit": "7669a1a",
       "completed_at": "2026-02-03T02:49:24.957506661Z"
     },
-    "version": { "major": 0, "minor": 9, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 0,
+      "minor": 9,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "extract appimages for icons",
       "priority": "High",
-      "tags": ["feature", "bugfix"],
+      "tags": [
+        "feature",
+        "bugfix"
+      ],
       "commit": "d5a89fc",
       "completed_at": "2026-02-03T03:25:03.087429819Z"
     },
-    "version": { "major": 1, "minor": 0, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "fix resolved filetype callback to use proper display function",
       "priority": "Low",
-      "tags": ["bugfix"],
+      "tags": [
+        "bugfix"
+      ],
       "commit": "eb8e608",
       "completed_at": "2026-02-03T14:30:12.569205730Z"
     },
-    "version": { "major": 1, "minor": 0, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "add appimage embedded .desktop file extraction",
       "priority": "Low",
-      "tags": ["feature"],
+      "tags": [
+        "feature"
+      ],
       "commit": "0cc8ded",
       "completed_at": "2026-02-03T14:51:09.391254256Z"
     },
-    "version": { "major": 1, "minor": 0, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -57,146 +93,278 @@
       "commit": null,
       "completed_at": "2026-02-06T21:38:45.963860302Z"
     },
-    "version": { "major": 1, "minor": 0, "patch": 2, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 2,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "fallback for missing icon? maybe include a default icon when lookup fails",
       "priority": "Medium",
-      "tags": ["feature"],
+      "tags": [
+        "feature"
+      ],
       "commit": null,
       "completed_at": "2026-02-06T22:13:49.368789820Z"
     },
-    "version": { "major": 1, "minor": 0, "patch": 3, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 3,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Fix GitHub latest-release JSON parsing when fields are null",
       "priority": "High",
-      "tags": ["bug"],
+      "tags": [
+        "bug"
+      ],
       "commit": null,
       "completed_at": "2026-02-07T04:35:33.088142351Z"
     },
-    "version": { "major": 1, "minor": 0, "patch": 4, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 4,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Add verify and doctor commands for install integrity and system diagnostics",
       "priority": "High",
-      "tags": ["feature", "ops"],
+      "tags": [
+        "feature",
+        "ops"
+      ],
       "commit": null,
       "completed_at": "2026-02-14T01:08:52.141284074Z"
     },
-    "version": { "major": 1, "minor": 2, "patch": 1, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 2,
+      "patch": 1,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Add conditional HTTP checks with ETag/Last-Modified to speed update scans",
       "priority": "Medium",
-      "tags": ["feature", "http", "performance"],
+      "tags": [
+        "feature",
+        "http",
+        "performance"
+      ],
       "commit": null,
       "completed_at": "2026-02-14T01:25:51.569841812Z"
     },
-    "version": { "major": 1, "minor": 2, "patch": 1, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 2,
+      "patch": 1,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Generate and ship shell completions with synchronized CLI docs",
       "priority": "Medium",
-      "tags": ["feature", "docs"],
+      "tags": [
+        "feature",
+        "docs"
+      ],
       "commit": null,
       "completed_at": "2026-02-14T01:37:19.833945939Z"
     },
-    "version": { "major": 1, "minor": 2, "patch": 1, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 2,
+      "patch": 1,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Fix cross-device (EXDEV) install moves from /tmp to ~/.upstream",
       "priority": "High",
-      "tags": ["bug", "platform"],
+      "tags": [
+        "bug",
+        "platform"
+      ],
       "commit": null,
       "completed_at": "2026-02-21T03:58:49.451116639Z"
     },
-    "version": { "major": 1, "minor": 3, "patch": 2, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 3,
+      "patch": 2,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Add lockfile to prevent concurrent mutating operations",
       "priority": "High",
-      "tags": ["bug", "reliability", "ops"],
+      "tags": [
+        "bug",
+        "reliability",
+        "ops"
+      ],
       "commit": null,
       "completed_at": "2026-02-21T13:01:49.835385839Z"
     },
-    "version": { "major": 1, "minor": 4, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Refactor lock storage to acquire from Commands at dispatch start",
       "priority": "Medium",
-      "tags": ["refactor", "reliability"],
+      "tags": [
+        "refactor",
+        "reliability"
+      ],
       "commit": null,
       "completed_at": "2026-02-21T13:07:12.158874826Z"
     },
-    "version": { "major": 1, "minor": 4, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Move CLI command label Display impls into application/cli/labels.rs",
       "priority": "Medium",
-      "tags": ["refactor", "cli"],
+      "tags": [
+        "refactor",
+        "cli"
+      ],
       "commit": null,
       "completed_at": "2026-02-21T13:13:20.152880975Z"
     },
-    "version": { "major": 1, "minor": 4, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Add package rename command",
       "priority": "High",
-      "tags": ["feature", "cli"],
+      "tags": [
+        "feature",
+        "cli"
+      ],
       "commit": null,
       "completed_at": "2026-02-21T13:24:13.593223321Z"
     },
-    "version": { "major": 1, "minor": 4, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Add init --check mode",
       "priority": "Medium",
-      "tags": ["feature", "cli"],
+      "tags": [
+        "feature",
+        "cli"
+      ],
       "commit": null,
       "completed_at": "2026-02-21T13:24:13.632714635Z"
     },
-    "version": { "major": 1, "minor": 4, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Add import --skip-failed mode",
       "priority": "High",
-      "tags": ["feature", "reliability"],
+      "tags": [
+        "feature",
+        "reliability"
+      ],
       "commit": null,
       "completed_at": "2026-02-21T13:24:13.653941520Z"
     },
-    "version": { "major": 1, "minor": 4, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Add non-intrusive unit tests for CLI flags, metadata rename, init checks, import detection, and package storage",
       "priority": "Medium",
-      "tags": ["test", "reliability"],
+      "tags": [
+        "test",
+        "reliability"
+      ],
       "commit": null,
       "completed_at": "2026-02-21T13:30:13.746773235Z"
     },
-    "version": { "major": 1, "minor": 4, "patch": 0, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
       "description": "Add --ignore-checksums flag for install and upgrade to skip checksum verification",
       "priority": "High",
-      "tags": ["feature", "cli", "security"],
+      "tags": [
+        "feature",
+        "cli",
+        "security"
+      ],
       "commit": null,
       "completed_at": "2026-02-23T17:24:20.083729357Z"
     },
-    "version": { "major": 1, "minor": 4, "patch": 1, "is_prerelease": false }
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 1,
+      "is_prerelease": false
+    }
+  },
+  {
+    "change": {
+      "description": "Improve cross-platform handling for Windows installers and macOS app bundles",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "platform",
+        "investigating"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-24T20:35:04.732351266Z"
+    },
+    "version": null
   }
 ]
