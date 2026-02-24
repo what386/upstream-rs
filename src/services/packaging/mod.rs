@@ -1,3 +1,4 @@
+pub mod bundle_handler;
 pub mod checksum_verifier;
 pub mod package_checker;
 pub mod package_installer;
