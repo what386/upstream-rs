@@ -1,5 +1,7 @@
 use std::{collections::BTreeMap, path::Path};
 
+use crate::models::upstream::Package;
+
 #[derive(Debug, Default)]
 pub struct DesktopEntry {
     pub name: Option<String>,
@@ -12,6 +14,13 @@ pub struct DesktopEntry {
 }
 
 impl DesktopEntry {
+    pub fn new(name: &str) -> DesktopEntry {
+        DesktopEntry {
+            name: Some(name.to_string()),
+            ..DesktopEntry::default()
+        }
+    }
+
     /// Merge another DesktopEntry into self, preferring `other` when present
     pub fn merge(self, other: DesktopEntry) -> DesktopEntry {
         let mut extras = self.extras;
@@ -41,6 +50,22 @@ impl DesktopEntry {
                 self.extras.insert(key.to_string(), value);
             }
         }
+    }
+
+    pub fn from_package(package: &Package) -> DesktopEntry {
+        let mut entry = DesktopEntry::new(&package.name);
+        entry.exec = package
+            .exec_path
+            .as_ref()
+            .map(|path| path.display().to_string());
+        entry.icon = Some(
+            package
+                .icon_path
+                .as_deref()
+                .map(|path| path.display().to_string())
+                .unwrap_or_default(),
+        );
+        entry
     }
 
     pub fn ensure_name(mut self, fallback: &str) -> DesktopEntry {
@@ -119,3 +144,7 @@ impl DesktopEntry {
         out
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/models/common/desktop_entry.rs"]
+mod tests;
