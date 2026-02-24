@@ -3,7 +3,7 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         integration::{ShellManager, SymlinkManager, compression_handler, permission_handler},
-        packaging::ChecksumVerifier,
+        packaging::{ChecksumVerifier, bundle_handler::BundleHandler},
     },
     utils::{fs_move, static_paths::UpstreamPaths},
 };
@@ -173,9 +173,12 @@ impl<'a> PackageInstaller<'a> {
             Filetype::AppImage => self
                 .handle_appimage(&download_path, package, message_callback)
                 .context("Failed to install AppImage"),
-            Filetype::MacApp => self
-                .handle_macos_app_bundle(&download_path, package, message_callback)
-                .context("Failed to install macOS app bundle"),
+            Filetype::MacApp => BundleHandler::new(self.paths, &self.extract_cache)
+                    .install_app_bundle(&download_path, package, message_callback)
+                    .context("Failed to install macOS app bundle"),
+            Filetype::MacDmg => BundleHandler::new(self.paths, &self.extract_cache)
+                .install_dmg(&download_path, package, message_callback)
+                .context("Failed to install macOS disk image"),
             Filetype::Compressed => self
                 .handle_compressed(
                     &download_path,
@@ -219,10 +222,12 @@ impl<'a> PackageInstaller<'a> {
         }
 
         if let Some(app_bundle_path) =
-            Self::find_macos_app_bundle(&extracted_path, &package.name)
+            BundleHandler::find_macos_app_bundle(&extracted_path, &package.name)
                 .context("Failed to detect .app bundle in extracted archive")?
         {
-            return self.handle_macos_app_bundle(&app_bundle_path, package, message_callback);
+            return BundleHandler::new(self.paths, &self.extract_cache)
+                .install_app_bundle(&app_bundle_path, package, message_callback)
+                .context("Failed to install app bundle from archive");
         }
 
         let dirname = extracted_path
@@ -303,170 +308,6 @@ impl<'a> PackageInstaller<'a> {
 
         package.exec_path = Some(exec_path);
         package.install_path = Some(out_path);
-        package.last_upgraded = Utc::now();
-        Ok(package)
-    }
-
-    fn is_app_bundle(path: &Path) -> bool {
-        path.extension()
-            .and_then(|ext| ext.to_str())
-            .map(|ext| ext.eq_ignore_ascii_case("app"))
-            .unwrap_or(false)
-    }
-
-    fn find_macos_app_bundle(extracted_path: &Path, package_name: &str) -> Result<Option<PathBuf>> {
-        if extracted_path.is_dir() && Self::is_app_bundle(extracted_path) {
-            return Ok(Some(extracted_path.to_path_buf()));
-        }
-
-        if !extracted_path.is_dir() {
-            return Ok(None);
-        }
-
-        let package_name_lower = package_name.to_lowercase();
-        let mut bundles = Vec::new();
-
-        for entry in fs::read_dir(extracted_path).context(format!(
-            "Failed to read extracted directory '{}'",
-            extracted_path.display()
-        ))? {
-            let entry = entry?;
-            let path = entry.path();
-            if entry.file_type()?.is_dir() && Self::is_app_bundle(&path) {
-                bundles.push(path);
-            }
-        }
-
-        if bundles.is_empty() {
-            return Ok(None);
-        }
-
-        bundles.sort_by_key(|path| {
-            let stem = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_lowercase();
-            if stem == package_name_lower {
-                0
-            } else if stem.contains(&package_name_lower) {
-                1
-            } else {
-                2
-            }
-        });
-
-        Ok(bundles.into_iter().next())
-    }
-
-    fn find_macos_app_executable(app_bundle_path: &Path, package_name: &str) -> Result<PathBuf> {
-        let macos_dir = app_bundle_path.join("Contents").join("MacOS");
-        if !macos_dir.is_dir() {
-            return Err(anyhow!(
-                "Invalid .app bundle '{}': missing Contents/MacOS",
-                app_bundle_path.display()
-            ));
-        }
-
-        let package_name_lower = package_name.to_lowercase();
-        let mut executables = Vec::new();
-
-        for entry in fs::read_dir(&macos_dir).context(format!(
-            "Failed to read app executable directory '{}'",
-            macos_dir.display()
-        ))? {
-            let entry = entry?;
-            let file_type = entry.file_type()?;
-            if file_type.is_file() || file_type.is_symlink() {
-                executables.push(entry.path());
-            }
-        }
-
-        if executables.is_empty() {
-            return Err(anyhow!("No executable found in '{}'", macos_dir.display()));
-        }
-
-        executables.sort_by_key(|path| {
-            let file_name = path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_lowercase();
-            if file_name == package_name_lower {
-                0
-            } else if file_name.starts_with(&package_name_lower) {
-                1
-            } else {
-                2
-            }
-        });
-
-        Ok(executables.remove(0))
-    }
-
-    fn handle_macos_app_bundle<H>(
-        &self,
-        app_bundle_path: &Path,
-        mut package: Package,
-        message_callback: &mut Option<H>,
-    ) -> Result<Package>
-    where
-        H: FnMut(&str),
-    {
-        if !Self::is_app_bundle(app_bundle_path) {
-            return Err(anyhow!(
-                "Expected .app bundle path, got '{}'",
-                app_bundle_path.display()
-            ));
-        }
-
-        // Some providers may expose a single executable with ".app" suffix.
-        // In that case, fall back to normal file installation.
-        if app_bundle_path.is_file() {
-            return self.handle_file(app_bundle_path, package, message_callback);
-        }
-
-        let bundle_name = app_bundle_path
-            .file_name()
-            .ok_or_else(|| anyhow!("Invalid .app path: no filename"))?;
-        let out_path = self.paths.install.archives_dir.join(bundle_name);
-
-        message!(
-            message_callback,
-            "Moving app bundle to '{}' ...",
-            out_path.display()
-        );
-
-        fs_move::move_file_or_dir(app_bundle_path, &out_path).context(format!(
-            "Failed to move app bundle to '{}'",
-            out_path.display()
-        ))?;
-
-        let exec_path = Self::find_macos_app_executable(&out_path, &package.name)?;
-        permission_handler::make_executable(&exec_path).context(format!(
-            "Failed to make app executable '{}' executable",
-            exec_path.display()
-        ))?;
-
-        message!(
-            message_callback,
-            "Using app executable '{}'",
-            exec_path.display()
-        );
-
-        SymlinkManager::new(&self.paths.integration.symlinks_dir)
-            .add_link(&exec_path, &package.name)
-            .context(format!("Failed to create symlink for '{}'", package.name))?;
-
-        message!(
-            message_callback,
-            "Created symlink: {} → {}",
-            package.name,
-            exec_path.display()
-        );
-
-        package.install_path = Some(out_path);
-        package.exec_path = Some(exec_path);
         package.last_upgraded = Utc::now();
         Ok(package)
     }

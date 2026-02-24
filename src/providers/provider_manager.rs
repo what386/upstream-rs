@@ -299,6 +299,7 @@ impl ProviderManager {
         #[cfg(target_os = "macos")]
         return vec![
             Filetype::MacApp,
+            Filetype::MacDmg,
             Filetype::Archive,
             Filetype::Compressed,
             Filetype::Binary,

@@ -96,6 +96,13 @@ fn resolve_auto_filetype_prefers_macapp_on_macos() {
                 200_000,
                 Utc::now(),
             ),
+            Asset::new(
+                "https://example.invalid/tool.dmg".to_string(),
+                3,
+                "tool.dmg".to_string(),
+                200_000,
+                Utc::now(),
+            ),
         ],
         false,
         "v1.0.0",
@@ -104,6 +111,36 @@ fn resolve_auto_filetype_prefers_macapp_on_macos() {
     assert_eq!(
         ProviderManager::resolve_auto_filetype(&release).expect("resolve"),
         Filetype::MacApp
+    );
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn resolve_auto_filetype_uses_macdmg_when_no_macapp_exists() {
+    let release = make_release(
+        vec![
+            Asset::new(
+                "https://example.invalid/tool.tar.gz".to_string(),
+                1,
+                "tool.tar.gz".to_string(),
+                200_000,
+                Utc::now(),
+            ),
+            Asset::new(
+                "https://example.invalid/tool.dmg".to_string(),
+                2,
+                "tool.dmg".to_string(),
+                200_000,
+                Utc::now(),
+            ),
+        ],
+        false,
+        "v1.0.0",
+    );
+
+    assert_eq!(
+        ProviderManager::resolve_auto_filetype(&release).expect("resolve"),
+        Filetype::MacDmg
     );
 }
 
