@@ -1,4 +1,6 @@
 use anyhow::{Context, Result, anyhow};
+#[cfg(unix)]
+use std::process::Command;
 use std::{
     fs::{self, OpenOptions},
     io::{ErrorKind, Write},
@@ -153,9 +155,25 @@ impl LockStorage {
     }
 
     fn process_exists(pid: u32) -> bool {
+        if pid == 0 {
+            return false;
+        }
+
         #[cfg(unix)]
         {
-            return Path::new("/proc").join(pid.to_string()).exists();
+            // Linux: /proc is cheap and reliable.
+            if Path::new("/proc").exists() {
+                return Path::new("/proc").join(pid.to_string()).exists();
+            }
+
+            // macOS/BSD fallback: `kill -0 <pid>` checks whether the process exists.
+            // If the probe command is unavailable, avoid false stale detection.
+            return Command::new("kill")
+                .arg("-0")
+                .arg(pid.to_string())
+                .status()
+                .map(|status| status.success())
+                .unwrap_or(true);
         }
 
         #[cfg(not(unix))]
