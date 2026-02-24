@@ -47,9 +47,9 @@ fn preview_release_excludes_nightly_tags() {
     assert!(!ProviderManager::is_preview_release(&nightly));
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
-fn resolve_auto_filetype_prefers_appimage_then_archives_on_unix() {
+fn resolve_auto_filetype_prefers_appimage_then_archives_on_linux() {
     let release = make_release(
         vec![
             Asset::new(
@@ -74,6 +74,36 @@ fn resolve_auto_filetype_prefers_appimage_then_archives_on_unix() {
     assert_eq!(
         ProviderManager::resolve_auto_filetype(&release).expect("resolve"),
         Filetype::AppImage
+    );
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn resolve_auto_filetype_prefers_macapp_on_macos() {
+    let release = make_release(
+        vec![
+            Asset::new(
+                "https://example.invalid/tool.tar.gz".to_string(),
+                1,
+                "tool.tar.gz".to_string(),
+                200_000,
+                Utc::now(),
+            ),
+            Asset::new(
+                "https://example.invalid/tool.app".to_string(),
+                2,
+                "tool.app".to_string(),
+                200_000,
+                Utc::now(),
+            ),
+        ],
+        false,
+        "v1.0.0",
+    );
+
+    assert_eq!(
+        ProviderManager::resolve_auto_filetype(&release).expect("resolve"),
+        Filetype::MacApp
     );
 }
 

@@ -33,6 +33,8 @@ fn parse_arch_defaults_ambiguous_x86_to_64_bit() {
 #[test]
 fn parse_filetype_classifies_extensions_in_priority_order() {
     assert_eq!(parse_filetype("tool.AppImage"), Filetype::AppImage);
+    assert_eq!(parse_filetype("tool.app"), Filetype::MacApp);
+    assert_eq!(parse_filetype("tool.dmg"), Filetype::MacDmg);
     assert_eq!(parse_filetype("tool.exe"), Filetype::WinExe);
     assert_eq!(parse_filetype("tool.tar.gz"), Filetype::Archive);
     assert_eq!(parse_filetype("tool.gz"), Filetype::Compressed);
