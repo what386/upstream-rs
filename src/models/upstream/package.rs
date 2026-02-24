@@ -30,6 +30,7 @@ pub struct Package {
 }
 
 impl Package {
+    #[allow(clippy::too_many_arguments)]
     pub fn with_defaults(
         name: String,
         repo_slug: String,
