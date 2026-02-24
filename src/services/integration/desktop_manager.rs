@@ -6,6 +6,8 @@ use crate::{
 #[cfg(windows)]
 use anyhow::Context;
 use anyhow::Result;
+#[cfg(target_os = "macos")]
+use anyhow::anyhow;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -24,7 +26,7 @@ macro_rules! message {
 
 pub struct DesktopManager<'a> {
     paths: &'a UpstreamPaths,
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     extractor: &'a AppImageExtractor,
 }
 
@@ -32,7 +34,7 @@ impl<'a> DesktopManager<'a> {
     pub fn new(paths: &'a UpstreamPaths, extractor: &'a AppImageExtractor) -> Self {
         Self {
             paths,
-            #[cfg(unix)]
+            #[cfg(target_os = "linux")]
             extractor,
         }
     }
@@ -51,7 +53,7 @@ impl<'a> DesktopManager<'a> {
     where
         H: FnMut(&str),
     {
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         {
             return self
                 .create_unix_desktop_entry(
@@ -65,6 +67,18 @@ impl<'a> DesktopManager<'a> {
                     message_callback,
                 )
                 .await;
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let _ = (icon_path, comment, categories);
+            return self.create_macos_launcher(
+                name,
+                install_path,
+                exec_path,
+                filetype,
+                message_callback,
+            );
         }
 
         #[cfg(windows)]
@@ -81,7 +95,7 @@ impl<'a> DesktopManager<'a> {
     }
 
     pub fn remove_entry(paths: &UpstreamPaths, name: &str) -> Result<()> {
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         {
             let path = paths
                 .integration
@@ -89,6 +103,18 @@ impl<'a> DesktopManager<'a> {
                 .join(format!("{}.desktop", name));
             if path.exists() {
                 fs::remove_file(&path)?;
+            }
+            return Ok(());
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let path = Self::macos_launcher_path(paths, name);
+            if path.exists() {
+                let metadata = fs::symlink_metadata(&path)?;
+                if metadata.file_type().is_symlink() {
+                    fs::remove_file(&path)?;
+                }
             }
             return Ok(());
         }
@@ -103,7 +129,7 @@ impl<'a> DesktopManager<'a> {
         }
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     async fn create_unix_desktop_entry<H>(
         &self,
         name: &str,
@@ -143,7 +169,7 @@ impl<'a> DesktopManager<'a> {
         self.write_unix_entry(name, &entry)
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     fn write_unix_entry(&self, name: &str, entry: &DesktopEntry) -> Result<PathBuf> {
         let out_path = self
             .paths
@@ -154,7 +180,7 @@ impl<'a> DesktopManager<'a> {
         Ok(out_path)
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     fn find_and_parse_desktop_file<H>(
         &self,
         squashfs_root: &Path,
@@ -200,7 +226,7 @@ impl<'a> DesktopManager<'a> {
         None
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     fn parse_desktop_file(path: &Path) -> Option<DesktopEntry> {
         let content = fs::read_to_string(path).ok()?;
         let mut entry = DesktopEntry::default();
@@ -230,6 +256,94 @@ impl<'a> DesktopManager<'a> {
         }
 
         Some(entry)
+    }
+
+    #[cfg(target_os = "macos")]
+    fn macos_launcher_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
+        let apps_dir = dirs::home_dir()
+            .unwrap_or_else(|| paths.dirs.user_dir.clone())
+            .join("Applications");
+        apps_dir.join(format!("{name}.app"))
+    }
+
+    #[cfg(target_os = "macos")]
+    fn find_app_bundle_path(
+        install_path: &Path,
+        exec_path: &Path,
+        filetype: &Filetype,
+    ) -> Option<PathBuf> {
+        use std::ffi::OsStr;
+
+        if matches!(filetype, Filetype::MacApp)
+            && install_path.extension() == Some(OsStr::new("app"))
+        {
+            return Some(install_path.to_path_buf());
+        }
+
+        if install_path.extension() == Some(OsStr::new("app")) {
+            return Some(install_path.to_path_buf());
+        }
+
+        for candidate in [exec_path, install_path] {
+            if let Some(bundle) = candidate
+                .ancestors()
+                .find(|ancestor| ancestor.extension() == Some(OsStr::new("app")))
+            {
+                return Some(bundle.to_path_buf());
+            }
+        }
+
+        None
+    }
+
+    #[cfg(target_os = "macos")]
+    fn create_macos_launcher<H>(
+        &self,
+        name: &str,
+        install_path: &Path,
+        exec_path: &Path,
+        filetype: &Filetype,
+        message_callback: &mut Option<H>,
+    ) -> Result<PathBuf>
+    where
+        H: FnMut(&str),
+    {
+        let app_bundle = Self::find_app_bundle_path(install_path, exec_path, filetype)
+            .ok_or_else(|| anyhow!("Could not locate a .app bundle for '{}'", name))?;
+
+        if !app_bundle.exists() || !app_bundle.is_dir() {
+            return Err(anyhow!(
+                "Resolved .app bundle '{}' does not exist or is not a directory",
+                app_bundle.display()
+            ));
+        }
+
+        let launcher_path = Self::macos_launcher_path(self.paths, name);
+        if let Some(parent) = launcher_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        if launcher_path.exists() {
+            let metadata = fs::symlink_metadata(&launcher_path)?;
+            if metadata.file_type().is_symlink() {
+                fs::remove_file(&launcher_path)?;
+            } else {
+                return Err(anyhow!(
+                    "Refusing to overwrite non-symlink at '{}'",
+                    launcher_path.display()
+                ));
+            }
+        }
+
+        std::os::unix::fs::symlink(&app_bundle, &launcher_path)?;
+        message!(
+            message_callback,
+            "Created macOS launcher: {} -> {}",
+            launcher_path.display(),
+            app_bundle.display()
+        );
+
+        Ok(launcher_path)
     }
 
     #[cfg(windows)]
@@ -304,6 +418,6 @@ impl<'a> DesktopManager<'a> {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(all(test, target_os = "linux"))]
 #[path = "../../../tests/services/integration/desktop_manager.rs"]
 mod tests;
