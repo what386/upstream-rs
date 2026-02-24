@@ -67,7 +67,7 @@ jobs:
         run: |
           {
             echo "body<<__RELEASE_NOTES__"
-            ./scripts/changelog_for_tag.sh "${GITHUB_REF_NAME}"
+            ./scripts/release/changelog_for_tag.bash "${GITHUB_REF_NAME}"
             echo "__RELEASE_NOTES__"
           } >> "$GITHUB_OUTPUT"
       - name: Create release
