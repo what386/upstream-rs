@@ -284,17 +284,24 @@ impl ProviderManager {
         Ok(candidates)
     }
 
-    pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {
-        #[cfg(unix)]
-        let priority = [
+    fn get_priority_for_os() -> Vec<Filetype> {
+        #[cfg(target_os = "linux")]
+        return vec![
             Filetype::AppImage,
             Filetype::Archive,
             Filetype::Compressed,
             Filetype::Binary,
         ];
 
-        #[cfg(windows)]
-        let priority = [Filetype::WinExe, Filetype::Archive, Filetype::Compressed];
+        #[cfg(target_os = "windows")]
+        return vec![Filetype::WinExe, Filetype::Archive, Filetype::Compressed];
+
+        #[cfg(target_os = "macos")]
+        return vec![Filetype::Archive, Filetype::Compressed, Filetype::Binary];
+    }
+
+    pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {
+        let priority = Self::get_priority_for_os();
 
         priority
             .iter()
