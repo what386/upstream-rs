@@ -14,6 +14,7 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     name: String,
     repo_slug: String,
