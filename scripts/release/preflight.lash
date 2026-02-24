@@ -18,8 +18,8 @@ if git_repo_ok != "yes"
 end
 
 const current_branch = $sh "git rev-parse --abbrev-ref HEAD | tr -d '\n'"
-if current_branch != "main"
-    echo $"Error: expected current branch 'main', found '{current_branch}'."
+if current_branch != "dev"
+    echo $"Error: expected current branch 'dev', found '{current_branch}'."
     exit 1
 end
 
