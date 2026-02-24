@@ -101,6 +101,14 @@ pub fn parse_filetype(filename: &str) -> Filetype {
         return Filetype::AppImage;
     }
 
+    if filename.ends_with(".app") {
+        return Filetype::MacApp;
+    }
+
+    if filename.ends_with(".dmg") {
+        return Filetype::MacDmg;
+    }
+
     if filename.ends_with(".exe") {
         return Filetype::WinExe;
     }
