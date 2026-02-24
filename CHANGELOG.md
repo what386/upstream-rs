@@ -1,12 +1,21 @@
 # Changelog — upstream-cli
 
-_Generated on 2026-02-23_
+*Generated on 2026-02-24*
+
+## 1.4.3 — 2026-02-24
+
+### Changes
+
+- Improve cross-platform handling for Windows installers and macOS app bundles `feature`, `platform`, `investigating`
+- Improve cross-platform handling for Windows installers and macOS app bundles `feature`, `platform`, `investigating`
+
 
 ## 1.4.1 — 2026-02-23
 
 ### High Priority
 
 - Add --ignore-checksums flag for install and upgrade to skip checksum verification `feature`, `cli`, `security`
+
 
 ## 1.4.0 — 2026-02-21
 
@@ -23,11 +32,13 @@ _Generated on 2026-02-23_
 - Add init --check mode `feature`, `cli`
 - Add non-intrusive unit tests for CLI flags, metadata rename, init checks, import detection, and package storage `test`, `reliability`
 
+
 ## 1.3.2 — 2026-02-21
 
 ### High Priority
 
 - Fix cross-device (EXDEV) install moves from /tmp to ~/.upstream `bug`, `platform`
+
 
 ## 1.2.1 — 2026-02-14
 
@@ -40,11 +51,13 @@ _Generated on 2026-02-23_
 - Add conditional HTTP checks with ETag/Last-Modified to speed update scans `feature`, `http`, `performance`
 - Generate and ship shell completions with synchronized CLI docs `feature`, `docs`
 
+
 ## 1.0.4 — 2026-02-07
 
 ### High Priority
 
 - Fix GitHub latest-release JSON parsing when fields are null `bug`
+
 
 ## 1.0.3 — 2026-02-06
 
@@ -52,11 +65,13 @@ _Generated on 2026-02-23_
 
 - fallback for missing icon? maybe include a default icon when lookup fails `feature`
 
+
 ## 1.0.2 — 2026-02-06
 
 ### High Priority
 
 - fix archives not respecting the name argument
+
 
 ## 1.0.0 — 2026-02-03
 
@@ -69,6 +84,7 @@ _Generated on 2026-02-23_
 - fix resolved filetype callback to use proper display function `bugfix` ([`eb8e608`])
 - add appimage embedded .desktop file extraction `feature` ([`0cc8ded`])
 
+
 ## 0.9.0 — 2026-02-03
 
 ### Changes
@@ -78,3 +94,6 @@ _Generated on 2026-02-23_
 ### Minor Changes
 
 - consider removing dead functions `cleanup` ([`7669a1a`])
+
+
+
