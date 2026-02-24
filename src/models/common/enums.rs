@@ -6,6 +6,8 @@ use std::str::FromStr;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 pub enum Filetype {
     AppImage,
+    MacApp,
+    MacDmg,
     Archive,
     Compressed,
     Binary,
@@ -18,6 +20,8 @@ impl fmt::Display for Filetype {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             Filetype::AppImage => "AppImage",
+            Filetype::MacApp => "Mac app bundle",
+            Filetype::MacDmg => "macOS disk image",
             Filetype::Archive => "Compressed archive",
             Filetype::Compressed => "Compressed file",
             Filetype::Binary => "Binary",
