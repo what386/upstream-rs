@@ -1,6 +1,6 @@
 # Upstream Package Manager
 
-**Upstream** is a rootless package manager for "raw" release channels. It installs and updates software from source-code providers like Github as well as direct HTTP sources. Upstream supports multiple asset types, tracks update channels, and automatically selects the best asset for your OS and CPU architecture.
+**Upstream** is a rootless package manager for "raw" release channels. It installs and updates software from source-code providers like Github as well as normal download pages via web scraping. Upstream supports multiple asset types, tracks update channels, and automatically selects the best asset for your OS and CPU architecture.
 
 ---
 
@@ -29,7 +29,7 @@
 
 ## **Features**
 
-- Install packages from GitHub, GitLab, Gitea, and HTTP sources.
+- Install packages from GitHub, GitLab, Gitea, direct HTTP, and web sources via scraping.
 - Automatically detect system architecture (x86_64, ARM64) and OS (Linux, macOS).
 - Supports binaries, archives, AppImages, and compressed files.
 - Rootless, user-level installation.
