@@ -5,7 +5,8 @@ use std::path::Path;
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
 
-use crate::providers::github::github_client::{GithubAssetDto, GithubClient, GithubReleaseDto};
+use super::github_client::GithubClient;
+use super::github_dtos::{GithubAssetDto, GithubReleaseDto};
 
 #[derive(Debug, Clone)]
 pub struct GithubAdapter {

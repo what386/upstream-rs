@@ -1,4 +1,5 @@
-use super::{GiteaClient, GiteaReleaseDto};
+use super::GiteaClient;
+use crate::providers::gitea::gitea_dtos::GiteaReleaseDto;
 
 #[test]
 fn new_normalizes_base_url_without_scheme() {

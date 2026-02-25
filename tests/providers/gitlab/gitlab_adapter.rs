@@ -1,6 +1,7 @@
 use super::GitlabAdapter;
-use crate::providers::gitlab::gitlab_client::{
-    GitlabAssetsDto, GitlabClient, GitlabLinkDto, GitlabReleaseDto, GitlabSourceDto,
+use crate::providers::gitlab::gitlab_client::GitlabClient;
+use crate::providers::gitlab::gitlab_dtos::{
+    GitlabAssetsDto, GitlabLinkDto, GitlabReleaseDto, GitlabSourceDto,
 };
 
 #[test]

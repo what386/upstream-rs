@@ -1,5 +1,6 @@
 use super::GiteaAdapter;
-use crate::providers::gitea::gitea_client::{GiteaAssetDto, GiteaClient, GiteaReleaseDto};
+use crate::providers::gitea::gitea_client::GiteaClient;
+use crate::providers::gitea::gitea_dtos::{GiteaAssetDto, GiteaReleaseDto};
 
 #[test]
 fn parse_timestamp_returns_min_on_invalid_inputs() {

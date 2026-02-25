@@ -4,7 +4,9 @@ use std::path::Path;
 
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
-use crate::providers::gitea::gitea_client::{GiteaAssetDto, GiteaClient, GiteaReleaseDto};
+
+use super::gitea_client::GiteaClient;
+use super::gitea_dtos::{GiteaAssetDto, GiteaReleaseDto};
 
 #[derive(Debug, Clone)]
 pub struct GiteaAdapter {
