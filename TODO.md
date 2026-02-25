@@ -14,9 +14,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] Fix symlink recreation during upgrade rollback when previous link is dangling (high) #bug #cli
-      @created 2026-02-25 19:45
-
 
 ## Completed
 
@@ -29,4 +26,8 @@
       @created 2026-02-14 00:58
       @completed 2026-02-24 20:35
       @completed_version 1.4.3
+
+- [x] Fix symlink recreation during upgrade rollback when previous link is dangling (high) #bug #cli
+      @created 2026-02-25 19:45
+      @completed 2026-02-25 19:47
 
