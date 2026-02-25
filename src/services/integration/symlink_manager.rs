@@ -10,6 +10,24 @@ pub struct SymlinkManager<'a> {
 }
 
 impl<'a> SymlinkManager<'a> {
+    fn remove_link_path(path: &Path, context_message: &'static str) -> Result<()> {
+        match fs::symlink_metadata(path) {
+            Ok(metadata) => {
+                if metadata.is_dir() && !metadata.file_type().is_symlink() {
+                    anyhow::bail!(
+                        "Refusing to remove directory at '{}' while managing symlink",
+                        path.display()
+                    );
+                }
+                fs::remove_file(path).context(context_message)?;
+            }
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => return Err(err).context(context_message),
+        }
+
+        Ok(())
+    }
+
     fn platform_link_path(link: &Path) -> std::path::PathBuf {
         #[cfg(windows)]
         {
@@ -35,12 +53,10 @@ impl<'a> SymlinkManager<'a> {
         let symlink = Self::platform_link_path(&base_link);
 
         // Remove existing link if present.
-        if symlink.exists() {
-            fs::remove_file(&symlink).context("Failed to remove existing symlink")?;
-        }
+        Self::remove_link_path(&symlink, "Failed to remove existing symlink")?;
         // Cleanup stale pre-fix path variant on Windows.
-        if base_link != symlink && base_link.exists() {
-            fs::remove_file(&base_link).context("Failed to remove stale symlink")?;
+        if base_link != symlink {
+            Self::remove_link_path(&base_link, "Failed to remove stale symlink")?;
         }
 
         Self::create_symlink(exec_path, &symlink)?;
@@ -52,11 +68,9 @@ impl<'a> SymlinkManager<'a> {
         let base_link = self.symlinks_dir.join(name);
         let symlink = Self::platform_link_path(&base_link);
 
-        if symlink.exists() {
-            fs::remove_file(&symlink).context("Failed to remove symlink")?;
-        }
-        if base_link != symlink && base_link.exists() {
-            fs::remove_file(&base_link).context("Failed to remove stale symlink")?;
+        Self::remove_link_path(&symlink, "Failed to remove symlink")?;
+        if base_link != symlink {
+            Self::remove_link_path(&base_link, "Failed to remove stale symlink")?;
         }
 
         Ok(())
@@ -72,3 +86,7 @@ impl<'a> SymlinkManager<'a> {
         fs::hard_link(target_path, link).context("Failed to create hardlink")
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/services/integration/symlink_manager.rs"]
+mod tests;
