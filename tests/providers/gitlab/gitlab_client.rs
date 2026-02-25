@@ -1,4 +1,5 @@
-use super::{GitlabClient, GitlabReleaseDto};
+use super::GitlabClient;
+use crate::providers::gitlab::gitlab_dtos::GitlabReleaseDto;
 
 #[test]
 fn new_normalizes_base_url_without_scheme() {

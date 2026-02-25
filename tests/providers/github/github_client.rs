@@ -1,4 +1,4 @@
-use super::GithubReleaseDto;
+use crate::providers::github::github_dtos::GithubReleaseDto;
 
 #[test]
 fn github_release_dto_accepts_nullable_string_fields() {

@@ -4,7 +4,9 @@ use std::path::Path;
 
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
-use crate::providers::gitlab::gitlab_client::{GitlabClient, GitlabReleaseDto};
+
+use super::gitlab_client::GitlabClient;
+use super::gitlab_dtos::GitlabReleaseDto;
 
 #[derive(Debug, Clone)]
 pub struct GitlabAdapter {

@@ -1,5 +1,6 @@
 use super::GithubAdapter;
-use crate::providers::github::github_client::{GithubAssetDto, GithubClient, GithubReleaseDto};
+use crate::providers::github::github_client::GithubClient;
+use crate::providers::github::github_dtos::{GithubAssetDto, GithubReleaseDto};
 
 #[test]
 fn parse_timestamp_returns_min_for_invalid_or_empty_values() {
