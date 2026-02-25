@@ -1,7 +1,7 @@
 # TODO — upstream-cli v1.4.3
 
 @created: 2026-01-31
-@modified: 2026-02-24
+@modified: 2026-02-25
 
 ## Tasks
 
@@ -13,6 +13,9 @@
 
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
+
+- [ ] Fix symlink recreation during upgrade rollback when previous link is dangling (high) #bug #cli
+      @created 2026-02-25 19:45
 
 
 ## Completed
