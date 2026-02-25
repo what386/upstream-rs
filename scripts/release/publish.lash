@@ -14,7 +14,7 @@ end
 const version = argv[0]
 
 tally semver $version --auto
-tally changelog > CHANGELOG.md
+tally changelog --auto > CHANGELOG.md
 
 git checkout main
 
