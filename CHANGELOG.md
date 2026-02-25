@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-02-24*
+*Generated on 2026-02-25*
+
+## 1.4.4 — 2026-02-25
+
+### High Priority
+
+- Fix symlink recreation during upgrade rollback when previous link is dangling `bug`, `cli`
+
 
 ## 1.4.3 — 2026-02-24
 
