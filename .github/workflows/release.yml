@@ -1,13 +1,44 @@
 name: Release
+
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
 permissions:
   contents: write
+
 jobs:
+  guard:
+    name: Resolve Tag
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.resolve.outputs.should_release }}
+      tag_name: ${{ steps.resolve.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: resolve
+        run: |
+          TAG_NAME="$(git tag --points-at "${{ github.event.workflow_run.head_sha }}" | grep -E '^v' | head -n1 || true)"
+          if [[ -n "${TAG_NAME}" ]]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "tag_name=" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build (${{ matrix.os }})
+    needs: guard
+    if: github.event.workflow_run.conclusion == 'success' && needs.guard.outputs.should_release == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -26,6 +57,8 @@ jobs:
             binary_ext: ".exe"
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -48,12 +81,18 @@ jobs:
         with:
           name: upstream-rs-${{ matrix.target }}
           path: dist/upstream-rs-${{ matrix.target }}${{ matrix.binary_ext }}
+
   release:
     name: Create GitHub Release
-    needs: build
+    needs:
+      - guard
+      - build
+    if: github.event.workflow_run.conclusion == 'success' && needs.guard.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -67,11 +106,12 @@ jobs:
         run: |
           {
             echo "body<<__RELEASE_NOTES__"
-            ./scripts/release/changelog_for_tag.bash "${GITHUB_REF_NAME}"
+            ./scripts/release/changelog_for_tag.bash "${{ needs.guard.outputs.tag_name }}"
             echo "__RELEASE_NOTES__"
           } >> "$GITHUB_OUTPUT"
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ needs.guard.outputs.tag_name }}
           body: ${{ steps.release_notes.outputs.body }}
           files: dist/**/*
