@@ -408,5 +408,19 @@
       "patch": 4,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "Fix release automation to commit changelog before tagging and harden notes extraction",
+      "priority": "High",
+      "tags": [
+        "bug",
+        "release",
+        "ci"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-26T16:59:01.392623331Z"
+    },
+    "version": null
   }
 ]
