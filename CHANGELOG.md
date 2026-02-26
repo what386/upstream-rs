@@ -4,7 +4,7 @@
 
 ## 1.4.5 — 2026-02-26
 
-### Changes
+### High Priority
 
 - Improve doctor to detect dangling symlinks and report broken symlink targets explicitly `bug`, `cli`, `ux`
 
