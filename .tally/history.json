@@ -436,5 +436,18 @@
       "completed_at": "2026-02-26T18:25:04.951340466Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "Revert publish script tag normalization and use provided version argument directly",
+      "priority": "Medium",
+      "tags": [
+        "bug",
+        "release"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-26T18:33:27.896265593Z"
+    },
+    "version": null
   }
 ]
