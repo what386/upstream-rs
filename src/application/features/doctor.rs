@@ -103,6 +103,53 @@ fn normalized_link_package_name(path: &Path) -> Option<String> {
     }
 }
 
+#[cfg(unix)]
+enum LinkStatus {
+    Missing,
+    Unreadable(String),
+    NotSymlink,
+    Target {
+        raw_target: PathBuf,
+        resolved_target: PathBuf,
+        exists: bool,
+        matches_expected: bool,
+    },
+}
+
+#[cfg(unix)]
+fn inspect_unix_link(link_path: &Path, expected_target: &Path) -> LinkStatus {
+    let metadata = match fs::symlink_metadata(link_path) {
+        Ok(metadata) => metadata,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return LinkStatus::Missing,
+        Err(err) => return LinkStatus::Unreadable(err.to_string()),
+    };
+
+    if !metadata.file_type().is_symlink() {
+        return LinkStatus::NotSymlink;
+    }
+
+    match fs::read_link(link_path) {
+        Ok(raw_target) => {
+            let resolved_target = if raw_target.is_absolute() {
+                raw_target.clone()
+            } else {
+                link_path
+                    .parent()
+                    .map(|parent| parent.join(&raw_target))
+                    .unwrap_or_else(|| raw_target.clone())
+            };
+
+            LinkStatus::Target {
+                raw_target,
+                exists: resolved_target.exists(),
+                matches_expected: resolved_target == expected_target,
+                resolved_target,
+            }
+        }
+        Err(err) => LinkStatus::Unreadable(err.to_string()),
+    }
+}
+
 fn find_stale_symlink_names(symlinks_dir: &Path, installed_names: &HashSet<String>) -> Vec<String> {
     let Ok(entries) = fs::read_dir(symlinks_dir) else {
         return Vec::new();
@@ -111,7 +158,11 @@ fn find_stale_symlink_names(symlinks_dir: &Path, installed_names: &HashSet<Strin
     let mut stale = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.is_file() {
+        let Ok(metadata) = fs::symlink_metadata(&path) else {
+            continue;
+        };
+        let file_type = metadata.file_type();
+        if !file_type.is_symlink() && !metadata.is_file() {
             continue;
         }
 
@@ -342,51 +393,101 @@ pub fn run(names: Vec<String>) -> Result<()> {
 
         if let Some(exec_path) = &package.exec_path {
             let link_path = expected_link_path(&paths.integration.symlinks_dir, &package.name);
-            if link_path.exists() {
-                #[cfg(unix)]
-                {
-                    match fs::read_link(&link_path) {
-                        Ok(target) => {
-                            if target == *exec_path {
-                                report.line(
-                                    Level::Ok,
-                                    format!("{} symlink points to executable", package_label),
-                                );
-                            } else {
-                                report.line(
-                                    Level::Warn,
-                                    format!(
-                                        "{} symlink target differs ({} -> {})",
-                                        package_label,
-                                        link_path.display(),
-                                        target.display()
-                                    ),
-                                );
-                            }
+            #[cfg(unix)]
+            {
+                match inspect_unix_link(&link_path, exec_path) {
+                    LinkStatus::Target {
+                        raw_target,
+                        resolved_target,
+                        exists,
+                        matches_expected,
+                    } => {
+                        if !exists {
+                            report.line(
+                                Level::Warn,
+                                format!(
+                                    "{} symlink target is missing ({} -> {}, resolved: {})",
+                                    package_label,
+                                    link_path.display(),
+                                    raw_target.display(),
+                                    resolved_target.display()
+                                ),
+                            );
+                            report.hint(format!(
+                                "Try `upstream upgrade {} --force` to recreate broken symlinks.",
+                                package.name
+                            ));
+                        } else if matches_expected {
+                            report.line(
+                                Level::Ok,
+                                format!("{} symlink points to executable", package_label),
+                            );
+                        } else {
+                            report.line(
+                                Level::Warn,
+                                format!(
+                                    "{} symlink target differs ({} -> {}, expected {})",
+                                    package_label,
+                                    link_path.display(),
+                                    raw_target.display(),
+                                    exec_path.display()
+                                ),
+                            );
                         }
-                        Err(e) => report.line(
-                            Level::Warn,
-                            format!("{} symlink unreadable: {}", package_label, e),
-                        ),
                     }
-                }
-                #[cfg(not(unix))]
-                {
-                    report.line(Level::Ok, format!("{} link entry exists", package_label));
-                }
-            } else {
-                report.line(
-                    Level::Warn,
-                    format!(
-                        "{} link missing in symlinks dir ({})",
-                        package_label,
-                        link_path.display()
+                    LinkStatus::Missing => {
+                        report.line(
+                            Level::Warn,
+                            format!(
+                                "{} link missing in symlinks dir ({})",
+                                package_label,
+                                link_path.display()
+                            ),
+                        );
+                        report.hint(format!(
+                            "Try `upstream upgrade {} --force` to recreate missing links.",
+                            package.name
+                        ));
+                    }
+                    LinkStatus::NotSymlink => {
+                        report.line(
+                            Level::Warn,
+                            format!(
+                                "{} link path exists but is not a symlink ({})",
+                                package_label,
+                                link_path.display()
+                            ),
+                        );
+                        report.hint(format!(
+                            "Remove '{}' and run `upstream upgrade {} --force`.",
+                            link_path.display(),
+                            package.name
+                        ));
+                    }
+                    LinkStatus::Unreadable(e) => report.line(
+                        Level::Warn,
+                        format!("{} symlink unreadable: {}", package_label, e),
                     ),
-                );
-                report.hint(format!(
-                    "Try `upstream upgrade {} --force` to recreate missing links.",
-                    package.name
-                ));
+                }
+            }
+            #[cfg(not(unix))]
+            {
+                if link_path.exists() {
+                    report.line(Level::Ok, format!("{} link entry exists", package_label));
+                } else {
+                    report.line(
+                        Level::Warn,
+                        format!(
+                            "{} link missing in symlinks dir ({})",
+                            package_label,
+                            link_path.display()
+                        ),
+                    );
+                    report.hint(format!(
+                        "Try `upstream upgrade {} --force` to recreate missing links.",
+                        package.name
+                    ));
+                }
             }
         }
 
