@@ -422,5 +422,19 @@
       "completed_at": "2026-02-26T16:59:01.392623331Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "Improve doctor to detect dangling symlinks and report broken symlink targets explicitly",
+      "priority": "High",
+      "tags": [
+        "bug",
+        "cli",
+        "ux"
+      ],
+      "commit": null,
+      "completed_at": "2026-02-26T18:25:04.951340466Z"
+    },
+    "version": null
   }
 ]
