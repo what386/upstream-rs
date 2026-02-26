@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-02-25*
+*Generated on 2026-02-26*
+
+## 1.4.5 — 2026-02-26
+
+### Changes
+
+- Improve doctor to detect dangling symlinks and report broken symlink targets explicitly `bug`, `cli`, `ux`
+
 
 ## 1.4.4 — 2026-02-25
 
