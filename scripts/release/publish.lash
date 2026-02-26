@@ -11,6 +11,11 @@ if #argv == 0 || #argv > 1
     exit 1
 end
 
+git checkout dev
+
+git push github dev
+git push gitea dev
+
 const version = argv[0]
 
 tally semver $version --auto
