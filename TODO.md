@@ -1,7 +1,7 @@
 # TODO — upstream-cli v1.4.4
 
 @created: 2026-01-31
-@modified: 2026-02-25
+@modified: 2026-02-26
 
 ## Tasks
 
@@ -13,6 +13,9 @@
 
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
+
+- [ ] Fix release automation to commit changelog before tagging and harden notes extraction (high) #bug #release #ci
+      @created 2026-02-26 16:58
 
 
 ## Completed
