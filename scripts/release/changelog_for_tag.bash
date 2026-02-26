@@ -24,7 +24,15 @@ if awk -v version="$version" '
         if (in_section) {
             exit
         }
-        if ($1 == "##" && $2 == version) {
+        header = $0
+        sub(/^##[[:space:]]+/, "", header)
+        split(header, fields, /[[:space:]]+/)
+        header_version = fields[1]
+        gsub(/^\[/, "", header_version)
+        gsub(/\]$/, "", header_version)
+        sub(/^v/, "", header_version)
+
+        if (header_version == version) {
             in_section = 1
             found = 1
         }
