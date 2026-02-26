@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.4.4
+# TODO — upstream-cli v1.4.5
 
 @created: 2026-01-31
 @modified: 2026-02-26
@@ -35,12 +35,15 @@
 - [x] Fix release automation to commit changelog before tagging and harden notes extraction (high) #bug #release #ci
       @created 2026-02-26 16:58
       @completed 2026-02-26 16:59
+      @completed_version 1.4.5
 
 - [x] Improve doctor to detect dangling symlinks and report broken symlink targets explicitly (high) #bug #cli #ux
       @created 2026-02-26 18:23
       @completed 2026-02-26 18:25
+      @completed_version 1.4.5
 
 - [x] Revert publish script tag normalization and use provided version argument directly #bug #release
       @created 2026-02-26 18:33
       @completed 2026-02-26 18:33
+      @completed_version 1.4.5
 
