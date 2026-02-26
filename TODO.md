@@ -14,6 +14,9 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
+- [ ] Revert publish script tag normalization and use provided version argument directly #bug #release
+      @created 2026-02-26 18:33
+
 
 ## Completed
 
