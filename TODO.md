@@ -14,9 +14,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] Revert publish script tag normalization and use provided version argument directly #bug #release
-      @created 2026-02-26 18:33
-
 
 ## Completed
 
@@ -42,4 +39,8 @@
 - [x] Improve doctor to detect dangling symlinks and report broken symlink targets explicitly (high) #bug #cli #ux
       @created 2026-02-26 18:23
       @completed 2026-02-26 18:25
+
+- [x] Revert publish script tag normalization and use provided version argument directly #bug #release
+      @created 2026-02-26 18:33
+      @completed 2026-02-26 18:33
 
