@@ -11,9 +11,7 @@ if #argv == 0 || #argv > 1
     exit 1
 end
 
-const raw_version = argv[0]
-const version = $sh $"printf '%s' '{raw_version}' | sed 's/^v//'"
-const tag = $"v{version}"
+const version = argv[0]
 
 git checkout dev
 
@@ -27,7 +25,7 @@ git add Cargo.toml Cargo.lock CHANGELOG.md TODO.md .tally/history.json
 
 const staged = $sh "git diff --cached --name-only"
 if staged != ""
-    git commit -m $"release: {tag}"
+    git commit -m $"release: {version}"
 else
     echo "No release metadata changes to commit."
 end
@@ -41,10 +39,10 @@ echo "Pushing main branch to remotes..."
 git push github main
 git push gitea main
 
-git tag $tag
+git tag $version
 
 @if defined(GITHUB) && GITHUB == "true"
-git push github $tag
+git push github $version
 @end
 
 @if defined(CARGO) && CARGO == "true"
