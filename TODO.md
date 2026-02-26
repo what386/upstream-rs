@@ -14,9 +14,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] Fix release automation to commit changelog before tagging and harden notes extraction (high) #bug #release #ci
-      @created 2026-02-26 16:58
-
 
 ## Completed
 
@@ -34,4 +31,8 @@
       @created 2026-02-25 19:45
       @completed 2026-02-25 19:47
       @completed_version 1.4.4
+
+- [x] Fix release automation to commit changelog before tagging and harden notes extraction (high) #bug #release #ci
+      @created 2026-02-26 16:58
+      @completed 2026-02-26 16:59
 
