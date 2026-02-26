@@ -421,7 +421,12 @@
       "commit": null,
       "completed_at": "2026-02-26T16:59:01.392623331Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 5,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -435,7 +440,12 @@
       "commit": null,
       "completed_at": "2026-02-26T18:25:04.951340466Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 5,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -448,6 +458,11 @@
       "commit": null,
       "completed_at": "2026-02-26T18:33:27.896265593Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 4,
+      "patch": 5,
+      "is_prerelease": false
+    }
   }
 ]
