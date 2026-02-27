@@ -95,10 +95,15 @@ impl ProviderManager {
         }
     }
 
+    /// Detect nightly releases by tag text.
+    ///
+    /// This intentionally uses a substring check because providers tag nightlies
+    /// with inconsistent prefixes/suffixes.
     pub fn is_nightly_release(tag: &str) -> bool {
         tag.to_lowercase().contains("nightly")
     }
 
+    /// Detect preview releases while excluding nightly tags.
     pub fn is_preview_release(release: &Release) -> bool {
         release.is_prerelease && !Self::is_nightly_release(&release.tag)
     }
@@ -284,6 +289,7 @@ impl ProviderManager {
         Ok(candidates)
     }
 
+    /// Return filetype preference order for the current target OS.
     fn get_priority_for_os() -> Vec<Filetype> {
         #[cfg(target_os = "linux")]
         return vec![
@@ -306,6 +312,10 @@ impl ProviderManager {
         ];
     }
 
+    /// Choose a concrete filetype when package config is set to `Auto`.
+    ///
+    /// The first filetype in platform priority order that appears in release
+    /// assets is selected.
     pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {
         let priority = Self::get_priority_for_os();
 
@@ -321,6 +331,10 @@ impl ProviderManager {
             .ok_or_else(|| anyhow!("No compatible filetype found in release assets"))
     }
 
+    /// Filter out assets that are clearly incompatible with the host OS/CPU.
+    ///
+    /// Includes a small set of architecture compatibility fallbacks
+    /// (`x86_64` can run `x86`; `aarch64` can run `arm`).
     fn is_potentially_compatible(&self, asset: &Asset) -> bool {
         // OS check
         if let Some(target_os) = &asset.target_os
@@ -350,6 +364,10 @@ impl ProviderManager {
         true
     }
 
+    /// Score candidate assets so `find_recommended_asset` can pick the best fit.
+    ///
+    /// Scoring favors explicit architecture/OS matches, package include/exclude
+    /// patterns, and filenames that avoid debug/source variants.
     fn score_asset(&self, asset: &Asset, package: &Package) -> i32 {
         let name = asset.name.to_lowercase();
         let mut score = 0;

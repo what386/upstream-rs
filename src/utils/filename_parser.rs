@@ -12,6 +12,7 @@ const CHECKSUM_EXTENSIONS: &[&str] = &[
     ".sha256", ".sha512", ".sha1", ".md5", ".sig", ".asc", ".minisig", ".sum",
 ];
 
+/// Infer target OS from common release artifact naming markers.
 pub fn parse_os(filename: &str) -> Option<OSKind> {
     let name = filename.to_lowercase();
 
@@ -63,6 +64,9 @@ pub fn parse_os(filename: &str) -> Option<OSKind> {
     None
 }
 
+/// Infer CPU architecture from artifact naming conventions.
+///
+/// Ambiguous `x86` markers default to `X86_64` unless a 32-bit marker is also present.
 pub fn parse_arch(filename: &str) -> Option<CpuArch> {
     let name = filename.to_lowercase();
 
@@ -94,6 +98,9 @@ pub fn parse_arch(filename: &str) -> Option<CpuArch> {
     None
 }
 
+/// Classify an artifact into upstream's installable file categories.
+///
+/// Detection is extension-based and ordered from most specific to most general.
 pub fn parse_filetype(filename: &str) -> Filetype {
     let filename = filename.to_lowercase();
 
@@ -134,6 +141,9 @@ pub fn parse_filetype(filename: &str) -> Filetype {
     Filetype::Binary
 }
 
+/// Match token markers with word-boundary checks to reduce false positives.
+///
+/// Extension markers (starting with `.`) are treated as suffix matches.
 fn contains_marker(filename: &str, markers: &[&str]) -> bool {
     for marker in markers {
         if marker.starts_with('.') {

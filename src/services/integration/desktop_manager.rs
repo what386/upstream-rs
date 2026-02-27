@@ -133,6 +133,10 @@ impl<'a> DesktopManager<'a> {
         }
     }
 
+    /// Build and write a Linux desktop entry.
+    ///
+    /// For AppImages, this attempts to merge metadata from an embedded
+    /// `.desktop` file before applying explicit entry overrides.
     #[cfg(target_os = "linux")]
     async fn create_unix_desktop_entry<H>(
         &self,
@@ -178,6 +182,8 @@ impl<'a> DesktopManager<'a> {
         Ok(out_path)
     }
 
+    /// Search common and fallback locations in extracted AppImage contents for
+    /// the most relevant `.desktop` file.
     #[cfg(target_os = "linux")]
     fn find_and_parse_desktop_file<H>(
         &self,
@@ -224,6 +230,7 @@ impl<'a> DesktopManager<'a> {
         None
     }
 
+    /// Parse a `.desktop` file and extract only the `[Desktop Entry]` section.
     #[cfg(target_os = "linux")]
     fn parse_desktop_file(path: &Path) -> Option<DesktopEntry> {
         let content = fs::read_to_string(path).ok()?;
@@ -264,6 +271,7 @@ impl<'a> DesktopManager<'a> {
         apps_dir.join(format!("{name}.app"))
     }
 
+    /// Resolve the `.app` bundle corresponding to an installed macOS package.
     #[cfg(target_os = "macos")]
     fn find_app_bundle_path(
         install_path: &Path,
