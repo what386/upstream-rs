@@ -4,6 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Move a file or directory, transparently falling back to copy+delete when
+/// the source and destination are on different filesystems.
 pub fn move_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
     move_file_or_dir_with_rename(src, dst, |from, to| fs::rename(from, to))
 }
@@ -23,10 +25,12 @@ where
     }
 }
 
+/// Check whether an IO error represents a cross-device rename failure.
 pub fn is_cross_device(err: &io::Error) -> bool {
     err.kind() == io::ErrorKind::CrossesDevices
 }
 
+/// Copy the source to destination and remove the source when rename cannot be used.
 fn fallback_move(src: &Path, dst: &Path) -> Result<()> {
     let metadata = fs::metadata(src)
         .with_context(|| format!("Failed to read metadata for '{}'", src.display()))?;
@@ -53,6 +57,7 @@ fn fallback_move(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Recursively copy a directory while preserving permissions and symlinks.
 fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     if dst.exists() {
         return Err(io::Error::new(
@@ -90,6 +95,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// Recreate a symlink at `dst` with the same link target as `src`.
 fn copy_symlink(src: &Path, dst: &Path) -> io::Result<()> {
     let link_target = fs::read_link(src)?;
 

@@ -97,6 +97,7 @@ impl<'a> ChecksumVerifier<'a> {
         Self::verify_checksum(asset_path, checksum_entry)
     }
 
+    /// Locate and download a checksum asset, if the release exposes one.
     async fn try_download_checksum<F>(
         &self,
         release: &Release,
@@ -122,6 +123,8 @@ impl<'a> ChecksumVerifier<'a> {
         Ok(Some(path))
     }
 
+    /// Heuristically find the checksum file that most likely corresponds to
+    /// `asset_name`, preferring exact per-asset checksum names first.
     fn find_checksum_asset<'r>(release: &'r Release, asset_name: &str) -> Option<&'r Asset> {
         let basename = Path::new(asset_name)
             .file_name()
@@ -169,6 +172,7 @@ impl<'a> ChecksumVerifier<'a> {
             .find(|asset| Self::is_checksum_filename(&asset.name))
     }
 
+    /// Check if a filename looks like a checksum artifact.
     fn is_checksum_filename(name: &str) -> bool {
         let lowered = name.to_ascii_lowercase();
         lowered.ends_with(".sha256")
@@ -181,6 +185,8 @@ impl<'a> ChecksumVerifier<'a> {
             || lowered.contains("checksums")
     }
 
+    /// Parse checksum text that may contain GNU/coreutils, colon, OpenSSL, or
+    /// bare-hash formats.
     fn parse_checksums(contents: &str) -> Vec<ChecksumEntry> {
         let mut entries = Vec::new();
 
@@ -211,6 +217,7 @@ impl<'a> ChecksumVerifier<'a> {
         entries
     }
 
+    /// Parse and normalize a digest token, inferring algorithm from hash length.
     fn parse_digest(raw: &str) -> Option<(HashAlgo, String)> {
         let mut token = raw.trim();
         for prefix in ["sha256:", "sha256=", "sha512:", "sha512="] {
@@ -232,6 +239,7 @@ impl<'a> ChecksumVerifier<'a> {
         Some((algo, token.to_ascii_lowercase()))
     }
 
+    /// Parse standard `digest filename` formats (including `*filename`).
     fn parse_standard_format(line: &str) -> Option<ChecksumEntry> {
         // Handle formats like:
         // "abc123  filename.tar.gz"
@@ -258,6 +266,7 @@ impl<'a> ChecksumVerifier<'a> {
         })
     }
 
+    /// Parse `filename: digest` checksum lines.
     fn parse_colon_format(line: &str) -> Option<ChecksumEntry> {
         // Handle format like: "filename.tar.gz: abc123"
         let parts: Vec<&str> = line.splitn(2, ':').collect();
@@ -281,6 +290,7 @@ impl<'a> ChecksumVerifier<'a> {
         })
     }
 
+    /// Parse OpenSSL lines, e.g. `SHA256(file)= digest`.
     fn parse_openssl_format(line: &str) -> Option<ChecksumEntry> {
         let (left, right) = line.split_once('=')?;
         let left = left.trim();
@@ -316,6 +326,7 @@ impl<'a> ChecksumVerifier<'a> {
         })
     }
 
+    /// Parse a single digest line that does not include a filename.
     fn parse_bare_hash(line: &str) -> Option<ChecksumEntry> {
         // Handle bare hash format (just the digest, no filename)
         let (algo, normalized) = Self::parse_digest(line.trim())?;
@@ -328,6 +339,7 @@ impl<'a> ChecksumVerifier<'a> {
         })
     }
 
+    /// Stream-hash an asset and compare it with the expected digest.
     fn verify_checksum(asset_path: &Path, checksum: &ChecksumEntry) -> Result<bool> {
         use std::io::{BufReader, Read};
 

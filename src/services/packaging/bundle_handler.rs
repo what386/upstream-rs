@@ -151,6 +151,7 @@ impl<'a> BundleHandler<'a> {
             .unwrap_or(false)
     }
 
+    /// Find candidate `.app` bundles and pick the best match for `package_name`.
     pub fn find_macos_app_bundle(
         extracted_path: &Path,
         package_name: &str,
@@ -159,6 +160,9 @@ impl<'a> BundleHandler<'a> {
         Ok(Self::select_macos_app_bundle(&bundles, package_name))
     }
 
+    /// Walk extracted files and return top-level `.app` directories.
+    ///
+    /// Nested bundles inside another `.app` are filtered out.
     fn find_macos_app_bundles(root: &Path) -> Result<Vec<PathBuf>> {
         if root.is_dir() && Self::is_app_bundle(root) {
             return Ok(vec![root.to_path_buf()]);
@@ -191,6 +195,7 @@ impl<'a> BundleHandler<'a> {
         Ok(top_level_bundles)
     }
 
+    /// Rank bundle candidates by name match first, then by bundle size.
     fn select_macos_app_bundle(candidates: &[PathBuf], package_name: &str) -> Option<PathBuf> {
         if candidates.is_empty() {
             return None;
@@ -227,6 +232,7 @@ impl<'a> BundleHandler<'a> {
         scored.into_iter().next().map(|entry| entry.0)
     }
 
+    /// Compute total on-disk size for tie-breaking bundle selection.
     fn directory_size(path: &Path) -> u64 {
         let mut total_size = 0u64;
         for entry in WalkDir::new(path).follow_links(false).into_iter().flatten() {
@@ -239,6 +245,7 @@ impl<'a> BundleHandler<'a> {
         total_size
     }
 
+    /// Resolve the executable file inside `Contents/MacOS` for the selected app bundle.
     fn find_macos_app_executable(app_bundle_path: &Path, package_name: &str) -> Result<PathBuf> {
         let macos_dir = app_bundle_path.join("Contents").join("MacOS");
         if !macos_dir.is_dir() {
@@ -363,6 +370,7 @@ impl<'a> BundleHandler<'a> {
         Ok(())
     }
 
+    /// Complete metadata/symlink updates after placing a macOS app bundle.
     fn finalize_macos_app_install<H>(
         &self,
         out_path: PathBuf,

@@ -83,6 +83,7 @@ impl HttpClient {
         Ok(Self { client })
     }
 
+    /// Normalize provider inputs so bare hosts/slugs become HTTPS URLs.
     pub fn normalize_url(url_or_slug: &str) -> String {
         let raw = url_or_slug.trim();
         if raw.starts_with("http://") || raw.starts_with("https://") {
@@ -92,6 +93,7 @@ impl HttpClient {
         }
     }
 
+    /// Extract raw `href` attribute values from HTML without a full DOM parser.
     fn extract_hrefs(html: &str) -> Vec<String> {
         let mut hrefs = Vec::new();
         let lower = html.to_lowercase();
@@ -148,6 +150,7 @@ impl HttpClient {
         }
     }
 
+    /// Convert discovered links into unique, non-checksum HTTP assets.
     fn extract_assets_from_html(base: &reqwest::Url, html: &str) -> Vec<HttpAssetInfo> {
         let hrefs = Self::extract_hrefs(html);
 
@@ -192,6 +195,8 @@ impl HttpClient {
         assets
     }
 
+    /// Discover downloadable assets from an HTTP endpoint with optional
+    /// `If-Modified-Since` behavior.
     pub async fn discover_assets_if_modified_since(
         &self,
         url_or_slug: &str,
@@ -240,6 +245,7 @@ impl HttpClient {
         }
     }
 
+    /// Derive a filename from URL path segments with a safe fallback.
     pub fn file_name_from_url(url: &str) -> String {
         let without_fragment = url.split('#').next().unwrap_or(url);
         let without_query = without_fragment
