@@ -104,7 +104,7 @@ jobs:
       - name: Read changelog section for tag
         id: release_notes
         run: |
-          RELEASE_NOTES="$(./scripts/release/changelog_for_tag.bash "${{ needs.guard.outputs.tag_name }}")"
+          RELEASE_NOTES="$(./scripts/changelog_for_tag.bash "${{ needs.guard.outputs.tag_name }}")"
           {
             echo "body<<__RELEASE_NOTES__"
             printf '%s\n' "$RELEASE_NOTES"
