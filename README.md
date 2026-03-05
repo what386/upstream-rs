@@ -228,8 +228,8 @@ Available actions:
 
 | Action  | Description                                                                                      |
 | ------- | ------------------------------------------------------------------------------------------------ |
-| `set`   | Set configuration keys (`key.path=value`). Example: `upstream config set github.apiToken=abc123` |
-| `get`   | Retrieve keys. Example: `upstream config get github.apiToken`                                    |
+| `set`   | Set configuration keys (`key.path=value`). Example: `upstream config set github.api_token=abc123` |
+| `get`   | Retrieve keys. Example: `upstream config get github.api_token`                                    |
 | `list`  | List all keys and their values.                                                                  |
 | `edit`  | Open configuration file in editor.                                                               |
 | `reset` | Reset configuration to defaults.                                                                 |
