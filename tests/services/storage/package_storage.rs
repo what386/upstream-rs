@@ -1,7 +1,7 @@
 use super::PackageStorage;
 use crate::models::common::enums::{Channel, Filetype, Provider};
 use crate::models::upstream::Package;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 
@@ -28,7 +28,7 @@ fn test_package(name: &str) -> Package {
     )
 }
 
-fn cleanup(path: &PathBuf) -> io::Result<()> {
+fn cleanup(path: &Path) -> io::Result<()> {
     if let Some(parent) = path.parent() {
         fs::remove_dir_all(parent)?;
     }

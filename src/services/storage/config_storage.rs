@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -29,10 +29,9 @@ impl ConfigStorage {
             return self.save_config();
         }
 
-        let toml_str = fs::read_to_string(&self.config_file)
-            .map_err(|e| io::Error::other(format!("Failed to load config: {}", e)))?;
+        let toml_str = fs::read_to_string(&self.config_file).context("Failed to load config file")?;
 
-        self.config = toml::from_str(&toml_str).unwrap_or_default();
+        self.config = toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
         Ok(())
     }
 

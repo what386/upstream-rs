@@ -13,7 +13,7 @@ use clap::{Parser, Subcommand};
     upstream install nvim neovim/neovim --desktop\n  \
     upstream upgrade                # Upgrade all packages\n  \
     upstream list                   # Show installed packages\n  \
-    upstream config set github.apiToken=ghp_xxx"
+    upstream config set github.api_token=ghp_xxx"
 )]
 #[command(version)]
 pub struct Cli {
@@ -174,8 +174,8 @@ pub enum Commands {
         Configuration is stored in TOML format and includes settings like \
         API tokens, default providers, and installation preferences.\n\n\
         EXAMPLES:\n  \
-        upstream config set github.apiToken=ghp_xxx\n  \
-        upstream config get github.apiToken\n  \
+        upstream config set github.api_token=ghp_xxx\n  \
+        upstream config get github.api_token\n  \
         upstream config list\n  \
         upstream config edit")]
     Config {
@@ -271,8 +271,8 @@ pub enum ConfigAction {
     #[command(long_about = "Set one or more configuration values.\n\n\
         Use dot notation for nested keys. Multiple key=value pairs can be set at once.\n\n\
         EXAMPLES:\n  \
-        upstream config set github.apiToken=ghp_xxx\n  \
-        upstream config set github.apiToken=ghp_xxx defaults.provider=github")]
+        upstream config set github.api_token=ghp_xxx\n  \
+        upstream config set gitlab.api_token=glpat_xxx")]
     Set {
         /// Configuration assignments (format: key.path=value)
         keys: Vec<String>,
@@ -282,8 +282,8 @@ pub enum ConfigAction {
     #[command(long_about = "Retrieve one or more configuration values.\n\n\
         Use dot notation to access nested keys.\n\n\
         EXAMPLES:\n  \
-        upstream config get github.apiToken\n  \
-        upstream config get github.apiToken defaults.provider")]
+        upstream config get github.api_token\n  \
+        upstream config get github.api_token gitlab.api_token")]
     Get {
         /// Configuration keys to retrieve (format: key.path)
         keys: Vec<String>,

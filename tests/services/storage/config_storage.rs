@@ -1,5 +1,5 @@
 use super::ConfigStorage;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 
@@ -13,7 +13,7 @@ fn temp_config_file(name: &str) -> PathBuf {
         .join("config.toml")
 }
 
-fn cleanup(path: &PathBuf) -> io::Result<()> {
+fn cleanup(path: &Path) -> io::Result<()> {
     if let Some(parent) = path.parent() {
         fs::remove_dir_all(parent)?;
     }
