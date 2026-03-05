@@ -88,7 +88,7 @@ fn set_value_rejects_unknown_paths() {
     let err = storage
         .try_set_value("github.missing.field", "1")
         .expect_err("must reject unknown path");
-    assert!(err.contains("Key path not found"));
+    assert!(err.to_string().contains("Key path not found"));
 
     cleanup(&path).expect("cleanup");
 }

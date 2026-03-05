@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::{fs, io};
+use std::fs;
 use toml;
 
 use crate::models::upstream::AppConfig;
@@ -38,10 +38,10 @@ impl ConfigStorage {
     /// Saves the current configuration to config.toml.
     pub fn save_config(&self) -> Result<()> {
         let toml = toml::to_string_pretty(&self.config)
-            .map_err(|e| io::Error::other(format!("Failed to serialize config: {}", e)))?;
+            .context("Failed to serialize config")?;
 
         fs::write(&self.config_file, toml)
-            .map_err(|e| io::Error::other(format!("Failed to save config: {}", e)))?;
+            .with_context(|| format!("Failed to save config to '{}'", self.config_file.display()))?;
 
         #[cfg(unix)]
         {
@@ -57,24 +57,25 @@ impl ConfigStorage {
     }
 
     /// Sets a configuration value at the given key path (e.g., "github.api_token").
-    pub fn try_set_value(&mut self, key_path: &str, value: &str) -> Result<(), String> {
+    pub fn try_set_value(&mut self, key_path: &str, value: &str) -> Result<()> {
         if key_path.trim().is_empty() {
-            return Err("Key path cannot be empty".into());
+            return Err(anyhow!("Key path cannot be empty"));
         }
 
-        let mut root = toml::Value::try_from(&self.config)
-            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+        let mut root = toml::Value::try_from(&self.config).context("Failed to serialize config")?;
 
         let keys: Vec<&str> = key_path.split('.').collect();
         let (path, final_key) = keys.split_at(keys.len() - 1);
 
-        let mut current = root.as_table_mut().ok_or("Config root is not a table")?;
+        let mut current = root
+            .as_table_mut()
+            .ok_or_else(|| anyhow!("Config root is not a table"))?;
 
         for key in path {
             current = current
                 .get_mut(*key)
                 .and_then(toml::Value::as_table_mut)
-                .ok_or_else(|| format!("Key path not found: {}", key_path))?;
+                .ok_or_else(|| anyhow!("Key path not found: {}", key_path))?;
         }
 
         let parsed_value = self.convert_value(value)?;
@@ -82,14 +83,13 @@ impl ConfigStorage {
 
         self.config = root
             .try_into()
-            .map_err(|e| format!("Failed to update config: {}", e))?;
+            .context("Failed to update config")?;
 
-        self.save_config()
-            .map_err(|e| format!("Failed to save config: {}", e))
+        self.save_config().context("Failed to save config")
     }
 
     /// Gets a configuration value at the given key path.
-    pub fn try_get_value<T>(&self, key_path: &str) -> Result<T, String>
+    pub fn try_get_value<T>(&self, key_path: &str) -> Result<T>
     where
         T: DeserializeOwned,
     {
@@ -97,18 +97,17 @@ impl ConfigStorage {
         value
             .clone()
             .try_into()
-            .map_err(|e| format!("Failed to deserialize '{}': {}", key_path, e))
+            .with_context(|| format!("Failed to deserialize '{}'", key_path))
     }
 
-    fn get_value(&self, key_path: &str) -> Result<toml::Value, String> {
-        let root = toml::Value::try_from(&self.config)
-            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+    fn get_value(&self, key_path: &str) -> Result<toml::Value> {
+        let root = toml::Value::try_from(&self.config).context("Failed to serialize config")?;
 
         let mut current = &root;
         for key in key_path.split('.') {
             current = current
                 .get(key)
-                .ok_or_else(|| format!("Key path not found: {}", key_path))?;
+                .ok_or_else(|| anyhow!("Key path not found: {}", key_path))?;
         }
 
         Ok(current.clone())
@@ -173,7 +172,7 @@ impl ConfigStorage {
         result
     }
 
-    fn convert_value(&self, value: &str) -> Result<toml::Value, String> {
+    fn convert_value(&self, value: &str) -> Result<toml::Value> {
         // Try TOML literal first
         if let Ok(parsed) = value.parse::<toml::Value>() {
             return Ok(parsed);
