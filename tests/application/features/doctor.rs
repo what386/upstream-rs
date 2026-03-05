@@ -14,7 +14,7 @@ fn temp_root(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("upstream-doctor-test-{name}-{nanos}"))
 }
 
-fn cleanup(path: &PathBuf) -> io::Result<()> {
+fn cleanup(path: &Path) -> io::Result<()> {
     fs::remove_dir_all(path)
 }
 

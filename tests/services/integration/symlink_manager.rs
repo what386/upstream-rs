@@ -1,5 +1,5 @@
 use super::SymlinkManager;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 
@@ -11,7 +11,7 @@ fn temp_root(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("upstream-symlink-test-{name}-{nanos}"))
 }
 
-fn cleanup(path: &PathBuf) -> io::Result<()> {
+fn cleanup(path: &Path) -> io::Result<()> {
     fs::remove_dir_all(path)
 }
 

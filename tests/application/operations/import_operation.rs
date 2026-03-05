@@ -4,7 +4,7 @@ use crate::services::storage::package_storage::PackageStorage;
 use crate::utils::static_paths::{
     AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, UpstreamPaths,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 
@@ -16,9 +16,9 @@ fn temp_root(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("upstream-import-test-{name}-{nanos}"))
 }
 
-fn test_paths(root: &PathBuf) -> UpstreamPaths {
+fn test_paths(root: &Path) -> UpstreamPaths {
     let dirs = AppDirs {
-        user_dir: root.clone(),
+        user_dir: root.to_path_buf(),
         config_dir: root.join("config"),
         data_dir: root.join("data"),
         metadata_dir: root.join("data/metadata"),
@@ -44,7 +44,7 @@ fn test_paths(root: &PathBuf) -> UpstreamPaths {
     }
 }
 
-fn cleanup(path: &PathBuf) -> io::Result<()> {
+fn cleanup(path: &Path) -> io::Result<()> {
     fs::remove_dir_all(path)
 }
 

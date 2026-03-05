@@ -3,7 +3,7 @@ use flate2::Compression;
 use flate2::write::GzEncoder;
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 use tar::Builder;
@@ -17,11 +17,11 @@ fn temp_root(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("upstream-compress-test-{name}-{nanos}"))
 }
 
-fn cleanup(path: &PathBuf) -> io::Result<()> {
+fn cleanup(path: &Path) -> io::Result<()> {
     fs::remove_dir_all(path)
 }
 
-fn create_gz_file(path: &PathBuf, content: &[u8]) {
+fn create_gz_file(path: &Path, content: &[u8]) {
     let file = File::create(path).expect("create .gz file");
     let mut encoder = GzEncoder::new(file, Compression::default());
     encoder
@@ -30,7 +30,7 @@ fn create_gz_file(path: &PathBuf, content: &[u8]) {
     encoder.finish().expect("finish gzip");
 }
 
-fn create_tar_gz_with_file(path: &PathBuf, file_name: &str, content: &[u8]) {
+fn create_tar_gz_with_file(path: &Path, file_name: &str, content: &[u8]) {
     let file = File::create(path).expect("create .tar.gz");
     let encoder = GzEncoder::new(file, Compression::default());
     let mut builder = Builder::new(encoder);
@@ -46,7 +46,7 @@ fn create_tar_gz_with_file(path: &PathBuf, file_name: &str, content: &[u8]) {
     encoder.finish().expect("finalize gzip");
 }
 
-fn create_zip_with_single_root_dir(path: &PathBuf) {
+fn create_zip_with_single_root_dir(path: &Path) {
     let file = File::create(path).expect("create zip");
     let mut zip = zip::ZipWriter::new(file);
     let options = SimpleFileOptions::default();

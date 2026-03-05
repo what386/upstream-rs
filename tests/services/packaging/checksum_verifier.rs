@@ -5,7 +5,7 @@ use crate::models::provider::{Asset, Release};
 use crate::providers::provider_manager::ProviderManager;
 use chrono::Utc;
 use sha2::Digest;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 
@@ -45,7 +45,7 @@ fn release_with_assets(assets: Vec<Asset>) -> Release {
     }
 }
 
-fn cleanup(path: &PathBuf) -> io::Result<()> {
+fn cleanup(path: &Path) -> io::Result<()> {
     fs::remove_dir_all(path)
 }
 

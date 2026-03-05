@@ -2,7 +2,7 @@ use super::{ConditionalDiscoveryResult, ConditionalProbeResult, HttpClient};
 use chrono::Utc;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -70,7 +70,7 @@ fn temp_file_path(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("upstream-http-test-{name}-{nanos}.bin"))
 }
 
-fn cleanup_file(path: &PathBuf) -> io::Result<()> {
+fn cleanup_file(path: &Path) -> io::Result<()> {
     if path.exists() {
         fs::remove_file(path)?;
     }
