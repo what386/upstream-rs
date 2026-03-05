@@ -1,4 +1,7 @@
 use crate::utils::static_paths::UpstreamPaths;
+use anyhow::Result;
+#[cfg(windows)]
+use anyhow::Context;
 use std::collections::BTreeSet;
 use std::fs;
 use std::io::{self, Write};
@@ -23,7 +26,7 @@ fn normalize_windows_path(path: &str) -> String {
     normalized
 }
 
-pub fn initialize(paths: &UpstreamPaths) -> io::Result<()> {
+pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
     create_package_dirs(paths)?;
     create_metadata_files(paths)?;
 
@@ -36,7 +39,7 @@ pub fn initialize(paths: &UpstreamPaths) -> io::Result<()> {
     Ok(())
 }
 
-pub fn check(paths: &UpstreamPaths) -> io::Result<InitCheckReport> {
+pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
     let mut report = InitCheckReport {
         ok: true,
         messages: Vec::new(),
@@ -89,19 +92,14 @@ fn get_installed_shells() -> io::Result<Vec<String>> {
 }
 
 #[cfg(windows)]
-fn add_to_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
+fn add_to_windows_path(paths: &UpstreamPaths) -> Result<()> {
     use winreg::RegKey;
     use winreg::enums::*;
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let env_key = hkcu
         .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
-        .map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!("Failed to open registry key: {}", e),
-            )
-        })?;
+        .context("Failed to open registry key")?;
 
     let symlinks_path = paths.integration.symlinks_dir.display().to_string();
     let symlinks_norm = normalize_windows_path(&symlinks_path);
@@ -127,7 +125,7 @@ fn add_to_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
 
     env_key
         .set_value("Path", &new_path)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to set PATH: {}", e)))?;
+        .context("Failed to set PATH")?;
 
     // Broadcast WM_SETTINGCHANGE to notify other applications
     broadcast_environment_change();
@@ -332,7 +330,7 @@ fn add_line_to_profile(paths: &UpstreamPaths, relative_path: &str, line: &str) -
 }
 
 #[cfg(unix)]
-pub fn cleanup(paths: &UpstreamPaths) -> io::Result<()> {
+pub fn cleanup(paths: &UpstreamPaths) -> Result<()> {
     let shells = get_installed_shells()?;
     for shell_path in shells {
         let shell_name = Path::new(&shell_path)
@@ -363,24 +361,19 @@ pub fn cleanup(paths: &UpstreamPaths) -> io::Result<()> {
 }
 
 #[cfg(windows)]
-pub fn cleanup(paths: &UpstreamPaths) -> io::Result<()> {
+pub fn cleanup(paths: &UpstreamPaths) -> Result<()> {
     remove_from_windows_path(paths)
 }
 
 #[cfg(windows)]
-fn remove_from_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
+fn remove_from_windows_path(paths: &UpstreamPaths) -> Result<()> {
     use winreg::RegKey;
     use winreg::enums::*;
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let env_key = hkcu
         .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
-        .map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!("Failed to open registry key: {}", e),
-            )
-        })?;
+        .context("Failed to open registry key")?;
 
     let symlinks_path = paths.integration.symlinks_dir.display().to_string();
     let symlinks_norm = normalize_windows_path(&symlinks_path);
@@ -398,7 +391,7 @@ fn remove_from_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
 
     env_key
         .set_value("Path", &new_path)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to set PATH: {}", e)))?;
+        .context("Failed to set PATH")?;
 
     // Broadcast WM_SETTINGCHANGE to notify other applications
     broadcast_environment_change();
@@ -410,14 +403,14 @@ fn remove_from_windows_path(paths: &UpstreamPaths) -> io::Result<()> {
 fn check_windows_integration(
     paths: &UpstreamPaths,
     report: &mut InitCheckReport,
-) -> io::Result<()> {
+) -> Result<()> {
     use winreg::RegKey;
     use winreg::enums::*;
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let env_key = hkcu
         .open_subkey_with_flags("Environment", KEY_READ)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to open PATH: {}", e)))?;
+        .context("Failed to open PATH")?;
 
     let symlinks_path = paths.integration.symlinks_dir.display().to_string();
     let symlinks_norm = normalize_windows_path(&symlinks_path);

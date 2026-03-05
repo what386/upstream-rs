@@ -40,7 +40,8 @@ impl<'a> ShellManager<'a> {
         {
             let _guard = paths_file_lock()
                 .lock()
-                .map_err(|_| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
+                .ok()
+                .ok_or_else(|| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
             let mut content =
                 fs::read_to_string(self.paths_file).context("Failed to read paths file")?;
             let escaped = install_path
@@ -69,7 +70,8 @@ impl<'a> ShellManager<'a> {
         {
             let _guard = paths_file_lock()
                 .lock()
-                .map_err(|_| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
+                .ok()
+                .ok_or_else(|| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
             let mut content =
                 fs::read_to_string(self.paths_file).context("Failed to read paths file")?;
             let escaped = install_path

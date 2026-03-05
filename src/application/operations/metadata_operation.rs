@@ -1,5 +1,5 @@
 use crate::services::storage::package_storage::PackageStorage;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use console::style;
 
 macro_rules! message {
@@ -175,7 +175,7 @@ impl<'a> MetadataManager<'a> {
 
         // Deserialize back to Package
         let updated_package: crate::models::upstream::Package = serde_json::from_value(json_value)
-            .map_err(|e| anyhow::anyhow!("Failed to deserialize updated package: {}", e))?;
+            .context("Failed to deserialize updated package")?;
 
         // Update in storage
         self.package_storage
@@ -375,7 +375,7 @@ impl<'a> MetadataManager<'a> {
             serde_json::Value::Bool(_) => {
                 let bool_val = value_str
                     .parse::<bool>()
-                    .map_err(|_| anyhow::anyhow!("Expected boolean value, got '{}'", value_str))?;
+                    .with_context(|| format!("Expected boolean value, got '{}'", value_str))?;
                 Ok(serde_json::Value::Bool(bool_val))
             }
             serde_json::Value::Number(_) => {
@@ -407,8 +407,8 @@ impl<'a> MetadataManager<'a> {
             }
             _ => {
                 // For objects/arrays, try to parse as JSON
-                serde_json::from_str(value_str).map_err(|_| {
-                    anyhow::anyhow!(
+                serde_json::from_str(value_str).with_context(|| {
+                    format!(
                         "Cannot set complex type from string. Expected JSON, got '{}'",
                         value_str
                     )

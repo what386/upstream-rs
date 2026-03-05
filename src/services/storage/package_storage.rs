@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
-use std::{fs, io};
+use std::fs;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 
 use crate::models::upstream::Package;
 
@@ -41,9 +41,14 @@ impl PackageStorage {
     /// Save all packages to the packages.json file.
     pub fn save_packages(&self) -> Result<()> {
         let json = serde_json::to_string_pretty(&self.packages)
-            .map_err(|e| io::Error::other(e.to_string()))?;
+            .context("Failed to serialize packages")?;
 
-        fs::write(&self.packages_file, json).map_err(|e| io::Error::other(e.to_string()))?;
+        fs::write(&self.packages_file, json).with_context(|| {
+            format!(
+                "Failed to write package storage to '{}'",
+                self.packages_file.display()
+            )
+        })?;
 
         Ok(())
     }
