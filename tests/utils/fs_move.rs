@@ -1,7 +1,7 @@
-use super::{is_cross_device, move_file_or_dir, move_file_or_dir_with_rename};
+use super::{move_file_or_dir, move_via_copy};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{fs, io};
+use std::fs;
 
 fn temp_root(name: &str) -> PathBuf {
     let nanos = SystemTime::now()
@@ -28,12 +28,6 @@ fn move_file_or_dir_moves_file_with_rename_path() {
 }
 
 #[test]
-fn cross_device_error_detection_matches_error_kind() {
-    let err = io::Error::new(io::ErrorKind::CrossesDevices, "cross-device");
-    assert!(is_cross_device(&err));
-}
-
-#[test]
 fn fallback_move_copies_and_removes_source_file() {
     let root = temp_root("fallback-file");
     fs::create_dir_all(&root).expect("create root");
@@ -41,10 +35,7 @@ fn fallback_move_copies_and_removes_source_file() {
     let dst = root.join("dest.txt");
     fs::write(&src, b"hello").expect("write source");
 
-    move_file_or_dir_with_rename(&src, &dst, |_, _| {
-        Err(io::Error::new(io::ErrorKind::CrossesDevices, "xdev"))
-    })
-    .expect("fallback move");
+    move_via_copy(&src, &dst).expect("fallback move");
 
     assert!(!src.exists());
     assert_eq!(fs::read(&dst).expect("read destination"), b"hello");
@@ -60,10 +51,7 @@ fn fallback_move_handles_directories_recursively() {
     fs::create_dir_all(src.join("nested")).expect("create nested src");
     fs::write(src.join("nested/file.txt"), b"nested-data").expect("write nested file");
 
-    move_file_or_dir_with_rename(&src, &dst, |_, _| {
-        Err(io::Error::new(io::ErrorKind::CrossesDevices, "xdev"))
-    })
-    .expect("fallback dir move");
+    move_via_copy(&src, &dst).expect("fallback dir move");
 
     assert!(!src.exists());
     assert_eq!(
