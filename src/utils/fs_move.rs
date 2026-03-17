@@ -4,19 +4,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Move a file or directory, transparently falling back to copy+delete when
-/// the source and destination are on different filesystems.
-pub fn move_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
-    move_file_or_dir_with_rename(src, dst, |from, to| fs::rename(from, to))
-}
-
-fn move_file_or_dir_with_rename<F>(src: &Path, dst: &Path, mut rename_fn: F) -> Result<()>
-where
-    F: FnMut(&Path, &Path) -> io::Result<()>,
+/// Move a file or directory, falling back to copy+delete
+/// if the source and dest are on different filesystems.
+pub fn move_file_or_dir(src: &Path, dst: &Path) -> Result<()>
 {
-    match rename_fn(src, dst) {
+    match fs::rename(src, dst) {
         Ok(()) => Ok(()),
-        Err(err) if is_cross_device(&err) => fallback_move(src, dst),
+        Err(err) if err.kind() == io::ErrorKind::CrossesDevices => move_via_copy(src, dst),
         Err(err) => Err(err).context(format!(
             "Failed to move '{}' to '{}'",
             src.display(),
@@ -25,13 +19,8 @@ where
     }
 }
 
-/// Check whether an IO error represents a cross-device rename failure.
-pub fn is_cross_device(err: &io::Error) -> bool {
-    err.kind() == io::ErrorKind::CrossesDevices
-}
-
 /// Copy the source to destination and remove the source when rename cannot be used.
-fn fallback_move(src: &Path, dst: &Path) -> Result<()> {
+fn move_via_copy(src: &Path, dst: &Path) -> Result<()> {
     let metadata = fs::metadata(src)
         .with_context(|| format!("Failed to read metadata for '{}'", src.display()))?;
 
