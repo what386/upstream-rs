@@ -464,5 +464,15 @@
       "patch": 5,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "fix issue where 'matrix' formats for checksums would fail to parse",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-04-01T00:19:18.719230067Z"
+    },
+    "version": null
   }
 ]
