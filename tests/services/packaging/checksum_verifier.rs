@@ -90,6 +90,35 @@ fn parse_checksums_normalizes_uppercase_prefixed_digest_tokens() {
 }
 
 #[test]
+fn parse_matrix_checksums_supports_yq_style_manifests() {
+    let sha256 = "a".repeat(64);
+    let sha512 = "b".repeat(128);
+    let contents = format!("tool.tar.gz deadbeef {sha256} ignored {sha512}");
+    let order = "CRC-32\nSHA-256\nBLAKE2b-256\nSHA-512\n";
+
+    let entries =
+        ChecksumVerifier::parse_matrix_checksums(&contents, order).expect("parse matrix checksums");
+
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].filename, "tool.tar.gz");
+    assert_eq!(entries[0].digest, sha256);
+    assert_eq!(entries[1].filename, "tool.tar.gz");
+    assert_eq!(entries[1].digest, sha512);
+}
+
+#[test]
+fn parse_matrix_checksums_requires_supported_hash_order_entries() {
+    let err = ChecksumVerifier::parse_matrix_checksums("tool.tar.gz deadbeef", "CRC-32\n")
+        .err()
+        .expect("matrix manifest without supported hashes should fail");
+
+    assert!(
+        err.to_string()
+            .contains("does not describe supported hashes")
+    );
+}
+
+#[test]
 fn verify_checksum_validates_sha256_digest() {
     let root = temp_root("verify");
     fs::create_dir_all(&root).expect("create root");
@@ -153,4 +182,29 @@ fn find_checksum_asset_prefers_asset_specific_files_then_common_names() {
     let selected = ChecksumVerifier::find_checksum_asset(&release, "tool.tar.gz")
         .expect("must select checksum asset");
     assert_eq!(selected.name, "tool.tar.gz.sha256");
+}
+
+#[test]
+fn find_checksum_asset_prefers_checksums_bsd_over_generic_checksums() {
+    let assets = vec![
+        Asset::new(
+            "https://example.invalid/checksums".to_string(),
+            1,
+            "checksums".to_string(),
+            10,
+            Utc::now(),
+        ),
+        Asset::new(
+            "https://example.invalid/checksums-bsd".to_string(),
+            2,
+            "checksums-bsd".to_string(),
+            10,
+            Utc::now(),
+        ),
+    ];
+    let release = release_with_assets(assets);
+
+    let selected = ChecksumVerifier::find_checksum_asset(&release, "tool.tar.gz")
+        .expect("must select checksum asset");
+    assert_eq!(selected.name, "checksums-bsd");
 }
