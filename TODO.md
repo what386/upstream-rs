@@ -20,4 +20,5 @@
 - [x] fix issue where 'matrix' formats for checksums would fail to parse
       @created 2026-04-01 00:19
       @completed 2026-04-01 00:19
+      @completed_version 1.4.6
 
