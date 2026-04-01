@@ -14,6 +14,10 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] fix issue where 'matrix' formats for checksums would fail to parse
+
+## Completed
+
+- [x] fix issue where 'matrix' formats for checksums would fail to parse
       @created 2026-04-01 00:19
+      @completed 2026-04-01 00:19
 
