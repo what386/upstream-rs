@@ -1,7 +1,7 @@
-# TODO — upstream-cli v1.4.5
+# TODO — upstream-cli v1.4.6
 
 @created: 2026-01-31
-@modified: 2026-03-05
+@modified: 2026-04-01
 
 ## Tasks
 
@@ -13,4 +13,7 @@
 
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
+
+- [ ] fix issue where 'matrix' formats for checksums would fail to parse
+      @created 2026-04-01 00:19
 
