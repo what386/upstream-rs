@@ -6,8 +6,7 @@ use std::{
 
 /// Move a file or directory, falling back to copy+delete
 /// if the source and dest are on different filesystems.
-pub fn move_file_or_dir(src: &Path, dst: &Path) -> Result<()>
-{
+pub fn move_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
     match fs::rename(src, dst) {
         Ok(()) => Ok(()),
         Err(err) if err.kind() == io::ErrorKind::CrossesDevices => move_via_copy(src, dst),

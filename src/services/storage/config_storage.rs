@@ -1,8 +1,8 @@
 use anyhow::{Context, Result, anyhow};
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 use toml;
 
 use crate::models::upstream::AppConfig;
@@ -29,7 +29,8 @@ impl ConfigStorage {
             return self.save_config();
         }
 
-        let toml_str = fs::read_to_string(&self.config_file).context("Failed to load config file")?;
+        let toml_str =
+            fs::read_to_string(&self.config_file).context("Failed to load config file")?;
 
         self.config = toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
         Ok(())
@@ -37,11 +38,11 @@ impl ConfigStorage {
 
     /// Saves the current configuration to config.toml.
     pub fn save_config(&self) -> Result<()> {
-        let toml = toml::to_string_pretty(&self.config)
-            .context("Failed to serialize config")?;
+        let toml = toml::to_string_pretty(&self.config).context("Failed to serialize config")?;
 
-        fs::write(&self.config_file, toml)
-            .with_context(|| format!("Failed to save config to '{}'", self.config_file.display()))?;
+        fs::write(&self.config_file, toml).with_context(|| {
+            format!("Failed to save config to '{}'", self.config_file.display())
+        })?;
 
         #[cfg(unix)]
         {
@@ -81,9 +82,7 @@ impl ConfigStorage {
         let parsed_value = self.convert_value(value)?;
         current.insert(final_key[0].to_string(), parsed_value);
 
-        self.config = root
-            .try_into()
-            .context("Failed to update config")?;
+        self.config = root.try_into().context("Failed to update config")?;
 
         self.save_config().context("Failed to save config")
     }

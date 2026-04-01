@@ -1,7 +1,7 @@
 use crate::utils::static_paths::UpstreamPaths;
-use anyhow::Result;
 #[cfg(windows)]
 use anyhow::Context;
+use anyhow::Result;
 use std::collections::BTreeSet;
 use std::fs;
 use std::io::{self, Write};
@@ -400,10 +400,7 @@ fn remove_from_windows_path(paths: &UpstreamPaths) -> Result<()> {
 }
 
 #[cfg(windows)]
-fn check_windows_integration(
-    paths: &UpstreamPaths,
-    report: &mut InitCheckReport,
-) -> Result<()> {
+fn check_windows_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -> Result<()> {
     use winreg::RegKey;
     use winreg::enums::*;
 
