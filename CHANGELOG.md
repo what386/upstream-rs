@@ -1,12 +1,24 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-02-26*
+*Generated on 2026-04-01*
+
+## 1.4.6 — 2026-04-01
+
+### Changes
+
+- fix issue where 'matrix' formats for checksums would fail to parse
+
 
 ## 1.4.5 — 2026-02-26
 
 ### High Priority
 
 - Improve doctor to detect dangling symlinks and report broken symlink targets explicitly `bug`, `cli`, `ux`
+- Fix release automation to commit changelog before tagging and harden notes extraction `bug`, `release`, `ci`
+
+### Changes
+
+- Revert publish script tag normalization and use provided version argument directly `bug`, `release`
 
 
 ## 1.4.4 — 2026-02-25
