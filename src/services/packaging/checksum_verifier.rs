@@ -23,6 +23,11 @@ struct ChecksumEntry {
     digest: String,
 }
 
+struct DownloadedChecksumAsset {
+    name: String,
+    path: PathBuf,
+}
+
 pub struct ChecksumVerifier<'a> {
     provider_manager: &'a ProviderManager,
     download_cache: &'a Path,
@@ -61,8 +66,23 @@ impl<'a> ChecksumVerifier<'a> {
         };
 
         // Read and parse the checksum file
-        let contents = fs::read_to_string(&checksum_path)?;
-        let entries = Self::parse_checksums(&contents);
+        let contents = fs::read_to_string(&checksum_path.path)?;
+        let mut entries = Self::parse_checksums(&contents);
+
+        if entries.is_empty() && Self::looks_like_matrix_manifest(&contents) {
+            let order_path = self
+                .try_download_checksum_order(release, provider, dl_progress)
+                .await?
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Checksum file '{}' uses a matrix format but release does not expose 'checksums_hashes_order'",
+                        checksum_path.name
+                    )
+                })?;
+
+            let order_contents = fs::read_to_string(order_path)?;
+            entries = Self::parse_matrix_checksums(&contents, &order_contents)?;
+        }
 
         if entries.is_empty() {
             return Err(anyhow!("Checksum file is empty or invalid"));
@@ -104,7 +124,7 @@ impl<'a> ChecksumVerifier<'a> {
         asset_name: &str,
         provider: &Provider,
         dl_progress: &mut Option<F>,
-    ) -> Result<Option<PathBuf>>
+    ) -> Result<Option<DownloadedChecksumAsset>>
     where
         F: FnMut(u64, u64),
     {
@@ -115,6 +135,30 @@ impl<'a> ChecksumVerifier<'a> {
         };
 
         // If this fails, it's a real error
+        let path = self
+            .provider_manager
+            .download_asset(asset, provider, self.download_cache, dl_progress)
+            .await?;
+
+        Ok(Some(DownloadedChecksumAsset {
+            name: asset.name.clone(),
+            path,
+        }))
+    }
+
+    async fn try_download_checksum_order<F>(
+        &self,
+        release: &Release,
+        provider: &Provider,
+        dl_progress: &mut Option<F>,
+    ) -> Result<Option<PathBuf>>
+    where
+        F: FnMut(u64, u64),
+    {
+        let Some(asset) = Self::find_checksum_order_asset(release) else {
+            return Ok(None);
+        };
+
         let path = self
             .provider_manager
             .download_asset(asset, provider, self.download_cache, dl_progress)
@@ -148,8 +192,9 @@ impl<'a> ChecksumVerifier<'a> {
 
         // Common release-level checksum files.
         const COMMON_NAMES: &[&str] = &[
+            "checksums-bsd",
+            "checksums-bsd.txt",
             "checksums.txt",
-            "checksums",
             "checksum.txt",
             "sha256sums.txt",
             "sha256sum.txt",
@@ -159,6 +204,7 @@ impl<'a> ChecksumVerifier<'a> {
             "sha512sum.txt",
             "sha512sums",
             "sha512sum",
+            "checksums",
         ];
         for name in COMMON_NAMES {
             if let Some(asset) = release.get_asset_by_name_invariant(name) {
@@ -170,6 +216,10 @@ impl<'a> ChecksumVerifier<'a> {
             .assets
             .iter()
             .find(|asset| Self::is_checksum_filename(&asset.name))
+    }
+
+    fn find_checksum_order_asset<'r>(release: &'r Release) -> Option<&'r Asset> {
+        release.get_asset_by_name_invariant("checksums_hashes_order")
     }
 
     /// Check if a filename looks like a checksum artifact.
@@ -215,6 +265,101 @@ impl<'a> ChecksumVerifier<'a> {
         }
 
         entries
+    }
+
+    fn looks_like_matrix_manifest(contents: &str) -> bool {
+        contents.lines().any(|line| {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                return false;
+            }
+
+            let fields: Vec<&str> = line.split_whitespace().collect();
+            if fields.len() < 3 {
+                return false;
+            }
+
+            Self::parse_digest(fields[0]).is_none()
+                && fields[1..]
+                    .iter()
+                    .any(|field| Self::parse_digest(field).is_some())
+        })
+    }
+
+    fn parse_matrix_checksums(contents: &str, order_contents: &str) -> Result<Vec<ChecksumEntry>> {
+        let hash_order = Self::parse_hash_order(order_contents);
+        if hash_order.is_empty() || hash_order.iter().all(Option::is_none) {
+            return Err(anyhow!(
+                "Checksum hash order file is empty or does not describe supported hashes"
+            ));
+        }
+
+        let mut entries = Vec::new();
+
+        for line in contents.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+
+            let fields: Vec<&str> = line.split_whitespace().collect();
+            if fields.len() < 2 {
+                continue;
+            }
+
+            let filename = fields[0];
+            for (index, field) in fields.iter().skip(1).enumerate() {
+                let Some(algo) = hash_order.get(index).copied().flatten() else {
+                    continue;
+                };
+
+                let Some((parsed_algo, normalized)) = Self::parse_digest(field) else {
+                    continue;
+                };
+
+                if parsed_algo != algo {
+                    continue;
+                }
+
+                entries.push(ChecksumEntry {
+                    algo,
+                    filename: filename.to_string(),
+                    digest: normalized,
+                });
+            }
+        }
+
+        Ok(entries)
+    }
+
+    fn parse_hash_order(order_contents: &str) -> Vec<Option<HashAlgo>> {
+        order_contents
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    return None;
+                }
+
+                Some(Self::parse_hash_order_entry(line))
+            })
+            .collect()
+    }
+
+    fn parse_hash_order_entry(label: &str) -> Option<HashAlgo> {
+        let normalized: String = label
+            .chars()
+            .filter(|ch| ch.is_ascii_alphanumeric())
+            .map(|ch| ch.to_ascii_lowercase())
+            .collect();
+
+        if normalized.contains("sha256") {
+            Some(HashAlgo::Sha256)
+        } else if normalized.contains("sha512") {
+            Some(HashAlgo::Sha512)
+        } else {
+            None
+        }
     }
 
     /// Parse and normalize a digest token, inferring algorithm from hash length.
