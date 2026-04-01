@@ -1,7 +1,7 @@
 use super::{move_file_or_dir, move_via_copy};
+use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::fs;
 
 fn temp_root(name: &str) -> PathBuf {
     let nanos = SystemTime::now()

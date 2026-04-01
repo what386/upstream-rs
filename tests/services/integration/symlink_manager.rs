@@ -28,7 +28,10 @@ fn add_link_replaces_dangling_symlink() {
     fs::create_dir_all(&symlinks_dir).expect("create symlink dir");
     fs::write(&new_target, b"new-target").expect("write new target");
     std::os::unix::fs::symlink(&missing_target, &link_path).expect("create dangling symlink");
-    assert!(!link_path.exists(), "dangling symlink should not exist via exists()");
+    assert!(
+        !link_path.exists(),
+        "dangling symlink should not exist via exists()"
+    );
     assert!(
         fs::symlink_metadata(&link_path).is_ok(),
         "dangling symlink should still be present on disk"

@@ -30,8 +30,7 @@ impl<'a> ConfigUpdater<'a> {
 
         message!(message_callback, "Setting '{}' = '{}'", key_path, value);
 
-        self.config_storage
-            .try_set_value(&key_path, &value)?;
+        self.config_storage.try_set_value(&key_path, &value)?;
 
         message!(
             message_callback,
@@ -56,9 +55,7 @@ impl<'a> ConfigUpdater<'a> {
 
         message!(message_callback, "Getting value for '{}'", key_path);
 
-        let value: toml::Value = self
-            .config_storage
-            .try_get_value(key_path)?;
+        let value: toml::Value = self.config_storage.try_get_value(key_path)?;
 
         let value_str = Self::format_value(&value);
 

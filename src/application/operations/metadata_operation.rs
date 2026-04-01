@@ -174,8 +174,8 @@ impl<'a> MetadataManager<'a> {
         Self::set_nested_value(&mut json_value, &key_path, &value)?;
 
         // Deserialize back to Package
-        let updated_package: crate::models::upstream::Package = serde_json::from_value(json_value)
-            .context("Failed to deserialize updated package")?;
+        let updated_package: crate::models::upstream::Package =
+            serde_json::from_value(json_value).context("Failed to deserialize updated package")?;
 
         // Update in storage
         self.package_storage
