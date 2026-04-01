@@ -20,7 +20,7 @@ tally changelog > CHANGELOG.md
 
 git add CHANGELOG.md Cargo.toml Cargo.lock CHANGELOG.md TODO.md .tally/history.json
 
-const staged = $("git diff --cached --name-only")
+const staged = $(git diff --cached --name-only)
 if $staged != ""
     git commit -m $"release: {version}"
 else
