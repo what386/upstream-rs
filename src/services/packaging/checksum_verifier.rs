@@ -218,7 +218,7 @@ impl<'a> ChecksumVerifier<'a> {
             .find(|asset| Self::is_checksum_filename(&asset.name))
     }
 
-    fn find_checksum_order_asset<'r>(release: &'r Release) -> Option<&'r Asset> {
+    fn find_checksum_order_asset(release: &Release) -> Option<&Asset> {
         release.get_asset_by_name_invariant("checksums_hashes_order")
     }
 
