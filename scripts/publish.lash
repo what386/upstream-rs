@@ -6,12 +6,12 @@ set -euo pipefail
 @define GITHUB true
 @define CARGO true
 
-if #$argv == 0 || #$argv > 1
+if #argv == 0 || #argv > 1
     echo "Invalid version"
     exit 1
 end
 
-const version = $argv[0]
+let version = argv[0]
 
 git checkout dev
 
@@ -20,8 +20,8 @@ tally changelog > CHANGELOG.md
 
 git add CHANGELOG.md Cargo.toml Cargo.lock CHANGELOG.md TODO.md .tally/history.json
 
-const staged = $(git diff --cached --name-only)
-if $staged != ""
+let staged = $(git diff --cached --name-only)
+if staged != ""
     git commit -m $"release: {version}"
 else
     echo "No release metadata changes to commit."
@@ -50,3 +50,4 @@ cargo publish
 @end
 
 git checkout dev
+
