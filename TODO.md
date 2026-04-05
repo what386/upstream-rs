@@ -17,6 +17,9 @@
 - [ ] Instead of failing, lockfiles block until lock is aquired
       @created 2026-04-05 02:34
 
+- [ ] let read-only operations ignore lockfile
+      @created 2026-04-05 02:35
+
 
 ## Completed
 
