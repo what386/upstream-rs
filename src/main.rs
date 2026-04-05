@@ -1,13 +1,7 @@
-pub mod application;
-pub mod models;
-pub mod providers;
-pub mod services;
-pub mod utils;
-
 use clap::Parser;
 use console::style;
 
-use crate::application::cli::arguments::Cli;
+use upstream_rs::application::cli::arguments::Cli;
 
 #[tokio::main]
 async fn main() {
