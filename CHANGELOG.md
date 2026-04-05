@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-04-01*
+*Generated on 2026-04-05*
+
+## 1.5.0 — 2026-04-05
+
+### Changes
+
+- let read-only operations ignore lockfile
+- Instead of failing, lockfiles block until lock is aquired
+
 
 ## 1.4.6 — 2026-04-01
 
