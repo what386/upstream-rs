@@ -9,7 +9,11 @@ impl Cli {
     pub async fn run(self) -> Result<()> {
         let command = self.command;
         let paths = UpstreamPaths::new();
-        let _lock = LockStorage::acquire(&paths, &command)?;
+        let _lock = if command.requires_lock() {
+            Some(LockStorage::acquire(&paths, &command)?)
+        } else {
+            None
+        };
 
         match command {
             Commands::Init { clean, check } => features::init::run(clean, check),
