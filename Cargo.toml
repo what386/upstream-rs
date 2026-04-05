@@ -42,10 +42,3 @@ walkdir = "2.5.0"
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
 winapi = { version = "0.3", features = ["winuser"] }
-
-[profile.release]
-opt-level = "s"     # Optimize for size, but dont cut speed much
-lto = true          # Link-time optimization
-codegen-units = 1   # Better optimization, slower compile
-strip = true        # Remove debug symbols
-panic = "abort"     # Don't include unwinding code
