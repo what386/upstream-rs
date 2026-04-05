@@ -479,5 +479,15 @@
       "patch": 6,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "let read-only operations ignore lockfile",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-04-05T02:35:17.863742917Z"
+    },
+    "version": null
   }
 ]
