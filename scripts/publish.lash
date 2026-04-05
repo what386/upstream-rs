@@ -3,8 +3,8 @@
 set -euo pipefail
 
 // Remotes to publish on
-@define GITHUB true
-@define CARGO true
+@define PUBLISH_GITHUB true
+@define PUBLISH_CRATE true
 
 if #argv == 0 || #argv > 1
     echo "Invalid version"
@@ -41,11 +41,11 @@ git push gitea main
 
 git tag $version
 
-@if defined(GITHUB) && GITHUB == "true"
+@if PUBLISH_GITHUB == "true"
 git push github $version
 @end
 
-@if defined(CARGO) && CARGO == "true"
+@if PUBLISH_CRATE == "true"
 cargo publish
 @end
 
