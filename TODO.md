@@ -14,9 +14,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] Instead of failing, lockfiles block until lock is aquired
-      @created 2026-04-05 02:34
-
 
 ## Completed
 
@@ -27,5 +24,9 @@
 
 - [x] let read-only operations ignore lockfile
       @created 2026-04-05 02:35
+      @completed 2026-04-05 02:35
+
+- [x] Instead of failing, lockfiles block until lock is aquired
+      @created 2026-04-05 02:34
       @completed 2026-04-05 02:35
 
