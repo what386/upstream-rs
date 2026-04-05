@@ -1,7 +1,7 @@
 # TODO — upstream-cli v1.4.6
 
 @created: 2026-01-31
-@modified: 2026-04-01
+@modified: 2026-04-05
 
 ## Tasks
 
@@ -13,6 +13,9 @@
 
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
+
+- [ ] Instead of failing, lockfiles block until lock is aquired
+      @created 2026-04-05 02:34
 
 
 ## Completed
