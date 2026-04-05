@@ -6,7 +6,8 @@ use std::{
     io::{ErrorKind, Write},
     path::{Path, PathBuf},
     process,
-    time::{SystemTime, UNIX_EPOCH},
+    thread,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use crate::application::cli::arguments::Commands;
@@ -17,13 +18,19 @@ pub struct LockStorage {
     path: PathBuf,
 }
 
-const STALE_LOCK_MAX_AGE_SECS: u64 = 60 * 60 * 24;
+const STALE_LOCK_MAX_AGE_SECS: Duration = Duration::from_mins(45);
+const LOCK_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
 #[derive(Default, Debug)]
 struct LockMetadata {
     pid: Option<u32>,
     operation: Option<String>,
     started_at_unix: Option<u64>,
+}
+
+enum AcquireOutcome {
+    Acquired(LockStorage),
+    Waiting,
 }
 
 impl LockStorage {
@@ -34,14 +41,27 @@ impl LockStorage {
     }
 
     fn acquire_at(lock_path: &Path, operation: &str) -> Result<Self> {
-        Self::acquire_at_internal(lock_path, operation, true)
+        let mut printed_wait_notice = false;
+
+        loop {
+            match Self::try_acquire_at_internal(lock_path, operation, true)? {
+                AcquireOutcome::Acquired(lock) => return Ok(lock),
+                AcquireOutcome::Waiting => {
+                    if !printed_wait_notice {
+                        eprintln!("Waiting for lock file...");
+                        printed_wait_notice = true;
+                    }
+                    thread::sleep(LOCK_POLL_INTERVAL);
+                }
+            }
+        }
     }
 
-    fn acquire_at_internal(
+    fn try_acquire_at_internal(
         lock_path: &Path,
         operation: &str,
         allow_recovery: bool,
-    ) -> Result<Self> {
+    ) -> Result<AcquireOutcome> {
         let lock_parent = lock_path
             .parent()
             .ok_or_else(|| anyhow!("Invalid lock path '{}'", lock_path.display()))?;
@@ -66,10 +86,10 @@ impl LockStorage {
                 if allow_recovery && Self::is_stale_lock(&lock_info) {
                     match fs::remove_file(lock_path) {
                         Ok(_) => {
-                            return Self::acquire_at_internal(lock_path, operation, false);
+                            return Self::try_acquire_at_internal(lock_path, operation, false);
                         }
                         Err(remove_err) if remove_err.kind() == ErrorKind::NotFound => {
-                            return Self::acquire_at_internal(lock_path, operation, false);
+                            return Self::try_acquire_at_internal(lock_path, operation, false);
                         }
                         Err(remove_err) => {
                             return Err(remove_err).context(format!(
@@ -80,19 +100,7 @@ impl LockStorage {
                     }
                 }
 
-                let meta = Self::parse_lock_metadata(&lock_info);
-                return Err(anyhow!(
-                    "Another upstream operation is already running.\n\
-                     Lock file: {}\n\
-                     Holder info: {}\n\
-                     If this looks stale, remove the lock file and retry.\n\
-                     parsed_pid={:?}, parsed_operation={:?}, parsed_started_at_unix={:?}",
-                    lock_path.display(),
-                    lock_info.trim(),
-                    meta.pid,
-                    meta.operation,
-                    meta.started_at_unix
-                ));
+                return Ok(AcquireOutcome::Waiting);
             }
             Err(err) => {
                 return Err(err).with_context(|| {
@@ -109,9 +117,9 @@ impl LockStorage {
         writeln!(file, "operation={}", operation).ok();
         writeln!(file, "started_at_unix={}", since_epoch).ok();
 
-        Ok(Self {
+        Ok(AcquireOutcome::Acquired(Self {
             path: lock_path.to_path_buf(),
-        })
+        }))
     }
 
     fn parse_lock_metadata(lock_info: &str) -> LockMetadata {
@@ -146,7 +154,7 @@ impl LockStorage {
                 .duration_since(UNIX_EPOCH)
                 .map(|d| d.as_secs())
                 .unwrap_or(started_at);
-            if now.saturating_sub(started_at) > STALE_LOCK_MAX_AGE_SECS {
+            if Duration::from_secs(now.saturating_sub(started_at)) > STALE_LOCK_MAX_AGE_SECS {
                 return true;
             }
         }
