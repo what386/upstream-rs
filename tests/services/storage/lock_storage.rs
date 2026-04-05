@@ -2,7 +2,8 @@ use super::LockStorage;
 use std::{
     fs,
     path::PathBuf,
-    time::{SystemTime, UNIX_EPOCH},
+    thread,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 fn unique_lock_path(name: &str) -> PathBuf {
@@ -17,14 +18,20 @@ fn unique_lock_path(name: &str) -> PathBuf {
 }
 
 #[test]
-fn lock_prevents_concurrent_acquire() {
+fn lock_waits_for_concurrent_acquire_to_finish() {
     let lock_path = unique_lock_path("concurrent");
-    let _guard = LockStorage::acquire_at(&lock_path, "test").expect("first lock");
+    let guard = LockStorage::acquire_at(&lock_path, "test").expect("first lock");
+    let release_path = lock_path.clone();
 
-    let err = LockStorage::acquire_at(&lock_path, "test").expect_err("must fail");
-    assert!(err.to_string().contains("already running"));
+    let releaser = thread::spawn(move || {
+        thread::sleep(Duration::from_millis(100));
+        drop(guard);
+    });
 
-    let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
+    let _guard = LockStorage::acquire_at(&lock_path, "test").expect("lock after wait");
+    releaser.join().expect("join releaser");
+
+    let _ = fs::remove_dir_all(release_path.parent().unwrap().parent().unwrap());
 }
 
 #[test]
@@ -82,8 +89,9 @@ fn active_lock_still_blocks_second_acquire() {
     )
     .expect("write active lock");
 
-    let err = LockStorage::acquire_at(&lock_path, "next-op").expect_err("must block");
-    assert!(err.to_string().contains("already running"));
+    let outcome =
+        LockStorage::try_acquire_at_internal(&lock_path, "next-op", true).expect("try acquire");
+    assert!(matches!(outcome, super::AcquireOutcome::Waiting));
 
     let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
 }
