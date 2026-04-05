@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.4.6
+# TODO — upstream-cli v1.5.0
 
 @created: 2026-01-31
 @modified: 2026-04-05
@@ -25,8 +25,10 @@
 - [x] let read-only operations ignore lockfile
       @created 2026-04-05 02:35
       @completed 2026-04-05 02:35
+      @completed_version 1.5.0
 
 - [x] Instead of failing, lockfiles block until lock is aquired
       @created 2026-04-05 02:34
       @completed 2026-04-05 02:35
+      @completed_version 1.5.0
 
