@@ -7,10 +7,7 @@ use crate::{
         common::enums::{Channel, Filetype, Provider},
         upstream::Package,
     },
-    providers::{
-        asset_selector::AssetCandidate,
-        provider_manager::ProviderManager,
-    },
+    providers::{asset_selector::AssetCandidate, provider_manager::ProviderManager},
     services::storage::config_storage::ConfigStorage,
     utils::static_paths::UpstreamPaths,
 };

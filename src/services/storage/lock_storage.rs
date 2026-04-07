@@ -5,8 +5,7 @@ use std::{
     fs::{self, OpenOptions},
     io::{ErrorKind, Write},
     path::{Path, PathBuf},
-    process,
-    thread,
+    process, thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
