@@ -630,8 +630,8 @@ mod tests {
         let contents = format!("tool.tar.gz deadbeef {sha256} ignored {sha512}");
         let order = "CRC-32\nSHA-256\nBLAKE2b-256\nSHA-512\n";
 
-        let entries =
-            ChecksumVerifier::parse_matrix_checksums(&contents, order).expect("parse matrix checksums");
+        let entries = ChecksumVerifier::parse_matrix_checksums(&contents, order)
+            .expect("parse matrix checksums");
 
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].filename, "tool.tar.gz");

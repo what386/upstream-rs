@@ -435,60 +435,74 @@ mod tests {
     fn requires_lock_skips_read_only_commands() {
         assert!(!Commands::List { name: None }.requires_lock());
         assert!(!Commands::Doctor { names: vec![] }.requires_lock());
-        assert!(!Commands::Init {
-            clean: false,
-            check: true,
-        }
-        .requires_lock());
-        assert!(!Commands::Package {
-            action: PackageAction::GetKey {
-                name: "ripgrep".to_string(),
-                keys: vec!["version".to_string()],
-            },
-        }
-        .requires_lock());
-        assert!(!Commands::Package {
-            action: PackageAction::Metadata {
-                name: "ripgrep".to_string(),
-            },
-        }
-        .requires_lock());
+        assert!(
+            !Commands::Init {
+                clean: false,
+                check: true,
+            }
+            .requires_lock()
+        );
+        assert!(
+            !Commands::Package {
+                action: PackageAction::GetKey {
+                    name: "ripgrep".to_string(),
+                    keys: vec!["version".to_string()],
+                },
+            }
+            .requires_lock()
+        );
+        assert!(
+            !Commands::Package {
+                action: PackageAction::Metadata {
+                    name: "ripgrep".to_string(),
+                },
+            }
+            .requires_lock()
+        );
     }
 
     #[test]
     fn requires_lock_keeps_writing_and_side_effectful_commands_locked() {
-        assert!(Commands::Install {
-            name: "ripgrep".to_string(),
-            repo_slug: "BurntSushi/ripgrep".to_string(),
-            tag: None,
-            kind: crate::models::common::enums::Filetype::Auto,
-            provider: crate::models::common::enums::Provider::Github,
-            base_url: None,
-            channel: crate::models::common::enums::Channel::Stable,
-            match_pattern: None,
-            exclude_pattern: None,
-            desktop: false,
-            ignore_checksums: false,
-        }
-        .requires_lock());
-        assert!(Commands::Upgrade {
-            names: None,
-            force: false,
-            check: true,
-            machine_readable: false,
-            ignore_checksums: false,
-        }
-        .requires_lock());
-        assert!(Commands::Config {
-            action: ConfigAction::Get {
-                keys: vec!["github.api_token".to_string()],
-            },
-        }
-        .requires_lock());
-        assert!(Commands::Export {
-            path: "packages.json".into(),
-            full: false,
-        }
-        .requires_lock());
+        assert!(
+            Commands::Install {
+                name: "ripgrep".to_string(),
+                repo_slug: "BurntSushi/ripgrep".to_string(),
+                tag: None,
+                kind: crate::models::common::enums::Filetype::Auto,
+                provider: crate::models::common::enums::Provider::Github,
+                base_url: None,
+                channel: crate::models::common::enums::Channel::Stable,
+                match_pattern: None,
+                exclude_pattern: None,
+                desktop: false,
+                ignore_checksums: false,
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Upgrade {
+                names: None,
+                force: false,
+                check: true,
+                machine_readable: false,
+                ignore_checksums: false,
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Config {
+                action: ConfigAction::Get {
+                    keys: vec!["github.api_token".to_string()],
+                },
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Export {
+                path: "packages.json".into(),
+                full: false,
+            }
+            .requires_lock()
+        );
     }
 }

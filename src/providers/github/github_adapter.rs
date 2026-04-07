@@ -124,7 +124,8 @@ mod tests {
             assets: vec![GithubAssetDto {
                 id: 9,
                 name: "tool-linux-x86_64.tar.gz".to_string(),
-                browser_download_url: "https://example.invalid/tool-linux-x86_64.tar.gz".to_string(),
+                browser_download_url: "https://example.invalid/tool-linux-x86_64.tar.gz"
+                    .to_string(),
                 size: 123,
                 content_type: "application/gzip".to_string(),
                 created_at: "2026-02-20T00:00:00Z".to_string(),

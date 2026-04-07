@@ -210,6 +210,12 @@ impl AssetSelector {
     }
 }
 
+impl Default for AssetSelector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::AssetSelector;

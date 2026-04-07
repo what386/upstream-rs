@@ -609,8 +609,9 @@ mod tests {
         write_sized_file(&small.join("small"), 64);
         write_sized_file(&large.join("large"), 4096);
 
-        let selected = BundleHandler::select_macos_app_bundle(&[small.clone(), large.clone()], "tool")
-            .expect("select app bundle");
+        let selected =
+            BundleHandler::select_macos_app_bundle(&[small.clone(), large.clone()], "tool")
+                .expect("select app bundle");
         assert_eq!(selected, large);
 
         cleanup(&root).expect("cleanup");

@@ -320,7 +320,8 @@ mod tests {
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let provider_manager = ProviderManager::new(None, None, None, None).expect("provider manager");
+        let provider_manager =
+            ProviderManager::new(None, None, None, None).expect("provider manager");
         let op = InstallOperation::new(&provider_manager, &mut storage, &paths).expect("operation");
 
         let mut package = Package::with_defaults(
