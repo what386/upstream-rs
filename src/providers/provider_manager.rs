@@ -1,14 +1,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::models::common::enums::{Channel, Filetype, Provider};
+use crate::models::common::enums::{Channel, Provider};
 use crate::models::provider::{Asset, Release};
 use crate::models::upstream::Package;
+use crate::providers::asset_selector::{AssetCandidate, AssetSelector};
 use crate::providers::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::github::{GithubAdapter, GithubClient};
 use crate::providers::gitlab::{GitlabAdapter, GitlabClient};
 use crate::providers::http::{DirectAdapter, HttpClient, WebScraperAdapter};
-use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
 
 use anyhow::{Result, anyhow};
 
@@ -18,13 +18,7 @@ pub struct ProviderManager {
     gitea: GiteaAdapter,
     http: WebScraperAdapter,
     direct: DirectAdapter,
-    architecture_info: ArchitectureInfo,
-}
-
-#[derive(Debug, Clone)]
-pub struct AssetCandidate {
-    pub asset: Asset,
-    pub score: i32,
+    asset_selector: AssetSelector,
 }
 
 impl ProviderManager {
@@ -34,8 +28,6 @@ impl ProviderManager {
         gitea_token: Option<&str>,
         provider_base_url: Option<&str>,
     ) -> Result<Self> {
-        let architecture_info = ArchitectureInfo::new();
-
         let github_client = GithubClient::new(github_token)?;
         let gitlab_client = GitlabClient::new(gitlab_token, provider_base_url)?;
         let gitea_client = GiteaClient::new(gitea_token, provider_base_url)?;
@@ -53,7 +45,7 @@ impl ProviderManager {
             gitea,
             http,
             direct,
-            architecture_info,
+            asset_selector: AssetSelector::new(),
         })
     }
 
@@ -237,30 +229,7 @@ impl ProviderManager {
     }
 
     pub fn find_recommended_asset(&self, release: &Release, package: &Package) -> Result<Asset> {
-        let target_filetype = if package.filetype == Filetype::Auto {
-            Self::resolve_auto_filetype(release)?
-        } else {
-            package.filetype
-        };
-
-        let compatible_assets: Vec<&Asset> = release
-            .assets
-            .iter()
-            .filter(|a| self.is_potentially_compatible(a))
-            .filter(|a| a.filetype == target_filetype)
-            .collect();
-
-        compatible_assets
-            .into_iter()
-            .max_by_key(|a| self.score_asset(a, package))
-            .cloned()
-            .ok_or_else(|| {
-                anyhow!(
-                    "No compatible assets found for {} on {}",
-                    format_arch(&self.architecture_info.cpu_arch),
-                    format_os(&self.architecture_info.os_kind)
-                )
-            })
+        self.asset_selector.find_recommended_asset(release, package)
     }
 
     pub fn get_candidate_assets(
@@ -268,180 +237,7 @@ impl ProviderManager {
         release: &Release,
         package: &Package,
     ) -> Result<Vec<AssetCandidate>> {
-        let target_filetype = if package.filetype == Filetype::Auto {
-            Self::resolve_auto_filetype(release)?
-        } else {
-            package.filetype
-        };
-
-        let mut candidates: Vec<AssetCandidate> = release
-            .assets
-            .iter()
-            .filter(|a| self.is_potentially_compatible(a))
-            .filter(|a| a.filetype == target_filetype)
-            .map(|asset| AssetCandidate {
-                asset: asset.clone(),
-                score: self.score_asset(asset, package),
-            })
-            .collect();
-
-        candidates.sort_by(|a, b| b.score.cmp(&a.score));
-        Ok(candidates)
-    }
-
-    /// Return filetype preference order for the current target OS.
-    fn get_priority_for_os() -> Vec<Filetype> {
-        #[cfg(target_os = "linux")]
-        return vec![
-            Filetype::AppImage,
-            Filetype::Archive,
-            Filetype::Compressed,
-            Filetype::Binary,
-        ];
-
-        #[cfg(target_os = "windows")]
-        return vec![Filetype::WinExe, Filetype::Archive, Filetype::Compressed];
-
-        #[cfg(target_os = "macos")]
-        return vec![
-            Filetype::MacApp,
-            Filetype::MacDmg,
-            Filetype::Archive,
-            Filetype::Compressed,
-            Filetype::Binary,
-        ];
-    }
-
-    /// Choose a concrete filetype when package config is set to `Auto`.
-    ///
-    /// The first filetype in platform priority order that appears in release
-    /// assets is selected.
-    pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {
-        let priority = Self::get_priority_for_os();
-
-        priority
-            .iter()
-            .find(|&&filetype| {
-                release
-                    .assets
-                    .iter()
-                    .any(|asset| asset.filetype == filetype)
-            })
-            .copied()
-            .ok_or_else(|| anyhow!("No compatible filetype found in release assets"))
-    }
-
-    /// Filter out assets that are clearly incompatible with the host OS/CPU.
-    ///
-    /// Includes a small set of architecture compatibility fallbacks
-    /// (`x86_64` can run `x86`; `aarch64` can run `arm`).
-    fn is_potentially_compatible(&self, asset: &Asset) -> bool {
-        // OS check
-        if let Some(target_os) = &asset.target_os
-            && *target_os != self.architecture_info.os_kind
-        {
-            return false;
-        }
-
-        // Architecture check
-        if let Some(target_arch) = &asset.target_arch {
-            if *target_arch == self.architecture_info.cpu_arch {
-                return true;
-            }
-
-            // Compatibility fallbacks
-            if self.architecture_info.cpu_arch == CpuArch::X86_64 && *target_arch == CpuArch::X86 {
-                return true;
-            }
-
-            if self.architecture_info.cpu_arch == CpuArch::Aarch64 && *target_arch == CpuArch::Arm {
-                return true;
-            }
-
-            return *target_arch == self.architecture_info.cpu_arch;
-        }
-
-        true
-    }
-
-    /// Score candidate assets so `find_recommended_asset` can pick the best fit.
-    ///
-    /// Scoring favors explicit architecture/OS matches, package include/exclude
-    /// patterns, and filenames that avoid debug/source variants.
-    fn score_asset(&self, asset: &Asset, package: &Package) -> i32 {
-        let name = asset.name.to_lowercase();
-        let mut score = 0;
-
-        // Architecture match bonus
-        if let Some(target_arch) = &asset.target_arch {
-            if *target_arch == self.architecture_info.cpu_arch {
-                score += 80;
-            } else if (self.architecture_info.cpu_arch == CpuArch::X86_64
-                && *target_arch == CpuArch::X86)
-                || (self.architecture_info.cpu_arch == CpuArch::Aarch64
-                    && *target_arch == CpuArch::Arm)
-            {
-                score += 30;
-            }
-        }
-
-        // Archive format preference
-        if asset.filetype == Filetype::Archive {
-            if name.ends_with(".tar.bz2") || name.ends_with(".tbz") {
-                score += 15;
-            } else if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
-                score += 10;
-            } else if name.ends_with(".zip") {
-                score += 5;
-            }
-        }
-
-        // Compression format preference
-        if asset.filetype == Filetype::Compressed {
-            if name.ends_with(".bz2") {
-                score += 10;
-            } else if name.ends_with(".gz") {
-                score += 5;
-            }
-        }
-
-        // Binary format preference
-        if asset.filetype == Filetype::Binary && Path::new(&name).extension().is_none() {
-            score += 10;
-        }
-
-        if name.contains("static") {
-            score += 5;
-        }
-
-        if name.contains("debug") || name.contains("symbols") {
-            score -= 20;
-        }
-
-        // Package name match
-        if !name.contains(&package.name.to_lowercase()) {
-            score -= 40;
-        }
-
-        // Very small files, or absurdly large files
-        if asset.size < 100_000 || asset.size > 500_000_000 {
-            score -= 20;
-        }
-
-        // User prefs
-        if let Some(pattern) = &package.match_pattern
-            && name.contains(pattern)
-        {
-            score += 100;
-        }
-
-        if let Some(antipattern) = &package.exclude_pattern
-            && name.contains(antipattern)
-        {
-            score -= 100;
-        }
-
-        score
+        self.asset_selector.get_candidate_assets(release, package)
     }
 }
 
@@ -449,12 +245,10 @@ impl ProviderManager {
 mod tests {
     use super::ProviderManager;
     use crate::models::common::Version;
-    use crate::models::common::enums::{Channel, Filetype, Provider};
-    use crate::models::provider::{Asset, Release};
-    use crate::models::upstream::Package;
+    use crate::models::provider::Release;
     use chrono::Utc;
 
-    fn make_release(assets: Vec<Asset>, prerelease: bool, tag: &str) -> Release {
+    fn make_release(prerelease: bool, tag: &str) -> Release {
         Release {
             id: 1,
             tag: tag.to_string(),
@@ -462,23 +256,10 @@ mod tests {
             body: String::new(),
             is_draft: false,
             is_prerelease: prerelease,
-            assets,
+            assets: Vec::new(),
             version: Version::new(1, 0, 0, prerelease),
             published_at: Utc::now(),
         }
-    }
-
-    fn make_package(filetype: Filetype) -> Package {
-        Package::with_defaults(
-            "tool".to_string(),
-            "owner/tool".to_string(),
-            filetype,
-            Some("static".to_string()),
-            Some("debug".to_string()),
-            Channel::Stable,
-            Provider::Github,
-            None,
-        )
     }
 
     #[test]
@@ -489,201 +270,10 @@ mod tests {
 
     #[test]
     fn preview_release_excludes_nightly_tags() {
-        let preview = make_release(Vec::new(), true, "v1.2.3-rc1");
-        let nightly = make_release(Vec::new(), true, "nightly-20260221");
+        let preview = make_release(true, "v1.2.3-rc1");
+        let nightly = make_release(true, "nightly-20260221");
 
         assert!(ProviderManager::is_preview_release(&preview));
         assert!(!ProviderManager::is_preview_release(&nightly));
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn resolve_auto_filetype_prefers_appimage_then_archives_on_linux() {
-        let release = make_release(
-            vec![
-                Asset::new(
-                    "https://example.invalid/tool.tar.gz".to_string(),
-                    1,
-                    "tool.tar.gz".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool.AppImage".to_string(),
-                    2,
-                    "tool.AppImage".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-            ],
-            false,
-            "v1.0.0",
-        );
-
-        assert_eq!(
-            ProviderManager::resolve_auto_filetype(&release).expect("resolve"),
-            Filetype::AppImage
-        );
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn resolve_auto_filetype_prefers_macapp_on_macos() {
-        let release = make_release(
-            vec![
-                Asset::new(
-                    "https://example.invalid/tool.tar.gz".to_string(),
-                    1,
-                    "tool.tar.gz".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool.app".to_string(),
-                    2,
-                    "tool.app".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool.dmg".to_string(),
-                    3,
-                    "tool.dmg".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-            ],
-            false,
-            "v1.0.0",
-        );
-
-        assert_eq!(
-            ProviderManager::resolve_auto_filetype(&release).expect("resolve"),
-            Filetype::MacApp
-        );
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn resolve_auto_filetype_uses_macdmg_when_no_macapp_exists() {
-        let release = make_release(
-            vec![
-                Asset::new(
-                    "https://example.invalid/tool.tar.gz".to_string(),
-                    1,
-                    "tool.tar.gz".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool.dmg".to_string(),
-                    2,
-                    "tool.dmg".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-            ],
-            false,
-            "v1.0.0",
-        );
-
-        assert_eq!(
-            ProviderManager::resolve_auto_filetype(&release).expect("resolve"),
-            Filetype::MacDmg
-        );
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn resolve_auto_filetype_prefers_winexe_on_windows() {
-        let release = make_release(
-            vec![
-                Asset::new(
-                    "https://example.invalid/tool.tar.gz".to_string(),
-                    1,
-                    "tool.tar.gz".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool.exe".to_string(),
-                    2,
-                    "tool.exe".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-            ],
-            false,
-            "v1.0.0",
-        );
-
-        assert_eq!(
-            ProviderManager::resolve_auto_filetype(&release).expect("resolve"),
-            Filetype::WinExe
-        );
-    }
-
-    #[test]
-    fn get_candidate_assets_sorts_by_score_descending() {
-        let manager = ProviderManager::new(None, None, None, None).expect("manager");
-        let package = make_package(Filetype::Archive);
-        let release = make_release(
-            vec![
-                Asset::new(
-                    "https://example.invalid/tool-debug.tar.gz".to_string(),
-                    1,
-                    "tool-debug.tar.gz".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool-static.tar.bz2".to_string(),
-                    2,
-                    "tool-static.tar.bz2".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-            ],
-            false,
-            "v1.0.0",
-        );
-
-        let candidates = manager
-            .get_candidate_assets(&release, &package)
-            .expect("candidates");
-        assert_eq!(candidates.len(), 2);
-        assert_eq!(candidates[0].asset.name, "tool-static.tar.bz2");
-        assert!(candidates[0].score > candidates[1].score);
-    }
-
-    #[test]
-    fn find_recommended_asset_returns_highest_scored_compatible_asset() {
-        let manager = ProviderManager::new(None, None, None, None).expect("manager");
-        let package = make_package(Filetype::Archive);
-        let release = make_release(
-            vec![
-                Asset::new(
-                    "https://example.invalid/tool-debug.tar.gz".to_string(),
-                    1,
-                    "tool-debug.tar.gz".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool-static.tar.bz2".to_string(),
-                    2,
-                    "tool-static.tar.bz2".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-            ],
-            false,
-            "v1.0.0",
-        );
-
-        let best = manager
-            .find_recommended_asset(&release, &package)
-            .expect("best asset");
-        assert_eq!(best.name, "tool-static.tar.bz2");
     }
 }
