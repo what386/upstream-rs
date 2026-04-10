@@ -675,7 +675,7 @@ mod tests {
         let asset_path = root.join("tool.tar.gz");
         fs::write(&asset_path, b"payload").expect("write asset");
 
-        let manager = ProviderManager::new(None, None, None, None).expect("provider manager");
+        let manager = ProviderManager::new(None, None, None).expect("provider manager");
         let verifier = ChecksumVerifier::new(&manager, &root);
         let mut progress: Option<fn(u64, u64)> = None;
 

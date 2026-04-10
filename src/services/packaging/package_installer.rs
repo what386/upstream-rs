@@ -211,7 +211,11 @@ impl<'a> PackageInstaller<'a> {
     where
         H: FnMut(&str),
     {
-        let filename = asset_path.file_name().unwrap().display();
+        let filename = asset_path
+            .file_name()
+            .ok_or_else(|| anyhow!("Invalid archive path: no filename"))?
+            .to_string_lossy()
+            .to_string();
         message!(message_callback, "Extracting directory '{filename}' ...");
 
         let extracted_path = compression_handler::decompress(asset_path, extract_cache)
@@ -276,7 +280,10 @@ impl<'a> PackageInstaller<'a> {
         message!(
             message_callback,
             "Added executable permission for '{}'",
-            exec_path.file_name().unwrap().display()
+            exec_path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| exec_path.display().to_string())
         );
 
         let path_to_add = exec_path
@@ -322,7 +329,11 @@ impl<'a> PackageInstaller<'a> {
     where
         H: FnMut(&str),
     {
-        let filename = asset_path.file_name().unwrap().display();
+        let filename = asset_path
+            .file_name()
+            .ok_or_else(|| anyhow!("Invalid compressed path: no filename"))?
+            .to_string_lossy()
+            .to_string();
         message!(message_callback, "Extracting file '{}' ...", filename);
 
         let extracted_path = compression_handler::decompress(asset_path, extract_cache)
