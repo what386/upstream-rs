@@ -19,6 +19,8 @@ pub struct ProviderManager {
     http: WebScraperAdapter,
     direct: DirectAdapter,
     asset_selector: AssetSelector,
+    gitlab_token: Option<String>,
+    gitea_token: Option<String>,
 }
 
 impl ProviderManager {
@@ -26,11 +28,10 @@ impl ProviderManager {
         github_token: Option<&str>,
         gitlab_token: Option<&str>,
         gitea_token: Option<&str>,
-        provider_base_url: Option<&str>,
     ) -> Result<Self> {
         let github_client = GithubClient::new(github_token)?;
-        let gitlab_client = GitlabClient::new(gitlab_token, provider_base_url)?;
-        let gitea_client = GiteaClient::new(gitea_token, provider_base_url)?;
+        let gitlab_client = GitlabClient::new(gitlab_token, None)?;
+        let gitea_client = GiteaClient::new(gitea_token, None)?;
         let http_client = HttpClient::new()?;
 
         let github = GithubAdapter::new(github_client);
@@ -46,6 +47,8 @@ impl ProviderManager {
             http,
             direct,
             asset_selector: AssetSelector::new(),
+            gitlab_token: gitlab_token.map(str::to_string),
+            gitea_token: gitea_token.map(str::to_string),
         })
     }
 
@@ -55,11 +58,8 @@ impl ProviderManager {
         provider: &Provider,
         channel: &Channel,
     ) -> Result<Release> {
-        match channel {
-            Channel::Stable => self.get_latest_stable_release(slug, provider).await,
-            Channel::Preview => self.get_latest_preview_release(slug, provider).await,
-            Channel::Nightly => self.get_latest_nightly_release(slug, provider).await,
-        }
+        self.get_latest_release_for(slug, provider, channel, None)
+            .await
     }
 
     pub async fn check_for_updates(&self, package: &Package) -> Result<Option<Release>> {
@@ -81,9 +81,37 @@ impl ProviderManager {
                     .await
             }
             _ => Ok(Some(
-                self.get_latest_release(&package.repo_slug, &package.provider, &package.channel)
-                    .await?,
+                self.get_latest_release_for(
+                    &package.repo_slug,
+                    &package.provider,
+                    &package.channel,
+                    package.base_url.as_deref(),
+                )
+                .await?,
             )),
+        }
+    }
+
+    pub async fn get_latest_release_for(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        channel: &Channel,
+        base_url: Option<&str>,
+    ) -> Result<Release> {
+        match channel {
+            Channel::Stable => {
+                self.get_latest_stable_release_for(slug, provider, base_url)
+                    .await
+            }
+            Channel::Preview => {
+                self.get_latest_preview_release_for(slug, provider, base_url)
+                    .await
+            }
+            Channel::Nightly => {
+                self.get_latest_nightly_release_for(slug, provider, base_url)
+                    .await
+            }
         }
     }
 
@@ -105,8 +133,18 @@ impl ProviderManager {
         slug: &str,
         provider: &Provider,
     ) -> Result<Release> {
+        self.get_latest_nightly_release_for(slug, provider, None)
+            .await
+    }
+
+    async fn get_latest_nightly_release_for(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        base_url: Option<&str>,
+    ) -> Result<Release> {
         let releases = self
-            .get_releases(slug, provider, Some(20), Some(20))
+            .get_releases_for(slug, provider, Some(20), Some(20), base_url)
             .await?;
 
         releases
@@ -122,8 +160,18 @@ impl ProviderManager {
         slug: &str,
         provider: &Provider,
     ) -> Result<Release> {
+        self.get_latest_preview_release_for(slug, provider, None)
+            .await
+    }
+
+    async fn get_latest_preview_release_for(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        base_url: Option<&str>,
+    ) -> Result<Release> {
         let releases = self
-            .get_releases(slug, provider, Some(20), Some(20))
+            .get_releases_for(slug, provider, Some(20), Some(20), base_url)
             .await?;
 
         releases
@@ -139,10 +187,40 @@ impl ProviderManager {
         slug: &str,
         provider: &Provider,
     ) -> Result<Release> {
+        self.get_latest_stable_release_for(slug, provider, None)
+            .await
+    }
+
+    async fn get_latest_stable_release_for(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        base_url: Option<&str>,
+    ) -> Result<Release> {
         match provider {
             Provider::Github => self.github.get_latest_release(slug).await,
-            Provider::Gitlab => self.gitlab.get_latest_release(slug).await,
-            Provider::Gitea => self.gitea.get_latest_release(slug).await,
+            Provider::Gitlab => {
+                if let Some(base) = base_url {
+                    let adapter = GitlabAdapter::new(GitlabClient::new(
+                        self.gitlab_token.as_deref(),
+                        Some(base),
+                    )?);
+                    adapter.get_latest_release(slug).await
+                } else {
+                    self.gitlab.get_latest_release(slug).await
+                }
+            }
+            Provider::Gitea => {
+                if let Some(base) = base_url {
+                    let adapter = GiteaAdapter::new(GiteaClient::new(
+                        self.gitea_token.as_deref(),
+                        Some(base),
+                    )?);
+                    adapter.get_latest_release(slug).await
+                } else {
+                    self.gitea.get_latest_release(slug).await
+                }
+            }
             Provider::WebScraper => self.http.get_latest_release(slug).await,
             Provider::Direct => self.direct.get_latest_release(slug).await,
         }
@@ -155,10 +233,42 @@ impl ProviderManager {
         per_page: Option<u32>,
         max_total: Option<u32>,
     ) -> Result<Vec<Release>> {
+        self.get_releases_for(slug, provider, per_page, max_total, None)
+            .await
+    }
+
+    pub async fn get_releases_for(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        per_page: Option<u32>,
+        max_total: Option<u32>,
+        base_url: Option<&str>,
+    ) -> Result<Vec<Release>> {
         match provider {
             Provider::Github => self.github.get_releases(slug, per_page, max_total).await,
-            Provider::Gitlab => self.gitlab.get_releases(slug, per_page, max_total).await,
-            Provider::Gitea => self.gitea.get_releases(slug, per_page, max_total).await,
+            Provider::Gitlab => {
+                if let Some(base) = base_url {
+                    let adapter = GitlabAdapter::new(GitlabClient::new(
+                        self.gitlab_token.as_deref(),
+                        Some(base),
+                    )?);
+                    adapter.get_releases(slug, per_page, max_total).await
+                } else {
+                    self.gitlab.get_releases(slug, per_page, max_total).await
+                }
+            }
+            Provider::Gitea => {
+                if let Some(base) = base_url {
+                    let adapter = GiteaAdapter::new(GiteaClient::new(
+                        self.gitea_token.as_deref(),
+                        Some(base),
+                    )?);
+                    adapter.get_releases(slug, per_page, max_total).await
+                } else {
+                    self.gitea.get_releases(slug, per_page, max_total).await
+                }
+            }
             Provider::WebScraper => self.http.get_releases(slug, per_page, max_total).await,
             Provider::Direct => self.direct.get_releases(slug, per_page, max_total).await,
         }
@@ -170,10 +280,40 @@ impl ProviderManager {
         tag: &str,
         provider: &Provider,
     ) -> Result<Release> {
+        self.get_release_by_tag_for(slug, tag, provider, None).await
+    }
+
+    pub async fn get_release_by_tag_for(
+        &self,
+        slug: &str,
+        tag: &str,
+        provider: &Provider,
+        base_url: Option<&str>,
+    ) -> Result<Release> {
         match provider {
             Provider::Github => self.github.get_release_by_tag(slug, tag).await,
-            Provider::Gitlab => self.gitlab.get_release_by_tag(slug, tag).await,
-            Provider::Gitea => self.gitea.get_release_by_tag(slug, tag).await,
+            Provider::Gitlab => {
+                if let Some(base) = base_url {
+                    let adapter = GitlabAdapter::new(GitlabClient::new(
+                        self.gitlab_token.as_deref(),
+                        Some(base),
+                    )?);
+                    adapter.get_release_by_tag(slug, tag).await
+                } else {
+                    self.gitlab.get_release_by_tag(slug, tag).await
+                }
+            }
+            Provider::Gitea => {
+                if let Some(base) = base_url {
+                    let adapter = GiteaAdapter::new(GiteaClient::new(
+                        self.gitea_token.as_deref(),
+                        Some(base),
+                    )?);
+                    adapter.get_release_by_tag(slug, tag).await
+                } else {
+                    self.gitea.get_release_by_tag(slug, tag).await
+                }
+            }
             Provider::WebScraper => self.http.get_release_by_tag(slug, tag).await,
             Provider::Direct => self.direct.get_release_by_tag(slug, tag).await,
         }
