@@ -33,13 +33,9 @@ pub async fn run(
     let gitlab_token = config.get_config().gitlab.api_token.as_deref();
     let gitea_token = config.get_config().gitea.api_token.as_deref();
 
-    // Get provider base_url from installed packages
-    let packages = package_storage.get_all_packages();
-    let provider_base_url = packages.iter().find_map(|p| p.base_url.as_deref());
-    let installed_package_count = packages.len();
+    let installed_package_count = package_storage.get_all_packages().len();
 
-    let provider_manager =
-        ProviderManager::new(github_token, gitlab_token, gitea_token, provider_base_url)?;
+    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
     let mut package_upgrade =
         UpgradeOperation::new(&provider_manager, &mut package_storage, &paths)?;
 
@@ -129,7 +125,9 @@ pub async fn run(
         return Ok(());
     }
 
-    let name_vec = names.unwrap();
+    let Some(name_vec) = names else {
+        return Ok(());
+    };
     println!(
         "{}",
         style(format!("Upgrading {} package(s)", name_vec.len())).cyan()
