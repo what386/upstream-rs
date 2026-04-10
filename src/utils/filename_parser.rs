@@ -153,28 +153,20 @@ fn contains_marker(filename: &str, markers: &[&str]) -> bool {
             continue;
         }
 
-        if let Some(mut index) = filename.find(marker) {
-            loop {
-                let valid_start =
-                    index == 0 || !filename.chars().nth(index - 1).unwrap().is_alphanumeric();
+        let mut search_start = 0usize;
+        while let Some(offset) = filename[search_start..].find(marker) {
+            let index = search_start + offset;
+            let bytes = filename.as_bytes();
+            let marker_end = index + marker.len();
 
-                let valid_end = index + marker.len() >= filename.len()
-                    || !filename
-                        .chars()
-                        .nth(index + marker.len())
-                        .unwrap()
-                        .is_alphanumeric();
+            let valid_start = index == 0 || !bytes[index - 1].is_ascii_alphanumeric();
+            let valid_end = marker_end >= bytes.len() || !bytes[marker_end].is_ascii_alphanumeric();
 
-                if valid_start && valid_end {
-                    return true;
-                }
-
-                // Find next occurrence
-                match filename[index + 1..].find(marker) {
-                    Some(offset) => index = index + 1 + offset,
-                    None => break,
-                }
+            if valid_start && valid_end {
+                return true;
             }
+
+            search_start = index + 1;
         }
     }
     false
