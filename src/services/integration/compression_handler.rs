@@ -2,7 +2,8 @@ use anyhow::{Result, anyhow};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::io::Read;
+use std::path::{Component, Path, PathBuf};
 use tar::Archive;
 use xz2::read::XzDecoder;
 use zip::ZipArchive;
@@ -36,7 +37,10 @@ pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
-    let file_name = input.file_name().unwrap().to_string_lossy();
+    let file_name = input
+        .file_name()
+        .ok_or_else(|| anyhow!("Invalid archive path: no filename"))?
+        .to_string_lossy();
     let name = file_name.to_lowercase();
 
     if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
@@ -64,22 +68,63 @@ pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
     }
 }
 
+fn safe_join_extract_path(extract_dir: &Path, entry_path: &Path) -> Result<PathBuf> {
+    if entry_path.is_absolute() {
+        return Err(anyhow!(
+            "Archive entry has absolute path '{}'",
+            entry_path.display()
+        ));
+    }
+
+    let mut out = PathBuf::from(extract_dir);
+    for component in entry_path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::Normal(part) => out.push(part),
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err(anyhow!(
+                    "Archive entry escapes extraction root: '{}'",
+                    entry_path.display()
+                ));
+            }
+        }
+    }
+
+    Ok(out)
+}
+
+fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> Result<PathBuf> {
+    let mut paths = Vec::new();
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let entry_path = entry.path()?;
+        let path = safe_join_extract_path(extract_dir, &entry_path)?;
+
+        let entry_type = entry.header().entry_type();
+        if entry_type.is_symlink() || entry_type.is_hard_link() {
+            return Err(anyhow!(
+                "Archive contains unsupported link entry '{}'",
+                entry_path.display()
+            ));
+        }
+
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        entry.unpack(&path)?;
+        paths.push(path);
+    }
+
+    common_root(&paths, extract_dir)
+}
+
 // ---------------- ZSTD ----------------
 fn decompress_tar_zst(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
     let tar = ZstdDecoder::new(file)?;
     let mut archive = Archive::new(tar);
-    let mut paths = Vec::new();
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let path = extract_dir.join(entry.path()?);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        entry.unpack(&path)?;
-        paths.push(path);
-    }
-    common_root(&paths, extract_dir)
+    unpack_tar_entries(&mut archive, extract_dir)
 }
 
 fn decompress_zst_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
@@ -101,7 +146,7 @@ fn decompress_zip(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
     let mut paths = Vec::new();
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
-        let out_path = extract_dir.join(file.name());
+        let out_path = safe_join_extract_path(extract_dir, Path::new(file.name()))?;
         if file.is_dir() {
             std::fs::create_dir_all(&out_path)?;
         } else {
@@ -120,17 +165,7 @@ fn decompress_zip(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
 fn unpack_tar(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
     let mut archive = Archive::new(file);
-    let mut paths = Vec::new();
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let path = extract_dir.join(entry.path()?);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        entry.unpack(&path)?;
-        paths.push(path);
-    }
-    common_root(&paths, extract_dir)
+    unpack_tar_entries(&mut archive, extract_dir)
 }
 
 // ---------------- XZ ----------------
@@ -138,17 +173,7 @@ fn decompress_tar_xz(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
     let tar = XzDecoder::new(file);
     let mut archive = Archive::new(tar);
-    let mut paths = Vec::new();
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let path = extract_dir.join(entry.path()?);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        entry.unpack(&path)?;
-        paths.push(path);
-    }
-    common_root(&paths, extract_dir)
+    unpack_tar_entries(&mut archive, extract_dir)
 }
 
 fn decompress_xz_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
@@ -168,17 +193,7 @@ fn decompress_tar_gz(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
     let tar = GzDecoder::new(file);
     let mut archive = Archive::new(tar);
-    let mut paths = Vec::new();
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let path = extract_dir.join(entry.path()?);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        entry.unpack(&path)?;
-        paths.push(path);
-    }
-    common_root(&paths, extract_dir)
+    unpack_tar_entries(&mut archive, extract_dir)
 }
 
 fn decompress_gz_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
@@ -198,17 +213,7 @@ fn decompress_tar_bz2(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
     let tar = BzDecoder::new(file);
     let mut archive = Archive::new(tar);
-    let mut paths = Vec::new();
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let path = extract_dir.join(entry.path()?);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        entry.unpack(&path)?;
-        paths.push(path);
-    }
-    common_root(&paths, extract_dir)
+    unpack_tar_entries(&mut archive, extract_dir)
 }
 
 fn decompress_bz2_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
@@ -245,7 +250,9 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
 
     // If there's exactly one top-level entry and it's a directory, flatten it
     if top_level_entries.len() == 1 {
-        let single_dir = top_level_entries.into_iter().next().unwrap();
+        let Some(single_dir) = top_level_entries.into_iter().next() else {
+            return Ok(extract_dir.to_path_buf());
+        };
         if single_dir.is_dir() {
             // Move contents of single_dir up to extract_dir
             for entry in std::fs::read_dir(&single_dir)? {
@@ -311,6 +318,27 @@ mod tests {
         encoder.finish().expect("finalize gzip");
     }
 
+    fn create_tar_gz_with_symlink(path: &Path, link_name: &str, target: &str) {
+        let file = File::create(path).expect("create .tar.gz");
+        let encoder = GzEncoder::new(file, Compression::default());
+        let mut builder = Builder::new(encoder);
+
+        let mut header = tar::Header::new_gnu();
+        header.set_entry_type(tar::EntryType::Symlink);
+        header.set_size(0);
+        header.set_mode(0o777);
+        header
+            .set_link_name(target)
+            .expect("set tar symlink target");
+        header.set_cksum();
+        builder
+            .append_data(&mut header, link_name, std::io::empty())
+            .expect("append tar symlink entry");
+
+        let encoder = builder.into_inner().expect("finalize tar");
+        encoder.finish().expect("finalize gzip");
+    }
+
     fn create_zip_with_single_root_dir(path: &Path) {
         let file = File::create(path).expect("create zip");
         let mut zip = zip::ZipWriter::new(file);
@@ -318,6 +346,16 @@ mod tests {
         zip.add_directory("pkg/", options)
             .expect("add zip directory");
         zip.start_file("pkg/tool", options)
+            .expect("start zip file entry");
+        zip.write_all(b"zip-content").expect("write zip content");
+        zip.finish().expect("finish zip");
+    }
+
+    fn create_zip_with_entry(path: &Path, entry_name: &str) {
+        let file = File::create(path).expect("create zip");
+        let mut zip = zip::ZipWriter::new(file);
+        let options = SimpleFileOptions::default();
+        zip.start_file(entry_name, options)
             .expect("start zip file entry");
         zip.write_all(b"zip-content").expect("write zip content");
         zip.finish().expect("finish zip");
@@ -387,6 +425,34 @@ mod tests {
 
         let err = decompress(&input, &output).expect_err("must reject unsupported extension");
         assert!(err.to_string().contains("Unsupported format"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn decompress_rejects_zip_path_traversal_entries() {
+        let root = temp_root("zip-traversal");
+        let input = root.join("tool.zip");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+        create_zip_with_entry(&input, "../escape.txt");
+
+        let err = decompress(&input, &output).expect_err("must reject traversal path");
+        assert!(err.to_string().contains("escapes extraction root"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn decompress_rejects_tar_symlink_entries() {
+        let root = temp_root("tar-symlink");
+        let input = root.join("bundle.tar.gz");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+        create_tar_gz_with_symlink(&input, "pkg-link", "/tmp/outside");
+
+        let err = decompress(&input, &output).expect_err("must reject symlink entry");
+        assert!(err.to_string().contains("unsupported link entry"));
 
         cleanup(&root).expect("cleanup");
     }
