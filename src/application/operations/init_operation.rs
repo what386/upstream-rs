@@ -208,7 +208,7 @@ fn update_shell_profiles(paths: &UpstreamPaths) -> io::Result<()> {
             }
             "fish" => {
                 let fish_config = Path::new(".config").join("fish").join("config.fish");
-                add_line_to_profile(paths, fish_config.to_str().unwrap(), SOURCE_LINE_FISH)?;
+                add_line_to_profile(paths, &fish_config.to_string_lossy(), SOURCE_LINE_FISH)?;
             }
             _ => {}
         }
