@@ -11,6 +11,7 @@ use crate::{
 use anyhow::{Context, Result, anyhow};
 use console::style;
 use serde::Deserialize;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, path::Path};
 
 // ---------------------------------------------------------------------------
@@ -299,28 +300,27 @@ impl<'a> ImportOperation<'a> {
         H: FnMut(&str),
     {
         let upstream_dir = &self.paths.dirs.data_dir;
-
-        if upstream_dir.exists() {
-            message!(
-                message_callback,
-                "{}",
-                style("Warning: replacing existing upstream directory").yellow()
-            );
-            fs::remove_dir_all(upstream_dir).context(format!(
-                "Failed to remove existing upstream directory '{}'",
-                upstream_dir.display()
-            ))?;
-        }
-
-        message!(message_callback, "Extracting snapshot ...");
-
-        // Use a temp dir next to the target so rename is atomic (same filesystem).
-        let temp_dir = upstream_dir
+        let upstream_parent = upstream_dir
             .parent()
-            .ok_or_else(|| anyhow!("upstream dir has no parent"))?
-            .join(format!(".upstream-import-{}", std::process::id()));
+            .ok_or_else(|| anyhow!("upstream dir has no parent"))?;
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let pid = std::process::id();
 
-        fs::create_dir_all(&temp_dir)?;
+        // Stage extraction in a temp directory and only swap into place once validated.
+        let temp_dir = upstream_parent.join(format!(".upstream-import-{pid}-{unique}"));
+        let backup_dir = upstream_parent.join(format!(".upstream-backup-{pid}-{unique}"));
+        fs::create_dir_all(&temp_dir).context(format!(
+            "Failed to create temporary import directory '{}'",
+            temp_dir.display()
+        ))?;
+
+        message!(
+            message_callback,
+            "Extracting snapshot to staging directory ..."
+        );
 
         // Decompress the tarball into temp_dir.  The archive contains an
         // "upstream/" top-level dir, so after extraction we move that into place.
@@ -337,10 +337,41 @@ impl<'a> ImportOperation<'a> {
             extracted.clone()
         };
 
-        fs::rename(&source, upstream_dir).context(format!(
-            "Failed to move extracted snapshot to '{}'",
-            upstream_dir.display()
-        ))?;
+        if !source.is_dir() {
+            return Err(anyhow!(
+                "Snapshot extraction did not produce a directory at '{}'",
+                source.display()
+            ));
+        }
+
+        let mut backed_up_existing = false;
+        if upstream_dir.exists() {
+            message!(
+                message_callback,
+                "{}",
+                style("Existing upstream directory detected; creating rollback backup").yellow()
+            );
+            fs::rename(upstream_dir, &backup_dir).context(format!(
+                "Failed to move existing upstream directory '{}' to backup '{}'",
+                upstream_dir.display(),
+                backup_dir.display()
+            ))?;
+            backed_up_existing = true;
+        }
+
+        if let Err(err) = fs::rename(&source, upstream_dir) {
+            if backed_up_existing {
+                let _ = fs::rename(&backup_dir, upstream_dir);
+            }
+            return Err(err).context(format!(
+                "Failed to move extracted snapshot to '{}'",
+                upstream_dir.display()
+            ));
+        }
+
+        if backed_up_existing {
+            let _ = fs::remove_dir_all(&backup_dir);
+        }
 
         // Clean up temp dir (may already be gone if source == extracted).
         let _ = fs::remove_dir_all(&temp_dir);
@@ -442,7 +473,7 @@ mod tests {
             .expect("write manifest");
 
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let manager = ProviderManager::new(None, None, None, None).expect("provider manager");
+        let manager = ProviderManager::new(None, None, None).expect("provider manager");
         let mut operation = ImportOperation::new(&manager, &mut storage, &paths);
         let mut dlp: Option<fn(u64, u64)> = None;
         let mut op: Option<fn(u32, u32)> = None;
