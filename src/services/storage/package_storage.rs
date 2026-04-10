@@ -31,7 +31,17 @@ impl PackageStorage {
 
         match fs::read_to_string(&self.packages_file) {
             Ok(json) => {
-                self.packages = serde_json::from_str(&json).unwrap_or_default();
+                if json.trim().is_empty() {
+                    self.packages = Vec::new();
+                    return Ok(());
+                }
+
+                self.packages = serde_json::from_str(&json).with_context(|| {
+                    format!(
+                        "Failed to parse package storage '{}'. The file may be corrupt; restore from backup or fix JSON syntax",
+                        self.packages_file.display()
+                    )
+                })?;
                 Ok(())
             }
             Err(e) => Err(anyhow!("Warning: Failed to load packages: {}", e)),
@@ -190,14 +200,17 @@ mod tests {
     }
 
     #[test]
-    fn invalid_json_file_falls_back_to_empty_packages() {
+    fn invalid_json_file_returns_parse_error() {
         let path = temp_packages_file("invalid-json");
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
         fs::write(&path, "{not-json").expect("write invalid json");
-        let storage = PackageStorage::new(&path).expect("create storage with invalid json");
-        assert!(storage.get_all_packages().is_empty());
+        let err = match PackageStorage::new(&path) {
+            Ok(_) => panic!("invalid json should fail"),
+            Err(err) => err,
+        };
+        assert!(err.to_string().contains("Failed to parse package storage"));
 
         cleanup(&path).expect("cleanup");
     }
