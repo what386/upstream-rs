@@ -1,5 +1,6 @@
 pub mod asset_selector;
 pub mod provider_manager;
+pub mod download_handler;
 
 pub mod gitea;
 pub mod github;
