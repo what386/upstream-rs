@@ -32,6 +32,9 @@
 - [ ] Replace runtime unwrap panic paths with actionable errors #bug #reliability
       @created 2026-04-10 02:54
 
+- [ ] Fix lock stale-recovery policy so active long-running operations are never stolen #bug #reliability
+      @created 2026-04-10 02:54
+
 
 ## Completed
 
