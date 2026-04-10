@@ -28,8 +28,7 @@ pub async fn run(
     let gitlab_token = config.get_config().gitlab.api_token.as_deref();
     let gitea_token = config.get_config().gitea.api_token.as_deref();
 
-    let provider_manager =
-        ProviderManager::new(github_token, gitlab_token, gitea_token, base_url.as_deref())?;
+    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
 
     println!(
         "{}",
@@ -41,7 +40,13 @@ pub async fn run(
     );
 
     let mut releases = provider_manager
-        .get_releases(&repo_slug, &effective_provider, Some(limit), Some(limit))
+        .get_releases_for(
+            &repo_slug,
+            &effective_provider,
+            Some(limit),
+            Some(limit),
+            base_url.as_deref(),
+        )
         .await?;
 
     releases = filter_by_channel(releases, &channel);

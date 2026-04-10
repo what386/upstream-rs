@@ -18,7 +18,7 @@ pub async fn run_import(path: PathBuf, skip_failed: bool) -> Result<()> {
     let github_token = config.get_config().github.api_token.as_deref();
     let gitlab_token = config.get_config().gitlab.api_token.as_deref();
     let gitea_token = config.get_config().gitea.api_token.as_deref();
-    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token, None)?;
+    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
 
     let mut import_op = ImportOperation::new(&provider_manager, &mut package_storage, &paths);
 
