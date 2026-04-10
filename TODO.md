@@ -14,33 +14,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] Fix snapshot import to avoid destructive pre-delete and guarantee rollback (high) #bug #data-loss
-      @created 2026-04-10 02:54
-
-- [ ] Fix snapshot import to avoid destructive pre-delete and guarantee rollback (high) #bug #data-loss
-      @created 2026-04-10 02:54
-
-- [ ] Harden archive extraction against path traversal/zip-slip writes (high) #bug #security #data-loss
-      @created 2026-04-10 02:54
-
-- [ ] Fix lock stale-recovery policy so active long-running operations are never stolen #bug #reliability
-      @created 2026-04-10 02:54
-
-- [ ] Use per-package provider base_url in upgrade/import paths #bug #reliability
-      @created 2026-04-10 02:54
-
-- [ ] Replace runtime unwrap panic paths with actionable errors #bug #reliability
-      @created 2026-04-10 02:54
-
-- [ ] Fix lock stale-recovery policy so active long-running operations are never stolen #bug #reliability
-      @created 2026-04-10 02:54
-
-- [ ] Replace runtime unwrap panic paths with actionable errors #bug #reliability
-      @created 2026-04-10 02:54
-
-- [ ] Make filename marker parsing Unicode-safe (no byte/char index mismatch) (low) #bug #reliability
-      @created 2026-04-10 02:54
-
 
 ## Completed
 
@@ -58,4 +31,40 @@
       @created 2026-04-05 02:34
       @completed 2026-04-05 02:35
       @completed_version 1.5.0
+
+- [x] Fix snapshot import to avoid destructive pre-delete and guarantee rollback (high) #bug #data-loss
+      @created 2026-04-10 02:54
+      @completed 2026-04-10 03:01
+
+- [x] Fix snapshot import to avoid destructive pre-delete and guarantee rollback (high) #bug #data-loss
+      @created 2026-04-10 02:54
+      @completed 2026-04-10 03:02
+
+- [x] Harden archive extraction against path traversal/zip-slip writes (high) #bug #security #data-loss
+      @created 2026-04-10 02:54
+      @completed 2026-04-10 03:02
+
+- [x] Use per-package provider base_url in upgrade/import paths #bug #reliability
+      @created 2026-04-10 02:54
+      @completed 2026-04-10 03:02
+
+- [x] Fix lock stale-recovery policy so active long-running operations are never stolen #bug #reliability
+      @created 2026-04-10 02:54
+      @completed 2026-04-10 03:02
+
+- [x] Make filename marker parsing Unicode-safe (no byte/char index mismatch) (low) #bug #reliability
+      @created 2026-04-10 02:54
+      @completed 2026-04-10 03:02
+
+- [x] Fix lock stale-recovery policy so active long-running operations are never stolen #bug #reliability
+      @created 2026-04-10 02:54
+      @completed 2026-04-10 03:02
+
+- [x] Replace runtime unwrap panic paths with actionable errors #bug #reliability
+      @created 2026-04-10 02:54
+      @completed 2026-04-10 03:02
+
+- [x] Replace runtime unwrap panic paths with actionable errors #bug #reliability
+      @created 2026-04-10 02:54
+      @completed 2026-04-10 03:02
 
