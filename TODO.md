@@ -1,7 +1,7 @@
 # TODO — upstream-cli v0.3.0
 
 @created: 2026-01-31
-@modified: 2026-04-05
+@modified: 2026-04-10
 
 ## Tasks
 
@@ -13,6 +13,9 @@
 
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
+
+- [ ] Fix snapshot import to avoid destructive pre-delete and guarantee rollback (high) #bug #data-loss
+      @created 2026-04-10 02:54
 
 
 ## Completed
