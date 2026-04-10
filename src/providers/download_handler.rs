@@ -4,7 +4,7 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-pub(crate) async fn download_file<F>(
+pub async fn download_file<F>(
     client: &Client,
     url: &str,
     destination: &Path,
