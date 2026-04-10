@@ -38,6 +38,9 @@
 - [ ] Replace runtime unwrap panic paths with actionable errors #bug #reliability
       @created 2026-04-10 02:54
 
+- [ ] Make filename marker parsing Unicode-safe (no byte/char index mismatch) (low) #bug #reliability
+      @created 2026-04-10 02:54
+
 
 ## Completed
 
