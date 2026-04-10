@@ -20,6 +20,12 @@
 - [ ] Fix snapshot import to avoid destructive pre-delete and guarantee rollback (high) #bug #data-loss
       @created 2026-04-10 02:54
 
+- [ ] Harden archive extraction against path traversal/zip-slip writes (high) #bug #security #data-loss
+      @created 2026-04-10 02:54
+
+- [ ] Fix lock stale-recovery policy so active long-running operations are never stolen #bug #reliability
+      @created 2026-04-10 02:54
+
 
 ## Completed
 
