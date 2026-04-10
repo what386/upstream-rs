@@ -1,52 +1,15 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use reqwest::{Client, header};
 use serde::Deserialize;
 use std::path::Path;
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
+
+use crate::providers::download_handler;
 
 use super::github_dtos::GithubReleaseDto;
 
 #[derive(Debug, Clone)]
 pub struct GithubClient {
     client: Client,
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::providers::github::github_dtos::GithubReleaseDto;
-
-    #[test]
-    fn github_release_dto_accepts_nullable_string_fields() {
-        let json = r#"
-        {
-          "id": 1,
-          "tag_name": "v1.0.0",
-          "name": null,
-          "body": null,
-          "prerelease": false,
-          "draft": false,
-          "published_at": null,
-          "assets": [
-            {
-              "id": 42,
-              "name": "tree-sitter-linux.tar.gz",
-              "browser_download_url": "https://example.com/asset.tar.gz",
-              "size": 1234,
-              "content_type": null,
-              "created_at": null
-            }
-          ]
-        }
-        "#;
-
-        let parsed = serde_json::from_str::<GithubReleaseDto>(json).expect("valid release JSON");
-        assert_eq!(parsed.name, "");
-        assert_eq!(parsed.body, "");
-        assert_eq!(parsed.published_at, "");
-        assert_eq!(parsed.assets[0].content_type, "");
-        assert_eq!(parsed.assets[0].created_at, "");
-    }
 }
 
 impl GithubClient {
@@ -106,52 +69,7 @@ impl GithubClient {
     where
         F: FnMut(u64, u64),
     {
-        let response = self
-            .client
-            .get(url)
-            .send()
-            .await
-            .context(format!("Failed to download from {}", url))?;
-
-        response
-            .error_for_status_ref()
-            .context("Download request failed")?;
-
-        let total_bytes = response.content_length().unwrap_or(0);
-
-        let mut file = File::create(destination)
-            .await
-            .context(format!("Failed to create file at {:?}", destination))?;
-
-        let mut stream = response.bytes_stream();
-        let mut total_read: u64 = 0;
-
-        use futures_util::StreamExt;
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.context("Failed to read download chunk")?;
-
-            file.write_all(&chunk)
-                .await
-                .context("Failed to write to file")?;
-
-            total_read += chunk.len() as u64;
-
-            if let Some(cb) = progress.as_mut() {
-                cb(total_read, total_bytes);
-            }
-        }
-
-        file.flush().await.context("Failed to flush file")?;
-
-        if total_bytes > 0 && total_read != total_bytes {
-            bail!(
-                "Download size mismatch: expected {} bytes, got {} bytes",
-                total_bytes,
-                total_read
-            );
-        }
-
-        Ok(())
+        download_handler::download_file(&self.client, url, destination, progress).await
     }
 
     pub async fn get_release_by_tag(
@@ -221,5 +139,42 @@ impl GithubClient {
         }
 
         Ok(releases)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::providers::github::github_dtos::GithubReleaseDto;
+
+    #[test]
+    fn github_release_dto_accepts_nullable_string_fields() {
+        let json = r#"
+        {
+          "id": 1,
+          "tag_name": "v1.0.0",
+          "name": null,
+          "body": null,
+          "prerelease": false,
+          "draft": false,
+          "published_at": null,
+          "assets": [
+            {
+              "id": 42,
+              "name": "tree-sitter-linux.tar.gz",
+              "browser_download_url": "https://example.com/asset.tar.gz",
+              "size": 1234,
+              "content_type": null,
+              "created_at": null
+            }
+          ]
+        }
+        "#;
+
+        let parsed = serde_json::from_str::<GithubReleaseDto>(json).expect("valid release JSON");
+        assert_eq!(parsed.name, "");
+        assert_eq!(parsed.body, "");
+        assert_eq!(parsed.published_at, "");
+        assert_eq!(parsed.assets[0].content_type, "");
+        assert_eq!(parsed.assets[0].created_at, "");
     }
 }
