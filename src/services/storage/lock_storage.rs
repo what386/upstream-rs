@@ -17,7 +17,7 @@ pub struct LockStorage {
     path: PathBuf,
 }
 
-const STALE_LOCK_MAX_AGE_SECS: Duration = Duration::from_mins(45);
+const STALE_LOCK_MAX_AGE: Duration = Duration::from_mins(5);
 const LOCK_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
 #[derive(Default, Debug)]
@@ -142,10 +142,9 @@ impl LockStorage {
     fn is_stale_lock(lock_info: &str) -> bool {
         let meta = Self::parse_lock_metadata(lock_info);
 
-        if let Some(pid) = meta.pid
-            && !Self::process_exists(pid)
-        {
-            return true;
+        if let Some(pid) = meta.pid {
+            // If the PID is still alive, never steal the lock based on age alone.
+            return !Self::process_exists(pid);
         }
 
         if let Some(started_at) = meta.started_at_unix {
@@ -153,7 +152,7 @@ impl LockStorage {
                 .duration_since(UNIX_EPOCH)
                 .map(|d| d.as_secs())
                 .unwrap_or(started_at);
-            if Duration::from_secs(now.saturating_sub(started_at)) > STALE_LOCK_MAX_AGE_SECS {
+            if Duration::from_secs(now.saturating_sub(started_at)) > STALE_LOCK_MAX_AGE {
                 return true;
             }
         }
@@ -289,6 +288,24 @@ mod tests {
             format!("pid={current_pid}\noperation=test\nstarted_at_unix={now}\n"),
         )
         .expect("write active lock");
+
+        let outcome =
+            LockStorage::try_acquire_at_internal(&lock_path, "next-op", true).expect("try acquire");
+        assert!(matches!(outcome, super::AcquireOutcome::Waiting));
+
+        let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
+    }
+
+    #[test]
+    fn active_lock_is_not_recovered_even_if_timestamp_is_old() {
+        let lock_path = unique_lock_path("active-old");
+        fs::create_dir_all(lock_path.parent().expect("lock parent")).expect("create lock parent");
+        let current_pid = std::process::id();
+        fs::write(
+            &lock_path,
+            format!("pid={current_pid}\noperation=test\nstarted_at_unix=1\n"),
+        )
+        .expect("write active lock with old timestamp");
 
         let outcome =
             LockStorage::try_acquire_at_internal(&lock_path, "next-op", true).expect("try acquire");
