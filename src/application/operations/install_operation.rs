@@ -163,11 +163,17 @@ impl<'a> InstallOperation<'a> {
 
             let icon_manager = IconManager::new(self.paths, &appimage_extractor);
             let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
+            let install_path = installed_package.install_path.clone().ok_or_else(|| {
+                anyhow!(
+                    "Package '{}' has no install path after installation",
+                    installed_package.name
+                )
+            })?;
 
             let icon_path = icon_manager
                 .add_icon(
                     &installed_package.name,
-                    installed_package.install_path.as_ref().unwrap(),
+                    &install_path,
                     &installed_package.filetype,
                     message_callback,
                 )
@@ -183,7 +189,7 @@ impl<'a> InstallOperation<'a> {
 
             let _ = desktop_manager
                 .create_entry(
-                    installed_package.install_path.as_ref().unwrap(),
+                    &install_path,
                     &installed_package.filetype,
                     desktop_entry,
                     message_callback,
@@ -229,7 +235,12 @@ impl<'a> InstallOperation<'a> {
                 version_tag
             );
             self.provider_manager
-                .get_release_by_tag(&package.repo_slug, version_tag, &package.provider)
+                .get_release_by_tag_for(
+                    &package.repo_slug,
+                    version_tag,
+                    &package.provider,
+                    package.base_url.as_deref(),
+                )
                 .await
                 .context(format!(
                     "Failed to fetch release '{}' for '{}'. Verify the version tag exists",
@@ -239,7 +250,12 @@ impl<'a> InstallOperation<'a> {
             // LATEST VERSION
             message!(message_callback, "Fetching latest release ...");
             self.provider_manager
-                .get_latest_release(&package.repo_slug, &package.provider, &package.channel)
+                .get_latest_release_for(
+                    &package.repo_slug,
+                    &package.provider,
+                    &package.channel,
+                    package.base_url.as_deref(),
+                )
                 .await
                 .context(format!(
                     "Failed to fetch latest {} release for '{}'",
@@ -320,8 +336,7 @@ mod tests {
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let provider_manager =
-            ProviderManager::new(None, None, None, None).expect("provider manager");
+        let provider_manager = ProviderManager::new(None, None, None).expect("provider manager");
         let op = InstallOperation::new(&provider_manager, &mut storage, &paths).expect("operation");
 
         let mut package = Package::with_defaults(
