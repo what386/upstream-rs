@@ -17,6 +17,9 @@
 - [ ] Fix snapshot import to avoid destructive pre-delete and guarantee rollback (high) #bug #data-loss
       @created 2026-04-10 02:54
 
+- [ ] Fix snapshot import to avoid destructive pre-delete and guarantee rollback (high) #bug #data-loss
+      @created 2026-04-10 02:54
+
 
 ## Completed
 
