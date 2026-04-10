@@ -95,7 +95,12 @@ impl<'a> PackageUpgrader<'a> {
 
         let latest_release = if force {
             self.provider_manager
-                .get_latest_release(&package.repo_slug, &package.provider, &package.channel)
+                .get_latest_release_for(
+                    &package.repo_slug,
+                    &package.provider,
+                    &package.channel,
+                    package.base_url.as_deref(),
+                )
                 .await
                 .context(format!(
                     "Failed to fetch latest release for '{}'",
@@ -229,11 +234,17 @@ impl<'a> PackageUpgrader<'a> {
 
             let icon_manager = IconManager::new(self.paths, &appimage_extractor);
             let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
+            let install_path = updated_package.install_path.clone().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Package '{}' has no install path after upgrade",
+                    updated_package.name
+                )
+            })?;
 
             let icon_path = icon_manager
                 .add_icon(
                     &updated_package.name,
-                    updated_package.install_path.as_ref().unwrap(),
+                    &install_path,
                     &updated_package.filetype,
                     message_callback,
                 )
@@ -246,7 +257,7 @@ impl<'a> PackageUpgrader<'a> {
 
             let _ = desktop_manager
                 .create_entry(
-                    updated_package.install_path.as_ref().unwrap(),
+                    &install_path,
                     &updated_package.filetype,
                     desktop_entry,
                     message_callback,
