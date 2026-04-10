@@ -26,6 +26,12 @@
 - [ ] Fix lock stale-recovery policy so active long-running operations are never stolen #bug #reliability
       @created 2026-04-10 02:54
 
+- [ ] Use per-package provider base_url in upgrade/import paths #bug #reliability
+      @created 2026-04-10 02:54
+
+- [ ] Replace runtime unwrap panic paths with actionable errors #bug #reliability
+      @created 2026-04-10 02:54
+
 
 ## Completed
 
