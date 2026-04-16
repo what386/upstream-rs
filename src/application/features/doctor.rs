@@ -391,10 +391,13 @@ pub fn run(names: Vec<String>) -> Result<()> {
             }
         }
 
-        if let Some(exec_path) = &package.exec_path {
+        if package.exec_path.is_some() {
             let link_path = expected_link_path(&paths.integration.symlinks_dir, &package.name);
             #[cfg(unix)]
             {
+                let Some(exec_path) = &package.exec_path else {
+                    unreachable!("checked above");
+                };
                 match inspect_unix_link(&link_path, exec_path) {
                     LinkStatus::Target {
                         raw_target,
