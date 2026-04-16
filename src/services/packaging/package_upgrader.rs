@@ -5,11 +5,13 @@ use crate::{
     },
     providers::provider_manager::ProviderManager,
     services::{
-        integration::{AppImageExtractor, DesktopManager, IconManager},
+        integration::{DesktopManager, IconManager},
         packaging::{PackageInstaller, PackageRemover},
     },
     utils::static_paths::UpstreamPaths,
 };
+#[cfg(target_os = "linux")]
+use crate::services::integration::AppImageExtractor;
 
 use anyhow::{Context, Result};
 use console::style;
@@ -229,11 +231,19 @@ impl<'a> PackageUpgrader<'a> {
         if had_desktop_integration {
             message!(message_callback, "Restoring desktop integration ...");
 
+            #[cfg(target_os = "linux")]
             let appimage_extractor =
                 AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
 
+            #[cfg(target_os = "linux")]
             let icon_manager = IconManager::new(self.paths, &appimage_extractor);
+            #[cfg(not(target_os = "linux"))]
+            let icon_manager = IconManager::new(self.paths);
+
+            #[cfg(target_os = "linux")]
             let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
+            #[cfg(not(target_os = "linux"))]
+            let desktop_manager = DesktopManager::new(self.paths);
             let install_path = updated_package.install_path.clone().ok_or_else(|| {
                 anyhow::anyhow!(
                     "Package '{}' has no install path after upgrade",
