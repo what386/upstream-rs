@@ -1887,7 +1887,6 @@ dependencies = [
  "winreg",
  "xz2",
  "zip",
- "zstd",
 ]
 
 [[package]]
