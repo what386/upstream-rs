@@ -21,7 +21,7 @@ shell-completions = ["dep:clap_complete"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
-reqwest = { version = "0.12", features = ["json", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "io-util", "process", "time"] }
@@ -29,9 +29,9 @@ futures-util = "0.3"
 anyhow = "1.0"
 dirs = "6.0"
 clap = { version = "4.5", features = ["derive"] }
-flate2 = "1.0"
+flate2 = { version = "1.0", default-features = false, features = ["zlib-rs"] }
 tar = "0.4"
-zip = { version = "7.2", default-features = false, features = ["deflate"] }
+zip = { version = "7.2", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 bzip2 = "0.6.1"
 indicatif = "0.18"
 glob = "0.3"
