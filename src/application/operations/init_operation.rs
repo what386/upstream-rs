@@ -2,14 +2,20 @@ use crate::utils::static_paths::UpstreamPaths;
 #[cfg(windows)]
 use anyhow::Context;
 use anyhow::Result;
+#[cfg(unix)]
 use std::collections::BTreeSet;
 use std::fs;
-use std::io::{self, Write};
+use std::io;
+#[cfg(unix)]
+use std::io::Write;
+#[cfg(unix)]
 use std::path::Path;
 
 // Unix shell source lines
+#[cfg(unix)]
 const SOURCE_LINE_BASH: &str =
     "[ -f $HOME/.upstream/metadata/paths.sh ] && source $HOME/.upstream/metadata/paths.sh";
+#[cfg(unix)]
 const SOURCE_LINE_FISH: &str = "source $HOME/.upstream/metadata/paths.sh";
 
 pub struct InitCheckReport {

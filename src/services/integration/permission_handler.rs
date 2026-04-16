@@ -1,4 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
+#[cfg(unix)]
+use anyhow::Context;
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -32,7 +34,7 @@ pub fn make_executable(exec_path: &Path) -> Result<()> {
 }
 
 #[cfg(windows)]
-pub fn make_executable(exec_path: &Path) -> Result<()> {
+pub fn make_executable(_exec_path: &Path) -> Result<()> {
     Ok(())
 }
 

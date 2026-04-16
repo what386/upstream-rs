@@ -1,9 +1,12 @@
 use anyhow::{Context, Result};
+#[cfg(unix)]
 use std::fs;
 use std::path::Path;
+#[cfg(unix)]
 use std::sync::{Mutex, OnceLock};
 
 /// Process-global lock used to serialize reads/writes to the shared PATH file.
+#[cfg(unix)]
 fn paths_file_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
@@ -58,6 +61,7 @@ impl<'a> ShellManager<'a> {
 
         #[cfg(windows)]
         {
+            let _ = self.paths_file;
             self.add_to_windows_registry(install_path)?;
         }
 
@@ -87,6 +91,7 @@ impl<'a> ShellManager<'a> {
 
         #[cfg(windows)]
         {
+            let _ = self.paths_file;
             self.remove_from_windows_registry(install_path)?;
         }
 
