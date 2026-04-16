@@ -1,8 +1,9 @@
 use crate::{
     models::common::{DesktopEntry, enums::Filetype},
-    services::integration::appimage_extractor::AppImageExtractor,
     utils::static_paths::UpstreamPaths,
 };
+#[cfg(target_os = "linux")]
+use crate::services::integration::appimage_extractor::AppImageExtractor;
 #[cfg(windows)]
 use anyhow::Context;
 use anyhow::{Result, anyhow};
@@ -14,6 +15,7 @@ use std::{
 #[cfg(windows)]
 use std::process::Command;
 
+#[cfg(target_os = "linux")]
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
         if let Some(cb) = $cb.as_mut() {
@@ -29,12 +31,17 @@ pub struct DesktopManager<'a> {
 }
 
 impl<'a> DesktopManager<'a> {
+    #[cfg(target_os = "linux")]
     pub fn new(paths: &'a UpstreamPaths, extractor: &'a AppImageExtractor) -> Self {
         Self {
             paths,
-            #[cfg(target_os = "linux")]
             extractor,
         }
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn new(paths: &'a UpstreamPaths) -> Self {
+        Self { paths }
     }
 
     pub async fn create_entry<H>(
