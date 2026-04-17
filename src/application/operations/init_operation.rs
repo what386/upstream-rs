@@ -1,3 +1,4 @@
+use crate::services::storage::config_storage::ConfigStorage;
 use crate::utils::static_paths::UpstreamPaths;
 #[cfg(windows)]
 use anyhow::Context;
@@ -35,6 +36,7 @@ fn normalize_windows_path(path: &str) -> String {
 pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
     create_package_dirs(paths)?;
     create_metadata_files(paths)?;
+    create_default_config_file(paths)?;
 
     #[cfg(windows)]
     add_to_windows_path(paths)?;
@@ -70,6 +72,19 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
                 .messages
                 .push(format!("[FAIL] {} missing: {}", label, path.display()));
         }
+    }
+
+    if paths.config.config_file.exists() {
+        report.messages.push(format!(
+            "[OK] config file exists: {}",
+            paths.config.config_file.display()
+        ));
+    } else {
+        report.ok = false;
+        report.messages.push(format!(
+            "[FAIL] config file missing: {}",
+            paths.config.config_file.display()
+        ));
     }
 
     #[cfg(unix)]
@@ -170,6 +185,16 @@ fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
     fs::create_dir_all(&paths.install.archives_dir)?;
     fs::create_dir_all(&paths.integration.icons_dir)?;
     fs::create_dir_all(&paths.integration.symlinks_dir)?;
+    Ok(())
+}
+
+fn create_default_config_file(paths: &UpstreamPaths) -> Result<()> {
+    if paths.config.config_file.exists() {
+        return Ok(());
+    }
+
+    let storage = ConfigStorage::new(&paths.config.config_file)?;
+    storage.save_config()?;
     Ok(())
 }
 
