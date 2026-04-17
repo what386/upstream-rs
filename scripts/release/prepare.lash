@@ -30,8 +30,4 @@ tally changelog > CHANGELOG.md
 git add CHANGELOG.md TODO.md .tally/history.json
 git commit -m "Release $version: update changelog"
 
-echo -e $"{BLUE}Pushing dev to remotes...{NC}"
-git push github dev
-git push gitea dev
-
 echo -e $"{GREEN}Release $version prepared. Review the changelog, then run promote.lash $version.{NC}"
