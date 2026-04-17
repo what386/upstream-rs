@@ -1,0 +1,287 @@
+
+use builtin;
+use str;
+
+set edit:completion:arg-completer[upstream] = {|@words|
+    fn spaces {|n|
+        builtin:repeat $n ' ' | str:join ''
+    }
+    fn cand {|text desc|
+        edit:complex-candidate $text &display=$text' '(spaces (- 14 (wcswidth $text)))$desc
+    }
+    var command = 'upstream'
+    for word $words[1..-1] {
+        if (str:has-prefix $word '-') {
+            break
+        }
+        set command = $command';'$word
+    }
+    var completions = [
+        &'upstream'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand -V 'Print version'
+            cand --version 'Print version'
+            cand install 'Install a package from a GitHub release'
+            cand remove 'Remove one or more installed packages'
+            cand upgrade 'Upgrade installed packages to their latest versions'
+            cand list 'List installed packages and their metadata'
+            cand probe 'Inspect releases visible from a provider without installing'
+            cand config 'Manage upstream configuration'
+            cand package 'Manage package-specific settings and metadata'
+            cand init 'Initialize upstream by adding it to your shell PATH'
+            cand import 'Import packages from a manifest or full snapshot'
+            cand export 'Export packages to a manifest or full snapshot'
+            cand doctor 'Run diagnostics to detect installation and integration issues'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;install'= {
+            cand -t 'Version tag to install (defaults to latest)'
+            cand --tag 'Version tag to install (defaults to latest)'
+            cand -k 'File type to install'
+            cand --kind 'File type to install'
+            cand -p 'Source provider hosting the repository'
+            cand --provider 'Source provider hosting the repository'
+            cand --base-url 'Custom base URL. Defaults to provider''s root'
+            cand -c 'Update channel to track'
+            cand --channel 'Update channel to track'
+            cand -m 'Match pattern to use as a hint for which asset to prefer'
+            cand --match-pattern 'Match pattern to use as a hint for which asset to prefer'
+            cand -e 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")'
+            cand --exclude-pattern 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")'
+            cand -d 'Whether or not to create a .desktop entry for GUI applications'
+            cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
+            cand --ignore-checksums 'Skip checksum verification for downloaded assets'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;remove'= {
+            cand --purge 'Remove all associated cached data'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;upgrade'= {
+            cand --force 'Force upgrade even if already up to date'
+            cand --check 'Check for available upgrades without applying them'
+            cand --machine-readable 'Use script-friendly check output: one line per update, "name oldver newver"'
+            cand --ignore-checksums 'Skip checksum verification for downloaded assets'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;list'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;probe'= {
+            cand -p 'Source provider (defaults to github, or scraper for URLs)'
+            cand --provider 'Source provider (defaults to github, or scraper for URLs)'
+            cand --base-url 'Custom base URL for self-hosted providers'
+            cand -c 'Channel view to display'
+            cand --channel 'Channel view to display'
+            cand --limit 'Maximum number of releases to display'
+            cand --verbose 'Include scored candidate assets for each release'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;config'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand set 'Set configuration values'
+            cand get 'Get configuration values'
+            cand list 'List all configuration keys'
+            cand edit 'Open configuration file in your default editor'
+            cand reset 'Reset configuration to defaults'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;config;set'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;config;get'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;config;list'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'upstream;config;edit'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'upstream;config;reset'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'upstream;config;help'= {
+            cand set 'Set configuration values'
+            cand get 'Get configuration values'
+            cand list 'List all configuration keys'
+            cand edit 'Open configuration file in your default editor'
+            cand reset 'Reset configuration to defaults'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;config;help;set'= {
+        }
+        &'upstream;config;help;get'= {
+        }
+        &'upstream;config;help;list'= {
+        }
+        &'upstream;config;help;edit'= {
+        }
+        &'upstream;config;help;reset'= {
+        }
+        &'upstream;config;help;help'= {
+        }
+        &'upstream;package'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand pin 'Pin a package to its current version'
+            cand unpin 'Unpin a package to allow updates'
+            cand get-key 'Get specific package metadata fields'
+            cand set-key 'Manually set package metadata fields'
+            cand rename 'Rename package alias without reinstalling'
+            cand metadata 'Display all metadata for a package'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;package;pin'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;package;unpin'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;package;get-key'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;package;set-key'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;package;rename'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;package;metadata'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;package;help'= {
+            cand pin 'Pin a package to its current version'
+            cand unpin 'Unpin a package to allow updates'
+            cand get-key 'Get specific package metadata fields'
+            cand set-key 'Manually set package metadata fields'
+            cand rename 'Rename package alias without reinstalling'
+            cand metadata 'Display all metadata for a package'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;package;help;pin'= {
+        }
+        &'upstream;package;help;unpin'= {
+        }
+        &'upstream;package;help;get-key'= {
+        }
+        &'upstream;package;help;set-key'= {
+        }
+        &'upstream;package;help;rename'= {
+        }
+        &'upstream;package;help;metadata'= {
+        }
+        &'upstream;package;help;help'= {
+        }
+        &'upstream;init'= {
+            cand --clean 'Clean initialization (remove existing hooks first)'
+            cand --check 'Check initialization status without making changes'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;import'= {
+            cand --skip-failed 'Continue importing remaining packages when a package install/upgrade fails'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;export'= {
+            cand --full 'Export a full snapshot of the upstream directory instead of a manifest'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;doctor'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;help'= {
+            cand install 'Install a package from a GitHub release'
+            cand remove 'Remove one or more installed packages'
+            cand upgrade 'Upgrade installed packages to their latest versions'
+            cand list 'List installed packages and their metadata'
+            cand probe 'Inspect releases visible from a provider without installing'
+            cand config 'Manage upstream configuration'
+            cand package 'Manage package-specific settings and metadata'
+            cand init 'Initialize upstream by adding it to your shell PATH'
+            cand import 'Import packages from a manifest or full snapshot'
+            cand export 'Export packages to a manifest or full snapshot'
+            cand doctor 'Run diagnostics to detect installation and integration issues'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;help;install'= {
+        }
+        &'upstream;help;remove'= {
+        }
+        &'upstream;help;upgrade'= {
+        }
+        &'upstream;help;list'= {
+        }
+        &'upstream;help;probe'= {
+        }
+        &'upstream;help;config'= {
+            cand set 'Set configuration values'
+            cand get 'Get configuration values'
+            cand list 'List all configuration keys'
+            cand edit 'Open configuration file in your default editor'
+            cand reset 'Reset configuration to defaults'
+        }
+        &'upstream;help;config;set'= {
+        }
+        &'upstream;help;config;get'= {
+        }
+        &'upstream;help;config;list'= {
+        }
+        &'upstream;help;config;edit'= {
+        }
+        &'upstream;help;config;reset'= {
+        }
+        &'upstream;help;package'= {
+            cand pin 'Pin a package to its current version'
+            cand unpin 'Unpin a package to allow updates'
+            cand get-key 'Get specific package metadata fields'
+            cand set-key 'Manually set package metadata fields'
+            cand rename 'Rename package alias without reinstalling'
+            cand metadata 'Display all metadata for a package'
+        }
+        &'upstream;help;package;pin'= {
+        }
+        &'upstream;help;package;unpin'= {
+        }
+        &'upstream;help;package;get-key'= {
+        }
+        &'upstream;help;package;set-key'= {
+        }
+        &'upstream;help;package;rename'= {
+        }
+        &'upstream;help;package;metadata'= {
+        }
+        &'upstream;help;init'= {
+        }
+        &'upstream;help;import'= {
+        }
+        &'upstream;help;export'= {
+        }
+        &'upstream;help;doctor'= {
+        }
+        &'upstream;help;help'= {
+        }
+    ]
+    $completions[$command]
+}
