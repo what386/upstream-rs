@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.5.3
+# TODO — upstream-cli v1.5.4
 
 @created: 2026-01-31
 @modified: 2026-04-17
@@ -85,4 +85,5 @@
 - [x] bug: fix build error on macos
       @created 2026-04-17 02:40
       @completed 2026-04-17 02:40
+      @completed_version 1.5.4
 
