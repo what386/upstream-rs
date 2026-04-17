@@ -1,0 +1,36 @@
+#!/bin/env -S lash run
+set -euo pipefail
+
+readonly RED = "\033[0;31m"
+readonly GREEN = "\033[0;32m"
+readonly BLUE = "\033[0;34m"
+readonly NC = "\033[0m"
+
+if #argv == 0 || #argv > 1
+    echo -e $"{RED}Usage: promote <version>{NC}"
+    exit 1
+end
+
+let version = argv[0]
+
+if $(git branch --show-current) != "dev"
+    echo -e $"{RED}Not on dev branch{NC}"
+    exit 1
+end
+
+echo -e $"{BLUE}Merging dev into main...{NC}"
+git checkout main
+git merge dev -m "Merge dev into main for $version"
+
+echo -e $"{BLUE}Tagging $version...{NC}"
+git tag $version
+
+echo -e $"{BLUE}Pushing main and tag to remotes...{NC}"
+git push github main
+git push gitea main
+git push github $version
+git push gitea $version
+
+git checkout dev
+
+echo -e $"{GREEN}Promoted $version to main. Run publish.lash $version to publish.{NC}"

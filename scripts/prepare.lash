@@ -1,0 +1,37 @@
+#!/bin/env -S lash run
+set -euo pipefail
+
+readonly RED = "\033[0;31m"
+readonly GREEN = "\033[0;32m"
+readonly BLUE = "\033[0;34m"
+readonly NC = "\033[0m"
+
+if #argv == 0 || #argv > 1
+    echo -e $"{RED}Usage: prepare <version>{NC}"
+    exit 1
+end
+
+let version = argv[0]
+
+if $(git branch --show-current) != "dev"
+    echo -e $"{RED}Not on dev branch{NC}"
+    exit 1
+end
+
+tally semver $version
+
+if $(tally list --done --semver $version) == "No tasks found."
+    echo -e $"{RED}No completed tasks for version $version.{NC}"
+    exit 1
+end
+
+echo -e $"{BLUE}Generating changelog...{NC}"
+tally changelog > CHANGELOG.md
+git add CHANGELOG.md TODO.md .tally/history.json
+git commit -m "Release $version: update changelog"
+
+echo -e $"{BLUE}Pushing dev to remotes...{NC}"
+git push github dev
+git push gitea dev
+
+echo -e $"{GREEN}Release $version prepared. Review the changelog, then run promote.lash $version.{NC}"
