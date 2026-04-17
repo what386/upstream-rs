@@ -29,11 +29,9 @@ git merge dev -m "Merge dev into main for $version"
 echo -e $"{BLUE}Tagging $version...{NC}"
 git tag $version
 
-echo -e $"{BLUE}Pushing main and tag to remotes...{NC}"
+echo -e $"{BLUE}Pushing main to remotes...{NC}"
 git push github main
 git push gitea main
-git push github $version
-git push gitea $version
 
 git checkout dev
 
