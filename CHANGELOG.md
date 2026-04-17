@@ -2,6 +2,13 @@
 
 *Generated on 2026-04-17*
 
+## 1.5.4 — 2026-04-17
+
+### Changes
+
+- bug: fix build error on macos
+
+
 ## 1.5.3 — 2026-04-17
 
 ### Changes
