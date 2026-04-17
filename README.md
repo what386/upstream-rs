@@ -87,7 +87,7 @@ upstream install mytool owner/repo
 Example:
 
 ```bash
-upstream install ripgrep BurntSushi/ripgrep
+upstream install rg BurntSushi/ripgrep
 ```
 
 ---
