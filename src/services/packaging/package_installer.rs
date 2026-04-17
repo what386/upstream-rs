@@ -170,9 +170,17 @@ impl<'a> PackageInstaller<'a> {
         package.version = release.version.clone();
 
         match package.filetype {
-            Filetype::AppImage => self
-                .handle_appimage(&download_path, package, message_callback)
-                .context("Failed to install AppImage"),
+            Filetype::AppImage => {
+                #[cfg(target_os = "linux")]
+                {
+                    self.handle_appimage(&download_path, package, message_callback)
+                        .context("Failed to install AppImage")
+                }
+                #[cfg(not(target_os = "linux"))]
+                {
+                    anyhow::bail!("AppImage installation is only supported on Linux hosts");
+                }
+            }
             Filetype::MacApp => BundleHandler::new(self.paths, &self.extract_cache)
                 .install_app_bundle(&download_path, package, message_callback)
                 .context("Failed to install macOS app bundle"),
@@ -342,6 +350,7 @@ impl<'a> PackageInstaller<'a> {
         self.handle_file(&extracted_path, package, message_callback)
     }
 
+    #[cfg(target_os = "linux")]
     fn handle_appimage<H>(
         &self,
         asset_path: &Path,
