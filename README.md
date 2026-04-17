@@ -1,278 +1,256 @@
-# Upstream Package Manager
+# Upstream
 
-**Upstream** is a rootless package manager for "raw" release channels. It installs and updates software from source-code providers like Github as well as normal download pages via web scraping. Upstream supports multiple asset types, tracks update channels, and automatically selects the best asset for your OS and CPU architecture.
+**Upstream** is a rootless package manager for installing software directly from release sources like GitHub, GitLab, and arbitrary download pages.
 
----
-
-## **Table of Contents**
-
-1. [Features](#features)
-2. [Installation](#installation)
-   1. [Auto Install (Recommended)](#auto-install-recommended)
-   2. [Install via Cargo (Crates.io)](#install-via-cargo-cratesio)
-   3. [Manual Installation](#manual-installation)
-   4. [Build from Source](#build-from-source)
-
-3. [Usage](#usage)
-   1. [Initialize Hooks](#initialize-hooks)
-   2. [Install a Package](#install-a-package)
-   3. [Remove Packages](#remove-packages)
-   4. [Upgrade Packages](#upgrade-packages)
-   5. [List Installed Packages](#list-installed-packages)
-   6. [Configuration Management](#configuration-management)
-   7. [Package Management](#package-management)
-   8. [Import and Export](#import-and-export)
-
-4. [Architecture Detection](#architecture-detection)
+It fetches release assets, selects the best match for your system, and keeps them updated.
 
 ---
 
-## **Features**
+## Features
 
-- Install packages from GitHub, GitLab, Gitea, direct HTTP, and web sources via scraping.
-- Automatically detect system architecture (x86_64, ARM64) and OS (Linux, macOS).
-- Supports binaries, archives, AppImages, and compressed files.
-- Rootless, user-level installation.
-- Track multiple update channels (stable, preview, nightly).
-- HTTP-backed providers for direct asset URLs (`direct`) and asset discovery from pages (`scraper`).
+* Install from GitHub, GitLab, Gitea, direct URLs, or scraped pages
+* Automatic OS + architecture detection (Linux/macOS, x86_64/ARM)
+* Supports binaries, archives, AppImages, and compressed files
+* Rootless (user-level installs)
+* Track update channels: `stable`, `preview`, `nightly`
+* Flexible asset matching and filtering
 
 ---
 
-## **Installation**
+## Installation
 
-### **Auto Install (Recommended)**
-
-The easiest way to install **Upstream** is via the install script. This downloads the latest binary, sets it up in your user path, and enables self-updates.
-
-#### Linux
+### Recommended (auto-install)
 
 ```bash
+# Linux
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.bash | bash
-```
 
-#### Windows
+# macOS
+curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.zsh | zsh
 
-```powershell
+# Windows (PowerShell)
 iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.ps1 | iex
 ```
 
-#### MacOS
-
-```zsh
-curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.zsh | zsh
-```
-
-- Ensures **Upstream** can update itself automatically.
+This installs the binary and enables self-updates.
 
 ---
 
-### **Install via Cargo (Crates.io)**
-
-Since **Upstream** is published on crates.io, you can install it directly with Cargo:
+### Install with Cargo
 
 ```bash
 cargo install upstream-rs
 ```
 
-- Cargo builds the binary and places it in `$CARGO_HOME/bin` (usually `~/.cargo/bin`).
-- Make sure this directory is in your `PATH`:
+Ensure Cargo bin is in PATH:
 
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
-- To update later:
-
-```bash
-cargo install --force upstream-rs
-```
-
-> ⚠️ Installing via Cargo **does not enable self-updates** via Upstream’s "upgrade" mechanism. Use the auto-install script for self-contained updates, or use cargo to update Upstream.
+> ⚠️ Cargo installs do not support `upstream upgrade` self-updates.
 
 ---
 
-### **Manual Installation**
+### Manual install
 
-1. Download the [latest release](https://github.com/what386/upstream/releases/latest) for your platform.
-2. For Unix-like systems, Ensure it is executable:
+1. Download a release from
+   [https://github.com/what386/upstream/releases/latest](https://github.com/what386/upstream/releases/latest)
+2. Make it executable:
 
 ```bash
-chmod +x path/to/upstream-rs
+chmod +x upstream-rs
 ```
 
-> ⚠️ Manual installation **does not enable self-updates**.
-> To enable self-updates:
+Optional: install upstream via itself:
 
 ```bash
-{path/to/upstream} install upstream what386/upstream-rs -k binary
+./upstream-rs install upstream what386/upstream-rs -k binary
 ```
 
 ---
 
-### **Build from Source**
+## Quick Start
 
-Requires [Rust and Cargo](https://www.rust-lang.org/tools/install):
-
-```bash
-git clone https://github.com/what386/upstream-rs.git
-cd upstream
-cargo build --release
-```
-
-Executable location:
-
-```text
-./target/release/upstream-rs
-```
-
-> Manual builds **do not enable self-updates**.
-
----
-
-## **Usage**
-
-All commands support `--help`:
-
-```bash
-upstream <command> --help
-```
-
----
-
-### **Initialize Hooks**
+### Initialize
 
 ```bash
 upstream init
 ```
 
-- Hooks Upstream into your system’s PATH.
-- Use `upstream init --clean` to remove existing hooks first.
-
----
-
-### **Install a Package**
+### Install a package
 
 ```bash
-upstream install <name> <owner>/<repo> [--kind <type>] [--channel <channel>] [--desktop]
+upstream install mytool owner/repo
 ```
 
 Example:
 
 ```bash
-upstream install mytool foo/my-cool-app --kind binary --desktop
-```
-
-- `<name>` → local alias used for future management.
-- `<repo_slug>` → repository identifier (`owner/repo`).
-- `-k` / `--kind` → asset type (`auto`, `app-image`, `archive`, `compressed`, `binary`, `win-exe`, `checksum`).
-- `-p` / `--provider` → provider to source from (`github`, `gitlab`, `gitea`, `scraper`, `direct`; default `github`).
-- `-c` / `--channel` → track `stable`, `preview`, or `nightly` (default `stable`).
-- `-t` / `--tag` → install a specific release tag.
-- `-m` / `--match-pattern` → prefer assets matching a pattern.
-- `-e` / `--exclude-pattern` → avoid assets matching a pattern.
-- `-d` / `--desktop` → optional `.desktop` entry creation.
-
-HTTP provider examples:
-
-```bash
-# Install directly from a file URL
-upstream install awesomeapp https://example.com/awesomeapp.tar.gz -p direct -k archive
-
-# Discover downloadable assets from a release page
-upstream install mytool https://example.com/downloads -p scraper
+upstream install ripgrep BurntSushi/ripgrep
 ```
 
 ---
 
-### **Remove Packages**
+### Upgrade
 
 ```bash
-upstream remove <package1> <package2> ... [--purge]
+upstream upgrade
 ```
-
-- Uninstall packages.
-- `--purge` → also remove package-named config/cache/data directories and upstream-owned desktop/icon artifacts when present.
 
 ---
 
-### **Upgrade Packages**
+### Remove
 
 ```bash
-upstream upgrade [<package1> <package2> ...] [--force] [--check]
+upstream remove mytool
 ```
-
-- Updates specified packages, or **all** if no names are given.
-- `--force` → reinstall, even if up-to-date.
-- `--check` → preview updates without applying them.
 
 ---
 
-### **List Installed Packages**
+### List
 
 ```bash
-upstream list [<package>]
+upstream list
 ```
-
-- No arguments → list all installed packages with metadata.
-- With a package name → show detailed metadata for that package.
 
 ---
 
-### **Configuration Management**
+## Usage
+
+### Install
 
 ```bash
-upstream config <action> [options]
+upstream install <name> <source> [options]
 ```
 
-Available actions:
+* `<name>` → local alias
+* `<source>` → repo (`owner/repo`) or URL
 
-| Action  | Description                                                                                      |
-| ------- | ------------------------------------------------------------------------------------------------ |
-| `set`   | Set configuration keys (`key.path=value`). Example: `upstream config set github.api_token=abc123` |
-| `get`   | Retrieve keys. Example: `upstream config get github.api_token`                                    |
-| `list`  | List all keys and their values.                                                                  |
-| `edit`  | Open configuration file in editor.                                                               |
-| `reset` | Reset configuration to defaults.                                                                 |
+Options:
+
+* `--kind` → asset type (`auto`, `archive`, `binary`, etc.)
+* `--provider` → `github`, `gitlab`, `gitea`, `direct`, `scraper`
+* `--channel` → `stable`, `preview`, `nightly`
+* `--tag` → specific version
+* `--match-pattern` / `--exclude-pattern`
+* `--desktop` → create launcher entry
+
+Examples:
+
+```bash
+# GitHub install
+upstream install fd sharkdp/fd
+
+# Direct download
+upstream install app https://example.com/app.tar.gz -p direct -k archive
+
+# Scrape a page
+upstream install tool https://example.com/downloads -p scraper
+```
 
 ---
 
-### **Package Management**
+### Upgrade
 
 ```bash
-upstream package <action> [options]
+upstream upgrade [packages...] [--check] [--force]
 ```
-
-Available actions:
-
-| Action     | Description                                                                                |
-| ---------- | ------------------------------------------------------------------------------------------ |
-| `pin`      | Pin a package to prevent upgrades. Example: `upstream package pin nvim`                    |
-| `unpin`    | Unpin a package. Example: `upstream package unpin nvim`                                    |
-| `metadata` | Show full package metadata as JSON. Example: `upstream package metadata nvim`              |
-| `get-key`  | Read specific metadata keys. Example: `upstream package get-key nvim install_path version` |
-| `set-key`  | Update metadata keys manually. Example: `upstream package set-key nvim is_pinned=false`    |
 
 ---
 
-### **Import and Export**
+### Remove
 
 ```bash
-upstream export <path> [--full]
-upstream import <path>
+upstream remove <packages...> [--purge]
 ```
-
-- `export <path>` writes a manifest of installed packages.
-- `export <path> --full` creates a full snapshot tarball of the upstream directory.
-- `import <path>` restores packages from a manifest or full snapshot archive.
 
 ---
 
-## **Architecture Detection**
+### Config
 
-Upstream automatically detects OS and CPU:
+```bash
+upstream config set key=value
+upstream config get key
+upstream config list
+upstream config edit
+```
 
-- Linux → x86, ARM
-- macOS → x86, ARM
+---
 
-It selects the best asset for your system based on filename patterns and extensions.
-If installs fail, please open an issue.
+### Package management
+
+```bash
+upstream package pin <name>
+upstream package unpin <name>
+upstream package metadata <name>
+```
+
+---
+
+### Import / Export
+
+```bash
+upstream export file.json
+upstream import file.json
+```
+
+---
+
+## Shell Completions
+
+Download a completion file from releases or generate one.
+
+### Install
+
+#### Bash
+
+```bash
+mkdir -p ~/.local/share/bash-completion/completions
+cp upstream ~/.local/share/bash-completion/completions/
+```
+
+#### Fish
+
+```fish
+mkdir -p ~/.config/fish/completions
+cp upstream.fish ~/.config/fish/completions/
+```
+
+#### Zsh
+
+```zsh
+mkdir -p ~/.zfunc
+cp _upstream ~/.zfunc/
+```
+
+Add to `.zshrc` if needed:
+
+```zsh
+fpath=(~/.zfunc $fpath)
+autoload -Uz compinit && compinit
+```
+
+---
+
+## Architecture Detection
+
+Upstream automatically selects assets based on:
+
+* OS: Linux, macOS
+* Arch: x86_64, ARM64
+
+Selection is based on filename patterns and extensions.
+
+---
+
+## Notes
+
+* Upstream installs packages in user space (no root required)
+* It does not manage system dependencies
+
+---
+
+## License
+
+MIT OR Apache-2.0
