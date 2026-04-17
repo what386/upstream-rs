@@ -275,13 +275,15 @@ impl Commands {
                 action,
                 PackageAction::GetKey { .. } | PackageAction::Metadata { .. }
             ),
+            Commands::Config { action } => {
+                !matches!(action, ConfigAction::Get { .. } | ConfigAction::List)
+            }
             Commands::Install { .. }
             | Commands::Remove { .. }
             | Commands::Upgrade { .. }
             | Commands::Probe { .. }
             | Commands::Import { .. }
-            | Commands::Export { .. }
-            | Commands::Config { .. } => true,
+            | Commands::Export { .. } => true,
         }
     }
 }
@@ -459,6 +461,20 @@ mod tests {
             }
             .requires_lock()
         );
+        assert!(
+            !Commands::Config {
+                action: ConfigAction::Get {
+                    keys: vec!["github.api_token".to_string()],
+                },
+            }
+            .requires_lock()
+        );
+        assert!(
+            !Commands::Config {
+                action: ConfigAction::List,
+            }
+            .requires_lock()
+        );
     }
 
     #[test]
@@ -491,8 +507,8 @@ mod tests {
         );
         assert!(
             Commands::Config {
-                action: ConfigAction::Get {
-                    keys: vec!["github.api_token".to_string()],
+                action: ConfigAction::Set {
+                    keys: vec!["github.api_token=ghp_xxx".to_string()],
                 },
             }
             .requires_lock()
@@ -501,6 +517,18 @@ mod tests {
             Commands::Export {
                 path: "packages.json".into(),
                 full: false,
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Config {
+                action: ConfigAction::Edit,
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Config {
+                action: ConfigAction::Reset,
             }
             .requires_lock()
         );

@@ -19,14 +19,31 @@ impl ConfigStorage {
             config_file: config_file.to_path_buf(),
         };
 
-        storage.load_config()?;
+        storage.load_config_with_policy(true)?;
+        Ok(storage)
+    }
+
+    pub fn read_only(config_file: &Path) -> Result<Self> {
+        let mut storage = Self {
+            config: AppConfig::default(),
+            config_file: config_file.to_path_buf(),
+        };
+
+        storage.load_config_with_policy(false)?;
         Ok(storage)
     }
 
     /// Loads configuration from config.toml, or creates default if it doesn't exist.
     pub fn load_config(&mut self) -> Result<()> {
+        self.load_config_with_policy(true)
+    }
+
+    fn load_config_with_policy(&mut self, create_if_missing: bool) -> Result<()> {
         if !self.config_file.exists() {
-            return self.save_config();
+            if create_if_missing {
+                return self.save_config();
+            }
+            return Ok(());
         }
 
         let toml_str =
@@ -215,6 +232,21 @@ mod tests {
 
         let storage = ConfigStorage::new(&path).expect("create storage");
         assert!(path.exists());
+        assert_eq!(storage.get_config().github.rate_limit, 5000);
+        assert_eq!(storage.get_config().gitlab.rate_limit, 5000);
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn read_only_does_not_create_file_when_missing() {
+        let path = temp_config_file("read-only-no-create");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+
+        let storage = ConfigStorage::read_only(&path).expect("create read-only storage");
+        assert!(!path.exists());
         assert_eq!(storage.get_config().github.rate_limit, 5000);
         assert_eq!(storage.get_config().gitlab.rate_limit, 5000);
 
