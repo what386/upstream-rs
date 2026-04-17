@@ -25,7 +25,7 @@ pub fn run_set(set_keys: Vec<String>) -> Result<()> {
 
 pub fn run_get(get_keys: Vec<String>) -> Result<()> {
     let paths = UpstreamPaths::new();
-    let mut config_storage = ConfigStorage::read_only(&paths.config.config_file)?;
+    let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
     let config_updater = ConfigUpdater::new(&mut config_storage);
 
     let mut message_callback = Some(move |msg: &str| {
@@ -47,7 +47,7 @@ pub fn run_get(get_keys: Vec<String>) -> Result<()> {
 
 pub fn run_list() -> Result<()> {
     let paths = UpstreamPaths::new();
-    let config_storage = ConfigStorage::read_only(&paths.config.config_file)?;
+    let config_storage = ConfigStorage::new(&paths.config.config_file)?;
 
     let flattened = config_storage.get_flattened_config();
 
