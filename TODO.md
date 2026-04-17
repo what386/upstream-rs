@@ -14,9 +14,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] behavior: config reads no longer autocreates config file
-      @created 2026-04-17 02:31
-
 
 ## Completed
 
@@ -79,4 +76,8 @@
       @created 2026-04-10 02:54
       @completed 2026-04-10 03:02
       @completed_version 1.5.2
+
+- [x] behavior: config reads no longer autocreates config file
+      @created 2026-04-17 02:31
+      @completed 2026-04-17 02:31
 

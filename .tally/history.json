@@ -618,5 +618,15 @@
       "patch": 0,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "behavior: config reads no longer autocreates config file",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-04-17T02:31:59.666619779Z"
+    },
+    "version": null
   }
 ]
