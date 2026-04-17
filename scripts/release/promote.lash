@@ -23,6 +23,4 @@ echo -e $"{BLUE}Pushing main to remotes...{NC}"
 git push github main
 git push gitea main
 
-git checkout dev
-
 echo -e $"{GREEN}Promoted dev to main.{NC}"
