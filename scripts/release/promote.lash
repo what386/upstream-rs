@@ -17,7 +17,7 @@ git push gitea dev
 
 echo -e $"{BLUE}Merging dev into main...{NC}"
 git checkout main
-git merge dev -m "Merge dev into main for $version"
+git merge dev -m "Merge dev into main"
 
 echo -e $"{BLUE}Pushing main to remotes...{NC}"
 git push github main
