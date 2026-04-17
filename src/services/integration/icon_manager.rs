@@ -1,7 +1,9 @@
 use crate::{
-    models::common::enums::Filetype, services::integration::appimage_extractor::AppImageExtractor,
+    models::common::enums::Filetype,
     utils::static_paths::UpstreamPaths,
 };
+#[cfg(target_os = "linux")]
+use crate::services::integration::appimage_extractor::AppImageExtractor;
 use anyhow::{Result, anyhow};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -16,12 +18,19 @@ macro_rules! message {
 
 pub struct IconManager<'a> {
     paths: &'a UpstreamPaths,
+    #[cfg(target_os = "linux")]
     extractor: &'a AppImageExtractor,
 }
 
 impl<'a> IconManager<'a> {
+    #[cfg(target_os = "linux")]
     pub fn new(paths: &'a UpstreamPaths, extractor: &'a AppImageExtractor) -> Self {
         Self { paths, extractor }
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn new(paths: &'a UpstreamPaths) -> Self {
+        Self { paths }
     }
 
     pub async fn add_icon<H>(
@@ -36,9 +45,16 @@ impl<'a> IconManager<'a> {
     {
         let icon_path = match filetype {
             Filetype::AppImage => {
-                let squashfs_root = self.extractor.extract(name, path, message_callback).await?;
-                Self::search_for_best_icon(&squashfs_root, name, message_callback)
-                    .or_else(|| Self::search_system_icons(name, message_callback))
+                #[cfg(target_os = "linux")]
+                {
+                    let squashfs_root = self.extractor.extract(name, path, message_callback).await?;
+                    Self::search_for_best_icon(&squashfs_root, name, message_callback)
+                        .or_else(|| Self::search_system_icons(name, message_callback))
+                }
+                #[cfg(not(target_os = "linux"))]
+                {
+                    anyhow::bail!("AppImage integration is only supported on Linux hosts");
+                }
             }
             Filetype::Archive => Self::search_for_best_icon(path, name, message_callback)
                 .or_else(|| Self::search_system_icons(name, message_callback)),
