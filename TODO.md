@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.5.2
+# TODO — upstream-cli v1.5.3
 
 @created: 2026-01-31
 @modified: 2026-04-17
@@ -80,4 +80,5 @@
 - [x] behavior: config reads no longer autocreates config file
       @created 2026-04-17 02:31
       @completed 2026-04-17 02:31
+      @completed_version 1.5.3
 
