@@ -16,6 +16,15 @@ test:
 run *args:
     cargo run -- {{args}}
 
+prepare version:
+    lash run scripts/release/prepare.lash {{version}}
+
+promote version:
+    lash run scripts/release/promote.lash {{version}}
+
+publish version:
+    lash run scripts/release/publish.lash {{version}}
+
 gen-completions:
     #!/usr/bin/env bash
     for shell in bash fish powershell zsh elvish; do
