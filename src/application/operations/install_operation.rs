@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+use crate::services::integration::AppImageExtractor;
 use crate::{
     models::common::DesktopEntry,
     models::upstream::Package,
@@ -8,8 +10,6 @@ use crate::{
     },
     utils::static_paths::UpstreamPaths,
 };
-#[cfg(target_os = "linux")]
-use crate::services::integration::AppImageExtractor;
 
 use crate::services::packaging::PackageInstaller;
 

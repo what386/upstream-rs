@@ -36,6 +36,10 @@ fn main() {
     }
 }
 
-fn generate_for_shell<G: Generator>(generator: G, cmd: &mut clap::Command, out: &mut dyn io::Write) {
+fn generate_for_shell<G: Generator>(
+    generator: G,
+    cmd: &mut clap::Command,
+    out: &mut dyn io::Write,
+) {
     generate(generator, cmd, "upstream", out);
 }

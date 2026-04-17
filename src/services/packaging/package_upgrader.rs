@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+use crate::services::integration::AppImageExtractor;
 use crate::{
     models::{
         common::{DesktopEntry, enums::Channel},
@@ -10,8 +12,6 @@ use crate::{
     },
     utils::static_paths::UpstreamPaths,
 };
-#[cfg(target_os = "linux")]
-use crate::services::integration::AppImageExtractor;
 
 use anyhow::{Context, Result};
 use console::style;
