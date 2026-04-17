@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-04-10*
+*Generated on 2026-04-17*
+
+## 1.5.3 — 2026-04-17
+
+### Changes
+
+- behavior: config reads no longer autocreates config file
+
 
 ## 1.5.2 — 2026-04-10
 
