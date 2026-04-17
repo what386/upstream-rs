@@ -16,10 +16,17 @@ end
 
 let version = argv[0]
 
-if $(git tag --list $version) == ""
-    echo -e $"{RED}Tag $version not found. Has promote.lash been run?{NC}"
+if $(git branch --show-current) != "main"
+    echo -e $"{RED}Not on main branch{NC}"
     exit 1
 end
+
+if $(git tag --list $version) != ""
+    echo -e $"{RED}Tag $version already exists.{NC}"
+    exit 1
+end
+
+git tag $version
 
 @if PUBLISH_GITHUB == "true"
 echo -e $"{BLUE}Publishing release on GitHub...{NC}"

@@ -19,10 +19,14 @@ run *args:
 prepare version:
     lash run scripts/release/prepare.lash {{version}}
 
-promote version:
-    lash run scripts/release/promote.lash {{version}}
+promote:
+    just lint
+    just test
+    lash run scripts/release/promote.lash
 
-publish version:
+release version:
+    just lint
+    just test
     lash run scripts/release/publish.lash {{version}}
 
 gen-completions:
@@ -32,4 +36,3 @@ gen-completions:
         cargo run --bin completions --features="shell-completions" -- "$shell" \
             > "./completions/completions.$ext"
     done
-
