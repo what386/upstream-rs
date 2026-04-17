@@ -14,9 +14,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] bug: fix build error on macos
-      @created 2026-04-17 02:40
-
 
 ## Completed
 
@@ -84,4 +81,8 @@
       @created 2026-04-17 02:31
       @completed 2026-04-17 02:31
       @completed_version 1.5.3
+
+- [x] bug: fix build error on macos
+      @created 2026-04-17 02:40
+      @completed 2026-04-17 02:40
 
