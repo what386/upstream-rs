@@ -1,9 +1,6 @@
-use crate::{
-    models::common::enums::Filetype,
-    utils::static_paths::UpstreamPaths,
-};
 #[cfg(target_os = "linux")]
 use crate::services::integration::appimage_extractor::AppImageExtractor;
+use crate::{models::common::enums::Filetype, utils::static_paths::UpstreamPaths};
 use anyhow::{Result, anyhow};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -47,7 +44,8 @@ impl<'a> IconManager<'a> {
             Filetype::AppImage => {
                 #[cfg(target_os = "linux")]
                 {
-                    let squashfs_root = self.extractor.extract(name, path, message_callback).await?;
+                    let squashfs_root =
+                        self.extractor.extract(name, path, message_callback).await?;
                     Self::search_for_best_icon(&squashfs_root, name, message_callback)
                         .or_else(|| Self::search_system_icons(name, message_callback))
                 }

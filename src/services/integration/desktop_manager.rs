@@ -1,9 +1,9 @@
+#[cfg(target_os = "linux")]
+use crate::services::integration::appimage_extractor::AppImageExtractor;
 use crate::{
     models::common::{DesktopEntry, enums::Filetype},
     utils::static_paths::UpstreamPaths,
 };
-#[cfg(target_os = "linux")]
-use crate::services::integration::appimage_extractor::AppImageExtractor;
 #[cfg(windows)]
 use anyhow::Context;
 use anyhow::{Result, anyhow};
@@ -33,10 +33,7 @@ pub struct DesktopManager<'a> {
 impl<'a> DesktopManager<'a> {
     #[cfg(target_os = "linux")]
     pub fn new(paths: &'a UpstreamPaths, extractor: &'a AppImageExtractor) -> Self {
-        Self {
-            paths,
-            extractor,
-        }
+        Self { paths, extractor }
     }
 
     #[cfg(not(target_os = "linux"))]
