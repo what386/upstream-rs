@@ -183,6 +183,7 @@ upstream config edit
 ```bash
 upstream package pin <name>
 upstream package unpin <name>
+upstream package remove <name>
 upstream package metadata <name>
 ```
 
