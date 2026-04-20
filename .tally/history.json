@@ -657,6 +657,11 @@
       "commit": "972f514",
       "completed_at": "2026-04-20T18:23:30.807033938Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 5,
+      "patch": 5,
+      "is_prerelease": false
+    }
   }
 ]

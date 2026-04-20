@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.5.4
+# TODO — upstream-cli v1.5.5
 
 @created: 2026-01-31
 @modified: 2026-04-20
@@ -90,5 +90,6 @@
 - [x] feat: Readd Zstandard support
       @created 2026-04-20 18:20
       @completed 2026-04-20 18:23
+      @completed_version 1.5.5
       @completed_commit 972f514
 
