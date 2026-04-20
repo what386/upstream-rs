@@ -37,6 +37,7 @@ impl fmt::Display for PackageAction {
         match self {
             PackageAction::Pin { .. } => write!(f, "package pin"),
             PackageAction::Unpin { .. } => write!(f, "package unpin"),
+            PackageAction::Remove { .. } => write!(f, "package remove"),
             PackageAction::GetKey { .. } => write!(f, "package get-key"),
             PackageAction::SetKey { .. } => write!(f, "package set-key"),
             PackageAction::Rename { .. } => write!(f, "package rename"),
