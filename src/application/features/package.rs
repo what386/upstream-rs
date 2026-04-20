@@ -35,6 +35,21 @@ pub fn run_unpin(name: String) -> Result<()> {
     Ok(())
 }
 
+pub fn run_remove(name: String) -> Result<()> {
+    let paths = UpstreamPaths::new();
+    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
+    let mut package_manager = MetadataManager::new(&mut package_storage);
+
+    let mut message_callback = Some(move |msg: &str| {
+        println!("{}", msg);
+    });
+
+    package_manager.remove_package(&name, &mut message_callback)?;
+    println!("Package '{}' metadata has been removed", name);
+
+    Ok(())
+}
+
 pub fn run_set_key(name: String, keys: Vec<String>) -> Result<()> {
     let paths = UpstreamPaths::new();
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;

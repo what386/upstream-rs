@@ -190,6 +190,7 @@ pub enum Commands {
         adjust package metadata when needed.\n\n\
         EXAMPLES:\n  \
         upstream package pin nvim\n  \
+        upstream package remove nvim\n  \
         upstream package metadata nvim\n  \
         upstream package get-key nvim install_path"
     )]
@@ -344,6 +345,17 @@ pub enum PackageAction {
         name: String,
     },
 
+    /// Remove a package entry from upstream metadata
+    #[command(long_about = "Delete a package from local upstream metadata.\n\n\
+        This removes only metadata tracking. It does not remove installed files, \
+        symlinks, or other runtime integrations.\n\n\
+        EXAMPLE:\n  \
+        upstream package remove nvim")]
+    Remove {
+        /// Name of package to remove from metadata
+        name: String,
+    },
+
     /// Get specific package metadata fields
     #[command(long_about = "Retrieve raw metadata values for a package.\n\n\
         Access internal package data like install paths, versions, and checksums.\n\n\
@@ -434,6 +446,18 @@ mod tests {
     }
 
     #[test]
+    fn package_remove_parses_name() {
+        let cli = Cli::parse_from(["upstream", "package", "remove", "ripgrep"]);
+
+        match cli.command {
+            Commands::Package {
+                action: PackageAction::Remove { name },
+            } => assert_eq!(name, "ripgrep"),
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
     fn requires_lock_skips_read_only_commands() {
         assert!(!Commands::List { name: None }.requires_lock());
         assert!(!Commands::Doctor { names: vec![] }.requires_lock());
@@ -509,6 +533,14 @@ mod tests {
             Commands::Config {
                 action: ConfigAction::Set {
                     keys: vec!["github.api_token=ghp_xxx".to_string()],
+                },
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Package {
+                action: PackageAction::Remove {
+                    name: "ripgrep".to_string(),
                 },
             }
             .requires_lock()

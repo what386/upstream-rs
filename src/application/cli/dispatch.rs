@@ -84,6 +84,7 @@ impl Cli {
             Commands::Package { action } => match action {
                 PackageAction::Pin { name } => features::package::run_pin(name),
                 PackageAction::Unpin { name } => features::package::run_unpin(name),
+                PackageAction::Remove { name } => features::package::run_remove(name),
                 PackageAction::SetKey { name, keys } => features::package::run_set_key(name, keys),
                 PackageAction::Rename { old_name, new_name } => {
                     features::package::run_rename(old_name, new_name)

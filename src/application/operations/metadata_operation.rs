@@ -86,6 +86,30 @@ impl<'a> MetadataManager<'a> {
         Ok(())
     }
 
+    /// Removes package metadata for a package without touching runtime artifacts.
+    pub fn remove_package<H>(&mut self, name: &str, message_callback: &mut Option<H>) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        message!(
+            message_callback,
+            "Removing package metadata for '{}'...",
+            name
+        );
+
+        if !self.package_storage.remove_package_by_name(name)? {
+            return Err(anyhow::anyhow!("Package '{}' not found", name));
+        }
+
+        message!(
+            message_callback,
+            "{}",
+            style(format!("Package '{}' metadata removed", name)).green()
+        );
+
+        Ok(())
+    }
+
     /// Renames a package alias without changing provider/repo/version metadata.
     pub fn rename_package<H>(
         &mut self,
@@ -572,6 +596,30 @@ mod tests {
             .expect("rename package");
         assert!(manager.package_storage.get_package_by_name("new").is_some());
         assert!(manager.package_storage.get_package_by_name("old").is_none());
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn remove_package_deletes_metadata_and_errors_when_missing() {
+        let path = temp_packages_file("remove");
+        fs::create_dir_all(path.parent().expect("parent")).expect("create parent");
+        let mut storage = PackageStorage::new(&path).expect("create storage");
+        storage
+            .add_or_update_package(test_package("fd"))
+            .expect("store package");
+        let mut manager = MetadataManager::new(&mut storage);
+        let mut messages: Option<fn(&str)> = None;
+
+        manager
+            .remove_package("fd", &mut messages)
+            .expect("remove package metadata");
+        assert!(manager.package_storage.get_package_by_name("fd").is_none());
+
+        let err = manager
+            .remove_package("fd", &mut messages)
+            .expect_err("missing package should error");
+        assert!(err.to_string().contains("Package 'fd' not found"));
 
         cleanup(&path).expect("cleanup");
     }
