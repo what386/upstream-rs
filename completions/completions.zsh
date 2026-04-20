@@ -210,6 +210,13 @@ _arguments "${_arguments_options[@]}" : \
 ':name -- Name of package to unpin:_default' \
 && ret=0
 ;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':name -- Name of package to remove from metadata:_default' \
+&& ret=0
+;;
 (get-key)
 _arguments "${_arguments_options[@]}" : \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -258,6 +265,10 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (unpin)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -405,6 +416,10 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (unpin)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -658,6 +673,7 @@ _upstream__help__package_commands() {
     local commands; commands=(
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
+'remove:Remove a package entry from upstream metadata' \
 'get-key:Get specific package metadata fields' \
 'set-key:Manually set package metadata fields' \
 'rename:Rename package alias without reinstalling' \
@@ -679,6 +695,11 @@ _upstream__help__package__metadata_commands() {
 _upstream__help__package__pin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package pin commands' commands "$@"
+}
+(( $+functions[_upstream__help__package__remove_commands] )) ||
+_upstream__help__package__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help package remove commands' commands "$@"
 }
 (( $+functions[_upstream__help__package__rename_commands] )) ||
 _upstream__help__package__rename_commands() {
@@ -735,6 +756,7 @@ _upstream__package_commands() {
     local commands; commands=(
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
+'remove:Remove a package entry from upstream metadata' \
 'get-key:Get specific package metadata fields' \
 'set-key:Manually set package metadata fields' \
 'rename:Rename package alias without reinstalling' \
@@ -753,6 +775,7 @@ _upstream__package__help_commands() {
     local commands; commands=(
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
+'remove:Remove a package entry from upstream metadata' \
 'get-key:Get specific package metadata fields' \
 'set-key:Manually set package metadata fields' \
 'rename:Rename package alias without reinstalling' \
@@ -781,6 +804,11 @@ _upstream__package__help__pin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help pin commands' commands "$@"
 }
+(( $+functions[_upstream__package__help__remove_commands] )) ||
+_upstream__package__help__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package help remove commands' commands "$@"
+}
 (( $+functions[_upstream__package__help__rename_commands] )) ||
 _upstream__package__help__rename_commands() {
     local commands; commands=()
@@ -805,6 +833,11 @@ _upstream__package__metadata_commands() {
 _upstream__package__pin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package pin commands' commands "$@"
+}
+(( $+functions[_upstream__package__remove_commands] )) ||
+_upstream__package__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package remove commands' commands "$@"
 }
 (( $+functions[_upstream__package__rename_commands] )) ||
 _upstream__package__rename_commands() {
