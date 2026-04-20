@@ -167,7 +167,6 @@ fn decompress_zst_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
     Ok(out_path)
 }
 
-
 // ---------------- XZ ----------------
 fn decompress_tar_xz(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
