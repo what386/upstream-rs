@@ -1,7 +1,7 @@
 # TODO — upstream-cli v1.5.4
 
 @created: 2026-01-31
-@modified: 2026-04-17
+@modified: 2026-04-20
 
 ## Tasks
 
@@ -13,6 +13,9 @@
 
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
+
+- [ ] feat: Readd Zstandard support
+      @created 2026-04-20 18:20
 
 
 ## Completed
