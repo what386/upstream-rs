@@ -14,9 +14,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] feat: Readd Zstandard support
-      @created 2026-04-20 18:20
-
 
 ## Completed
 
@@ -89,4 +86,9 @@
       @created 2026-04-17 02:40
       @completed 2026-04-17 02:40
       @completed_version 1.5.4
+
+- [x] feat: Readd Zstandard support
+      @created 2026-04-20 18:20
+      @completed 2026-04-20 18:23
+      @completed_commit 972f514
 
