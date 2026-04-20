@@ -7,6 +7,7 @@ use std::path::{Component, Path, PathBuf};
 use tar::Archive;
 use xz2::read::XzDecoder;
 use zip::ZipArchive;
+use zstd::Decoder;
 
 /// Decompress a file into the output folder and return the root path extracted.
 ///
@@ -51,12 +52,16 @@ pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
     if name.ends_with(".tar.xz") || name.ends_with(".txz") {
         return decompress_tar_xz(input, &extract_dir);
     }
+    if name.ends_with(".tar.zst") || name.ends_with(".tzst") {
+        return decompress_tar_zst(input, &extract_dir);
+    }
 
     match ext.as_str() {
         "zip" => decompress_zip(input, &extract_dir),
         "gz" => decompress_gz_single(input, &extract_dir),
         "bz2" => decompress_bz2_single(input, &extract_dir),
         "xz" => decompress_xz_single(input, &extract_dir),
+        "zst" => decompress_zst_single(input, &extract_dir),
         "tar" => unpack_tar(input, &extract_dir),
         _ => Err(anyhow!("Unsupported format: {}", input.display())),
     }
@@ -141,6 +146,27 @@ fn unpack_tar(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
     let mut archive = Archive::new(file);
     unpack_tar_entries(&mut archive, extract_dir)
 }
+
+// ---------------- ZST ----------------
+fn decompress_tar_zst(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
+    let file = File::open(input)?;
+    let tar = Decoder::new(file)?;
+    let mut archive = Archive::new(tar);
+    unpack_tar_entries(&mut archive, extract_dir)
+}
+
+fn decompress_zst_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
+    let file = File::open(input)?;
+    let mut decoder = Decoder::new(file)?;
+    let out_name = input
+        .file_stem()
+        .ok_or_else(|| anyhow!("Cannot derive output name"))?;
+    let out_path = extract_dir.join(out_name);
+    let mut out = File::create(&out_path)?;
+    std::io::copy(&mut decoder, &mut out)?;
+    Ok(out_path)
+}
+
 
 // ---------------- XZ ----------------
 fn decompress_tar_xz(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
@@ -254,6 +280,7 @@ mod tests {
     use std::{fs, io};
     use tar::Builder;
     use zip::write::SimpleFileOptions;
+    use zstd::stream::write::Encoder as ZstdEncoder;
 
     fn temp_root(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
@@ -276,6 +303,15 @@ mod tests {
         encoder.finish().expect("finish gzip");
     }
 
+    fn create_zst_file(path: &Path, content: &[u8]) {
+        let file = File::create(path).expect("create .zst file");
+        let mut encoder = ZstdEncoder::new(file, 0).expect("create zstd encoder");
+        encoder
+            .write_all(content)
+            .expect("write compressed zstd content");
+        encoder.finish().expect("finish zstd");
+    }
+
     fn create_tar_gz_with_file(path: &Path, file_name: &str, content: &[u8]) {
         let file = File::create(path).expect("create .tar.gz");
         let encoder = GzEncoder::new(file, Compression::default());
@@ -290,6 +326,22 @@ mod tests {
             .expect("append tar entry");
         let encoder = builder.into_inner().expect("finalize tar");
         encoder.finish().expect("finalize gzip");
+    }
+
+    fn create_tar_zst_with_file(path: &Path, file_name: &str, content: &[u8]) {
+        let file = File::create(path).expect("create .tar.zst");
+        let encoder = ZstdEncoder::new(file, 0).expect("create zstd encoder");
+        let mut builder = Builder::new(encoder);
+
+        let mut header = tar::Header::new_gnu();
+        header.set_size(content.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        builder
+            .append_data(&mut header, file_name, content)
+            .expect("append tar entry");
+        let encoder = builder.into_inner().expect("finalize tar");
+        encoder.finish().expect("finalize zstd");
     }
 
     fn create_tar_gz_with_symlink(path: &Path, link_name: &str, target: &str) {
@@ -351,6 +403,21 @@ mod tests {
     }
 
     #[test]
+    fn decompress_single_zst_returns_decompressed_file() {
+        let root = temp_root("single-zst");
+        let input = root.join("hello.zst");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+        create_zst_file(&input, b"hello-zst");
+
+        let extracted = decompress(&input, &output).expect("decompress .zst");
+        assert!(extracted.is_file());
+        assert_eq!(fs::read(extracted).expect("read output"), b"hello-zst");
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
     fn decompress_tar_gz_extracts_archive_contents() {
         let root = temp_root("tar-gz");
         let input = root.join("bundle.tar.gz");
@@ -364,6 +431,25 @@ mod tests {
         assert_eq!(
             fs::read(extracted_file).expect("read extracted file"),
             b"tar-gz-content"
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn decompress_tar_zst_extracts_archive_contents() {
+        let root = temp_root("tar-zst");
+        let input = root.join("bundle.tar.zst");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+        create_tar_zst_with_file(&input, "tool.bin", b"tar-zst-content");
+
+        let extracted_root = decompress(&input, &output).expect("decompress .tar.zst");
+        let extracted_file = extracted_root.join("tool.bin");
+        assert!(extracted_file.exists());
+        assert_eq!(
+            fs::read(extracted_file).expect("read extracted file"),
+            b"tar-zst-content"
         );
 
         cleanup(&root).expect("cleanup");

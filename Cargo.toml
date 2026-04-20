@@ -41,6 +41,7 @@ toml = "0.9.10"
 xz2 = "0.1.7"
 walkdir = "2.5.0"
 clap_complete = { version = "4.5", optional = true }
+zstd = "0.13.3"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
