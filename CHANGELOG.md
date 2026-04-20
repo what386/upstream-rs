@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-04-17*
+*Generated on 2026-04-20*
+
+## 1.5.5 — 2026-04-20
+
+### Changes
+
+- feat: Readd Zstandard support ([`972f514`])
+
 
 ## 1.5.4 — 2026-04-17
 
