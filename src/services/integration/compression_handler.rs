@@ -7,7 +7,7 @@ use std::path::{Component, Path, PathBuf};
 use tar::Archive;
 use xz2::read::XzDecoder;
 use zip::ZipArchive;
-use zstd::Decoder;
+use zstd::Decoder as ZstdDecoder;
 
 /// Decompress a file into the output folder and return the root path extracted.
 ///
@@ -150,14 +150,14 @@ fn unpack_tar(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
 // ---------------- ZST ----------------
 fn decompress_tar_zst(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
-    let tar = Decoder::new(file)?;
+    let tar = ZstdDecoder::new(file)?;
     let mut archive = Archive::new(tar);
     unpack_tar_entries(&mut archive, extract_dir)
 }
 
 fn decompress_zst_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
     let file = File::open(input)?;
-    let mut decoder = Decoder::new(file)?;
+    let mut decoder = ZstdDecoder::new(file)?;
     let out_name = input
         .file_stem()
         .ok_or_else(|| anyhow!("Cannot derive output name"))?;
