@@ -160,6 +160,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('pin', 'pin', [CompletionResultType]::ParameterValue, 'Pin a package to its current version')
             [CompletionResult]::new('unpin', 'unpin', [CompletionResultType]::ParameterValue, 'Unpin a package to allow updates')
+            [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove a package entry from upstream metadata')
             [CompletionResult]::new('get-key', 'get-key', [CompletionResultType]::ParameterValue, 'Get specific package metadata fields')
             [CompletionResult]::new('set-key', 'set-key', [CompletionResultType]::ParameterValue, 'Manually set package metadata fields')
             [CompletionResult]::new('rename', 'rename', [CompletionResultType]::ParameterValue, 'Rename package alias without reinstalling')
@@ -173,6 +174,11 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;package;unpin' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;package;remove' {
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
@@ -200,6 +206,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         'upstream;package;help' {
             [CompletionResult]::new('pin', 'pin', [CompletionResultType]::ParameterValue, 'Pin a package to its current version')
             [CompletionResult]::new('unpin', 'unpin', [CompletionResultType]::ParameterValue, 'Unpin a package to allow updates')
+            [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove a package entry from upstream metadata')
             [CompletionResult]::new('get-key', 'get-key', [CompletionResultType]::ParameterValue, 'Get specific package metadata fields')
             [CompletionResult]::new('set-key', 'set-key', [CompletionResultType]::ParameterValue, 'Manually set package metadata fields')
             [CompletionResult]::new('rename', 'rename', [CompletionResultType]::ParameterValue, 'Rename package alias without reinstalling')
@@ -211,6 +218,9 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;package;help;unpin' {
+            break
+        }
+        'upstream;package;help;remove' {
             break
         }
         'upstream;package;help;get-key' {
@@ -308,6 +318,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         'upstream;help;package' {
             [CompletionResult]::new('pin', 'pin', [CompletionResultType]::ParameterValue, 'Pin a package to its current version')
             [CompletionResult]::new('unpin', 'unpin', [CompletionResultType]::ParameterValue, 'Unpin a package to allow updates')
+            [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove a package entry from upstream metadata')
             [CompletionResult]::new('get-key', 'get-key', [CompletionResultType]::ParameterValue, 'Get specific package metadata fields')
             [CompletionResult]::new('set-key', 'set-key', [CompletionResultType]::ParameterValue, 'Manually set package metadata fields')
             [CompletionResult]::new('rename', 'rename', [CompletionResultType]::ParameterValue, 'Rename package alias without reinstalling')
@@ -318,6 +329,9 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;package;unpin' {
+            break
+        }
+        'upstream;help;package;remove' {
             break
         }
         'upstream;help;package;get-key' {

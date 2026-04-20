@@ -138,6 +138,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
             cand pin 'Pin a package to its current version'
             cand unpin 'Unpin a package to allow updates'
+            cand remove 'Remove a package entry from upstream metadata'
             cand get-key 'Get specific package metadata fields'
             cand set-key 'Manually set package metadata fields'
             cand rename 'Rename package alias without reinstalling'
@@ -149,6 +150,10 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;unpin'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;package;remove'= {
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -171,6 +176,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;package;help'= {
             cand pin 'Pin a package to its current version'
             cand unpin 'Unpin a package to allow updates'
+            cand remove 'Remove a package entry from upstream metadata'
             cand get-key 'Get specific package metadata fields'
             cand set-key 'Manually set package metadata fields'
             cand rename 'Rename package alias without reinstalling'
@@ -180,6 +186,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;package;help;pin'= {
         }
         &'upstream;package;help;unpin'= {
+        }
+        &'upstream;package;help;remove'= {
         }
         &'upstream;package;help;get-key'= {
         }
@@ -255,6 +263,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;package'= {
             cand pin 'Pin a package to its current version'
             cand unpin 'Unpin a package to allow updates'
+            cand remove 'Remove a package entry from upstream metadata'
             cand get-key 'Get specific package metadata fields'
             cand set-key 'Manually set package metadata fields'
             cand rename 'Rename package alias without reinstalling'
@@ -263,6 +272,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;package;pin'= {
         }
         &'upstream;help;package;unpin'= {
+        }
+        &'upstream;help;package;remove'= {
         }
         &'upstream;help;package;get-key'= {
         }

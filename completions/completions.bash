@@ -148,6 +148,9 @@ _upstream() {
             upstream__help__package,pin)
                 cmd="upstream__help__package__pin"
                 ;;
+            upstream__help__package,remove)
+                cmd="upstream__help__package__remove"
+                ;;
             upstream__help__package,rename)
                 cmd="upstream__help__package__rename"
                 ;;
@@ -169,6 +172,9 @@ _upstream() {
             upstream__package,pin)
                 cmd="upstream__package__pin"
                 ;;
+            upstream__package,remove)
+                cmd="upstream__package__remove"
+                ;;
             upstream__package,rename)
                 cmd="upstream__package__rename"
                 ;;
@@ -189,6 +195,9 @@ _upstream() {
                 ;;
             upstream__package__help,pin)
                 cmd="upstream__package__help__pin"
+                ;;
+            upstream__package__help,remove)
+                cmd="upstream__package__help__remove"
                 ;;
             upstream__package__help,rename)
                 cmd="upstream__package__help__rename"
@@ -626,7 +635,7 @@ _upstream() {
             return 0
             ;;
         upstream__help__package)
-            opts="pin unpin get-key set-key rename metadata"
+            opts="pin unpin remove get-key set-key rename metadata"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -668,6 +677,20 @@ _upstream() {
             return 0
             ;;
         upstream__help__package__pin)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__help__package__remove)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -874,7 +897,7 @@ _upstream() {
             return 0
             ;;
         upstream__package)
-            opts="-h --help pin unpin get-key set-key rename metadata help"
+            opts="-h --help pin unpin remove get-key set-key rename metadata help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -902,7 +925,7 @@ _upstream() {
             return 0
             ;;
         upstream__package__help)
-            opts="pin unpin get-key set-key rename metadata help"
+            opts="pin unpin remove get-key set-key rename metadata help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -958,6 +981,20 @@ _upstream() {
             return 0
             ;;
         upstream__package__help__pin)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__package__help__remove)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1028,6 +1065,20 @@ _upstream() {
             return 0
             ;;
         upstream__package__pin)
+            opts="-h --help <NAME>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__package__remove)
             opts="-h --help <NAME>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
