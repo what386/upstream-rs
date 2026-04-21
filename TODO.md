@@ -14,6 +14,9 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
+- [ ] feat: `doctor` checks for orphaned installed directories/files
+      @created 2026-04-21 00:05
+
 
 ## Completed
 
