@@ -17,6 +17,9 @@
 - [ ] feat: `doctor` checks for orphaned installed directories/files
       @created 2026-04-21 00:05
 
+- [ ] feat: `doctor` now is compact by default. use --verbose to restore old behavior.
+      @created 2026-04-21 00:06
+
 
 ## Completed
 
