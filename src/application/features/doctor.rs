@@ -16,18 +16,24 @@ enum Level {
 }
 
 struct DoctorReport {
+    verbose: bool,
     ok: u32,
     warn: u32,
     fail: u32,
+    warnings: Vec<String>,
+    failures: Vec<String>,
     hints: Vec<String>,
 }
 
 impl DoctorReport {
-    fn new() -> Self {
+    fn new(verbose: bool) -> Self {
         Self {
+            verbose,
             ok: 0,
             warn: 0,
             fail: 0,
+            warnings: Vec::new(),
+            failures: Vec::new(),
             hints: Vec::new(),
         }
     }
@@ -37,17 +43,29 @@ impl DoctorReport {
         match level {
             Level::Ok => {
                 self.ok += 1;
-                println!("{} {}", style("[OK]").green(), msg);
+                if self.verbose {
+                    println!("{} {}", style("[OK]").green(), msg);
+                }
             }
             Level::Warn => {
                 self.warn += 1;
-                println!("{} {}", style("[WARN]").yellow(), msg);
+                self.warnings.push(msg.to_string());
+                if self.verbose {
+                    println!("{} {}", style("[WARN]").yellow(), msg);
+                }
             }
             Level::Fail => {
                 self.fail += 1;
-                println!("{} {}", style("[FAIL]").red(), msg);
+                self.failures.push(msg.to_string());
+                if self.verbose {
+                    println!("{} {}", style("[FAIL]").red(), msg);
+                }
             }
         }
+    }
+
+    fn total_checks(&self) -> u32 {
+        self.ok + self.warn + self.fail
     }
 
     fn hint(&mut self, hint: impl AsRef<str>) {
@@ -57,6 +75,30 @@ impl DoctorReport {
         }
         if !self.hints.iter().any(|existing| existing == text) {
             self.hints.push(text.to_string());
+        }
+    }
+
+    fn print_summary(&self) {
+        println!("{}/{} checks ok", self.ok, self.total_checks());
+        println!();
+
+        println!("{}", style("warnings:").yellow());
+        if self.warnings.is_empty() {
+            println!(" - none");
+        } else {
+            for warning in &self.warnings {
+                println!(" - {}", warning);
+            }
+        }
+
+        println!();
+        println!("{}", style("failures:").red());
+        if self.failures.is_empty() {
+            println!(" - none");
+        } else {
+            for failure in &self.failures {
+                println!(" - {}", failure);
+            }
         }
     }
 }
@@ -179,6 +221,30 @@ fn find_stale_symlink_names(symlinks_dir: &Path, installed_names: &HashSet<Strin
     stale
 }
 
+fn find_orphan_install_entries(
+    install_roots: &[&Path],
+    tracked_install_paths: &HashSet<PathBuf>,
+) -> Vec<PathBuf> {
+    let mut orphans = Vec::new();
+
+    for root in install_roots {
+        let Ok(entries) = fs::read_dir(root) else {
+            continue;
+        };
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !tracked_install_paths.contains(&path) {
+                orphans.push(path);
+            }
+        }
+    }
+
+    orphans.sort();
+    orphans.dedup();
+    orphans
+}
+
 #[cfg(unix)]
 fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
     if !paths.config.paths_file.exists() {
@@ -221,13 +287,13 @@ fn check_paths_file(_paths: &UpstreamPaths, report: &mut DoctorReport) {
     report.line(Level::Ok, "PATH integration check skipped on this platform");
 }
 
-pub fn run(names: Vec<String>) -> Result<()> {
+pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
     println!("{}", style("Running upstream doctor...").cyan());
 
     let paths = UpstreamPaths::new();
     let package_storage = PackageStorage::new(&paths.config.packages_file)?;
 
-    let mut report = DoctorReport::new();
+    let mut report = DoctorReport::new(verbose);
 
     for (label, path) in [
         ("data directory", paths.dirs.data_dir.as_path()),
@@ -301,6 +367,39 @@ pub fn run(names: Vec<String>) -> Result<()> {
             "Remove stale symlinks from '{}' or run package removals with --purge.",
             paths.integration.symlinks_dir.display()
         ));
+    }
+
+    let tracked_install_paths: HashSet<PathBuf> = all_packages
+        .iter()
+        .filter_map(|package| package.install_path.clone())
+        .collect();
+    let orphan_install_entries = find_orphan_install_entries(
+        &[
+            paths.install.appimages_dir.as_path(),
+            paths.install.binaries_dir.as_path(),
+            paths.install.archives_dir.as_path(),
+        ],
+        &tracked_install_paths,
+    );
+    if orphan_install_entries.is_empty() {
+        report.line(Level::Ok, "No untracked install artifacts detected");
+    } else {
+        let orphan_list = orphan_install_entries
+            .iter()
+            .map(|path| path.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        report.line(
+            Level::Warn,
+            format!(
+                "Detected {} untracked install artifact(s): {}",
+                orphan_install_entries.len(),
+                orphan_list
+            ),
+        );
+        report.hint(
+            "Delete untracked install artifacts manually, or recreate metadata and remove through upstream."
+        );
     }
 
     let mut selected = Vec::new();
@@ -535,10 +634,7 @@ pub fn run(names: Vec<String>) -> Result<()> {
     }
 
     println!();
-    println!(
-        "Doctor summary: {} OK, {} warnings, {} failures",
-        report.ok, report.warn, report.fail
-    );
+    report.print_summary();
 
     if !report.hints.is_empty() {
         println!();
@@ -569,7 +665,9 @@ pub fn run(names: Vec<String>) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{DoctorReport, expected_link_path, find_stale_symlink_names};
+    use super::{
+        DoctorReport, expected_link_path, find_orphan_install_entries, find_stale_symlink_names,
+    };
     #[cfg(unix)]
     use super::{LinkStatus, inspect_unix_link};
     use std::collections::HashSet;
@@ -614,6 +712,36 @@ mod tests {
         let installed_names = HashSet::from(["installed".to_string()]);
         let stale = find_stale_symlink_names(&root, &installed_names);
         assert_eq!(stale, vec!["orphan".to_string()]);
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn find_orphan_install_entries_reports_untracked_paths() {
+        let root = temp_root("orphan-install");
+        let appimages = root.join("appimages");
+        let binaries = root.join("binaries");
+        let archives = root.join("archives");
+        fs::create_dir_all(&appimages).expect("create appimages root");
+        fs::create_dir_all(&binaries).expect("create binaries root");
+        fs::create_dir_all(&archives).expect("create archives root");
+
+        let tracked = binaries.join("tracked-bin");
+        let orphan_file = appimages.join("orphan.AppImage");
+        let orphan_dir = archives.join("orphan-dir");
+        fs::write(&tracked, b"x").expect("create tracked file");
+        fs::write(&orphan_file, b"x").expect("create orphan file");
+        fs::create_dir_all(&orphan_dir).expect("create orphan dir");
+
+        let tracked_paths = HashSet::from([tracked]);
+        let orphans = find_orphan_install_entries(
+            &[appimages.as_path(), binaries.as_path(), archives.as_path()],
+            &tracked_paths,
+        );
+
+        assert_eq!(orphans.len(), 2);
+        assert!(orphans.contains(&orphan_dir));
+        assert!(orphans.contains(&orphan_file));
 
         cleanup(&root).expect("cleanup");
     }
@@ -667,7 +795,7 @@ mod tests {
 
     #[test]
     fn doctor_report_hint_deduplicates_entries() {
-        let mut report = DoctorReport::new();
+        let mut report = DoctorReport::new(false);
         report.hint("Run upstream init");
         report.hint("Run upstream init");
         report.hint("Reinstall package");
@@ -675,5 +803,24 @@ mod tests {
         assert_eq!(report.hints.len(), 2);
         assert!(report.hints.contains(&"Run upstream init".to_string()));
         assert!(report.hints.contains(&"Reinstall package".to_string()));
+    }
+
+    #[test]
+    fn doctor_report_tracks_counts_and_findings() {
+        let mut report = DoctorReport::new(false);
+        report.line(super::Level::Ok, "ok");
+        report.line(super::Level::Warn, "warn one");
+        report.line(super::Level::Warn, "warn two");
+        report.line(super::Level::Fail, "fail one");
+
+        assert_eq!(report.ok, 1);
+        assert_eq!(report.warn, 2);
+        assert_eq!(report.fail, 1);
+        assert_eq!(report.total_checks(), 4);
+        assert_eq!(
+            report.warnings,
+            vec!["warn one".to_string(), "warn two".to_string()]
+        );
+        assert_eq!(report.failures, vec!["fail one".to_string()]);
     }
 }

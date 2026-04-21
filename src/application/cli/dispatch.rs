@@ -97,7 +97,7 @@ impl Cli {
             Commands::Import { path, skip_failed } => {
                 features::import::run_import(path, skip_failed).await
             }
-            Commands::Doctor { names } => features::doctor::run(names),
+            Commands::Doctor { names, verbose } => features::doctor::run(names, verbose),
         }
     }
 }
