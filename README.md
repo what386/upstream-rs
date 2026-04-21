@@ -32,7 +32,7 @@ curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/in
 iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.ps1 | iex
 ```
 
-This installs the binary and enables self-updates.
+This installs the binary, enables self-updates, and configures shell completion for the installer shell.
 
 ---
 
