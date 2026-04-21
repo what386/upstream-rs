@@ -7,7 +7,6 @@
 ### Changes
 
 - feat: `package remove` for forcing package deletions
-- community package registry? `feature`, `website` ([`408163a`])
 
 
 ## 1.5.5 — 2026-04-20
