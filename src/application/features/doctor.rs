@@ -80,22 +80,17 @@ impl DoctorReport {
 
     fn print_summary(&self) {
         println!("{}/{} checks ok", self.ok, self.total_checks());
-        println!();
-
-        println!("{}", style("warnings:").yellow());
-        if self.warnings.is_empty() {
-            println!(" - none");
-        } else {
+        if !self.warnings.is_empty() {
+            println!();
+            println!("{}", style("warnings:").yellow());
             for warning in &self.warnings {
                 println!(" - {}", warning);
             }
         }
 
-        println!();
-        println!("{}", style("failures:").red());
-        if self.failures.is_empty() {
-            println!(" - none");
-        } else {
+        if !self.failures.is_empty() {
+            println!();
+            println!("{}", style("failures:").red());
             for failure in &self.failures {
                 println!(" - {}", failure);
             }
