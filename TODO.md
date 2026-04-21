@@ -11,15 +11,6 @@
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
 
-- [ ] community package registry? #feature #website
-      @created 2026-02-14 01:09
-
-- [ ] feat: `doctor` checks for orphaned installed directories/files
-      @created 2026-04-21 00:05
-
-- [ ] feat: `doctor` now is compact by default. use --verbose to restore old behavior.
-      @created 2026-04-21 00:06
-
 
 ## Completed
 
@@ -102,4 +93,14 @@
 - [x] feat: `package remove` for forcing package deletions
       @created 2026-04-21 00:02
       @completed 2026-04-21 00:02
+
+- [x] feat: `doctor` checks for orphaned installed directories/files
+      @created 2026-04-21 00:05
+      @completed 2026-04-21 00:06
+      @completed_commit 408163a
+
+- [x] feat: `doctor` now is compact by default. use --verbose to restore old behavior.
+      @created 2026-04-21 00:06
+      @completed 2026-04-21 00:06
+      @completed_commit 408163a
 
