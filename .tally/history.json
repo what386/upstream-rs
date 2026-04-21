@@ -678,23 +678,5 @@
       "patch": 0,
       "is_prerelease": false
     }
-  },
-  {
-    "change": {
-      "description": "community package registry?",
-      "priority": "Medium",
-      "tags": [
-        "feature",
-        "website"
-      ],
-      "commit": "408163a",
-      "completed_at": "2026-04-21T00:06:54.531501604Z"
-    },
-    "version": {
-      "major": 1,
-      "minor": 6,
-      "patch": 0,
-      "is_prerelease": false
-    }
   }
 ]
