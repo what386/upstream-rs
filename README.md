@@ -25,6 +25,9 @@ It fetches release assets, selects the best match for your system, and keeps the
 # Linux
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.bash | bash
 
+# Linux (Fish)
+curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.fish | fish
+
 # macOS
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.zsh | zsh
 
