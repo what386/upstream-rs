@@ -205,6 +205,19 @@ upstream import file.json
 
 Download a completion file from releases or generate one.
 
+Install automatically via helper scripts:
+
+```bash
+scripts/install/completions.sh bash
+scripts/install/completions.sh fish
+scripts/install/completions.sh zsh
+scripts/install/completions.sh elvish
+```
+
+```powershell
+pwsh -File scripts/install/completions.ps1
+```
+
 ### Install
 
 #### Bash

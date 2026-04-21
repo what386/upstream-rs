@@ -51,29 +51,27 @@ function download_file --argument-names url out
 end
 
 function install_completion
-    set completion_url "https://github.com/$GITHUB_USER/$GITHUB_REPO/releases/latest/download/completions.fish"
-    set completion_tmp "$TMP_DIR/completions.fish"
-    set dest_dir "$HOME/.config/fish/completions"
-    set dest_file "$dest_dir/upstream.fish"
+    set helper_url "https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/main/scripts/install/completions.sh"
+    set helper_script "$TMP_DIR/completions.sh"
 
     echo "Installing fish completion..."
 
-    if not download_file "$completion_url" "$completion_tmp"
-        echo "Warning: Failed to download fish completion from $completion_url"
+    if not download_file "$helper_url" "$helper_script"
+        echo "Warning: Failed to download completion installer from $helper_url"
         return 0
     end
 
-    if not mkdir -p "$dest_dir"
-        echo "Warning: Failed to create completion directory $dest_dir"
+    if not chmod +x "$helper_script"
+        echo "Warning: Failed to make completion installer executable"
         return 0
     end
 
-    if not cp "$completion_tmp" "$dest_file"
-        echo "Warning: Failed to install fish completion to $dest_file"
+    if not "$helper_script" fish
+        echo "Warning: Completion installer failed for fish"
         return 0
     end
 
-    echo "Fish completion installed to $dest_file"
+    echo "Fish completion installed"
 end
 
 function main
