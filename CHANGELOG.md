@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-04-20*
+*Generated on 2026-04-21*
+
+## 1.6.0 — 2026-04-21
+
+### Changes
+
+- feat: `package remove` for forcing package deletions
+- community package registry? `feature`, `website` ([`408163a`])
+
 
 ## 1.5.5 — 2026-04-20
 
