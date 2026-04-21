@@ -1,7 +1,7 @@
 # TODO — upstream-cli v1.5.5
 
 @created: 2026-01-31
-@modified: 2026-04-20
+@modified: 2026-04-21
 
 ## Tasks
 
@@ -13,6 +13,9 @@
 
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
+
+- [ ] feat: `package remove` for forcing package deletions
+      @created 2026-04-21 00:02
 
 
 ## Completed
