@@ -17,6 +17,43 @@ INSTALL_COMMANDS=(
   "install upstream what386/upstream-rs -k binary"
 )
 
+install_completion() {
+  local completion_url completion_tmp dest_dir dest_file
+  completion_url="https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/completions.zsh"
+  completion_tmp="${TMP_DIR}/completions.zsh"
+  dest_dir="${HOME}/.zfunc"
+  dest_file="${dest_dir}/_upstream"
+
+  echo -e "${YELLOW}Installing zsh completion...${NC}"
+
+  if command -v curl &>/dev/null; then
+    if ! curl -fsSL "$completion_url" -o "$completion_tmp"; then
+      echo -e "${YELLOW}Warning: Failed to download zsh completion from ${completion_url}${NC}"
+      return
+    fi
+  elif command -v wget &>/dev/null; then
+    if ! wget -q "$completion_url" -O "$completion_tmp"; then
+      echo -e "${YELLOW}Warning: Failed to download zsh completion from ${completion_url}${NC}"
+      return
+    fi
+  else
+    echo -e "${YELLOW}Warning: Neither curl nor wget found; skipping completion install.${NC}"
+    return
+  fi
+
+  if ! mkdir -p "$dest_dir"; then
+    echo -e "${YELLOW}Warning: Failed to create completion directory ${dest_dir}${NC}"
+    return
+  fi
+
+  if ! cp "$completion_tmp" "$dest_file"; then
+    echo -e "${YELLOW}Warning: Failed to install zsh completion to ${dest_file}${NC}"
+    return
+  fi
+
+  echo -e "${GREEN}Zsh completion installed to ${dest_file}${NC}"
+}
+
 detect_arch() {
   case "$(uname -m)" in
     x86_64|amd64) echo "x86_64" ;;
@@ -70,6 +107,9 @@ main() {
       exit 1
     fi
   done
+
+  # Best-effort completion setup; do not fail installation if it cannot be configured.
+  install_completion
 
   rm -rf "$TMP_DIR"
   echo -e "${GREEN}Installation complete!${NC}"

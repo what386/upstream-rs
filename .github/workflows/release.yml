@@ -58,6 +58,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
+      - name: Add completion assets
+        run: |
+          cp completions/completions.bash dist/completions.bash
+          cp completions/completions.fish dist/completions.fish
+          cp completions/completions.zsh dist/completions.zsh
+          cp completions/completions.ps1 dist/completions.ps1
+          cp completions/completions.elvish dist/completions.elvish
       - name: Generate checksums
         run: |
           cd dist

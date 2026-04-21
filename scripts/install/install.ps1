@@ -22,9 +22,60 @@ $INSTALL_COMMANDS = @(
 function Write-ColorOutput {
     param(
         [string]$Message,
-        [string]$Color = $NC
+        [string]$Color = $NC,
+        [switch]$NoNewline
     )
-    Write-Host "${Color}${Message}${NC}"
+    if ($NoNewline) {
+        Write-Host "${Color}${Message}${NC}" -NoNewline
+    }
+    else {
+        Write-Host "${Color}${Message}${NC}"
+    }
+}
+
+function Install-Completion {
+    $completionUrl = "https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/completions.ps1"
+    $completionDir = Join-Path $env:USERPROFILE ".config\powershell\Completions"
+    $completionFile = Join-Path $completionDir "upstream.ps1"
+    $profilePath = $PROFILE.CurrentUserAllHosts
+    $profileLine = ". `"$completionFile`""
+
+    Write-ColorOutput "Installing PowerShell completion..." $YELLOW
+
+    try {
+        New-Item -ItemType Directory -Path $completionDir -Force | Out-Null
+        Invoke-WebRequest -Uri $completionUrl -OutFile $completionFile -UseBasicParsing
+    }
+    catch {
+        Write-ColorOutput "Warning: Failed to install completion file ($_) - continuing." $YELLOW
+        return
+    }
+
+    try {
+        $profileDir = Split-Path -Parent $profilePath
+        if (![string]::IsNullOrEmpty($profileDir)) {
+            New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
+        }
+
+        if (!(Test-Path $profilePath)) {
+            New-Item -ItemType File -Path $profilePath -Force | Out-Null
+        }
+
+        $profileContent = Get-Content -Path $profilePath -Raw -ErrorAction SilentlyContinue
+        if ($null -eq $profileContent) {
+            $profileContent = ""
+        }
+
+        if ($profileContent -notlike "*$profileLine*") {
+            Add-Content -Path $profilePath -Value "`n$profileLine"
+        }
+    }
+    catch {
+        Write-ColorOutput "Warning: Completion installed at '$completionFile' but profile update failed ($_) - continuing." $YELLOW
+        return
+    }
+
+    Write-ColorOutput "PowerShell completion installed and activated." $GREEN
 }
 
 function Detect-Arch {
@@ -112,6 +163,9 @@ function Main {
                 throw "Command execution failed"
             }
         }
+
+        # Best-effort completion setup; do not fail installation if it cannot be configured.
+        Install-Completion
 
         Write-ColorOutput "Installation complete!" $GREEN
     }
