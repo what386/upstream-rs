@@ -34,48 +34,21 @@ function Write-ColorOutput {
 }
 
 function Install-Completion {
-    $completionUrl = "https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/completions.ps1"
-    $completionDir = Join-Path $env:USERPROFILE ".config\powershell\Completions"
-    $completionFile = Join-Path $completionDir "upstream.ps1"
-    $profilePath = $PROFILE.CurrentUserAllHosts
-    $profileLine = ". `"$completionFile`""
+    $helperUrl = "https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/scripts/install/completions.ps1"
+    $helperFile = Join-Path $TMP_DIR "completions.ps1"
 
     Write-ColorOutput "Installing PowerShell completion..." $YELLOW
 
     try {
-        New-Item -ItemType Directory -Path $completionDir -Force | Out-Null
-        Invoke-WebRequest -Uri $completionUrl -OutFile $completionFile -UseBasicParsing
+        Invoke-WebRequest -Uri $helperUrl -OutFile $helperFile -UseBasicParsing
+        & $helperFile
     }
     catch {
-        Write-ColorOutput "Warning: Failed to install completion file ($_) - continuing." $YELLOW
+        Write-ColorOutput "Warning: Completion installer failed ($_) - continuing." $YELLOW
         return
     }
 
-    try {
-        $profileDir = Split-Path -Parent $profilePath
-        if (![string]::IsNullOrEmpty($profileDir)) {
-            New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
-        }
-
-        if (!(Test-Path $profilePath)) {
-            New-Item -ItemType File -Path $profilePath -Force | Out-Null
-        }
-
-        $profileContent = Get-Content -Path $profilePath -Raw -ErrorAction SilentlyContinue
-        if ($null -eq $profileContent) {
-            $profileContent = ""
-        }
-
-        if ($profileContent -notlike "*$profileLine*") {
-            Add-Content -Path $profilePath -Value "`n$profileLine"
-        }
-    }
-    catch {
-        Write-ColorOutput "Warning: Completion installed at '$completionFile' but profile update failed ($_) - continuing." $YELLOW
-        return
-    }
-
-    Write-ColorOutput "PowerShell completion installed and activated." $GREEN
+    Write-ColorOutput "PowerShell completion installed." $GREEN
 }
 
 function Detect-Arch {
