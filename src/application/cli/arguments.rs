@@ -255,14 +255,20 @@ pub enum Commands {
     #[command(
         long_about = "Inspect upstream installation health and package state.\n\n\
         Checks package paths, symlinks, shell PATH integration, and desktop/icon files. \
-        Reports OK/WARN/FAIL with actionable hints.\n\n\
+        Reports a compact summary by default and includes actionable hints. \
+        Use --verbose to print each individual check result.\n\n\
         EXAMPLES:\n  \
         upstream doctor\n  \
+        upstream doctor --verbose\n  \
         upstream doctor nvim ripgrep"
     )]
     Doctor {
         /// Package names to check (all installed packages if omitted)
         names: Vec<String>,
+
+        /// Print each check result line in addition to summary output
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
     },
 }
 
@@ -458,9 +464,25 @@ mod tests {
     }
 
     #[test]
+    fn doctor_parses_verbose_flag() {
+        let cli = Cli::parse_from(["upstream", "doctor", "--verbose"]);
+
+        match cli.command {
+            Commands::Doctor { verbose, .. } => assert!(verbose),
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
     fn requires_lock_skips_read_only_commands() {
         assert!(!Commands::List { name: None }.requires_lock());
-        assert!(!Commands::Doctor { names: vec![] }.requires_lock());
+        assert!(
+            !Commands::Doctor {
+                names: vec![],
+                verbose: false,
+            }
+            .requires_lock()
+        );
         assert!(
             !Commands::Init {
                 clean: false,
