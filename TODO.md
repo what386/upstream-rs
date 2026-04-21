@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.5.5
+# TODO — upstream-cli v1.6.0
 
 @created: 2026-01-31
 @modified: 2026-04-21
@@ -23,14 +23,17 @@
 - [x] feat: `package remove` for forcing package deletions
       @created 2026-04-21 00:02
       @completed 2026-04-21 00:02
+      @completed_version 1.6.0
 
 - [x] feat: `doctor` checks for orphaned installed directories/files
       @created 2026-04-21 00:05
       @completed 2026-04-21 00:06
+      @completed_version 1.6.0
       @completed_commit 408163a
 
 - [x] feat: `doctor` now is compact by default. use --verbose to restore old behavior.
       @created 2026-04-21 00:06
       @completed 2026-04-21 00:06
+      @completed_version 1.6.0
       @completed_commit 408163a
 

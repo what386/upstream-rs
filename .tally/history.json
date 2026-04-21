@@ -672,7 +672,12 @@
       "commit": null,
       "completed_at": "2026-04-21T00:02:58.886278076Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 6,
+      "patch": 0,
+      "is_prerelease": false
+    }
   },
   {
     "change": {
@@ -685,6 +690,11 @@
       "commit": "408163a",
       "completed_at": "2026-04-21T00:06:54.531501604Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 6,
+      "patch": 0,
+      "is_prerelease": false
+    }
   }
 ]
