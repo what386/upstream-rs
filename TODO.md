@@ -14,9 +14,6 @@
 - [ ] community package registry? #feature #website
       @created 2026-02-14 01:09
 
-- [ ] feat: `package remove` for forcing package deletions
-      @created 2026-04-21 00:02
-
 
 ## Completed
 
@@ -95,4 +92,8 @@
       @completed 2026-04-20 18:23
       @completed_version 1.5.5
       @completed_commit 972f514
+
+- [x] feat: `package remove` for forcing package deletions
+      @created 2026-04-21 00:02
+      @completed 2026-04-21 00:02
 
