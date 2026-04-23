@@ -484,6 +484,16 @@ impl<'a> ChecksumVerifier<'a> {
         })
     }
 
+    fn bytes_to_lower_hex(bytes: &[u8]) -> String {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
+        let mut out = String::with_capacity(bytes.len() * 2);
+        for &byte in bytes {
+            out.push(HEX[(byte >> 4) as usize] as char);
+            out.push(HEX[(byte & 0x0f) as usize] as char);
+        }
+        out
+    }
+
     /// Stream-hash an asset and compare it with the expected digest.
     fn verify_checksum(asset_path: &Path, checksum: &ChecksumEntry) -> Result<bool> {
         use std::io::{BufReader, Read};
@@ -510,7 +520,8 @@ impl<'a> ChecksumVerifier<'a> {
                     }
                     hasher.update(&buffer[..n]);
                 }
-                format!("{:x}", hasher.finalize())
+                let digest = hasher.finalize();
+                Self::bytes_to_lower_hex(digest.as_ref())
             }
             HashAlgo::Sha512 => {
                 use sha2::Digest;
@@ -522,7 +533,8 @@ impl<'a> ChecksumVerifier<'a> {
                     }
                     hasher.update(&buffer[..n]);
                 }
-                format!("{:x}", hasher.finalize())
+                let digest = hasher.finalize();
+                Self::bytes_to_lower_hex(digest.as_ref())
             }
         };
 
@@ -659,7 +671,10 @@ mod tests {
         let asset_path = root.join("asset.bin");
         fs::write(&asset_path, b"checksum-data").expect("write asset");
 
-        let digest = format!("{:x}", sha2::Sha256::digest(b"checksum-data"));
+        let digest = {
+            let digest_bytes = sha2::Sha256::digest(b"checksum-data");
+            ChecksumVerifier::bytes_to_lower_hex(digest_bytes.as_ref())
+        };
         let entry = ChecksumVerifier::parse_standard_format(&format!("{digest}  asset.bin"))
             .expect("parse checksum entry");
 
