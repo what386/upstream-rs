@@ -1,0 +1,95 @@
+name: Bug report
+description: Report a reproducible problem with upstream-rs.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please include enough detail to reproduce the issue.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A concise description of the problem.
+      placeholder: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide exact steps and sample commands.
+      placeholder: |
+        1. Run `upstream ...`
+        2. Run `upstream ...`
+        3. Observe error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: What actually happened?
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: upstream-rs version
+      description: Output of `upstream --version`.
+      placeholder: upstream-rs x.y.z
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: shell
+    attributes:
+      label: Shell
+      description: Example: bash, zsh, fish, pwsh.
+      placeholder: bash 5.2
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / errors
+      description: Paste relevant command output and stack traces.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant config
+      description: Redact secrets before sharing.
+      placeholder: Paste relevant `upstream` config or package metadata.
+    validations:
+      required: false
