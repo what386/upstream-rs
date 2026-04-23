@@ -21,30 +21,30 @@ shell-completions = ["dep:clap_complete"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "io-util", "process", "time"] }
 futures-util = "0.3"
 anyhow = "1.0"
 dirs = "6.0"
-clap = { version = "4.5", features = ["derive"] }
-flate2 = { version = "1.0", default-features = false, features = ["zlib-rs"] }
+clap = { version = "4.6", features = ["derive"] }
+flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 tar = "0.4"
-zip = { version = "7.2", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "8.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 bzip2 = "0.6.1"
 indicatif = "0.18"
 glob = "0.3"
-sha2 = "0.10"
+sha2 = "0.11"
 console = "0.16"
-toml = "0.9.10"
+toml = "1.1.2"
 xz2 = "0.1.7"
 walkdir = "2.5.0"
-clap_complete = { version = "4.5", optional = true }
+clap_complete = { version = "4.6", optional = true }
 zstd = "0.13.3"
 
 [target.'cfg(windows)'.dependencies]
-winreg = "0.52"
+winreg = "0.56"
 winapi = { version = "0.3", features = ["winuser"] }
 
 [[bin]]
