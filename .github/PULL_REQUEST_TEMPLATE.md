@@ -1,21 +1,19 @@
-## Summary
-
-Describe the purpose of this PR and the user-visible impact.
-
 ## Changes
 
-- 
+-
 
-## Testing
+## Validation
 
 List what you ran and on which platform(s).
 
-- [ ] `cargo fmt -- --check`
-- [ ] `cargo clippy --all-targets -- -D warnings`
-- [ ] `cargo test --all`
+- [ ] `dotnet format --verify-no-changes`
+- [ ] `dotnet format analyzers --verify-no-changes`
+- [ ] `dotnet build --configuration Release -warnaserror`
+- [ ] `dotnet test --configuration Release --no-build`
 
 ## Checklist
 
-- [ ] I updated docs/help text if behavior changed.
-- [ ] I considered cross-platform behavior (Linux/macOS/Windows).
-- [ ] I added or updated tests when applicable.
+- [ ] I added or updated tests for my changes, if applicable.
+- [ ] I considered cross-platform behavior, if applicable.
+- [ ] I updated docs/help text if behavior has changed.
+- [ ] I have ensured there are no existing pull requests for this.

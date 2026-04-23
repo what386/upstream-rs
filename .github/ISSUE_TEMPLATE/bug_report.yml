@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible problem with upstream-rs.
+description: Report a reproducible problem with upstream.
 title: "[Bug]: "
 labels:
   - bug
@@ -24,9 +24,8 @@ body:
       label: Steps to reproduce
       description: Provide exact steps and sample commands.
       placeholder: |
-        1. Run `upstream ...`
-        2. Run `upstream ...`
-        3. Observe error
+        1. Do `...`
+        2. Observe error
     validations:
       required: true
 
@@ -49,9 +48,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: upstream-rs version
+      label: upstream version
       description: Output of `upstream --version`.
-      placeholder: upstream-rs x.y.z
+      placeholder: upstream x.y.z
     validations:
       required: true
 
@@ -67,15 +66,6 @@ body:
     validations:
       required: true
 
-  - type: input
-    id: shell
-    attributes:
-      label: Shell
-      description: Example: bash, zsh, fish, pwsh.
-      placeholder: bash 5.2
-    validations:
-      required: false
-
   - type: textarea
     id: logs
     attributes:
@@ -90,6 +80,6 @@ body:
     attributes:
       label: Relevant config
       description: Redact secrets before sharing.
-      placeholder: Paste relevant `upstream` config or package metadata.
+      placeholder: Paste relevant config, if applicable.
     validations:
       required: false
