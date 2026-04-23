@@ -1,0 +1,99 @@
+name: Feature request
+description: Suggest an idea or enhancement for upstream.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please provide enough detail so we can understand the use case and evaluate the idea.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A concise description of the feature.
+      placeholder: What would you like to see added or changed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What problem does this solve? What are you trying to accomplish?
+      placeholder: |
+        I'm trying to...
+        Currently, it's difficult because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe how you think this should work.
+      placeholder: |
+        It could work by...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or workarounds you've tried.
+      placeholder: |
+        I tried...
+    validations:
+      required: false
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples / prior art
+      description: Links or references to similar features in other tools, if applicable.
+      placeholder: |
+        Tool X does this by...
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: upstream version
+      description: Output of `upstream --version`.
+      placeholder: upstream x.y.z
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add any other context, screenshots, or logs here.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and discussions.
+          required: true
+        - label: This is not a bug report or support request.
+          required: true

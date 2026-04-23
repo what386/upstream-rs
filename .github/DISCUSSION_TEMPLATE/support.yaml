@@ -1,0 +1,76 @@
+title: "Support / Help"
+labels:
+  - support
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reaching out! Please provide as much detail as possible so we can help you quickly.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you need help with?
+      description: Clearly describe your question or problem.
+      placeholder: |
+        I'm trying to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you trying to achieve?
+      placeholder: |
+        I'm working on...
+    validations:
+      required: false
+
+  - type: textarea
+    id: attempts
+    attributes:
+      label: What have you tried?
+      description: Steps you've already taken to solve the issue.
+      placeholder: |
+        I tried...
+    validations:
+      required: false
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Relevant code or configuration
+      description: Paste any relevant code, config, or logs.
+      render: shell
+    validations:
+      required: false
+
+- type: input
+    id: version
+    attributes:
+      label: upstream version
+      description: Output of `upstream --version`.
+      placeholder: upstream x.y.z
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: OS and version (if relevant)
+      placeholder: e.g. Ubuntu 24.04, Windows 11, macOS 14
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Before posting
+      options:
+        - label: I searched existing discussions and issues.
+          required: true
+        - label: I read the documentation (or help text).
+          required: true
