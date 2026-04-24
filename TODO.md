@@ -40,4 +40,5 @@
 - [x] bug: fix pid implementation on windows+macos
       @created 2026-04-24 19:11
       @completed 2026-04-24 19:11
+      @completed_version 1.6.1
 
