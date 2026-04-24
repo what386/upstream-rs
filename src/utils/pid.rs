@@ -116,11 +116,7 @@ fn probe_process_unix(pid: u32) -> ProcessProbe {
 fn kill_zero_exists(pid: u32) -> bool {
     use std::process::Command;
 
-    match Command::new("kill")
-        .arg("-0")
-        .arg(pid.to_string())
-        .output()
-    {
+    match Command::new("kill").arg("-0").arg(pid.to_string()).output() {
         Ok(output) if output.status.success() => true,
         Ok(output) => {
             let stderr = String::from_utf8_lossy(&output.stderr).to_ascii_lowercase();
@@ -199,8 +195,7 @@ fn probe_process_windows(pid: u32) -> ProcessProbe {
         ) != 0
         {
             let creation = creation.assume_init();
-            let ticks =
-                ((creation.dwHighDateTime as u64) << 32) | (creation.dwLowDateTime as u64);
+            let ticks = ((creation.dwHighDateTime as u64) << 32) | (creation.dwLowDateTime as u64);
             Some(ticks.to_string())
         } else {
             None
