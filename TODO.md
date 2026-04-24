@@ -11,9 +11,6 @@
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
 
-- [ ] feat: lockfiles now only care about pid (not time)
-      @created 2026-04-24 19:12
-
 
 ## Completed
 
@@ -44,4 +41,8 @@
       @created 2026-04-24 19:11
       @completed 2026-04-24 19:11
       @completed_version 1.6.1
+
+- [x] feat: lockfiles now only care about pid (not time)
+      @created 2026-04-24 19:12
+      @completed 2026-04-24 19:12
 
