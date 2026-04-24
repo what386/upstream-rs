@@ -693,5 +693,15 @@
       "patch": 1,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "feat: lockfiles now only care about pid (not time)",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-04-24T19:12:16.386813937Z"
+    },
+    "version": null
   }
 ]
