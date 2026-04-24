@@ -28,6 +28,10 @@ end
 echo -e $"{BLUE}Generating changelog...{NC}"
 tally changelog > CHANGELOG.md
 git add CHANGELOG.md TODO.md .tally/history.json
-git commit -m "Release $version: update changelog"
+git commit -m $"Release {version}: update changelog"
+
+just gen-completions
+git add completions
+git commit -m $"Release {version}: Update shell completions"
 
 echo -e $"{GREEN}Release {version} prepared.{NC}"
