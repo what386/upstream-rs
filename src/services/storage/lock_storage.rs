@@ -17,7 +17,6 @@ pub struct LockStorage {
     path: PathBuf,
 }
 
-const STALE_LOCK_MAX_AGE: Duration = Duration::from_mins(5);
 const LOCK_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
 #[derive(Default, Debug)]
@@ -143,21 +142,12 @@ impl LockStorage {
         let meta = Self::parse_lock_metadata(lock_info);
 
         if let Some(pid) = meta.pid {
-            // If the PID is still alive, never steal the lock based on age alone.
             return !Self::process_exists(pid);
         }
 
-        if let Some(started_at) = meta.started_at_unix {
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(started_at);
-            if Duration::from_secs(now.saturating_sub(started_at)) > STALE_LOCK_MAX_AGE {
-                return true;
-            }
-        }
-
-        false
+        // Missing or malformed pid values are treated as stale to prevent deadlocks
+        // caused by corrupted or manually-created lock files.
+        true
     }
 
     fn process_exists(pid: u32) -> bool {
@@ -310,6 +300,33 @@ mod tests {
         let outcome =
             LockStorage::try_acquire_at_internal(&lock_path, "next-op", true).expect("try acquire");
         assert!(matches!(outcome, super::AcquireOutcome::Waiting));
+
+        let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
+    }
+
+    #[test]
+    fn lock_without_pid_is_recovered_automatically() {
+        let lock_path = unique_lock_path("missing-pid");
+        fs::create_dir_all(lock_path.parent().expect("lock parent")).expect("create lock parent");
+        fs::write(&lock_path, "operation=test\nstarted_at_unix=1\n").expect("write stale lock");
+
+        let _guard = LockStorage::acquire_at(&lock_path, "new-op").expect("recover stale lock");
+        let contents = fs::read_to_string(&lock_path).expect("read lock");
+        assert!(contents.contains("operation=new-op"));
+
+        let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
+    }
+
+    #[test]
+    fn lock_with_malformed_pid_is_recovered_automatically() {
+        let lock_path = unique_lock_path("malformed-pid");
+        fs::create_dir_all(lock_path.parent().expect("lock parent")).expect("create lock parent");
+        fs::write(&lock_path, "pid=abc\noperation=test\nstarted_at_unix=1\n")
+            .expect("write stale lock");
+
+        let _guard = LockStorage::acquire_at(&lock_path, "new-op").expect("recover stale lock");
+        let contents = fs::read_to_string(&lock_path).expect("read lock");
+        assert!(contents.contains("operation=new-op"));
 
         let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
     }
