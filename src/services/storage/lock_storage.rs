@@ -1,6 +1,4 @@
 use anyhow::{Context, Result, anyhow};
-#[cfg(unix)]
-use std::process::Command;
 use std::{
     fs::{self, OpenOptions},
     io::{ErrorKind, Write},
@@ -10,6 +8,7 @@ use std::{
 };
 
 use crate::application::cli::arguments::Commands;
+use crate::utils::pid;
 use crate::utils::static_paths::UpstreamPaths;
 
 #[derive(Debug)]
@@ -22,6 +21,7 @@ const LOCK_POLL_INTERVAL: Duration = Duration::from_secs(1);
 #[derive(Default, Debug)]
 struct LockMetadata {
     pid: Option<u32>,
+    pid_start_token: Option<String>,
     operation: Option<String>,
     started_at_unix: Option<u64>,
 }
@@ -112,6 +112,9 @@ impl LockStorage {
             .map(|d| d.as_secs())
             .unwrap_or(0);
         writeln!(file, "pid={}", process::id()).ok();
+        if let Some(identity) = pid::current_process_identity() {
+            writeln!(file, "pid_start_token={}", identity.start_token).ok();
+        }
         writeln!(file, "operation={}", operation).ok();
         writeln!(file, "started_at_unix={}", since_epoch).ok();
 
@@ -126,6 +129,11 @@ impl LockStorage {
             let line = raw_line.trim();
             if let Some(value) = line.strip_prefix("pid=") {
                 meta.pid = value.trim().parse::<u32>().ok();
+            } else if let Some(value) = line.strip_prefix("pid_start_token=") {
+                let token = value.trim();
+                if !token.is_empty() {
+                    meta.pid_start_token = Some(token.to_string());
+                }
             } else if let Some(value) = line.strip_prefix("operation=") {
                 let op = value.trim();
                 if !op.is_empty() {
@@ -142,41 +150,24 @@ impl LockStorage {
         let meta = Self::parse_lock_metadata(lock_info);
 
         if let Some(pid) = meta.pid {
-            return !Self::process_exists(pid);
+            let probe = pid::probe_process(pid);
+            if !probe.exists {
+                return true;
+            }
+
+            if let (Some(expected), Some(actual)) = (
+                meta.pid_start_token.as_deref(),
+                probe.start_token.as_deref(),
+            ) {
+                return expected != actual;
+            }
+
+            return false;
         }
 
         // Missing or malformed pid values are treated as stale to prevent deadlocks
         // caused by corrupted or manually-created lock files.
         true
-    }
-
-    fn process_exists(pid: u32) -> bool {
-        if pid == 0 {
-            return false;
-        }
-
-        #[cfg(unix)]
-        {
-            // Linux: /proc is cheap and reliable.
-            if Path::new("/proc").exists() {
-                return Path::new("/proc").join(pid.to_string()).exists();
-            }
-
-            // macOS/BSD fallback: `kill -0 <pid>` checks whether the process exists.
-            // If the probe command is unavailable, avoid false stale detection.
-            Command::new("kill")
-                .arg("-0")
-                .arg(pid.to_string())
-                .status()
-                .map(|status| status.success())
-                .unwrap_or(true)
-        }
-
-        #[cfg(not(unix))]
-        {
-            let _ = pid;
-            true
-        }
     }
 }
 
@@ -189,6 +180,7 @@ impl Drop for LockStorage {
 #[cfg(test)]
 mod tests {
     use super::LockStorage;
+    use crate::utils::pid;
     use std::{
         fs,
         path::PathBuf,
@@ -257,9 +249,10 @@ mod tests {
     #[test]
     fn parse_lock_metadata_extracts_known_fields() {
         let meta = LockStorage::parse_lock_metadata(
-            "pid=123\noperation=upgrade\nstarted_at_unix=456\nunknown=ignored\n",
+            "pid=123\npid_start_token=abc123\noperation=upgrade\nstarted_at_unix=456\nunknown=ignored\n",
         );
         assert_eq!(meta.pid, Some(123));
+        assert_eq!(meta.pid_start_token.as_deref(), Some("abc123"));
         assert_eq!(meta.operation.as_deref(), Some("upgrade"));
         assert_eq!(meta.started_at_unix, Some(456));
     }
@@ -327,6 +320,49 @@ mod tests {
         let _guard = LockStorage::acquire_at(&lock_path, "new-op").expect("recover stale lock");
         let contents = fs::read_to_string(&lock_path).expect("read lock");
         assert!(contents.contains("operation=new-op"));
+
+        let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
+    }
+
+    #[test]
+    fn stale_lock_is_recovered_when_pid_start_token_mismatches() {
+        let Some(identity) = pid::current_process_identity() else {
+            return;
+        };
+
+        let lock_path = unique_lock_path("token-mismatch");
+        fs::create_dir_all(lock_path.parent().expect("lock parent")).expect("create lock parent");
+        let current_pid = std::process::id();
+        fs::write(
+            &lock_path,
+            format!(
+                "pid={current_pid}\npid_start_token={}-mismatch\noperation=test\nstarted_at_unix=1\n",
+                identity.start_token
+            ),
+        )
+        .expect("write mismatched lock");
+
+        let _guard = LockStorage::acquire_at(&lock_path, "new-op").expect("recover stale lock");
+        let contents = fs::read_to_string(&lock_path).expect("read lock");
+        assert!(contents.contains("operation=new-op"));
+
+        let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
+    }
+
+    #[test]
+    fn legacy_lock_without_pid_start_token_stays_blocking_for_live_pid() {
+        let lock_path = unique_lock_path("legacy-live");
+        fs::create_dir_all(lock_path.parent().expect("lock parent")).expect("create lock parent");
+        let current_pid = std::process::id();
+        fs::write(
+            &lock_path,
+            format!("pid={current_pid}\noperation=test\nstarted_at_unix=1\n"),
+        )
+        .expect("write legacy lock");
+
+        let outcome =
+            LockStorage::try_acquire_at_internal(&lock_path, "next-op", true).expect("try acquire");
+        assert!(matches!(outcome, super::AcquireOutcome::Waiting));
 
         let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
     }
