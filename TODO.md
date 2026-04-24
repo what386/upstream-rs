@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.6.1
+# TODO — upstream-cli v1.6.2
 
 @created: 2026-01-31
 @modified: 2026-04-24
@@ -50,4 +50,5 @@
 - [x] bug: fix builds/warnings on windows
       @created 2026-04-24 19:49
       @completed 2026-04-24 19:49
+      @completed_version 1.6.2
 
