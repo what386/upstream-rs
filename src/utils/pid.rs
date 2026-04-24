@@ -15,7 +15,7 @@ pub fn current_process_identity() -> Option<ProcessIdentity> {
     let probe = probe_process(process::id());
     probe
         .exists
-        .then(|| probe.start_token)
+        .then_some(probe.start_token)
         .flatten()
         .map(|start_token| ProcessIdentity { start_token })
 }
