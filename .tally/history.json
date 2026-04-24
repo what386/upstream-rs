@@ -702,6 +702,11 @@
       "commit": null,
       "completed_at": "2026-04-24T19:12:16.386813937Z"
     },
-    "version": null
+    "version": {
+      "major": 1,
+      "minor": 6,
+      "patch": 1,
+      "is_prerelease": false
+    }
   }
 ]
