@@ -2,6 +2,13 @@
 
 *Generated on 2026-04-24*
 
+## 1.6.2 — 2026-04-24
+
+### Changes
+
+- bug: fix builds/warnings on windows
+
+
 ## 1.6.1 — 2026-04-24
 
 ### Changes
