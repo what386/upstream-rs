@@ -1,6 +1,6 @@
 [package]
 name = "upstream-rs"
-version = "1.6.0"
+version = "1.6.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -45,7 +45,7 @@ zstd = "0.13.3"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
-winapi = { version = "0.3", features = ["winuser"] }
+winapi = { version = "0.3", features = ["winuser", "processthreadsapi", "handleapi", "minwinbase", "winbase", "winnt", "errhandlingapi"] }
 
 [[bin]]
 name = "completions"
