@@ -11,9 +11,6 @@
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
 
-- [ ] bug: fix builds/warnings on windows
-      @created 2026-04-24 19:49
-
 
 ## Completed
 
@@ -49,4 +46,8 @@
       @created 2026-04-24 19:12
       @completed 2026-04-24 19:12
       @completed_version 1.6.1
+
+- [x] bug: fix builds/warnings on windows
+      @created 2026-04-24 19:49
+      @completed 2026-04-24 19:49
 

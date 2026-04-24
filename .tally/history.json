@@ -708,5 +708,15 @@
       "patch": 1,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "bug: fix builds/warnings on windows",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-04-24T19:49:15.098682088Z"
+    },
+    "version": null
   }
 ]
