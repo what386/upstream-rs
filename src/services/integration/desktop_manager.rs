@@ -15,6 +15,7 @@ use std::{
 #[cfg(windows)]
 use std::process::Command;
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
         if let Some(cb) = $cb.as_mut() {

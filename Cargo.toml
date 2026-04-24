@@ -45,7 +45,7 @@ zstd = "0.13.3"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
-winapi = { version = "0.3", features = ["winuser", "processthreadsapi", "handleapi", "minwinbase", "winbase", "winnt", "errhandlingapi"] }
+winapi = { version = "0.3", features = ["winuser", "processthreadsapi", "handleapi", "minwinbase", "winbase", "winnt", "errhandlingapi", "winerror"] }
 
 [[bin]]
 name = "completions"

@@ -134,14 +134,12 @@ fn kill_zero_exists(pid: u32) -> bool {
 #[cfg(windows)]
 fn probe_process_windows(pid: u32) -> ProcessProbe {
     use std::mem::MaybeUninit;
-    use std::ptr;
-    use winapi::shared::minwindef::{DWORD, FALSE};
+    use winapi::shared::minwindef::{DWORD, FALSE, FILETIME};
     use winapi::shared::winerror::{ERROR_ACCESS_DENIED, ERROR_INVALID_PARAMETER};
     use winapi::um::errhandlingapi::GetLastError;
     use winapi::um::handleapi::CloseHandle;
-    use winapi::um::minwinbase::FILETIME;
+    use winapi::um::minwinbase::STILL_ACTIVE;
     use winapi::um::processthreadsapi::{GetExitCodeProcess, GetProcessTimes, OpenProcess};
-    use winapi::um::winbase::STILL_ACTIVE;
     use winapi::um::winnt::PROCESS_QUERY_LIMITED_INFORMATION;
 
     unsafe {

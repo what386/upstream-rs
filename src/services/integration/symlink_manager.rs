@@ -89,11 +89,16 @@ impl<'a> SymlinkManager<'a> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
     use super::SymlinkManager;
+    #[cfg(unix)]
     use std::path::{Path, PathBuf};
+    #[cfg(unix)]
     use std::time::{SystemTime, UNIX_EPOCH};
+    #[cfg(unix)]
     use std::{fs, io};
 
+    #[cfg(unix)]
     fn temp_root(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -102,6 +107,7 @@ mod tests {
         std::env::temp_dir().join(format!("upstream-symlink-test-{name}-{nanos}"))
     }
 
+    #[cfg(unix)]
     fn cleanup(path: &Path) -> io::Result<()> {
         fs::remove_dir_all(path)
     }
