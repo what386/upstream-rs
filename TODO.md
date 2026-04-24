@@ -11,9 +11,6 @@
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
 
-- [ ] bug: fix pid implementation on windows+macos
-      @created 2026-04-24 19:11
-
 
 ## Completed
 
@@ -39,4 +36,8 @@
       @completed 2026-04-21 00:06
       @completed_version 1.6.0
       @completed_commit 408163a
+
+- [x] bug: fix pid implementation on windows+macos
+      @created 2026-04-24 19:11
+      @completed 2026-04-24 19:11
 
