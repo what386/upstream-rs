@@ -1,7 +1,7 @@
-# TODO — upstream-cli v1.6.0
+# TODO — upstream-cli v1.6.1
 
 @created: 2026-01-31
-@modified: 2026-04-21
+@modified: 2026-04-24
 
 ## Tasks
 
@@ -10,6 +10,9 @@
 
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
+
+- [ ] bug: fix pid implementation on windows+macos
+      @created 2026-04-24 19:11
 
 
 ## Completed
