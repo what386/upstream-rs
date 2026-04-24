@@ -11,7 +11,7 @@ lint:
 
 test:
     cargo test --all
-    cargo xwin test --all
+    cargo xwin test --all --target x86_64-pc-windows-msvc
 
 run *args:
     cargo run -- {{args}}
