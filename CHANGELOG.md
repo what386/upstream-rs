@@ -7,6 +7,7 @@
 ### Changes
 
 - bug: fix pid implementation on windows+macos
+- feat: lockfiles now only care about pid (not time)
 
 
 ## 1.6.0 — 2026-04-21
