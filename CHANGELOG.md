@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-04-21*
+*Generated on 2026-04-24*
+
+## 1.6.1 — 2026-04-24
+
+### Changes
+
+- bug: fix pid implementation on windows+macos
+
 
 ## 1.6.0 — 2026-04-21
 
