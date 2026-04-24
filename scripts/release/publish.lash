@@ -40,4 +40,4 @@ cargo publish
 echo -e $"{GREEN}Published on crates.io{NC}"
 @end
 
-echo -e $"{GREEN}$version published successfully.{NC}"
+echo -e $"{GREEN}{version} published successfully.{NC}"
