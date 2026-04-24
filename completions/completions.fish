@@ -123,6 +123,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand import" -l skip-failed
 complete -c upstream -n "__fish_upstream_using_subcommand import" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand export" -l full -d 'Export a full snapshot of the upstream directory instead of a manifest'
 complete -c upstream -n "__fish_upstream_using_subcommand export" -s h -l help -d 'Print help (see more with \'--help\')'
+complete -c upstream -n "__fish_upstream_using_subcommand doctor" -l verbose -d 'Print each check result line in addition to summary output'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install remove upgrade list probe config package init import export doctor help" -f -a "install" -d 'Install a package from a GitHub release'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install remove upgrade list probe config package init import export doctor help" -f -a "remove" -d 'Remove one or more installed packages'

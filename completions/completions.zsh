@@ -96,7 +96,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-":: :_upstream__config_commands" \
+":: :_upstream__subcmd__config_commands" \
 "*::: :->config" \
 && ret=0
 
@@ -140,7 +140,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (help)
 _arguments "${_arguments_options[@]}" : \
-":: :_upstream__config__help_commands" \
+":: :_upstream__subcmd__config__subcmd__help_commands" \
 "*::: :->help" \
 && ret=0
 
@@ -186,7 +186,7 @@ esac
 _arguments "${_arguments_options[@]}" : \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-":: :_upstream__package_commands" \
+":: :_upstream__subcmd__package_commands" \
 "*::: :->package" \
 && ret=0
 
@@ -250,7 +250,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (help)
 _arguments "${_arguments_options[@]}" : \
-":: :_upstream__package__help_commands" \
+":: :_upstream__subcmd__package__subcmd__help_commands" \
 "*::: :->help" \
 && ret=0
 
@@ -326,6 +326,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (doctor)
 _arguments "${_arguments_options[@]}" : \
+'--verbose[Print each check result line in addition to summary output]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Package names to check (all installed packages if omitted):_default' \
@@ -333,7 +334,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (help)
 _arguments "${_arguments_options[@]}" : \
-":: :_upstream__help_commands" \
+":: :_upstream__subcmd__help_commands" \
 "*::: :->help" \
 && ret=0
 
@@ -365,7 +366,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (config)
 _arguments "${_arguments_options[@]}" : \
-":: :_upstream__help__config_commands" \
+":: :_upstream__subcmd__help__subcmd__config_commands" \
 "*::: :->config" \
 && ret=0
 
@@ -401,7 +402,7 @@ esac
 ;;
 (package)
 _arguments "${_arguments_options[@]}" : \
-":: :_upstream__help__package_commands" \
+":: :_upstream__subcmd__help__subcmd__package_commands" \
 "*::: :->package" \
 && ret=0
 
@@ -490,8 +491,8 @@ _upstream_commands() {
     )
     _describe -t commands 'upstream commands' commands "$@"
 }
-(( $+functions[_upstream__config_commands] )) ||
-_upstream__config_commands() {
+(( $+functions[_upstream__subcmd__config_commands] )) ||
+_upstream__subcmd__config_commands() {
     local commands; commands=(
 'set:Set configuration values' \
 'get:Get configuration values' \
@@ -502,18 +503,18 @@ _upstream__config_commands() {
     )
     _describe -t commands 'upstream config commands' commands "$@"
 }
-(( $+functions[_upstream__config__edit_commands] )) ||
-_upstream__config__edit_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__edit_commands] )) ||
+_upstream__subcmd__config__subcmd__edit_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config edit commands' commands "$@"
 }
-(( $+functions[_upstream__config__get_commands] )) ||
-_upstream__config__get_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__get_commands] )) ||
+_upstream__subcmd__config__subcmd__get_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config get commands' commands "$@"
 }
-(( $+functions[_upstream__config__help_commands] )) ||
-_upstream__config__help_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__help_commands] )) ||
+_upstream__subcmd__config__subcmd__help_commands() {
     local commands; commands=(
 'set:Set configuration values' \
 'get:Get configuration values' \
@@ -524,63 +525,63 @@ _upstream__config__help_commands() {
     )
     _describe -t commands 'upstream config help commands' commands "$@"
 }
-(( $+functions[_upstream__config__help__edit_commands] )) ||
-_upstream__config__help__edit_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__help__subcmd__edit_commands] )) ||
+_upstream__subcmd__config__subcmd__help__subcmd__edit_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config help edit commands' commands "$@"
 }
-(( $+functions[_upstream__config__help__get_commands] )) ||
-_upstream__config__help__get_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__help__subcmd__get_commands] )) ||
+_upstream__subcmd__config__subcmd__help__subcmd__get_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config help get commands' commands "$@"
 }
-(( $+functions[_upstream__config__help__help_commands] )) ||
-_upstream__config__help__help_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__help__subcmd__help_commands] )) ||
+_upstream__subcmd__config__subcmd__help__subcmd__help_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config help help commands' commands "$@"
 }
-(( $+functions[_upstream__config__help__list_commands] )) ||
-_upstream__config__help__list_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__help__subcmd__list_commands] )) ||
+_upstream__subcmd__config__subcmd__help__subcmd__list_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config help list commands' commands "$@"
 }
-(( $+functions[_upstream__config__help__reset_commands] )) ||
-_upstream__config__help__reset_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__help__subcmd__reset_commands] )) ||
+_upstream__subcmd__config__subcmd__help__subcmd__reset_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config help reset commands' commands "$@"
 }
-(( $+functions[_upstream__config__help__set_commands] )) ||
-_upstream__config__help__set_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__help__subcmd__set_commands] )) ||
+_upstream__subcmd__config__subcmd__help__subcmd__set_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config help set commands' commands "$@"
 }
-(( $+functions[_upstream__config__list_commands] )) ||
-_upstream__config__list_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__list_commands] )) ||
+_upstream__subcmd__config__subcmd__list_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config list commands' commands "$@"
 }
-(( $+functions[_upstream__config__reset_commands] )) ||
-_upstream__config__reset_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__reset_commands] )) ||
+_upstream__subcmd__config__subcmd__reset_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config reset commands' commands "$@"
 }
-(( $+functions[_upstream__config__set_commands] )) ||
-_upstream__config__set_commands() {
+(( $+functions[_upstream__subcmd__config__subcmd__set_commands] )) ||
+_upstream__subcmd__config__subcmd__set_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config set commands' commands "$@"
 }
-(( $+functions[_upstream__doctor_commands] )) ||
-_upstream__doctor_commands() {
+(( $+functions[_upstream__subcmd__doctor_commands] )) ||
+_upstream__subcmd__doctor_commands() {
     local commands; commands=()
     _describe -t commands 'upstream doctor commands' commands "$@"
 }
-(( $+functions[_upstream__export_commands] )) ||
-_upstream__export_commands() {
+(( $+functions[_upstream__subcmd__export_commands] )) ||
+_upstream__subcmd__export_commands() {
     local commands; commands=()
     _describe -t commands 'upstream export commands' commands "$@"
 }
-(( $+functions[_upstream__help_commands] )) ||
-_upstream__help_commands() {
+(( $+functions[_upstream__subcmd__help_commands] )) ||
+_upstream__subcmd__help_commands() {
     local commands; commands=(
 'install:Install a package from a GitHub release' \
 'remove:Remove one or more installed packages' \
@@ -597,8 +598,8 @@ _upstream__help_commands() {
     )
     _describe -t commands 'upstream help commands' commands "$@"
 }
-(( $+functions[_upstream__help__config_commands] )) ||
-_upstream__help__config_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__config_commands] )) ||
+_upstream__subcmd__help__subcmd__config_commands() {
     local commands; commands=(
 'set:Set configuration values' \
 'get:Get configuration values' \
@@ -608,68 +609,68 @@ _upstream__help__config_commands() {
     )
     _describe -t commands 'upstream help config commands' commands "$@"
 }
-(( $+functions[_upstream__help__config__edit_commands] )) ||
-_upstream__help__config__edit_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__config__subcmd__edit_commands] )) ||
+_upstream__subcmd__help__subcmd__config__subcmd__edit_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help config edit commands' commands "$@"
 }
-(( $+functions[_upstream__help__config__get_commands] )) ||
-_upstream__help__config__get_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__config__subcmd__get_commands] )) ||
+_upstream__subcmd__help__subcmd__config__subcmd__get_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help config get commands' commands "$@"
 }
-(( $+functions[_upstream__help__config__list_commands] )) ||
-_upstream__help__config__list_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__config__subcmd__list_commands] )) ||
+_upstream__subcmd__help__subcmd__config__subcmd__list_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help config list commands' commands "$@"
 }
-(( $+functions[_upstream__help__config__reset_commands] )) ||
-_upstream__help__config__reset_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__config__subcmd__reset_commands] )) ||
+_upstream__subcmd__help__subcmd__config__subcmd__reset_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help config reset commands' commands "$@"
 }
-(( $+functions[_upstream__help__config__set_commands] )) ||
-_upstream__help__config__set_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__config__subcmd__set_commands] )) ||
+_upstream__subcmd__help__subcmd__config__subcmd__set_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help config set commands' commands "$@"
 }
-(( $+functions[_upstream__help__doctor_commands] )) ||
-_upstream__help__doctor_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__doctor_commands] )) ||
+_upstream__subcmd__help__subcmd__doctor_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help doctor commands' commands "$@"
 }
-(( $+functions[_upstream__help__export_commands] )) ||
-_upstream__help__export_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__export_commands] )) ||
+_upstream__subcmd__help__subcmd__export_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help export commands' commands "$@"
 }
-(( $+functions[_upstream__help__help_commands] )) ||
-_upstream__help__help_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__help_commands] )) ||
+_upstream__subcmd__help__subcmd__help_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help help commands' commands "$@"
 }
-(( $+functions[_upstream__help__import_commands] )) ||
-_upstream__help__import_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__import_commands] )) ||
+_upstream__subcmd__help__subcmd__import_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help import commands' commands "$@"
 }
-(( $+functions[_upstream__help__init_commands] )) ||
-_upstream__help__init_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__init_commands] )) ||
+_upstream__subcmd__help__subcmd__init_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help init commands' commands "$@"
 }
-(( $+functions[_upstream__help__install_commands] )) ||
-_upstream__help__install_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__install_commands] )) ||
+_upstream__subcmd__help__subcmd__install_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help install commands' commands "$@"
 }
-(( $+functions[_upstream__help__list_commands] )) ||
-_upstream__help__list_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__list_commands] )) ||
+_upstream__subcmd__help__subcmd__list_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help list commands' commands "$@"
 }
-(( $+functions[_upstream__help__package_commands] )) ||
-_upstream__help__package_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__package_commands] )) ||
+_upstream__subcmd__help__subcmd__package_commands() {
     local commands; commands=(
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
@@ -681,78 +682,78 @@ _upstream__help__package_commands() {
     )
     _describe -t commands 'upstream help package commands' commands "$@"
 }
-(( $+functions[_upstream__help__package__get-key_commands] )) ||
-_upstream__help__package__get-key_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__get-key_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__get-key_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package get-key commands' commands "$@"
 }
-(( $+functions[_upstream__help__package__metadata_commands] )) ||
-_upstream__help__package__metadata_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__metadata_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__metadata_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package metadata commands' commands "$@"
 }
-(( $+functions[_upstream__help__package__pin_commands] )) ||
-_upstream__help__package__pin_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__pin_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__pin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package pin commands' commands "$@"
 }
-(( $+functions[_upstream__help__package__remove_commands] )) ||
-_upstream__help__package__remove_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__remove_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__remove_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package remove commands' commands "$@"
 }
-(( $+functions[_upstream__help__package__rename_commands] )) ||
-_upstream__help__package__rename_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__rename_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__rename_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package rename commands' commands "$@"
 }
-(( $+functions[_upstream__help__package__set-key_commands] )) ||
-_upstream__help__package__set-key_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__set-key_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__set-key_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package set-key commands' commands "$@"
 }
-(( $+functions[_upstream__help__package__unpin_commands] )) ||
-_upstream__help__package__unpin_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__unpin_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__unpin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package unpin commands' commands "$@"
 }
-(( $+functions[_upstream__help__probe_commands] )) ||
-_upstream__help__probe_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__probe_commands] )) ||
+_upstream__subcmd__help__subcmd__probe_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help probe commands' commands "$@"
 }
-(( $+functions[_upstream__help__remove_commands] )) ||
-_upstream__help__remove_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__remove_commands] )) ||
+_upstream__subcmd__help__subcmd__remove_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help remove commands' commands "$@"
 }
-(( $+functions[_upstream__help__upgrade_commands] )) ||
-_upstream__help__upgrade_commands() {
+(( $+functions[_upstream__subcmd__help__subcmd__upgrade_commands] )) ||
+_upstream__subcmd__help__subcmd__upgrade_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help upgrade commands' commands "$@"
 }
-(( $+functions[_upstream__import_commands] )) ||
-_upstream__import_commands() {
+(( $+functions[_upstream__subcmd__import_commands] )) ||
+_upstream__subcmd__import_commands() {
     local commands; commands=()
     _describe -t commands 'upstream import commands' commands "$@"
 }
-(( $+functions[_upstream__init_commands] )) ||
-_upstream__init_commands() {
+(( $+functions[_upstream__subcmd__init_commands] )) ||
+_upstream__subcmd__init_commands() {
     local commands; commands=()
     _describe -t commands 'upstream init commands' commands "$@"
 }
-(( $+functions[_upstream__install_commands] )) ||
-_upstream__install_commands() {
+(( $+functions[_upstream__subcmd__install_commands] )) ||
+_upstream__subcmd__install_commands() {
     local commands; commands=()
     _describe -t commands 'upstream install commands' commands "$@"
 }
-(( $+functions[_upstream__list_commands] )) ||
-_upstream__list_commands() {
+(( $+functions[_upstream__subcmd__list_commands] )) ||
+_upstream__subcmd__list_commands() {
     local commands; commands=()
     _describe -t commands 'upstream list commands' commands "$@"
 }
-(( $+functions[_upstream__package_commands] )) ||
-_upstream__package_commands() {
+(( $+functions[_upstream__subcmd__package_commands] )) ||
+_upstream__subcmd__package_commands() {
     local commands; commands=(
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
@@ -765,13 +766,13 @@ _upstream__package_commands() {
     )
     _describe -t commands 'upstream package commands' commands "$@"
 }
-(( $+functions[_upstream__package__get-key_commands] )) ||
-_upstream__package__get-key_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__get-key_commands] )) ||
+_upstream__subcmd__package__subcmd__get-key_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package get-key commands' commands "$@"
 }
-(( $+functions[_upstream__package__help_commands] )) ||
-_upstream__package__help_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__help_commands] )) ||
+_upstream__subcmd__package__subcmd__help_commands() {
     local commands; commands=(
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
@@ -784,88 +785,88 @@ _upstream__package__help_commands() {
     )
     _describe -t commands 'upstream package help commands' commands "$@"
 }
-(( $+functions[_upstream__package__help__get-key_commands] )) ||
-_upstream__package__help__get-key_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__get-key_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__get-key_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help get-key commands' commands "$@"
 }
-(( $+functions[_upstream__package__help__help_commands] )) ||
-_upstream__package__help__help_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__help_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__help_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help help commands' commands "$@"
 }
-(( $+functions[_upstream__package__help__metadata_commands] )) ||
-_upstream__package__help__metadata_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__metadata_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__metadata_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help metadata commands' commands "$@"
 }
-(( $+functions[_upstream__package__help__pin_commands] )) ||
-_upstream__package__help__pin_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__pin_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__pin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help pin commands' commands "$@"
 }
-(( $+functions[_upstream__package__help__remove_commands] )) ||
-_upstream__package__help__remove_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__remove_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__remove_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help remove commands' commands "$@"
 }
-(( $+functions[_upstream__package__help__rename_commands] )) ||
-_upstream__package__help__rename_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__rename_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__rename_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help rename commands' commands "$@"
 }
-(( $+functions[_upstream__package__help__set-key_commands] )) ||
-_upstream__package__help__set-key_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__set-key_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__set-key_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help set-key commands' commands "$@"
 }
-(( $+functions[_upstream__package__help__unpin_commands] )) ||
-_upstream__package__help__unpin_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__unpin_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__unpin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help unpin commands' commands "$@"
 }
-(( $+functions[_upstream__package__metadata_commands] )) ||
-_upstream__package__metadata_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__metadata_commands] )) ||
+_upstream__subcmd__package__subcmd__metadata_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package metadata commands' commands "$@"
 }
-(( $+functions[_upstream__package__pin_commands] )) ||
-_upstream__package__pin_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__pin_commands] )) ||
+_upstream__subcmd__package__subcmd__pin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package pin commands' commands "$@"
 }
-(( $+functions[_upstream__package__remove_commands] )) ||
-_upstream__package__remove_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__remove_commands] )) ||
+_upstream__subcmd__package__subcmd__remove_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package remove commands' commands "$@"
 }
-(( $+functions[_upstream__package__rename_commands] )) ||
-_upstream__package__rename_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__rename_commands] )) ||
+_upstream__subcmd__package__subcmd__rename_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package rename commands' commands "$@"
 }
-(( $+functions[_upstream__package__set-key_commands] )) ||
-_upstream__package__set-key_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__set-key_commands] )) ||
+_upstream__subcmd__package__subcmd__set-key_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package set-key commands' commands "$@"
 }
-(( $+functions[_upstream__package__unpin_commands] )) ||
-_upstream__package__unpin_commands() {
+(( $+functions[_upstream__subcmd__package__subcmd__unpin_commands] )) ||
+_upstream__subcmd__package__subcmd__unpin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package unpin commands' commands "$@"
 }
-(( $+functions[_upstream__probe_commands] )) ||
-_upstream__probe_commands() {
+(( $+functions[_upstream__subcmd__probe_commands] )) ||
+_upstream__subcmd__probe_commands() {
     local commands; commands=()
     _describe -t commands 'upstream probe commands' commands "$@"
 }
-(( $+functions[_upstream__remove_commands] )) ||
-_upstream__remove_commands() {
+(( $+functions[_upstream__subcmd__remove_commands] )) ||
+_upstream__subcmd__remove_commands() {
     local commands; commands=()
     _describe -t commands 'upstream remove commands' commands "$@"
 }
-(( $+functions[_upstream__upgrade_commands] )) ||
-_upstream__upgrade_commands() {
+(( $+functions[_upstream__subcmd__upgrade_commands] )) ||
+_upstream__subcmd__upgrade_commands() {
     local commands; commands=()
     _describe -t commands 'upstream upgrade commands' commands "$@"
 }
