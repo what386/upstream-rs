@@ -197,8 +197,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_arch_defaults_ambiguous_x86_to_64_bit() {
-        assert_eq!(parse_arch("tool-x86.zip"), Some(CpuArch::X86_64));
+    fn parse_arch_defaults_ambiguous_x86_to_32_bit() {
+        assert_eq!(parse_arch("tool-x86.zip"), Some(CpuArch::X86));
         assert_eq!(parse_arch("tool-x86-32.zip"), Some(CpuArch::X86));
     }
 
