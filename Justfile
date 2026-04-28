@@ -1,7 +1,7 @@
 default:
     just --list
 
-format:
+fmt:
     cargo clippy --fix --bin "upstream-rs"
     cargo fmt --all
 
