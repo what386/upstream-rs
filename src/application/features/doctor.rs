@@ -135,7 +135,7 @@ fn normalized_link_package_name(path: &Path) -> Option<String> {
         let name = file_name
             .strip_suffix(".exe")
             .or_else(|| file_name.strip_suffix(".EXE"))
-            .unwrap_or(file_name);
+            .unwrap_or(&file_name);
         return Some(name.to_string());
     }
     #[cfg(not(windows))]
