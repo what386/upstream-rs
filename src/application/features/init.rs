@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub fn run(cleanup_option: bool, check_option: bool) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
 
     if check_option {
         let report = check(&paths)?;
@@ -24,7 +24,7 @@ pub fn run(cleanup_option: bool, check_option: bool) -> Result<()> {
 
     if cleanup_option {
         cleanup(&paths)?;
-        println!("Cleared upstream data.")
+        println!("Removed upstream shell integration hooks.")
     } else {
         initialize(&paths)?;
         println!("Initialized upstream.")
