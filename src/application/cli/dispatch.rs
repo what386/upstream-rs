@@ -34,6 +34,7 @@ impl Cli {
                 exclude_pattern,
                 desktop,
                 ignore_checksums,
+                yes,
             } => {
                 features::install::run(
                     name,
@@ -47,6 +48,7 @@ impl Cli {
                     exclude_pattern,
                     desktop,
                     ignore_checksums,
+                    yes,
                 )
                 .await
             }

@@ -46,9 +46,9 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = Filetype::Auto)]
         kind: Filetype,
 
-        /// Source provider hosting the repository
-        #[arg(short = 'p', long, default_value_t = Provider::Github)]
-        provider: Provider,
+        /// Source provider hosting the repository. Defaults to auto-detection.
+        #[arg(short = 'p', long)]
+        provider: Option<Provider>,
 
         /// Custom base URL. Defaults to provider's root
         #[arg(long, requires = "provider")]
@@ -73,6 +73,10 @@ pub enum Commands {
         /// Skip checksum verification for downloaded assets
         #[arg(long, default_value_t = false)]
         ignore_checksums: bool,
+
+        /// Accept the recommended discovered asset without prompting
+        #[arg(long, short = 'y', default_value_t = false)]
+        yes: bool,
     },
 
     /// Remove one or more installed packages
@@ -478,6 +482,25 @@ mod tests {
     }
 
     #[test]
+    fn install_provider_is_optional_and_yes_is_parsed() {
+        let cli = Cli::parse_from([
+            "upstream",
+            "install",
+            "tool",
+            "https://example.test",
+            "--yes",
+        ]);
+
+        match cli.command {
+            Commands::Install { provider, yes, .. } => {
+                assert!(provider.is_none());
+                assert!(yes);
+            }
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
     fn upgrade_parses_ignore_checksums_flag() {
         let cli = Cli::parse_from(["upstream", "upgrade", "--ignore-checksums"]);
 
@@ -592,13 +615,14 @@ mod tests {
                 repo_slug: "BurntSushi/ripgrep".to_string(),
                 tag: None,
                 kind: crate::models::common::enums::Filetype::Auto,
-                provider: crate::models::common::enums::Provider::Github,
+                provider: Some(crate::models::common::enums::Provider::Github),
                 base_url: None,
                 channel: crate::models::common::enums::Channel::Stable,
                 match_pattern: None,
                 exclude_pattern: None,
                 desktop: false,
                 ignore_checksums: false,
+                yes: false,
             }
             .requires_lock()
         );
