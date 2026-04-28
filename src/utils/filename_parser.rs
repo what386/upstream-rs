@@ -88,11 +88,7 @@ pub fn parse_arch(filename: &str) -> Option<CpuArch> {
 
     // Ambiguous "x86"
     if contains_marker(&name, &["x86"]) {
-        if name.contains("32") {
-            return Some(CpuArch::X86);
-        }
-        // Default ambiguous x86 to 64-bit
-        return Some(CpuArch::X86_64);
+        return Some(CpuArch::X86);
     }
 
     None
