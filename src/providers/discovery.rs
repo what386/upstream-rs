@@ -60,7 +60,7 @@ impl DiscoveryResult {
             return false;
         };
 
-        next.score >= top.score.saturating_sub(30)
+        next.score >= top.score.saturating_sub(20)
     }
 }
 

@@ -1,4 +1,5 @@
 pub mod asset_selector;
+pub mod discovery;
 pub mod download_handler;
 pub mod provider_manager;
 
