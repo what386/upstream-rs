@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::{fs, str::FromStr};
 
 use anyhow::{Context, Result, anyhow, bail};
 use walkdir::WalkDir;
@@ -32,6 +33,24 @@ impl RustProfile {
             .find(|entry| entry.file_type().is_file() && entry.file_name() == "Cargo.toml")
             .and_then(|entry| entry.path().parent().map(Path::to_path_buf))
     }
+
+    fn has_multiple_declared_bins(project_dir: &Path) -> bool {
+        let cargo_toml_path = project_dir.join("Cargo.toml");
+        let cargo_toml = match fs::read_to_string(&cargo_toml_path) {
+            Ok(contents) => contents,
+            Err(_) => return false,
+        };
+
+        let parsed = match toml::Value::from_str(&cargo_toml) {
+            Ok(value) => value,
+            Err(_) => return false,
+        };
+
+        parsed
+            .get("bin")
+            .and_then(toml::Value::as_array)
+            .is_some_and(|bins| bins.len() > 1)
+    }
 }
 
 impl BuildProfileHandler for RustProfile {
@@ -56,12 +75,23 @@ impl BuildProfileHandler for RustProfile {
             )
         })?;
 
-        let status = Command::new("cargo")
-            .arg("build")
-            .arg("--release")
-            .current_dir(&project_dir)
-            .status()
-            .context("Failed to run 'cargo build --release'. Is Cargo installed?")?;
+        let status = if Self::has_multiple_declared_bins(&project_dir) {
+            Command::new("cargo")
+                .arg("build")
+                .arg("--release")
+                .arg("--bin")
+                .arg(package_name)
+                .current_dir(&project_dir)
+                .status()
+                .context("Failed to run 'cargo build --release --bin <name>'. Is Cargo installed?")?
+        } else {
+            Command::new("cargo")
+                .arg("build")
+                .arg("--release")
+                .current_dir(&project_dir)
+                .status()
+                .context("Failed to run 'cargo build --release'. Is Cargo installed?")?
+        };
 
         if !status.success() {
             bail!("Cargo build failed for '{}'", package_name);
