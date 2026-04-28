@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand};
 #[command(about = "A package manager for everything else.")]
 #[command(
     long_about = "Upstream is a lightweight package manager that installs and manages \
-    applications directly from most release sources.\n\n\
+    applications from most software sources that dont have their own package manager.\n\n\
     Install binaries, AppImages, and other artifacts with automatic updates, \
     version pinning, and (hopefully) minimal configuration.\n\n\
     EXAMPLES:\n  \
