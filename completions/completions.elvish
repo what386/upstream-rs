@@ -23,7 +23,9 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand -V 'Print version'
             cand --version 'Print version'
             cand install 'Install a package from an upstream release source'
+            cand build 'Build and install from source for release tags without artifacts'
             cand remove 'Remove one or more installed packages'
+            cand reinstall 'Reinstall one or more packages (remove then install)'
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
             cand probe 'Inspect releases visible from a provider without installing'
@@ -57,8 +59,34 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
+        &'upstream;build'= {
+            cand -t 'Version tag to build (defaults to latest)'
+            cand --tag 'Version tag to build (defaults to latest)'
+            cand -p 'Source provider hosting the repository. Defaults to auto-detection'
+            cand --provider 'Source provider hosting the repository. Defaults to auto-detection'
+            cand --base-url 'Custom base URL. Defaults to provider''s root'
+            cand -c 'Update channel to track'
+            cand --channel 'Update channel to track'
+            cand -m 'Match pattern hint used during source/release discovery'
+            cand --match-pattern 'Match pattern hint used during source/release discovery'
+            cand -e 'Exclude pattern used during source/release discovery'
+            cand --exclude-pattern 'Exclude pattern used during source/release discovery'
+            cand --build-profile 'Build profile used to compile/install from source (auto-detected when omitted)'
+            cand --build-output 'Optional explicit output path for the compiled executable'
+            cand -d 'Whether or not to create a .desktop entry for GUI applications'
+            cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
+            cand -y 'Accept the recommended discovered source/release without prompting'
+            cand --yes 'Accept the recommended discovered source/release without prompting'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
         &'upstream;remove'= {
             cand --purge 'Remove all associated cached data'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;reinstall'= {
+            cand --ignore-checksums 'Skip checksum verification for release-asset reinstalls'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -262,7 +290,9 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;help'= {
             cand install 'Install a package from an upstream release source'
+            cand build 'Build and install from source for release tags without artifacts'
             cand remove 'Remove one or more installed packages'
+            cand reinstall 'Reinstall one or more packages (remove then install)'
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
             cand probe 'Inspect releases visible from a provider without installing'
@@ -276,7 +306,11 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;help;install'= {
         }
+        &'upstream;help;build'= {
+        }
         &'upstream;help;remove'= {
+        }
+        &'upstream;help;reinstall'= {
         }
         &'upstream;help;upgrade'= {
         }

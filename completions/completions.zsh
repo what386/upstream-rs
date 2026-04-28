@@ -54,12 +54,45 @@ _arguments "${_arguments_options[@]}" : \
 ':repo_slug -- Repository identifier (e.g. `owner/repo`):_default' \
 && ret=0
 ;;
+(build)
+_arguments "${_arguments_options[@]}" : \
+'-t+[Version tag to build (defaults to latest)]:TAG:_default' \
+'--tag=[Version tag to build (defaults to latest)]:TAG:_default' \
+'-p+[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
+'--provider=[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
+'--base-url=[Custom base URL. Defaults to provider'\''s root]:BASE_URL:_default' \
+'-c+[Update channel to track]:CHANNEL:(stable preview nightly)' \
+'--channel=[Update channel to track]:CHANNEL:(stable preview nightly)' \
+'-m+[Match pattern hint used during source/release discovery]:match:_default' \
+'--match-pattern=[Match pattern hint used during source/release discovery]:match:_default' \
+'-e+[Exclude pattern used during source/release discovery]:exclude:_default' \
+'--exclude-pattern=[Exclude pattern used during source/release discovery]:exclude:_default' \
+'--build-profile=[Build profile used to compile/install from source (auto-detected when omitted)]:BUILD_PROFILE:(rust dotnet)' \
+'--build-output=[Optional explicit output path for the compiled executable]:BUILD_OUTPUT:_default' \
+'-d[Whether or not to create a .desktop entry for GUI applications]' \
+'--desktop[Whether or not to create a .desktop entry for GUI applications]' \
+'-y[Accept the recommended discovered source/release without prompting]' \
+'--yes[Accept the recommended discovered source/release without prompting]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':name -- Name to register the application under:_default' \
+':repo_slug -- Repository identifier (e.g. `owner/repo`):_default' \
+&& ret=0
+;;
 (remove)
 _arguments "${_arguments_options[@]}" : \
 '--purge[Remove all associated cached data]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Names of packages to remove:_default' \
+&& ret=0
+;;
+(reinstall)
+_arguments "${_arguments_options[@]}" : \
+'--ignore-checksums[Skip checksum verification for release-asset reinstalls]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'*::names -- Names of packages to reinstall:_default' \
 && ret=0
 ;;
 (upgrade)
@@ -422,7 +455,15 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(build)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(reinstall)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -579,7 +620,9 @@ esac
 _upstream_commands() {
     local commands; commands=(
 'install:Install a package from an upstream release source' \
+'build:Build and install from source for release tags without artifacts' \
 'remove:Remove one or more installed packages' \
+'reinstall:Reinstall one or more packages (remove then install)' \
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
 'probe:Inspect releases visible from a provider without installing' \
@@ -592,6 +635,11 @@ _upstream_commands() {
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__build_commands] )) ||
+_upstream__subcmd__build_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream build commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__config_commands] )) ||
 _upstream__subcmd__config_commands() {
@@ -686,7 +734,9 @@ _upstream__subcmd__export_commands() {
 _upstream__subcmd__help_commands() {
     local commands; commands=(
 'install:Install a package from an upstream release source' \
+'build:Build and install from source for release tags without artifacts' \
 'remove:Remove one or more installed packages' \
+'reinstall:Reinstall one or more packages (remove then install)' \
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
 'probe:Inspect releases visible from a provider without installing' \
@@ -699,6 +749,11 @@ _upstream__subcmd__help_commands() {
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__build_commands] )) ||
+_upstream__subcmd__help__subcmd__build_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help build commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__config_commands] )) ||
 _upstream__subcmd__help__subcmd__config_commands() {
@@ -848,6 +903,11 @@ _upstream__subcmd__help__subcmd__package__subcmd__unpin_commands() {
 _upstream__subcmd__help__subcmd__probe_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help probe commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__reinstall_commands] )) ||
+_upstream__subcmd__help__subcmd__reinstall_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help reinstall commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__remove_commands] )) ||
 _upstream__subcmd__help__subcmd__remove_commands() {
@@ -1048,6 +1108,11 @@ _upstream__subcmd__package__subcmd__unpin_commands() {
 _upstream__subcmd__probe_commands() {
     local commands; commands=()
     _describe -t commands 'upstream probe commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__reinstall_commands] )) ||
+_upstream__subcmd__reinstall_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream reinstall commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__remove_commands] )) ||
 _upstream__subcmd__remove_commands() {

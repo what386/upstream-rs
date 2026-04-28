@@ -16,6 +16,9 @@ _upstream() {
             ",$1")
                 cmd="upstream"
                 ;;
+            upstream,build)
+                cmd="upstream__subcmd__build"
+                ;;
             upstream,config)
                 cmd="upstream__subcmd__config"
                 ;;
@@ -45,6 +48,9 @@ _upstream() {
                 ;;
             upstream,probe)
                 cmd="upstream__subcmd__probe"
+                ;;
+            upstream,reinstall)
+                cmd="upstream__subcmd__reinstall"
                 ;;
             upstream,remove)
                 cmd="upstream__subcmd__remove"
@@ -88,6 +94,9 @@ _upstream() {
             upstream__subcmd__config__subcmd__help,set)
                 cmd="upstream__subcmd__config__subcmd__help__subcmd__set"
                 ;;
+            upstream__subcmd__help,build)
+                cmd="upstream__subcmd__help__subcmd__build"
+                ;;
             upstream__subcmd__help,config)
                 cmd="upstream__subcmd__help__subcmd__config"
                 ;;
@@ -117,6 +126,9 @@ _upstream() {
                 ;;
             upstream__subcmd__help,probe)
                 cmd="upstream__subcmd__help__subcmd__probe"
+                ;;
+            upstream__subcmd__help,reinstall)
+                cmd="upstream__subcmd__help__subcmd__reinstall"
                 ;;
             upstream__subcmd__help,remove)
                 cmd="upstream__subcmd__help__subcmd__remove"
@@ -257,12 +269,78 @@ _upstream() {
 
     case "${cmd}" in
         upstream)
-            opts="-h -V --help --version install remove upgrade list probe config package hooks import export doctor help"
+            opts="-h -V --help --version install build remove reinstall upgrade list probe config package hooks import export doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__build)
+            opts="-t -p -c -m -e -d -y -h --tag --provider --base-url --channel --match-pattern --exclude-pattern --desktop --yes --build-profile --build-output --help <NAME> <REPO_SLUG>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --tag)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -t)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --provider)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -p)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --base-url)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --channel)
+                    COMPREPLY=($(compgen -W "stable preview nightly" -- "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -W "stable preview nightly" -- "${cur}"))
+                    return 0
+                    ;;
+                --match-pattern)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --exclude-pattern)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -e)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --build-profile)
+                    COMPREPLY=($(compgen -W "rust dotnet" -- "${cur}"))
+                    return 0
+                    ;;
+                --build-output)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;
@@ -481,8 +559,22 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help)
-            opts="install remove upgrade list probe config package hooks import export doctor help"
+            opts="install build remove reinstall upgrade list probe config package hooks import export doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__build)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -845,6 +937,20 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__probe)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__reinstall)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1403,6 +1509,20 @@ _upstream() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__reinstall)
+            opts="-h --ignore-checksums --help [NAMES]..."
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
                 *)
                     COMPREPLY=()
                     ;;
