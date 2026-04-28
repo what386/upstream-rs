@@ -758,5 +758,15 @@
       "completed_at": "2026-04-28T00:25:33.570342875Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: improve wording in help text",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-04-28T00:25:55.772405757Z"
+    },
+    "version": null
   }
 ]

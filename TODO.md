@@ -11,9 +11,6 @@
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
 
-- [ ] feat: improve wording in help text
-      @created 2026-04-28 00:25
-
 
 ## Completed
 
@@ -23,5 +20,9 @@
 
 - [x] feat: rename `init` to `hooks`. Add subcommands to hooks: init, clean, purge, check
       @created 2026-04-28 00:22
+      @completed 2026-04-28 00:25
+
+- [x] feat: improve wording in help text
+      @created 2026-04-28 00:25
       @completed 2026-04-28 00:25
 
