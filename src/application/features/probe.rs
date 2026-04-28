@@ -7,6 +7,7 @@ use crate::{
         common::enums::{Channel, Filetype, Provider},
         upstream::Package,
     },
+    providers::discovery::DiscoveryRequest,
     providers::{asset_selector::AssetCandidate, provider_manager::ProviderManager},
     services::storage::config_storage::ConfigStorage,
     utils::static_paths::UpstreamPaths,
@@ -20,7 +21,6 @@ pub async fn run(
     limit: u32,
     verbose: bool,
 ) -> Result<()> {
-    let effective_provider = provider.unwrap_or_else(|| infer_provider(&repo_slug));
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
 
@@ -30,24 +30,53 @@ pub async fn run(
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
 
-    println!(
-        "{}",
-        style(format!(
-            "Probing '{}' via {} ...",
-            repo_slug, effective_provider
-        ))
-        .cyan()
-    );
+    let (effective_repo_slug, effective_provider, effective_base_url, mut releases) =
+        if let Some(provider) = provider {
+            println!(
+                "{}",
+                style(format!("Probing '{}' via {} ...", repo_slug, provider)).cyan()
+            );
 
-    let mut releases = provider_manager
-        .get_releases_for(
-            &repo_slug,
-            &effective_provider,
-            Some(limit),
-            Some(limit),
-            base_url.as_deref(),
-        )
-        .await?;
+            let releases = provider_manager
+                .get_releases_for(
+                    &repo_slug,
+                    &provider,
+                    Some(limit),
+                    Some(limit),
+                    base_url.as_deref(),
+                )
+                .await?;
+            (repo_slug.clone(), provider, base_url.clone(), releases)
+        } else {
+            let discovery = provider_manager
+                .discover_source(DiscoveryRequest {
+                    source: repo_slug.clone(),
+                    channel: channel.clone(),
+                    package_name: String::new(),
+                    filetype: Filetype::Auto,
+                    match_pattern: None,
+                    exclude_pattern: None,
+                    base_url_override: base_url.clone(),
+                    limit,
+                })
+                .await?;
+
+            println!(
+                "{}",
+                style(format!(
+                    "Probing '{}' as '{}' via {} ...",
+                    repo_slug, discovery.source.repo_slug, discovery.source.provider
+                ))
+                .cyan()
+            );
+
+            (
+                discovery.source.repo_slug,
+                discovery.source.provider,
+                discovery.source.base_url,
+                discovery.releases,
+            )
+        };
 
     releases = filter_by_channel(releases, &channel);
     releases.sort_by(|a, b| b.version.cmp(&a.version));
@@ -59,13 +88,13 @@ pub async fn run(
 
     let probe_package = Package::with_defaults(
         String::new(),
-        repo_slug.clone(),
+        effective_repo_slug.clone(),
         Filetype::Auto,
         None,
         None,
         channel.clone(),
         effective_provider.clone(),
-        base_url.clone(),
+        effective_base_url.clone(),
     );
 
     let rows = build_probe_rows(&releases, &provider_manager, &probe_package);
@@ -199,15 +228,6 @@ fn format_state_cell(state: &ReleaseState, width: usize) -> String {
         ReleaseState::Preview => style(padded).yellow().to_string(),
         ReleaseState::Draft => style(padded).blue().to_string(),
         ReleaseState::DraftPre => style(padded).magenta().to_string(),
-    }
-}
-
-fn infer_provider(repo_or_url: &str) -> Provider {
-    let value = repo_or_url.trim().to_lowercase();
-    if value.starts_with("http://") || value.starts_with("https://") {
-        Provider::WebScraper
-    } else {
-        Provider::Github
     }
 }
 

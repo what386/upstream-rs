@@ -1,6 +1,7 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use console::style;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use std::io::{self, IsTerminal, Write};
 use std::time::{Duration, Instant};
 
 use crate::{
@@ -9,7 +10,10 @@ use crate::{
         common::enums::{Channel, Filetype, Provider},
         upstream::Package,
     },
-    providers::provider_manager::ProviderManager,
+    providers::{
+        discovery::{DiscoveryRequest, DiscoveryResult, SourceKind, infer_source},
+        provider_manager::ProviderManager,
+    },
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
@@ -20,20 +24,16 @@ pub async fn run(
     repo_slug: String,
     kind: Filetype,
     version: Option<String>,
-    provider: Provider,
+    provider: Option<Provider>,
     base_url: Option<String>,
     channel: Channel,
     match_pattern: Option<String>,
     exclude_pattern: Option<String>,
     create_entry: bool,
     ignore_checksums: bool,
+    yes: bool,
 ) -> Result<()> {
     const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
-
-    println!(
-        "{}",
-        style(format!("Installing {} from {} ...", &name, &provider)).cyan()
-    );
 
     let paths = UpstreamPaths::new()?;
 
@@ -46,19 +46,31 @@ pub async fn run(
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
 
-    let mut package_installer =
-        InstallOperation::new(&provider_manager, &mut package_storage, &paths)?;
-
-    let package = Package::with_defaults(
+    let package = build_package(
+        &provider_manager,
         name,
         repo_slug,
         kind,
-        match_pattern,
-        exclude_pattern,
-        channel,
         provider,
         base_url,
+        channel,
+        match_pattern,
+        exclude_pattern,
+        yes,
+    )
+    .await?;
+
+    println!(
+        "{}",
+        style(format!(
+            "Installing {} from {} ...",
+            &package.name, &package.provider
+        ))
+        .cyan()
     );
+
+    let mut package_installer =
+        InstallOperation::new(&provider_manager, &mut package_storage, &paths)?;
 
     let pb = ProgressBar::new(0);
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -110,4 +122,149 @@ pub async fn run(
     println!("{}", style("Install complete.").green());
 
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn build_package(
+    provider_manager: &ProviderManager,
+    name: String,
+    source: String,
+    kind: Filetype,
+    provider: Option<Provider>,
+    base_url: Option<String>,
+    channel: Channel,
+    match_pattern: Option<String>,
+    exclude_pattern: Option<String>,
+    yes: bool,
+) -> Result<Package> {
+    let Some(provider) = provider else {
+        let mut source_info = infer_source(&source)?;
+        if let Some(base_url) = base_url.clone() {
+            source_info.base_url = Some(base_url);
+        }
+
+        if !matches!(source_info.kind, SourceKind::DownloadPage) {
+            println!(
+                "{}",
+                style(format!(
+                    "Discovered source: {} via {}",
+                    source_info.repo_slug, source_info.provider
+                ))
+                .cyan()
+            );
+            return Ok(Package::with_defaults(
+                name,
+                source_info.repo_slug,
+                kind,
+                match_pattern,
+                exclude_pattern,
+                channel,
+                source_info.provider,
+                source_info.base_url,
+            ));
+        }
+
+        let discovery = provider_manager
+            .discover_source(DiscoveryRequest {
+                source,
+                channel: channel.clone(),
+                package_name: name.clone(),
+                filetype: kind,
+                match_pattern: match_pattern.clone(),
+                exclude_pattern: exclude_pattern.clone(),
+                base_url_override: base_url.clone(),
+                limit: 10,
+            })
+            .await?;
+
+        render_discovery_summary(&discovery);
+        confirm_discovery_if_needed(&discovery, yes)?;
+
+        return Ok(Package::with_defaults(
+            name,
+            discovery.source.repo_slug,
+            kind,
+            match_pattern,
+            exclude_pattern,
+            channel,
+            discovery.source.provider,
+            discovery.source.base_url,
+        ));
+    };
+
+    Ok(Package::with_defaults(
+        name,
+        source,
+        kind,
+        match_pattern,
+        exclude_pattern,
+        channel,
+        provider,
+        base_url,
+    ))
+}
+
+fn render_discovery_summary(discovery: &DiscoveryResult) {
+    println!(
+        "{}",
+        style(format!(
+            "Discovered source: {} via {}",
+            discovery.source.repo_slug, discovery.source.provider
+        ))
+        .cyan()
+    );
+
+    let should_show_candidates = matches!(discovery.source.kind, SourceKind::DownloadPage)
+        || discovery.is_ambiguous()
+        || discovery.recommended_candidate().is_some();
+
+    if !should_show_candidates {
+        return;
+    }
+
+    println!("{}", style("Top discovered assets:").bold());
+    for (idx, candidate) in discovery.candidates.iter().take(5).enumerate() {
+        println!(
+            "  {}. {} ({:?}, score={})",
+            idx + 1,
+            candidate.asset.name,
+            candidate.asset.filetype,
+            candidate.score
+        );
+    }
+}
+
+fn confirm_discovery_if_needed(discovery: &DiscoveryResult, yes: bool) -> Result<()> {
+    if yes
+        || !matches!(discovery.source.kind, SourceKind::DownloadPage)
+        || !discovery.is_ambiguous()
+    {
+        return Ok(());
+    }
+
+    let Some(candidate) = discovery.recommended_candidate() else {
+        return Ok(());
+    };
+
+    if !io::stdin().is_terminal() {
+        return Err(anyhow!(
+            "Discovery found multiple plausible assets for '{}'. Re-run with --yes to accept '{}' or use --match/--exclude to narrow the choice.",
+            discovery.source.original,
+            candidate.asset.name
+        ));
+    }
+
+    print!(
+        "Install recommended asset '{}' from this page? [Y/N]: ",
+        candidate.asset.name
+    );
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    if input.trim().to_lowercase().starts_with("y") {
+        Ok(())
+    } else {
+        Err(anyhow!("Install cancelled"))
+    }
 }

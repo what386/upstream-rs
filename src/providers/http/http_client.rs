@@ -64,6 +64,22 @@ impl HttpClient {
             .filter(|s| !s.is_empty())
     }
 
+    fn attribute_has_boundary(html: &str, index: usize, attribute: &str) -> bool {
+        let bytes = html.as_bytes();
+        let valid_start = index == 0
+            || bytes
+                .get(index.saturating_sub(1))
+                .map(|b| !b.is_ascii_alphanumeric() && *b != b'-')
+                .unwrap_or(true);
+        let end = index + attribute.len();
+        let valid_end = bytes
+            .get(end)
+            .map(|b| *b == b'=' || b.is_ascii_whitespace())
+            .unwrap_or(false);
+
+        valid_start && valid_end
+    }
+
     pub fn new() -> Result<Self> {
         let mut headers = header::HeaderMap::new();
 
@@ -92,19 +108,41 @@ impl HttpClient {
         }
     }
 
-    /// Extract raw `href` attribute values from HTML without a full DOM parser.
-    fn extract_hrefs(html: &str) -> Vec<String> {
-        let mut hrefs = Vec::new();
+    /// Extract likely download URL attribute values from HTML without a full DOM parser.
+    fn extract_link_values(html: &str) -> Vec<String> {
+        let attributes = [
+            "href",
+            "src",
+            "data-href",
+            "data-url",
+            "data-download",
+            "data-download-url",
+        ];
+        let mut values = Vec::new();
         let lower = html.to_lowercase();
         let bytes = lower.as_bytes();
         let mut i = 0_usize;
 
-        while i + 6 < bytes.len() {
-            if &bytes[i..i + 5] != b"href=" {
+        while i < bytes.len() {
+            let Some((attribute, attr_offset)) = attributes
+                .iter()
+                .filter_map(|attribute| {
+                    lower[i..]
+                        .find(&format!("{attribute}="))
+                        .map(|offset| (*attribute, offset))
+                })
+                .min_by_key(|(_, offset)| *offset)
+            else {
+                break;
+            };
+
+            i += attr_offset;
+            if !Self::attribute_has_boundary(&lower, i, attribute) {
                 i += 1;
                 continue;
             }
-            let mut j = i + 5;
+
+            let mut j = i + attribute.len() + 1;
             while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                 j += 1;
             }
@@ -122,7 +160,7 @@ impl HttpClient {
                 if end <= html.len() && start <= end {
                     let href = html[start..end].trim();
                     if !href.is_empty() {
-                        hrefs.push(href.to_string());
+                        values.push(href.to_string());
                     }
                 }
                 i = end.saturating_add(1);
@@ -132,7 +170,7 @@ impl HttpClient {
             i = j.saturating_add(1);
         }
 
-        hrefs
+        values
     }
 
     fn to_asset_info(url: &str, headers: &header::HeaderMap) -> HttpAssetInfo {
@@ -151,7 +189,7 @@ impl HttpClient {
 
     /// Convert discovered links into unique, non-checksum HTTP assets.
     fn extract_assets_from_html(base: &reqwest::Url, html: &str) -> Vec<HttpAssetInfo> {
-        let hrefs = Self::extract_hrefs(html);
+        let hrefs = Self::extract_link_values(html);
 
         let mut seen = HashSet::new();
         let mut assets = Vec::new();
@@ -471,6 +509,7 @@ mod tests {
                     <a href="mailto:test@example.com">mail</a>
                     <a href="#anchor">anchor</a>
                     <a href="https://example.invalid/tool-v1.2.3-macos.zip">mac</a>
+                    <button data-download-url="/tool-v1.2.3-windows.zip">win</button>
                 </body></html>
             "##;
         let body = html.to_string();
@@ -495,13 +534,18 @@ mod tests {
         match result {
             ConditionalDiscoveryResult::NotModified => panic!("unexpected not modified"),
             ConditionalDiscoveryResult::Assets(assets) => {
-                assert_eq!(assets.len(), 3);
+                assert_eq!(assets.len(), 4);
                 assert!(
                     assets
                         .iter()
                         .any(|a| a.name.ends_with("tool-v1.2.3-linux.tar.gz"))
                 );
                 assert!(assets.iter().all(|a| !a.name.ends_with(".sha256")));
+                assert!(
+                    assets
+                        .iter()
+                        .any(|a| a.name.ends_with("tool-v1.2.3-windows.zip"))
+                );
             }
         }
     }
