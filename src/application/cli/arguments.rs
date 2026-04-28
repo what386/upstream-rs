@@ -1,6 +1,12 @@
 use crate::models::common::enums::{Channel, Filetype, Provider};
 use clap::{Parser, Subcommand};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum BuildProfile {
+    Rust,
+    Dotnet,
+}
+
 #[derive(Parser)]
 #[command(name = "upstream")]
 #[command(about = "A package manager for everything else.")]
@@ -77,6 +83,63 @@ pub enum Commands {
         /// Accept the recommended discovered asset without prompting
         #[arg(long, short = 'y', default_value_t = false)]
         yes: bool,
+    },
+
+    /// Build and install from source for release tags without artifacts
+    #[command(long_about = "Build and install a package from source.\n\n\
+        Use this command when release tags exist but prebuilt artifacts are missing \
+        or unsuitable for your system.\n\n\
+        Mirrors install-style source resolution while using an explicit build profile.\n\n\
+        EXAMPLES:\n  \
+        upstream build rg BurntSushi/ripgrep --build-profile rust\n  \
+        upstream build app owner/repo --build-profile dotnet --tag v1.2.3\n  \
+        upstream build tool owner/repo --build-profile rust --build-output target/release/tool")]
+    Build {
+        /// Name to register the application under
+        name: String,
+
+        /// Repository identifier (e.g. `owner/repo`)
+        repo_slug: String,
+
+        /// Version tag to build (defaults to latest)
+        #[arg(short, long)]
+        tag: Option<String>,
+
+        /// Source provider hosting the repository. Defaults to auto-detection.
+        #[arg(short = 'p', long)]
+        provider: Option<Provider>,
+
+        /// Custom base URL. Defaults to provider's root
+        #[arg(long, requires = "provider")]
+        base_url: Option<String>,
+
+        /// Update channel to track
+        #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
+        channel: Channel,
+
+        /// Match pattern hint used during source/release discovery
+        #[arg(short = 'm', long, name = "match")]
+        match_pattern: Option<String>,
+
+        /// Exclude pattern used during source/release discovery
+        #[arg(short = 'e', long, name = "exclude")]
+        exclude_pattern: Option<String>,
+
+        /// Whether or not to create a .desktop entry for GUI applications
+        #[arg(short, long, default_value_t = false)]
+        desktop: bool,
+
+        /// Accept the recommended discovered source/release without prompting
+        #[arg(long, short = 'y', default_value_t = false)]
+        yes: bool,
+
+        /// Build profile used to compile/install from source
+        #[arg(long, value_enum)]
+        build_profile: BuildProfile,
+
+        /// Optional explicit output path for the compiled executable
+        #[arg(long)]
+        build_output: Option<String>,
     },
 
     /// Remove one or more installed packages
@@ -287,6 +350,7 @@ impl Commands {
                 !matches!(action, ConfigAction::Get { .. } | ConfigAction::List)
             }
             Commands::Install { .. }
+            | Commands::Build { .. }
             | Commands::Remove { .. }
             | Commands::Upgrade { .. }
             | Commands::Probe { .. }
@@ -460,7 +524,7 @@ pub enum PackageAction {
 
 #[cfg(test)]
 mod tests {
-    use super::{Cli, Commands, ConfigAction, HooksAction, PackageAction};
+    use super::{BuildProfile, Cli, Commands, ConfigAction, HooksAction, PackageAction};
     use clap::Parser;
 
     #[test]
@@ -495,6 +559,34 @@ mod tests {
             Commands::Install { provider, yes, .. } => {
                 assert!(provider.is_none());
                 assert!(yes);
+            }
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn build_parses_profile_and_output_flags() {
+        let cli = Cli::parse_from([
+            "upstream",
+            "build",
+            "rg",
+            "BurntSushi/ripgrep",
+            "--build-profile",
+            "rust",
+            "--build-output",
+            "target/release/rg",
+        ]);
+
+        match cli.command {
+            Commands::Build {
+                provider,
+                build_profile,
+                build_output,
+                ..
+            } => {
+                assert!(provider.is_none());
+                assert_eq!(build_profile, BuildProfile::Rust);
+                assert_eq!(build_output.as_deref(), Some("target/release/rg"));
             }
             other => panic!("unexpected command parsed: {}", other),
         }
@@ -633,6 +725,23 @@ mod tests {
                 check: true,
                 machine_readable: false,
                 ignore_checksums: false,
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Build {
+                name: "ripgrep".to_string(),
+                repo_slug: "BurntSushi/ripgrep".to_string(),
+                tag: None,
+                provider: Some(crate::models::common::enums::Provider::Github),
+                base_url: None,
+                channel: crate::models::common::enums::Channel::Stable,
+                match_pattern: None,
+                exclude_pattern: None,
+                desktop: false,
+                yes: false,
+                build_profile: BuildProfile::Rust,
+                build_output: None,
             }
             .requires_lock()
         );
