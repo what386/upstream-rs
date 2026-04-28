@@ -113,8 +113,11 @@ impl<'a> ChecksumVerifier<'a> {
                 })?
         };
 
-        // Verify the checksum
-        Self::verify_checksum(asset_path, checksum_entry)
+        if Self::verify_checksum(asset_path, checksum_entry)? {
+            return Ok(true);
+        }
+
+        Err(anyhow!("Checksum mismatch for asset '{}'", asset_filename))
     }
 
     /// Locate and download a checksum asset, if the release exposes one.
@@ -679,6 +682,22 @@ mod tests {
             .expect("parse checksum entry");
 
         assert!(ChecksumVerifier::verify_checksum(&asset_path, &entry).expect("verify checksum"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn verify_checksum_rejects_sha256_mismatch() {
+        let root = temp_root("verify-mismatch");
+        fs::create_dir_all(&root).expect("create root");
+        let asset_path = root.join("asset.bin");
+        fs::write(&asset_path, b"checksum-data").expect("write asset");
+
+        let wrong_digest = "0".repeat(64);
+        let entry = ChecksumVerifier::parse_standard_format(&format!("{wrong_digest}  asset.bin"))
+            .expect("parse checksum entry");
+
+        assert!(!ChecksumVerifier::verify_checksum(&asset_path, &entry).expect("verify checksum"));
 
         cleanup(&root).expect("cleanup");
     }
