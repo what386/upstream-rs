@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, anyhow};
@@ -92,12 +92,66 @@ impl<'a> SourceDownloader<'a> {
             extract_root.display()
         ))?;
 
-        let workspace_path = compression_handler::decompress(&downloaded, &extract_root)
+        let extracted_path = compression_handler::decompress(&downloaded, &extract_root)
             .context("Failed to unpack source archive")?;
+        let workspace_path = Self::resolve_workspace_root(&extracted_path)?;
 
         Ok(SourceDownload {
             workspace_path,
             release,
+        })
+    }
+
+    fn resolve_workspace_root(extracted_path: &Path) -> Result<PathBuf> {
+        if Self::is_build_root(extracted_path) {
+            return Ok(extracted_path.to_path_buf());
+        }
+
+        let mut candidates = Vec::new();
+        let entries = std::fs::read_dir(extracted_path).context(format!(
+            "Failed to scan extracted source root '{}'",
+            extracted_path.display()
+        ))?;
+
+        for entry in entries {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() && Self::is_build_root(&path) {
+                candidates.push(path);
+            }
+        }
+
+        match candidates.len() {
+            0 => Ok(extracted_path.to_path_buf()),
+            1 => Ok(candidates.remove(0)),
+            _ => {
+                candidates.sort();
+                let listed = candidates
+                    .iter()
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                Err(anyhow!(
+                    "Build source root is ambiguous under '{}': found multiple candidate repositories [{}]",
+                    extracted_path.display(),
+                    listed
+                ))
+            }
+        }
+    }
+
+    fn is_build_root(path: &Path) -> bool {
+        if path.join("Cargo.toml").is_file() {
+            return true;
+        }
+
+        std::fs::read_dir(path).ok().is_some_and(|entries| {
+            entries.flatten().any(|entry| {
+                entry.path().extension().is_some_and(|ext| {
+                    let ext = ext.to_string_lossy();
+                    ext.eq_ignore_ascii_case("sln") || ext.eq_ignore_ascii_case("csproj")
+                })
+            })
         })
     }
 
@@ -150,5 +204,75 @@ impl<'a> SourceDownloader<'a> {
 impl<'a> Drop for SourceDownloader<'a> {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.cache_dir);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::SourceDownloader;
+
+    fn temp_root(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir().join(format!("upstream-downloader-test-{name}-{nanos}"))
+    }
+
+    #[test]
+    fn resolve_workspace_root_uses_root_when_manifest_exists() {
+        let root = temp_root("root-manifest");
+        std::fs::create_dir_all(&root).expect("create root");
+        std::fs::write(root.join("Cargo.toml"), "[package]\nname='x'\nversion='0.1.0'\n")
+            .expect("write Cargo.toml");
+
+        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
+        assert_eq!(resolved, root);
+        let _ = std::fs::remove_dir_all(&resolved);
+    }
+
+    #[test]
+    fn resolve_workspace_root_selects_single_child_repo() {
+        let root = temp_root("single-child");
+        let child = root.join("repo");
+        std::fs::create_dir_all(&child).expect("create child");
+        std::fs::write(child.join("Cargo.toml"), "[package]\nname='x'\nversion='0.1.0'\n")
+            .expect("write Cargo.toml");
+        std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
+
+        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
+        assert_eq!(resolved, child);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolve_workspace_root_errors_on_ambiguous_children() {
+        let root = temp_root("ambiguous");
+        let a = root.join("repo-a");
+        let b = root.join("repo-b");
+        std::fs::create_dir_all(&a).expect("create repo-a");
+        std::fs::create_dir_all(&b).expect("create repo-b");
+        std::fs::write(a.join("Cargo.toml"), "[package]\nname='a'\nversion='0.1.0'\n")
+            .expect("write Cargo.toml a");
+        std::fs::write(b.join("Cargo.toml"), "[package]\nname='b'\nversion='0.1.0'\n")
+            .expect("write Cargo.toml b");
+
+        let err = SourceDownloader::resolve_workspace_root(&root).expect_err("must be ambiguous");
+        assert!(err.to_string().contains("ambiguous"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolve_workspace_root_returns_input_when_no_candidates_exist() {
+        let root = temp_root("no-candidates");
+        std::fs::create_dir_all(&root).expect("create root");
+        std::fs::write(root.join("README.md"), "hello").expect("write readme");
+
+        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve fallback");
+        assert_eq!(resolved, root);
+        let _ = std::fs::remove_dir_all(&resolved);
     }
 }
