@@ -2,7 +2,9 @@ use anyhow::{Result, anyhow};
 use console::style;
 
 use crate::{
-    application::operations::{install_operation::InstallOperation, remove_operation::RemoveOperation},
+    application::operations::{
+        install_operation::InstallOperation, remove_operation::RemoveOperation,
+    },
     models::upstream::{InstallType, Package},
     providers::provider_manager::ProviderManager,
     services::{
@@ -38,7 +40,11 @@ pub async fn run(names: Vec<String>, ignore_checksums: bool) -> Result<()> {
             None => {
                 println!(
                     "{}",
-                    style(format!("Reinstall failed: package '{}' is not installed", name)).red()
+                    style(format!(
+                        "Reinstall failed: package '{}' is not installed",
+                        name
+                    ))
+                    .red()
                 );
                 failed += 1;
                 continue;
@@ -66,7 +72,10 @@ pub async fn run(names: Vec<String>, ignore_checksums: bool) -> Result<()> {
 
     if names.len() == 1 {
         if failed == 0 {
-            println!("{}", style("Reinstall complete: 1 reinstalled, 0 failed.").green());
+            println!(
+                "{}",
+                style("Reinstall complete: 1 reinstalled, 0 failed.").green()
+            );
             return Ok(());
         }
         return Err(anyhow!("Reinstall failed"));
@@ -84,7 +93,11 @@ pub async fn run(names: Vec<String>, ignore_checksums: bool) -> Result<()> {
     } else {
         println!(
             "{}",
-            style(format!("Reinstall complete: {} reinstalled, 0 failed.", reinstalled)).green()
+            style(format!(
+                "Reinstall complete: {} reinstalled, 0 failed.",
+                reinstalled
+            ))
+            .green()
         );
     }
 

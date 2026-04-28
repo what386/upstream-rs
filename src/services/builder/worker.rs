@@ -1,6 +1,6 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::fs;
 
 use anyhow::{Context, Result, anyhow};
 
@@ -33,18 +33,11 @@ impl<'a> BuildWorker<'a> {
             .await?;
 
         let handlers = handlers();
-        let profile = determine_profile(
-            &source.workspace_path,
-            request.requested_profile,
-            &handlers,
-        )
-        .map_err(|err| {
-            anyhow!(
-                "{} (workspace: '{}')",
-                err,
-                source.workspace_path.display()
-            )
-        })?;
+        let profile =
+            determine_profile(&source.workspace_path, request.requested_profile, &handlers)
+                .map_err(|err| {
+                    anyhow!("{} (workspace: '{}')", err, source.workspace_path.display())
+                })?;
         let selected = handlers
             .iter()
             .find(|handler| handler.profile() == profile)
@@ -132,7 +125,10 @@ mod tests {
 
         let persisted = BuildWorker::persist_artifact(&src).expect("persist artifact");
         assert!(persisted.exists());
-        assert_eq!(fs::read(&persisted).expect("read persisted"), b"binary-data");
+        assert_eq!(
+            fs::read(&persisted).expect("read persisted"),
+            b"binary-data"
+        );
         assert_ne!(persisted, src);
 
         let _ = fs::remove_dir_all(&root);

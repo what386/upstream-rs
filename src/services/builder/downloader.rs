@@ -28,8 +28,10 @@ impl<'a> SourceDownloader<'a> {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         let cache_dir = std::env::temp_dir().join(format!("upstream-build-{nonce}"));
-        std::fs::create_dir_all(&cache_dir)
-            .context(format!("Failed to create build cache '{}'", cache_dir.display()))?;
+        std::fs::create_dir_all(&cache_dir).context(format!(
+            "Failed to create build cache '{}'",
+            cache_dir.display()
+        ))?;
 
         Ok(Self {
             provider_manager,
@@ -57,7 +59,10 @@ impl<'a> SourceDownloader<'a> {
             self.provider_manager
                 .get_latest_release_for(repo_slug, provider, channel, base_url)
                 .await
-                .context(format!("Failed to fetch latest release for '{}'", repo_slug))?
+                .context(format!(
+                    "Failed to fetch latest release for '{}'",
+                    repo_slug
+                ))?
         };
 
         let primary_archive =
@@ -65,9 +70,17 @@ impl<'a> SourceDownloader<'a> {
         let mut no_progress: Option<fn(u64, u64)> = None;
         let downloaded_primary = self
             .provider_manager
-            .download_asset(&primary_archive, provider, &self.cache_dir, &mut no_progress)
+            .download_asset(
+                &primary_archive,
+                provider,
+                &self.cache_dir,
+                &mut no_progress,
+            )
             .await
-            .context(format!("Failed to download source archive for '{}'", repo_slug));
+            .context(format!(
+                "Failed to download source archive for '{}'",
+                repo_slug
+            ));
 
         let downloaded = match downloaded_primary {
             Ok(path) => path,
@@ -226,8 +239,11 @@ mod tests {
     fn resolve_workspace_root_uses_root_when_manifest_exists() {
         let root = temp_root("root-manifest");
         std::fs::create_dir_all(&root).expect("create root");
-        std::fs::write(root.join("Cargo.toml"), "[package]\nname='x'\nversion='0.1.0'\n")
-            .expect("write Cargo.toml");
+        std::fs::write(
+            root.join("Cargo.toml"),
+            "[package]\nname='x'\nversion='0.1.0'\n",
+        )
+        .expect("write Cargo.toml");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
         assert_eq!(resolved, root);
@@ -239,8 +255,11 @@ mod tests {
         let root = temp_root("single-child");
         let child = root.join("repo");
         std::fs::create_dir_all(&child).expect("create child");
-        std::fs::write(child.join("Cargo.toml"), "[package]\nname='x'\nversion='0.1.0'\n")
-            .expect("write Cargo.toml");
+        std::fs::write(
+            child.join("Cargo.toml"),
+            "[package]\nname='x'\nversion='0.1.0'\n",
+        )
+        .expect("write Cargo.toml");
         std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
@@ -255,10 +274,16 @@ mod tests {
         let b = root.join("repo-b");
         std::fs::create_dir_all(&a).expect("create repo-a");
         std::fs::create_dir_all(&b).expect("create repo-b");
-        std::fs::write(a.join("Cargo.toml"), "[package]\nname='a'\nversion='0.1.0'\n")
-            .expect("write Cargo.toml a");
-        std::fs::write(b.join("Cargo.toml"), "[package]\nname='b'\nversion='0.1.0'\n")
-            .expect("write Cargo.toml b");
+        std::fs::write(
+            a.join("Cargo.toml"),
+            "[package]\nname='a'\nversion='0.1.0'\n",
+        )
+        .expect("write Cargo.toml a");
+        std::fs::write(
+            b.join("Cargo.toml"),
+            "[package]\nname='b'\nversion='0.1.0'\n",
+        )
+        .expect("write Cargo.toml b");
 
         let err = SourceDownloader::resolve_workspace_root(&root).expect_err("must be ambiguous");
         assert!(err.to_string().contains("ambiguous"));

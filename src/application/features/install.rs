@@ -12,7 +12,8 @@ use crate::{
     },
     providers::{
         discovery::{
-            DiscoveryRequest, DiscoveryResult, SourceKind, infer_source, normalize_source_for_provider,
+            DiscoveryRequest, DiscoveryResult, SourceKind, infer_source,
+            normalize_source_for_provider,
         },
         provider_manager::ProviderManager,
     },

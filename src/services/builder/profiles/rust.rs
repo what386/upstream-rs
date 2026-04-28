@@ -77,7 +77,9 @@ impl BuildProfileHandler for RustProfile {
                 .arg(package_name)
                 .current_dir(&project_dir)
                 .status()
-                .context("Failed to run 'cargo build --release --bin <name>'. Is Cargo installed?")?
+                .context(
+                    "Failed to run 'cargo build --release --bin <name>'. Is Cargo installed?",
+                )?
         } else {
             Command::new("cargo")
                 .arg("build")

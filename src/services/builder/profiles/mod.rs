@@ -8,10 +8,7 @@ pub mod dotnet;
 pub mod rust;
 
 pub fn handlers() -> [Box<dyn BuildProfileHandler>; 2] {
-    [
-        Box::new(rust::RustProfile),
-        Box::new(dotnet::DotnetProfile),
-    ]
+    [Box::new(rust::RustProfile), Box::new(dotnet::DotnetProfile)]
 }
 
 pub trait BuildProfileHandler {

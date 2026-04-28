@@ -3,10 +3,10 @@ use anyhow::Result;
 use crate::application::cli::arguments::BuildProfile as CliBuildProfile;
 use crate::application::operations::build_operation::{BuildCommandInput, BuildOperation};
 use crate::models::common::enums::{Channel, Provider};
+use crate::providers::provider_manager::ProviderManager;
 use crate::services::builder::BuildProfile;
 use crate::services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage};
 use crate::utils::static_paths::UpstreamPaths;
-use crate::{providers::provider_manager::ProviderManager};
 
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
