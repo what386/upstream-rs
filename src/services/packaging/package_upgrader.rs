@@ -210,10 +210,9 @@ impl<'a> PackageUpgrader<'a> {
                     output.version,
                     message_callback,
                 ),
-                Err(e) => Err(e).context(format!(
-                    "Failed to rebuild '{}' from source",
-                    package.name
-                )),
+                Err(e) => {
+                    Err(e).context(format!("Failed to rebuild '{}' from source", package.name))
+                }
             }
         } else {
             self.installer

@@ -44,31 +44,32 @@ impl<'a> BuildOperation<'a> {
     }
 
     pub async fn build_and_install(&mut self, input: BuildCommandInput) -> Result<()> {
-        let (resolved_repo_slug, resolved_provider, resolved_base_url) =
-            if let Some(selected) = input.provider {
-                (input.repo_slug.clone(), selected, input.base_url.clone())
-            } else {
-                let mut discovered = infer_source(&input.repo_slug)?;
-                if let Some(base) = input.base_url.clone() {
-                    discovered.base_url = Some(base);
-                }
+        let (resolved_repo_slug, resolved_provider, resolved_base_url) = if let Some(selected) =
+            input.provider
+        {
+            (input.repo_slug.clone(), selected, input.base_url.clone())
+        } else {
+            let mut discovered = infer_source(&input.repo_slug)?;
+            if let Some(base) = input.base_url.clone() {
+                discovered.base_url = Some(base);
+            }
 
-                match discovered.kind {
-                    SourceKind::Repository | SourceKind::ForgeUrl => {}
-                    SourceKind::DirectAsset | SourceKind::DownloadPage => {
-                        return Err(anyhow!(
-                            "Build requires a forge repository source (github/gitlab/gitea), got '{}'",
-                            input.repo_slug
-                        ));
-                    }
+            match discovered.kind {
+                SourceKind::Repository | SourceKind::ForgeUrl => {}
+                SourceKind::DirectAsset | SourceKind::DownloadPage => {
+                    return Err(anyhow!(
+                        "Build requires a forge repository source (github/gitlab/gitea), got '{}'",
+                        input.repo_slug
+                    ));
                 }
+            }
 
-                (
-                    discovered.repo_slug,
-                    discovered.provider,
-                    discovered.base_url,
-                )
-            };
+            (
+                discovered.repo_slug,
+                discovered.provider,
+                discovered.base_url,
+            )
+        };
 
         if !matches!(
             resolved_provider,

@@ -636,13 +636,7 @@ mod tests {
 
     #[test]
     fn reinstall_parses_names_and_ignore_checksums_flag() {
-        let cli = Cli::parse_from([
-            "upstream",
-            "reinstall",
-            "rg",
-            "fd",
-            "--ignore-checksums",
-        ]);
+        let cli = Cli::parse_from(["upstream", "reinstall", "rg", "fd", "--ignore-checksums"]);
 
         match cli.command {
             Commands::Reinstall {

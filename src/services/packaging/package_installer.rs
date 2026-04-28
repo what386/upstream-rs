@@ -231,7 +231,12 @@ impl<'a> PackageInstaller<'a> {
 
         if artifact_path.is_dir() {
             return self
-                .handle_archive(artifact_path, &self.extract_cache, package, message_callback)
+                .handle_archive(
+                    artifact_path,
+                    &self.extract_cache,
+                    package,
+                    message_callback,
+                )
                 .context("Failed to install local artifact directory");
         }
 
