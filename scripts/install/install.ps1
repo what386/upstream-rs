@@ -15,7 +15,7 @@ $GITHUB_REPO = "upstream-rs"
 $BINARY_NAME = "upstream-rs"
 
 $INSTALL_COMMANDS = @(
-    "init",
+    "hooks init",
     "install upstream what386/upstream-rs -k win-exe"
 )
 

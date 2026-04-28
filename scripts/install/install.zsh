@@ -13,7 +13,7 @@ BINARY_NAME="upstream-rs"
 OS="apple-darwin"
 
 INSTALL_COMMANDS=(
-  "init"
+  "hooks init"
   "install upstream what386/upstream-rs -k binary"
 )
 
