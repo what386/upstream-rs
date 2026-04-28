@@ -748,5 +748,15 @@
       "completed_at": "2026-04-28T00:25:31.840131568Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: rename `init` to `hooks`. Add subcommands to hooks: init, clean, purge, check",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-04-28T00:25:33.570342875Z"
+    },
+    "version": null
   }
 ]
