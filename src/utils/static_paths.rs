@@ -1,4 +1,4 @@
-use dirs;
+use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 /// Root directories for the application
@@ -11,24 +11,27 @@ pub struct AppDirs {
 
 impl Default for AppDirs {
     fn default() -> Self {
-        Self::new()
+        Self::new().expect("failed to determine upstream app directories")
     }
 }
 
 impl AppDirs {
-    pub fn new() -> Self {
-        let user_dir = dirs::home_dir().unwrap();
-        let config_dir = dirs::config_dir().unwrap().join("upstream");
+    pub fn new() -> Result<Self> {
+        let user_dir =
+            dirs::home_dir().context("Failed to determine the current user's home directory")?;
+        let config_dir = dirs::config_dir()
+            .context("Failed to determine the current user's config directory")?
+            .join("upstream");
 
         let data_dir = user_dir.join(".upstream");
         let metadata_dir = data_dir.join("metadata");
 
-        Self {
+        Ok(Self {
             user_dir,
             config_dir,
             data_dir,
             metadata_dir,
-        }
+        })
     }
 }
 
@@ -93,19 +96,19 @@ pub struct UpstreamPaths {
 
 impl Default for UpstreamPaths {
     fn default() -> Self {
-        Self::new()
+        Self::new().expect("failed to determine upstream paths")
     }
 }
 
 impl UpstreamPaths {
-    pub fn new() -> Self {
-        let dirs = AppDirs::new();
-        Self {
+    pub fn new() -> Result<Self> {
+        let dirs = AppDirs::new()?;
+        Ok(Self {
             config: ConfigPaths::new(&dirs),
             install: InstallPaths::new(&dirs),
             integration: IntegrationPaths::new(&dirs),
             dirs,
-        }
+        })
     }
 }
 
@@ -115,7 +118,7 @@ mod tests {
 
     #[test]
     fn upstream_paths_are_composed_from_base_directories() {
-        let paths = UpstreamPaths::new();
+        let paths = UpstreamPaths::new().expect("paths");
 
         assert_eq!(
             paths.config.config_file,
