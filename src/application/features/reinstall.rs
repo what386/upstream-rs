@@ -124,7 +124,6 @@ where
 
     let mut remove_op = RemoveOperation::new(package_storage, paths);
     remove_op.remove_single(&package.name, &false, message_callback)?;
-    drop(remove_op);
 
     match package.install_type {
         InstallType::Release => {
