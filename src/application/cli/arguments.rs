@@ -3,12 +3,12 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "upstream")]
-#[command(about = "A package manager for Github releases.")]
+#[command(about = "A package manager for everything else.")]
 #[command(
     long_about = "Upstream is a lightweight package manager that installs and manages \
-    applications directly from GitHub releases (and other providers).\n\n\
+    applications directly from most release sources.\n\n\
     Install binaries, AppImages, and other artifacts with automatic updates, \
-    version pinning, and simple configuration management.\n\n\
+    version pinning, and (hopefully) minimal configuration.\n\n\
     EXAMPLES:\n  \
     upstream install nvim neovim/neovim --desktop\n  \
     upstream upgrade                # Upgrade all packages\n  \
@@ -23,14 +23,16 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Install a package from a GitHub release
-    #[command(long_about = "Install a new package from a repository release.\n\n\
+    /// Install a package from an upstream release source
+    #[command(
+        long_about = "Install a new package from a download source.\n\n\
         Downloads the specified file type from the latest release (or specified channel) \
         and registers it under the given name for future updates.\n\n\
         EXAMPLES:\n  \
         upstream install rg BurntSushi/ripgrep -k binary\n  \
         upstream install dust bootandy/dust -k archive\n  \
-        upstream install rg BurntSushi/ripgrep --ignore-checksums")]
+        upstream install rg BurntSushi/ripgrep --ignore-checksums"
+    )]
     Install {
         /// Name to register the application under
         name: String,
