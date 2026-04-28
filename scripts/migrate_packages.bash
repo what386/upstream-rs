@@ -14,13 +14,13 @@ Behavior:
 
 Defaults JSON:
   - Optional 2nd argument; must be a JSON object.
-  - Default: {"install_type":"release"}
+  - Default: {"install_type":"Release"}
   - Applied per item in the packages array as: (defaults * item)
 
 Examples:
   scripts/migrate_packages.bash
   scripts/migrate_packages.bash ~/.upstream/metadata/packages.json \
-    '{"install_type":"release","is_pinned":false}'
+    '{"install_type":"Release","is_pinned":false}'
 EOF
 }
 
@@ -30,7 +30,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 PACKAGES_FILE="${1:-$HOME/.upstream/metadata/packages.json}"
-DEFAULTS_JSON="${2:-{\"install_type\":\"release\"}}"
+DEFAULTS_JSON="${2:-{\"install_type\":\"Release\"}}"
 
 if [[ ! -f "$PACKAGES_FILE" ]]; then
     echo "Error: packages file not found: $PACKAGES_FILE" >&2
