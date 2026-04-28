@@ -78,7 +78,7 @@ Optional: install upstream via itself:
 ### Initialize
 
 ```bash
-upstream init
+upstream hooks init
 ```
 
 ### Install a package
