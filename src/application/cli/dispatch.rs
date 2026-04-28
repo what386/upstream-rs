@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::application::cli::arguments::{Cli, Commands, ConfigAction, PackageAction};
+use crate::application::cli::arguments::{Cli, Commands, ConfigAction, HooksAction, PackageAction};
 use crate::application::features;
 use crate::services::storage::lock_storage::LockStorage;
 use crate::utils::static_paths::UpstreamPaths;
@@ -16,7 +16,13 @@ impl Cli {
         };
 
         match command {
-            Commands::Init { clean, check } => features::init::run(clean, check),
+            Commands::Init { clean, check } => features::hooks::run(clean, check),
+            Commands::Hooks { action } => match action {
+                HooksAction::Init => features::hooks::run_hooks_init(),
+                HooksAction::Check => features::hooks::run_hooks_check(),
+                HooksAction::Clean => features::hooks::run_hooks_clean(),
+                HooksAction::Purge { yes } => features::hooks::run_hooks_purge(yes),
+            },
             Commands::Install {
                 name,
                 repo_slug,

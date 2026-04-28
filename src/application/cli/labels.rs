@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::application::cli::arguments::{Commands, ConfigAction, PackageAction};
+use crate::application::cli::arguments::{Commands, ConfigAction, HooksAction, PackageAction};
 
 impl fmt::Display for Commands {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -12,6 +12,7 @@ impl fmt::Display for Commands {
             Commands::Probe { .. } => write!(f, "probe"),
             Commands::Config { action } => write!(f, "{action}"),
             Commands::Package { action } => write!(f, "{action}"),
+            Commands::Hooks { action } => write!(f, "{action}"),
             Commands::Init { .. } => write!(f, "init"),
             Commands::Import { .. } => write!(f, "import"),
             Commands::Export { .. } => write!(f, "export"),
@@ -28,6 +29,17 @@ impl fmt::Display for ConfigAction {
             ConfigAction::List => write!(f, "config list"),
             ConfigAction::Edit => write!(f, "config edit"),
             ConfigAction::Reset => write!(f, "config reset"),
+        }
+    }
+}
+
+impl fmt::Display for HooksAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            HooksAction::Init => write!(f, "hooks init"),
+            HooksAction::Check => write!(f, "hooks check"),
+            HooksAction::Clean => write!(f, "hooks clean"),
+            HooksAction::Purge { .. } => write!(f, "hooks purge"),
         }
     }
 }

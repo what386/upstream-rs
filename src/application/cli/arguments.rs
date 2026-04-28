@@ -24,15 +24,13 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Install a package from an upstream release source
-    #[command(
-        long_about = "Install a new package from a download source.\n\n\
+    #[command(long_about = "Install a new package from a download source.\n\n\
         Downloads the specified file type from the latest release (or specified channel) \
         and registers it under the given name for future updates.\n\n\
         EXAMPLES:\n  \
         upstream install rg BurntSushi/ripgrep -k binary\n  \
         upstream install dust bootandy/dust -k archive\n  \
-        upstream install rg BurntSushi/ripgrep --ignore-checksums"
-    )]
+        upstream install rg BurntSushi/ripgrep --ignore-checksums")]
     Install {
         /// Name to register the application under
         name: String,
@@ -218,6 +216,20 @@ pub enum Commands {
         check: bool,
     },
 
+    /// Manage shell integration hooks and local upstream data
+    #[command(long_about = "Manage upstream shell integration hooks.\n\n\
+        Use these commands to add, verify, or remove shell PATH hooks. \
+        Purge removes shell hooks and deletes the local upstream data directory.\n\n\
+        EXAMPLES:\n  \
+        upstream hooks init\n  \
+        upstream hooks check\n  \
+        upstream hooks clean\n  \
+        upstream hooks purge --yes")]
+    Hooks {
+        #[command(subcommand)]
+        action: HooksAction,
+    },
+
     /// Import packages from a manifest or full snapshot
     #[command(
         long_about = "Import packages from a previously exported manifest or snapshot.\n\n\
@@ -280,6 +292,7 @@ impl Commands {
             Commands::List { .. } => false,
             Commands::Doctor { .. } => false,
             Commands::Init { check, .. } => !check,
+            Commands::Hooks { action } => !matches!(action, HooksAction::Check),
             Commands::Package { action } => !matches!(
                 action,
                 PackageAction::GetKey { .. } | PackageAction::Metadata { .. }
@@ -295,6 +308,47 @@ impl Commands {
             | Commands::Export { .. } => true,
         }
     }
+}
+
+#[derive(Subcommand)]
+pub enum HooksAction {
+    /// Add upstream shell integration hooks
+    #[command(
+        long_about = "Add upstream shell integration hooks and create required local directories.\n\n\
+        EXAMPLE:\n  \
+        upstream hooks init"
+    )]
+    Init,
+
+    /// Check upstream shell integration hooks
+    #[command(
+        long_about = "Check upstream shell integration hooks and required local directories.\n\n\
+        EXAMPLE:\n  \
+        upstream hooks check"
+    )]
+    Check,
+
+    /// Remove upstream shell integration hooks
+    #[command(
+        long_about = "Remove upstream shell integration hooks without deleting installed package data.\n\n\
+        EXAMPLE:\n  \
+        upstream hooks clean"
+    )]
+    Clean,
+
+    /// Remove hooks and delete the local upstream data directory
+    #[command(
+        long_about = "Remove upstream shell integration hooks and delete the local upstream data directory.\n\n\
+        This deletes installed package files and metadata under ~/.upstream. \
+        Pass --yes to skip the confirmation prompt.\n\n\
+        EXAMPLE:\n  \
+        upstream hooks purge --yes"
+    )]
+    Purge {
+        /// Skip the confirmation prompt
+        #[arg(long, short = 'y', default_value_t = false)]
+        yes: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -420,7 +474,7 @@ pub enum PackageAction {
 
 #[cfg(test)]
 mod tests {
-    use super::{Cli, Commands, ConfigAction, PackageAction};
+    use super::{Cli, Commands, ConfigAction, HooksAction, PackageAction};
     use clap::Parser;
 
     #[test]
@@ -476,6 +530,25 @@ mod tests {
     }
 
     #[test]
+    fn hooks_parses_actions() {
+        let cli = Cli::parse_from(["upstream", "hooks", "init"]);
+        assert!(matches!(
+            cli.command,
+            Commands::Hooks {
+                action: HooksAction::Init
+            }
+        ));
+
+        let cli = Cli::parse_from(["upstream", "hooks", "purge", "--yes"]);
+        assert!(matches!(
+            cli.command,
+            Commands::Hooks {
+                action: HooksAction::Purge { yes: true }
+            }
+        ));
+    }
+
+    #[test]
     fn requires_lock_skips_read_only_commands() {
         assert!(!Commands::List { name: None }.requires_lock());
         assert!(
@@ -489,6 +562,12 @@ mod tests {
             !Commands::Init {
                 clean: false,
                 check: true,
+            }
+            .requires_lock()
+        );
+        assert!(
+            !Commands::Hooks {
+                action: HooksAction::Check,
             }
             .requires_lock()
         );
@@ -585,6 +664,24 @@ mod tests {
         assert!(
             Commands::Config {
                 action: ConfigAction::Reset,
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Hooks {
+                action: HooksAction::Init,
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Hooks {
+                action: HooksAction::Clean,
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Hooks {
+                action: HooksAction::Purge { yes: true },
             }
             .requires_lock()
         );
