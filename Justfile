@@ -15,7 +15,7 @@ test:
     cargo xwin test --all --target x86_64-pc-windows-msvc
 
 run *args:
-    cargo run -- {{args}}
+    cargo run --bin "upstream-rs" -- {{args}}
 
 prepare version:
     lash run scripts/release/prepare.lash {{version}}
