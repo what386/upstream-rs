@@ -16,7 +16,6 @@ impl Cli {
         };
 
         match command {
-            Commands::Init { clean, check } => features::hooks::run(clean, check),
             Commands::Hooks { action } => match action {
                 HooksAction::Init => features::hooks::run_hooks_init(),
                 HooksAction::Check => features::hooks::run_hooks_check(),

@@ -199,23 +199,6 @@ pub enum Commands {
         action: PackageAction,
     },
 
-    /// Initialize upstream by adding it to your shell PATH
-    #[command(long_about = "Set up upstream for first-time use.\n\n\
-        Adds upstream's bin directory to your PATH by modifying shell configuration \
-        files (.bashrc, .zshrc, etc.). Run this once after installation.\n\n\
-        EXAMPLES:\n  \
-        upstream init\n  \
-        upstream init --clean  # Remove old hooks first")]
-    Init {
-        /// Clean initialization (remove existing hooks first)
-        #[arg(long)]
-        clean: bool,
-
-        /// Check initialization status without making changes
-        #[arg(long, default_value_t = false, conflicts_with = "clean")]
-        check: bool,
-    },
-
     /// Manage shell integration hooks and local upstream data
     #[command(long_about = "Manage upstream shell integration hooks.\n\n\
         Use these commands to add, verify, or remove shell PATH hooks. \
@@ -291,7 +274,6 @@ impl Commands {
         match self {
             Commands::List { .. } => false,
             Commands::Doctor { .. } => false,
-            Commands::Init { check, .. } => !check,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
             Commands::Package { action } => !matches!(
                 action,
@@ -549,19 +531,17 @@ mod tests {
     }
 
     #[test]
+    fn init_command_is_removed() {
+        assert!(Cli::try_parse_from(["upstream", "init"]).is_err());
+    }
+
+    #[test]
     fn requires_lock_skips_read_only_commands() {
         assert!(!Commands::List { name: None }.requires_lock());
         assert!(
             !Commands::Doctor {
                 names: vec![],
                 verbose: false,
-            }
-            .requires_lock()
-        );
-        assert!(
-            !Commands::Init {
-                clean: false,
-                check: true,
             }
             .requires_lock()
         );
