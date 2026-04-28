@@ -20,7 +20,7 @@ pub async fn run(
     exclude_pattern: Option<String>,
     desktop: bool,
     yes: bool,
-    build_profile: CliBuildProfile,
+    build_profile: Option<CliBuildProfile>,
     build_output: Option<String>,
 ) -> Result<()> {
     let _ = (match_pattern, exclude_pattern, yes);
@@ -44,10 +44,10 @@ pub async fn run(
             base_url,
             channel,
             desktop,
-            build_profile: match build_profile {
+            build_profile: build_profile.map(|profile| match profile {
                 CliBuildProfile::Rust => BuildProfile::Rust,
                 CliBuildProfile::Dotnet => BuildProfile::Dotnet,
-            },
+            }),
             build_output,
         })
         .await

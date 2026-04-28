@@ -26,7 +26,7 @@ pub struct BuildCommandInput {
     pub base_url: Option<String>,
     pub channel: Channel,
     pub desktop: bool,
-    pub build_profile: BuildProfile,
+    pub build_profile: Option<BuildProfile>,
     pub build_output: Option<String>,
 }
 
@@ -95,7 +95,7 @@ impl<'a> BuildOperation<'a> {
                     provider: resolved_provider.clone(),
                     base_url: resolved_base_url.clone(),
                     version_tag: input.tag,
-                    requested_profile: Some(input.build_profile),
+                    requested_profile: input.build_profile,
                     build_output: input.build_output.map(std::path::PathBuf::from),
                 },
                 input.channel.clone(),
