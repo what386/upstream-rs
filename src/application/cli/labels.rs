@@ -13,7 +13,6 @@ impl fmt::Display for Commands {
             Commands::Config { action } => write!(f, "{action}"),
             Commands::Package { action } => write!(f, "{action}"),
             Commands::Hooks { action } => write!(f, "{action}"),
-            Commands::Init { .. } => write!(f, "init"),
             Commands::Import { .. } => write!(f, "import"),
             Commands::Export { .. } => write!(f, "export"),
             Commands::Doctor { .. } => write!(f, "doctor"),

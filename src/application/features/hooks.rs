@@ -5,34 +5,6 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
-pub fn run(cleanup_option: bool, check_option: bool) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
-
-    if check_option {
-        let report = check(&paths)?;
-        for line in &report.messages {
-            println!("{}", line);
-        }
-
-        if report.ok {
-            println!("Initialization check passed.");
-            return Ok(());
-        }
-
-        return Err(anyhow!("Initialization check failed"));
-    }
-
-    if cleanup_option {
-        cleanup(&paths)?;
-        println!("Removed upstream shell integration hooks.")
-    } else {
-        initialize(&paths)?;
-        println!("Initialized upstream.")
-    }
-
-    Ok(())
-}
-
 pub fn run_hooks_init() -> Result<()> {
     let paths = UpstreamPaths::new()?;
     initialize(&paths)?;

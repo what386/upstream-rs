@@ -314,7 +314,7 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
                 format!("{} missing: {}", label, path.display()),
             );
             report.hint(
-                "Run `upstream init` to create missing upstream directories and metadata files.",
+                "Run `upstream hooks init` to create missing upstream directories and metadata files.",
             );
         }
     }
@@ -329,7 +329,7 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
                 paths.config.config_file.display()
             ),
         );
-        report.hint("Run `upstream init` to generate the default config file.");
+        report.hint("Run `upstream hooks init` to generate the default config file.");
     }
 
     if paths.config.packages_file.exists() {
@@ -342,7 +342,7 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
                 paths.config.packages_file.display()
             ),
         );
-        report.hint("Run `upstream init` to create package metadata storage.");
+        report.hint("Run `upstream hooks init` to create package metadata storage.");
     }
 
     check_paths_file(&paths, &mut report);
@@ -795,12 +795,16 @@ mod tests {
     #[test]
     fn doctor_report_hint_deduplicates_entries() {
         let mut report = DoctorReport::new(false);
-        report.hint("Run upstream init");
-        report.hint("Run upstream init");
+        report.hint("Run upstream hooks init");
+        report.hint("Run upstream hooks init");
         report.hint("Reinstall package");
 
         assert_eq!(report.hints.len(), 2);
-        assert!(report.hints.contains(&"Run upstream init".to_string()));
+        assert!(
+            report
+                .hints
+                .contains(&"Run upstream hooks init".to_string())
+        );
         assert!(report.hints.contains(&"Reinstall package".to_string()));
     }
 
