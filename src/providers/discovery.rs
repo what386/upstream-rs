@@ -138,6 +138,71 @@ pub fn infer_source(source: &str) -> Result<DiscoveredSource> {
     })
 }
 
+pub fn normalize_source_for_provider(
+    source: &str,
+    provider: &Provider,
+    base_url: Option<&str>,
+) -> String {
+    let trimmed = source.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    let Ok(url) = Url::parse(trimmed) else {
+        return trimmed.trim_matches('/').to_string();
+    };
+
+    let host = url.host_str().unwrap_or("").to_lowercase();
+    let segments: Vec<&str> = url
+        .path_segments()
+        .map(|parts| parts.filter(|part| !part.is_empty()).collect())
+        .unwrap_or_default();
+
+    match provider {
+        Provider::Github => {
+            if (host == "github.com" || host == "www.github.com")
+                && let Some(slug) = owner_repo_slug(&segments)
+            {
+                return slug;
+            }
+        }
+        Provider::Gitlab => {
+            if (host == "gitlab.com" || host == "www.gitlab.com")
+                && let Some(slug) = gitlab_slug(&segments)
+            {
+                return slug;
+            }
+            if let Some(base) = base_url
+                && let Ok(base_url_parsed) = Url::parse(base)
+                && same_host(&url, &base_url_parsed)
+                && let Some(slug) = gitlab_slug(&segments)
+            {
+                return slug;
+            }
+        }
+        Provider::Gitea => {
+            if (host == "gitea.com"
+                || host == "www.gitea.com"
+                || host == "codeberg.org"
+                || host == "www.codeberg.org")
+                && let Some(slug) = owner_repo_slug(&segments)
+            {
+                return slug;
+            }
+            if let Some(base) = base_url
+                && let Ok(base_url_parsed) = Url::parse(base)
+                && same_host(&url, &base_url_parsed)
+                && let Some(slug) = owner_repo_slug(&segments)
+            {
+                return slug;
+            }
+        }
+        Provider::Direct | Provider::WebScraper => {}
+    }
+
+    trimmed.to_string()
+}
+
 fn infer_url_source(original: &str, url: &Url) -> Result<DiscoveredSource> {
     let host = url.host_str().unwrap_or("").to_lowercase();
     let segments: Vec<&str> = url
@@ -145,7 +210,7 @@ fn infer_url_source(original: &str, url: &Url) -> Result<DiscoveredSource> {
         .map(|parts| parts.filter(|part| !part.is_empty()).collect())
         .unwrap_or_default();
 
-    if host == "github.com"
+    if (host == "github.com" || host == "www.github.com")
         && let Some(slug) = owner_repo_slug(&segments)
     {
         return Ok(DiscoveredSource {
@@ -157,7 +222,7 @@ fn infer_url_source(original: &str, url: &Url) -> Result<DiscoveredSource> {
         });
     }
 
-    if host == "gitlab.com"
+    if (host == "gitlab.com" || host == "www.gitlab.com")
         && let Some(slug) = gitlab_slug(&segments)
     {
         return Ok(DiscoveredSource {
@@ -169,7 +234,10 @@ fn infer_url_source(original: &str, url: &Url) -> Result<DiscoveredSource> {
         });
     }
 
-    if (host == "gitea.com" || host == "codeberg.org")
+    if (host == "gitea.com"
+        || host == "www.gitea.com"
+        || host == "codeberg.org"
+        || host == "www.codeberg.org")
         && let Some(slug) = owner_repo_slug(&segments)
     {
         return Ok(DiscoveredSource {
@@ -213,7 +281,13 @@ fn owner_repo_slug(segments: &[&str]) -> Option<String> {
         return None;
     }
 
-    Some(format!("{}/{}", segments[0], segments[1]))
+    let owner = segments[0];
+    let repo = segments[1].trim_end_matches(".git");
+    if owner.is_empty() || repo.is_empty() {
+        return None;
+    }
+
+    Some(format!("{owner}/{repo}"))
 }
 
 fn gitlab_slug(segments: &[&str]) -> Option<String> {
@@ -229,6 +303,13 @@ fn gitlab_slug(segments: &[&str]) -> Option<String> {
     }
 
     Some(parts.join("/"))
+}
+
+fn same_host(a: &Url, b: &Url) -> bool {
+    match (a.host_str(), b.host_str()) {
+        (Some(ha), Some(hb)) => ha.eq_ignore_ascii_case(hb),
+        _ => false,
+    }
 }
 
 fn is_direct_asset_url(url: &Url) -> bool {
@@ -256,7 +337,9 @@ fn filter_releases_by_channel(mut releases: Vec<Release>, channel: &Channel) -> 
 
 #[cfg(test)]
 mod tests {
-    use super::{DiscoveredSource, DiscoveryResult, SourceKind, infer_source};
+    use super::{
+        DiscoveredSource, DiscoveryResult, SourceKind, infer_source, normalize_source_for_provider,
+    };
     use crate::models::{
         common::{Version, enums::Provider},
         provider::{Asset, Release},
@@ -281,6 +364,40 @@ mod tests {
         assert_eq!(source.provider, Provider::Github);
         assert_eq!(source.repo_slug, "sharkdp/fd");
         assert_eq!(source.kind, SourceKind::ForgeUrl);
+    }
+
+    #[test]
+    fn infer_source_normalizes_plain_github_repo_urls() {
+        let source = infer_source("https://github.com/sharkdp/bat").expect("infer source");
+        assert_eq!(source.provider, Provider::Github);
+        assert_eq!(source.repo_slug, "sharkdp/bat");
+        assert_eq!(source.kind, SourceKind::ForgeUrl);
+    }
+
+    #[test]
+    fn infer_source_normalizes_www_github_repo_urls() {
+        let source = infer_source("https://www.github.com/sharkdp/bat/").expect("infer source");
+        assert_eq!(source.provider, Provider::Github);
+        assert_eq!(source.repo_slug, "sharkdp/bat");
+        assert_eq!(source.kind, SourceKind::ForgeUrl);
+    }
+
+    #[test]
+    fn infer_source_strips_git_suffix_for_repo_urls() {
+        let source = infer_source("https://github.com/sharkdp/bat.git").expect("infer source");
+        assert_eq!(source.provider, Provider::Github);
+        assert_eq!(source.repo_slug, "sharkdp/bat");
+        assert_eq!(source.kind, SourceKind::ForgeUrl);
+    }
+
+    #[test]
+    fn normalize_source_for_provider_extracts_slug_for_github_urls() {
+        let normalized = normalize_source_for_provider(
+            "https://github.com/sharkdp/bat",
+            &Provider::Github,
+            None,
+        );
+        assert_eq!(normalized, "sharkdp/bat");
     }
 
     #[test]
