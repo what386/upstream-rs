@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.6.2
+# TODO — upstream-cli v1.7.0
 
 @created: 2026-01-31
 @modified: 2026-04-28
@@ -14,6 +14,10 @@
 - [ ] feat: rename `init` to `hooks`. Add subcommands to hooks: init, clean, purge, check
       @created 2026-04-28 00:22
 
-- [ ] bug: fix potential orphaned entries in PATHS file
+
+## Completed
+
+- [x] bug: fix potential orphaned entries in PATHS file
       @created 2026-04-28 00:23
+      @completed 2026-04-28 00:25
 
