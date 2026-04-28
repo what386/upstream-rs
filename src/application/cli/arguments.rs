@@ -89,8 +89,9 @@ pub enum Commands {
     #[command(long_about = "Build and install a package from source.\n\n\
         Use this command when release tags exist but prebuilt artifacts are missing \
         or unsuitable for your system.\n\n\
-        Mirrors install-style source resolution while using an explicit build profile.\n\n\
+        Mirrors install-style source resolution, with optional automatic profile detection.\n\n\
         EXAMPLES:\n  \
+        upstream build rg BurntSushi/ripgrep\n  \
         upstream build rg BurntSushi/ripgrep --build-profile rust\n  \
         upstream build app owner/repo --build-profile dotnet --tag v1.2.3\n  \
         upstream build tool owner/repo --build-profile rust --build-output target/release/tool")]
@@ -133,9 +134,9 @@ pub enum Commands {
         #[arg(long, short = 'y', default_value_t = false)]
         yes: bool,
 
-        /// Build profile used to compile/install from source
+        /// Build profile used to compile/install from source (auto-detected when omitted)
         #[arg(long, value_enum)]
-        build_profile: BuildProfile,
+        build_profile: Option<BuildProfile>,
 
         /// Optional explicit output path for the compiled executable
         #[arg(long)]
@@ -585,9 +586,18 @@ mod tests {
                 ..
             } => {
                 assert!(provider.is_none());
-                assert_eq!(build_profile, BuildProfile::Rust);
+                assert_eq!(build_profile, Some(BuildProfile::Rust));
                 assert_eq!(build_output.as_deref(), Some("target/release/rg"));
             }
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn build_profile_is_optional() {
+        let cli = Cli::parse_from(["upstream", "build", "rg", "BurntSushi/ripgrep"]);
+        match cli.command {
+            Commands::Build { build_profile, .. } => assert!(build_profile.is_none()),
             other => panic!("unexpected command parsed: {}", other),
         }
     }
@@ -740,7 +750,7 @@ mod tests {
                 exclude_pattern: None,
                 desktop: false,
                 yes: false,
-                build_profile: BuildProfile::Rust,
+                build_profile: Some(BuildProfile::Rust),
                 build_output: None,
             }
             .requires_lock()
