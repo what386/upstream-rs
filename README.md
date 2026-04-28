@@ -133,11 +133,12 @@ upstream install <name> <source> [options]
 Options:
 
 * `--kind` → asset type (`auto`, `archive`, `binary`, etc.)
-* `--provider` → `github`, `gitlab`, `gitea`, `direct`, `scraper`
+* `--provider` → override auto-detection (`github`, `gitlab`, `gitea`, `direct`, `scraper`)
 * `--channel` → `stable`, `preview`, `nightly`
 * `--tag` → specific version
 * `--match-pattern` / `--exclude-pattern`
 * `--desktop` → create launcher entry
+* `--yes` → accept the recommended discovered asset without prompting
 
 Examples:
 
@@ -146,10 +147,10 @@ Examples:
 upstream install fd sharkdp/fd
 
 # Direct download
-upstream install app https://example.com/app.tar.gz -p direct -k archive
+upstream install app https://example.com/app.tar.gz -k archive
 
-# Scrape a page
-upstream install tool https://example.com/downloads -p scraper
+# Download assets from a download page
+upstream install tool https://example.com/downloads
 ```
 
 ---
