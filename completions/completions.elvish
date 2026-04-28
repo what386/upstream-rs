@@ -29,7 +29,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand probe 'Inspect releases visible from a provider without installing'
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific settings and metadata'
-            cand init 'Initialize upstream by adding it to your shell PATH'
             cand hooks 'Manage shell integration hooks and local upstream data'
             cand import 'Import packages from a manifest or full snapshot'
             cand export 'Export packages to a manifest or full snapshot'
@@ -200,12 +199,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;package;help;help'= {
         }
-        &'upstream;init'= {
-            cand --clean 'Clean initialization (remove existing hooks first)'
-            cand --check 'Check initialization status without making changes'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
-        }
         &'upstream;hooks'= {
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
@@ -273,7 +266,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand probe 'Inspect releases visible from a provider without installing'
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific settings and metadata'
-            cand init 'Initialize upstream by adding it to your shell PATH'
             cand hooks 'Manage shell integration hooks and local upstream data'
             cand import 'Import packages from a manifest or full snapshot'
             cand export 'Export packages to a manifest or full snapshot'
@@ -329,8 +321,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;package;rename'= {
         }
         &'upstream;help;package;metadata'= {
-        }
-        &'upstream;help;init'= {
         }
         &'upstream;help;hooks'= {
             cand init 'Add upstream shell integration hooks'

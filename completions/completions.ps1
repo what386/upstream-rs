@@ -32,7 +32,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('probe', 'probe', [CompletionResultType]::ParameterValue, 'Inspect releases visible from a provider without installing')
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific settings and metadata')
-            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Initialize upstream by adding it to your shell PATH')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import packages from a manifest or full snapshot')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
@@ -239,13 +238,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         'upstream;package;help;help' {
             break
         }
-        'upstream;init' {
-            [CompletionResult]::new('--clean', '--clean', [CompletionResultType]::ParameterName, 'Clean initialization (remove existing hooks first)')
-            [CompletionResult]::new('--check', '--check', [CompletionResultType]::ParameterName, 'Check initialization status without making changes')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            break
-        }
         'upstream;hooks' {
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
@@ -327,7 +319,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('probe', 'probe', [CompletionResultType]::ParameterValue, 'Inspect releases visible from a provider without installing')
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific settings and metadata')
-            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Initialize upstream by adding it to your shell PATH')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import packages from a manifest or full snapshot')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
@@ -402,9 +393,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;package;metadata' {
-            break
-        }
-        'upstream;help;init' {
             break
         }
         'upstream;help;hooks' {

@@ -300,14 +300,6 @@ esac
     ;;
 esac
 ;;
-(init)
-_arguments "${_arguments_options[@]}" : \
-'--clean[Clean initialization (remove existing hooks first)]' \
-'(--clean)--check[Check initialization status without making changes]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-&& ret=0
-;;
 (hooks)
 _arguments "${_arguments_options[@]}" : \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -524,10 +516,6 @@ _arguments "${_arguments_options[@]}" : \
     ;;
 esac
 ;;
-(init)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
 (hooks)
 _arguments "${_arguments_options[@]}" : \
 ":: :_upstream__subcmd__help__subcmd__hooks_commands" \
@@ -595,7 +583,6 @@ _upstream_commands() {
 'probe:Inspect releases visible from a provider without installing' \
 'config:Manage upstream configuration' \
 'package:Manage package-specific settings and metadata' \
-'init:Initialize upstream by adding it to your shell PATH' \
 'hooks:Manage shell integration hooks and local upstream data' \
 'import:Import packages from a manifest or full snapshot' \
 'export:Export packages to a manifest or full snapshot' \
@@ -703,7 +690,6 @@ _upstream__subcmd__help_commands() {
 'probe:Inspect releases visible from a provider without installing' \
 'config:Manage upstream configuration' \
 'package:Manage package-specific settings and metadata' \
-'init:Initialize upstream by adding it to your shell PATH' \
 'hooks:Manage shell integration hooks and local upstream data' \
 'import:Import packages from a manifest or full snapshot' \
 'export:Export packages to a manifest or full snapshot' \
@@ -797,11 +783,6 @@ _upstream__subcmd__help__subcmd__hooks__subcmd__purge_commands() {
 _upstream__subcmd__help__subcmd__import_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help import commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__help__subcmd__init_commands] )) ||
-_upstream__subcmd__help__subcmd__init_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help init commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__install_commands] )) ||
 _upstream__subcmd__help__subcmd__install_commands() {
@@ -947,11 +928,6 @@ _upstream__subcmd__hooks__subcmd__purge_commands() {
 _upstream__subcmd__import_commands() {
     local commands; commands=()
     _describe -t commands 'upstream import commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__init_commands] )) ||
-_upstream__subcmd__init_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream init commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__install_commands] )) ||
 _upstream__subcmd__install_commands() {
