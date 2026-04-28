@@ -34,9 +34,6 @@ _upstream() {
             upstream,import)
                 cmd="upstream__subcmd__import"
                 ;;
-            upstream,init)
-                cmd="upstream__subcmd__init"
-                ;;
             upstream,install)
                 cmd="upstream__subcmd__install"
                 ;;
@@ -108,9 +105,6 @@ _upstream() {
                 ;;
             upstream__subcmd__help,import)
                 cmd="upstream__subcmd__help__subcmd__import"
-                ;;
-            upstream__subcmd__help,init)
-                cmd="upstream__subcmd__help__subcmd__init"
                 ;;
             upstream__subcmd__help,install)
                 cmd="upstream__subcmd__help__subcmd__install"
@@ -263,7 +257,7 @@ _upstream() {
 
     case "${cmd}" in
         upstream)
-            opts="-h -V --help --version install remove upgrade list probe config package init hooks import export doctor help"
+            opts="-h -V --help --version install remove upgrade list probe config package hooks import export doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -487,7 +481,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help)
-            opts="install remove upgrade list probe config package init hooks import export doctor help"
+            opts="install remove upgrade list probe config package hooks import export doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -697,20 +691,6 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__import)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__help__subcmd__init)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1062,20 +1042,6 @@ _upstream() {
             ;;
         upstream__subcmd__import)
             opts="-h --skip-failed --help <PATH>"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__init)
-            opts="-h --clean --check --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
