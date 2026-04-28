@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.7.0
+# TODO — upstream-cli v1.8.0
 
 @created: 2026-01-31
 @modified: 2026-04-28
@@ -32,8 +32,10 @@
 - [x] feat: add `reinstall` command
       @created 2026-04-28 23:40
       @completed 2026-04-28 23:41
+      @completed_version 1.8.0
 
 - [x] feat: add `build` command that builds packages from source code
       @created 2026-04-28 23:40
       @completed 2026-04-28 23:41
+      @completed_version 1.8.0
 
