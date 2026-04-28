@@ -1,6 +1,15 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-04-24*
+*Generated on 2026-04-28*
+
+## 1.7.0 — 2026-04-28
+
+### Changes
+
+- bug: fix potential orphaned entries in PATHS file
+- feat: rename `init` to `hooks`. Add subcommands to hooks: init, clean, purge, check
+- feat: improve wording in help text
+
 
 ## 1.6.2 — 2026-04-24
 
@@ -22,6 +31,7 @@
 ### Changes
 
 - feat: `package remove` for forcing package deletions
+- feat: `doctor` checks for orphaned installed directories/files ([`408163a`])
 
 
 ## 1.5.5 — 2026-04-20
