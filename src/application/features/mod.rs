@@ -2,7 +2,7 @@ pub mod config;
 pub mod doctor;
 pub mod export;
 pub mod import;
-pub mod init;
+pub mod hooks;
 pub mod install;
 pub mod list;
 pub mod package;
