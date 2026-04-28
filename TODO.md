@@ -11,9 +11,6 @@
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
 
-- [ ] feat: add `build` command that builds packages from source code
-      @created 2026-04-28 23:40
-
 
 ## Completed
 
@@ -33,6 +30,10 @@
       @completed_version 1.7.0
 
 - [x] feat: add `reinstall` command
+      @created 2026-04-28 23:40
+      @completed 2026-04-28 23:41
+
+- [x] feat: add `build` command that builds packages from source code
       @created 2026-04-28 23:40
       @completed 2026-04-28 23:41
 
