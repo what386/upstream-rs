@@ -222,6 +222,85 @@ impl<'a> InstallOperation<'a> {
         Ok(())
     }
 
+    pub async fn install_local_artifact<H>(
+        &mut self,
+        package: Package,
+        artifact_path: &std::path::Path,
+        version: crate::models::common::version::Version,
+        add_entry: &bool,
+        message_callback: &mut Option<H>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+    {
+        let mut installed_package = self
+            .installer
+            .install_local_artifact(package, artifact_path, version, message_callback)
+            .context("Failed to install local build artifact")?;
+
+        if *add_entry {
+            #[cfg(target_os = "linux")]
+            let appimage_extractor =
+                AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
+
+            #[cfg(target_os = "linux")]
+            let icon_manager = IconManager::new(self.paths, &appimage_extractor);
+            #[cfg(not(target_os = "linux"))]
+            let icon_manager = IconManager::new(self.paths);
+
+            #[cfg(target_os = "linux")]
+            let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
+            #[cfg(not(target_os = "linux"))]
+            let desktop_manager = DesktopManager::new(self.paths);
+
+            let install_path = installed_package.install_path.clone().ok_or_else(|| {
+                anyhow!(
+                    "Package '{}' has no install path after installation",
+                    installed_package.name
+                )
+            })?;
+
+            let icon_path = icon_manager
+                .add_icon(
+                    &installed_package.name,
+                    &install_path,
+                    &installed_package.filetype,
+                    message_callback,
+                )
+                .await
+                .context(format!(
+                    "Failed to add icon for '{}'",
+                    installed_package.name
+                ))?;
+
+            installed_package.icon_path = icon_path;
+
+            let desktop_entry = DesktopEntry::from_package(&installed_package);
+
+            let _ = desktop_manager
+                .create_entry(
+                    &install_path,
+                    &installed_package.filetype,
+                    desktop_entry,
+                    message_callback,
+                )
+                .await
+                .context(format!(
+                    "Failed to create desktop entry for '{}'",
+                    installed_package.name
+                ))?;
+        }
+
+        self.package_storage
+            .add_or_update_package(installed_package.clone())
+            .context(format!(
+                "Failed to save package '{}' to storage",
+                installed_package.name
+            ))?;
+
+        Ok(installed_package)
+    }
+
     async fn perform_install<F, H>(
         &self,
         package: Package,
