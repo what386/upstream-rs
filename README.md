@@ -58,7 +58,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 ### Manual install
 
 1. Download a release from
-   [https://github.com/what386/upstream/releases/latest](https://github.com/what386/upstream/releases/latest)
+   [https://github.com/what386/upstream-rs/releases/latest](https://github.com/what386/upstream-rs/releases/latest)
 2. Make it executable:
 
 ```bash
