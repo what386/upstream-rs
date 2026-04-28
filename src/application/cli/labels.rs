@@ -8,6 +8,7 @@ impl fmt::Display for Commands {
             Commands::Install { .. } => write!(f, "install"),
             Commands::Build { .. } => write!(f, "build"),
             Commands::Remove { .. } => write!(f, "remove"),
+            Commands::Reinstall { .. } => write!(f, "reinstall"),
             Commands::Upgrade { .. } => write!(f, "upgrade"),
             Commands::List { .. } => write!(f, "list"),
             Commands::Probe { .. } => write!(f, "probe"),
