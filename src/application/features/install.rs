@@ -11,7 +11,9 @@ use crate::{
         upstream::Package,
     },
     providers::{
-        discovery::{DiscoveryRequest, DiscoveryResult, SourceKind, infer_source},
+        discovery::{
+            DiscoveryRequest, DiscoveryResult, SourceKind, infer_source, normalize_source_for_provider,
+        },
         provider_manager::ProviderManager,
     },
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
@@ -192,9 +194,11 @@ async fn build_package(
         ));
     };
 
+    let normalized_source = normalize_source_for_provider(&source, &provider, base_url.as_deref());
+
     Ok(Package::with_defaults(
         name,
-        source,
+        normalized_source,
         kind,
         match_pattern,
         exclude_pattern,
