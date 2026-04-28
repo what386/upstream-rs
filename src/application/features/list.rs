@@ -6,7 +6,7 @@ use anyhow::{Result, anyhow};
 use console::Term;
 
 pub fn run(package_name: Option<String>) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let package_storage = PackageStorage::new(&paths.config.packages_file)?;
 
     match package_name {

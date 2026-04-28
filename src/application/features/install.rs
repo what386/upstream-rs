@@ -35,7 +35,7 @@ pub async fn run(
         style(format!("Installing {} from {} ...", &name, &provider)).cyan()
     );
 
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
 
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;

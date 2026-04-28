@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 pub async fn run_import(path: PathBuf, skip_failed: bool) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
 

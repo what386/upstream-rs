@@ -8,7 +8,7 @@ use crate::utils::static_paths::UpstreamPaths;
 impl Cli {
     pub async fn run(self) -> Result<()> {
         let command = self.command;
-        let paths = UpstreamPaths::new();
+        let paths = UpstreamPaths::new()?;
         let _lock = if command.requires_lock() {
             Some(LockStorage::acquire(&paths, &command)?)
         } else {

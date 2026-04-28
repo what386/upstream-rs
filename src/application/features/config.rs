@@ -5,7 +5,7 @@ use crate::{
 use anyhow::Result;
 
 pub fn run_set(set_keys: Vec<String>) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
     let mut config_updater = ConfigUpdater::new(&mut config_storage);
 
@@ -24,7 +24,7 @@ pub fn run_set(set_keys: Vec<String>) -> Result<()> {
 }
 
 pub fn run_get(get_keys: Vec<String>) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
     let config_updater = ConfigUpdater::new(&mut config_storage);
 
@@ -46,7 +46,7 @@ pub fn run_get(get_keys: Vec<String>) -> Result<()> {
 }
 
 pub fn run_list() -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let config_storage = ConfigStorage::new(&paths.config.config_file)?;
 
     let flattened = config_storage.get_flattened_config();
@@ -72,7 +72,7 @@ pub fn run_list() -> Result<()> {
 }
 
 pub fn run_reset() -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
 
     print!("Are you sure you want to reset all configuration to defaults? (y/N): ");
@@ -93,7 +93,7 @@ pub fn run_reset() -> Result<()> {
 }
 
 pub fn run_edit() -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
 
     let editor = std::env::var("EDITOR")
         .or_else(|_| std::env::var("VISUAL"))

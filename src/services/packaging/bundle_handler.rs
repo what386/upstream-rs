@@ -638,7 +638,7 @@ mod tests {
         let dmg_path = root.join("app.dmg");
         fs::write(&dmg_path, b"not-a-real-dmg").expect("write dmg");
 
-        let paths = UpstreamPaths::new();
+        let paths = UpstreamPaths::new().expect("paths");
         let handler = BundleHandler::new(&paths, &root);
         let package = crate::models::upstream::Package::with_defaults(
             "tool".to_string(),

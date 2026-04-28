@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
 
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
 
