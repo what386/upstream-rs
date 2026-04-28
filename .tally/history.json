@@ -793,5 +793,15 @@
       "completed_at": "2026-04-28T23:41:10.431433406Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: add `build` command that builds packages from source code",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-04-28T23:41:13.178315420Z"
+    },
+    "version": null
   }
 ]
