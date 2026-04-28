@@ -14,3 +14,6 @@
 - [ ] feat: rename `init` to `hooks`. Add subcommands to hooks: init, clean, purge, check
       @created 2026-04-28 00:22
 
+- [ ] bug: fix potential orphaned entries in PATHS file
+      @created 2026-04-28 00:23
+
