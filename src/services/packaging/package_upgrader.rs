@@ -3,9 +3,10 @@ use crate::services::integration::AppImageExtractor;
 use crate::{
     models::{
         common::{DesktopEntry, enums::Channel},
-        upstream::Package,
+        upstream::{InstallType, Package},
     },
     providers::provider_manager::ProviderManager,
+    services::builder::{BuildRequest, worker::BuildWorker},
     services::{
         integration::{DesktopManager, IconManager},
         packaging::{PackageInstaller, PackageRemover},
@@ -184,16 +185,47 @@ impl<'a> PackageUpgrader<'a> {
         }
 
         // Install new version
-        let install_result = self
-            .installer
-            .install_package_files(
-                package.clone(),
-                &latest_release,
-                ignore_checksums,
-                download_progress,
-                message_callback,
-            )
-            .await;
+        let install_result = if package.install_type == InstallType::Build {
+            message!(message_callback, "Rebuilding from source ...");
+            let worker = BuildWorker::new(self.provider_manager);
+            let build_result = worker
+                .build(
+                    BuildRequest {
+                        name: package.name.clone(),
+                        repo_slug: package.repo_slug.clone(),
+                        provider: package.provider.clone(),
+                        base_url: package.base_url.clone(),
+                        version_tag: None,
+                        requested_profile: None,
+                        build_output: None,
+                    },
+                    package.channel.clone(),
+                )
+                .await;
+
+            match build_result {
+                Ok(output) => self.installer.install_local_artifact(
+                    package.clone(),
+                    &output.artifact_path,
+                    output.version,
+                    message_callback,
+                ),
+                Err(e) => Err(e).context(format!(
+                    "Failed to rebuild '{}' from source",
+                    package.name
+                )),
+            }
+        } else {
+            self.installer
+                .install_package_files(
+                    package.clone(),
+                    &latest_release,
+                    ignore_checksums,
+                    download_progress,
+                    message_callback,
+                )
+                .await
+        };
         let mut updated_package = match install_result {
             Ok(updated_package) => updated_package,
             Err(install_err) => {

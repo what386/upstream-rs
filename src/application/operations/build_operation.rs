@@ -4,7 +4,7 @@ use console::style;
 use crate::application::operations::install_operation::InstallOperation;
 use crate::models::{
     common::enums::{Channel, Filetype, Provider},
-    upstream::Package,
+    upstream::{InstallType, Package},
 };
 use crate::providers::discovery::{SourceKind, infer_source};
 use crate::providers::provider_manager::ProviderManager;
@@ -122,7 +122,7 @@ impl<'a> BuildOperation<'a> {
             resolved_provider,
             resolved_base_url,
         );
-        package.is_pinned = true;
+        package.install_type = InstallType::Build;
 
         let mut install_operation =
             InstallOperation::new(self.provider_manager, self.package_storage, self.paths)?;
@@ -140,7 +140,7 @@ impl<'a> BuildOperation<'a> {
         println!(
             "{}",
             style(format!(
-                "Build install complete for '{}'. Package was auto-pinned until build-upgrade support lands.",
+                "Build install complete for '{}'. Future 'upstream upgrade' runs will rebuild from source.",
                 installed.name
             ))
             .green()
