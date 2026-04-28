@@ -1,3 +1,4 @@
+pub mod build_operation;
 pub mod config_operation;
 pub mod export_operation;
 pub mod hooks_operation;
