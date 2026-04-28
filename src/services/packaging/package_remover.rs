@@ -1,4 +1,5 @@
 use crate::{
+    models::common::enums::Filetype,
     models::upstream::Package,
     services::integration::{DesktopManager, ShellManager, SymlinkManager},
     utils::static_paths::UpstreamPaths,
@@ -21,6 +22,33 @@ pub struct PackageRemover<'a> {
 }
 
 impl<'a> PackageRemover<'a> {
+    fn managed_path_entry(
+        &self,
+        package: &Package,
+        install_path: &Path,
+    ) -> Option<std::path::PathBuf> {
+        if package.filetype != Filetype::Archive
+            || !install_path.starts_with(&self.paths.install.archives_dir)
+        {
+            return None;
+        }
+
+        if install_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("app"))
+            .unwrap_or(false)
+        {
+            return None;
+        }
+
+        package
+            .exec_path
+            .as_ref()
+            .and_then(|exec_path| exec_path.parent().map(Path::to_path_buf))
+            .or_else(|| Some(install_path.to_path_buf()))
+    }
+
     pub fn new(paths: &'a UpstreamPaths) -> Self {
         Self { paths }
     }
@@ -103,18 +131,20 @@ impl<'a> PackageRemover<'a> {
             .as_ref()
             .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
 
-        message!(
-            message_callback,
-            "Removing '{}' from PATH ...",
-            install_path.display()
-        );
+        if let Some(path_entry) = self.managed_path_entry(package, install_path) {
+            message!(
+                message_callback,
+                "Removing '{}' from PATH ...",
+                path_entry.display()
+            );
 
-        ShellManager::new(&self.paths.config.paths_file)
-            .remove_from_paths(install_path)
-            .context(format!(
-                "Failed to remove '{}' from PATH configuration",
-                install_path.display()
-            ))?;
+            ShellManager::new(&self.paths.config.paths_file)
+                .remove_from_paths(&path_entry)
+                .context(format!(
+                    "Failed to remove '{}' from PATH configuration",
+                    path_entry.display()
+                ))?;
+        }
 
         message!(message_callback, "Removing symlink for '{}'", package.name);
         SymlinkManager::new(&self.paths.integration.symlinks_dir)
@@ -138,17 +168,19 @@ impl<'a> PackageRemover<'a> {
             .as_ref()
             .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
 
-        if install_path.is_dir() {
+        if let Some(path_entry) = self.managed_path_entry(package, install_path)
+            && path_entry.is_dir()
+        {
             message!(
                 message_callback,
                 "Restoring '{}' to PATH ...",
-                install_path.display()
+                path_entry.display()
             );
             ShellManager::new(&self.paths.config.paths_file)
-                .add_to_paths(install_path)
+                .add_to_paths(&path_entry)
                 .context(format!(
                     "Failed to restore '{}' in PATH configuration",
-                    install_path.display()
+                    path_entry.display()
                 ))?;
         }
 
@@ -379,6 +411,91 @@ mod tests {
             .remove_runtime_integrations(&package, &mut messages)
             .expect_err("must fail without install path");
         assert!(err.to_string().contains("no install path"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn managed_path_entry_uses_archive_executable_parent() {
+        let root = temp_root("path-entry-exec-parent");
+        let paths = test_paths(&root);
+        let install_path = paths.install.archives_dir.join("tool");
+        let exec_parent = install_path.join("bin");
+        let exec_path = exec_parent.join("tool");
+
+        let mut package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_path = Some(install_path.clone());
+        package.exec_path = Some(exec_path);
+        fs::create_dir_all(&exec_parent).expect("create exec parent");
+
+        assert_eq!(
+            PackageRemover::new(&paths).managed_path_entry(&package, &install_path),
+            Some(exec_parent)
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn managed_path_entry_uses_recorded_archive_path_even_after_rename() {
+        let root = temp_root("path-entry-renamed");
+        let paths = test_paths(&root);
+        let install_path = paths.install.archives_dir.join("tool");
+        let exec_parent = install_path.join("bin");
+
+        let mut package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_path = Some(install_path.clone());
+        package.exec_path = Some(exec_parent.join("tool"));
+
+        assert_eq!(
+            PackageRemover::new(&paths).managed_path_entry(&package, &install_path),
+            Some(exec_parent)
+        );
+    }
+
+    #[test]
+    fn managed_path_entry_skips_non_archive_installs() {
+        let root = temp_root("path-entry-non-archive");
+        let paths = test_paths(&root);
+        let install_path = paths.install.binaries_dir.join("tool");
+
+        let mut package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_path = Some(install_path.clone());
+        package.exec_path = Some(install_path.clone());
+        fs::create_dir_all(install_path.parent().expect("parent")).expect("create parent");
+        fs::write(&install_path, b"bin").expect("write binary");
+
+        assert_eq!(
+            PackageRemover::new(&paths).managed_path_entry(&package, &install_path),
+            None
+        );
 
         cleanup(&root).expect("cleanup");
     }
