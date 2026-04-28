@@ -26,7 +26,9 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
             [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
             [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a package from an upstream release source')
+            [CompletionResult]::new('build', 'build', [CompletionResultType]::ParameterValue, 'Build and install from source for release tags without artifacts')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove one or more installed packages')
+            [CompletionResult]::new('reinstall', 'reinstall', [CompletionResultType]::ParameterValue, 'Reinstall one or more packages (remove then install)')
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Upgrade installed packages to their latest versions')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages and their metadata')
             [CompletionResult]::new('probe', 'probe', [CompletionResultType]::ParameterValue, 'Inspect releases visible from a provider without installing')
@@ -62,8 +64,36 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
         }
+        'upstream;build' {
+            [CompletionResult]::new('-t', '-t', [CompletionResultType]::ParameterName, 'Version tag to build (defaults to latest)')
+            [CompletionResult]::new('--tag', '--tag', [CompletionResultType]::ParameterName, 'Version tag to build (defaults to latest)')
+            [CompletionResult]::new('-p', '-p', [CompletionResultType]::ParameterName, 'Source provider hosting the repository. Defaults to auto-detection')
+            [CompletionResult]::new('--provider', '--provider', [CompletionResultType]::ParameterName, 'Source provider hosting the repository. Defaults to auto-detection')
+            [CompletionResult]::new('--base-url', '--base-url', [CompletionResultType]::ParameterName, 'Custom base URL. Defaults to provider''s root')
+            [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Update channel to track')
+            [CompletionResult]::new('--channel', '--channel', [CompletionResultType]::ParameterName, 'Update channel to track')
+            [CompletionResult]::new('-m', '-m', [CompletionResultType]::ParameterName, 'Match pattern hint used during source/release discovery')
+            [CompletionResult]::new('--match-pattern', '--match-pattern', [CompletionResultType]::ParameterName, 'Match pattern hint used during source/release discovery')
+            [CompletionResult]::new('-e', '-e', [CompletionResultType]::ParameterName, 'Exclude pattern used during source/release discovery')
+            [CompletionResult]::new('--exclude-pattern', '--exclude-pattern', [CompletionResultType]::ParameterName, 'Exclude pattern used during source/release discovery')
+            [CompletionResult]::new('--build-profile', '--build-profile', [CompletionResultType]::ParameterName, 'Build profile used to compile/install from source (auto-detected when omitted)')
+            [CompletionResult]::new('--build-output', '--build-output', [CompletionResultType]::ParameterName, 'Optional explicit output path for the compiled executable')
+            [CompletionResult]::new('-d', '-d', [CompletionResultType]::ParameterName, 'Whether or not to create a .desktop entry for GUI applications')
+            [CompletionResult]::new('--desktop', '--desktop', [CompletionResultType]::ParameterName, 'Whether or not to create a .desktop entry for GUI applications')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept the recommended discovered source/release without prompting')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept the recommended discovered source/release without prompting')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
         'upstream;remove' {
             [CompletionResult]::new('--purge', '--purge', [CompletionResultType]::ParameterName, 'Remove all associated cached data')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;reinstall' {
+            [CompletionResult]::new('--ignore-checksums', '--ignore-checksums', [CompletionResultType]::ParameterName, 'Skip checksum verification for release-asset reinstalls')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
@@ -315,7 +345,9 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         }
         'upstream;help' {
             [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a package from an upstream release source')
+            [CompletionResult]::new('build', 'build', [CompletionResultType]::ParameterValue, 'Build and install from source for release tags without artifacts')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove one or more installed packages')
+            [CompletionResult]::new('reinstall', 'reinstall', [CompletionResultType]::ParameterValue, 'Reinstall one or more packages (remove then install)')
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Upgrade installed packages to their latest versions')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages and their metadata')
             [CompletionResult]::new('probe', 'probe', [CompletionResultType]::ParameterValue, 'Inspect releases visible from a provider without installing')
@@ -331,7 +363,13 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         'upstream;help;install' {
             break
         }
+        'upstream;help;build' {
+            break
+        }
         'upstream;help;remove' {
+            break
+        }
+        'upstream;help;reinstall' {
             break
         }
         'upstream;help;upgrade' {
