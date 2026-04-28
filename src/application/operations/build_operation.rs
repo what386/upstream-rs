@@ -140,11 +140,7 @@ impl<'a> BuildOperation<'a> {
 
         println!(
             "{}",
-            style(format!(
-                "Build install complete for '{}'.",
-                installed.name
-            ))
-            .green()
+            style(format!("Build install complete for '{}'.", installed.name)).green()
         );
 
         Ok(())
