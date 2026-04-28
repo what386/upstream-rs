@@ -161,6 +161,25 @@ pub enum Commands {
         purge: bool,
     },
 
+    /// Reinstall one or more packages (remove then install)
+    #[command(
+        long_about = "Reinstall packages by uninstalling and then installing them again.\n\n\
+        Reinstall uses each package's stored source metadata. Release installs attempt \
+        the currently recorded version tag; build installs rebuild from source.\n\n\
+        EXAMPLES:\n  \
+        upstream reinstall nvim\n  \
+        upstream reinstall rg fd\n  \
+        upstream reinstall rg --ignore-checksums"
+    )]
+    Reinstall {
+        /// Names of packages to reinstall
+        names: Vec<String>,
+
+        /// Skip checksum verification for release-asset reinstalls
+        #[arg(long, default_value_t = false)]
+        ignore_checksums: bool,
+    },
+
     /// Upgrade installed packages to their latest versions
     #[command(long_about = "Check for and install updates to packages.\n\n\
         Without arguments, upgrades all packages. Specify package names to upgrade \
@@ -353,6 +372,7 @@ impl Commands {
             Commands::Install { .. }
             | Commands::Build { .. }
             | Commands::Remove { .. }
+            | Commands::Reinstall { .. }
             | Commands::Upgrade { .. }
             | Commands::Probe { .. }
             | Commands::Import { .. }
@@ -615,6 +635,28 @@ mod tests {
     }
 
     #[test]
+    fn reinstall_parses_names_and_ignore_checksums_flag() {
+        let cli = Cli::parse_from([
+            "upstream",
+            "reinstall",
+            "rg",
+            "fd",
+            "--ignore-checksums",
+        ]);
+
+        match cli.command {
+            Commands::Reinstall {
+                names,
+                ignore_checksums,
+            } => {
+                assert_eq!(names, vec!["rg".to_string(), "fd".to_string()]);
+                assert!(ignore_checksums);
+            }
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
     fn package_remove_parses_name() {
         let cli = Cli::parse_from(["upstream", "package", "remove", "ripgrep"]);
 
@@ -752,6 +794,13 @@ mod tests {
                 yes: false,
                 build_profile: Some(BuildProfile::Rust),
                 build_output: None,
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Reinstall {
+                names: vec!["ripgrep".to_string()],
+                ignore_checksums: false,
             }
             .requires_lock()
         );

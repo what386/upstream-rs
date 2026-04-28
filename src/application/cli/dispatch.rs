@@ -88,6 +88,11 @@ impl Cli {
                 purge: purge_option,
             } => features::remove::run(names, purge_option),
 
+            Commands::Reinstall {
+                names,
+                ignore_checksums,
+            } => features::reinstall::run(names, ignore_checksums).await,
+
             Commands::Upgrade {
                 names,
                 force,
