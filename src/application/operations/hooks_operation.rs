@@ -47,6 +47,13 @@ pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
     Ok(())
 }
 
+pub fn purge_data(paths: &UpstreamPaths) -> Result<()> {
+    if paths.dirs.data_dir.exists() {
+        fs::remove_dir_all(&paths.dirs.data_dir)?;
+    }
+    Ok(())
+}
+
 pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
     let mut report = InitCheckReport {
         ok: true,
@@ -460,4 +467,75 @@ fn check_windows_integration(paths: &UpstreamPaths, report: &mut InitCheckReport
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::purge_data;
+    use crate::utils::static_paths::{
+        AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, UpstreamPaths,
+    };
+    use std::path::{Path, PathBuf};
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::{fs, io};
+
+    fn temp_root(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir().join(format!("upstream-init-test-{name}-{nanos}"))
+    }
+
+    fn test_paths(root: &Path) -> UpstreamPaths {
+        let dirs = AppDirs {
+            user_dir: root.to_path_buf(),
+            config_dir: root.join("config"),
+            data_dir: root.join(".upstream"),
+            metadata_dir: root.join(".upstream/metadata"),
+        };
+
+        UpstreamPaths {
+            config: ConfigPaths {
+                config_file: dirs.config_dir.join("config.toml"),
+                packages_file: dirs.metadata_dir.join("packages.json"),
+                paths_file: dirs.metadata_dir.join("paths.sh"),
+            },
+            install: InstallPaths {
+                appimages_dir: dirs.data_dir.join("appimages"),
+                binaries_dir: dirs.data_dir.join("binaries"),
+                archives_dir: dirs.data_dir.join("archives"),
+            },
+            integration: IntegrationPaths {
+                symlinks_dir: dirs.data_dir.join("symlinks"),
+                xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
+                icons_dir: dirs.data_dir.join("icons"),
+            },
+            dirs,
+        }
+    }
+
+    fn cleanup(path: &Path) -> io::Result<()> {
+        if path.exists() {
+            fs::remove_dir_all(path)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn purge_data_removes_data_dir_but_keeps_config_dir() {
+        let root = temp_root("purge");
+        let paths = test_paths(&root);
+        fs::create_dir_all(&paths.dirs.data_dir).expect("create data dir");
+        fs::create_dir_all(&paths.dirs.config_dir).expect("create config dir");
+        fs::write(paths.dirs.data_dir.join("data"), b"data").expect("write data");
+        fs::write(paths.dirs.config_dir.join("config.toml"), b"").expect("write config");
+
+        purge_data(&paths).expect("purge data");
+
+        assert!(!paths.dirs.data_dir.exists());
+        assert!(paths.dirs.config_dir.exists());
+
+        cleanup(&root).expect("cleanup");
+    }
 }
