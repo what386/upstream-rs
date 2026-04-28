@@ -22,7 +22,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
             cand -V 'Print version'
             cand --version 'Print version'
-            cand install 'Install a package from a GitHub release'
+            cand install 'Install a package from an upstream release source'
             cand remove 'Remove one or more installed packages'
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
@@ -30,6 +30,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific settings and metadata'
             cand init 'Initialize upstream by adding it to your shell PATH'
+            cand hooks 'Manage shell integration hooks and local upstream data'
             cand import 'Import packages from a manifest or full snapshot'
             cand export 'Export packages to a manifest or full snapshot'
             cand doctor 'Run diagnostics to detect installation and integration issues'
@@ -205,6 +206,50 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
+        &'upstream;hooks'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand init 'Add upstream shell integration hooks'
+            cand check 'Check upstream shell integration hooks'
+            cand clean 'Remove upstream shell integration hooks'
+            cand purge 'Remove hooks and delete the local upstream data directory'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;hooks;init'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;hooks;check'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;hooks;clean'= {
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;hooks;purge'= {
+            cand -y 'Skip the confirmation prompt'
+            cand --yes 'Skip the confirmation prompt'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;hooks;help'= {
+            cand init 'Add upstream shell integration hooks'
+            cand check 'Check upstream shell integration hooks'
+            cand clean 'Remove upstream shell integration hooks'
+            cand purge 'Remove hooks and delete the local upstream data directory'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;hooks;help;init'= {
+        }
+        &'upstream;hooks;help;check'= {
+        }
+        &'upstream;hooks;help;clean'= {
+        }
+        &'upstream;hooks;help;purge'= {
+        }
+        &'upstream;hooks;help;help'= {
+        }
         &'upstream;import'= {
             cand --skip-failed 'Continue importing remaining packages when a package install/upgrade fails'
             cand -h 'Print help (see more with ''--help'')'
@@ -221,7 +266,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;help'= {
-            cand install 'Install a package from a GitHub release'
+            cand install 'Install a package from an upstream release source'
             cand remove 'Remove one or more installed packages'
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
@@ -229,6 +274,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific settings and metadata'
             cand init 'Initialize upstream by adding it to your shell PATH'
+            cand hooks 'Manage shell integration hooks and local upstream data'
             cand import 'Import packages from a manifest or full snapshot'
             cand export 'Export packages to a manifest or full snapshot'
             cand doctor 'Run diagnostics to detect installation and integration issues'
@@ -285,6 +331,20 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;package;metadata'= {
         }
         &'upstream;help;init'= {
+        }
+        &'upstream;help;hooks'= {
+            cand init 'Add upstream shell integration hooks'
+            cand check 'Check upstream shell integration hooks'
+            cand clean 'Remove upstream shell integration hooks'
+            cand purge 'Remove hooks and delete the local upstream data directory'
+        }
+        &'upstream;help;hooks;init'= {
+        }
+        &'upstream;help;hooks;check'= {
+        }
+        &'upstream;help;hooks;clean'= {
+        }
+        &'upstream;help;hooks;purge'= {
         }
         &'upstream;help;import'= {
         }

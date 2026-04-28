@@ -308,6 +308,86 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
+(hooks)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+":: :_upstream__subcmd__hooks_commands" \
+"*::: :->hooks" \
+&& ret=0
+
+    case $state in
+    (hooks)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-hooks-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
+(check)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
+(clean)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
+(purge)
+_arguments "${_arguments_options[@]}" : \
+'-y[Skip the confirmation prompt]' \
+'--yes[Skip the confirmation prompt]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_upstream__subcmd__hooks__subcmd__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-hooks-help-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(check)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(clean)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(purge)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
 (import)
 _arguments "${_arguments_options[@]}" : \
 '--skip-failed[Continue importing remaining packages when a package install/upgrade fails]' \
@@ -448,6 +528,38 @@ esac
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(hooks)
+_arguments "${_arguments_options[@]}" : \
+":: :_upstream__subcmd__help__subcmd__hooks_commands" \
+"*::: :->hooks" \
+&& ret=0
+
+    case $state in
+    (hooks)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-help-hooks-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(check)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(clean)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(purge)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
 (import)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -476,7 +588,7 @@ esac
 (( $+functions[_upstream_commands] )) ||
 _upstream_commands() {
     local commands; commands=(
-'install:Install a package from a GitHub release' \
+'install:Install a package from an upstream release source' \
 'remove:Remove one or more installed packages' \
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
@@ -484,6 +596,7 @@ _upstream_commands() {
 'config:Manage upstream configuration' \
 'package:Manage package-specific settings and metadata' \
 'init:Initialize upstream by adding it to your shell PATH' \
+'hooks:Manage shell integration hooks and local upstream data' \
 'import:Import packages from a manifest or full snapshot' \
 'export:Export packages to a manifest or full snapshot' \
 'doctor:Run diagnostics to detect installation and integration issues' \
@@ -583,7 +696,7 @@ _upstream__subcmd__export_commands() {
 (( $+functions[_upstream__subcmd__help_commands] )) ||
 _upstream__subcmd__help_commands() {
     local commands; commands=(
-'install:Install a package from a GitHub release' \
+'install:Install a package from an upstream release source' \
 'remove:Remove one or more installed packages' \
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
@@ -591,6 +704,7 @@ _upstream__subcmd__help_commands() {
 'config:Manage upstream configuration' \
 'package:Manage package-specific settings and metadata' \
 'init:Initialize upstream by adding it to your shell PATH' \
+'hooks:Manage shell integration hooks and local upstream data' \
 'import:Import packages from a manifest or full snapshot' \
 'export:Export packages to a manifest or full snapshot' \
 'doctor:Run diagnostics to detect installation and integration issues' \
@@ -648,6 +762,36 @@ _upstream__subcmd__help__subcmd__export_commands() {
 _upstream__subcmd__help__subcmd__help_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__hooks_commands] )) ||
+_upstream__subcmd__help__subcmd__hooks_commands() {
+    local commands; commands=(
+'init:Add upstream shell integration hooks' \
+'check:Check upstream shell integration hooks' \
+'clean:Remove upstream shell integration hooks' \
+'purge:Remove hooks and delete the local upstream data directory' \
+    )
+    _describe -t commands 'upstream help hooks commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__hooks__subcmd__check_commands] )) ||
+_upstream__subcmd__help__subcmd__hooks__subcmd__check_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help hooks check commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__hooks__subcmd__clean_commands] )) ||
+_upstream__subcmd__help__subcmd__hooks__subcmd__clean_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help hooks clean commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__hooks__subcmd__init_commands] )) ||
+_upstream__subcmd__help__subcmd__hooks__subcmd__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help hooks init commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__hooks__subcmd__purge_commands] )) ||
+_upstream__subcmd__help__subcmd__hooks__subcmd__purge_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help hooks purge commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__import_commands] )) ||
 _upstream__subcmd__help__subcmd__import_commands() {
@@ -731,6 +875,73 @@ _upstream__subcmd__help__subcmd__remove_commands() {
 _upstream__subcmd__help__subcmd__upgrade_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help upgrade commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__hooks_commands] )) ||
+_upstream__subcmd__hooks_commands() {
+    local commands; commands=(
+'init:Add upstream shell integration hooks' \
+'check:Check upstream shell integration hooks' \
+'clean:Remove upstream shell integration hooks' \
+'purge:Remove hooks and delete the local upstream data directory' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'upstream hooks commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__hooks__subcmd__check_commands] )) ||
+_upstream__subcmd__hooks__subcmd__check_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream hooks check commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__hooks__subcmd__clean_commands] )) ||
+_upstream__subcmd__hooks__subcmd__clean_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream hooks clean commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__hooks__subcmd__help_commands] )) ||
+_upstream__subcmd__hooks__subcmd__help_commands() {
+    local commands; commands=(
+'init:Add upstream shell integration hooks' \
+'check:Check upstream shell integration hooks' \
+'clean:Remove upstream shell integration hooks' \
+'purge:Remove hooks and delete the local upstream data directory' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'upstream hooks help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__hooks__subcmd__help__subcmd__check_commands] )) ||
+_upstream__subcmd__hooks__subcmd__help__subcmd__check_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream hooks help check commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__hooks__subcmd__help__subcmd__clean_commands] )) ||
+_upstream__subcmd__hooks__subcmd__help__subcmd__clean_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream hooks help clean commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__hooks__subcmd__help__subcmd__help_commands] )) ||
+_upstream__subcmd__hooks__subcmd__help__subcmd__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream hooks help help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__hooks__subcmd__help__subcmd__init_commands] )) ||
+_upstream__subcmd__hooks__subcmd__help__subcmd__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream hooks help init commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__hooks__subcmd__help__subcmd__purge_commands] )) ||
+_upstream__subcmd__hooks__subcmd__help__subcmd__purge_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream hooks help purge commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__hooks__subcmd__init_commands] )) ||
+_upstream__subcmd__hooks__subcmd__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream hooks init commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__hooks__subcmd__purge_commands] )) ||
+_upstream__subcmd__hooks__subcmd__purge_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream hooks purge commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__import_commands] )) ||
 _upstream__subcmd__import_commands() {

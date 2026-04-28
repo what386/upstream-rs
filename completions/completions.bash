@@ -28,6 +28,9 @@ _upstream() {
             upstream,help)
                 cmd="upstream__subcmd__help"
                 ;;
+            upstream,hooks)
+                cmd="upstream__subcmd__hooks"
+                ;;
             upstream,import)
                 cmd="upstream__subcmd__import"
                 ;;
@@ -100,6 +103,9 @@ _upstream() {
             upstream__subcmd__help,help)
                 cmd="upstream__subcmd__help__subcmd__help"
                 ;;
+            upstream__subcmd__help,hooks)
+                cmd="upstream__subcmd__help__subcmd__hooks"
+                ;;
             upstream__subcmd__help,import)
                 cmd="upstream__subcmd__help__subcmd__import"
                 ;;
@@ -139,6 +145,18 @@ _upstream() {
             upstream__subcmd__help__subcmd__config,set)
                 cmd="upstream__subcmd__help__subcmd__config__subcmd__set"
                 ;;
+            upstream__subcmd__help__subcmd__hooks,check)
+                cmd="upstream__subcmd__help__subcmd__hooks__subcmd__check"
+                ;;
+            upstream__subcmd__help__subcmd__hooks,clean)
+                cmd="upstream__subcmd__help__subcmd__hooks__subcmd__clean"
+                ;;
+            upstream__subcmd__help__subcmd__hooks,init)
+                cmd="upstream__subcmd__help__subcmd__hooks__subcmd__init"
+                ;;
+            upstream__subcmd__help__subcmd__hooks,purge)
+                cmd="upstream__subcmd__help__subcmd__hooks__subcmd__purge"
+                ;;
             upstream__subcmd__help__subcmd__package,get-key)
                 cmd="upstream__subcmd__help__subcmd__package__subcmd__get__subcmd__key"
                 ;;
@@ -159,6 +177,36 @@ _upstream() {
                 ;;
             upstream__subcmd__help__subcmd__package,unpin)
                 cmd="upstream__subcmd__help__subcmd__package__subcmd__unpin"
+                ;;
+            upstream__subcmd__hooks,check)
+                cmd="upstream__subcmd__hooks__subcmd__check"
+                ;;
+            upstream__subcmd__hooks,clean)
+                cmd="upstream__subcmd__hooks__subcmd__clean"
+                ;;
+            upstream__subcmd__hooks,help)
+                cmd="upstream__subcmd__hooks__subcmd__help"
+                ;;
+            upstream__subcmd__hooks,init)
+                cmd="upstream__subcmd__hooks__subcmd__init"
+                ;;
+            upstream__subcmd__hooks,purge)
+                cmd="upstream__subcmd__hooks__subcmd__purge"
+                ;;
+            upstream__subcmd__hooks__subcmd__help,check)
+                cmd="upstream__subcmd__hooks__subcmd__help__subcmd__check"
+                ;;
+            upstream__subcmd__hooks__subcmd__help,clean)
+                cmd="upstream__subcmd__hooks__subcmd__help__subcmd__clean"
+                ;;
+            upstream__subcmd__hooks__subcmd__help,help)
+                cmd="upstream__subcmd__hooks__subcmd__help__subcmd__help"
+                ;;
+            upstream__subcmd__hooks__subcmd__help,init)
+                cmd="upstream__subcmd__hooks__subcmd__help__subcmd__init"
+                ;;
+            upstream__subcmd__hooks__subcmd__help,purge)
+                cmd="upstream__subcmd__hooks__subcmd__help__subcmd__purge"
                 ;;
             upstream__subcmd__package,get-key)
                 cmd="upstream__subcmd__package__subcmd__get__subcmd__key"
@@ -215,7 +263,7 @@ _upstream() {
 
     case "${cmd}" in
         upstream)
-            opts="-h -V --help --version install remove upgrade list probe config package init import export doctor help"
+            opts="-h -V --help --version install remove upgrade list probe config package init hooks import export doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -439,7 +487,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help)
-            opts="install remove upgrade list probe config package init import export doctor help"
+            opts="install remove upgrade list probe config package init hooks import export doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -567,6 +615,76 @@ _upstream() {
         upstream__subcmd__help__subcmd__help)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__hooks)
+            opts="init check clean purge"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__hooks__subcmd__check)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__hooks__subcmd__clean)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__hooks__subcmd__init)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__hooks__subcmd__purge)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -776,6 +894,160 @@ _upstream() {
             ;;
         upstream__subcmd__help__subcmd__upgrade)
             opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__hooks)
+            opts="-h --help init check clean purge help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__hooks__subcmd__check)
+            opts="-h --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__hooks__subcmd__clean)
+            opts="-h --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__hooks__subcmd__help)
+            opts="init check clean purge help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__hooks__subcmd__help__subcmd__check)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__hooks__subcmd__help__subcmd__clean)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__hooks__subcmd__help__subcmd__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__hooks__subcmd__help__subcmd__init)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__hooks__subcmd__help__subcmd__purge)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__hooks__subcmd__init)
+            opts="-h --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__hooks__subcmd__purge)
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
