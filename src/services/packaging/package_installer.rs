@@ -209,6 +209,36 @@ impl<'a> PackageInstaller<'a> {
         }
     }
 
+    pub fn install_local_artifact<H>(
+        &self,
+        mut package: Package,
+        artifact_path: &Path,
+        version: crate::models::common::version::Version,
+        message_callback: &mut Option<H>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+    {
+        if !artifact_path.exists() {
+            return Err(anyhow!(
+                "Local artifact path '{}' does not exist",
+                artifact_path.display()
+            ));
+        }
+
+        message!(message_callback, "Installing local artifact ...");
+        package.version = version;
+
+        if artifact_path.is_dir() {
+            return self
+                .handle_archive(artifact_path, &self.extract_cache, package, message_callback)
+                .context("Failed to install local artifact directory");
+        }
+
+        self.handle_file(artifact_path, package, message_callback)
+            .context("Failed to install local artifact file")
+    }
+
     fn handle_archive<H>(
         &self,
         asset_path: &Path,
