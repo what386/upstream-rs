@@ -52,6 +52,36 @@ impl Cli {
                 )
                 .await
             }
+            Commands::Build {
+                name,
+                repo_slug,
+                tag,
+                provider,
+                base_url,
+                channel,
+                match_pattern,
+                exclude_pattern,
+                desktop,
+                yes,
+                build_profile,
+                build_output,
+            } => {
+                features::build::run(
+                    name,
+                    repo_slug,
+                    tag,
+                    provider,
+                    base_url,
+                    channel,
+                    match_pattern,
+                    exclude_pattern,
+                    desktop,
+                    yes,
+                    build_profile,
+                    build_output,
+                )
+                .await
+            }
 
             Commands::Remove {
                 names,

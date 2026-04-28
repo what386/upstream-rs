@@ -6,6 +6,7 @@ impl fmt::Display for Commands {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Commands::Install { .. } => write!(f, "install"),
+            Commands::Build { .. } => write!(f, "build"),
             Commands::Remove { .. } => write!(f, "remove"),
             Commands::Upgrade { .. } => write!(f, "upgrade"),
             Commands::List { .. } => write!(f, "list"),
