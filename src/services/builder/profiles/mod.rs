@@ -7,6 +7,13 @@ use crate::services::builder::BuildProfile;
 pub mod dotnet;
 pub mod rust;
 
+pub fn handlers() -> [Box<dyn BuildProfileHandler>; 2] {
+    [
+        Box::new(rust::RustProfile),
+        Box::new(dotnet::DotnetProfile),
+    ]
+}
+
 pub trait BuildProfileHandler {
     fn profile(&self) -> BuildProfile;
     fn detect(&self, workspace: &Path) -> bool;

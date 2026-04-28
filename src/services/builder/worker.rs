@@ -2,10 +2,9 @@ use anyhow::{Result, anyhow};
 
 use crate::models::common::{enums::Channel, version::Version};
 use crate::providers::provider_manager::ProviderManager;
+use crate::services::builder::determine::determine_profile;
 use crate::services::builder::downloader::SourceDownloader;
-use crate::services::builder::profiles::BuildProfileHandler;
-use crate::services::builder::profiles::dotnet::DotnetProfile;
-use crate::services::builder::profiles::rust::RustProfile;
+use crate::services::builder::profiles::handlers;
 use crate::services::builder::{BuildOutput, BuildRequest};
 
 pub struct BuildWorker<'a> {
@@ -29,28 +28,16 @@ impl<'a> BuildWorker<'a> {
             )
             .await?;
 
-        let rust = RustProfile;
-        let dotnet = DotnetProfile;
-        let handlers: [&dyn BuildProfileHandler; 2] = [&rust, &dotnet];
-
-        let selected = if let Some(profile) = request.requested_profile {
-            handlers
-                .iter()
-                .find(|handler| handler.profile() == profile)
-                .copied()
-                .ok_or_else(|| anyhow!("Unsupported build profile"))?
-        } else {
-            handlers
-                .iter()
-                .find(|handler| handler.detect(&source.workspace_path))
-                .copied()
-                .ok_or_else(|| {
-                    anyhow!(
-                        "Could not auto-detect a build profile for '{}'. Use --build-profile.",
-                        request.repo_slug
-                    )
-                })?
-        };
+        let handlers = handlers();
+        let profile = determine_profile(
+            &source.workspace_path,
+            request.requested_profile,
+            &handlers,
+        )?;
+        let selected = handlers
+            .iter()
+            .find(|handler| handler.profile() == profile)
+            .ok_or_else(|| anyhow!("Unsupported build profile"))?;
 
         let artifact = selected.run_build(
             &source.workspace_path,
@@ -66,7 +53,7 @@ impl<'a> BuildWorker<'a> {
 
         Ok(BuildOutput {
             artifact_path: artifact,
-            profile: selected.profile(),
+            profile,
             release: source.release,
             version,
         })

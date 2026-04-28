@@ -1,3 +1,4 @@
+pub mod determine;
 pub mod downloader;
 pub mod profiles;
 pub mod worker;

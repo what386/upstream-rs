@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result, anyhow, bail};
+use walkdir::WalkDir;
 
 use crate::services::builder::{BuildProfile, profiles::BuildProfileHandler};
 
@@ -18,6 +19,19 @@ impl RustProfile {
             package_name.to_string()
         }
     }
+
+    fn find_project_dir(workspace: &Path) -> Option<PathBuf> {
+        if workspace.join("Cargo.toml").is_file() {
+            return Some(workspace.to_path_buf());
+        }
+
+        WalkDir::new(workspace)
+            .max_depth(4)
+            .into_iter()
+            .filter_map(|entry| entry.ok())
+            .find(|entry| entry.file_type().is_file() && entry.file_name() == "Cargo.toml")
+            .and_then(|entry| entry.path().parent().map(Path::to_path_buf))
+    }
 }
 
 impl BuildProfileHandler for RustProfile {
@@ -26,7 +40,7 @@ impl BuildProfileHandler for RustProfile {
     }
 
     fn detect(&self, workspace: &Path) -> bool {
-        workspace.join("Cargo.toml").is_file()
+        Self::find_project_dir(workspace).is_some()
     }
 
     fn run_build(
@@ -35,10 +49,17 @@ impl BuildProfileHandler for RustProfile {
         package_name: &str,
         output_override: Option<&Path>,
     ) -> Result<PathBuf> {
+        let project_dir = Self::find_project_dir(workspace).ok_or_else(|| {
+            anyhow!(
+                "Could not find Cargo.toml in '{}' (searched recursively).",
+                workspace.display()
+            )
+        })?;
+
         let status = Command::new("cargo")
             .arg("build")
             .arg("--release")
-            .current_dir(workspace)
+            .current_dir(&project_dir)
             .status()
             .context("Failed to run 'cargo build --release'. Is Cargo installed?")?;
 
@@ -50,10 +71,10 @@ impl BuildProfileHandler for RustProfile {
             if path.is_absolute() {
                 path.to_path_buf()
             } else {
-                workspace.join(path)
+                project_dir.join(path)
             }
         } else {
-            workspace
+            project_dir
                 .join("target")
                 .join("release")
                 .join(Self::binary_name(package_name))
