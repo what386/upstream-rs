@@ -236,7 +236,7 @@ impl<'a> InstallOperation<'a> {
         let mut installed_package = self
             .installer
             .install_local_artifact(package, artifact_path, version, message_callback)
-            .context("Failed to install local build artifact")?;
+            .context("Failed to install local artifact")?;
 
         if *add_entry {
             #[cfg(target_os = "linux")]
