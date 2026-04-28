@@ -103,7 +103,7 @@ where
     H: FnMut(&str),
 {
     let had_icon = package.icon_path.is_some();
-    let version_tag = package.version.to_string();
+    let version_tag = format!("v{}", package.version);
     let mut reinstall_package = package.clone();
     reinstall_package.install_path = None;
     reinstall_package.exec_path = None;
