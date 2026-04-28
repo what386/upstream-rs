@@ -48,7 +48,7 @@ binary\t''
 win-exe\t''
 checksum\t''
 auto\t''"
-complete -c upstream -n "__fish_upstream_using_subcommand install" -s p -l provider -d 'Source provider hosting the repository' -r
+complete -c upstream -n "__fish_upstream_using_subcommand install" -s p -l provider -d 'Source provider hosting the repository. Defaults to auto-detection' -r
 complete -c upstream -n "__fish_upstream_using_subcommand install" -l base-url -d 'Custom base URL. Defaults to provider\'s root' -r
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s c -l channel -d 'Update channel to track' -r -f -a "stable\t''
 preview\t''
@@ -57,6 +57,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand install" -s m -l match
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s e -l exclude-pattern -d 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")' -r
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s d -l desktop -d 'Whether or not to create a .desktop entry for GUI applications'
 complete -c upstream -n "__fish_upstream_using_subcommand install" -l ignore-checksums -d 'Skip checksum verification for downloaded assets'
+complete -c upstream -n "__fish_upstream_using_subcommand install" -s y -l yes -d 'Accept the recommended discovered asset without prompting'
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand remove" -l purge -d 'Remove all associated cached data'
 complete -c upstream -n "__fish_upstream_using_subcommand remove" -s h -l help -d 'Print help (see more with \'--help\')'

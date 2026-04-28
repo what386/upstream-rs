@@ -34,8 +34,8 @@ _arguments "${_arguments_options[@]}" : \
 '--tag=[Version tag to install (defaults to latest)]:TAG:_default' \
 '-k+[File type to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
 '--kind=[File type to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
-'-p+[Source provider hosting the repository]:PROVIDER:_default' \
-'--provider=[Source provider hosting the repository]:PROVIDER:_default' \
+'-p+[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
+'--provider=[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
 '--base-url=[Custom base URL. Defaults to provider'\''s root]:BASE_URL:_default' \
 '-c+[Update channel to track]:CHANNEL:(stable preview nightly)' \
 '--channel=[Update channel to track]:CHANNEL:(stable preview nightly)' \
@@ -46,6 +46,8 @@ _arguments "${_arguments_options[@]}" : \
 '-d[Whether or not to create a .desktop entry for GUI applications]' \
 '--desktop[Whether or not to create a .desktop entry for GUI applications]' \
 '--ignore-checksums[Skip checksum verification for downloaded assets]' \
+'-y[Accept the recommended discovered asset without prompting]' \
+'--yes[Accept the recommended discovered asset without prompting]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name to register the application under:_default' \
