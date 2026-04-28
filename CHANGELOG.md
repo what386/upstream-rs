@@ -2,6 +2,14 @@
 
 *Generated on 2026-04-28*
 
+## 1.8.0 — 2026-04-28
+
+### Changes
+
+- feat: add `reinstall` command
+- feat: add `build` command that builds packages from source code
+
+
 ## 1.7.0 — 2026-04-28
 
 ### Changes
