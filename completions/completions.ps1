@@ -25,7 +25,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
             [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
-            [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a package from a GitHub release')
+            [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a package from an upstream release source')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove one or more installed packages')
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Upgrade installed packages to their latest versions')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages and their metadata')
@@ -33,6 +33,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific settings and metadata')
             [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Initialize upstream by adding it to your shell PATH')
+            [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import packages from a manifest or full snapshot')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
@@ -245,6 +246,61 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
         }
+        'upstream;hooks' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Add upstream shell integration hooks')
+            [CompletionResult]::new('check', 'check', [CompletionResultType]::ParameterValue, 'Check upstream shell integration hooks')
+            [CompletionResult]::new('clean', 'clean', [CompletionResultType]::ParameterValue, 'Remove upstream shell integration hooks')
+            [CompletionResult]::new('purge', 'purge', [CompletionResultType]::ParameterValue, 'Remove hooks and delete the local upstream data directory')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;hooks;init' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;hooks;check' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;hooks;clean' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;hooks;purge' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Skip the confirmation prompt')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Skip the confirmation prompt')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;hooks;help' {
+            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Add upstream shell integration hooks')
+            [CompletionResult]::new('check', 'check', [CompletionResultType]::ParameterValue, 'Check upstream shell integration hooks')
+            [CompletionResult]::new('clean', 'clean', [CompletionResultType]::ParameterValue, 'Remove upstream shell integration hooks')
+            [CompletionResult]::new('purge', 'purge', [CompletionResultType]::ParameterValue, 'Remove hooks and delete the local upstream data directory')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;hooks;help;init' {
+            break
+        }
+        'upstream;hooks;help;check' {
+            break
+        }
+        'upstream;hooks;help;clean' {
+            break
+        }
+        'upstream;hooks;help;purge' {
+            break
+        }
+        'upstream;hooks;help;help' {
+            break
+        }
         'upstream;import' {
             [CompletionResult]::new('--skip-failed', '--skip-failed', [CompletionResultType]::ParameterName, 'Continue importing remaining packages when a package install/upgrade fails')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
@@ -264,7 +320,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help' {
-            [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a package from a GitHub release')
+            [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a package from an upstream release source')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove one or more installed packages')
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Upgrade installed packages to their latest versions')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages and their metadata')
@@ -272,6 +328,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific settings and metadata')
             [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Initialize upstream by adding it to your shell PATH')
+            [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import packages from a manifest or full snapshot')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
@@ -348,6 +405,25 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;init' {
+            break
+        }
+        'upstream;help;hooks' {
+            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Add upstream shell integration hooks')
+            [CompletionResult]::new('check', 'check', [CompletionResultType]::ParameterValue, 'Check upstream shell integration hooks')
+            [CompletionResult]::new('clean', 'clean', [CompletionResultType]::ParameterValue, 'Remove upstream shell integration hooks')
+            [CompletionResult]::new('purge', 'purge', [CompletionResultType]::ParameterValue, 'Remove hooks and delete the local upstream data directory')
+            break
+        }
+        'upstream;help;hooks;init' {
+            break
+        }
+        'upstream;help;hooks;check' {
+            break
+        }
+        'upstream;help;hooks;clean' {
+            break
+        }
+        'upstream;help;hooks;purge' {
             break
         }
         'upstream;help;import' {
