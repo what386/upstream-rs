@@ -723,5 +723,20 @@
       "patch": 2,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "feat: `doctor` checks for orphaned installed directories/files",
+      "priority": "Medium",
+      "tags": [],
+      "commit": "408163a",
+      "completed_at": "2026-04-21T00:06:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 6,
+      "patch": 0,
+      "is_prerelease": false
+    }
   }
 ]
