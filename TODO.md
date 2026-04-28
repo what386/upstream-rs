@@ -11,6 +11,9 @@
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
 
+- [ ] feat: improve wording in help text
+      @created 2026-04-28 00:25
+
 
 ## Completed
 
