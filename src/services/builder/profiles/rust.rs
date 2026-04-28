@@ -3,7 +3,6 @@ use std::process::Command;
 use std::{fs, str::FromStr};
 
 use anyhow::{Context, Result, anyhow, bail};
-use walkdir::WalkDir;
 
 use crate::services::builder::{BuildProfile, profiles::BuildProfileHandler};
 
@@ -23,15 +22,10 @@ impl RustProfile {
 
     fn find_project_dir(workspace: &Path) -> Option<PathBuf> {
         if workspace.join("Cargo.toml").is_file() {
-            return Some(workspace.to_path_buf());
+            Some(workspace.to_path_buf())
+        } else {
+            None
         }
-
-        WalkDir::new(workspace)
-            .max_depth(4)
-            .into_iter()
-            .filter_map(|entry| entry.ok())
-            .find(|entry| entry.file_type().is_file() && entry.file_name() == "Cargo.toml")
-            .and_then(|entry| entry.path().parent().map(Path::to_path_buf))
     }
 
     fn has_multiple_declared_bins(project_dir: &Path) -> bool {
@@ -70,7 +64,7 @@ impl BuildProfileHandler for RustProfile {
     ) -> Result<PathBuf> {
         let project_dir = Self::find_project_dir(workspace).ok_or_else(|| {
             anyhow!(
-                "Could not find Cargo.toml in '{}' (searched recursively).",
+                "Could not find Cargo.toml in repository root '{}'.",
                 workspace.display()
             )
         })?;
