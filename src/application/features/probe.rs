@@ -21,7 +21,7 @@ pub async fn run(
     verbose: bool,
 ) -> Result<()> {
     let effective_provider = provider.unwrap_or_else(|| infer_provider(&repo_slug));
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
 
     let github_token = config.get_config().github.api_token.as_deref();

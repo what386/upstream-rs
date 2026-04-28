@@ -6,7 +6,7 @@ use crate::{
 use anyhow::Result;
 
 pub fn run_pin(name: String) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let mut package_manager = MetadataManager::new(&mut package_storage);
 
@@ -21,7 +21,7 @@ pub fn run_pin(name: String) -> Result<()> {
 }
 
 pub fn run_unpin(name: String) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let mut package_manager = MetadataManager::new(&mut package_storage);
 
@@ -36,7 +36,7 @@ pub fn run_unpin(name: String) -> Result<()> {
 }
 
 pub fn run_remove(name: String) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let mut package_manager = MetadataManager::new(&mut package_storage);
 
@@ -51,7 +51,7 @@ pub fn run_remove(name: String) -> Result<()> {
 }
 
 pub fn run_set_key(name: String, keys: Vec<String>) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let mut package_manager = MetadataManager::new(&mut package_storage);
 
@@ -71,7 +71,7 @@ pub fn run_set_key(name: String, keys: Vec<String>) -> Result<()> {
 }
 
 pub fn run_get_key(name: String, keys: Vec<String>) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let package_manager = MetadataManager::new(&mut package_storage);
 
@@ -92,7 +92,7 @@ pub fn run_get_key(name: String, keys: Vec<String>) -> Result<()> {
 }
 
 pub fn run_metadata(name: String) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let package_storage = PackageStorage::new(&paths.config.packages_file)?;
 
     let package = package_storage
@@ -109,7 +109,7 @@ pub fn run_metadata(name: String) -> Result<()> {
 }
 
 pub fn run_rename(old_name: String, new_name: String) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let package_before = package_storage
         .get_package_by_name(&old_name)

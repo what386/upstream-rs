@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub async fn run_export(path: PathBuf, full: bool) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let export_op = ExportOperation::new(&package_storage, &paths);
 

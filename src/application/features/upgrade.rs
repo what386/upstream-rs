@@ -26,7 +26,7 @@ pub async fn run(
     machine_readable: bool,
     ignore_checksums: bool,
 ) -> Result<()> {
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let github_token = config.get_config().github.api_token.as_deref();

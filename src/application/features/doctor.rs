@@ -289,7 +289,7 @@ fn check_paths_file(_paths: &UpstreamPaths, report: &mut DoctorReport) {
 pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
     println!("{}", style("Running upstream doctor...").cyan());
 
-    let paths = UpstreamPaths::new();
+    let paths = UpstreamPaths::new()?;
     let package_storage = PackageStorage::new(&paths.config.packages_file)?;
 
     let mut report = DoctorReport::new(verbose);
