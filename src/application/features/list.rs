@@ -80,6 +80,7 @@ fn format_package_details(package: &Package) -> String {
          Version        : {}\n\
          Channel        : {}\n\
          Provider       : {}\n\
+         Install Type   : {:?}\n\
          Type           : {:?}\n\
          Pinned         : {}\n\
          Has Icon       : {}\n\
@@ -94,6 +95,7 @@ fn format_package_details(package: &Package) -> String {
         package.version,
         package.channel,
         package.provider,
+        package.install_type,
         package.filetype,
         if package.is_pinned { "yes" } else { "no" },
         if package.icon_path.is_some() {

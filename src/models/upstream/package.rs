@@ -8,6 +8,13 @@ use crate::models::common::{
     version::Version,
 };
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum InstallType {
+    #[default]
+    Release,
+    Build,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Package {
     pub name: String,
@@ -18,6 +25,7 @@ pub struct Package {
     pub channel: Channel,
     pub provider: Provider,
     pub base_url: Option<String>,
+    pub install_type: InstallType,
 
     pub is_pinned: bool,
     pub match_pattern: Option<String>,
@@ -50,6 +58,7 @@ impl Package {
             channel,
             provider,
             base_url,
+            install_type: InstallType::Release,
 
             is_pinned: false,
             match_pattern,
@@ -73,7 +82,7 @@ impl Package {
 
 #[cfg(test)]
 mod tests {
-    use super::Package;
+    use super::{InstallType, Package};
     use crate::models::common::enums::{Channel, Filetype, Provider};
 
     #[test]
@@ -91,6 +100,7 @@ mod tests {
 
         assert_eq!(pkg.version.major, 0);
         assert!(!pkg.is_pinned);
+        assert_eq!(pkg.install_type, InstallType::Release);
         assert!(pkg.install_path.is_none());
         assert!(pkg.exec_path.is_none());
         assert_eq!(pkg.match_pattern.as_deref(), Some("linux"));
@@ -112,10 +122,33 @@ mod tests {
         let mut b = a.clone();
         b.version.major = 99;
         b.is_pinned = true;
+        b.install_type = InstallType::Build;
         b.match_pattern = Some("x86_64".to_string());
         assert!(a.is_same_as(&b));
 
         a.name = "rg".to_string();
         assert!(!a.is_same_as(&b));
+    }
+
+    #[test]
+    fn deserialize_defaults_install_type_to_release_for_legacy_records() {
+        let legacy = r#"{
+            "name":"tool",
+            "repo_slug":"owner/tool",
+            "filetype":"Binary",
+            "version":{"major":1,"minor":2,"patch":3,"is_prerelease":false},
+            "channel":"Stable",
+            "provider":"Github",
+            "base_url":null,
+            "is_pinned":false,
+            "match_pattern":null,
+            "exclude_pattern":null,
+            "icon_path":null,
+            "install_path":null,
+            "exec_path":null,
+            "last_upgraded":"2026-01-01T00:00:00Z"
+        }"#;
+        let pkg: Package = serde_json::from_str(legacy).expect("deserialize legacy package");
+        assert_eq!(pkg.install_type, InstallType::Release);
     }
 }
