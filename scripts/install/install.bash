@@ -13,7 +13,7 @@ BINARY_NAME="upstream-rs"
 OS="unknown-linux-gnu"
 
 INSTALL_COMMANDS=(
-    "init"
+    "hooks init"
     "install upstream what386/upstream-rs -k binary"
 )
 

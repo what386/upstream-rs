@@ -108,9 +108,9 @@ function main
     chmod +x "$tmp_file"
     echo "Download complete!"
 
-    echo "Running command 1/2: init"
-    if not "$tmp_file" init
-        echo "Error: Command failed: init"
+    echo "Running command 1/2: hooks init"
+    if not "$tmp_file" hooks init
+        echo "Error: Command failed: hooks init"
         cleanup
         exit 1
     end
