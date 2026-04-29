@@ -11,9 +11,6 @@
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
 
-- [ ] feat: add more profiles for `build` feature
-      @created 2026-04-29 01:33
-
 
 ## Completed
 
@@ -41,4 +38,8 @@
       @created 2026-04-28 23:40
       @completed 2026-04-28 23:41
       @completed_version 1.8.0
+
+- [x] feat: add more profiles for `build` feature
+      @created 2026-04-29 01:33
+      @completed 2026-04-29 01:33
 
