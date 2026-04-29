@@ -94,49 +94,87 @@ impl<'a> PackageUpgrader<'a> {
             return Ok(None);
         }
 
-        message!(message_callback, "Fetching latest release ...");
+        let latest_release =
+            if package.install_type == InstallType::Build && package.build_branch.is_some() {
+                None
+            } else {
+                message!(message_callback, "Fetching latest release ...");
+                let release = if force {
+                    self.provider_manager
+                        .get_latest_release_for(
+                            &package.repo_slug,
+                            &package.provider,
+                            &package.channel,
+                            package.base_url.as_deref(),
+                        )
+                        .await
+                        .context(format!(
+                            "Failed to fetch latest release for '{}'",
+                            package.name
+                        ))?
+                } else {
+                    let Some(latest_release) = self
+                        .provider_manager
+                        .check_for_updates(package)
+                        .await
+                        .context(format!(
+                            "Failed to fetch latest release for '{}'",
+                            package.name
+                        ))?
+                    else {
+                        message!(message_callback, "'{}' is already up to date", package.name);
+                        return Ok(None);
+                    };
 
-        let latest_release = if force {
-            self.provider_manager
-                .get_latest_release_for(
+                    latest_release
+                };
+
+                if !force {
+                    let up_to_date = if package.channel == Channel::Nightly {
+                        release.published_at <= package.last_upgraded
+                    } else {
+                        !release.version.is_newer_than(&package.version)
+                    };
+
+                    if up_to_date {
+                        message!(message_callback, "'{}' is already up to date", package.name);
+                        return Ok(None);
+                    }
+                }
+                Some(release)
+            };
+
+        let mut branch_head_commit: Option<String> = None;
+        if package.install_type == InstallType::Build
+            && let Some(branch) = package.build_branch.as_deref()
+        {
+            let head_commit = self
+                .provider_manager
+                .get_branch_head_sha_for(
                     &package.repo_slug,
                     &package.provider,
-                    &package.channel,
+                    branch,
                     package.base_url.as_deref(),
                 )
                 .await
                 .context(format!(
-                    "Failed to fetch latest release for '{}'",
-                    package.name
-                ))?
-        } else {
-            let Some(latest_release) = self
-                .provider_manager
-                .check_for_updates(package)
-                .await
-                .context(format!(
-                    "Failed to fetch latest release for '{}'",
-                    package.name
-                ))?
-            else {
-                message!(message_callback, "'{}' is already up to date", package.name);
-                return Ok(None);
-            };
-
-            latest_release
-        };
-
-        if !force {
-            let up_to_date = if package.channel == Channel::Nightly {
-                latest_release.published_at <= package.last_upgraded
-            } else {
-                !latest_release.version.is_newer_than(&package.version)
-            };
-
-            if up_to_date {
-                message!(message_callback, "'{}' is already up to date", package.name);
+                    "Failed to fetch branch head for '{}' on '{}'",
+                    branch, package.name
+                ))?;
+            let up_to_date = package
+                .build_commit
+                .as_deref()
+                .is_some_and(|saved| saved == head_commit);
+            if up_to_date && !force {
+                message!(
+                    message_callback,
+                    "'{}' is already up to date (branch '{}')",
+                    package.name,
+                    branch
+                );
                 return Ok(None);
             }
+            branch_head_commit = Some(head_commit);
         }
 
         let had_desktop_integration = package.icon_path.is_some();
@@ -196,6 +234,7 @@ impl<'a> PackageUpgrader<'a> {
                         provider: package.provider.clone(),
                         base_url: package.base_url.clone(),
                         version_tag: None,
+                        branch: package.build_branch.clone(),
                         requested_profile: None,
                         build_output: None,
                     },
@@ -204,12 +243,17 @@ impl<'a> PackageUpgrader<'a> {
                 .await;
 
             match build_result {
-                Ok(output) => self.installer.install_local_artifact(
-                    package.clone(),
-                    &output.artifact_path,
-                    output.version,
-                    message_callback,
-                ),
+                Ok(output) => {
+                    let mut install_pkg = package.clone();
+                    install_pkg.build_branch = output.branch.clone();
+                    install_pkg.build_commit = output.commit.or(branch_head_commit.clone());
+                    self.installer.install_local_artifact(
+                        install_pkg,
+                        &output.artifact_path,
+                        output.version,
+                        message_callback,
+                    )
+                }
                 Err(e) => {
                     Err(e).context(format!("Failed to rebuild '{}' from source", package.name))
                 }
@@ -218,7 +262,9 @@ impl<'a> PackageUpgrader<'a> {
             self.installer
                 .install_package_files(
                     package.clone(),
-                    &latest_release,
+                    latest_release
+                        .as_ref()
+                        .expect("release install path requires latest release"),
                     ignore_checksums,
                     download_progress,
                     message_callback,
