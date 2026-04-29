@@ -22,6 +22,7 @@ pub struct BuildCommandInput {
     pub name: String,
     pub repo_slug: String,
     pub tag: Option<String>,
+    pub branch: Option<String>,
     pub provider: Option<Provider>,
     pub base_url: Option<String>,
     pub channel: Channel,
@@ -96,6 +97,7 @@ impl<'a> BuildOperation<'a> {
                     provider: resolved_provider.clone(),
                     base_url: resolved_base_url.clone(),
                     version_tag: input.tag,
+                    branch: input.branch,
                     requested_profile: input.build_profile,
                     build_output: input.build_output.map(std::path::PathBuf::from),
                 },
@@ -124,6 +126,8 @@ impl<'a> BuildOperation<'a> {
             resolved_base_url,
         );
         package.install_type = InstallType::Build;
+        package.build_branch = output.branch.clone();
+        package.build_commit = output.commit.clone();
 
         let mut install_operation =
             InstallOperation::new(self.provider_manager, self.package_storage, self.paths)?;
