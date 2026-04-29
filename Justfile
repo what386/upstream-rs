@@ -25,10 +25,11 @@ promote:
     just test
     lash run scripts/release/promote.lash
 
-release version:
+publish version:
     just lint
     just test
     lash run scripts/release/publish.lash {{version}}
+    git switch dev
 
 gen-completions:
     #!/usr/bin/env bash
