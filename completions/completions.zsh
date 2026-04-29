@@ -56,17 +56,14 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (build)
 _arguments "${_arguments_options[@]}" : \
-'-t+[Version tag to build (defaults to latest)]:TAG:_default' \
-'--tag=[Version tag to build (defaults to latest)]:TAG:_default' \
+'(--branch)-t+[Version tag to build (defaults to latest)]:TAG:_default' \
+'(--branch)--tag=[Version tag to build (defaults to latest)]:TAG:_default' \
+'(-t --tag)--branch=[Branch name to build from (uses latest commit from that branch)]:BRANCH:_default' \
 '-p+[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
 '--provider=[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
 '--base-url=[Custom base URL. Defaults to provider'\''s root]:BASE_URL:_default' \
 '-c+[Update channel to track]:CHANNEL:(stable preview nightly)' \
 '--channel=[Update channel to track]:CHANNEL:(stable preview nightly)' \
-'-m+[Match pattern hint used during source/release discovery]:match:_default' \
-'--match-pattern=[Match pattern hint used during source/release discovery]:match:_default' \
-'-e+[Exclude pattern used during source/release discovery]:exclude:_default' \
-'--exclude-pattern=[Exclude pattern used during source/release discovery]:exclude:_default' \
 '--build-profile=[Build profile used to compile/install from source (auto-detected when omitted)]:BUILD_PROFILE:(rust dotnet go zig cmake)' \
 '--build-output=[Optional explicit output path for the compiled executable]:BUILD_OUTPUT:_default' \
 '-d[Whether or not to create a .desktop entry for GUI applications]' \

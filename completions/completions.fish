@@ -62,13 +62,12 @@ complete -c upstream -n "__fish_upstream_using_subcommand install" -l ignore-che
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s y -l yes -d 'Accept the recommended discovered asset without prompting'
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s t -l tag -d 'Version tag to build (defaults to latest)' -r
+complete -c upstream -n "__fish_upstream_using_subcommand build" -l branch -d 'Branch name to build from (uses latest commit from that branch)' -r
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s p -l provider -d 'Source provider hosting the repository. Defaults to auto-detection' -r
 complete -c upstream -n "__fish_upstream_using_subcommand build" -l base-url -d 'Custom base URL. Defaults to provider\'s root' -r
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s c -l channel -d 'Update channel to track' -r -f -a "stable\t''
 preview\t''
 nightly\t''"
-complete -c upstream -n "__fish_upstream_using_subcommand build" -s m -l match-pattern -d 'Match pattern hint used during source/release discovery' -r
-complete -c upstream -n "__fish_upstream_using_subcommand build" -s e -l exclude-pattern -d 'Exclude pattern used during source/release discovery' -r
 complete -c upstream -n "__fish_upstream_using_subcommand build" -l build-profile -d 'Build profile used to compile/install from source (auto-detected when omitted)' -r -f -a "rust\t''
 dotnet\t''
 go\t''

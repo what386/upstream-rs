@@ -283,7 +283,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__build)
-            opts="-t -p -c -m -e -d -y -h --tag --provider --base-url --channel --match-pattern --exclude-pattern --desktop --yes --build-profile --build-output --help <NAME> <REPO_SLUG>"
+            opts="-t -p -c -d -y -h --tag --branch --provider --base-url --channel --desktop --yes --build-profile --build-output --help <NAME> <REPO_SLUG>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -294,6 +294,10 @@ _upstream() {
                     return 0
                     ;;
                 -t)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --branch)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -315,22 +319,6 @@ _upstream() {
                     ;;
                 -c)
                     COMPREPLY=($(compgen -W "stable preview nightly" -- "${cur}"))
-                    return 0
-                    ;;
-                --match-pattern)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -m)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --exclude-pattern)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -e)
-                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 --build-profile)
