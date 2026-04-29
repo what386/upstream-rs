@@ -828,5 +828,18 @@
       "patch": 0,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "feat: track branch build updates by commit hash in upgrade/check",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-04-29T19:07:03.273494785Z"
+    },
+    "version": null
   }
 ]
