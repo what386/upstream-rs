@@ -2,6 +2,15 @@
 
 *Generated on 2026-04-29*
 
+## 1.10.0 — 2026-04-29
+
+### Changes
+
+- feat: track branch build updates by commit hash in upgrade/check `feature`, `cli`
+- feat: make build --tag and --branch mutually exclusive `feature`, `cli`
+- feat: add --branch option to build command `feature`, `cli`
+
+
 ## 1.9.0 — 2026-04-29
 
 ### Changes
