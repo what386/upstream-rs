@@ -294,8 +294,11 @@ mod tests {
         let root = temp_root("single-child-zig");
         let child = root.join("repo");
         std::fs::create_dir_all(&child).expect("create child");
-        std::fs::write(child.join("build.zig"), "pub fn build(b: *std.Build) void { _ = b; }\n")
-            .expect("write build.zig");
+        std::fs::write(
+            child.join("build.zig"),
+            "pub fn build(b: *std.Build) void { _ = b; }\n",
+        )
+        .expect("write build.zig");
         std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
@@ -308,8 +311,11 @@ mod tests {
         let root = temp_root("single-child-cmake");
         let child = root.join("repo");
         std::fs::create_dir_all(&child).expect("create child");
-        std::fs::write(child.join("CMakeLists.txt"), "cmake_minimum_required(VERSION 3.20)\n")
-            .expect("write CMakeLists.txt");
+        std::fs::write(
+            child.join("CMakeLists.txt"),
+            "cmake_minimum_required(VERSION 3.20)\n",
+        )
+        .expect("write CMakeLists.txt");
         std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
