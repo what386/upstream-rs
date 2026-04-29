@@ -14,6 +14,8 @@ use crate::services::integration::compression_handler;
 pub struct SourceDownload {
     pub workspace_path: PathBuf,
     pub release: Release,
+    pub branch: Option<String>,
+    pub commit: Option<String>,
 }
 
 pub struct SourceDownloader<'a> {
@@ -46,7 +48,66 @@ impl<'a> SourceDownloader<'a> {
         base_url: Option<&str>,
         channel: &Channel,
         tag: Option<&str>,
+        branch: Option<&str>,
     ) -> Result<SourceDownload> {
+        if branch.is_some() && tag.is_some() {
+            return Err(anyhow!(
+                "Build options --tag and --branch are mutually exclusive"
+            ));
+        }
+
+        if let Some(branch_name) = branch {
+            let head_commit = self
+                .provider_manager
+                .get_branch_head_sha_for(repo_slug, provider, branch_name, base_url)
+                .await
+                .context(format!(
+                    "Failed to fetch branch head for '{}' on '{}'",
+                    branch_name, repo_slug
+                ))?;
+            let branch_archive =
+                self.make_source_archive_asset(repo_slug, provider, branch_name, base_url)?;
+
+            let mut no_progress: Option<fn(u64, u64)> = None;
+            let downloaded = self
+                .provider_manager
+                .download_asset(&branch_archive, provider, &self.cache_dir, &mut no_progress)
+                .await
+                .context(format!(
+                    "Failed to download branch source archive '{}' for '{}'",
+                    branch_name, repo_slug
+                ))?;
+
+            let extract_root = self.cache_dir.join("extract");
+            std::fs::create_dir_all(&extract_root).context(format!(
+                "Failed to create extraction root '{}'",
+                extract_root.display()
+            ))?;
+
+            let extracted_path = compression_handler::decompress(&downloaded, &extract_root)
+                .context("Failed to unpack source archive")?;
+            let workspace_path = Self::resolve_workspace_root(&extracted_path)?;
+
+            let release = Release {
+                id: 0,
+                tag: branch_name.to_string(),
+                name: format!("branch {}", branch_name),
+                body: String::new(),
+                is_draft: false,
+                is_prerelease: false,
+                published_at: Utc::now(),
+                assets: vec![],
+                version: crate::models::common::version::Version::new(0, 0, 0, false),
+            };
+
+            return Ok(SourceDownload {
+                workspace_path,
+                release,
+                branch: Some(branch_name.to_string()),
+                commit: Some(head_commit),
+            });
+        }
+
         let release = if let Some(tag_name) = tag {
             self.provider_manager
                 .get_release_by_tag_for(repo_slug, tag_name, provider, base_url)
@@ -66,7 +127,7 @@ impl<'a> SourceDownloader<'a> {
         };
 
         let primary_archive =
-            self.make_source_archive_asset(repo_slug, provider, &release, base_url)?;
+            self.make_source_archive_asset(repo_slug, provider, &release.tag, base_url)?;
         let mut no_progress: Option<fn(u64, u64)> = None;
         let downloaded_primary = self
             .provider_manager
@@ -112,6 +173,8 @@ impl<'a> SourceDownloader<'a> {
         Ok(SourceDownload {
             workspace_path,
             release,
+            branch: None,
+            commit: None,
         })
     }
 
@@ -181,27 +244,27 @@ impl<'a> SourceDownloader<'a> {
         &self,
         repo_slug: &str,
         provider: &Provider,
-        release: &Release,
+        git_ref: &str,
         base_url: Option<&str>,
     ) -> Result<Asset> {
         let url = match provider {
             Provider::Github => format!(
                 "https://api.github.com/repos/{}/tarball/{}",
-                repo_slug, release.tag
+                repo_slug, git_ref
             ),
             Provider::Gitlab => {
                 let base = base_url.unwrap_or("https://gitlab.com");
                 let encoded = repo_slug.replace('/', "%2F");
                 format!(
                     "{}/api/v4/projects/{}/repository/archive.tar.gz?sha={}",
-                    base, encoded, release.tag
+                    base, encoded, git_ref
                 )
             }
             Provider::Gitea => {
                 let base = base_url.unwrap_or("https://gitea.com");
                 format!(
                     "{}/api/v1/repos/{}/archive/{}.tar.gz",
-                    base, repo_slug, release.tag
+                    base, repo_slug, git_ref
                 )
             }
             Provider::Direct | Provider::WebScraper => {
@@ -211,7 +274,7 @@ impl<'a> SourceDownloader<'a> {
             }
         };
 
-        let asset_name = format!("{}-{}.tar.gz", repo_slug.replace('/', "-"), release.tag);
+        let asset_name = format!("{}-{}.tar.gz", repo_slug.replace('/', "-"), git_ref);
         Ok(Asset::new(url, 0, asset_name, 0, Utc::now()))
     }
 

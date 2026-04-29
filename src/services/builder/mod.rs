@@ -26,6 +26,7 @@ pub struct BuildRequest {
     pub provider: Provider,
     pub base_url: Option<String>,
     pub version_tag: Option<String>,
+    pub branch: Option<String>,
     pub requested_profile: Option<BuildProfile>,
     pub build_output: Option<PathBuf>,
 }
@@ -36,4 +37,6 @@ pub struct BuildOutput {
     pub profile: BuildProfile,
     pub release: Release,
     pub version: Version,
+    pub branch: Option<String>,
+    pub commit: Option<String>,
 }

@@ -29,6 +29,7 @@ impl<'a> BuildWorker<'a> {
                 request.base_url.as_deref(),
                 &channel,
                 request.version_tag.as_deref(),
+                request.branch.as_deref(),
             )
             .await?;
 
@@ -61,6 +62,8 @@ impl<'a> BuildWorker<'a> {
             profile,
             release: source.release,
             version,
+            branch: source.branch,
+            commit: source.commit,
         })
     }
 
