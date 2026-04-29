@@ -16,14 +16,12 @@ pub async fn run(
     provider: Option<Provider>,
     base_url: Option<String>,
     channel: Channel,
-    match_pattern: Option<String>,
-    exclude_pattern: Option<String>,
     desktop: bool,
     yes: bool,
     build_profile: Option<CliBuildProfile>,
     build_output: Option<String>,
 ) -> Result<()> {
-    let _ = (match_pattern, exclude_pattern, yes);
+    let _ = yes;
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
