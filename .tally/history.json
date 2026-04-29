@@ -813,5 +813,15 @@
       "patch": 0,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "feat: add more profiles for `build` feature",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-04-29T01:33:33.926539055Z"
+    },
+    "version": null
   }
 ]
