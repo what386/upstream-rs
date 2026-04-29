@@ -61,6 +61,10 @@ impl GitlabAdapter {
             .collect())
     }
 
+    pub async fn get_branch_head_sha(&self, project_path: &str, branch: &str) -> Result<String> {
+        self.client.get_branch_head_sha(project_path, branch).await
+    }
+
     fn convert_release(&self, dto: GitlabReleaseDto) -> Release {
         let mut assets = Vec::new();
         let mut asset_id: u64 = 0;

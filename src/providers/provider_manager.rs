@@ -319,6 +319,43 @@ impl ProviderManager {
         }
     }
 
+    pub async fn get_branch_head_sha_for(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        branch: &str,
+        base_url: Option<&str>,
+    ) -> Result<String> {
+        match provider {
+            Provider::Github => self.github.get_branch_head_sha(slug, branch).await,
+            Provider::Gitlab => {
+                if let Some(base) = base_url {
+                    let adapter = GitlabAdapter::new(GitlabClient::new(
+                        self.gitlab_token.as_deref(),
+                        Some(base),
+                    )?);
+                    adapter.get_branch_head_sha(slug, branch).await
+                } else {
+                    self.gitlab.get_branch_head_sha(slug, branch).await
+                }
+            }
+            Provider::Gitea => {
+                if let Some(base) = base_url {
+                    let adapter = GiteaAdapter::new(GiteaClient::new(
+                        self.gitea_token.as_deref(),
+                        Some(base),
+                    )?);
+                    adapter.get_branch_head_sha(slug, branch).await
+                } else {
+                    self.gitea.get_branch_head_sha(slug, branch).await
+                }
+            }
+            Provider::WebScraper | Provider::Direct => Err(anyhow!(
+                "Branch builds support forge providers only (github/gitlab/gitea)"
+            )),
+        }
+    }
+
     pub async fn download_asset<F>(
         &self,
         asset: &Asset,
