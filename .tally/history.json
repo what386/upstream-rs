@@ -854,5 +854,18 @@
       "completed_at": "2026-04-29T19:07:04.252880141Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: add --branch option to build command",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-04-29T19:07:05.114377953Z"
+    },
+    "version": null
   }
 ]
