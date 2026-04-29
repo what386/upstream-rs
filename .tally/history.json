@@ -841,5 +841,18 @@
       "completed_at": "2026-04-29T19:07:03.273494785Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: make build --tag and --branch mutually exclusive",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-04-29T19:07:04.252880141Z"
+    },
+    "version": null
   }
 ]
