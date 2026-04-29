@@ -11,9 +11,6 @@
 - [ ] Add per-package checksum pinning for reproducible installs (high) #feature #security
       @created 2026-02-14 00:58
 
-- [ ] feat: add --branch option to build command #feature #cli
-      @created 2026-04-29 19:05
-
 
 ## Completed
 
@@ -52,6 +49,10 @@
       @completed 2026-04-29 19:07
 
 - [x] feat: make build --tag and --branch mutually exclusive #feature #cli
+      @created 2026-04-29 19:05
+      @completed 2026-04-29 19:07
+
+- [x] feat: add --branch option to build command #feature #cli
       @created 2026-04-29 19:05
       @completed 2026-04-29 19:07
 
