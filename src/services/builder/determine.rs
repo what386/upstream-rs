@@ -9,6 +9,9 @@ fn profile_name(profile: BuildProfile) -> &'static str {
     match profile {
         BuildProfile::Rust => "rust",
         BuildProfile::Dotnet => "dotnet",
+        BuildProfile::Go => "go",
+        BuildProfile::Zig => "zig",
+        BuildProfile::Cmake => "cmake",
     }
 }
 
@@ -30,7 +33,7 @@ pub fn determine_profile(
     match detected.as_slice() {
         [single] => Ok(*single),
         [] => Err(anyhow!(
-            "Could not auto-detect a build profile. Pass --build-profile (supported: rust, dotnet)."
+            "Could not auto-detect a build profile. Pass --build-profile (supported: rust, dotnet, go, zig, cmake)."
         )),
         many => {
             let names = many
@@ -88,6 +91,18 @@ mod tests {
                 profile: BuildProfile::Dotnet,
                 detect_value: false,
             }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Go,
+                detect_value: false,
+            }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Zig,
+                detect_value: false,
+            }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Cmake,
+                detect_value: false,
+            }),
         ];
         let resolved = determine_profile(Path::new("."), Some(BuildProfile::Dotnet), &handlers)
             .expect("must resolve explicit profile");
@@ -103,6 +118,18 @@ mod tests {
             }),
             Box::new(FakeHandler {
                 profile: BuildProfile::Dotnet,
+                detect_value: false,
+            }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Go,
+                detect_value: false,
+            }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Zig,
+                detect_value: false,
+            }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Cmake,
                 detect_value: false,
             }),
         ];
@@ -121,6 +148,18 @@ mod tests {
                 profile: BuildProfile::Dotnet,
                 detect_value: true,
             }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Go,
+                detect_value: false,
+            }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Zig,
+                detect_value: false,
+            }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Cmake,
+                detect_value: false,
+            }),
         ];
         let err = determine_profile(Path::new("."), None, &handlers).expect_err("must fail");
         assert!(err.to_string().contains("ambiguous"));
@@ -135,6 +174,18 @@ mod tests {
             }),
             Box::new(FakeHandler {
                 profile: BuildProfile::Dotnet,
+                detect_value: false,
+            }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Go,
+                detect_value: false,
+            }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Zig,
+                detect_value: false,
+            }),
+            Box::new(FakeHandler {
+                profile: BuildProfile::Cmake,
                 detect_value: false,
             }),
         ];

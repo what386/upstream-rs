@@ -47,6 +47,9 @@ pub async fn run(
             build_profile: build_profile.map(|profile| match profile {
                 CliBuildProfile::Rust => BuildProfile::Rust,
                 CliBuildProfile::Dotnet => BuildProfile::Dotnet,
+                CliBuildProfile::Go => BuildProfile::Go,
+                CliBuildProfile::Zig => BuildProfile::Zig,
+                CliBuildProfile::Cmake => BuildProfile::Cmake,
             }),
             build_output,
         })

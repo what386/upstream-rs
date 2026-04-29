@@ -5,10 +5,19 @@ use anyhow::Result;
 use crate::services::builder::BuildProfile;
 
 pub mod dotnet;
+pub mod cmake;
+pub mod go;
 pub mod rust;
+pub mod zig;
 
-pub fn handlers() -> [Box<dyn BuildProfileHandler>; 2] {
-    [Box::new(rust::RustProfile), Box::new(dotnet::DotnetProfile)]
+pub fn handlers() -> [Box<dyn BuildProfileHandler>; 5] {
+    [
+        Box::new(rust::RustProfile),
+        Box::new(dotnet::DotnetProfile),
+        Box::new(go::GoProfile),
+        Box::new(zig::ZigProfile),
+        Box::new(cmake::CmakeProfile),
+    ]
 }
 
 pub trait BuildProfileHandler {

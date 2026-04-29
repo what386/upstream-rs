@@ -157,6 +157,15 @@ impl<'a> SourceDownloader<'a> {
         if path.join("Cargo.toml").is_file() {
             return true;
         }
+        if path.join("go.mod").is_file() {
+            return true;
+        }
+        if path.join("build.zig").is_file() {
+            return true;
+        }
+        if path.join("CMakeLists.txt").is_file() {
+            return true;
+        }
 
         std::fs::read_dir(path).ok().is_some_and(|entries| {
             entries.flatten().any(|entry| {
@@ -260,6 +269,47 @@ mod tests {
             "[package]\nname='x'\nversion='0.1.0'\n",
         )
         .expect("write Cargo.toml");
+        std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
+
+        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
+        assert_eq!(resolved, child);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolve_workspace_root_selects_single_child_go_repo() {
+        let root = temp_root("single-child-go");
+        let child = root.join("repo");
+        std::fs::create_dir_all(&child).expect("create child");
+        std::fs::write(child.join("go.mod"), "module example.com/tool\n").expect("write go.mod");
+        std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
+
+        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
+        assert_eq!(resolved, child);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolve_workspace_root_selects_single_child_zig_repo() {
+        let root = temp_root("single-child-zig");
+        let child = root.join("repo");
+        std::fs::create_dir_all(&child).expect("create child");
+        std::fs::write(child.join("build.zig"), "pub fn build(b: *std.Build) void { _ = b; }\n")
+            .expect("write build.zig");
+        std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
+
+        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
+        assert_eq!(resolved, child);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolve_workspace_root_selects_single_child_cmake_repo() {
+        let root = temp_root("single-child-cmake");
+        let child = root.join("repo");
+        std::fs::create_dir_all(&child).expect("create child");
+        std::fs::write(child.join("CMakeLists.txt"), "cmake_minimum_required(VERSION 3.20)\n")
+            .expect("write CMakeLists.txt");
         std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");

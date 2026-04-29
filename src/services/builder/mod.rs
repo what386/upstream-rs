@@ -14,6 +14,9 @@ use crate::models::{
 pub enum BuildProfile {
     Rust,
     Dotnet,
+    Go,
+    Zig,
+    Cmake,
 }
 
 #[derive(Debug, Clone)]
