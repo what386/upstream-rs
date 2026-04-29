@@ -251,6 +251,8 @@ mod tests {
             None,
         );
         pkg.install_path = Some(paths.install.binaries_dir.join("tool"));
+        pkg.build_branch = Some("main".to_string());
+        pkg.build_commit = Some("abc123".to_string());
         storage
             .add_or_update_package(pkg)
             .expect("store installed package");
@@ -266,6 +268,8 @@ mod tests {
         assert!(content.contains("\"version\": 1"));
         assert!(content.contains("\"name\": \"tool\""));
         assert!(content.contains("\"repo_slug\": \"owner/tool\""));
+        assert!(content.contains("\"build_branch\": \"main\""));
+        assert!(content.contains("\"build_commit\": \"abc123\""));
 
         cleanup(&root).expect("cleanup");
     }

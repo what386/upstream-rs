@@ -71,6 +71,8 @@ fn truncate_cell(value: &str, max: usize) -> String {
 
 fn format_package_details(package: &Package) -> String {
     let base_url = package.base_url.as_deref().unwrap_or("-");
+    let build_branch = package.build_branch.as_deref().unwrap_or("-");
+    let build_commit = package.build_commit.as_deref().unwrap_or("-");
     let match_pattern = package.match_pattern.as_deref().unwrap_or("-");
     let exclude_pattern = package.exclude_pattern.as_deref().unwrap_or("-");
 
@@ -85,6 +87,8 @@ fn format_package_details(package: &Package) -> String {
          Pinned         : {}\n\
          Has Icon       : {}\n\
          Base URL       : {}\n\
+         Build Branch   : {}\n\
+         Build Commit   : {}\n\
          Match Pattern  : {}\n\
          Excl. Pattern  : {}\n\
          Install Path   : {}\n\
@@ -104,6 +108,8 @@ fn format_package_details(package: &Package) -> String {
             "no"
         },
         base_url,
+        build_branch,
+        build_commit,
         match_pattern,
         exclude_pattern,
         format_path(package.install_path.as_ref(), "-"),
