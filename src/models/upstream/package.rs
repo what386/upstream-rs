@@ -29,6 +29,10 @@ pub struct Package {
     pub base_url: Option<String>,
     #[serde(default)]
     pub install_type: InstallType,
+    #[serde(default)]
+    pub build_branch: Option<String>,
+    #[serde(default)]
+    pub build_commit: Option<String>,
 
     pub is_pinned: bool,
     pub match_pattern: Option<String>,
@@ -62,6 +66,8 @@ impl Package {
             provider,
             base_url,
             install_type: InstallType::Release,
+            build_branch: None,
+            build_commit: None,
 
             is_pinned: false,
             match_pattern,
