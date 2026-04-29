@@ -79,7 +79,9 @@ impl BuildProfileHandler for CmakeProfile {
             .current_dir(&project_dir)
             .stdin(Stdio::null())
             .status()
-            .context("Failed to run 'cmake --build <build-dir> --config Release'. Is CMake installed?")?;
+            .context(
+                "Failed to run 'cmake --build <build-dir> --config Release'. Is CMake installed?",
+            )?;
 
         if !build.success() {
             bail!("CMake build failed for '{}'", package_name);

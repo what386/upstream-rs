@@ -4,8 +4,8 @@ use anyhow::Result;
 
 use crate::services::builder::BuildProfile;
 
-pub mod dotnet;
 pub mod cmake;
+pub mod dotnet;
 pub mod go;
 pub mod rust;
 pub mod zig;
