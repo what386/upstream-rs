@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.8.0
+# TODO — upstream-cli v1.9.0
 
 @created: 2026-01-31
 @modified: 2026-04-29
@@ -42,4 +42,5 @@
 - [x] feat: add more profiles for `build` feature
       @created 2026-04-29 01:33
       @completed 2026-04-29 01:33
+      @completed_version 1.9.0
 
