@@ -67,7 +67,7 @@ _arguments "${_arguments_options[@]}" : \
 '--match-pattern=[Match pattern hint used during source/release discovery]:match:_default' \
 '-e+[Exclude pattern used during source/release discovery]:exclude:_default' \
 '--exclude-pattern=[Exclude pattern used during source/release discovery]:exclude:_default' \
-'--build-profile=[Build profile used to compile/install from source (auto-detected when omitted)]:BUILD_PROFILE:(rust dotnet)' \
+'--build-profile=[Build profile used to compile/install from source (auto-detected when omitted)]:BUILD_PROFILE:(rust dotnet go zig cmake)' \
 '--build-output=[Optional explicit output path for the compiled executable]:BUILD_OUTPUT:_default' \
 '-d[Whether or not to create a .desktop entry for GUI applications]' \
 '--desktop[Whether or not to create a .desktop entry for GUI applications]' \
