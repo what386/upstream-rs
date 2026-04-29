@@ -50,7 +50,7 @@ jobs:
           cp target/${{ matrix.target }}/release/upstream-rs${{ matrix.binary_ext }} dist/upstream-rs-${{ matrix.target }}${{ matrix.binary_ext }}
         shell: bash
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: upstream-rs-${{ matrix.target }}
           path: dist/upstream-rs-${{ matrix.target }}${{ matrix.binary_ext }}
