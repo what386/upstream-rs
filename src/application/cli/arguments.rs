@@ -5,6 +5,9 @@ use clap::{Parser, Subcommand};
 pub enum BuildProfile {
     Rust,
     Dotnet,
+    Go,
+    Zig,
+    Cmake,
 }
 
 #[derive(Parser)]
