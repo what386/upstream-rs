@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.9.0
+# TODO — upstream-cli v1.10.0
 
 @created: 2026-01-31
 @modified: 2026-04-29
@@ -47,12 +47,15 @@
 - [x] feat: track branch build updates by commit hash in upgrade/check #feature #cli
       @created 2026-04-29 19:05
       @completed 2026-04-29 19:07
+      @completed_version 1.10.0
 
 - [x] feat: make build --tag and --branch mutually exclusive #feature #cli
       @created 2026-04-29 19:05
       @completed 2026-04-29 19:07
+      @completed_version 1.10.0
 
 - [x] feat: add --branch option to build command #feature #cli
       @created 2026-04-29 19:05
       @completed 2026-04-29 19:07
+      @completed_version 1.10.0
 
