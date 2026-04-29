@@ -148,13 +148,20 @@ where
                         repo_slug: reinstall_package.repo_slug.clone(),
                         provider: reinstall_package.provider.clone(),
                         base_url: reinstall_package.base_url.clone(),
-                        version_tag: Some(version_tag),
+                        version_tag: if reinstall_package.build_branch.is_some() {
+                            None
+                        } else {
+                            Some(version_tag)
+                        },
+                        branch: reinstall_package.build_branch.clone(),
                         requested_profile: None,
                         build_output: None,
                     },
                     reinstall_package.channel.clone(),
                 )
                 .await?;
+            reinstall_package.build_branch = output.branch.clone();
+            reinstall_package.build_commit = output.commit.clone();
 
             let mut install_op = InstallOperation::new(provider_manager, package_storage, paths)?;
             install_op
