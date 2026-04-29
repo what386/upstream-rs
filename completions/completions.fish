@@ -70,7 +70,10 @@ nightly\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s m -l match-pattern -d 'Match pattern hint used during source/release discovery' -r
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s e -l exclude-pattern -d 'Exclude pattern used during source/release discovery' -r
 complete -c upstream -n "__fish_upstream_using_subcommand build" -l build-profile -d 'Build profile used to compile/install from source (auto-detected when omitted)' -r -f -a "rust\t''
-dotnet\t''"
+dotnet\t''
+go\t''
+zig\t''
+cmake\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand build" -l build-output -d 'Optional explicit output path for the compiled executable' -r
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s d -l desktop -d 'Whether or not to create a .desktop entry for GUI applications'
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s y -l yes -d 'Accept the recommended discovered source/release without prompting'

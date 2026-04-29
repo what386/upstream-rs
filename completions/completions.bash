@@ -334,7 +334,7 @@ _upstream() {
                     return 0
                     ;;
                 --build-profile)
-                    COMPREPLY=($(compgen -W "rust dotnet" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "rust dotnet go zig cmake" -- "${cur}"))
                     return 0
                     ;;
                 --build-output)
