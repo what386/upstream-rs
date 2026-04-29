@@ -95,6 +95,7 @@ pub enum Commands {
         Mirrors install-style source resolution, with optional automatic profile detection.\n\n\
         EXAMPLES:\n  \
         upstream build rg BurntSushi/ripgrep\n  \
+        upstream build rg BurntSushi/ripgrep --branch main\n  \
         upstream build rg BurntSushi/ripgrep --build-profile rust\n  \
         upstream build app owner/repo --build-profile dotnet --tag v1.2.3\n  \
         upstream build tool owner/repo --build-profile rust --build-output target/release/tool")]
@@ -106,8 +107,12 @@ pub enum Commands {
         repo_slug: String,
 
         /// Version tag to build (defaults to latest)
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "branch")]
         tag: Option<String>,
+
+        /// Branch name to build from (uses latest commit from that branch)
+        #[arg(long, conflicts_with = "tag")]
+        branch: Option<String>,
 
         /// Source provider hosting the repository. Defaults to auto-detection.
         #[arg(short = 'p', long)]
@@ -596,11 +601,13 @@ mod tests {
         match cli.command {
             Commands::Build {
                 provider,
+                branch,
                 build_profile,
                 build_output,
                 ..
             } => {
                 assert!(provider.is_none());
+                assert!(branch.is_none());
                 assert_eq!(build_profile, Some(BuildProfile::Rust));
                 assert_eq!(build_output.as_deref(), Some("target/release/rg"));
             }
@@ -615,6 +622,42 @@ mod tests {
             Commands::Build { build_profile, .. } => assert!(build_profile.is_none()),
             other => panic!("unexpected command parsed: {}", other),
         }
+    }
+
+    #[test]
+    fn build_parses_branch_flag() {
+        let cli = Cli::parse_from([
+            "upstream",
+            "build",
+            "rg",
+            "BurntSushi/ripgrep",
+            "--branch",
+            "main",
+        ]);
+        match cli.command {
+            Commands::Build { branch, tag, .. } => {
+                assert_eq!(branch.as_deref(), Some("main"));
+                assert!(tag.is_none());
+            }
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn build_rejects_tag_and_branch_together() {
+        assert!(
+            Cli::try_parse_from([
+                "upstream",
+                "build",
+                "rg",
+                "BurntSushi/ripgrep",
+                "--tag",
+                "v1.0.0",
+                "--branch",
+                "main",
+            ])
+            .is_err()
+        );
     }
 
     #[test]
@@ -800,6 +843,7 @@ mod tests {
                 name: "ripgrep".to_string(),
                 repo_slug: "BurntSushi/ripgrep".to_string(),
                 tag: None,
+                branch: None,
                 provider: Some(crate::models::common::enums::Provider::Github),
                 base_url: None,
                 channel: crate::models::common::enums::Channel::Stable,
