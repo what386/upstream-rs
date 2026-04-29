@@ -14,13 +14,17 @@ pub struct PackageReference {
     pub channel: Channel,
     pub provider: Provider,
     pub base_url: Option<String>,
+    #[serde(default)]
+    pub build_branch: Option<String>,
+    #[serde(default)]
+    pub build_commit: Option<String>,
     pub match_pattern: Option<String>,
     pub exclude_pattern: Option<String>,
 }
 
 impl PackageReference {
     pub fn into_package(self) -> Package {
-        Package::with_defaults(
+        let mut package = Package::with_defaults(
             self.name,
             self.repo_slug,
             self.filetype,
@@ -29,7 +33,10 @@ impl PackageReference {
             self.channel,
             self.provider,
             self.base_url,
-        )
+        );
+        package.build_branch = self.build_branch;
+        package.build_commit = self.build_commit;
+        package
     }
 
     pub fn from_package(package: Package) -> Self {
@@ -40,6 +47,8 @@ impl PackageReference {
             channel: package.channel,
             provider: package.provider,
             base_url: package.base_url,
+            build_branch: package.build_branch,
+            build_commit: package.build_commit,
             match_pattern: package.match_pattern,
             exclude_pattern: package.exclude_pattern,
         }
@@ -60,6 +69,8 @@ mod tests {
             channel: Channel::Stable,
             provider: Provider::Github,
             base_url: Some("https://api.github.com".to_string()),
+            build_branch: Some("main".to_string()),
+            build_commit: Some("abcdef123456".to_string()),
             match_pattern: Some("x86_64".to_string()),
             exclude_pattern: Some("debug".to_string()),
         }
@@ -75,6 +86,8 @@ mod tests {
         assert_eq!(package.channel, Channel::Stable);
         assert_eq!(package.provider, Provider::Github);
         assert_eq!(package.base_url.as_deref(), Some("https://api.github.com"));
+        assert_eq!(package.build_branch.as_deref(), Some("main"));
+        assert_eq!(package.build_commit.as_deref(), Some("abcdef123456"));
         assert!(package.install_path.is_none());
         assert!(package.exec_path.is_none());
         assert_eq!(package.version.to_string(), "0.0.0");
@@ -82,7 +95,7 @@ mod tests {
 
     #[test]
     fn from_package_round_trips_reference_fields() {
-        let package = Package::with_defaults(
+        let mut package = Package::with_defaults(
             "ripgrep".to_string(),
             "BurntSushi/ripgrep".to_string(),
             Filetype::Binary,
@@ -92,6 +105,8 @@ mod tests {
             Provider::Github,
             None,
         );
+        package.build_branch = Some("dev".to_string());
+        package.build_commit = Some("0123456789abcdef".to_string());
 
         let reference = PackageReference::from_package(package);
         assert_eq!(reference.name, "ripgrep");
@@ -99,7 +114,27 @@ mod tests {
         assert_eq!(reference.filetype, Filetype::Binary);
         assert_eq!(reference.channel, Channel::Preview);
         assert_eq!(reference.provider, Provider::Github);
+        assert_eq!(reference.build_branch.as_deref(), Some("dev"));
+        assert_eq!(reference.build_commit.as_deref(), Some("0123456789abcdef"));
         assert_eq!(reference.match_pattern.as_deref(), Some("linux"));
         assert_eq!(reference.exclude_pattern.as_deref(), Some("symbols"));
+    }
+
+    #[test]
+    fn deserializes_without_branch_fields_for_legacy_manifests() {
+        let legacy = r#"{
+            "name":"tool",
+            "repo_slug":"owner/tool",
+            "filetype":"Binary",
+            "channel":"Stable",
+            "provider":"Github",
+            "base_url":null,
+            "match_pattern":null,
+            "exclude_pattern":null
+        }"#;
+        let reference: PackageReference =
+            serde_json::from_str(legacy).expect("deserialize legacy reference");
+        assert!(reference.build_branch.is_none());
+        assert!(reference.build_commit.is_none());
     }
 }
