@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-04-28*
+*Generated on 2026-04-29*
+
+## 1.9.0 — 2026-04-29
+
+### Changes
+
+- feat: add more profiles for `build` feature
+
 
 ## 1.8.0 — 2026-04-28
 
