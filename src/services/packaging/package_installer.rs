@@ -3,7 +3,8 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         integration::{ShellManager, SymlinkManager, compression_handler, permission_handler},
-        packaging::{ChecksumVerifier, bundle_handler::BundleHandler},
+        packaging::bundle_handler::BundleHandler,
+        trust::ChecksumVerifier,
     },
     utils::{fs_move, static_paths::UpstreamPaths},
 };
