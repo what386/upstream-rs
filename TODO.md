@@ -20,6 +20,9 @@
 - [ ] feat: add --branch option to build command #feature #cli
       @created 2026-04-29 19:05
 
+- [ ] feat: track branch build updates by commit hash in upgrade/check #feature #cli
+      @created 2026-04-29 19:05
+
 
 ## Completed
 
