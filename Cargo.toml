@@ -42,6 +42,7 @@ xz2 = "0.1.7"
 walkdir = "2.5.0"
 clap_complete = { version = "4.6", optional = true }
 zstd = "0.13.3"
+minisign-verify = "0.2.5"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
