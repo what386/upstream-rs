@@ -121,14 +121,6 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
         channel: Channel,
 
-        /// Match pattern hint used during source/release discovery
-        #[arg(short = 'm', long, name = "match")]
-        match_pattern: Option<String>,
-
-        /// Exclude pattern used during source/release discovery
-        #[arg(short = 'e', long, name = "exclude")]
-        exclude_pattern: Option<String>,
-
         /// Whether or not to create a .desktop entry for GUI applications
         #[arg(short, long, default_value_t = false)]
         desktop: bool,
@@ -626,6 +618,32 @@ mod tests {
     }
 
     #[test]
+    fn build_rejects_match_and_exclude_flags() {
+        assert!(
+            Cli::try_parse_from([
+                "upstream",
+                "build",
+                "rg",
+                "BurntSushi/ripgrep",
+                "--match",
+                "linux",
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "upstream",
+                "build",
+                "rg",
+                "BurntSushi/ripgrep",
+                "--exclude",
+                "debug",
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
     fn upgrade_parses_ignore_checksums_flag() {
         let cli = Cli::parse_from(["upstream", "upgrade", "--ignore-checksums"]);
 
@@ -785,8 +803,6 @@ mod tests {
                 provider: Some(crate::models::common::enums::Provider::Github),
                 base_url: None,
                 channel: crate::models::common::enums::Channel::Stable,
-                match_pattern: None,
-                exclude_pattern: None,
                 desktop: false,
                 yes: false,
                 build_profile: Some(BuildProfile::Rust),
