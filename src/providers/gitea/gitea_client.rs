@@ -6,6 +6,18 @@ use std::path::Path;
 use crate::providers::download_handler;
 
 use super::gitea_dtos::GiteaReleaseDto;
+#[derive(Debug, Deserialize)]
+struct GiteaCommitRefDto {
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    sha: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GiteaBranchDto {
+    commit: GiteaCommitRefDto,
+}
 
 #[derive(Debug, Clone)]
 pub struct GiteaClient {
@@ -143,6 +155,22 @@ impl GiteaClient {
         }
 
         Ok(releases)
+    }
+
+    pub async fn get_branch_head_sha(&self, owner_repo: &str, branch: &str) -> Result<String> {
+        let encoded_branch = branch.replace('/', "%2F");
+        let url = format!(
+            "{}/api/v1/repos/{}/branches/{}",
+            self.base_url, owner_repo, encoded_branch
+        );
+        let dto: GiteaBranchDto = self.get_json(&url).await.context(format!(
+            "Failed to get branch head for {}/{}",
+            owner_repo, branch
+        ))?;
+        if !dto.commit.id.is_empty() {
+            return Ok(dto.commit.id);
+        }
+        Ok(dto.commit.sha)
     }
 }
 

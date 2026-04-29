@@ -6,6 +6,10 @@ use std::path::Path;
 use crate::providers::download_handler;
 
 use super::github_dtos::GithubReleaseDto;
+#[derive(Debug, Deserialize)]
+struct GithubCommitDto {
+    sha: String,
+}
 
 #[derive(Debug, Clone)]
 pub struct GithubClient {
@@ -139,6 +143,19 @@ impl GithubClient {
         }
 
         Ok(releases)
+    }
+
+    pub async fn get_branch_head_sha(&self, owner_repo: &str, branch: &str) -> Result<String> {
+        let encoded_branch = branch.replace('/', "%2F");
+        let url = format!(
+            "https://api.github.com/repos/{}/commits/{}",
+            owner_repo, encoded_branch
+        );
+        let dto: GithubCommitDto = self.get_json(&url).await.context(format!(
+            "Failed to get branch head for {}/{}",
+            owner_repo, branch
+        ))?;
+        Ok(dto.sha)
     }
 }
 

@@ -55,6 +55,10 @@ impl GiteaAdapter {
             .collect())
     }
 
+    pub async fn get_branch_head_sha(&self, slug: &str, branch: &str) -> Result<String> {
+        self.client.get_branch_head_sha(slug, branch).await
+    }
+
     fn convert_asset(dto: GiteaAssetDto) -> Asset {
         let created_at = Self::parse_timestamp(&dto.created_at);
         Asset::new(

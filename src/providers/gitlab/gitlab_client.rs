@@ -6,6 +6,15 @@ use std::path::Path;
 use crate::providers::download_handler;
 
 use super::gitlab_dtos::GitlabReleaseDto;
+#[derive(Debug, Deserialize)]
+struct GitlabCommitRefDto {
+    id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitlabBranchDto {
+    commit: GitlabCommitRefDto,
+}
 
 #[derive(Debug, Clone)]
 pub struct GitlabClient {
@@ -141,6 +150,20 @@ impl GitlabClient {
         }
 
         Ok(releases)
+    }
+
+    pub async fn get_branch_head_sha(&self, project_path: &str, branch: &str) -> Result<String> {
+        let encoded_path = Self::encode_project_path(project_path);
+        let encoded_branch = Self::encode_project_path(branch);
+        let url = format!(
+            "{}/api/v4/projects/{}/repository/branches/{}",
+            self.base_url, encoded_path, encoded_branch
+        );
+        let dto: GitlabBranchDto = self.get_json(&url).await.context(format!(
+            "Failed to get branch head for {}/{}",
+            project_path, branch
+        ))?;
+        Ok(dto.commit.id)
     }
 }
 
