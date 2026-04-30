@@ -909,5 +909,18 @@
       "completed_at": "2026-04-30T00:49:30.949829448Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: extend import with keys/manifest/snapshot autodetection plus --as and --yes",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-04-30T00:49:31.738081234Z"
+    },
+    "version": null
   }
 ]

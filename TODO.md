@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] feat: extend import with keys/manifest/snapshot autodetection plus --as and --yes #feature #cli
-      @created 2026-04-30 00:50
-
 - [ ] feat: switch manifest import to metadata-only with conflict skip/warn behavior #feature #cli
       @created 2026-04-30 00:55
 
@@ -20,5 +17,9 @@
 
 - [x] feat: add trusted minisign key helpers in config model/storage #feature #security
       @created 2026-04-30 00:20
+      @completed 2026-04-30 00:49
+
+- [x] feat: extend import with keys/manifest/snapshot autodetection plus --as and --yes #feature #cli
+      @created 2026-04-30 00:50
       @completed 2026-04-30 00:49
 
