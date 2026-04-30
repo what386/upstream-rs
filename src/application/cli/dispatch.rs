@@ -86,10 +86,9 @@ impl Cli {
                 purge: purge_option,
             } => features::remove::run(names, purge_option),
 
-            Commands::Reinstall {
-                names,
-                trust_mode,
-            } => features::reinstall::run(names, trust_mode).await,
+            Commands::Reinstall { names, trust_mode } => {
+                features::reinstall::run(names, trust_mode).await
+            }
 
             Commands::Upgrade {
                 names,
@@ -97,10 +96,7 @@ impl Cli {
                 check,
                 machine_readable,
                 trust_mode,
-            } => {
-                features::upgrade::run(names, force, check, machine_readable, trust_mode)
-                    .await
-            }
+            } => features::upgrade::run(names, force, check, machine_readable, trust_mode).await,
 
             Commands::List { name } => features::list::run(name),
 

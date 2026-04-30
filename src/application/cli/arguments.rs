@@ -561,9 +561,7 @@ mod tests {
         ]);
 
         match cli.command {
-            Commands::Install {
-                trust_mode, ..
-            } => assert_eq!(trust_mode, TrustMode::None),
+            Commands::Install { trust_mode, .. } => assert_eq!(trust_mode, TrustMode::None),
             other => panic!("unexpected command parsed: {}", other),
         }
     }
@@ -693,9 +691,7 @@ mod tests {
         let cli = Cli::parse_from(["upstream", "upgrade", "--trust", "signature"]);
 
         match cli.command {
-            Commands::Upgrade {
-                trust_mode, ..
-            } => assert_eq!(trust_mode, TrustMode::Signature),
+            Commands::Upgrade { trust_mode, .. } => assert_eq!(trust_mode, TrustMode::Signature),
             other => panic!("unexpected command parsed: {}", other),
         }
     }
@@ -705,10 +701,7 @@ mod tests {
         let cli = Cli::parse_from(["upstream", "reinstall", "rg", "fd", "--trust", "all"]);
 
         match cli.command {
-            Commands::Reinstall {
-                names,
-                trust_mode,
-            } => {
+            Commands::Reinstall { names, trust_mode } => {
                 assert_eq!(names, vec!["rg".to_string(), "fd".to_string()]);
                 assert_eq!(trust_mode, TrustMode::All);
             }

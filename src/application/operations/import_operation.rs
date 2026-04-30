@@ -162,14 +162,13 @@ impl<'a> ImportOperation<'a> {
 
             let installer = PackageInstaller::new(self.provider_manager, self.paths)?;
             let remover = PackageRemover::new(self.paths);
-            let upgrader =
-                PackageUpgrader::new(
-                    self.provider_manager,
-                    installer,
-                    remover,
-                    self.paths,
-                    self.trusted_keys.clone(),
-                );
+            let upgrader = PackageUpgrader::new(
+                self.provider_manager,
+                installer,
+                remover,
+                self.paths,
+                self.trusted_keys.clone(),
+            );
 
             for reference in &to_upgrade {
                 let Some(package) = self
@@ -239,13 +238,12 @@ impl<'a> ImportOperation<'a> {
 
             let packages: Vec<_> = to_install.into_iter().map(|r| r.into_package()).collect();
 
-            let mut install_op =
-                InstallOperation::new(
-                    self.provider_manager,
-                    self.package_storage,
-                    self.paths,
-                    self.trusted_keys.clone(),
-                )?;
+            let mut install_op = InstallOperation::new(
+                self.provider_manager,
+                self.package_storage,
+                self.paths,
+                self.trusted_keys.clone(),
+            )?;
             let total = packages.len() as u32;
             let mut completed = 0_u32;
 

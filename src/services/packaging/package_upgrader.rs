@@ -2,7 +2,10 @@
 use crate::services::integration::AppImageExtractor;
 use crate::{
     models::{
-        common::{DesktopEntry, enums::{Channel, TrustMode}},
+        common::{
+            DesktopEntry,
+            enums::{Channel, TrustMode},
+        },
         upstream::{InstallType, Package},
     },
     providers::provider_manager::ProviderManager,

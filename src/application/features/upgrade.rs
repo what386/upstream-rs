@@ -4,9 +4,7 @@ use crate::{
     },
     models::common::enums::TrustMode,
     providers::provider_manager::ProviderManager,
-    services::{
-        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
-    },
+    services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
@@ -41,8 +39,12 @@ pub async fn run(
     let trusted_keys = app_config.trusted_minisign_keys();
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
-    let mut package_upgrade =
-        UpgradeOperation::new(&provider_manager, &mut package_storage, &paths, trusted_keys)?;
+    let mut package_upgrade = UpgradeOperation::new(
+        &provider_manager,
+        &mut package_storage,
+        &paths,
+        trusted_keys,
+    )?;
 
     // Handle --check flag
     if check_option {

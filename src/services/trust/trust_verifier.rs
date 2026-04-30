@@ -73,7 +73,13 @@ impl<'a> TrustVerifier<'a> {
 
         let signature_status = self
             .signature_verifier
-            .try_verify_file(asset_path, release, provider, self.trusted_keys, dl_progress)
+            .try_verify_file(
+                asset_path,
+                release,
+                provider,
+                self.trusted_keys,
+                dl_progress,
+            )
             .await?;
 
         self.enforce_policy(&checksum_status, &signature_status)?;
@@ -97,7 +103,9 @@ impl<'a> TrustVerifier<'a> {
             }
             TrustMode::Checksum => {
                 if matches!(checksum, ChecksumVerificationStatus::Missing) {
-                    return Err(anyhow!("Checksum is required but no checksum asset was found"));
+                    return Err(anyhow!(
+                        "Checksum is required but no checksum asset was found"
+                    ));
                 }
                 self.enforce_signature_attempt_result(signature)?;
                 Ok(())
@@ -113,7 +121,9 @@ impl<'a> TrustVerifier<'a> {
             }
             TrustMode::All => {
                 if matches!(checksum, ChecksumVerificationStatus::Missing) {
-                    return Err(anyhow!("Checksum is required but no checksum asset was found"));
+                    return Err(anyhow!(
+                        "Checksum is required but no checksum asset was found"
+                    ));
                 }
                 if matches!(signature, SignatureVerificationStatus::MissingSignature) {
                     return Err(anyhow!(
@@ -126,17 +136,19 @@ impl<'a> TrustVerifier<'a> {
         }
     }
 
-    fn enforce_signature_attempt_result(&self, signature: &SignatureVerificationStatus) -> Result<()> {
+    fn enforce_signature_attempt_result(
+        &self,
+        signature: &SignatureVerificationStatus,
+    ) -> Result<()> {
         match signature {
             SignatureVerificationStatus::Verified { .. }
             | SignatureVerificationStatus::MissingSignature => Ok(()),
-            SignatureVerificationStatus::InvalidSignature => {
-                Err(anyhow!("Signature verification failed: signature is invalid"))
-            }
+            SignatureVerificationStatus::InvalidSignature => Err(anyhow!(
+                "Signature verification failed: signature is invalid"
+            )),
             SignatureVerificationStatus::NoTrustedKeyMatched => Err(anyhow!(
                 "Signature verification failed: no configured trusted key matched"
             )),
         }
     }
 }
-
