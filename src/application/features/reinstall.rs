@@ -5,7 +5,10 @@ use crate::{
     application::operations::{
         install_operation::InstallOperation, remove_operation::RemoveOperation,
     },
-    models::{common::enums::TrustMode, upstream::{InstallType, Package}},
+    models::{
+        common::enums::TrustMode,
+        upstream::{InstallType, Package},
+    },
     providers::provider_manager::ProviderManager,
     services::{
         builder::{BuildRequest, worker::BuildWorker},

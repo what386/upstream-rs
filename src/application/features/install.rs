@@ -17,9 +17,7 @@ use crate::{
         },
         provider_manager::ProviderManager,
     },
-    services::{
-        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
-    },
+    services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
 
