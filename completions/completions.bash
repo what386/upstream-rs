@@ -1135,12 +1135,16 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__import)
-            opts="-h --skip-failed --help <PATH>"
+            opts="-y -h --skip-failed --as --yes --help <PATH>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
+                --as)
+                    COMPREPLY=($(compgen -W "keys manifest snapshot" -- "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;
@@ -1149,7 +1153,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__install)
-            opts="-t -k -p -c -m -e -d -y -h --tag --kind --provider --base-url --channel --match-pattern --exclude-pattern --desktop --ignore-checksums --yes --help <NAME> <REPO_SLUG>"
+            opts="-t -k -p -c -m -e -d -y -h --tag --kind --provider --base-url --channel --match-pattern --exclude-pattern --desktop --trust --yes --help <NAME> <REPO_SLUG>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1205,6 +1209,10 @@ _upstream() {
                     ;;
                 -e)
                     COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --trust)
+                    COMPREPLY=($(compgen -W "none best-effort checksum signature all" -- "${cur}"))
                     return 0
                     ;;
                 *)
@@ -1505,12 +1513,16 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__reinstall)
-            opts="-h --ignore-checksums --help [NAMES]..."
+            opts="-h --trust --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
+                --trust)
+                    COMPREPLY=($(compgen -W "none best-effort checksum signature all" -- "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;
@@ -1533,12 +1545,16 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__upgrade)
-            opts="-h --force --check --machine-readable --ignore-checksums --help [NAMES]..."
+            opts="-h --force --check --machine-readable --trust --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
+                --trust)
+                    COMPREPLY=($(compgen -W "none best-effort checksum signature all" -- "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;

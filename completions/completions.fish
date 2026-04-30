@@ -36,7 +36,7 @@ complete -c upstream -n "__fish_upstream_needs_command" -f -a "probe" -d 'Inspec
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "config" -d 'Manage upstream configuration'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "package" -d 'Manage package-specific settings and metadata'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "hooks" -d 'Manage shell integration hooks and local upstream data'
-complete -c upstream -n "__fish_upstream_needs_command" -f -a "import" -d 'Import packages from a manifest or full snapshot'
+complete -c upstream -n "__fish_upstream_needs_command" -f -a "import" -d 'Import trusted keys, package metadata manifests, or full snapshots'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "export" -d 'Export packages to a manifest or full snapshot'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "doctor" -d 'Run diagnostics to detect installation and integration issues'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
@@ -57,8 +57,12 @@ preview\t''
 nightly\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s m -l match-pattern -d 'Match pattern to use as a hint for which asset to prefer' -r
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s e -l exclude-pattern -d 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")' -r
+complete -c upstream -n "__fish_upstream_using_subcommand install" -l trust -d 'Trust verification mode for downloaded assets' -r -f -a "none\t''
+best-effort\t''
+checksum\t''
+signature\t''
+all\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s d -l desktop -d 'Whether or not to create a .desktop entry for GUI applications'
-complete -c upstream -n "__fish_upstream_using_subcommand install" -l ignore-checksums -d 'Skip checksum verification for downloaded assets'
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s y -l yes -d 'Accept the recommended discovered asset without prompting'
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s t -l tag -d 'Version tag to build (defaults to latest)' -r
@@ -79,12 +83,20 @@ complete -c upstream -n "__fish_upstream_using_subcommand build" -s y -l yes -d 
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand remove" -l purge -d 'Remove all associated cached data'
 complete -c upstream -n "__fish_upstream_using_subcommand remove" -s h -l help -d 'Print help (see more with \'--help\')'
-complete -c upstream -n "__fish_upstream_using_subcommand reinstall" -l ignore-checksums -d 'Skip checksum verification for release-asset reinstalls'
+complete -c upstream -n "__fish_upstream_using_subcommand reinstall" -l trust -d 'Trust verification mode for release-asset reinstalls' -r -f -a "none\t''
+best-effort\t''
+checksum\t''
+signature\t''
+all\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand reinstall" -s h -l help -d 'Print help (see more with \'--help\')'
+complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l trust -d 'Trust verification mode for downloaded assets' -r -f -a "none\t''
+best-effort\t''
+checksum\t''
+signature\t''
+all\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l force -d 'Force upgrade even if already up to date'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l check -d 'Check for available upgrades without applying them'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l machine-readable -d 'Use script-friendly check output: one line per update, "name oldver newver"'
-complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l ignore-checksums -d 'Skip checksum verification for downloaded assets'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand list" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s p -l provider -d 'Source provider (defaults to github, or scraper for URLs)' -r
@@ -153,7 +165,11 @@ complete -c upstream -n "__fish_upstream_using_subcommand hooks; and __fish_seen
 complete -c upstream -n "__fish_upstream_using_subcommand hooks; and __fish_seen_subcommand_from help" -f -a "clean" -d 'Remove upstream shell integration hooks'
 complete -c upstream -n "__fish_upstream_using_subcommand hooks; and __fish_seen_subcommand_from help" -f -a "purge" -d 'Remove hooks and delete the local upstream data directory'
 complete -c upstream -n "__fish_upstream_using_subcommand hooks; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
-complete -c upstream -n "__fish_upstream_using_subcommand import" -l skip-failed -d 'Continue importing remaining packages when a package install/upgrade fails'
+complete -c upstream -n "__fish_upstream_using_subcommand import" -l as -d 'Force the input type instead of autodetection' -r -f -a "keys\t''
+manifest\t''
+snapshot\t''"
+complete -c upstream -n "__fish_upstream_using_subcommand import" -l skip-failed -d 'Continue importing remaining entries when metadata manifest processing fails'
+complete -c upstream -n "__fish_upstream_using_subcommand import" -s y -l yes -d 'Skip import confirmation prompt'
 complete -c upstream -n "__fish_upstream_using_subcommand import" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand export" -l full -d 'Export a full snapshot of the upstream directory instead of a manifest'
 complete -c upstream -n "__fish_upstream_using_subcommand export" -s h -l help -d 'Print help (see more with \'--help\')'
@@ -169,7 +185,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_s
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove reinstall upgrade list probe config package hooks import export doctor help" -f -a "config" -d 'Manage upstream configuration'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove reinstall upgrade list probe config package hooks import export doctor help" -f -a "package" -d 'Manage package-specific settings and metadata'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove reinstall upgrade list probe config package hooks import export doctor help" -f -a "hooks" -d 'Manage shell integration hooks and local upstream data'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove reinstall upgrade list probe config package hooks import export doctor help" -f -a "import" -d 'Import packages from a manifest or full snapshot'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove reinstall upgrade list probe config package hooks import export doctor help" -f -a "import" -d 'Import trusted keys, package metadata manifests, or full snapshots'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove reinstall upgrade list probe config package hooks import export doctor help" -f -a "export" -d 'Export packages to a manifest or full snapshot'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove reinstall upgrade list probe config package hooks import export doctor help" -f -a "doctor" -d 'Run diagnostics to detect installation and integration issues'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove reinstall upgrade list probe config package hooks import export doctor help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
