@@ -5,11 +5,18 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use toml;
 
-use crate::models::upstream::AppConfig;
+use crate::models::upstream::{AppConfig, MinisignKeyConfig};
+use crate::services::trust::MinisignPublicKey;
 
 pub struct ConfigStorage {
     config: AppConfig,
     config_file: PathBuf,
+}
+
+pub struct KeyMergeSummary {
+    pub imported: usize,
+    pub deduped: usize,
+    pub total: usize,
 }
 
 impl ConfigStorage {
@@ -56,6 +63,47 @@ impl ConfigStorage {
 
     pub fn get_config(&self) -> &AppConfig {
         &self.config
+    }
+
+    pub fn merge_trusted_minisign_keys(
+        &mut self,
+        keys: &[MinisignPublicKey],
+    ) -> Result<KeyMergeSummary> {
+        let mut imported = 0_usize;
+        let mut deduped = 0_usize;
+        let total;
+
+        {
+            let existing = &mut self.config.trust.minisign_public_keys;
+            for key in keys {
+                let normalized = key.key.trim();
+                if normalized.is_empty() {
+                    continue;
+                }
+                let duplicate = existing
+                    .iter()
+                    .any(|k| k.key.trim().eq_ignore_ascii_case(normalized));
+                if duplicate {
+                    deduped += 1;
+                    continue;
+                }
+
+                existing.push(MinisignKeyConfig {
+                    id: key.id.clone(),
+                    key: normalized.to_string(),
+                });
+                imported += 1;
+            }
+            total = existing.len();
+        }
+
+        self.save_config()?;
+
+        Ok(KeyMergeSummary {
+            imported,
+            deduped,
+            total,
+        })
     }
 
     /// Sets a configuration value at the given key path (e.g., "github.api_token").

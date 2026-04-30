@@ -1,20 +1,21 @@
 use crate::{
-    application::operations::install_operation::InstallOperation,
-    models::common::enums::TrustMode,
     models::upstream::PackageReference,
-    providers::provider_manager::ProviderManager,
     services::{
-        packaging::{PackageInstaller, PackageRemover, PackageUpgrader},
-        storage::package_storage::PackageStorage,
+        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
         trust::MinisignPublicKey,
     },
     utils::static_paths::UpstreamPaths,
 };
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
+use minisign_verify::PublicKey;
 use console::style;
 use serde::Deserialize;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{fs, path::Path};
+use std::{
+    fs,
+    io::{self, IsTerminal, Write},
+    path::Path,
+};
 
 // ---------------------------------------------------------------------------
 // Manifest (mirrors ExportManifest but only needs Deserialize)
@@ -26,9 +27,12 @@ pub struct ImportManifest {
     pub packages: Vec<PackageReference>,
 }
 
-// ---------------------------------------------------------------------------
-// Detection
-// ---------------------------------------------------------------------------
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportKind {
+    Keys,
+    Manifest,
+    Snapshot,
+}
 
 /// Returns true if the path looks like a tarball we produced.
 fn is_snapshot(path: &Path) -> bool {
@@ -41,32 +45,47 @@ fn is_snapshot(path: &Path) -> bool {
 // ---------------------------------------------------------------------------
 
 pub struct ImportOperation<'a> {
-    provider_manager: &'a ProviderManager,
     package_storage: &'a mut PackageStorage,
     paths: &'a UpstreamPaths,
-    trusted_keys: Vec<MinisignPublicKey>,
 }
 
 impl<'a> ImportOperation<'a> {
-    pub fn new(
-        provider_manager: &'a ProviderManager,
-        package_storage: &'a mut PackageStorage,
-        paths: &'a UpstreamPaths,
-        trusted_keys: Vec<MinisignPublicKey>,
-    ) -> Self {
+    pub fn new(package_storage: &'a mut PackageStorage, paths: &'a UpstreamPaths) -> Self {
         Self {
-            provider_manager,
             package_storage,
             paths,
-            trusted_keys,
         }
     }
 
-    /// Entry point — dispatches to manifest or snapshot based on the file.
+    pub fn detect_kind(path: &Path, forced_kind: Option<ImportKind>) -> Result<ImportKind> {
+        if let Some(kind) = forced_kind {
+            return Ok(kind);
+        }
+
+        if is_snapshot(path) {
+            return Ok(ImportKind::Snapshot);
+        }
+
+        if Self::read_manifest(path).is_ok() {
+            return Ok(ImportKind::Manifest);
+        }
+
+        if Self::parse_minisign_key_file(path).is_ok() {
+            return Ok(ImportKind::Keys);
+        }
+
+        Err(anyhow!(
+            "Could not detect import type for '{}'. Use --as keys|manifest|snapshot.",
+            path.display()
+        ))
+    }
+
     pub async fn import<F, G, H>(
         &mut self,
         path: &Path,
         skip_failed: bool,
+        forced_kind: Option<ImportKind>,
+        yes: bool,
         download_progress_callback: &mut Option<F>,
         overall_progress_callback: &mut Option<G>,
         message_callback: &mut Option<H>,
@@ -76,34 +95,63 @@ impl<'a> ImportOperation<'a> {
         G: FnMut(u32, u32),
         H: FnMut(&str),
     {
-        if is_snapshot(path) {
-            if skip_failed {
-                message!(
-                    message_callback,
-                    "{}",
-                    style("Note: --skip-failed has no effect for snapshot imports").yellow()
-                );
+        let kind = Self::detect_kind(path, forced_kind)?;
+
+        match kind {
+            ImportKind::Snapshot => {
+                if !yes && !Self::confirm_snapshot(path)? {
+                    return Err(anyhow!("Import cancelled"));
+                }
+                if skip_failed {
+                    message!(
+                        message_callback,
+                        "{}",
+                        style("Note: --skip-failed has no effect for snapshot imports").yellow()
+                    );
+                }
+                self.import_snapshot(path, message_callback)
             }
-            self.import_snapshot(path, message_callback)
-        } else {
-            self.import_manifest(
-                path,
-                skip_failed,
-                download_progress_callback,
-                overall_progress_callback,
-                message_callback,
-            )
-            .await
+            ImportKind::Manifest => {
+                let manifest = Self::read_manifest(path)?;
+                if !yes && !Self::confirm_manifest(path, manifest.packages.len())? {
+                    return Err(anyhow!("Import cancelled"));
+                }
+                self.import_manifest_metadata(
+                    manifest,
+                    skip_failed,
+                    download_progress_callback,
+                    overall_progress_callback,
+                    message_callback,
+                )
+                .await
+            }
+            ImportKind::Keys => {
+                let keys = Self::parse_minisign_key_file(path)?;
+                if !yes && !Self::confirm_keys(path, keys.len())? {
+                    return Err(anyhow!("Import cancelled"));
+                }
+                self.import_keys(keys, skip_failed, message_callback)
+            }
         }
     }
+    
+    fn read_manifest(path: &Path) -> Result<ImportManifest> {
+        let content = fs::read_to_string(path)
+            .context(format!("Failed to read manifest from '{}'", path.display()))?;
+        let manifest: ImportManifest =
+            serde_json::from_str(&content).context("Failed to parse manifest")?;
+        if manifest.version != 1 {
+            bail!(
+                "Unsupported manifest version {}. Upgrade upstream and try again.",
+                manifest.version
+            );
+        }
+        Ok(manifest)
+    }
 
-    // -----------------------------------------------------------------------
-    // Light import (manifest)
-    // -----------------------------------------------------------------------
-
-    async fn import_manifest<F, G, H>(
+    async fn import_manifest_metadata<F, G, H>(
         &mut self,
-        path: &Path,
+        manifest: ImportManifest,
         skip_failed: bool,
         download_progress_callback: &mut Option<F>,
         overall_progress_callback: &mut Option<G>,
@@ -114,195 +162,154 @@ impl<'a> ImportOperation<'a> {
         G: FnMut(u32, u32),
         H: FnMut(&str),
     {
-        let content = fs::read_to_string(path)
-            .context(format!("Failed to read manifest from '{}'", path.display()))?;
+        let _ = download_progress_callback;
 
-        let manifest: ImportManifest =
-            serde_json::from_str(&content).context("Failed to parse manifest")?;
+        let total = manifest.packages.len() as u32;
+        let mut completed = 0_u32;
+        let mut imported = 0_u32;
+        let mut skipped = 0_u32;
 
-        if manifest.version != 1 {
-            return Err(anyhow!(
-                "Unsupported manifest version {}. Upgrade upstream and try again.",
-                manifest.version
-            ));
-        }
-
-        // Split into packages that need installing vs upgrading (force).
-        let installed_names: std::collections::HashSet<&str> = self
-            .package_storage
-            .get_all_packages()
-            .iter()
-            .filter(|p| p.install_path.is_some())
-            .map(|p| p.name.as_str())
-            .collect();
-
-        let mut to_install = Vec::new();
-        let mut to_upgrade = Vec::new();
-        let mut failures = 0_u32;
-
-        for reference in &manifest.packages {
-            if installed_names.contains(reference.name.as_str()) {
-                to_upgrade.push(reference.clone());
+        for reference in manifest.packages {
+            if self
+                .package_storage
+                .get_package_by_name(&reference.name)
+                .is_some()
+            {
+                skipped += 1;
+                message!(
+                    message_callback,
+                    "{} Package '{}' already exists; skipping",
+                    style("Skipped:").yellow(),
+                    reference.name
+                );
+            } else if let Err(err) = self
+                .package_storage
+                .add_or_update_package(reference.into_package())
+            {
+                if skip_failed {
+                    skipped += 1;
+                    message!(
+                        message_callback,
+                        "{} {}",
+                        style("Failed to import package metadata:").red(),
+                        err
+                    );
+                } else {
+                    return Err(err);
+                }
             } else {
-                to_install.push(reference.clone());
+                imported += 1;
+            }
+
+            completed += 1;
+            if let Some(cb) = overall_progress_callback.as_mut() {
+                cb(completed, total);
             }
         }
 
-        // --- Upgrade already-installed packages (force) ---
-        if !to_upgrade.is_empty() {
+        message!(
+            message_callback,
+            "Manifest import complete: {} added, {} skipped",
+            imported,
+            skipped
+        );
+        Ok(())
+    }
+
+    fn import_keys<H>(
+        &mut self,
+        keys: Vec<MinisignPublicKey>,
+        skip_failed: bool,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        if skip_failed {
             message!(
                 message_callback,
                 "{}",
-                style(format!(
-                    "{} package(s) already installed — forcing upgrade",
-                    to_upgrade.len()
-                ))
-                .yellow()
-            );
-
-            let installer = PackageInstaller::new(self.provider_manager, self.paths)?;
-            let remover = PackageRemover::new(self.paths);
-            let upgrader = PackageUpgrader::new(
-                self.provider_manager,
-                installer,
-                remover,
-                self.paths,
-                self.trusted_keys.clone(),
-            );
-
-            for reference in &to_upgrade {
-                let Some(package) = self
-                    .package_storage
-                    .get_package_by_name(&reference.name)
-                    .cloned()
-                else {
-                    if skip_failed {
-                        failures += 1;
-                        message!(
-                            message_callback,
-                            "{} Package '{}' missing from storage; skipping",
-                            style("Upgrade failed:").red(),
-                            reference.name
-                        );
-                        continue;
-                    }
-                    return Err(anyhow!("Package '{}' not found in storage", reference.name));
-                };
-
-                message!(message_callback, "Upgrading '{}' ...", reference.name);
-
-                match upgrader
-                    .upgrade(
-                        &package,
-                        true,
-                        TrustMode::BestEffort,
-                        download_progress_callback,
-                        message_callback,
-                    )
-                    .await
-                {
-                    Ok(Some(updated)) => {
-                        self.package_storage.add_or_update_package(updated)?;
-                        message!(
-                            message_callback,
-                            "{}",
-                            style(format!("'{}' upgraded", reference.name)).green()
-                        );
-                    }
-                    Ok(None) => {
-                        // Shouldn't happen with force=true, but harmless
-                        message!(message_callback, "'{}' already up to date", reference.name);
-                    }
-                    Err(e) => {
-                        if skip_failed {
-                            failures += 1;
-                            message!(message_callback, "{} {}", style("Upgrade failed:").red(), e);
-                        } else {
-                            return Err(e).context(format!(
-                                "Failed to upgrade package '{}'",
-                                reference.name
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-
-        // --- Install new packages via existing bulk path ---
-        if !to_install.is_empty() {
-            message!(
-                message_callback,
-                "Installing {} new package(s) ...",
-                to_install.len()
-            );
-
-            let packages: Vec<_> = to_install.into_iter().map(|r| r.into_package()).collect();
-
-            let mut install_op = InstallOperation::new(
-                self.provider_manager,
-                self.package_storage,
-                self.paths,
-                self.trusted_keys.clone(),
-            )?;
-            let total = packages.len() as u32;
-            let mut completed = 0_u32;
-
-            for package in packages {
-                let package_name = package.name.clone();
-                let use_icon = package.icon_path.is_some();
-                message!(message_callback, "Installing '{}' ...", package_name);
-
-                let install_result = install_op
-                    .install_single(
-                        package,
-                        &None,
-                        &use_icon,
-                        TrustMode::BestEffort,
-                        download_progress_callback,
-                        message_callback,
-                    )
-                    .await
-                    .context(format!("Failed to install package '{}'", package_name));
-
-                match install_result {
-                    Ok(_) => {
-                        message!(
-                            message_callback,
-                            "{}",
-                            style(format!("'{}' installed", package_name)).green()
-                        );
-                    }
-                    Err(err) => {
-                        if skip_failed {
-                            failures += 1;
-                            message!(
-                                message_callback,
-                                "{} {}",
-                                style("Install failed:").red(),
-                                err
-                            );
-                        } else {
-                            return Err(err);
-                        }
-                    }
-                }
-
-                completed += 1;
-                if let Some(cb) = overall_progress_callback.as_mut() {
-                    cb(completed, total);
-                }
-            }
-        }
-
-        if skip_failed && failures > 0 {
-            message!(
-                message_callback,
-                "{} package(s) failed during import but were skipped",
-                failures
+                style("Note: --skip-failed has no effect for key imports").yellow()
             );
         }
-
+        let mut config_storage = ConfigStorage::new(&self.paths.config.config_file)?;
+        let summary = config_storage.merge_trusted_minisign_keys(&keys)?;
+        message!(
+            message_callback,
+            "Key import complete: {} imported, {} deduped, {} total trusted keys",
+            summary.imported,
+            summary.deduped,
+            summary.total
+        );
         Ok(())
+    }
+
+    fn parse_minisign_key_file(path: &Path) -> Result<Vec<MinisignPublicKey>> {
+        let content = fs::read_to_string(path)
+            .context(format!("Failed to read key file '{}'", path.display()))?;
+        let mut keys = Vec::new();
+        for raw_line in content.lines() {
+            let line = raw_line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if line.to_ascii_lowercase().starts_with("untrusted comment:") {
+                continue;
+            }
+            if PublicKey::from_base64(line).is_ok() {
+                keys.push(MinisignPublicKey {
+                    id: None,
+                    key: line.to_string(),
+                });
+            }
+        }
+
+        if keys.is_empty() {
+            return Err(anyhow!(
+                "No valid minisign public keys found in '{}'",
+                path.display()
+            ));
+        }
+
+        Ok(keys)
+    }
+
+    fn confirm_manifest(path: &Path, package_count: usize) -> Result<bool> {
+        Self::confirm(
+            &format!(
+                "Import manifest '{}' with {} package metadata entries? [y/N]: ",
+                path.display(),
+                package_count
+            ),
+        )
+    }
+
+    fn confirm_keys(path: &Path, key_count: usize) -> Result<bool> {
+        Self::confirm(&format!(
+            "Import {} trusted minisign key(s) from '{}' ? [y/N]: ",
+            key_count,
+            path.display()
+        ))
+    }
+
+    fn confirm_snapshot(path: &Path) -> Result<bool> {
+        Self::confirm(&format!(
+            "Restore snapshot from '{}' ? [y/N]: ",
+            path.display()
+        ))
+    }
+
+    fn confirm(prompt: &str) -> Result<bool> {
+        if !io::stdin().is_terminal() {
+            return Err(anyhow!(
+                "Confirmation required but no interactive terminal detected. Re-run with --yes."
+            ));
+        }
+        print!("{prompt}");
+        io::stdout().flush()?;
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        Ok(input.trim().to_ascii_lowercase().starts_with('y'))
     }
 
     // -----------------------------------------------------------------------
@@ -416,8 +423,7 @@ use message;
 
 #[cfg(test)]
 mod tests {
-    use super::{ImportOperation, is_snapshot};
-    use crate::providers::provider_manager::ProviderManager;
+    use super::{ImportKind, ImportOperation, is_snapshot};
     use crate::services::storage::package_storage::PackageStorage;
     use crate::utils::static_paths::{
         AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, UpstreamPaths,
@@ -487,14 +493,21 @@ mod tests {
             .expect("write manifest");
 
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let manager = ProviderManager::new(None, None, None).expect("provider manager");
-        let mut operation = ImportOperation::new(&manager, &mut storage, &paths, Vec::new());
+        let mut operation = ImportOperation::new(&mut storage, &paths);
         let mut dlp: Option<fn(u64, u64)> = None;
         let mut op: Option<fn(u32, u32)> = None;
         let mut msg: Option<fn(&str)> = None;
 
         let err = operation
-            .import(&manifest_path, false, &mut dlp, &mut op, &mut msg)
+            .import(
+                &manifest_path,
+                false,
+                Some(ImportKind::Manifest),
+                true,
+                &mut dlp,
+                &mut op,
+                &mut msg,
+            )
             .await
             .expect_err("must reject unsupported version");
         assert!(err.to_string().contains("Unsupported manifest version"));
