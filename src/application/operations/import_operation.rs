@@ -7,8 +7,8 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow, bail};
-use minisign_verify::PublicKey;
 use console::style;
+use minisign_verify::PublicKey;
 use serde::Deserialize;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
@@ -80,6 +80,7 @@ impl<'a> ImportOperation<'a> {
         ))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn import<F, G, H>(
         &mut self,
         path: &Path,
@@ -134,7 +135,7 @@ impl<'a> ImportOperation<'a> {
             }
         }
     }
-    
+
     fn read_manifest(path: &Path) -> Result<ImportManifest> {
         let content = fs::read_to_string(path)
             .context(format!("Failed to read manifest from '{}'", path.display()))?;
@@ -275,13 +276,11 @@ impl<'a> ImportOperation<'a> {
     }
 
     fn confirm_manifest(path: &Path, package_count: usize) -> Result<bool> {
-        Self::confirm(
-            &format!(
-                "Import manifest '{}' with {} package metadata entries? [y/N]: ",
-                path.display(),
-                package_count
-            ),
-        )
+        Self::confirm(&format!(
+            "Import manifest '{}' with {} package metadata entries? [y/N]: ",
+            path.display(),
+            package_count
+        ))
     }
 
     fn confirm_keys(path: &Path, key_count: usize) -> Result<bool> {
