@@ -2,7 +2,7 @@
 use crate::services::integration::AppImageExtractor;
 use crate::{
     models::{
-        common::{DesktopEntry, enums::Channel},
+        common::{DesktopEntry, enums::{Channel, TrustMode}},
         upstream::{InstallType, Package},
     },
     providers::provider_manager::ProviderManager,
@@ -10,6 +10,7 @@ use crate::{
     services::{
         integration::{DesktopManager, IconManager},
         packaging::{PackageInstaller, PackageRemover},
+        trust::MinisignPublicKey,
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -34,6 +35,7 @@ pub struct PackageUpgrader<'a> {
     installer: PackageInstaller<'a>,
     remover: PackageRemover<'a>,
     paths: &'a UpstreamPaths,
+    trusted_keys: Vec<MinisignPublicKey>,
 }
 
 impl<'a> PackageUpgrader<'a> {
@@ -59,12 +61,14 @@ impl<'a> PackageUpgrader<'a> {
         installer: PackageInstaller<'a>,
         remover: PackageRemover<'a>,
         paths: &'a UpstreamPaths,
+        trusted_keys: Vec<MinisignPublicKey>,
     ) -> Self {
         Self {
             provider_manager,
             installer,
             remover,
             paths,
+            trusted_keys,
         }
     }
 
@@ -77,7 +81,7 @@ impl<'a> PackageUpgrader<'a> {
         &self,
         package: &Package,
         force: bool,
-        ignore_checksums: bool,
+        trust_mode: TrustMode,
         download_progress: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<Option<Package>>
@@ -265,7 +269,8 @@ impl<'a> PackageUpgrader<'a> {
                     latest_release
                         .as_ref()
                         .expect("release install path requires latest release"),
-                    ignore_checksums,
+                    trust_mode,
+                    &self.trusted_keys,
                     download_progress,
                     message_callback,
                 )
