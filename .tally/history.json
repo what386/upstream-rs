@@ -882,5 +882,19 @@
       "patch": 0,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "feat: replace --ignore-checksums with --trust policy modes and wire signature checks",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "security",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-04-30T00:49:29.851150974Z"
+    },
+    "version": null
   }
 ]
