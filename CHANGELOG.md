@@ -1,6 +1,16 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-04-29*
+*Generated on 2026-04-30*
+
+## 1.11.0 — 2026-04-30
+
+### Changes
+
+- feat: replace --ignore-checksums with --trust policy modes and wire signature checks `feature`, `security`, `cli`
+- feat: add trusted minisign key helpers in config model/storage `feature`, `security`
+- feat: extend import with keys/manifest/snapshot autodetection plus --as and --yes `feature`, `cli`
+- feat: switch manifest import to metadata-only with conflict skip/warn behavior `feature`, `cli`
+
 
 ## 1.10.0 — 2026-04-29
 
