@@ -896,5 +896,18 @@
       "completed_at": "2026-04-30T00:49:29.851150974Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: add trusted minisign key helpers in config model/storage",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "security"
+      ],
+      "commit": null,
+      "completed_at": "2026-04-30T00:49:30.949829448Z"
+    },
+    "version": null
   }
 ]
