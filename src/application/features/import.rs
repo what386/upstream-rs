@@ -1,7 +1,6 @@
 use crate::{
-    application::operations::import_operation::ImportOperation,
-    providers::provider_manager::ProviderManager,
-    services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+    application::operations::import_operation::{ImportKind, ImportOperation},
+    services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
@@ -10,24 +9,32 @@ use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::PathBuf;
 use std::time::Duration;
 
-pub async fn run_import(path: PathBuf, skip_failed: bool) -> Result<()> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportKindArg {
+    Keys,
+    Manifest,
+    Snapshot,
+}
+
+impl From<ImportKindArg> for ImportKind {
+    fn from(value: ImportKindArg) -> Self {
+        match value {
+            ImportKindArg::Keys => ImportKind::Keys,
+            ImportKindArg::Manifest => ImportKind::Manifest,
+            ImportKindArg::Snapshot => ImportKind::Snapshot,
+        }
+    }
+}
+
+pub async fn run_import(
+    path: PathBuf,
+    skip_failed: bool,
+    import_as: Option<ImportKindArg>,
+    yes: bool,
+) -> Result<()> {
     let paths = UpstreamPaths::new()?;
-    let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let app_config = config.get_config();
-
-    let github_token = app_config.github.api_token.as_deref();
-    let gitlab_token = app_config.gitlab.api_token.as_deref();
-    let gitea_token = app_config.gitea.api_token.as_deref();
-    let trusted_keys = app_config.trusted_minisign_keys();
-    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
-
-    let mut import_op = ImportOperation::new(
-        &provider_manager,
-        &mut package_storage,
-        &paths,
-        trusted_keys,
-    );
+    let mut import_op = ImportOperation::new(&mut package_storage, &paths);
 
     println!(
         "{}",
@@ -57,6 +64,8 @@ pub async fn run_import(path: PathBuf, skip_failed: bool) -> Result<()> {
         .import(
             &path,
             skip_failed,
+            import_as.map(Into::into),
+            yes,
             &mut download_progress_callback,
             &mut overall_progress_callback,
             &mut message_callback,

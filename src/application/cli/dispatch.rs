@@ -1,6 +1,8 @@
 use anyhow::Result;
 
-use crate::application::cli::arguments::{Cli, Commands, ConfigAction, HooksAction, PackageAction};
+use crate::application::cli::arguments::{
+    Cli, Commands, ConfigAction, HooksAction, ImportAs, PackageAction,
+};
 use crate::application::features;
 use crate::services::storage::lock_storage::LockStorage;
 use crate::utils::static_paths::UpstreamPaths;
@@ -130,8 +132,18 @@ impl Cli {
             },
 
             Commands::Export { path, full } => features::export::run_export(path, full).await,
-            Commands::Import { path, skip_failed } => {
-                features::import::run_import(path, skip_failed).await
+            Commands::Import {
+                path,
+                skip_failed,
+                import_as,
+                yes,
+            } => {
+                let forced_kind = import_as.map(|value| match value {
+                    ImportAs::Keys => features::import::ImportKindArg::Keys,
+                    ImportAs::Manifest => features::import::ImportKindArg::Manifest,
+                    ImportAs::Snapshot => features::import::ImportKindArg::Snapshot,
+                });
+                features::import::run_import(path, skip_failed, forced_kind, yes).await
             }
             Commands::Doctor { names, verbose } => features::doctor::run(names, verbose),
         }

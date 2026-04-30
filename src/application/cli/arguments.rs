@@ -10,6 +10,13 @@ pub enum BuildProfile {
     Cmake,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum ImportAs {
+    Keys,
+    Manifest,
+    Snapshot,
+}
+
 #[derive(Parser)]
 #[command(name = "upstream")]
 #[command(about = "A package manager for everything else.")]
@@ -300,23 +307,32 @@ pub enum Commands {
         action: HooksAction,
     },
 
-    /// Import packages from a manifest or full snapshot
+    /// Import trusted keys, package metadata manifests, or full snapshots
     #[command(
-        long_about = "Import packages from a previously exported manifest or snapshot.\n\n\
-        Reads a manifest and reinstalls each package, or restores a full snapshot \
-        created with 'upstream export --full'. Packages that are already installed \
-        will be skipped.\n\n\
+        long_about = "Import trusted keys, package metadata manifests, or full snapshots.\n\n\
+        Autodetects the input type by content/extension, prompts for confirmation by default, \
+        and then performs the selected import operation.\n\n\
         EXAMPLES:\n  \
-        upstream import ./packages.json           # Import from manifest\n  \
-        upstream import ./backup.tar.gz           # Restore full snapshot"
+        upstream import ./minisign.pub            # Import trusted minisign keys\n  \
+        upstream import ./packages.json           # Import package metadata manifest\n  \
+        upstream import ./backup.tar.gz           # Restore full snapshot\n  \
+        upstream import ./input.bin --as keys --yes"
     )]
     Import {
-        /// Path to the manifest or snapshot archive
+        /// Path to a keys file, metadata manifest, or snapshot archive
         path: std::path::PathBuf,
 
-        /// Continue importing remaining packages when a package install/upgrade fails
+        /// Continue importing remaining entries when metadata manifest processing fails
         #[arg(long, default_value_t = false)]
         skip_failed: bool,
+
+        /// Force the input type instead of autodetection
+        #[arg(long = "as", value_enum)]
+        import_as: Option<ImportAs>,
+
+        /// Skip import confirmation prompt
+        #[arg(long, short = 'y', default_value_t = false)]
+        yes: bool,
     },
 
     /// Export packages to a manifest or full snapshot
@@ -545,7 +561,7 @@ pub enum PackageAction {
 
 #[cfg(test)]
 mod tests {
-    use super::{BuildProfile, Cli, Commands, ConfigAction, HooksAction, PackageAction};
+    use super::{BuildProfile, Cli, Commands, ConfigAction, HooksAction, ImportAs, PackageAction};
     use crate::models::common::enums::TrustMode;
     use clap::Parser;
 
@@ -717,6 +733,33 @@ mod tests {
             Commands::Package {
                 action: PackageAction::Remove { name },
             } => assert_eq!(name, "ripgrep"),
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn import_parses_as_and_yes_flags() {
+        let cli = Cli::parse_from([
+            "upstream",
+            "import",
+            "minisign.pub",
+            "--as",
+            "keys",
+            "--yes",
+        ]);
+
+        match cli.command {
+            Commands::Import {
+                path,
+                skip_failed,
+                import_as,
+                yes,
+            } => {
+                assert_eq!(path, std::path::PathBuf::from("minisign.pub"));
+                assert!(!skip_failed);
+                assert_eq!(import_as, Some(ImportAs::Keys));
+                assert!(yes);
+            }
             other => panic!("unexpected command parsed: {}", other),
         }
     }
