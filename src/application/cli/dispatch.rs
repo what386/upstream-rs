@@ -33,7 +33,7 @@ impl Cli {
                 match_pattern,
                 exclude_pattern,
                 desktop,
-                ignore_checksums,
+                trust_mode,
                 yes,
             } => {
                 features::install::run(
@@ -47,7 +47,7 @@ impl Cli {
                     match_pattern,
                     exclude_pattern,
                     desktop,
-                    ignore_checksums,
+                    trust_mode,
                     yes,
                 )
                 .await
@@ -88,17 +88,17 @@ impl Cli {
 
             Commands::Reinstall {
                 names,
-                ignore_checksums,
-            } => features::reinstall::run(names, ignore_checksums).await,
+                trust_mode,
+            } => features::reinstall::run(names, trust_mode).await,
 
             Commands::Upgrade {
                 names,
                 force,
                 check,
                 machine_readable,
-                ignore_checksums,
+                trust_mode,
             } => {
-                features::upgrade::run(names, force, check, machine_readable, ignore_checksums)
+                features::upgrade::run(names, force, check, machine_readable, trust_mode)
                     .await
             }
 
