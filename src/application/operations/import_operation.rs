@@ -1,10 +1,12 @@
 use crate::{
     application::operations::install_operation::InstallOperation,
+    models::common::enums::TrustMode,
     models::upstream::PackageReference,
     providers::provider_manager::ProviderManager,
     services::{
         packaging::{PackageInstaller, PackageRemover, PackageUpgrader},
         storage::package_storage::PackageStorage,
+        trust::MinisignPublicKey,
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -42,6 +44,7 @@ pub struct ImportOperation<'a> {
     provider_manager: &'a ProviderManager,
     package_storage: &'a mut PackageStorage,
     paths: &'a UpstreamPaths,
+    trusted_keys: Vec<MinisignPublicKey>,
 }
 
 impl<'a> ImportOperation<'a> {
@@ -49,11 +52,13 @@ impl<'a> ImportOperation<'a> {
         provider_manager: &'a ProviderManager,
         package_storage: &'a mut PackageStorage,
         paths: &'a UpstreamPaths,
+        trusted_keys: Vec<MinisignPublicKey>,
     ) -> Self {
         Self {
             provider_manager,
             package_storage,
             paths,
+            trusted_keys,
         }
     }
 
@@ -158,7 +163,13 @@ impl<'a> ImportOperation<'a> {
             let installer = PackageInstaller::new(self.provider_manager, self.paths)?;
             let remover = PackageRemover::new(self.paths);
             let upgrader =
-                PackageUpgrader::new(self.provider_manager, installer, remover, self.paths);
+                PackageUpgrader::new(
+                    self.provider_manager,
+                    installer,
+                    remover,
+                    self.paths,
+                    self.trusted_keys.clone(),
+                );
 
             for reference in &to_upgrade {
                 let Some(package) = self
@@ -185,7 +196,7 @@ impl<'a> ImportOperation<'a> {
                     .upgrade(
                         &package,
                         true,
-                        false,
+                        TrustMode::BestEffort,
                         download_progress_callback,
                         message_callback,
                     )
@@ -229,7 +240,12 @@ impl<'a> ImportOperation<'a> {
             let packages: Vec<_> = to_install.into_iter().map(|r| r.into_package()).collect();
 
             let mut install_op =
-                InstallOperation::new(self.provider_manager, self.package_storage, self.paths)?;
+                InstallOperation::new(
+                    self.provider_manager,
+                    self.package_storage,
+                    self.paths,
+                    self.trusted_keys.clone(),
+                )?;
             let total = packages.len() as u32;
             let mut completed = 0_u32;
 
@@ -243,7 +259,7 @@ impl<'a> ImportOperation<'a> {
                         package,
                         &None,
                         &use_icon,
-                        false,
+                        TrustMode::BestEffort,
                         download_progress_callback,
                         message_callback,
                     )
@@ -474,7 +490,7 @@ mod tests {
 
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
         let manager = ProviderManager::new(None, None, None).expect("provider manager");
-        let mut operation = ImportOperation::new(&manager, &mut storage, &paths);
+        let mut operation = ImportOperation::new(&manager, &mut storage, &paths, Vec::new());
         let mut dlp: Option<fn(u64, u64)> = None;
         let mut op: Option<fn(u32, u32)> = None;
         let mut msg: Option<fn(&str)> = None;
