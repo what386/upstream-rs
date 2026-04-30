@@ -31,7 +31,10 @@ pub enum ImportAs {
     upstream list                   # Show installed packages\n  \
     upstream config set github.api_token=ghp_xxx"
 )]
-#[command(version)]
+#[command(
+    version,
+    long_version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("GIT_HASH"), ")")
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
