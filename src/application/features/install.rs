@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use crate::{
     application::operations::install_operation::InstallOperation,
     models::{
-        common::enums::{Channel, Filetype, Provider},
+        common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::Package,
     },
     providers::{
@@ -17,7 +17,9 @@ use crate::{
         },
         provider_manager::ProviderManager,
     },
-    services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+    services::{
+        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+    },
     utils::static_paths::UpstreamPaths,
 };
 
@@ -33,7 +35,7 @@ pub async fn run(
     match_pattern: Option<String>,
     exclude_pattern: Option<String>,
     create_entry: bool,
-    ignore_checksums: bool,
+    trust_mode: TrustMode,
     yes: bool,
 ) -> Result<()> {
     const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
@@ -42,12 +44,14 @@ pub async fn run(
 
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
+    let app_config = config.get_config();
 
-    let github_token = config.get_config().github.api_token.as_deref();
-    let gitlab_token = config.get_config().gitlab.api_token.as_deref();
-    let gitea_token = config.get_config().gitea.api_token.as_deref();
+    let github_token = app_config.github.api_token.as_deref();
+    let gitlab_token = app_config.gitlab.api_token.as_deref();
+    let gitea_token = app_config.gitea.api_token.as_deref();
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
+    let trusted_keys = app_config.trusted_minisign_keys();
 
     let package = build_package(
         &provider_manager,
@@ -72,8 +76,12 @@ pub async fn run(
         .cyan()
     );
 
-    let mut package_installer =
-        InstallOperation::new(&provider_manager, &mut package_storage, &paths)?;
+    let mut package_installer = InstallOperation::new(
+        &provider_manager,
+        &mut package_storage,
+        &paths,
+        trusted_keys,
+    )?;
 
     let pb = ProgressBar::new(0);
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -107,7 +115,7 @@ pub async fn run(
             package,
             &version,
             &create_entry,
-            ignore_checksums,
+            trust_mode,
             &mut download_progress_callback,
             &mut message_callback,
         )

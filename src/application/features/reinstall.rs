@@ -5,16 +5,17 @@ use crate::{
     application::operations::{
         install_operation::InstallOperation, remove_operation::RemoveOperation,
     },
-    models::upstream::{InstallType, Package},
+    models::{common::enums::TrustMode, upstream::{InstallType, Package}},
     providers::provider_manager::ProviderManager,
     services::{
         builder::{BuildRequest, worker::BuildWorker},
         storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+        trust::MinisignPublicKey,
     },
     utils::static_paths::UpstreamPaths,
 };
 
-pub async fn run(names: Vec<String>, ignore_checksums: bool) -> Result<()> {
+pub async fn run(names: Vec<String>, trust_mode: TrustMode) -> Result<()> {
     if names.is_empty() {
         return Err(anyhow!("At least one package name is required"));
     }
@@ -22,11 +23,13 @@ pub async fn run(names: Vec<String>, ignore_checksums: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
+    let app_config = config.get_config();
 
-    let github_token = config.get_config().github.api_token.as_deref();
-    let gitlab_token = config.get_config().gitlab.api_token.as_deref();
-    let gitea_token = config.get_config().gitea.api_token.as_deref();
+    let github_token = app_config.github.api_token.as_deref();
+    let gitlab_token = app_config.gitlab.api_token.as_deref();
+    let gitea_token = app_config.gitea.api_token.as_deref();
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
+    let trusted_keys = app_config.trusted_minisign_keys();
 
     let mut reinstalled = 0_u32;
     let mut failed = 0_u32;
@@ -56,7 +59,8 @@ pub async fn run(names: Vec<String>, ignore_checksums: bool) -> Result<()> {
             &mut package_storage,
             &paths,
             package,
-            ignore_checksums,
+            trust_mode,
+            &trusted_keys,
             &mut msg,
         )
         .await
@@ -109,7 +113,8 @@ async fn reinstall_one<H>(
     package_storage: &mut PackageStorage,
     paths: &UpstreamPaths,
     package: Package,
-    ignore_checksums: bool,
+    trust_mode: TrustMode,
+    trusted_keys: &[MinisignPublicKey],
     message_callback: &mut Option<H>,
 ) -> Result<()>
 where
@@ -127,13 +132,18 @@ where
 
     match package.install_type {
         InstallType::Release => {
-            let mut install_op = InstallOperation::new(provider_manager, package_storage, paths)?;
+            let mut install_op = InstallOperation::new(
+                provider_manager,
+                package_storage,
+                paths,
+                trusted_keys.to_vec(),
+            )?;
             install_op
                 .install_single(
                     reinstall_package,
                     &Some(version_tag),
                     &had_icon,
-                    ignore_checksums,
+                    trust_mode,
                     &mut None::<fn(u64, u64)>,
                     message_callback,
                 )
@@ -163,7 +173,12 @@ where
             reinstall_package.build_branch = output.branch.clone();
             reinstall_package.build_commit = output.commit.clone();
 
-            let mut install_op = InstallOperation::new(provider_manager, package_storage, paths)?;
+            let mut install_op = InstallOperation::new(
+                provider_manager,
+                package_storage,
+                paths,
+                trusted_keys.to_vec(),
+            )?;
             install_op
                 .install_local_artifact(
                     reinstall_package,

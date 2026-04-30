@@ -2,8 +2,11 @@ use crate::{
     application::operations::upgrade_operation::{
         UpdateCheckRow, UpdateCheckStatus, UpgradeOperation,
     },
+    models::common::enums::TrustMode,
     providers::provider_manager::ProviderManager,
-    services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+    services::{
+        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+    },
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
@@ -24,20 +27,22 @@ pub async fn run(
     force_option: bool,
     check_option: bool,
     machine_readable: bool,
-    ignore_checksums: bool,
+    trust_mode: TrustMode,
 ) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let github_token = config.get_config().github.api_token.as_deref();
-    let gitlab_token = config.get_config().gitlab.api_token.as_deref();
-    let gitea_token = config.get_config().gitea.api_token.as_deref();
+    let app_config = config.get_config();
+    let github_token = app_config.github.api_token.as_deref();
+    let gitlab_token = app_config.gitlab.api_token.as_deref();
+    let gitea_token = app_config.gitea.api_token.as_deref();
 
     let installed_package_count = package_storage.get_all_packages().len();
+    let trusted_keys = app_config.trusted_minisign_keys();
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
     let mut package_upgrade =
-        UpgradeOperation::new(&provider_manager, &mut package_storage, &paths)?;
+        UpgradeOperation::new(&provider_manager, &mut package_storage, &paths, trusted_keys)?;
 
     // Handle --check flag
     if check_option {
@@ -113,7 +118,7 @@ pub async fn run(
         package_upgrade
             .upgrade_all(
                 &force_option,
-                ignore_checksums,
+                trust_mode,
                 &mut download_progress_callback,
                 &mut overall_progress_callback,
                 &mut message_callback,
@@ -138,7 +143,7 @@ pub async fn run(
             .upgrade_bulk(
                 &name_vec,
                 &force_option,
-                ignore_checksums,
+                trust_mode,
                 &mut download_progress_callback,
                 &mut overall_progress_callback,
                 &mut message_callback,
@@ -149,7 +154,7 @@ pub async fn run(
             .upgrade_single(
                 &name_vec[0],
                 &force_option,
-                ignore_checksums,
+                trust_mode,
                 &mut download_progress_callback,
                 &mut message_callback,
             )
