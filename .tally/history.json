@@ -922,5 +922,18 @@
       "completed_at": "2026-04-30T00:49:31.738081234Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: switch manifest import to metadata-only with conflict skip/warn behavior",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-04-30T00:49:32.399894311Z"
+    },
+    "version": null
   }
 ]
