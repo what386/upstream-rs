@@ -5,6 +5,11 @@
 
 ## Tasks
 
+- [ ] feat: include commit hash in long --version
+
+
+      @created 2026-04-30 02:50
+
 
 ## Completed
 
