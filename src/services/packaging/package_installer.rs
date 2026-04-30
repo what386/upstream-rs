@@ -1,10 +1,14 @@
 use crate::{
+    models::common::enums::TrustMode,
     models::{common::enums::Filetype, provider::Release, upstream::Package},
     providers::provider_manager::ProviderManager,
     services::{
         integration::{ShellManager, SymlinkManager, compression_handler, permission_handler},
         packaging::bundle_handler::BundleHandler,
-        trust::ChecksumVerifier,
+        trust::{
+            ChecksumVerificationStatus, MinisignPublicKey, SignatureVerificationStatus,
+            TrustVerificationStatus, TrustVerifier,
+        },
     },
     utils::{fs_move, static_paths::UpstreamPaths},
 };
@@ -82,7 +86,8 @@ impl<'a> PackageInstaller<'a> {
         &self,
         mut package: Package,
         release: &Release,
-        ignore_checksums: bool,
+        trust_mode: TrustMode,
+        trusted_keys: &[MinisignPublicKey],
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<Package>
@@ -134,35 +139,100 @@ impl<'a> PackageInstaller<'a> {
             .await
             .context(format!("Failed to download asset '{}'", best_asset.name))?;
 
-        if ignore_checksums {
-            message!(
-                message_callback,
-                "{}",
-                style("Skipping checksum verification (--ignore-checksums)").yellow()
-            );
-        } else {
-            message!(message_callback, "Verifying checksum ...");
+        message!(
+            message_callback,
+            "Applying trust policy '{}' ...",
+            trust_mode
+        );
+        let trust_verifier = TrustVerifier::new(
+            self.provider_manager,
+            &package_download_cache,
+            trust_mode,
+            trusted_keys,
+        );
+        let status = trust_verifier
+            .verify_file(
+                &download_path,
+                release,
+                &package.provider,
+                download_progress_callback,
+            )
+            .await
+            .context("Failed trust verification")?;
 
-            let checksum_verifier =
-                ChecksumVerifier::new(self.provider_manager, &package_download_cache);
-            let verified = checksum_verifier
-                .try_verify_file(
-                    &download_path,
-                    release,
-                    &package.provider,
-                    download_progress_callback,
-                )
-                .await
-                .context("Failed to verify checksum")?;
-
-            if verified {
-                message!(message_callback, "{}", style("Checksum verified").green());
-            } else {
+        match status {
+            TrustVerificationStatus::Skipped => {
                 message!(
                     message_callback,
                     "{}",
-                    style("No checksum available, skipping verification").yellow()
+                    style("Skipping checksum/signature verification (--trust none)").yellow()
                 );
+            }
+            TrustVerificationStatus::Verified {
+                checksum,
+                signature,
+            } => {
+                match checksum {
+                    ChecksumVerificationStatus::Verified => {
+                        message!(message_callback, "{}", style("Checksum verified").green());
+                    }
+                    ChecksumVerificationStatus::Missing => {
+                        if matches!(trust_mode, TrustMode::Signature | TrustMode::All) {
+                            message!(
+                                message_callback,
+                                "{}",
+                                style("Checksum missing (warning)").yellow()
+                            );
+                        } else {
+                            message!(
+                                message_callback,
+                                "{}",
+                                style("No checksum available").yellow()
+                            );
+                        }
+                    }
+                }
+
+                match signature {
+                    SignatureVerificationStatus::Verified {
+                        key_id,
+                        signature_asset,
+                    } => {
+                        if let Some(id) = key_id {
+                            message!(
+                                message_callback,
+                                "{}",
+                                style(format!("Signature verified with key '{id}'")).green()
+                            );
+                        } else {
+                            message!(message_callback, "{}", style("Signature verified").green());
+                        }
+                        if !signature_asset.is_empty() {
+                            message!(
+                                message_callback,
+                                "Verified against signature asset '{}'",
+                                signature_asset
+                            );
+                        }
+                    }
+                    SignatureVerificationStatus::MissingSignature => {
+                        if matches!(trust_mode, TrustMode::Checksum | TrustMode::All) {
+                            message!(
+                                message_callback,
+                                "{}",
+                                style("Signature missing (warning)").yellow()
+                            );
+                        } else {
+                            message!(
+                                message_callback,
+                                "{}",
+                                style("No signature available").yellow()
+                            );
+                        }
+                    }
+                    SignatureVerificationStatus::InvalidSignature
+                    | SignatureVerificationStatus::NoTrustedKeyMatched => {}
+                }
             }
         }
 
