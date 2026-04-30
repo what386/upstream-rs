@@ -23,10 +23,11 @@ pub async fn run(
 ) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
+    let app_config = config.get_config();
 
-    let github_token = config.get_config().github.api_token.as_deref();
-    let gitlab_token = config.get_config().gitlab.api_token.as_deref();
-    let gitea_token = config.get_config().gitea.api_token.as_deref();
+    let github_token = app_config.github.api_token.as_deref();
+    let gitlab_token = app_config.gitlab.api_token.as_deref();
+    let gitea_token = app_config.gitea.api_token.as_deref();
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
 
