@@ -51,6 +51,28 @@ impl fmt::Display for Channel {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
+pub enum TrustMode {
+    None,
+    BestEffort,
+    Checksum,
+    Signature,
+    All,
+}
+
+impl fmt::Display for TrustMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            TrustMode::None => "none",
+            TrustMode::BestEffort => "best-effort",
+            TrustMode::Checksum => "checksum",
+            TrustMode::Signature => "signature",
+            TrustMode::All => "all",
+        };
+        write!(f, "{s}")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Provider {
     Github,

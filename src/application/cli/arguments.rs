@@ -1,4 +1,4 @@
-use crate::models::common::enums::{Channel, Filetype, Provider};
+use crate::models::common::enums::{Channel, Filetype, Provider, TrustMode};
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -39,7 +39,7 @@ pub enum Commands {
         EXAMPLES:\n  \
         upstream install rg BurntSushi/ripgrep -k binary\n  \
         upstream install dust bootandy/dust -k archive\n  \
-        upstream install rg BurntSushi/ripgrep --ignore-checksums")]
+        upstream install rg BurntSushi/ripgrep --trust none")]
     Install {
         /// Name to register the application under
         name: String,
@@ -79,9 +79,9 @@ pub enum Commands {
         #[arg(short, long, default_value_t = false)]
         desktop: bool,
 
-        /// Skip checksum verification for downloaded assets
-        #[arg(long, default_value_t = false)]
-        ignore_checksums: bool,
+        /// Trust verification mode for downloaded assets
+        #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
+        trust_mode: TrustMode,
 
         /// Accept the recommended discovered asset without prompting
         #[arg(long, short = 'y', default_value_t = false)]
@@ -169,15 +169,15 @@ pub enum Commands {
         EXAMPLES:\n  \
         upstream reinstall nvim\n  \
         upstream reinstall rg fd\n  \
-        upstream reinstall rg --ignore-checksums"
+        upstream reinstall rg --trust none"
     )]
     Reinstall {
         /// Names of packages to reinstall
         names: Vec<String>,
 
-        /// Skip checksum verification for release-asset reinstalls
-        #[arg(long, default_value_t = false)]
-        ignore_checksums: bool,
+        /// Trust verification mode for release-asset reinstalls
+        #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
+        trust_mode: TrustMode,
     },
 
     /// Upgrade installed packages to their latest versions
@@ -190,7 +190,7 @@ pub enum Commands {
         upstream upgrade --check      # Check for updates\n  \
         upstream upgrade --check --machine-readable # Script-friendly output\n  \
         upstream upgrade nvim --force # Force reinstall\n  \
-        upstream upgrade --ignore-checksums")]
+        upstream upgrade --trust none")]
     Upgrade {
         /// Packages to upgrade (upgrades all if omitted)
         names: Option<Vec<String>>,
@@ -207,9 +207,9 @@ pub enum Commands {
         #[arg(long, default_value_t = false, requires = "check")]
         machine_readable: bool,
 
-        /// Skip checksum verification for downloaded assets
-        #[arg(long, default_value_t = false)]
-        ignore_checksums: bool,
+        /// Trust verification mode for downloaded assets
+        #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
+        trust_mode: TrustMode,
     },
 
     /// List installed packages and their metadata
@@ -546,22 +546,24 @@ pub enum PackageAction {
 #[cfg(test)]
 mod tests {
     use super::{BuildProfile, Cli, Commands, ConfigAction, HooksAction, PackageAction};
+    use crate::models::common::enums::TrustMode;
     use clap::Parser;
 
     #[test]
-    fn install_parses_ignore_checksums_flag() {
+    fn install_parses_trust_mode_flag() {
         let cli = Cli::parse_from([
             "upstream",
             "install",
             "rg",
             "BurntSushi/ripgrep",
-            "--ignore-checksums",
+            "--trust",
+            "none",
         ]);
 
         match cli.command {
             Commands::Install {
-                ignore_checksums, ..
-            } => assert!(ignore_checksums),
+                trust_mode, ..
+            } => assert_eq!(trust_mode, TrustMode::None),
             other => panic!("unexpected command parsed: {}", other),
         }
     }
@@ -687,28 +689,28 @@ mod tests {
     }
 
     #[test]
-    fn upgrade_parses_ignore_checksums_flag() {
-        let cli = Cli::parse_from(["upstream", "upgrade", "--ignore-checksums"]);
+    fn upgrade_parses_trust_mode_flag() {
+        let cli = Cli::parse_from(["upstream", "upgrade", "--trust", "signature"]);
 
         match cli.command {
             Commands::Upgrade {
-                ignore_checksums, ..
-            } => assert!(ignore_checksums),
+                trust_mode, ..
+            } => assert_eq!(trust_mode, TrustMode::Signature),
             other => panic!("unexpected command parsed: {}", other),
         }
     }
 
     #[test]
-    fn reinstall_parses_names_and_ignore_checksums_flag() {
-        let cli = Cli::parse_from(["upstream", "reinstall", "rg", "fd", "--ignore-checksums"]);
+    fn reinstall_parses_names_and_trust_mode_flag() {
+        let cli = Cli::parse_from(["upstream", "reinstall", "rg", "fd", "--trust", "all"]);
 
         match cli.command {
             Commands::Reinstall {
                 names,
-                ignore_checksums,
+                trust_mode,
             } => {
                 assert_eq!(names, vec!["rg".to_string(), "fd".to_string()]);
-                assert!(ignore_checksums);
+                assert_eq!(trust_mode, TrustMode::All);
             }
             other => panic!("unexpected command parsed: {}", other),
         }
@@ -823,7 +825,7 @@ mod tests {
                 match_pattern: None,
                 exclude_pattern: None,
                 desktop: false,
-                ignore_checksums: false,
+                trust_mode: TrustMode::BestEffort,
                 yes: false,
             }
             .requires_lock()
@@ -834,7 +836,7 @@ mod tests {
                 force: false,
                 check: true,
                 machine_readable: false,
-                ignore_checksums: false,
+                trust_mode: TrustMode::BestEffort,
             }
             .requires_lock()
         );
@@ -857,7 +859,7 @@ mod tests {
         assert!(
             Commands::Reinstall {
                 names: vec!["ripgrep".to_string()],
-                ignore_checksums: false,
+                trust_mode: TrustMode::BestEffort,
             }
             .requires_lock()
         );
