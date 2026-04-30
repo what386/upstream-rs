@@ -43,9 +43,9 @@ _arguments "${_arguments_options[@]}" : \
 '--match-pattern=[Match pattern to use as a hint for which asset to prefer]:match:_default' \
 '-e+[Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")]:exclude:_default' \
 '--exclude-pattern=[Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")]:exclude:_default' \
+'--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
 '-d[Whether or not to create a .desktop entry for GUI applications]' \
 '--desktop[Whether or not to create a .desktop entry for GUI applications]' \
-'--ignore-checksums[Skip checksum verification for downloaded assets]' \
 '-y[Accept the recommended discovered asset without prompting]' \
 '--yes[Accept the recommended discovered asset without prompting]' \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -86,7 +86,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (reinstall)
 _arguments "${_arguments_options[@]}" : \
-'--ignore-checksums[Skip checksum verification for release-asset reinstalls]' \
+'--trust=[Trust verification mode for release-asset reinstalls]:TRUST_MODE:(none best-effort checksum signature all)' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Names of packages to reinstall:_default' \
@@ -94,10 +94,10 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (upgrade)
 _arguments "${_arguments_options[@]}" : \
+'--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
 '--force[Force upgrade even if already up to date]' \
 '--check[Check for available upgrades without applying them]' \
 '--machine-readable[Use script-friendly check output\: one line per update, "name oldver newver"]' \
-'--ignore-checksums[Skip checksum verification for downloaded assets]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Packages to upgrade (upgrades all if omitted):_default' \
@@ -414,10 +414,13 @@ esac
 ;;
 (import)
 _arguments "${_arguments_options[@]}" : \
-'--skip-failed[Continue importing remaining packages when a package install/upgrade fails]' \
+'--as=[Force the input type instead of autodetection]:IMPORT_AS:(keys manifest snapshot)' \
+'--skip-failed[Continue importing remaining entries when metadata manifest processing fails]' \
+'-y[Skip import confirmation prompt]' \
+'--yes[Skip import confirmation prompt]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':path -- Path to the manifest or snapshot archive:_files' \
+':path -- Path to a keys file, metadata manifest, or snapshot archive:_files' \
 && ret=0
 ;;
 (export)
@@ -626,7 +629,7 @@ _upstream_commands() {
 'config:Manage upstream configuration' \
 'package:Manage package-specific settings and metadata' \
 'hooks:Manage shell integration hooks and local upstream data' \
-'import:Import packages from a manifest or full snapshot' \
+'import:Import trusted keys, package metadata manifests, or full snapshots' \
 'export:Export packages to a manifest or full snapshot' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -740,7 +743,7 @@ _upstream__subcmd__help_commands() {
 'config:Manage upstream configuration' \
 'package:Manage package-specific settings and metadata' \
 'hooks:Manage shell integration hooks and local upstream data' \
-'import:Import packages from a manifest or full snapshot' \
+'import:Import trusted keys, package metadata manifests, or full snapshots' \
 'export:Export packages to a manifest or full snapshot' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \

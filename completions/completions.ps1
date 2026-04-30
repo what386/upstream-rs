@@ -35,7 +35,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific settings and metadata')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
-            [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import packages from a manifest or full snapshot')
+            [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import trusted keys, package metadata manifests, or full snapshots')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
@@ -55,9 +55,9 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--match-pattern', '--match-pattern', [CompletionResultType]::ParameterName, 'Match pattern to use as a hint for which asset to prefer')
             [CompletionResult]::new('-e', '-e', [CompletionResultType]::ParameterName, 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")')
             [CompletionResult]::new('--exclude-pattern', '--exclude-pattern', [CompletionResultType]::ParameterName, 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")')
+            [CompletionResult]::new('--trust', '--trust', [CompletionResultType]::ParameterName, 'Trust verification mode for downloaded assets')
             [CompletionResult]::new('-d', '-d', [CompletionResultType]::ParameterName, 'Whether or not to create a .desktop entry for GUI applications')
             [CompletionResult]::new('--desktop', '--desktop', [CompletionResultType]::ParameterName, 'Whether or not to create a .desktop entry for GUI applications')
-            [CompletionResult]::new('--ignore-checksums', '--ignore-checksums', [CompletionResultType]::ParameterName, 'Skip checksum verification for downloaded assets')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept the recommended discovered asset without prompting')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept the recommended discovered asset without prompting')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
@@ -90,16 +90,16 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;reinstall' {
-            [CompletionResult]::new('--ignore-checksums', '--ignore-checksums', [CompletionResultType]::ParameterName, 'Skip checksum verification for release-asset reinstalls')
+            [CompletionResult]::new('--trust', '--trust', [CompletionResultType]::ParameterName, 'Trust verification mode for release-asset reinstalls')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
         }
         'upstream;upgrade' {
+            [CompletionResult]::new('--trust', '--trust', [CompletionResultType]::ParameterName, 'Trust verification mode for downloaded assets')
             [CompletionResult]::new('--force', '--force', [CompletionResultType]::ParameterName, 'Force upgrade even if already up to date')
             [CompletionResult]::new('--check', '--check', [CompletionResultType]::ParameterName, 'Check for available upgrades without applying them')
             [CompletionResult]::new('--machine-readable', '--machine-readable', [CompletionResultType]::ParameterName, 'Use script-friendly check output: one line per update, "name oldver newver"')
-            [CompletionResult]::new('--ignore-checksums', '--ignore-checksums', [CompletionResultType]::ParameterName, 'Skip checksum verification for downloaded assets')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
@@ -323,7 +323,10 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;import' {
-            [CompletionResult]::new('--skip-failed', '--skip-failed', [CompletionResultType]::ParameterName, 'Continue importing remaining packages when a package install/upgrade fails')
+            [CompletionResult]::new('--as', '--as', [CompletionResultType]::ParameterName, 'Force the input type instead of autodetection')
+            [CompletionResult]::new('--skip-failed', '--skip-failed', [CompletionResultType]::ParameterName, 'Continue importing remaining entries when metadata manifest processing fails')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Skip import confirmation prompt')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Skip import confirmation prompt')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
@@ -351,7 +354,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific settings and metadata')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
-            [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import packages from a manifest or full snapshot')
+            [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import trusted keys, package metadata manifests, or full snapshots')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')

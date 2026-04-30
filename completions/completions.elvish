@@ -32,7 +32,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific settings and metadata'
             cand hooks 'Manage shell integration hooks and local upstream data'
-            cand import 'Import packages from a manifest or full snapshot'
+            cand import 'Import trusted keys, package metadata manifests, or full snapshots'
             cand export 'Export packages to a manifest or full snapshot'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
@@ -51,9 +51,9 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --match-pattern 'Match pattern to use as a hint for which asset to prefer'
             cand -e 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")'
             cand --exclude-pattern 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")'
+            cand --trust 'Trust verification mode for downloaded assets'
             cand -d 'Whether or not to create a .desktop entry for GUI applications'
             cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
-            cand --ignore-checksums 'Skip checksum verification for downloaded assets'
             cand -y 'Accept the recommended discovered asset without prompting'
             cand --yes 'Accept the recommended discovered asset without prompting'
             cand -h 'Print help (see more with ''--help'')'
@@ -83,15 +83,15 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;reinstall'= {
-            cand --ignore-checksums 'Skip checksum verification for release-asset reinstalls'
+            cand --trust 'Trust verification mode for release-asset reinstalls'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;upgrade'= {
+            cand --trust 'Trust verification mode for downloaded assets'
             cand --force 'Force upgrade even if already up to date'
             cand --check 'Check for available upgrades without applying them'
             cand --machine-readable 'Use script-friendly check output: one line per update, "name oldver newver"'
-            cand --ignore-checksums 'Skip checksum verification for downloaded assets'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -271,7 +271,10 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;hooks;help;help'= {
         }
         &'upstream;import'= {
-            cand --skip-failed 'Continue importing remaining packages when a package install/upgrade fails'
+            cand --as 'Force the input type instead of autodetection'
+            cand --skip-failed 'Continue importing remaining entries when metadata manifest processing fails'
+            cand -y 'Skip import confirmation prompt'
+            cand --yes 'Skip import confirmation prompt'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -296,7 +299,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific settings and metadata'
             cand hooks 'Manage shell integration hooks and local upstream data'
-            cand import 'Import packages from a manifest or full snapshot'
+            cand import 'Import trusted keys, package metadata manifests, or full snapshots'
             cand export 'Export packages to a manifest or full snapshot'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
