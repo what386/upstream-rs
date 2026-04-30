@@ -1,9 +1,10 @@
 use crate::{
-    models::common::enums::{Channel, Provider},
+    models::common::enums::{Channel, Provider, TrustMode},
     providers::provider_manager::ProviderManager,
     services::{
         packaging::{PackageChecker, PackageInstaller, PackageRemover, PackageUpgrader},
         storage::package_storage::PackageStorage,
+        trust::MinisignPublicKey,
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -152,11 +153,13 @@ impl<'a> UpgradeOperation<'a> {
         provider_manager: &'a ProviderManager,
         package_storage: &'a mut PackageStorage,
         paths: &'a UpstreamPaths,
+        trusted_keys: Vec<MinisignPublicKey>,
     ) -> Result<Self> {
         let installer = PackageInstaller::new(provider_manager, paths)?;
         let remover = PackageRemover::new(paths);
 
-        let upgrader = PackageUpgrader::new(provider_manager, installer, remover, paths);
+        let upgrader =
+            PackageUpgrader::new(provider_manager, installer, remover, paths, trusted_keys);
 
         let checker = PackageChecker::new(provider_manager);
 
@@ -170,7 +173,7 @@ impl<'a> UpgradeOperation<'a> {
     pub async fn upgrade_all<F, G, H>(
         &mut self,
         force_option: &bool,
-        ignore_checksums: bool,
+        trust_mode: TrustMode,
         download_progress: &mut Option<F>,
         overall_progress: &mut Option<G>,
         message_callback: &mut Option<H>,
@@ -190,7 +193,7 @@ impl<'a> UpgradeOperation<'a> {
         self.upgrade_bulk(
             &names,
             force_option,
-            ignore_checksums,
+            trust_mode,
             download_progress,
             overall_progress,
             message_callback,
@@ -202,7 +205,7 @@ impl<'a> UpgradeOperation<'a> {
         &mut self,
         names: &[String],
         force_option: &bool,
-        ignore_checksums: bool,
+        trust_mode: TrustMode,
         download_progress: &mut Option<F>,
         overall_progress: &mut Option<G>,
         message_callback: &mut Option<H>,
@@ -258,7 +261,7 @@ impl<'a> UpgradeOperation<'a> {
                     .upgrade(
                         &package,
                         force,
-                        ignore_checksums,
+                        trust_mode,
                         &mut download_cb,
                         &mut no_messages,
                     )
@@ -383,7 +386,7 @@ impl<'a> UpgradeOperation<'a> {
         &mut self,
         package_name: &str,
         force_option: &bool,
-        ignore_checksums: bool,
+        trust_mode: TrustMode,
         download_progress: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<bool>
@@ -402,7 +405,7 @@ impl<'a> UpgradeOperation<'a> {
             .upgrade(
                 &package,
                 *force_option,
-                ignore_checksums,
+                trust_mode,
                 download_progress,
                 message_callback,
             )

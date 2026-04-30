@@ -1,12 +1,13 @@
 #[cfg(target_os = "linux")]
 use crate::services::integration::AppImageExtractor;
 use crate::{
-    models::common::DesktopEntry,
+    models::common::{DesktopEntry, enums::TrustMode},
     models::upstream::Package,
     providers::provider_manager::ProviderManager,
     services::{
         integration::{DesktopManager, IconManager},
         storage::package_storage::PackageStorage,
+        trust::MinisignPublicKey,
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -32,6 +33,7 @@ pub struct InstallOperation<'a> {
     package_storage: &'a mut PackageStorage,
     provider_manager: &'a ProviderManager,
     paths: &'a UpstreamPaths,
+    trusted_keys: Vec<MinisignPublicKey>,
 }
 
 impl<'a> InstallOperation<'a> {
@@ -39,6 +41,7 @@ impl<'a> InstallOperation<'a> {
         provider_manager: &'a ProviderManager,
         package_storage: &'a mut PackageStorage,
         paths: &'a UpstreamPaths,
+        trusted_keys: Vec<MinisignPublicKey>,
     ) -> Result<Self> {
         let installer = PackageInstaller::new(provider_manager, paths)?;
         Ok(Self {
@@ -46,13 +49,14 @@ impl<'a> InstallOperation<'a> {
             package_storage,
             provider_manager,
             paths,
+            trusted_keys,
         })
     }
 
     pub async fn install_bulk<F, G, H>(
         &mut self,
         packages: Vec<Package>,
-        ignore_checksums: bool,
+        trust_mode: TrustMode,
         download_progress_callback: &mut Option<F>,
         overall_progress_callback: &mut Option<G>,
         message_callback: &mut Option<H>,
@@ -91,7 +95,7 @@ impl<'a> InstallOperation<'a> {
                     package,
                     &None,
                     use_icon,
-                    ignore_checksums,
+                    trust_mode,
                     &mut throttled_download_progress,
                     message_callback,
                 )
@@ -135,7 +139,7 @@ impl<'a> InstallOperation<'a> {
         package: Package,
         version: &Option<String>,
         add_entry: &bool,
-        ignore_checksums: bool,
+        trust_mode: TrustMode,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<()>
@@ -149,7 +153,7 @@ impl<'a> InstallOperation<'a> {
             .perform_install(
                 package,
                 version,
-                ignore_checksums,
+                trust_mode,
                 download_progress_callback,
                 message_callback,
             )
@@ -305,7 +309,7 @@ impl<'a> InstallOperation<'a> {
         &self,
         package: Package,
         version: &Option<String>,
-        ignore_checksums: bool,
+        trust_mode: TrustMode,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<Package>
@@ -357,7 +361,8 @@ impl<'a> InstallOperation<'a> {
             .install_package_files(
                 package,
                 &release,
-                ignore_checksums,
+                trust_mode,
+                &self.trusted_keys,
                 download_progress_callback,
                 message_callback,
             )
@@ -368,7 +373,7 @@ impl<'a> InstallOperation<'a> {
 #[cfg(test)]
 mod tests {
     use super::InstallOperation;
-    use crate::models::common::enums::{Channel, Filetype, Provider};
+    use crate::models::common::enums::{Channel, Filetype, Provider, TrustMode};
     use crate::models::upstream::Package;
     use crate::providers::provider_manager::ProviderManager;
     use crate::services::storage::package_storage::PackageStorage;
@@ -427,7 +432,8 @@ mod tests {
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
         let provider_manager = ProviderManager::new(None, None, None).expect("provider manager");
-        let op = InstallOperation::new(&provider_manager, &mut storage, &paths).expect("operation");
+        let op = InstallOperation::new(&provider_manager, &mut storage, &paths, Vec::new())
+            .expect("operation");
 
         let mut package = Package::with_defaults(
             "tool".to_string(),
@@ -444,7 +450,7 @@ mod tests {
         let mut msg: Option<fn(&str)> = None;
 
         let err = op
-            .perform_install(package, &None, false, &mut dl, &mut msg)
+            .perform_install(package, &None, TrustMode::BestEffort, &mut dl, &mut msg)
             .await
             .expect_err("already-installed guard");
         assert!(err.to_string().contains("already installed"));

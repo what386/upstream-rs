@@ -10,12 +10,14 @@ use crate::providers::discovery::{SourceKind, infer_source};
 use crate::providers::provider_manager::ProviderManager;
 use crate::services::builder::{BuildProfile, BuildRequest, worker::BuildWorker};
 use crate::services::storage::package_storage::PackageStorage;
+use crate::services::trust::MinisignPublicKey;
 use crate::utils::static_paths::UpstreamPaths;
 
 pub struct BuildOperation<'a> {
     provider_manager: &'a ProviderManager,
     package_storage: &'a mut PackageStorage,
     paths: &'a UpstreamPaths,
+    trusted_keys: Vec<MinisignPublicKey>,
 }
 
 pub struct BuildCommandInput {
@@ -36,11 +38,13 @@ impl<'a> BuildOperation<'a> {
         provider_manager: &'a ProviderManager,
         package_storage: &'a mut PackageStorage,
         paths: &'a UpstreamPaths,
+        trusted_keys: Vec<MinisignPublicKey>,
     ) -> Self {
         Self {
             provider_manager,
             package_storage,
             paths,
+            trusted_keys,
         }
     }
 
@@ -129,8 +133,12 @@ impl<'a> BuildOperation<'a> {
         package.build_branch = output.branch.clone();
         package.build_commit = output.commit.clone();
 
-        let mut install_operation =
-            InstallOperation::new(self.provider_manager, self.package_storage, self.paths)?;
+        let mut install_operation = InstallOperation::new(
+            self.provider_manager,
+            self.package_storage,
+            self.paths,
+            self.trusted_keys.clone(),
+        )?;
         let mut msg = Some(|line: &str| println!("{line}"));
         let installed = install_operation
             .install_local_artifact(
