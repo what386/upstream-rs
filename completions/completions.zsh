@@ -105,6 +105,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (list)
 _arguments "${_arguments_options[@]}" : \
+'--json[Print raw package metadata as JSON]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '::name -- Package name for detailed information:_default' \
@@ -230,6 +231,7 @@ _arguments "${_arguments_options[@]}" : \
         case $line[1] in
             (pin)
 _arguments "${_arguments_options[@]}" : \
+'--reason=[Optional reason for pinning this package]:REASON:_default' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name of package to pin:_default' \
@@ -434,6 +436,7 @@ _arguments "${_arguments_options[@]}" : \
 (doctor)
 _arguments "${_arguments_options[@]}" : \
 '--verbose[Print each check result line in addition to summary output]' \
+'--fix[Attempt automatic repairs for detected issues]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Package names to check (all installed packages if omitted):_default' \

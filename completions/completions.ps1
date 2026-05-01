@@ -105,6 +105,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;list' {
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Print raw package metadata as JSON')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
@@ -198,6 +199,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;package;pin' {
+            [CompletionResult]::new('--reason', '--reason', [CompletionResultType]::ParameterName, 'Optional reason for pinning this package')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
@@ -339,6 +341,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         }
         'upstream;doctor' {
             [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Print each check result line in addition to summary output')
+            [CompletionResult]::new('--fix', '--fix', [CompletionResultType]::ParameterName, 'Attempt automatic repairs for detected issues')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break

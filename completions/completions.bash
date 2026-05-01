@@ -519,7 +519,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__doctor)
-            opts="-h --verbose --help [NAMES]..."
+            opts="-h --verbose --fix --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1223,7 +1223,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__list)
-            opts="-h --help [NAME]"
+            opts="-h --json --help [NAME]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1405,12 +1405,16 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__package__subcmd__pin)
-            opts="-h --help <NAME>"
+            opts="-h --reason --help <NAME>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
+                --reason)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;

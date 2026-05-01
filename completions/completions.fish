@@ -98,6 +98,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l force -d '
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l check -d 'Check for available upgrades without applying them'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l machine-readable -d 'Use script-friendly check output: one line per update, "name oldver newver"'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -s h -l help -d 'Print help (see more with \'--help\')'
+complete -c upstream -n "__fish_upstream_using_subcommand list" -l json -d 'Print raw package metadata as JSON'
 complete -c upstream -n "__fish_upstream_using_subcommand list" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s p -l provider -d 'Source provider (defaults to github, or scraper for URLs)' -r
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l base-url -d 'Custom base URL for self-hosted providers' -r
@@ -134,6 +135,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fis
 complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fish_seen_subcommand_from pin unpin remove get-key set-key rename metadata help" -f -a "rename" -d 'Rename package alias without reinstalling'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fish_seen_subcommand_from pin unpin remove get-key set-key rename metadata help" -f -a "metadata" -d 'Display all metadata for a package'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fish_seen_subcommand_from pin unpin remove get-key set-key rename metadata help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from pin" -l reason -d 'Optional reason for pinning this package' -r
 complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from pin" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from unpin" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from remove" -s h -l help -d 'Print help (see more with \'--help\')'
@@ -174,6 +176,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand import" -s h -l help -
 complete -c upstream -n "__fish_upstream_using_subcommand export" -l full -d 'Export a full snapshot of the upstream directory instead of a manifest'
 complete -c upstream -n "__fish_upstream_using_subcommand export" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -l verbose -d 'Print each check result line in addition to summary output'
+complete -c upstream -n "__fish_upstream_using_subcommand doctor" -l fix -d 'Attempt automatic repairs for detected issues'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove reinstall upgrade list probe config package hooks import export doctor help" -f -a "install" -d 'Install a package from an upstream release source'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove reinstall upgrade list probe config package hooks import export doctor help" -f -a "build" -d 'Build and install from source for release tags without artifacts'
