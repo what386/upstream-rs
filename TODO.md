@@ -5,6 +5,9 @@
 
 ## Tasks
 
+- [ ] feat: arbitrarily nested executable detection, e.g: 'root/projectname/x86_64/program'
+      @created 2026-05-01 19:29
+
 
 ## Completed
 
