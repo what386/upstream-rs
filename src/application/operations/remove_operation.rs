@@ -1,6 +1,7 @@
 use crate::services::packaging::PackageRemover;
 use crate::{
-    services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
+    services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
+    utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
 use console::style;
@@ -16,14 +17,20 @@ macro_rules! message {
 pub struct RemoveOperation<'a> {
     remover: PackageRemover<'a>,
     package_storage: &'a mut PackageStorage,
+    metadata_storage: &'a mut MetadataStorage,
 }
 
 impl<'a> RemoveOperation<'a> {
-    pub fn new(package_storage: &'a mut PackageStorage, paths: &'a UpstreamPaths) -> Self {
+    pub fn new(
+        package_storage: &'a mut PackageStorage,
+        metadata_storage: &'a mut MetadataStorage,
+        paths: &'a UpstreamPaths,
+    ) -> Self {
         let remover = PackageRemover::new(paths);
         Self {
             remover,
             package_storage,
+            metadata_storage,
         }
     }
 
@@ -101,6 +108,12 @@ impl<'a> RemoveOperation<'a> {
                 "Failed to remove '{}' from package storage",
                 package_name
             ))?;
+        self.metadata_storage
+            .remove_package(package_name)
+            .context(format!(
+                "Failed to remove '{}' from sidecar metadata",
+                package_name
+            ))?;
 
         if *purge_option {
             self.remover
@@ -118,7 +131,7 @@ impl<'a> RemoveOperation<'a> {
 #[cfg(test)]
 mod tests {
     use super::RemoveOperation;
-    use crate::services::storage::package_storage::PackageStorage;
+    use crate::services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage};
     use crate::utils::static_paths::{
         AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, UpstreamPaths,
     };
@@ -146,6 +159,7 @@ mod tests {
             config: ConfigPaths {
                 config_file: dirs.config_dir.join("config.toml"),
                 packages_file: dirs.metadata_dir.join("packages.json"),
+                metadata_file: dirs.metadata_dir.join("metadata.json"),
                 paths_file: dirs.metadata_dir.join("paths.sh"),
             },
             install: InstallPaths {
@@ -173,7 +187,8 @@ mod tests {
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let mut op = RemoveOperation::new(&mut storage, &paths);
+        let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
+        let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
         let mut msg: Option<fn(&str)> = None;
 
         let err = op
@@ -191,7 +206,8 @@ mod tests {
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let mut op = RemoveOperation::new(&mut storage, &paths);
+        let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
+        let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
         let mut msg: Option<fn(&str)> = None;
         let mut progress_calls = Vec::new();
         let mut progress = Some(|done: u32, total: u32| {
