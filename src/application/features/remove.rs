@@ -15,7 +15,8 @@ pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
 
-    let mut package_remover = RemoveOperation::new(&mut package_storage, &mut metadata_storage, &paths);
+    let mut package_remover =
+        RemoveOperation::new(&mut package_storage, &mut metadata_storage, &paths);
 
     let overall_pb = ProgressBar::new(0);
     overall_pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));

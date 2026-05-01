@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     services::integration::{ShellManager, SymlinkManager, permission_handler},
-    services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
+    services::storage::package_storage::PackageStorage,
+    utils::static_paths::UpstreamPaths,
 };
 
 #[derive(Clone, Copy)]
@@ -500,7 +501,10 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
                                 ),
                             );
                         } else {
-                            report.line(Level::Ok, format!("{} executable bit repaired", package_label));
+                            report.line(
+                                Level::Ok,
+                                format!("{} executable bit repaired", package_label),
+                            );
                         }
                     }
                 }
@@ -524,9 +528,7 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
                     "Try `upstream upgrade {} --force` to rebuild executable metadata.",
                     package.name
                 ));
-                if fix
-                    && let Some(install_path) = &package.install_path
-                {
+                if fix && let Some(install_path) = &package.install_path {
                     let rediscovered = if install_path.is_file() {
                         Some(install_path.clone())
                     } else {
@@ -616,10 +618,16 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
                             if let Err(err) = symlink_manager.add_link(exec_path, &package.name) {
                                 report.line(
                                     Level::Warn,
-                                    format!("{} failed to recreate symlink: {}", package_label, err),
+                                    format!(
+                                        "{} failed to recreate symlink: {}",
+                                        package_label, err
+                                    ),
                                 );
                             } else {
-                                report.line(Level::Ok, format!("{} recreated missing symlink", package_label));
+                                report.line(
+                                    Level::Ok,
+                                    format!("{} recreated missing symlink", package_label),
+                                );
                             }
                         }
                     }
@@ -641,10 +649,16 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
                             if let Err(err) = symlink_manager.add_link(exec_path, &package.name) {
                                 report.line(
                                     Level::Warn,
-                                    format!("{} failed to replace non-symlink link path: {}", package_label, err),
+                                    format!(
+                                        "{} failed to replace non-symlink link path: {}",
+                                        package_label, err
+                                    ),
                                 );
                             } else {
-                                report.line(Level::Ok, format!("{} repaired link path", package_label));
+                                report.line(
+                                    Level::Ok,
+                                    format!("{} repaired link path", package_label),
+                                );
                             }
                         }
                     }
@@ -671,27 +685,29 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
                         "Try `upstream upgrade {} --force` to recreate missing links.",
                         package.name
                     ));
-                    if fix
-                        && let Some(exec_path) = &resolved_exec_path
-                    {
+                    if fix && let Some(exec_path) = &resolved_exec_path {
                         if let Err(err) = symlink_manager.add_link(exec_path, &package.name) {
                             report.line(
                                 Level::Warn,
                                 format!("{} failed to recreate link entry: {}", package_label, err),
                             );
                         } else {
-                            report.line(Level::Ok, format!("{} recreated missing link", package_label));
+                            report.line(
+                                Level::Ok,
+                                format!("{} recreated missing link", package_label),
+                            );
                         }
                     }
                 }
             }
         }
 
-        if fix && resolved_exec_path != package.exec_path {
-            if let Some(mut_pkg) = package_storage.get_mut_package_by_name(&package_name) {
-                mut_pkg.exec_path = resolved_exec_path;
-                changed_packages = true;
-            }
+        if fix
+            && resolved_exec_path != package.exec_path
+            && let Some(mut_pkg) = package_storage.get_mut_package_by_name(&package_name)
+        {
+            mut_pkg.exec_path = resolved_exec_path;
+            changed_packages = true;
         }
 
         if let Some(icon_path) = &package.icon_path {

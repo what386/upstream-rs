@@ -85,7 +85,8 @@ impl PackageStorage {
             version: PACKAGE_STORAGE_VERSION,
             packages: self.packages.clone(),
         };
-        let json = serde_json::to_string_pretty(&payload).context("Failed to serialize packages")?;
+        let json =
+            serde_json::to_string_pretty(&payload).context("Failed to serialize packages")?;
 
         write_atomic(&self.packages_file, json.as_bytes()).with_context(|| {
             format!(
@@ -327,9 +328,10 @@ mod tests {
             Ok(_) => panic!("unsupported version should fail"),
             Err(err) => err,
         };
-        assert!(err
-            .to_string()
-            .contains("Unsupported package storage version"));
+        assert!(
+            err.to_string()
+                .contains("Unsupported package storage version")
+        );
 
         cleanup(&path).expect("cleanup");
     }
