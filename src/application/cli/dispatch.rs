@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::application::cli::arguments::{
     Cli, Commands, ConfigAction, HooksAction, ImportAs, PackageAction,
 };
-use crate::application::features;
+use crate::application::commands;
 use crate::services::storage::lock_storage::LockStorage;
 use crate::utils::static_paths::UpstreamPaths;
 
@@ -19,10 +19,10 @@ impl Cli {
 
         match command {
             Commands::Hooks { action } => match action {
-                HooksAction::Init => features::hooks::run_hooks_init(),
-                HooksAction::Check => features::hooks::run_hooks_check(),
-                HooksAction::Clean => features::hooks::run_hooks_clean(),
-                HooksAction::Purge { yes } => features::hooks::run_hooks_purge(yes),
+                HooksAction::Init => commands::hooks::run_hooks_init(),
+                HooksAction::Check => commands::hooks::run_hooks_check(),
+                HooksAction::Clean => commands::hooks::run_hooks_clean(),
+                HooksAction::Purge { yes } => commands::hooks::run_hooks_purge(yes),
             },
             Commands::Install {
                 name,
@@ -38,7 +38,7 @@ impl Cli {
                 trust_mode,
                 yes,
             } => {
-                features::install::run(
+                commands::install::run(
                     name,
                     repo_slug,
                     kind,
@@ -67,7 +67,7 @@ impl Cli {
                 build_profile,
                 build_output,
             } => {
-                features::build::run(
+                commands::build::run(
                     name,
                     repo_slug,
                     tag,
@@ -86,10 +86,10 @@ impl Cli {
             Commands::Remove {
                 names,
                 purge: purge_option,
-            } => features::remove::run(names, purge_option),
+            } => commands::remove::run(names, purge_option),
 
             Commands::Reinstall { names, trust_mode } => {
-                features::reinstall::run(names, trust_mode).await
+                commands::reinstall::run(names, trust_mode).await
             }
 
             Commands::Upgrade {
@@ -98,9 +98,9 @@ impl Cli {
                 check,
                 machine_readable,
                 trust_mode,
-            } => features::upgrade::run(names, force, check, machine_readable, trust_mode).await,
+            } => commands::upgrade::run(names, force, check, machine_readable, trust_mode).await,
 
-            Commands::List { name, json } => features::list::run(name, json),
+            Commands::List { name, json } => commands::list::run(name, json),
 
             Commands::Probe {
                 repo_slug,
@@ -109,29 +109,29 @@ impl Cli {
                 channel,
                 limit,
                 verbose,
-            } => features::probe::run(repo_slug, provider, base_url, channel, limit, verbose).await,
+            } => commands::probe::run(repo_slug, provider, base_url, channel, limit, verbose).await,
 
             Commands::Config { action } => match action {
-                ConfigAction::Set { keys } => features::config::run_set(keys),
-                ConfigAction::Get { keys } => features::config::run_get(keys),
-                ConfigAction::List => features::config::run_list(),
-                ConfigAction::Edit => features::config::run_edit(),
-                ConfigAction::Reset => features::config::run_reset(),
+                ConfigAction::Set { keys } => commands::config::run_set(keys),
+                ConfigAction::Get { keys } => commands::config::run_get(keys),
+                ConfigAction::List => commands::config::run_list(),
+                ConfigAction::Edit => commands::config::run_edit(),
+                ConfigAction::Reset => commands::config::run_reset(),
             },
 
             Commands::Package { action } => match action {
-                PackageAction::Pin { name, reason } => features::package::run_pin(name, reason),
-                PackageAction::Unpin { name } => features::package::run_unpin(name),
-                PackageAction::Remove { name } => features::package::run_remove(name),
-                PackageAction::SetKey { name, keys } => features::package::run_set_key(name, keys),
+                PackageAction::Pin { name, reason } => commands::package::run_pin(name, reason),
+                PackageAction::Unpin { name } => commands::package::run_unpin(name),
+                PackageAction::Remove { name } => commands::package::run_remove(name),
+                PackageAction::SetKey { name, keys } => commands::package::run_set_key(name, keys),
                 PackageAction::Rename { old_name, new_name } => {
-                    features::package::run_rename(old_name, new_name)
+                    commands::package::run_rename(old_name, new_name)
                 }
-                PackageAction::GetKey { name, keys } => features::package::run_get_key(name, keys),
-                PackageAction::Metadata { name } => features::package::run_metadata(name),
+                PackageAction::GetKey { name, keys } => commands::package::run_get_key(name, keys),
+                PackageAction::Metadata { name } => commands::package::run_metadata(name),
             },
 
-            Commands::Export { path, full } => features::export::run_export(path, full).await,
+            Commands::Export { path, full } => commands::export::run_export(path, full).await,
             Commands::Import {
                 path,
                 skip_failed,
@@ -139,17 +139,17 @@ impl Cli {
                 yes,
             } => {
                 let forced_kind = import_as.map(|value| match value {
-                    ImportAs::Keys => features::import::ImportKindArg::Keys,
-                    ImportAs::Manifest => features::import::ImportKindArg::Manifest,
-                    ImportAs::Snapshot => features::import::ImportKindArg::Snapshot,
+                    ImportAs::Keys => commands::import::ImportKindArg::Keys,
+                    ImportAs::Manifest => commands::import::ImportKindArg::Manifest,
+                    ImportAs::Snapshot => commands::import::ImportKindArg::Snapshot,
                 });
-                features::import::run_import(path, skip_failed, forced_kind, yes).await
+                commands::import::run_import(path, skip_failed, forced_kind, yes).await
             }
             Commands::Doctor {
                 names,
                 verbose,
                 fix,
-            } => features::doctor::run(names, verbose, fix),
+            } => commands::doctor::run(names, verbose, fix),
         }
     }
 }
