@@ -4,13 +4,13 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[cfg(unix)]
+use crate::services::integration::ShellManager;
 use crate::{
     services::integration::{SymlinkManager, permission_handler},
     services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
-#[cfg(unix)]
-use crate::services::integration::ShellManager;
 
 #[derive(Clone, Copy)]
 enum Level {
