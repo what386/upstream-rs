@@ -7,6 +7,7 @@ use toml;
 
 use crate::models::upstream::{AppConfig, MinisignKeyConfig};
 use crate::services::trust::MinisignPublicKey;
+use crate::utils::filesystem::atomic_ops::write_atomic;
 
 pub struct ConfigStorage {
     config: AppConfig,
@@ -48,7 +49,7 @@ impl ConfigStorage {
     pub fn save_config(&self) -> Result<()> {
         let toml = toml::to_string_pretty(&self.config).context("Failed to serialize config")?;
 
-        fs::write(&self.config_file, toml).with_context(|| {
+        write_atomic(&self.config_file, toml.as_bytes()).with_context(|| {
             format!("Failed to save config to '{}'", self.config_file.display())
         })?;
 

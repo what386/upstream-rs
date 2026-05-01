@@ -5,7 +5,7 @@ use anyhow::{Result, anyhow};
 use crate::models::common::enums::Filetype;
 use crate::models::provider::{Asset, Release};
 use crate::models::upstream::Package;
-use crate::utils::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
+use crate::utils::platform::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
 
 #[derive(Debug, Clone)]
 pub struct AssetCandidate {

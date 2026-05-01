@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::application::cli::arguments::Commands;
-use crate::utils::pid;
+use crate::utils::platform::process_id;
 use crate::utils::static_paths::UpstreamPaths;
 
 #[derive(Debug)]
@@ -112,7 +112,7 @@ impl LockStorage {
             .map(|d| d.as_secs())
             .unwrap_or(0);
         writeln!(file, "pid={}", process::id()).ok();
-        if let Some(identity) = pid::current_process_identity() {
+        if let Some(identity) = process_id::current_process_identity() {
             writeln!(file, "pid_start_token={}", identity.start_token).ok();
         }
         writeln!(file, "operation={}", operation).ok();
@@ -150,7 +150,7 @@ impl LockStorage {
         let meta = Self::parse_lock_metadata(lock_info);
 
         if let Some(pid) = meta.pid {
-            let probe = pid::probe_process(pid);
+            let probe = process_id::probe_process(pid);
             if !probe.exists {
                 return true;
             }
@@ -180,7 +180,7 @@ impl Drop for LockStorage {
 #[cfg(test)]
 mod tests {
     use super::LockStorage;
-    use crate::utils::pid;
+    use crate::utils::platform::process_id;
     use std::{
         fs,
         path::PathBuf,
@@ -326,7 +326,7 @@ mod tests {
 
     #[test]
     fn stale_lock_is_recovered_when_pid_start_token_mismatches() {
-        let Some(identity) = pid::current_process_identity() else {
+        let Some(identity) = process_id::current_process_identity() else {
             return;
         };
 

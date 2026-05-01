@@ -1,7 +1,7 @@
 use crate::{
     models::upstream::Package,
     services::integration::{SymlinkManager, permission_handler},
-    utils::{fs_move, static_paths::UpstreamPaths},
+    utils::{filesystem::safe_move, static_paths::UpstreamPaths},
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -505,7 +505,7 @@ impl<'a> BundleHandler<'a> {
             out_path.display()
         );
 
-        fs_move::move_file_or_dir(app_bundle_path, &out_path).context(format!(
+        safe_move::move_file_or_dir(app_bundle_path, &out_path).context(format!(
             "Failed to move app bundle to '{}'",
             out_path.display()
         ))?;

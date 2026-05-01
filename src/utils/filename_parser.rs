@@ -1,5 +1,5 @@
 use crate::models::common::enums::Filetype;
-use crate::utils::platform_info::{CpuArch, OSKind};
+use crate::utils::platform::platform_info::{CpuArch, OSKind};
 
 const ARCHIVE_EXTENSIONS: &[&str] = &[
     ".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tbz", ".tar.xz", ".txz", ".7z",
@@ -172,7 +172,7 @@ fn contains_marker(filename: &str, markers: &[&str]) -> bool {
 mod tests {
     use super::{parse_arch, parse_filetype, parse_os};
     use crate::models::common::enums::Filetype;
-    use crate::utils::platform_info::{CpuArch, OSKind};
+    use crate::utils::platform::platform_info::{CpuArch, OSKind};
 
     #[test]
     fn parse_os_detects_expected_platforms() {
