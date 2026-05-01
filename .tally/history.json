@@ -985,5 +985,15 @@
       "completed_at": "2026-05-01T18:37:05.903626972Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: atomic writes for shell integration",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-01T18:37:06.501718875Z"
+    },
+    "version": null
   }
 ]
