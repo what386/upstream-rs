@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.11.1
+# TODO — upstream-cli v1.12.0
 
 @created: 2026-01-31
 @modified: 2026-05-01
@@ -26,38 +26,47 @@
 - [x] feat: arbitrarily nested executable detection, e.g: 'root/projectname/x86_64/program'
       @created 2026-05-01 19:29
       @completed 2026-05-01 19:32
+      @completed_version 1.12.0
       @completed_commit 169ba1d
 
 - [x] behavior: remove interactive confirmation from import command
       @created 2026-05-01 19:31
       @completed 2026-05-01 19:32
+      @completed_version 1.12.0
       @completed_commit 193cae2
 
 - [x] feat: list --json outputs package metadata (single/all) #feature #list #cli
       @created 2026-05-01 20:04
       @completed 2026-05-01 20:21
+      @completed_version 1.12.0
 
 - [x] feat: doctor --fix repairs symlink/PATH/executable metadata (high) #feature #doctor #ux
       @created 2026-05-01 20:04
       @completed 2026-05-01 20:21
+      @completed_version 1.12.0
 
 - [x] behavior: start versioning package file
       @created 2026-05-01 20:03
       @completed 2026-05-01 20:21
+      @completed_version 1.12.0
 
 - [x] behavior: versioned packages.json with legacy-array compatibility (high) #behavior #storage #compat
       @created 2026-05-01 20:04
       @completed 2026-05-01 20:22
+      @completed_version 1.12.0
 
 - [x] feat: doctor --fix repairs symlink/PATH/executable metadata (high) #feature #doctor #ux
       @created 2026-05-01 20:05
       @completed 2026-05-01 20:22
+      @completed_version 1.12.0
 
 - [x] feat: list --json outputs package metadata (single/all) #feature #list #cli
       @created 2026-05-01 20:05
       @completed 2026-05-01 20:23
+      @completed_version 1.12.0
 
 - [x] feat: package pin --reason with sidecar metadata file (high) #feature #package #metadata
       @created 2026-05-01 20:05
       @completed 2026-05-01 20:23
+      @completed_version 1.12.0
 
