@@ -11,11 +11,7 @@ use console::style;
 use minisign_verify::PublicKey;
 use serde::Deserialize;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{
-    fs,
-    io::{self, IsTerminal, Write},
-    path::Path,
-};
+use std::{fs, path::Path};
 
 // ---------------------------------------------------------------------------
 // Manifest (mirrors ExportManifest but only needs Deserialize)
@@ -86,7 +82,7 @@ impl<'a> ImportOperation<'a> {
         path: &Path,
         skip_failed: bool,
         forced_kind: Option<ImportKind>,
-        yes: bool,
+        _yes: bool,
         download_progress_callback: &mut Option<F>,
         overall_progress_callback: &mut Option<G>,
         message_callback: &mut Option<H>,
@@ -100,9 +96,6 @@ impl<'a> ImportOperation<'a> {
 
         match kind {
             ImportKind::Snapshot => {
-                if !yes && !Self::confirm_snapshot(path)? {
-                    return Err(anyhow!("Import cancelled"));
-                }
                 if skip_failed {
                     message!(
                         message_callback,
@@ -114,9 +107,6 @@ impl<'a> ImportOperation<'a> {
             }
             ImportKind::Manifest => {
                 let manifest = Self::read_manifest(path)?;
-                if !yes && !Self::confirm_manifest(path, manifest.packages.len())? {
-                    return Err(anyhow!("Import cancelled"));
-                }
                 self.import_manifest_metadata(
                     manifest,
                     skip_failed,
@@ -128,9 +118,6 @@ impl<'a> ImportOperation<'a> {
             }
             ImportKind::Keys => {
                 let keys = Self::parse_minisign_key_file(path)?;
-                if !yes && !Self::confirm_keys(path, keys.len())? {
-                    return Err(anyhow!("Import cancelled"));
-                }
                 self.import_keys(keys, skip_failed, message_callback)
             }
         }
@@ -273,42 +260,6 @@ impl<'a> ImportOperation<'a> {
         }
 
         Ok(keys)
-    }
-
-    fn confirm_manifest(path: &Path, package_count: usize) -> Result<bool> {
-        Self::confirm(&format!(
-            "Import manifest '{}' with {} package metadata entries? [y/N]: ",
-            path.display(),
-            package_count
-        ))
-    }
-
-    fn confirm_keys(path: &Path, key_count: usize) -> Result<bool> {
-        Self::confirm(&format!(
-            "Import {} trusted minisign key(s) from '{}' ? [y/N]: ",
-            key_count,
-            path.display()
-        ))
-    }
-
-    fn confirm_snapshot(path: &Path) -> Result<bool> {
-        Self::confirm(&format!(
-            "Restore snapshot from '{}' ? [y/N]: ",
-            path.display()
-        ))
-    }
-
-    fn confirm(prompt: &str) -> Result<bool> {
-        if !io::stdin().is_terminal() {
-            return Err(anyhow!(
-                "Confirmation required but no interactive terminal detected. Re-run with --yes."
-            ));
-        }
-        print!("{prompt}");
-        io::stdout().flush()?;
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        Ok(input.trim().to_ascii_lowercase().starts_with('y'))
     }
 
     // -----------------------------------------------------------------------
