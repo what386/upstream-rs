@@ -131,7 +131,9 @@ impl<'a> RemoveOperation<'a> {
 #[cfg(test)]
 mod tests {
     use super::RemoveOperation;
-    use crate::services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage};
+    use crate::services::storage::{
+        metadata_storage::MetadataStorage, package_storage::PackageStorage,
+    };
     use crate::utils::static_paths::{
         AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, UpstreamPaths,
     };
@@ -187,7 +189,8 @@ mod tests {
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
+        let mut metadata_storage =
+            MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
         let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
         let mut msg: Option<fn(&str)> = None;
 
@@ -206,7 +209,8 @@ mod tests {
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
+        let mut metadata_storage =
+            MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
         let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
         let mut msg: Option<fn(&str)> = None;
         let mut progress_calls = Vec::new();

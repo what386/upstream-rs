@@ -31,7 +31,10 @@ fn print_single_json(storage: &PackageStorage, name: &str) -> Result<()> {
 }
 
 fn print_all_json(storage: &PackageStorage) -> Result<()> {
-    println!("{}", serde_json::to_string_pretty(storage.get_all_packages())?);
+    println!(
+        "{}",
+        serde_json::to_string_pretty(storage.get_all_packages())?
+    );
     Ok(())
 }
 

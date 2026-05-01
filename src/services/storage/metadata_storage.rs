@@ -1,6 +1,6 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
 
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};

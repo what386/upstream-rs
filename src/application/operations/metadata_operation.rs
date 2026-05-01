@@ -480,7 +480,9 @@ mod tests {
     use super::MetadataManager;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
-    use crate::services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage};
+    use crate::services::storage::{
+        metadata_storage::MetadataStorage, package_storage::PackageStorage,
+    };
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
