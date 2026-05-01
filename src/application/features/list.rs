@@ -5,14 +5,34 @@ use crate::{
 use anyhow::{Result, anyhow};
 use console::Term;
 
-pub fn run(package_name: Option<String>) -> Result<()> {
+pub fn run(package_name: Option<String>, json: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let package_storage = PackageStorage::new(&paths.config.packages_file)?;
+
+    if json {
+        return match package_name {
+            Some(name) => print_single_json(&package_storage, &name),
+            None => print_all_json(&package_storage),
+        };
+    }
 
     match package_name {
         Some(name) => display_single_package(&package_storage, &name),
         None => display_all_packages(&package_storage),
     }
+}
+
+fn print_single_json(storage: &PackageStorage, name: &str) -> Result<()> {
+    let package = storage
+        .get_package_by_name(name)
+        .ok_or_else(|| anyhow!("Package '{}' is not installed.", name))?;
+    println!("{}", serde_json::to_string_pretty(package)?);
+    Ok(())
+}
+
+fn print_all_json(storage: &PackageStorage) -> Result<()> {
+    println!("{}", serde_json::to_string_pretty(storage.get_all_packages())?);
+    Ok(())
 }
 
 fn display_single_package(storage: &PackageStorage, name: &str) -> Result<()> {
