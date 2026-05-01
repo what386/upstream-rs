@@ -1,10 +1,29 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
 use anyhow::{Context, Result, anyhow};
+use serde::{Deserialize, Serialize};
 
-use crate::models::upstream::{PackageMetadataFile, PackageSidecarMetadata};
+use crate::models::upstream::PackageMetadata;
 use crate::utils::filesystem::atomic_ops::write_atomic;
+
+const METADATA_STORAGE_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PackageMetadataFile {
+    version: u32,
+    packages: HashMap<String, PackageMetadata>,
+}
+
+impl Default for PackageMetadataFile {
+    fn default() -> Self {
+        Self {
+            version: METADATA_STORAGE_VERSION,
+            packages: HashMap::new(),
+        }
+    }
+}
 
 pub struct MetadataStorage {
     file: PackageMetadataFile,
@@ -91,12 +110,12 @@ impl MetadataStorage {
         Ok(())
     }
 
-    pub fn get_package(&self, name: &str) -> Option<&PackageSidecarMetadata> {
+    pub fn get_package(&self, name: &str) -> Option<&PackageMetadata> {
         self.file.packages.get(name)
     }
 }
 
-fn is_empty_entry(entry: &PackageSidecarMetadata) -> bool {
+fn is_empty_entry(entry: &PackageMetadata) -> bool {
     entry.pin_reason.is_none()
 }
 
