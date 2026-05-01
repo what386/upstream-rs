@@ -5,6 +5,9 @@
 
 ## Tasks
 
+- [ ] behavior: start versioning package file
+      @created 2026-05-01 20:03
+
 
 ## Completed
 
