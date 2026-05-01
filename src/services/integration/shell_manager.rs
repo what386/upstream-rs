@@ -1,11 +1,11 @@
+#[cfg(unix)]
+use crate::utils::filesystem::atomic_ops::write_atomic;
 use anyhow::{Context, Result};
 #[cfg(unix)]
 use std::fs;
 use std::path::Path;
 #[cfg(unix)]
 use std::sync::{Mutex, OnceLock};
-#[cfg(unix)]
-use crate::utils::filesystem::atomic_ops::write_atomic;
 
 /// Process-global lock used to serialize reads/writes to the shared PATH file.
 #[cfg(unix)]
