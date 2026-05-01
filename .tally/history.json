@@ -1015,5 +1015,25 @@
       "patch": 1,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "feat: arbitrarily nested executable detection, e.g: 'root/projectname/x86_64/program'",
+      "priority": "Medium",
+      "tags": [],
+      "commit": "169ba1d",
+      "completed_at": "2026-05-01T19:32:19.351643184Z"
+    },
+    "version": null
+  },
+  {
+    "change": {
+      "description": "behavior: remove interactive confirmation from import command",
+      "priority": "Medium",
+      "tags": [],
+      "commit": "193cae2",
+      "completed_at": "2026-05-01T19:32:41.264007680Z"
+    },
+    "version": null
   }
 ]
