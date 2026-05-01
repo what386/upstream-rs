@@ -1,20 +1,22 @@
 use crate::{
     application::operations::metadata_operation::MetadataManager,
-    services::integration::SymlinkManager, services::storage::package_storage::PackageStorage,
+    services::integration::SymlinkManager,
+    services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
 
-pub fn run_pin(name: String) -> Result<()> {
+pub fn run_pin(name: String, reason: Option<String>) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut package_manager = MetadataManager::new(&mut package_storage);
+    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
+    let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
 
     let mut message_callback = Some(move |msg: &str| {
         println!("{}", msg);
     });
 
-    package_manager.pin_package(&name, &mut message_callback)?;
+    package_manager.pin_package(&name, reason, &mut message_callback)?;
     println!("Package '{}' has been pinned", name);
 
     Ok(())
@@ -23,7 +25,8 @@ pub fn run_pin(name: String) -> Result<()> {
 pub fn run_unpin(name: String) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut package_manager = MetadataManager::new(&mut package_storage);
+    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
+    let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
 
     let mut message_callback = Some(move |msg: &str| {
         println!("{}", msg);
@@ -38,7 +41,8 @@ pub fn run_unpin(name: String) -> Result<()> {
 pub fn run_remove(name: String) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut package_manager = MetadataManager::new(&mut package_storage);
+    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
+    let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
 
     let mut message_callback = Some(move |msg: &str| {
         println!("{}", msg);
@@ -53,7 +57,8 @@ pub fn run_remove(name: String) -> Result<()> {
 pub fn run_set_key(name: String, keys: Vec<String>) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut package_manager = MetadataManager::new(&mut package_storage);
+    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
+    let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
 
     let mut message_callback = Some(move |msg: &str| {
         println!("{}", msg);
@@ -73,7 +78,8 @@ pub fn run_set_key(name: String, keys: Vec<String>) -> Result<()> {
 pub fn run_get_key(name: String, keys: Vec<String>) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let package_manager = MetadataManager::new(&mut package_storage);
+    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
+    let package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
 
     let mut message_callback = Some(move |msg: &str| {
         println!("{}", msg);
@@ -116,7 +122,8 @@ pub fn run_rename(old_name: String, new_name: String) -> Result<()> {
         .cloned()
         .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", old_name))?;
 
-    let mut package_manager = MetadataManager::new(&mut package_storage);
+    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
+    let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
     let mut message_callback = Some(move |msg: &str| {
         println!("{}", msg);
     });
