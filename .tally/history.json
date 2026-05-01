@@ -1073,5 +1073,19 @@
       "completed_at": "2026-05-01T20:21:54.528472831Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "behavior: versioned packages.json with legacy-array compatibility",
+      "priority": "High",
+      "tags": [
+        "behavior",
+        "storage",
+        "compat"
+      ],
+      "commit": null,
+      "completed_at": "2026-05-01T20:22:20.475541429Z"
+    },
+    "version": null
   }
 ]

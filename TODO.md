@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] behavior: versioned packages.json with legacy-array compatibility (high) #behavior #storage #compat
-      @created 2026-05-01 20:04
-
 - [ ] feat: package pin --reason with sidecar metadata file (high) #feature #package #metadata
       @created 2026-05-01 20:04
 
@@ -62,4 +59,8 @@
 - [x] behavior: start versioning package file
       @created 2026-05-01 20:03
       @completed 2026-05-01 20:21
+
+- [x] behavior: versioned packages.json with legacy-array compatibility (high) #behavior #storage #compat
+      @created 2026-05-01 20:04
+      @completed 2026-05-01 20:22
 
