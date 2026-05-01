@@ -1,6 +1,16 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-04-30*
+*Generated on 2026-05-01*
+
+## 1.11.1 — 2026-05-01
+
+### Changes
+
+- feat: include commit hash in long --version
+- feat: atomic writes for packages.json
+- feat: atomic writes for config.toml
+- feat: atomic writes for shell integration
+
 
 ## 1.11.0 — 2026-04-30
 
