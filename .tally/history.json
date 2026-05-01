@@ -1035,5 +1035,19 @@
       "completed_at": "2026-05-01T19:32:41.264007680Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: list --json outputs package metadata (single/all)",
+      "priority": "Medium",
+      "tags": [
+        "feature",
+        "list",
+        "cli"
+      ],
+      "commit": null,
+      "completed_at": "2026-05-01T20:21:50.547342716Z"
+    },
+    "version": null
   }
 ]
