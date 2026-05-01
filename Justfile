@@ -18,7 +18,7 @@ run *args:
     cargo run --bin "upstream-rs" -- {{args}}
 
 prepare version:
-    just fmt
+    cargo fmt
     git add src/
     git commit -m "cargo fmt"
     lash run scripts/release/prepare.lash {{version}}
