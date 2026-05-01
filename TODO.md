@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] feat: atomic writes for shell integration
-      @created 2026-05-01 18:26
-
 
 ## Completed
 
@@ -41,5 +38,9 @@
 
 - [x] feat: atomic writes for config.toml
       @created 2026-05-01 18:25
+      @completed 2026-05-01 18:37
+
+- [x] feat: atomic writes for shell integration
+      @created 2026-05-01 18:26
       @completed 2026-05-01 18:37
 
