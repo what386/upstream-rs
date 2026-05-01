@@ -11,6 +11,9 @@
 - [ ] feat: atomic writes for config.toml
       @created 2026-05-01 18:25
 
+- [ ] feat: atomic writes for shell integration
+      @created 2026-05-01 18:26
+
 
 ## Completed
 
