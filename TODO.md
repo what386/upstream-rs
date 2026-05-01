@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] behavior: start versioning package file
-      @created 2026-05-01 20:03
-
 - [ ] behavior: versioned packages.json with legacy-array compatibility (high) #behavior #storage #compat
       @created 2026-05-01 20:04
 
@@ -60,5 +57,9 @@
 
 - [x] feat: doctor --fix repairs symlink/PATH/executable metadata (high) #feature #doctor #ux
       @created 2026-05-01 20:04
+      @completed 2026-05-01 20:21
+
+- [x] behavior: start versioning package file
+      @created 2026-05-01 20:03
       @completed 2026-05-01 20:21
 
