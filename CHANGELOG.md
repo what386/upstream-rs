@@ -2,6 +2,22 @@
 
 *Generated on 2026-05-01*
 
+## 1.12.0 — 2026-05-01
+
+### High Priority
+
+- feat: doctor --fix repairs symlink/PATH/executable metadata `feature`, `doctor`, `ux`
+- behavior: versioned packages.json with legacy-array compatibility `behavior`, `storage`, `compat`
+- feat: package pin --reason with sidecar metadata file `feature`, `package`, `metadata`
+
+### Changes
+
+- feat: arbitrarily nested executable detection, e.g: 'root/projectname/x86_64/program' ([`169ba1d`])
+- behavior: remove interactive confirmation from import command ([`193cae2`])
+- feat: list --json outputs package metadata (single/all) `feature`, `list`, `cli`
+- behavior: start versioning package file
+
+
 ## 1.11.1 — 2026-05-01
 
 ### Changes
