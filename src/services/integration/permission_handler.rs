@@ -195,16 +195,28 @@ mod tests {
         fs::remove_dir_all(path)
     }
 
+    fn executable_name(base: &str) -> String {
+        #[cfg(windows)]
+        {
+            format!("{base}.exe")
+        }
+        #[cfg(not(windows))]
+        {
+            base.to_string()
+        }
+    }
+
     #[test]
     fn finds_nested_arch_layout_executable() {
         let root = temp_root("nested-arch");
         let install_root = root.join("minisign-0.12-linux");
         let arch_dir = install_root.join("minisign-linux").join("x86_64");
         fs::create_dir_all(&arch_dir).expect("create nested dirs");
-        fs::write(arch_dir.join("minisign"), b"#!/bin/sh\n").expect("write executable");
+        let executable = executable_name("minisign");
+        fs::write(arch_dir.join(&executable), b"#!/bin/sh\n").expect("write executable");
 
         let found = find_executable(&install_root, "minisign").expect("find executable");
-        assert!(found.ends_with("minisign-linux/x86_64/minisign"));
+        assert!(found.ends_with(Path::new("minisign-linux").join("x86_64").join(executable)));
 
         cleanup(&root).expect("cleanup");
     }
@@ -213,10 +225,11 @@ mod tests {
     fn still_finds_direct_binary_first() {
         let root = temp_root("direct");
         fs::create_dir_all(&root).expect("create root");
-        fs::write(root.join("tool"), b"#!/bin/sh\n").expect("write executable");
+        let executable = executable_name("tool");
+        fs::write(root.join(&executable), b"#!/bin/sh\n").expect("write executable");
 
         let found = find_executable(&root, "tool").expect("find executable");
-        assert!(found.ends_with("tool"));
+        assert!(found.ends_with(Path::new(&executable)));
 
         cleanup(&root).expect("cleanup");
     }
