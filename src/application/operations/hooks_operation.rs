@@ -499,6 +499,7 @@ mod tests {
             config: ConfigPaths {
                 config_file: dirs.config_dir.join("config.toml"),
                 packages_file: dirs.metadata_dir.join("packages.json"),
+                metadata_file: dirs.metadata_dir.join("metadata.json"),
                 paths_file: dirs.metadata_dir.join("paths.sh"),
             },
             install: InstallPaths {
