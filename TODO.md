@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] feat: atomic writes for packages.json
-      @created 2026-05-01 18:21
-
 - [ ] feat: atomic writes for config.toml
       @created 2026-05-01 18:25
 
@@ -40,4 +37,8 @@
 - [x] feat: include commit hash in long --version
       @created 2026-04-30 02:50
       @completed 2026-04-30 02:50
+
+- [x] feat: atomic writes for packages.json
+      @created 2026-05-01 18:21
+      @completed 2026-05-01 18:37
 

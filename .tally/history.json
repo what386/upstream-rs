@@ -965,5 +965,15 @@
       "completed_at": "2026-04-30T02:50:43.132785018Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: atomic writes for packages.json",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-01T18:37:04.614344905Z"
+    },
+    "version": null
   }
 ]
