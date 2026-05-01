@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] feat: package pin --reason with sidecar metadata file (high) #feature #package #metadata
-      @created 2026-05-01 20:05
-
 
 ## Completed
 
@@ -57,6 +54,10 @@
       @completed 2026-05-01 20:22
 
 - [x] feat: list --json outputs package metadata (single/all) #feature #list #cli
+      @created 2026-05-01 20:05
+      @completed 2026-05-01 20:23
+
+- [x] feat: package pin --reason with sidecar metadata file (high) #feature #package #metadata
       @created 2026-05-01 20:05
       @completed 2026-05-01 20:23
 
