@@ -1087,5 +1087,19 @@
       "completed_at": "2026-05-01T20:22:20.475541429Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: package pin --reason with sidecar metadata file",
+      "priority": "High",
+      "tags": [
+        "feature",
+        "package",
+        "metadata"
+      ],
+      "commit": null,
+      "completed_at": "2026-05-01T20:23:02.256055486Z"
+    },
+    "version": null
   }
 ]
