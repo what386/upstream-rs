@@ -5,6 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{
+    services::integration::{ShellManager, SymlinkManager, permission_handler},
     services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
 };
 
@@ -281,16 +282,32 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
     }
 }
 
+#[cfg(unix)]
+fn fix_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
+    let manager = ShellManager::new(&paths.config.paths_file);
+    if let Err(err) = manager.add_to_paths(&paths.integration.symlinks_dir) {
+        report.line(
+            Level::Warn,
+            format!("Failed to repair PATH integration file: {}", err),
+        );
+        return;
+    }
+    report.line(Level::Ok, "Repaired PATH integration file");
+}
+
+#[cfg(not(unix))]
+fn fix_paths_file(_paths: &UpstreamPaths, _report: &mut DoctorReport) {}
+
 #[cfg(not(unix))]
 fn check_paths_file(_paths: &UpstreamPaths, report: &mut DoctorReport) {
     report.line(Level::Ok, "PATH integration check skipped on this platform");
 }
 
-pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
+pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
     println!("{}", style("Running upstream doctor...").cyan());
 
     let paths = UpstreamPaths::new()?;
-    let package_storage = PackageStorage::new(&paths.config.packages_file)?;
+    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
 
     let mut report = DoctorReport::new(verbose);
 
@@ -346,8 +363,11 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
     }
 
     check_paths_file(&paths, &mut report);
+    if fix {
+        fix_paths_file(&paths, &mut report);
+    }
 
-    let all_packages = package_storage.get_all_packages();
+    let all_packages = package_storage.get_all_packages().to_vec();
     let installed_names: HashSet<String> = all_packages.iter().map(|p| p.name.clone()).collect();
 
     let stale_links = find_stale_symlink_names(&paths.integration.symlinks_dir, &installed_names);
@@ -403,7 +423,7 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
 
     let mut selected = Vec::new();
     if names.is_empty() {
-        selected.extend(all_packages.iter());
+        selected.extend(all_packages.iter().cloned());
         report.line(
             Level::Ok,
             format!("Loaded {} package(s) for checks", selected.len()),
@@ -411,7 +431,7 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
     } else {
         for name in &names {
             match package_storage.get_package_by_name(name) {
-                Some(pkg) => selected.push(pkg),
+                Some(pkg) => selected.push(pkg.clone()),
                 None => report.line(
                     Level::Fail,
                     format!("Requested package '{}' is not installed", name),
@@ -428,8 +448,13 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
         );
     }
 
-    for package in selected {
+    let mut changed_packages = false;
+    let symlink_manager = SymlinkManager::new(&paths.integration.symlinks_dir);
+
+    for package in &selected {
+        let package_name = package.name.clone();
         let package_label = format!("package '{}'", package.name);
+        let mut resolved_exec_path = package.exec_path.clone();
 
         match &package.install_path {
             Some(path) if path.exists() => {
@@ -453,7 +478,7 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
             }
         }
 
-        match &package.exec_path {
+        match &resolved_exec_path {
             Some(path) if path.exists() => {
                 if is_executable(path) {
                     report.line(
@@ -465,6 +490,19 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
                         Level::Warn,
                         format!("{} executable path is not marked executable", package_label),
                     );
+                    if fix {
+                        if let Err(err) = permission_handler::make_executable(path) {
+                            report.line(
+                                Level::Warn,
+                                format!(
+                                    "{} failed to set executable bit during fix: {}",
+                                    package_label, err
+                                ),
+                            );
+                        } else {
+                            report.line(Level::Ok, format!("{} executable bit repaired", package_label));
+                        }
+                    }
                 }
             }
             Some(path) => {
@@ -486,14 +524,39 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
                     "Try `upstream upgrade {} --force` to rebuild executable metadata.",
                     package.name
                 ));
+                if fix
+                    && let Some(install_path) = &package.install_path
+                {
+                    let rediscovered = if install_path.is_file() {
+                        Some(install_path.clone())
+                    } else {
+                        permission_handler::find_executable(install_path, &package.name)
+                    };
+                    if let Some(path) = rediscovered {
+                        resolved_exec_path = Some(path.clone());
+                        report.line(
+                            Level::Ok,
+                            format!(
+                                "{} rediscovered executable path: {}",
+                                package_label,
+                                path.display()
+                            ),
+                        );
+                    } else {
+                        report.line(
+                            Level::Warn,
+                            format!("{} could not rediscover executable path", package_label),
+                        );
+                    }
+                }
             }
         }
 
-        if package.exec_path.is_some() {
+        if resolved_exec_path.is_some() {
             let link_path = expected_link_path(&paths.integration.symlinks_dir, &package.name);
             #[cfg(unix)]
             {
-                let Some(exec_path) = &package.exec_path else {
+                let Some(exec_path) = &resolved_exec_path else {
                     unreachable!("checked above");
                 };
                 match inspect_unix_link(&link_path, exec_path) {
@@ -549,6 +612,16 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
                             "Try `upstream upgrade {} --force` to recreate missing links.",
                             package.name
                         ));
+                        if fix {
+                            if let Err(err) = symlink_manager.add_link(exec_path, &package.name) {
+                                report.line(
+                                    Level::Warn,
+                                    format!("{} failed to recreate symlink: {}", package_label, err),
+                                );
+                            } else {
+                                report.line(Level::Ok, format!("{} recreated missing symlink", package_label));
+                            }
+                        }
                     }
                     LinkStatus::NotSymlink => {
                         report.line(
@@ -564,6 +637,16 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
                             link_path.display(),
                             package.name
                         ));
+                        if fix {
+                            if let Err(err) = symlink_manager.add_link(exec_path, &package.name) {
+                                report.line(
+                                    Level::Warn,
+                                    format!("{} failed to replace non-symlink link path: {}", package_label, err),
+                                );
+                            } else {
+                                report.line(Level::Ok, format!("{} repaired link path", package_label));
+                            }
+                        }
                     }
                     LinkStatus::Unreadable(e) => report.line(
                         Level::Warn,
@@ -588,7 +671,26 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
                         "Try `upstream upgrade {} --force` to recreate missing links.",
                         package.name
                     ));
+                    if fix
+                        && let Some(exec_path) = &resolved_exec_path
+                    {
+                        if let Err(err) = symlink_manager.add_link(exec_path, &package.name) {
+                            report.line(
+                                Level::Warn,
+                                format!("{} failed to recreate link entry: {}", package_label, err),
+                            );
+                        } else {
+                            report.line(Level::Ok, format!("{} recreated missing link", package_label));
+                        }
+                    }
                 }
+            }
+        }
+
+        if fix && resolved_exec_path != package.exec_path {
+            if let Some(mut_pkg) = package_storage.get_mut_package_by_name(&package_name) {
+                mut_pkg.exec_path = resolved_exec_path;
+                changed_packages = true;
             }
         }
 
@@ -630,6 +732,10 @@ pub fn run(names: Vec<String>, verbose: bool) -> Result<()> {
                 }
             }
         }
+    }
+
+    if fix && changed_packages {
+        package_storage.save_packages()?;
     }
 
     println!();
