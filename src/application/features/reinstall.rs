@@ -116,6 +116,7 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn reinstall_one<H>(
     provider_manager: &ProviderManager,
     package_storage: &mut PackageStorage,
