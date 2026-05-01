@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
+use serde::{Deserialize, Serialize};
 
 use crate::models::upstream::Package;
 use crate::utils::filesystem::atomic_ops::write_atomic;
@@ -9,6 +10,21 @@ use crate::utils::filesystem::atomic_ops::write_atomic;
 pub struct PackageStorage {
     packages: Vec<Package>,
     packages_file: PathBuf,
+}
+
+const PACKAGE_STORAGE_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PackageStorageFile {
+    version: u32,
+    packages: Vec<Package>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+enum PackageStorageOnDisk {
+    Versioned(PackageStorageFile),
+    Legacy(Vec<Package>),
 }
 
 impl PackageStorage {
@@ -37,12 +53,26 @@ impl PackageStorage {
                     return Ok(());
                 }
 
-                self.packages = serde_json::from_str(&json).with_context(|| {
+                let parsed: PackageStorageOnDisk = serde_json::from_str(&json).with_context(|| {
                     format!(
                         "Failed to parse package storage '{}'. The file may be corrupt; restore from backup or fix JSON syntax",
                         self.packages_file.display()
                     )
                 })?;
+                self.packages = match parsed {
+                    PackageStorageOnDisk::Versioned(file) => {
+                        if file.version != PACKAGE_STORAGE_VERSION {
+                            return Err(anyhow!(
+                                "Unsupported package storage version {} in '{}'. Expected version {}.",
+                                file.version,
+                                self.packages_file.display(),
+                                PACKAGE_STORAGE_VERSION
+                            ));
+                        }
+                        file.packages
+                    }
+                    PackageStorageOnDisk::Legacy(packages) => packages,
+                };
                 Ok(())
             }
             Err(e) => Err(anyhow!("Warning: Failed to load packages: {}", e)),
@@ -51,8 +81,11 @@ impl PackageStorage {
 
     /// Save all packages to the packages.json file.
     pub fn save_packages(&self) -> Result<()> {
-        let json =
-            serde_json::to_string_pretty(&self.packages).context("Failed to serialize packages")?;
+        let payload = PackageStorageFile {
+            version: PACKAGE_STORAGE_VERSION,
+            packages: self.packages.clone(),
+        };
+        let json = serde_json::to_string_pretty(&payload).context("Failed to serialize packages")?;
 
         write_atomic(&self.packages_file, json.as_bytes()).with_context(|| {
             format!(
@@ -102,7 +135,7 @@ impl PackageStorage {
 
 #[cfg(test)]
 mod tests {
-    use super::PackageStorage;
+    use super::{PACKAGE_STORAGE_VERSION, PackageStorage, PackageStorageFile};
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use std::path::{Path, PathBuf};
@@ -257,9 +290,46 @@ mod tests {
         storage.add_or_update_package(second).expect("save second");
 
         let json = fs::read_to_string(&path).expect("read final json");
-        let decoded: Vec<Package> = serde_json::from_str(&json).expect("parse final json");
-        assert_eq!(decoded.len(), 1);
-        assert_eq!(decoded[0].version.major, 2);
+        let decoded: PackageStorageFile =
+            serde_json::from_str(&json).expect("parse final json as versioned storage");
+        assert_eq!(decoded.version, PACKAGE_STORAGE_VERSION);
+        assert_eq!(decoded.packages.len(), 1);
+        assert_eq!(decoded.packages[0].version.major, 2);
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn legacy_array_format_still_loads() {
+        let path = temp_packages_file("legacy-load");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        let legacy = serde_json::to_string(&vec![test_package("legacy")]).expect("legacy json");
+        fs::write(&path, legacy).expect("write legacy");
+
+        let storage = PackageStorage::new(&path).expect("load legacy");
+        assert_eq!(storage.get_all_packages().len(), 1);
+        assert!(storage.get_package_by_name("legacy").is_some());
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn rejects_unsupported_versioned_storage() {
+        let path = temp_packages_file("bad-version");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        fs::write(&path, r#"{"version":2,"packages":[]}"#).expect("write versioned json");
+
+        let err = match PackageStorage::new(&path) {
+            Ok(_) => panic!("unsupported version should fail"),
+            Err(err) => err,
+        };
+        assert!(err
+            .to_string()
+            .contains("Unsupported package storage version"));
 
         cleanup(&path).expect("cleanup");
     }
