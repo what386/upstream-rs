@@ -8,9 +8,6 @@
 - [ ] behavior: start versioning package file
       @created 2026-05-01 20:03
 
-- [ ] feat: doctor --fix repairs symlink/PATH/executable metadata (high) #feature #doctor #ux
-      @created 2026-05-01 20:04
-
 - [ ] behavior: versioned packages.json with legacy-array compatibility (high) #behavior #storage #compat
       @created 2026-05-01 20:04
 
@@ -58,6 +55,10 @@
       @completed_commit 193cae2
 
 - [x] feat: list --json outputs package metadata (single/all) #feature #list #cli
+      @created 2026-05-01 20:04
+      @completed 2026-05-01 20:21
+
+- [x] feat: doctor --fix repairs symlink/PATH/executable metadata (high) #feature #doctor #ux
       @created 2026-05-01 20:04
       @completed 2026-05-01 20:21
 

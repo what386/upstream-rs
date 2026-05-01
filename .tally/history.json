@@ -1049,5 +1049,19 @@
       "completed_at": "2026-05-01T20:21:50.547342716Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: doctor --fix repairs symlink/PATH/executable metadata",
+      "priority": "High",
+      "tags": [
+        "feature",
+        "doctor",
+        "ux"
+      ],
+      "commit": null,
+      "completed_at": "2026-05-01T20:21:52.166412526Z"
+    },
+    "version": null
   }
 ]
