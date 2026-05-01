@@ -1,9 +1,12 @@
 # TODO — upstream-cli v1.11.0
 
 @created: 2026-01-31
-@modified: 2026-04-30
+@modified: 2026-05-01
 
 ## Tasks
+
+- [ ] feat: atomic writes for packages.json
+      @created 2026-05-01 18:21
 
 
 ## Completed
