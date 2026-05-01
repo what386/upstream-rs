@@ -975,5 +975,15 @@
       "completed_at": "2026-05-01T18:37:04.614344905Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: atomic writes for config.toml",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-01T18:37:05.903626972Z"
+    },
+    "version": null
   }
 ]
