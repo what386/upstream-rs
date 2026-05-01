@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow};
 
 use crate::models::upstream::Package;
+use crate::utils::filesystem::atomic_ops::write_atomic;
 
 pub struct PackageStorage {
     packages: Vec<Package>,
@@ -53,7 +54,7 @@ impl PackageStorage {
         let json =
             serde_json::to_string_pretty(&self.packages).context("Failed to serialize packages")?;
 
-        fs::write(&self.packages_file, json).with_context(|| {
+        write_atomic(&self.packages_file, json.as_bytes()).with_context(|| {
             format!(
                 "Failed to write package storage to '{}'",
                 self.packages_file.display()
@@ -211,6 +212,54 @@ mod tests {
             Err(err) => err,
         };
         assert!(err.to_string().contains("Failed to parse package storage"));
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn save_packages_creates_missing_parent_dirs() {
+        let path = temp_packages_file("missing-parent");
+        let mut storage = PackageStorage::new(&path).expect("create storage");
+        storage
+            .add_or_update_package(test_package("tool"))
+            .expect("save package");
+
+        assert!(path.exists());
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn save_packages_writes_valid_json_and_can_reload() {
+        let path = temp_packages_file("reload");
+        let mut storage = PackageStorage::new(&path).expect("create storage");
+        storage
+            .add_or_update_package(test_package("tool"))
+            .expect("save package");
+
+        let reloaded = PackageStorage::new(&path).expect("reload storage");
+        assert_eq!(reloaded.get_all_packages().len(), 1);
+        assert!(reloaded.get_package_by_name("tool").is_some());
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn save_packages_overwrites_atomically_visible_result() {
+        let path = temp_packages_file("overwrite");
+        let mut storage = PackageStorage::new(&path).expect("create storage");
+
+        let mut first = test_package("tool");
+        first.version.major = 1;
+        storage.add_or_update_package(first).expect("save first");
+
+        let mut second = test_package("tool");
+        second.version.major = 2;
+        storage.add_or_update_package(second).expect("save second");
+
+        let json = fs::read_to_string(&path).expect("read final json");
+        let decoded: Vec<Package> = serde_json::from_str(&json).expect("parse final json");
+        assert_eq!(decoded.len(), 1);
+        assert_eq!(decoded[0].version.major, 2);
 
         cleanup(&path).expect("cleanup");
     }

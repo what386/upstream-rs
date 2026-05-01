@@ -1,5 +1,4 @@
 pub mod filename_parser;
-pub mod fs_move;
-pub mod pid;
-pub mod platform_info;
+pub mod filesystem;
+pub mod platform;
 pub mod static_paths;

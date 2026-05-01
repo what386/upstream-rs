@@ -10,7 +10,7 @@ use crate::{
             TrustVerificationStatus, TrustVerifier,
         },
     },
-    utils::{fs_move, static_paths::UpstreamPaths},
+    utils::{filesystem::safe_move, static_paths::UpstreamPaths},
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -359,7 +359,7 @@ impl<'a> PackageInstaller<'a> {
             out_path.display()
         );
 
-        fs_move::move_file_or_dir(&extracted_path, &out_path).context(format!(
+        safe_move::move_file_or_dir(&extracted_path, &out_path).context(format!(
             "Failed to move extracted directory from '{}' to '{}'",
             extracted_path.display(),
             out_path.display()
@@ -477,7 +477,7 @@ impl<'a> PackageInstaller<'a> {
             out_path.display()
         );
 
-        fs_move::move_file_or_dir(asset_path, &out_path).context(format!(
+        safe_move::move_file_or_dir(asset_path, &out_path).context(format!(
             "Failed to move AppImage to '{}'",
             out_path.display()
         ))?;
@@ -526,7 +526,7 @@ impl<'a> PackageInstaller<'a> {
             out_path.display()
         );
 
-        fs_move::move_file_or_dir(asset_path, &out_path)
+        safe_move::move_file_or_dir(asset_path, &out_path)
             .context(format!("Failed to move binary to '{}'", out_path.display()))?;
 
         permission_handler::make_executable(&out_path).context(format!(

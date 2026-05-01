@@ -4,6 +4,7 @@ use std::fs;
 use std::path::Path;
 #[cfg(unix)]
 use std::sync::{Mutex, OnceLock};
+use crate::utils::filesystem::atomic_ops::write_atomic;
 
 /// Process-global lock used to serialize reads/writes to the shared PATH file.
 #[cfg(unix)]
@@ -55,7 +56,8 @@ impl<'a> ShellManager<'a> {
 
             if !content.contains(&export_line) {
                 content.push_str(&format!("{export_line}\n"));
-                fs::write(self.paths_file, &content).context("Failed to write paths file")?;
+                write_atomic(self.paths_file, content.as_bytes())
+                    .context("Failed to write paths file")?;
             }
         }
 
@@ -86,7 +88,8 @@ impl<'a> ShellManager<'a> {
 
             content = content.replace(&format!("{export_line}\n"), "");
             content = content.replace(&export_line, "");
-            fs::write(self.paths_file, content).context("Failed to write paths file")?;
+            write_atomic(self.paths_file, content.as_bytes())
+                .context("Failed to write paths file")?;
         }
 
         #[cfg(windows)]
