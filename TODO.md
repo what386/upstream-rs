@@ -8,6 +8,9 @@
 - [ ] feat: arbitrarily nested executable detection, e.g: 'root/projectname/x86_64/program'
       @created 2026-05-01 19:29
 
+- [ ] behavior: remove interactive confirmation from import command
+      @created 2026-05-01 19:31
+
 
 ## Completed
 
