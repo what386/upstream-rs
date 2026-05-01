@@ -5,5 +5,5 @@ pub mod package_reference;
 
 pub use app_config::{AppConfig, MinisignKeyConfig};
 pub use package::{InstallType, Package};
-pub use package_metadata::{PackageMetadataFile, PackageSidecarMetadata};
+pub use package_metadata::PackageMetadata;
 pub use package_reference::PackageReference;
