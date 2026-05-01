@@ -12,7 +12,10 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         builder::{BuildRequest, worker::BuildWorker},
-        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+        storage::{
+            config_storage::ConfigStorage, metadata_storage::MetadataStorage,
+            package_storage::PackageStorage,
+        },
         trust::MinisignPublicKey,
     },
     utils::static_paths::UpstreamPaths,
@@ -26,6 +29,7 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
+    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
     let app_config = config.get_config();
 
     let github_token = app_config.github.api_token.as_deref();
@@ -60,6 +64,7 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode) -> Result<()> {
         if let Err(err) = reinstall_one(
             &provider_manager,
             &mut package_storage,
+            &mut metadata_storage,
             &paths,
             package,
             trust_mode,
@@ -114,6 +119,7 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode) -> Result<()> {
 async fn reinstall_one<H>(
     provider_manager: &ProviderManager,
     package_storage: &mut PackageStorage,
+    metadata_storage: &mut MetadataStorage,
     paths: &UpstreamPaths,
     package: Package,
     trust_mode: TrustMode,
@@ -130,7 +136,7 @@ where
     reinstall_package.exec_path = None;
     reinstall_package.icon_path = None;
 
-    let mut remove_op = RemoveOperation::new(package_storage, paths);
+    let mut remove_op = RemoveOperation::new(package_storage, metadata_storage, paths);
     remove_op.remove_single(&package.name, &false, message_callback)?;
 
     match package.install_type {
