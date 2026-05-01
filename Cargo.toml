@@ -13,6 +13,7 @@ exclude = [
     ".github",
     ".tally",
     "scripts/",
+    "completions/"
 ]
 
 [features]
