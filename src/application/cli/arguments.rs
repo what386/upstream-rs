@@ -232,6 +232,10 @@ pub enum Commands {
     List {
         /// Package name for detailed information
         name: Option<String>,
+
+        /// Print raw package metadata as JSON
+        #[arg(long, default_value_t = false)]
+        json: bool,
     },
 
     /// Inspect releases visible from a provider without installing
@@ -372,6 +376,10 @@ pub enum Commands {
         /// Print each check result line in addition to summary output
         #[arg(long, default_value_t = false)]
         verbose: bool,
+
+        /// Attempt automatic repairs for detected issues
+        #[arg(long, default_value_t = false)]
+        fix: bool,
     },
 }
 
@@ -379,7 +387,7 @@ impl Commands {
     pub fn requires_lock(&self) -> bool {
         match self {
             Commands::List { .. } => false,
-            Commands::Doctor { .. } => false,
+            Commands::Doctor { fix, .. } => *fix,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
             Commands::Package { action } => !matches!(
                 action,
@@ -485,6 +493,10 @@ pub enum PackageAction {
     Pin {
         /// Name of package to pin
         name: String,
+
+        /// Optional reason for pinning this package
+        #[arg(long)]
+        reason: Option<String>,
     },
 
     /// Unpin a package to allow updates
@@ -803,11 +815,18 @@ mod tests {
 
     #[test]
     fn requires_lock_skips_read_only_commands() {
-        assert!(!Commands::List { name: None }.requires_lock());
+        assert!(
+            !Commands::List {
+                name: None,
+                json: false,
+            }
+            .requires_lock()
+        );
         assert!(
             !Commands::Doctor {
                 names: vec![],
                 verbose: false,
+                fix: false,
             }
             .requires_lock()
         );

@@ -100,7 +100,7 @@ impl Cli {
                 trust_mode,
             } => features::upgrade::run(names, force, check, machine_readable, trust_mode).await,
 
-            Commands::List { name } => features::list::run(name),
+            Commands::List { name, json } => features::list::run(name, json),
 
             Commands::Probe {
                 repo_slug,
@@ -120,7 +120,7 @@ impl Cli {
             },
 
             Commands::Package { action } => match action {
-                PackageAction::Pin { name } => features::package::run_pin(name),
+                PackageAction::Pin { name, reason } => features::package::run_pin(name, reason),
                 PackageAction::Unpin { name } => features::package::run_unpin(name),
                 PackageAction::Remove { name } => features::package::run_remove(name),
                 PackageAction::SetKey { name, keys } => features::package::run_set_key(name, keys),
@@ -145,7 +145,11 @@ impl Cli {
                 });
                 features::import::run_import(path, skip_failed, forced_kind, yes).await
             }
-            Commands::Doctor { names, verbose } => features::doctor::run(names, verbose),
+            Commands::Doctor {
+                names,
+                verbose,
+                fix,
+            } => features::doctor::run(names, verbose, fix),
         }
     }
 }
