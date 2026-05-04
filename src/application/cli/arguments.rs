@@ -168,7 +168,8 @@ pub enum Commands {
         Use --purge to remove everything.\n\n\
         EXAMPLES:\n  \
         upstream remove nvim\n  \
-        upstream remove rg fd bat --purge"
+        upstream remove rg fd bat --purge\n  \
+        upstream remove rg --dry-run"
     )]
     Remove {
         /// Names of packages to remove
@@ -177,6 +178,10 @@ pub enum Commands {
         /// Remove all associated cached data
         #[arg(long, default_value_t = false)]
         purge: bool,
+
+        /// Preview removal actions without deleting files or metadata
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
 
     /// Reinstall one or more packages (remove then install)
@@ -796,6 +801,15 @@ mod tests {
     }
 
     #[test]
+    fn remove_parses_dry_run_flag() {
+        let cli = Cli::parse_from(["upstream", "remove", "rg", "--dry-run"]);
+        match cli.command {
+            Commands::Remove { dry_run, .. } => assert!(dry_run),
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
     fn package_remove_parses_name() {
         let cli = Cli::parse_from(["upstream", "package", "remove", "ripgrep"]);
 
@@ -977,6 +991,14 @@ mod tests {
                 names: vec!["ripgrep".to_string()],
                 trust_mode: TrustMode::BestEffort,
                 dry_run: false,
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Remove {
+                names: vec!["ripgrep".to_string()],
+                purge: false,
+                dry_run: true,
             }
             .requires_lock()
         );
