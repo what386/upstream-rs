@@ -14,7 +14,7 @@ end
 subshell
     cargo fmt
     git add src/
-    git commit -m "cargo fmt"
+    git commit -m "cargo fmt" || true
 end
 
 let version = argv[0]
