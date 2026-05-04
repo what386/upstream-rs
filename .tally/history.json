@@ -1156,5 +1156,15 @@
       "completed_at": "2026-05-04T20:50:47.300266837Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: dry run for remove op",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-04T20:50:48.100767713Z"
+    },
+    "version": null
   }
 ]
