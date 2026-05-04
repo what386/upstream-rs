@@ -196,6 +196,10 @@ pub enum Commands {
         /// Trust verification mode for release-asset reinstalls
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
         trust_mode: TrustMode,
+
+        /// Preview reinstall resolution without removing, building, or writing files
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
 
     /// Upgrade installed packages to their latest versions
@@ -228,6 +232,10 @@ pub enum Commands {
         /// Trust verification mode for downloaded assets
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
         trust_mode: TrustMode,
+
+        /// Preview upgrade resolution without downloading or writing files
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
 
     /// List installed packages and their metadata
@@ -626,13 +634,7 @@ mod tests {
 
     #[test]
     fn install_parses_dry_run_flag() {
-        let cli = Cli::parse_from([
-            "upstream",
-            "install",
-            "tool",
-            "owner/repo",
-            "--dry-run",
-        ]);
+        let cli = Cli::parse_from(["upstream", "install", "tool", "owner/repo", "--dry-run"]);
 
         match cli.command {
             Commands::Install { dry_run, .. } => assert!(dry_run),
@@ -765,10 +767,30 @@ mod tests {
         let cli = Cli::parse_from(["upstream", "reinstall", "rg", "fd", "--trust", "all"]);
 
         match cli.command {
-            Commands::Reinstall { names, trust_mode } => {
+            Commands::Reinstall {
+                names, trust_mode, ..
+            } => {
                 assert_eq!(names, vec!["rg".to_string(), "fd".to_string()]);
                 assert_eq!(trust_mode, TrustMode::All);
             }
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn upgrade_parses_dry_run_flag() {
+        let cli = Cli::parse_from(["upstream", "upgrade", "--dry-run"]);
+        match cli.command {
+            Commands::Upgrade { dry_run, .. } => assert!(dry_run),
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn reinstall_parses_dry_run_flag() {
+        let cli = Cli::parse_from(["upstream", "reinstall", "rg", "--dry-run"]);
+        match cli.command {
+            Commands::Reinstall { dry_run, .. } => assert!(dry_run),
             other => panic!("unexpected command parsed: {}", other),
         }
     }
@@ -929,6 +951,7 @@ mod tests {
                 check: true,
                 machine_readable: false,
                 trust_mode: TrustMode::BestEffort,
+                dry_run: false,
             }
             .requires_lock()
         );
@@ -953,6 +976,7 @@ mod tests {
             Commands::Reinstall {
                 names: vec!["ripgrep".to_string()],
                 trust_mode: TrustMode::BestEffort,
+                dry_run: false,
             }
             .requires_lock()
         );
