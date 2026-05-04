@@ -92,9 +92,11 @@ impl Cli {
                 purge: purge_option,
             } => commands::remove::run(names, purge_option),
 
-            Commands::Reinstall { names, trust_mode } => {
-                commands::reinstall::run(names, trust_mode).await
-            }
+            Commands::Reinstall {
+                names,
+                trust_mode,
+                dry_run,
+            } => commands::reinstall::run(names, trust_mode, dry_run).await,
 
             Commands::Upgrade {
                 names,
@@ -102,7 +104,11 @@ impl Cli {
                 check,
                 machine_readable,
                 trust_mode,
-            } => commands::upgrade::run(names, force, check, machine_readable, trust_mode).await,
+                dry_run,
+            } => {
+                commands::upgrade::run(names, force, check, machine_readable, trust_mode, dry_run)
+                    .await
+            }
 
             Commands::List { name, json } => commands::list::run(name, json),
 

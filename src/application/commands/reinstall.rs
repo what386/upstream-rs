@@ -21,7 +21,7 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
-pub async fn run(names: Vec<String>, trust_mode: TrustMode) -> Result<()> {
+pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Result<()> {
     if names.is_empty() {
         return Err(anyhow!("At least one package name is required"));
     }
@@ -37,6 +37,10 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode) -> Result<()> {
     let gitea_token = app_config.gitea.api_token.as_deref();
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
     let trusted_keys = app_config.trusted_minisign_keys();
+
+    if dry_run {
+        return run_dry_run(names, trust_mode, &mut package_storage, &provider_manager).await;
+    }
 
     let mut reinstalled = 0_u32;
     let mut failed = 0_u32;
@@ -113,6 +117,167 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode) -> Result<()> {
         );
     }
 
+    Ok(())
+}
+
+async fn run_dry_run(
+    names: Vec<String>,
+    trust_mode: TrustMode,
+    package_storage: &mut PackageStorage,
+    provider_manager: &ProviderManager,
+) -> Result<()> {
+    println!("{}", style("Dry run: reinstall preview").bold());
+    println!("  trust mode: {}", trust_mode);
+
+    let mut planned = 0_u32;
+    let mut failed = 0_u32;
+
+    for name in &names {
+        let Some(package) = package_storage.get_package_by_name(name).cloned() else {
+            println!("{:<7} {:<28} not installed", "[x]", name);
+            failed += 1;
+            continue;
+        };
+
+        match package.install_type {
+            InstallType::Release => {
+                let mut preview_package = package.clone();
+                preview_package.install_path = None;
+                preview_package.exec_path = None;
+                preview_package.icon_path = None;
+                let version_tag = format!("v{}", package.version);
+
+                match provider_manager
+                    .get_release_by_tag_for(
+                        &preview_package.repo_slug,
+                        &version_tag,
+                        &preview_package.provider,
+                        preview_package.base_url.as_deref(),
+                    )
+                    .await
+                {
+                    Ok(release) => {
+                        match provider_manager.find_recommended_asset(&release, &preview_package) {
+                            Ok(asset) => {
+                                println!(
+                                    "{:<7} {:<28} would reinstall release {} ({}) asset {} ({:?})",
+                                    "[plan]",
+                                    package.name,
+                                    release.name,
+                                    release.tag,
+                                    asset.name,
+                                    if preview_package.filetype
+                                        == crate::models::common::enums::Filetype::Auto
+                                    {
+                                        asset.filetype
+                                    } else {
+                                        preview_package.filetype
+                                    }
+                                );
+                                println!(
+                                    "        {:<28} would remove/install runtime files",
+                                    package.name
+                                );
+                                planned += 1;
+                            }
+                            Err(err) => {
+                                println!(
+                                    "{:<7} {:<28} failed to select release asset {}: {}",
+                                    "[!]", package.name, version_tag, err
+                                );
+                                failed += 1;
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        println!(
+                            "{:<7} {:<28} failed to resolve release {}: {}",
+                            "[!]", package.name, version_tag, err
+                        );
+                        failed += 1;
+                    }
+                }
+            }
+            InstallType::Build => {
+                if let Some(branch) = package.build_branch.clone() {
+                    match provider_manager
+                        .get_branch_head_sha_for(
+                            &package.repo_slug,
+                            &package.provider,
+                            &branch,
+                            package.base_url.as_deref(),
+                        )
+                        .await
+                    {
+                        Ok(commit) => {
+                            println!(
+                                "{:<7} {:<28} would rebuild {} ({}) branch {} @ {}",
+                                "[plan]",
+                                package.name,
+                                package.repo_slug,
+                                package.provider,
+                                branch,
+                                commit
+                            );
+                            println!(
+                                "        {:<28} would remove/install runtime files",
+                                package.name
+                            );
+                            planned += 1;
+                        }
+                        Err(err) => {
+                            println!(
+                                "{:<7} {:<28} failed to resolve build branch {}: {}",
+                                "[!]", package.name, branch, err
+                            );
+                            failed += 1;
+                        }
+                    }
+                } else {
+                    let version_tag = format!("v{}", package.version);
+                    match provider_manager
+                        .get_release_by_tag_for(
+                            &package.repo_slug,
+                            &version_tag,
+                            &package.provider,
+                            package.base_url.as_deref(),
+                        )
+                        .await
+                    {
+                        Ok(release) => {
+                            println!(
+                                "{:<7} {:<28} would rebuild {} ({}) release {} ({})",
+                                "[plan]",
+                                package.name,
+                                package.repo_slug,
+                                package.provider,
+                                release.name,
+                                release.tag
+                            );
+                            println!(
+                                "        {:<28} would remove/install runtime files",
+                                package.name
+                            );
+                            planned += 1;
+                        }
+                        Err(err) => {
+                            println!(
+                                "{:<7} {:<28} failed to resolve release {}: {}",
+                                "[!]", package.name, version_tag, err
+                            );
+                            failed += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    println!();
+    println!("Dry run complete: {} planned, {} failed.", planned, failed);
+    println!(
+        "  actions: resolve only (no remove, no download, no build, no install, no metadata changes)"
+    );
     Ok(())
 }
 

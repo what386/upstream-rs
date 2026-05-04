@@ -26,6 +26,7 @@ pub async fn run(
     check_option: bool,
     machine_readable: bool,
     trust_mode: TrustMode,
+    dry_run: bool,
 ) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
@@ -49,6 +50,9 @@ pub async fn run(
     // Handle --check flag
     if check_option {
         return run_check(package_upgrade, names, machine_readable).await;
+    }
+    if dry_run {
+        return run_dry_run(package_upgrade, names, force_option, trust_mode).await;
     }
 
     // Normal upgrade flow
@@ -300,5 +304,119 @@ async fn run_check(
         render_check_table(&rows);
     }
 
+    Ok(())
+}
+
+async fn run_dry_run(
+    package_upgrade: UpgradeOperation<'_>,
+    names: Option<Vec<String>>,
+    force_option: bool,
+    trust_mode: TrustMode,
+) -> Result<()> {
+    println!("{}", style("Dry run: upgrade preview").bold());
+    let rows = match names {
+        None => package_upgrade.check_all_detailed().await,
+        Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
+    };
+
+    if rows.is_empty() {
+        println!("No installed packages to check.");
+        println!("  actions: resolve only (no download, no install, no metadata changes)");
+        return Ok(());
+    }
+
+    println!(
+        "{:<7} {:<28} {:<10} {:<10} Plan",
+        "State", "Name", "Branch", "Remote"
+    );
+
+    let mut would_upgrade = 0_u32;
+    let mut up_to_date = 0_u32;
+    let mut failed = 0_u32;
+    let mut not_installed = 0_u32;
+
+    for row in rows {
+        let branch = row
+            .channel
+            .as_ref()
+            .map(|c| c.to_string().to_lowercase())
+            .unwrap_or_else(|| "-".to_string());
+        let remote = row
+            .provider
+            .as_ref()
+            .map(std::string::ToString::to_string)
+            .unwrap_or_else(|| "-".to_string());
+
+        match row.status {
+            UpdateCheckStatus::UpdateAvailable { current, latest } => {
+                would_upgrade += 1;
+                let plan = if force_option {
+                    format!("would force-upgrade {current} -> {latest}")
+                } else {
+                    format!("would upgrade {current} -> {latest}")
+                };
+                println!(
+                    "{:<7} {:<28} {:<10} {:<10} {}",
+                    "[plan]",
+                    truncate_cell(&row.name, 28),
+                    truncate_cell(&branch, 10),
+                    truncate_cell(&remote, 10),
+                    plan
+                );
+            }
+            UpdateCheckStatus::UpToDate { current } => {
+                if force_option {
+                    would_upgrade += 1;
+                    println!(
+                        "{:<7} {:<28} {:<10} {:<10} would force-upgrade {}",
+                        "[plan]",
+                        truncate_cell(&row.name, 28),
+                        truncate_cell(&branch, 10),
+                        truncate_cell(&remote, 10),
+                        current
+                    );
+                } else {
+                    up_to_date += 1;
+                    println!(
+                        "{:<7} {:<28} {:<10} {:<10} up to date ({})",
+                        "[=]",
+                        truncate_cell(&row.name, 28),
+                        truncate_cell(&branch, 10),
+                        truncate_cell(&remote, 10),
+                        current
+                    );
+                }
+            }
+            UpdateCheckStatus::Failed { error } => {
+                failed += 1;
+                println!(
+                    "{:<7} {:<28} {:<10} {:<10} failed to resolve: {}",
+                    "[!]",
+                    truncate_cell(&row.name, 28),
+                    truncate_cell(&branch, 10),
+                    truncate_cell(&remote, 10),
+                    truncate_cell(&error, 48)
+                );
+            }
+            UpdateCheckStatus::NotInstalled => {
+                not_installed += 1;
+                println!(
+                    "{:<7} {:<28} {:<10} {:<10} not installed",
+                    "[x]",
+                    truncate_cell(&row.name, 28),
+                    truncate_cell(&branch, 10),
+                    truncate_cell(&remote, 10)
+                );
+            }
+        }
+    }
+
+    println!();
+    println!(
+        "Dry run complete. {} planned, {} up to date, {} failed, {} not installed.",
+        would_upgrade, up_to_date, failed, not_installed
+    );
+    println!("  trust mode: {}", trust_mode);
+    println!("  actions: resolve only (no download, no install, no metadata changes)");
     Ok(())
 }
