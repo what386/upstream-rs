@@ -1146,5 +1146,15 @@
       "completed_at": "2026-05-04T17:37:10.821985079Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: dry run for upgrade/reinstall ops",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-04T20:50:47.300266837Z"
+    },
+    "version": null
   }
 ]

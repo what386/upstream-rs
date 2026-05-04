@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] feat: dry run for upgrade/reinstall ops
-      @created 2026-05-04 20:28
-
 - [ ] feat: dry run for remove op
       @created 2026-05-04 20:50
 
@@ -17,4 +14,8 @@
 - [x] feat: dry run for install ops
       @created 2026-05-04 17:37
       @completed 2026-05-04 17:37
+
+- [x] feat: dry run for upgrade/reinstall ops
+      @created 2026-05-04 20:28
+      @completed 2026-05-04 20:50
 
