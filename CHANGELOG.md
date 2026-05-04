@@ -1,6 +1,15 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-05-01*
+*Generated on 2026-05-04*
+
+## 1.13.0 — 2026-05-04
+
+### Changes
+
+- feat: dry run for install ops
+- feat: dry run for upgrade/reinstall ops
+- feat: dry run for remove op
+
 
 ## 1.12.0 — 2026-05-01
 
