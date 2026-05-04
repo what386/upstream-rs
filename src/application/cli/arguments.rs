@@ -54,7 +54,7 @@ pub enum Commands {
         /// Name to register the application under
         name: String,
 
-        /// Repository identifier (e.g. `owner/repo`)
+        /// Repository identifier or URL
         repo_slug: String,
 
         /// Version tag to install (defaults to latest)
@@ -117,7 +117,7 @@ pub enum Commands {
         /// Name to register the application under
         name: String,
 
-        /// Repository identifier (e.g. `owner/repo`)
+        /// Repository identifier or URL
         repo_slug: String,
 
         /// Version tag to build (defaults to latest)
