@@ -1136,5 +1136,15 @@
       "patch": 0,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "feat: dry run for install ops",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-04T17:37:10.821985079Z"
+    },
+    "version": null
   }
 ]
