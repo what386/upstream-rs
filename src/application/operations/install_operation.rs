@@ -1,7 +1,7 @@
 #[cfg(target_os = "linux")]
 use crate::services::integration::AppImageExtractor;
 use crate::{
-    models::common::{DesktopEntry, enums::TrustMode},
+    models::common::{DesktopEntry, enums::Filetype, enums::TrustMode},
     models::upstream::Package,
     providers::provider_manager::ProviderManager,
     services::{
@@ -34,6 +34,13 @@ pub struct InstallOperation<'a> {
     provider_manager: &'a ProviderManager,
     paths: &'a UpstreamPaths,
     trusted_keys: Vec<MinisignPublicKey>,
+}
+
+pub struct InstallPreview {
+    pub release_name: String,
+    pub release_tag: String,
+    pub asset_name: String,
+    pub resolved_filetype: Filetype,
 }
 
 impl<'a> InstallOperation<'a> {
@@ -303,6 +310,65 @@ impl<'a> InstallOperation<'a> {
             ))?;
 
         Ok(installed_package)
+    }
+
+    pub async fn preview_single_install(
+        &self,
+        package: &Package,
+        version: &Option<String>,
+    ) -> Result<InstallPreview> {
+        if package.install_path.is_some() {
+            return Err(anyhow!("Package '{}' is already installed", package.name));
+        }
+
+        let release = if let Some(version_tag) = version {
+            self.provider_manager
+                .get_release_by_tag_for(
+                    &package.repo_slug,
+                    version_tag,
+                    &package.provider,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .context(format!(
+                    "Failed to fetch release '{}' for '{}'. Verify the version tag exists",
+                    version_tag, package.repo_slug
+                ))?
+        } else {
+            self.provider_manager
+                .get_latest_release_for(
+                    &package.repo_slug,
+                    &package.provider,
+                    &package.channel,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .context(format!(
+                    "Failed to fetch latest {} release for '{}'",
+                    package.channel, package.repo_slug
+                ))?
+        };
+
+        let best_asset = self
+            .provider_manager
+            .find_recommended_asset(&release, package)
+            .context(format!(
+                "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
+                package.name, package.filetype
+            ))?;
+
+        let resolved_filetype = if package.filetype == Filetype::Auto {
+            best_asset.filetype
+        } else {
+            package.filetype
+        };
+
+        Ok(InstallPreview {
+            release_name: release.name,
+            release_tag: release.tag,
+            asset_name: best_asset.name.clone(),
+            resolved_filetype,
+        })
     }
 
     async fn perform_install<F, H>(

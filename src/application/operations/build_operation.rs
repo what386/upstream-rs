@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use console::style;
 
 use crate::application::operations::install_operation::InstallOperation;
@@ -31,6 +31,7 @@ pub struct BuildCommandInput {
     pub desktop: bool,
     pub build_profile: Option<BuildProfile>,
     pub build_output: Option<String>,
+    pub dry_run: bool,
 }
 
 impl<'a> BuildOperation<'a> {
@@ -91,6 +92,73 @@ impl<'a> BuildOperation<'a> {
             ))
             .cyan()
         );
+
+        if input.dry_run {
+            if let Some(branch) = input.branch.as_deref() {
+                let commit = self
+                    .provider_manager
+                    .get_branch_head_sha_for(
+                        &resolved_repo_slug,
+                        &resolved_provider,
+                        branch,
+                        resolved_base_url.as_deref(),
+                    )
+                    .await
+                    .context(format!(
+                        "Failed to fetch branch head for '{}' on '{}'",
+                        branch, resolved_repo_slug
+                    ))?;
+                println!("{}", style("Dry run: build preview").bold());
+                println!("  package: {}", input.name);
+                println!("  source: {} ({})", resolved_repo_slug, resolved_provider);
+                println!("  ref: branch {} @ {}", branch, commit);
+            } else {
+                let release = if let Some(tag) = input.tag.as_deref() {
+                    self.provider_manager
+                        .get_release_by_tag_for(
+                            &resolved_repo_slug,
+                            tag,
+                            &resolved_provider,
+                            resolved_base_url.as_deref(),
+                        )
+                        .await
+                        .context(format!(
+                            "Failed to fetch release '{}' for '{}'",
+                            tag, resolved_repo_slug
+                        ))?
+                } else {
+                    self.provider_manager
+                        .get_latest_release_for(
+                            &resolved_repo_slug,
+                            &resolved_provider,
+                            &input.channel,
+                            resolved_base_url.as_deref(),
+                        )
+                        .await
+                        .context(format!(
+                            "Failed to fetch latest release for '{}'",
+                            resolved_repo_slug
+                        ))?
+                };
+                println!("{}", style("Dry run: build preview").bold());
+                println!("  package: {}", input.name);
+                println!("  source: {} ({})", resolved_repo_slug, resolved_provider);
+                println!("  ref: release {} ({})", release.name, release.tag);
+            }
+
+            match input.build_profile {
+                Some(profile) => println!("  profile: {:?}", profile),
+                None => println!("  profile: auto-detect at build time"),
+            }
+            if let Some(path) = input.build_output.as_deref() {
+                println!("  build output override: {}", path);
+            } else {
+                println!("  build output override: none");
+            }
+            println!("  desktop entry: {}", if input.desktop { "yes" } else { "no" });
+            println!("  actions: resolve only (no compile, no install, no metadata changes)");
+            return Ok(());
+        }
 
         let worker = BuildWorker::new(self.provider_manager);
         let output = worker
