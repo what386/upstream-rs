@@ -21,6 +21,7 @@ pub async fn run(
     yes: bool,
     build_profile: Option<CliBuildProfile>,
     build_output: Option<String>,
+    dry_run: bool,
 ) -> Result<()> {
     let _ = yes;
     let paths = UpstreamPaths::new()?;
@@ -59,6 +60,7 @@ pub async fn run(
                 CliBuildProfile::Cmake => BuildProfile::Cmake,
             }),
             build_output,
+            dry_run,
         })
         .await
 }

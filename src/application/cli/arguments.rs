@@ -96,6 +96,10 @@ pub enum Commands {
         /// Accept the recommended discovered asset without prompting
         #[arg(long, short = 'y', default_value_t = false)]
         yes: bool,
+
+        /// Preview install resolution without downloading or writing files
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
 
     /// Build and install from source for release tags without artifacts
@@ -151,6 +155,10 @@ pub enum Commands {
         /// Optional explicit output path for the compiled executable
         #[arg(long)]
         build_output: Option<String>,
+
+        /// Preview build resolution without compiling or writing files
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
 
     /// Remove one or more installed packages
@@ -617,6 +625,22 @@ mod tests {
     }
 
     #[test]
+    fn install_parses_dry_run_flag() {
+        let cli = Cli::parse_from([
+            "upstream",
+            "install",
+            "tool",
+            "owner/repo",
+            "--dry-run",
+        ]);
+
+        match cli.command {
+            Commands::Install { dry_run, .. } => assert!(dry_run),
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
     fn build_parses_profile_and_output_flags() {
         let cli = Cli::parse_from([
             "upstream",
@@ -651,6 +675,15 @@ mod tests {
         let cli = Cli::parse_from(["upstream", "build", "rg", "BurntSushi/ripgrep"]);
         match cli.command {
             Commands::Build { build_profile, .. } => assert!(build_profile.is_none()),
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn build_parses_dry_run_flag() {
+        let cli = Cli::parse_from(["upstream", "build", "rg", "BurntSushi/ripgrep", "--dry-run"]);
+        match cli.command {
+            Commands::Build { dry_run, .. } => assert!(dry_run),
             other => panic!("unexpected command parsed: {}", other),
         }
     }
@@ -885,6 +918,7 @@ mod tests {
                 desktop: false,
                 trust_mode: TrustMode::BestEffort,
                 yes: false,
+                dry_run: false,
             }
             .requires_lock()
         );
@@ -911,6 +945,7 @@ mod tests {
                 yes: false,
                 build_profile: Some(BuildProfile::Rust),
                 build_output: None,
+                dry_run: false,
             }
             .requires_lock()
         );

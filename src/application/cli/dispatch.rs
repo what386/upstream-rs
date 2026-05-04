@@ -37,6 +37,7 @@ impl Cli {
                 desktop,
                 trust_mode,
                 yes,
+                dry_run,
             } => {
                 commands::install::run(
                     name,
@@ -51,6 +52,7 @@ impl Cli {
                     desktop,
                     trust_mode,
                     yes,
+                    dry_run,
                 )
                 .await
             }
@@ -66,6 +68,7 @@ impl Cli {
                 yes,
                 build_profile,
                 build_output,
+                dry_run,
             } => {
                 commands::build::run(
                     name,
@@ -79,6 +82,7 @@ impl Cli {
                     yes,
                     build_profile,
                     build_output,
+                    dry_run,
                 )
                 .await
             }
