@@ -64,6 +64,7 @@ signature\t''
 all\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s d -l desktop -d 'Whether or not to create a .desktop entry for GUI applications'
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s y -l yes -d 'Accept the recommended discovered asset without prompting'
+complete -c upstream -n "__fish_upstream_using_subcommand install" -l dry-run -d 'Preview install resolution without downloading or writing files'
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s t -l tag -d 'Version tag to build (defaults to latest)' -r
 complete -c upstream -n "__fish_upstream_using_subcommand build" -l branch -d 'Branch name to build from (uses latest commit from that branch)' -r
@@ -80,14 +81,17 @@ cmake\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand build" -l build-output -d 'Optional explicit output path for the compiled executable' -r
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s d -l desktop -d 'Whether or not to create a .desktop entry for GUI applications'
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s y -l yes -d 'Accept the recommended discovered source/release without prompting'
+complete -c upstream -n "__fish_upstream_using_subcommand build" -l dry-run -d 'Preview build resolution without compiling or writing files'
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand remove" -l purge -d 'Remove all associated cached data'
+complete -c upstream -n "__fish_upstream_using_subcommand remove" -l dry-run -d 'Preview removal actions without deleting files or metadata'
 complete -c upstream -n "__fish_upstream_using_subcommand remove" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand reinstall" -l trust -d 'Trust verification mode for release-asset reinstalls' -r -f -a "none\t''
 best-effort\t''
 checksum\t''
 signature\t''
 all\t''"
+complete -c upstream -n "__fish_upstream_using_subcommand reinstall" -l dry-run -d 'Preview reinstall resolution without removing, building, or writing files'
 complete -c upstream -n "__fish_upstream_using_subcommand reinstall" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l trust -d 'Trust verification mode for downloaded assets' -r -f -a "none\t''
 best-effort\t''
@@ -97,6 +101,7 @@ all\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l force -d 'Force upgrade even if already up to date'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l check -d 'Check for available upgrades without applying them'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l machine-readable -d 'Use script-friendly check output: one line per update, "name oldver newver"'
+complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l dry-run -d 'Preview upgrade resolution without downloading or writing files'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand list" -l json -d 'Print raw package metadata as JSON'
 complete -c upstream -n "__fish_upstream_using_subcommand list" -s h -l help -d 'Print help (see more with \'--help\')'

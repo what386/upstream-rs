@@ -56,6 +56,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
             cand -y 'Accept the recommended discovered asset without prompting'
             cand --yes 'Accept the recommended discovered asset without prompting'
+            cand --dry-run 'Preview install resolution without downloading or writing files'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -74,16 +75,19 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
             cand -y 'Accept the recommended discovered source/release without prompting'
             cand --yes 'Accept the recommended discovered source/release without prompting'
+            cand --dry-run 'Preview build resolution without compiling or writing files'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;remove'= {
             cand --purge 'Remove all associated cached data'
+            cand --dry-run 'Preview removal actions without deleting files or metadata'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;reinstall'= {
             cand --trust 'Trust verification mode for release-asset reinstalls'
+            cand --dry-run 'Preview reinstall resolution without removing, building, or writing files'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -92,6 +96,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --force 'Force upgrade even if already up to date'
             cand --check 'Check for available upgrades without applying them'
             cand --machine-readable 'Use script-friendly check output: one line per update, "name oldver newver"'
+            cand --dry-run 'Preview upgrade resolution without downloading or writing files'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
