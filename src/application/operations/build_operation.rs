@@ -155,7 +155,10 @@ impl<'a> BuildOperation<'a> {
             } else {
                 println!("  build output override: none");
             }
-            println!("  desktop entry: {}", if input.desktop { "yes" } else { "no" });
+            println!(
+                "  desktop entry: {}",
+                if input.desktop { "yes" } else { "no" }
+            );
             println!("  actions: resolve only (no compile, no install, no metadata changes)");
             return Ok(());
         }
