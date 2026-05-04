@@ -83,17 +83,25 @@ pub async fn run(
     )?;
 
     if dry_run {
-        let preview = package_installer.preview_single_install(&package, &version).await?;
+        let preview = package_installer
+            .preview_single_install(&package, &version)
+            .await?;
         println!("{}", style("Dry run: install preview").bold());
         println!("  package: {}", package.name);
         println!("  source: {} ({})", package.repo_slug, package.provider);
-        println!("  release: {} ({})", preview.release_name, preview.release_tag);
+        println!(
+            "  release: {} ({})",
+            preview.release_name, preview.release_tag
+        );
         println!(
             "  asset: {} ({:?})",
             preview.asset_name, preview.resolved_filetype
         );
         println!("  trust mode: {}", trust_mode);
-        println!("  desktop entry: {}", if create_entry { "yes" } else { "no" });
+        println!(
+            "  desktop entry: {}",
+            if create_entry { "yes" } else { "no" }
+        );
         println!("  actions: resolve only (no download, no install, no metadata changes)");
         return Ok(());
     }
