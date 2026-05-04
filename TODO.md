@@ -8,6 +8,9 @@
 - [ ] feat: dry run for upgrade/reinstall ops
       @created 2026-05-04 20:28
 
+- [ ] feat: dry run for remove op
+      @created 2026-05-04 20:50
+
 
 ## Completed
 
