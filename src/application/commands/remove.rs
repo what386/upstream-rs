@@ -9,7 +9,7 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
-pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
+pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
 
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
@@ -17,6 +17,14 @@ pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
 
     let mut package_remover =
         RemoveOperation::new(&mut package_storage, &mut metadata_storage, &paths);
+
+    if names.is_empty() {
+        return Err(anyhow::anyhow!("At least one package name is required"));
+    }
+
+    if dry_run {
+        return run_dry_run(names, purge, &mut package_remover);
+    }
 
     let overall_pb = ProgressBar::new(0);
     overall_pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -68,5 +76,29 @@ pub fn run(names: Vec<String>, purge: bool) -> Result<()> {
         );
     }
 
+    Ok(())
+}
+
+fn run_dry_run(
+    names: Vec<String>,
+    purge: bool,
+    package_remover: &mut RemoveOperation<'_>,
+) -> Result<()> {
+    println!("{}", style("Dry run: remove preview").bold());
+    println!("  purge: {}", if purge { "yes" } else { "no" });
+    println!("  actions: resolve only (no remove, no purge, no metadata changes)");
+
+    let mut message_callback = Some(|msg: &str| println!("{msg}"));
+    if names.len() > 1 {
+        let (planned, failed) =
+            package_remover.preview_bulk(&names, &purge, &mut message_callback)?;
+        println!();
+        println!("Dry run complete: {} planned, {} failed.", planned, failed);
+        return Ok(());
+    }
+
+    package_remover.preview_single(&names[0], &purge, &mut message_callback)?;
+    println!();
+    println!("Dry run complete: 1 planned, 0 failed.");
     Ok(())
 }

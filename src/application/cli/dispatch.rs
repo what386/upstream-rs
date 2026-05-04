@@ -90,7 +90,8 @@ impl Cli {
             Commands::Remove {
                 names,
                 purge: purge_option,
-            } => commands::remove::run(names, purge_option),
+                dry_run,
+            } => commands::remove::run(names, purge_option, dry_run),
 
             Commands::Reinstall {
                 names,
