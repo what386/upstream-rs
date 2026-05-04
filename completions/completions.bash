@@ -283,7 +283,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__build)
-            opts="-t -p -c -d -y -h --tag --branch --provider --base-url --channel --desktop --yes --build-profile --build-output --help <NAME> <REPO_SLUG>"
+            opts="-t -p -c -d -y -h --tag --branch --provider --base-url --channel --desktop --yes --build-profile --build-output --dry-run --help <NAME> <REPO_SLUG>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1153,7 +1153,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__install)
-            opts="-t -k -p -c -m -e -d -y -h --tag --kind --provider --base-url --channel --match-pattern --exclude-pattern --desktop --trust --yes --help <NAME> <REPO_SLUG>"
+            opts="-t -k -p -c -m -e -d -y -h --tag --kind --provider --base-url --channel --match-pattern --exclude-pattern --desktop --trust --yes --dry-run --help <NAME> <REPO_SLUG>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1517,7 +1517,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__reinstall)
-            opts="-h --trust --help [NAMES]..."
+            opts="-h --trust --dry-run --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1535,7 +1535,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__remove)
-            opts="-h --purge --help [NAMES]..."
+            opts="-h --purge --dry-run --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1549,7 +1549,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__upgrade)
-            opts="-h --force --check --machine-readable --trust --help [NAMES]..."
+            opts="-h --force --check --machine-readable --trust --dry-run --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

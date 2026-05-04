@@ -48,10 +48,11 @@ _arguments "${_arguments_options[@]}" : \
 '--desktop[Whether or not to create a .desktop entry for GUI applications]' \
 '-y[Accept the recommended discovered asset without prompting]' \
 '--yes[Accept the recommended discovered asset without prompting]' \
+'--dry-run[Preview install resolution without downloading or writing files]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name to register the application under:_default' \
-':repo_slug -- Repository identifier (e.g. `owner/repo`):_default' \
+':repo_slug -- Repository identifier or URL:_default' \
 && ret=0
 ;;
 (build)
@@ -70,15 +71,17 @@ _arguments "${_arguments_options[@]}" : \
 '--desktop[Whether or not to create a .desktop entry for GUI applications]' \
 '-y[Accept the recommended discovered source/release without prompting]' \
 '--yes[Accept the recommended discovered source/release without prompting]' \
+'--dry-run[Preview build resolution without compiling or writing files]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name to register the application under:_default' \
-':repo_slug -- Repository identifier (e.g. `owner/repo`):_default' \
+':repo_slug -- Repository identifier or URL:_default' \
 && ret=0
 ;;
 (remove)
 _arguments "${_arguments_options[@]}" : \
 '--purge[Remove all associated cached data]' \
+'--dry-run[Preview removal actions without deleting files or metadata]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Names of packages to remove:_default' \
@@ -87,6 +90,7 @@ _arguments "${_arguments_options[@]}" : \
 (reinstall)
 _arguments "${_arguments_options[@]}" : \
 '--trust=[Trust verification mode for release-asset reinstalls]:TRUST_MODE:(none best-effort checksum signature all)' \
+'--dry-run[Preview reinstall resolution without removing, building, or writing files]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Names of packages to reinstall:_default' \
@@ -98,6 +102,7 @@ _arguments "${_arguments_options[@]}" : \
 '--force[Force upgrade even if already up to date]' \
 '--check[Check for available upgrades without applying them]' \
 '--machine-readable[Use script-friendly check output\: one line per update, "name oldver newver"]' \
+'--dry-run[Preview upgrade resolution without downloading or writing files]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Packages to upgrade (upgrades all if omitted):_default' \
