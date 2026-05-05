@@ -92,6 +92,31 @@ fn safe_join_extract_path(extract_dir: &Path, entry_path: &Path) -> Result<PathB
     Ok(out)
 }
 
+fn safe_join_link_target(base_path: &Path, link_target: &Path) -> Result<PathBuf> {
+    if link_target.is_absolute() {
+        return Err(anyhow!(
+            "Archive symlink target has absolute path '{}'",
+            link_target.display()
+        ));
+    }
+
+    let mut out = PathBuf::from(base_path);
+    for component in link_target.components() {
+        match component {
+            Component::CurDir => {}
+            Component::Normal(part) => out.push(part),
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err(anyhow!(
+                    "Archive symlink target escapes extraction root: '{}'",
+                    link_target.display()
+                ));
+            }
+        }
+    }
+
+    Ok(out)
+}
+
 fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> Result<PathBuf> {
     let mut paths = Vec::new();
     for entry in archive.entries()? {
@@ -100,11 +125,71 @@ fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> 
         let path = safe_join_extract_path(extract_dir, &entry_path)?;
 
         let entry_type = entry.header().entry_type();
-        if entry_type.is_symlink() || entry_type.is_hard_link() {
-            return Err(anyhow!(
-                "Archive contains unsupported link entry '{}'",
-                entry_path.display()
-            ));
+        if entry_type.is_hard_link() {
+            let raw_target = entry
+                .link_name()?
+                .ok_or_else(|| anyhow!("Archive hardlink '{}' has no target", entry_path.display()))?;
+            let target_path = safe_join_extract_path(extract_dir, &raw_target)?;
+
+            let metadata = std::fs::metadata(&target_path).map_err(|err| {
+                anyhow!(
+                    "Archive hardlink '{}' target is not available '{}': {}",
+                    entry_path.display(),
+                    raw_target.display(),
+                    err
+                )
+            })?;
+            if !metadata.is_file() {
+                return Err(anyhow!(
+                    "Archive hardlink '{}' target is not a regular file '{}'",
+                    entry_path.display(),
+                    raw_target.display()
+                ));
+            }
+
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::hard_link(&target_path, &path)?;
+            paths.push(path);
+            continue;
+        }
+        if entry_type.is_symlink() {
+            #[cfg(windows)]
+            {
+                return Err(anyhow!(
+                    "Archive contains unsupported symlink entry '{}'",
+                    entry_path.display()
+                ));
+            }
+
+            #[cfg(not(windows))]
+            {
+            let raw_target = entry
+                .link_name()?
+                .ok_or_else(|| anyhow!("Archive symlink '{}' has no target", entry_path.display()))?;
+
+            let parent = path.parent().ok_or_else(|| {
+                anyhow!(
+                    "Archive symlink entry has no parent directory '{}'",
+                    entry_path.display()
+                )
+            })?;
+            let target_path = safe_join_link_target(parent, &raw_target)?;
+            if !target_path.starts_with(extract_dir) {
+                return Err(anyhow!(
+                    "Archive symlink target escapes extraction root: '{}'",
+                    raw_target.display()
+                ));
+            }
+
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::os::unix::fs::symlink(&raw_target, &path)?;
+            paths.push(path);
+            continue;
+            }
         }
 
         if let Some(parent) = path.parent() {
@@ -348,6 +433,18 @@ mod tests {
         let encoder = GzEncoder::new(file, Compression::default());
         let mut builder = Builder::new(encoder);
 
+        let mut file_header = tar::Header::new_gnu();
+        file_header.set_size(b"target-content".len() as u64);
+        file_header.set_mode(0o644);
+        file_header.set_cksum();
+        builder
+            .append_data(
+                &mut file_header,
+                "pkg/target.txt",
+                &b"target-content"[..],
+            )
+            .expect("append regular file");
+
         let mut header = tar::Header::new_gnu();
         header.set_entry_type(tar::EntryType::Symlink);
         header.set_size(0);
@@ -502,16 +599,51 @@ mod tests {
         cleanup(&root).expect("cleanup");
     }
 
+    #[cfg(not(windows))]
     #[test]
-    fn decompress_rejects_tar_symlink_entries() {
+    fn decompress_allows_safe_tar_symlink_entries() {
         let root = temp_root("tar-symlink");
         let input = root.join("bundle.tar.gz");
         let output = root.join("out");
         fs::create_dir_all(&root).expect("create root");
-        create_tar_gz_with_symlink(&input, "pkg-link", "/tmp/outside");
+        create_tar_gz_with_symlink(&input, "pkg/link.txt", "target.txt");
 
-        let err = decompress(&input, &output).expect_err("must reject symlink entry");
-        assert!(err.to_string().contains("unsupported link entry"));
+        let extracted_root = decompress(&input, &output).expect("decompress with symlink");
+        let link_path = extracted_root.join("link.txt");
+        let target_path = extracted_root.join("target.txt");
+        assert!(link_path.exists());
+        assert!(target_path.exists());
+        assert_eq!(fs::read(link_path).expect("read through symlink"), b"target-content");
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn decompress_rejects_tar_symlink_with_absolute_target() {
+        let root = temp_root("tar-symlink-abs");
+        let input = root.join("bundle.tar.gz");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+        create_tar_gz_with_symlink(&input, "pkg/link.txt", "/tmp/outside");
+
+        let err = decompress(&input, &output).expect_err("must reject absolute symlink target");
+        assert!(err.to_string().contains("absolute path"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn decompress_rejects_tar_symlink_with_traversal_target() {
+        let root = temp_root("tar-symlink-traversal");
+        let input = root.join("bundle.tar.gz");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+        create_tar_gz_with_symlink(&input, "pkg/link.txt", "../../outside");
+
+        let err = decompress(&input, &output).expect_err("must reject traversal symlink target");
+        assert!(err.to_string().contains("escapes extraction root"));
 
         cleanup(&root).expect("cleanup");
     }
