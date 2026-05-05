@@ -448,6 +448,25 @@ mod tests {
         fs::remove_dir_all(path)
     }
 
+    fn fixture_path(relative: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join(relative)
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn parse_desktop_file_reads_valid_fixture() {
+        let desktop_file = fixture_path("integration/desktop/tool-valid.desktop");
+
+        let entry = DesktopManager::parse_desktop_file(&desktop_file).expect("parse desktop file");
+
+        assert_eq!(entry.name.as_deref(), Some("Tool"));
+        assert_eq!(entry.exec.as_deref(), Some("/usr/bin/tool"));
+        assert_eq!(entry.icon.as_deref(), Some("tool"));
+    }
+
     #[test]
     fn parse_desktop_file_preserves_localized_and_extra_fields() {
         let root = temp_root("parse");

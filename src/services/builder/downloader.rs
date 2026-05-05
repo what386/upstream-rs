@@ -294,7 +294,8 @@ impl<'a> Drop for SourceDownloader<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::fs;
+    use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::SourceDownloader;
@@ -307,116 +308,91 @@ mod tests {
         std::env::temp_dir().join(format!("upstream-downloader-test-{name}-{nanos}"))
     }
 
+    fn fixture_path(relative: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join(relative)
+    }
+
+    fn copy_fixture_dir(src: &Path, dst: &Path) {
+        fs::create_dir_all(dst).expect("create fixture destination");
+        for entry in fs::read_dir(src).expect("read fixture directory") {
+            let entry = entry.expect("read fixture entry");
+            let src_path = entry.path();
+            let dst_path = dst.join(entry.file_name());
+            if src_path.is_dir() {
+                copy_fixture_dir(&src_path, &dst_path);
+            } else {
+                fs::copy(&src_path, &dst_path).expect("copy fixture file");
+            }
+        }
+    }
+
     #[test]
     fn resolve_workspace_root_uses_root_when_manifest_exists() {
-        let root = temp_root("root-manifest");
-        std::fs::create_dir_all(&root).expect("create root");
-        std::fs::write(
-            root.join("Cargo.toml"),
-            "[package]\nname='x'\nversion='0.1.0'\n",
-        )
-        .expect("write Cargo.toml");
+        let root = fixture_path("builder/workspace-roots/rust-single");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
         assert_eq!(resolved, root);
-        let _ = std::fs::remove_dir_all(&resolved);
     }
 
     #[test]
     fn resolve_workspace_root_selects_single_child_repo() {
         let root = temp_root("single-child");
-        let child = root.join("repo");
-        std::fs::create_dir_all(&child).expect("create child");
-        std::fs::write(
-            child.join("Cargo.toml"),
-            "[package]\nname='x'\nversion='0.1.0'\n",
-        )
-        .expect("write Cargo.toml");
-        std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
+        copy_fixture_dir(&fixture_path("builder/workspace-roots/pax-noise"), &root);
+        let child = root.join("child");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
         assert_eq!(resolved, child);
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn resolve_workspace_root_selects_single_child_go_repo() {
-        let root = temp_root("single-child-go");
-        let child = root.join("repo");
-        std::fs::create_dir_all(&child).expect("create child");
-        std::fs::write(child.join("go.mod"), "module example.com/tool\n").expect("write go.mod");
-        std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
+    fn resolve_workspace_root_uses_go_root_when_manifest_exists() {
+        let root = fixture_path("builder/workspace-roots/go-single");
 
-        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
-        assert_eq!(resolved, child);
-        let _ = std::fs::remove_dir_all(&root);
+        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
+        assert_eq!(resolved, root);
     }
 
     #[test]
-    fn resolve_workspace_root_selects_single_child_zig_repo() {
-        let root = temp_root("single-child-zig");
-        let child = root.join("repo");
-        std::fs::create_dir_all(&child).expect("create child");
-        std::fs::write(
-            child.join("build.zig"),
-            "pub fn build(b: *std.Build) void { _ = b; }\n",
-        )
-        .expect("write build.zig");
-        std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
+    fn resolve_workspace_root_uses_zig_root_when_manifest_exists() {
+        let root = fixture_path("builder/workspace-roots/zig-single");
 
-        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
-        assert_eq!(resolved, child);
-        let _ = std::fs::remove_dir_all(&root);
+        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
+        assert_eq!(resolved, root);
     }
 
     #[test]
-    fn resolve_workspace_root_selects_single_child_cmake_repo() {
-        let root = temp_root("single-child-cmake");
-        let child = root.join("repo");
-        std::fs::create_dir_all(&child).expect("create child");
-        std::fs::write(
-            child.join("CMakeLists.txt"),
-            "cmake_minimum_required(VERSION 3.20)\n",
-        )
-        .expect("write CMakeLists.txt");
-        std::fs::write(root.join("pax_global_header"), "").expect("write pax marker");
+    fn resolve_workspace_root_uses_cmake_root_when_manifest_exists() {
+        let root = fixture_path("builder/workspace-roots/cmake-single");
 
-        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
-        assert_eq!(resolved, child);
-        let _ = std::fs::remove_dir_all(&root);
+        let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
+        assert_eq!(resolved, root);
     }
 
     #[test]
     fn resolve_workspace_root_errors_on_ambiguous_children() {
         let root = temp_root("ambiguous");
-        let a = root.join("repo-a");
-        let b = root.join("repo-b");
-        std::fs::create_dir_all(&a).expect("create repo-a");
-        std::fs::create_dir_all(&b).expect("create repo-b");
-        std::fs::write(
-            a.join("Cargo.toml"),
-            "[package]\nname='a'\nversion='0.1.0'\n",
-        )
-        .expect("write Cargo.toml a");
-        std::fs::write(
-            b.join("Cargo.toml"),
-            "[package]\nname='b'\nversion='0.1.0'\n",
-        )
-        .expect("write Cargo.toml b");
+        copy_fixture_dir(
+            &fixture_path("builder/workspace-roots/ambiguous-multi"),
+            &root,
+        );
 
         let err = SourceDownloader::resolve_workspace_root(&root).expect_err("must be ambiguous");
         assert!(err.to_string().contains("ambiguous"));
-        let _ = std::fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn resolve_workspace_root_returns_input_when_no_candidates_exist() {
         let root = temp_root("no-candidates");
-        std::fs::create_dir_all(&root).expect("create root");
-        std::fs::write(root.join("README.md"), "hello").expect("write readme");
+        fs::create_dir_all(&root).expect("create root");
+        fs::write(root.join("README.md"), "hello").expect("write readme");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve fallback");
         assert_eq!(resolved, root);
-        let _ = std::fs::remove_dir_all(&resolved);
+        let _ = fs::remove_dir_all(&resolved);
     }
 }
