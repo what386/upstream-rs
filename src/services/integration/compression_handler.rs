@@ -126,9 +126,9 @@ fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> 
 
         let entry_type = entry.header().entry_type();
         if entry_type.is_hard_link() {
-            let raw_target = entry
-                .link_name()?
-                .ok_or_else(|| anyhow!("Archive hardlink '{}' has no target", entry_path.display()))?;
+            let raw_target = entry.link_name()?.ok_or_else(|| {
+                anyhow!("Archive hardlink '{}' has no target", entry_path.display())
+            })?;
             let target_path = safe_join_extract_path(extract_dir, &raw_target)?;
 
             let metadata = std::fs::metadata(&target_path).map_err(|err| {
@@ -165,30 +165,30 @@ fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> 
 
             #[cfg(not(windows))]
             {
-            let raw_target = entry
-                .link_name()?
-                .ok_or_else(|| anyhow!("Archive symlink '{}' has no target", entry_path.display()))?;
+                let raw_target = entry.link_name()?.ok_or_else(|| {
+                    anyhow!("Archive symlink '{}' has no target", entry_path.display())
+                })?;
 
-            let parent = path.parent().ok_or_else(|| {
-                anyhow!(
-                    "Archive symlink entry has no parent directory '{}'",
-                    entry_path.display()
-                )
-            })?;
-            let target_path = safe_join_link_target(parent, &raw_target)?;
-            if !target_path.starts_with(extract_dir) {
-                return Err(anyhow!(
-                    "Archive symlink target escapes extraction root: '{}'",
-                    raw_target.display()
-                ));
-            }
+                let parent = path.parent().ok_or_else(|| {
+                    anyhow!(
+                        "Archive symlink entry has no parent directory '{}'",
+                        entry_path.display()
+                    )
+                })?;
+                let target_path = safe_join_link_target(parent, &raw_target)?;
+                if !target_path.starts_with(extract_dir) {
+                    return Err(anyhow!(
+                        "Archive symlink target escapes extraction root: '{}'",
+                        raw_target.display()
+                    ));
+                }
 
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            std::os::unix::fs::symlink(&raw_target, &path)?;
-            paths.push(path);
-            continue;
+                if let Some(parent) = path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::os::unix::fs::symlink(&raw_target, &path)?;
+                paths.push(path);
+                continue;
             }
         }
 
@@ -355,16 +355,9 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::decompress;
-    use flate2::Compression;
-    use flate2::write::GzEncoder;
-    use std::fs::File;
-    use std::io::Write;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
-    use tar::Builder;
-    use zip::write::SimpleFileOptions;
-    use zstd::stream::write::Encoder as ZstdEncoder;
 
     fn temp_root(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
@@ -378,118 +371,19 @@ mod tests {
         fs::remove_dir_all(path)
     }
 
-    fn create_gz_file(path: &Path, content: &[u8]) {
-        let file = File::create(path).expect("create .gz file");
-        let mut encoder = GzEncoder::new(file, Compression::default());
-        encoder
-            .write_all(content)
-            .expect("write compressed content");
-        encoder.finish().expect("finish gzip");
-    }
-
-    fn create_zst_file(path: &Path, content: &[u8]) {
-        let file = File::create(path).expect("create .zst file");
-        let mut encoder = ZstdEncoder::new(file, 0).expect("create zstd encoder");
-        encoder
-            .write_all(content)
-            .expect("write compressed zstd content");
-        encoder.finish().expect("finish zstd");
-    }
-
-    fn create_tar_gz_with_file(path: &Path, file_name: &str, content: &[u8]) {
-        let file = File::create(path).expect("create .tar.gz");
-        let encoder = GzEncoder::new(file, Compression::default());
-        let mut builder = Builder::new(encoder);
-
-        let mut header = tar::Header::new_gnu();
-        header.set_size(content.len() as u64);
-        header.set_mode(0o644);
-        header.set_cksum();
-        builder
-            .append_data(&mut header, file_name, content)
-            .expect("append tar entry");
-        let encoder = builder.into_inner().expect("finalize tar");
-        encoder.finish().expect("finalize gzip");
-    }
-
-    fn create_tar_zst_with_file(path: &Path, file_name: &str, content: &[u8]) {
-        let file = File::create(path).expect("create .tar.zst");
-        let encoder = ZstdEncoder::new(file, 0).expect("create zstd encoder");
-        let mut builder = Builder::new(encoder);
-
-        let mut header = tar::Header::new_gnu();
-        header.set_size(content.len() as u64);
-        header.set_mode(0o644);
-        header.set_cksum();
-        builder
-            .append_data(&mut header, file_name, content)
-            .expect("append tar entry");
-        let encoder = builder.into_inner().expect("finalize tar");
-        encoder.finish().expect("finalize zstd");
-    }
-
-    fn create_tar_gz_with_symlink(path: &Path, link_name: &str, target: &str) {
-        let file = File::create(path).expect("create .tar.gz");
-        let encoder = GzEncoder::new(file, Compression::default());
-        let mut builder = Builder::new(encoder);
-
-        let mut file_header = tar::Header::new_gnu();
-        file_header.set_size(b"target-content".len() as u64);
-        file_header.set_mode(0o644);
-        file_header.set_cksum();
-        builder
-            .append_data(
-                &mut file_header,
-                "pkg/target.txt",
-                &b"target-content"[..],
-            )
-            .expect("append regular file");
-
-        let mut header = tar::Header::new_gnu();
-        header.set_entry_type(tar::EntryType::Symlink);
-        header.set_size(0);
-        header.set_mode(0o777);
-        header
-            .set_link_name(target)
-            .expect("set tar symlink target");
-        header.set_cksum();
-        builder
-            .append_data(&mut header, link_name, std::io::empty())
-            .expect("append tar symlink entry");
-
-        let encoder = builder.into_inner().expect("finalize tar");
-        encoder.finish().expect("finalize gzip");
-    }
-
-    fn create_zip_with_single_root_dir(path: &Path) {
-        let file = File::create(path).expect("create zip");
-        let mut zip = zip::ZipWriter::new(file);
-        let options = SimpleFileOptions::default();
-        zip.add_directory("pkg/", options)
-            .expect("add zip directory");
-        zip.start_file("pkg/tool", options)
-            .expect("start zip file entry");
-        zip.write_all(b"zip-content").expect("write zip content");
-        zip.finish().expect("finish zip");
-    }
-
-    fn create_zip_with_entry(path: &Path, entry_name: &str) {
-        let file = File::create(path).expect("create zip");
-        let mut zip = zip::ZipWriter::new(file);
-        let options = SimpleFileOptions::default();
-        zip.start_file(entry_name, options)
-            .expect("start zip file entry");
-        zip.write_all(b"zip-content").expect("write zip content");
-        zip.finish().expect("finish zip");
+    fn fixture_path(relative: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join(relative)
     }
 
     #[test]
     fn decompress_single_gz_returns_decompressed_file() {
         let root = temp_root("single-gz");
-        let input = root.join("hello.gz");
+        let input = fixture_path("compression/archives/hello.gz");
         let output = root.join("out");
         fs::create_dir_all(&root).expect("create root");
-        create_gz_file(&input, b"hello-gz");
 
         let extracted = decompress(&input, &output).expect("decompress .gz");
         assert!(extracted.is_file());
@@ -501,10 +395,9 @@ mod tests {
     #[test]
     fn decompress_single_zst_returns_decompressed_file() {
         let root = temp_root("single-zst");
-        let input = root.join("hello.zst");
+        let input = fixture_path("compression/archives/hello.zst");
         let output = root.join("out");
         fs::create_dir_all(&root).expect("create root");
-        create_zst_file(&input, b"hello-zst");
 
         let extracted = decompress(&input, &output).expect("decompress .zst");
         assert!(extracted.is_file());
@@ -516,10 +409,9 @@ mod tests {
     #[test]
     fn decompress_tar_gz_extracts_archive_contents() {
         let root = temp_root("tar-gz");
-        let input = root.join("bundle.tar.gz");
+        let input = fixture_path("compression/archives/tar/tar-gz-single-file.tar.gz");
         let output = root.join("out");
         fs::create_dir_all(&root).expect("create root");
-        create_tar_gz_with_file(&input, "tool.bin", b"tar-gz-content");
 
         let extracted_root = decompress(&input, &output).expect("decompress .tar.gz");
         let extracted_file = extracted_root.join("tool.bin");
@@ -535,10 +427,9 @@ mod tests {
     #[test]
     fn decompress_tar_zst_extracts_archive_contents() {
         let root = temp_root("tar-zst");
-        let input = root.join("bundle.tar.zst");
+        let input = fixture_path("compression/archives/tar/tar-zst-single-file.tar.zst");
         let output = root.join("out");
         fs::create_dir_all(&root).expect("create root");
-        create_tar_zst_with_file(&input, "tool.bin", b"tar-zst-content");
 
         let extracted_root = decompress(&input, &output).expect("decompress .tar.zst");
         let extracted_file = extracted_root.join("tool.bin");
@@ -554,10 +445,9 @@ mod tests {
     #[test]
     fn decompress_zip_flattens_single_top_level_directory() {
         let root = temp_root("zip-flatten");
-        let input = root.join("tool.zip");
+        let input = fixture_path("compression/archives/zip/zip-single-root.zip");
         let output = root.join("out");
         fs::create_dir_all(&root).expect("create root");
-        create_zip_with_single_root_dir(&input);
 
         let extracted_root = decompress(&input, &output).expect("decompress zip");
         let flattened_file = extracted_root.join("tool");
@@ -574,10 +464,9 @@ mod tests {
     #[test]
     fn unsupported_format_returns_error() {
         let root = temp_root("unsupported");
-        let input = root.join("input.unknown");
+        let input = fixture_path("compression/archives/input.unknown");
         let output = root.join("out");
         fs::create_dir_all(&root).expect("create root");
-        fs::write(&input, b"data").expect("write input");
 
         let err = decompress(&input, &output).expect_err("must reject unsupported extension");
         assert!(err.to_string().contains("Unsupported format"));
@@ -588,10 +477,9 @@ mod tests {
     #[test]
     fn decompress_rejects_zip_path_traversal_entries() {
         let root = temp_root("zip-traversal");
-        let input = root.join("tool.zip");
+        let input = fixture_path("compression/archives/zip/zip-path-traversal.zip");
         let output = root.join("out");
         fs::create_dir_all(&root).expect("create root");
-        create_zip_with_entry(&input, "../escape.txt");
 
         let err = decompress(&input, &output).expect_err("must reject traversal path");
         assert!(err.to_string().contains("escapes extraction root"));
@@ -603,17 +491,19 @@ mod tests {
     #[test]
     fn decompress_allows_safe_tar_symlink_entries() {
         let root = temp_root("tar-symlink");
-        let input = root.join("bundle.tar.gz");
+        let input = fixture_path("compression/archives/tar/tar-symlink-safe.tar.gz");
         let output = root.join("out");
         fs::create_dir_all(&root).expect("create root");
-        create_tar_gz_with_symlink(&input, "pkg/link.txt", "target.txt");
 
         let extracted_root = decompress(&input, &output).expect("decompress with symlink");
         let link_path = extracted_root.join("link.txt");
         let target_path = extracted_root.join("target.txt");
         assert!(link_path.exists());
         assert!(target_path.exists());
-        assert_eq!(fs::read(link_path).expect("read through symlink"), b"target-content");
+        assert_eq!(
+            fs::read(link_path).expect("read through symlink"),
+            b"target-content"
+        );
 
         cleanup(&root).expect("cleanup");
     }
@@ -622,10 +512,9 @@ mod tests {
     #[test]
     fn decompress_rejects_tar_symlink_with_absolute_target() {
         let root = temp_root("tar-symlink-abs");
-        let input = root.join("bundle.tar.gz");
+        let input = fixture_path("compression/archives/tar/tar-symlink-absolute-target.tar.gz");
         let output = root.join("out");
         fs::create_dir_all(&root).expect("create root");
-        create_tar_gz_with_symlink(&input, "pkg/link.txt", "/tmp/outside");
 
         let err = decompress(&input, &output).expect_err("must reject absolute symlink target");
         assert!(err.to_string().contains("absolute path"));
@@ -637,10 +526,9 @@ mod tests {
     #[test]
     fn decompress_rejects_tar_symlink_with_traversal_target() {
         let root = temp_root("tar-symlink-traversal");
-        let input = root.join("bundle.tar.gz");
+        let input = fixture_path("compression/archives/tar/tar-symlink-traversal-target.tar.gz");
         let output = root.join("out");
         fs::create_dir_all(&root).expect("create root");
-        create_tar_gz_with_symlink(&input, "pkg/link.txt", "../../outside");
 
         let err = decompress(&input, &output).expect_err("must reject traversal symlink target");
         assert!(err.to_string().contains("escapes extraction root"));

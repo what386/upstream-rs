@@ -545,15 +545,20 @@ mod tests {
         fs::remove_dir_all(path)
     }
 
+    fn fixture_path(relative: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join(relative)
+    }
+
     fn write_sized_file(path: &Path, size: usize) {
         fs::write(path, vec![0u8; size]).expect("write sized file");
     }
 
     #[test]
     fn find_macos_app_bundle_prefers_package_named_bundle() {
-        let root = temp_root("app-bundle");
-        fs::create_dir_all(root.join("Other.app")).expect("create other app");
-        fs::create_dir_all(root.join("Tool.app")).expect("create package app");
+        let root = fixture_path("packaging/bundle-handler/macos/name-vs-size");
 
         let bundle = BundleHandler::find_macos_app_bundle(&root, "tool")
             .expect("find bundle")
@@ -562,41 +567,28 @@ mod tests {
             bundle.file_name().and_then(|s| s.to_str()),
             Some("Tool.app")
         );
-
-        cleanup(&root).expect("cleanup");
     }
 
     #[test]
     fn find_macos_app_executable_reads_contents_macos() {
-        let root = temp_root("app-exec");
-        let macos_dir = root.join("Tool.app").join("Contents").join("MacOS");
-        fs::create_dir_all(&macos_dir).expect("create macos dir");
-        let exec = macos_dir.join("Tool");
-        fs::write(&exec, b"#!/bin/sh\necho hi\n").expect("write executable");
+        let app = fixture_path("packaging/bundle-handler/macos/tool-only/Tool.app");
+        let exec = app.join("Contents").join("MacOS").join("Tool");
 
-        let found = BundleHandler::find_macos_app_executable(&root.join("Tool.app"), "tool")
-            .expect("find executable");
+        let found =
+            BundleHandler::find_macos_app_executable(&app, "tool").expect("find executable");
         assert_eq!(found, exec);
-
-        cleanup(&root).expect("cleanup");
     }
 
     #[test]
     fn select_macos_app_bundle_prefers_name_match_over_size() {
-        let root = temp_root("select-name");
+        let root = fixture_path("packaging/bundle-handler/macos/name-vs-size");
         let matched = root.join("Tool.app");
         let larger = root.join("Other.app");
-        fs::create_dir_all(&matched).expect("create matched app");
-        fs::create_dir_all(&larger).expect("create larger app");
-        write_sized_file(&matched.join("small"), 16);
-        write_sized_file(&larger.join("large"), 4096);
 
         let selected =
             BundleHandler::select_macos_app_bundle(&[larger.clone(), matched.clone()], "tool")
                 .expect("select app bundle");
         assert_eq!(selected, matched);
-
-        cleanup(&root).expect("cleanup");
     }
 
     #[test]
@@ -619,15 +611,11 @@ mod tests {
 
     #[test]
     fn find_macos_app_bundles_ignores_nested_bundle_entries() {
-        let root = temp_root("find-bundles");
+        let root = fixture_path("packaging/bundle-handler/macos/nested-bundle");
         let top = root.join("Tool.app");
-        let nested = top.join("Contents").join("Resources").join("Nested.app");
-        fs::create_dir_all(&nested).expect("create nested app bundle");
 
         let bundles = BundleHandler::find_macos_app_bundles(&root).expect("find app bundles");
         assert_eq!(bundles, vec![top]);
-
-        cleanup(&root).expect("cleanup");
     }
 
     #[cfg(not(target_os = "macos"))]

@@ -207,7 +207,14 @@ mod tests {
     use crate::models::common::{enums::Provider, version::Version};
     use crate::models::provider::{Asset, Release};
     use chrono::Utc;
+    use serde::Deserialize;
     use std::{fs, path::PathBuf, time::SystemTime};
+
+    #[derive(Deserialize)]
+    struct MinisignKeyFixture {
+        id: Option<String>,
+        key: String,
+    }
 
     fn release_with_assets(assets: Vec<Asset>) -> Release {
         Release {
@@ -229,6 +236,28 @@ mod tests {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         std::env::temp_dir().join(format!("upstream-signature-test-{name}-{nanos}"))
+    }
+
+    fn fixture_path(relative: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join(relative)
+    }
+
+    fn fixture_string(relative: &str) -> String {
+        fs::read_to_string(fixture_path(relative)).expect("read fixture")
+    }
+
+    fn trusted_key_fixtures(relative: &str) -> Vec<MinisignPublicKey> {
+        serde_json::from_str::<Vec<MinisignKeyFixture>>(&fixture_string(relative))
+            .expect("parse minisign key fixture")
+            .into_iter()
+            .map(|key| MinisignPublicKey {
+                id: key.id,
+                key: key.key,
+            })
+            .collect()
     }
 
     #[test]
@@ -267,9 +296,9 @@ mod tests {
             id: Some("k1".to_string()),
             key: "RWQx2345invalidbase64".to_string(),
         }];
-        let status =
-            SignatureVerifier::verify_minisign_signature(&asset_path, "not-minisign", &keys)
-                .expect("invalid signature must return status");
+        let signature = fixture_string("trust/signatures/malformed.minisig");
+        let status = SignatureVerifier::verify_minisign_signature(&asset_path, &signature, &keys)
+            .expect("invalid signature must return status");
         assert!(matches!(
             status,
             SignatureVerificationStatus::InvalidSignature
@@ -283,14 +312,16 @@ mod tests {
         let root = temp_root("no-key-match");
         fs::create_dir_all(&root).expect("create root");
         let asset_path = root.join("tool.tar.gz");
-        fs::write(&asset_path, b"test").expect("write asset");
+        fs::copy(
+            fixture_path("trust/signatures/valid-asset.bin"),
+            &asset_path,
+        )
+        .expect("copy asset fixture");
 
+        let signature = fixture_string("trust/signatures/wrong-key.minisig");
         let status = SignatureVerifier::verify_minisign_signature(
             &asset_path,
-            "untrusted comment: signature from minisign secret key\n\
-RUQf6LRCGA9i559r3g7V1qNyJDApGip8MfqcadIgT9CuhV3EMhHoN1mGTkUidF/z7SrlQgXdy8ofjb7bNJJylDOocrCo8KLzZwo=\n\
-trusted comment: timestamp:1633700835\tfile:test\tprehashed\n\
-wLMDjy9FLAuxZ3q4NlEvkgtyhrr0gtTu6KC4KBJdITbbOeAi1zBIYo0v4iTgt8jJpIidRJnp94ABQkJAgAooBQ==",
+            &signature,
             &[MinisignPublicKey {
                 id: Some("k1".to_string()),
                 key: "RWQx2345invalidbase64".to_string(),
@@ -310,20 +341,16 @@ wLMDjy9FLAuxZ3q4NlEvkgtyhrr0gtTu6KC4KBJdITbbOeAi1zBIYo0v4iTgt8jJpIidRJnp94ABQkJA
         let root = temp_root("verified");
         fs::create_dir_all(&root).expect("create root");
         let asset_path = root.join("tool.tar.gz");
-        fs::write(&asset_path, b"test").expect("write asset");
-
-        let status = SignatureVerifier::verify_minisign_signature(
+        fs::copy(
+            fixture_path("trust/signatures/valid-asset.bin"),
             &asset_path,
-            "untrusted comment: signature from minisign secret key\n\
-RUQf6LRCGA9i559r3g7V1qNyJDApGip8MfqcadIgT9CuhV3EMhHoN1mGTkUidF/z7SrlQgXdy8ofjb7bNJJylDOocrCo8KLzZwo=\n\
-trusted comment: timestamp:1633700835\tfile:test\tprehashed\n\
-wLMDjy9FLAuxZ3q4NlEvkgtyhrr0gtTu6KC4KBJdITbbOeAi1zBIYo0v4iTgt8jJpIidRJnp94ABQkJAgAooBQ==",
-            &[MinisignPublicKey {
-                id: Some("k-good".to_string()),
-                key: "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3".to_string(),
-            }],
         )
-        .expect("status");
+        .expect("copy asset fixture");
+
+        let signature = fixture_string("trust/signatures/valid-asset.bin.minisig");
+        let keys = trusted_key_fixtures("trust/signatures/valid-keys.json");
+        let status = SignatureVerifier::verify_minisign_signature(&asset_path, &signature, &keys)
+            .expect("status");
         assert!(matches!(
             status,
             SignatureVerificationStatus::Verified {

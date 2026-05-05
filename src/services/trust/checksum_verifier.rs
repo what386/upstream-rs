@@ -553,7 +553,6 @@ mod tests {
     use crate::models::provider::{Asset, Release};
     use crate::providers::provider_manager::ProviderManager;
     use chrono::Utc;
-    use sha2::Digest;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -596,6 +595,17 @@ mod tests {
 
     fn cleanup(path: &Path) -> io::Result<()> {
         fs::remove_dir_all(path)
+    }
+
+    fn fixture_path(relative: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join(relative)
+    }
+
+    fn fixture_string(relative: &str) -> String {
+        fs::read_to_string(fixture_path(relative)).expect("read fixture")
     }
 
     #[test]
@@ -669,37 +679,22 @@ mod tests {
 
     #[test]
     fn verify_checksum_validates_sha256_digest() {
-        let root = temp_root("verify");
-        fs::create_dir_all(&root).expect("create root");
-        let asset_path = root.join("asset.bin");
-        fs::write(&asset_path, b"checksum-data").expect("write asset");
-
-        let digest = {
-            let digest_bytes = sha2::Sha256::digest(b"checksum-data");
-            ChecksumVerifier::bytes_to_lower_hex(digest_bytes.as_ref())
-        };
-        let entry = ChecksumVerifier::parse_standard_format(&format!("{digest}  asset.bin"))
-            .expect("parse checksum entry");
+        let asset_path = fixture_path("trust/checksums/valid-asset.bin");
+        let checksum = fixture_string("trust/checksums/valid-checksums.txt");
+        let entry =
+            ChecksumVerifier::parse_standard_format(&checksum).expect("parse checksum entry");
 
         assert!(ChecksumVerifier::verify_checksum(&asset_path, &entry).expect("verify checksum"));
-
-        cleanup(&root).expect("cleanup");
     }
 
     #[test]
     fn verify_checksum_rejects_sha256_mismatch() {
-        let root = temp_root("verify-mismatch");
-        fs::create_dir_all(&root).expect("create root");
-        let asset_path = root.join("asset.bin");
-        fs::write(&asset_path, b"checksum-data").expect("write asset");
-
-        let wrong_digest = "0".repeat(64);
-        let entry = ChecksumVerifier::parse_standard_format(&format!("{wrong_digest}  asset.bin"))
-            .expect("parse checksum entry");
+        let asset_path = fixture_path("trust/checksums/mismatch-asset.bin");
+        let checksum = fixture_string("trust/checksums/mismatch-checksums.txt");
+        let entry =
+            ChecksumVerifier::parse_standard_format(&checksum).expect("parse checksum entry");
 
         assert!(!ChecksumVerifier::verify_checksum(&asset_path, &entry).expect("verify checksum"));
-
-        cleanup(&root).expect("cleanup");
     }
 
     #[tokio::test]
