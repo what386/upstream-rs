@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Tool
+Exec=/usr/bin/tool
+Icon=tool
