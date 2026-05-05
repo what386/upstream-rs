@@ -1,0 +1,6 @@
+{
+  "assets": [
+    { "name": "signature.minisig" },
+    { "name": "tool.tar.gz.minisig" }
+  ]
+}
