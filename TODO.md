@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] behavior/bug: Archives can now contain symlinks/hardlinks
-      @created 2026-05-06 00:53
-
 
 ## Completed
 
@@ -25,4 +22,8 @@
       @created 2026-05-04 20:50
       @completed 2026-05-04 20:50
       @completed_version 1.13.0
+
+- [x] behavior/bug: Archives can now contain symlinks/hardlinks
+      @created 2026-05-06 00:53
+      @completed 2026-05-06 00:53
 

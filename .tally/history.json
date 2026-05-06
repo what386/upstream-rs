@@ -1181,5 +1181,15 @@
       "patch": 0,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "behavior/bug: Archives can now contain symlinks/hardlinks",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-06T00:53:37.661532003Z"
+    },
+    "version": null
   }
 ]
