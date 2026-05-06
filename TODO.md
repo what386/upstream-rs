@@ -37,7 +37,3 @@
       @created 2026-05-06 01:50
       @completed 2026-05-06 01:50
 
-- [x] feat: Add automatic autocomplete installation (if available/found. e.g root/autocomplete/*)
-      @created 2026-05-06 01:47
-      @completed 2026-05-06 01:52
-
