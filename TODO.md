@@ -8,9 +8,6 @@
 - [ ] feat: Add automatic autocomplete installation (if available/found. e.g root/autocomplete/*)
       @created 2026-05-06 01:47
 
-- [ ] bug: fix rollback 'stealing' deletion from remove and throwing an error
-      @created 2026-05-06 01:50
-
 
 ## Completed
 
@@ -38,4 +35,8 @@
       @created 2026-05-06 01:26
       @completed 2026-05-06 01:38
       @completed_version 1.14.0
+
+- [x] bug: fix rollback 'stealing' deletion from remove and throwing an error
+      @created 2026-05-06 01:50
+      @completed 2026-05-06 01:50
 

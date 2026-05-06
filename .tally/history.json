@@ -1211,5 +1211,15 @@
       "patch": 0,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "bug: fix rollback 'stealing' deletion from remove and throwing an error",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-06T01:50:35.479197899Z"
+    },
+    "version": null
   }
 ]
