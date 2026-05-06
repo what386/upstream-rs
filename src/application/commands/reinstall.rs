@@ -316,14 +316,13 @@ where
         &package,
         RollbackSource::Reinstall,
         message_callback,
-    ) {
-        if let Some(cb) = message_callback.as_mut() {
+    )
+        && let Some(cb) = message_callback.as_mut() {
             cb(&format!(
                 "Warning: failed to capture rollback for '{}': {}",
                 package.name, err
             ));
         }
-    }
 
     let mut remove_op = RemoveOperation::new(package_storage, metadata_storage, paths);
     remove_op.remove_single(&package.name, &false, message_callback)?;
