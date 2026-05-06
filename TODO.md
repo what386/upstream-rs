@@ -31,4 +31,5 @@
 - [x] feat: package rollbacks for upgrade/reinstall/remove
       @created 2026-05-06 01:26
       @completed 2026-05-06 01:38
+      @completed_version 1.14.0
 
