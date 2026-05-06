@@ -12,8 +12,8 @@ use crate::{
     services::builder::{BuildRequest, worker::BuildWorker},
     services::{
         integration::{DesktopManager, IconManager},
-        packaging::{PackageInstaller, PackageRemover},
         packaging::RollbackManager,
+        packaging::{PackageInstaller, PackageRemover},
         storage::rollback_storage::{RollbackRecord, RollbackSource, RollbackStorage},
         trust::MinisignPublicKey,
     },
