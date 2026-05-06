@@ -1,12 +1,9 @@
-# TODO — upstream-cli v1.13.1
+# TODO — upstream-cli v1.14.0
 
 @created: 2026-01-31
 @modified: 2026-05-06
 
 ## Tasks
-
-- [ ] feat: package rollbacks for upgrade/reinstall/remove
-      @created 2026-05-06 01:26
 
 
 ## Completed
@@ -30,4 +27,8 @@
       @created 2026-05-06 00:53
       @completed 2026-05-06 00:53
       @completed_version 1.13.1
+
+- [x] feat: package rollbacks for upgrade/reinstall/remove
+      @created 2026-05-06 01:26
+      @completed 2026-05-06 01:38
 
