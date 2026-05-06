@@ -184,6 +184,27 @@ pub enum Commands {
         dry_run: bool,
     },
 
+    /// Restore or prune stored rollback artifacts
+    #[command(long_about = "Manage package rollback points.\n\n\
+        Restore previously captured installs, or prune stored rollback artifacts.\n\n\
+        EXAMPLES:\n  \
+        upstream rollback rg\n  \
+        upstream rollback rg fd --dry-run\n  \
+        upstream rollback --prune\n  \
+        upstream rollback --prune rg")]
+    Rollback {
+        /// Package names to restore or prune
+        names: Vec<String>,
+
+        /// Prune rollback artifacts instead of restoring
+        #[arg(long, default_value_t = false)]
+        prune: bool,
+
+        /// Preview rollback/prune actions without modifying files or metadata
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+    },
+
     /// Reinstall one or more packages (remove then install)
     #[command(
         long_about = "Reinstall packages by uninstalling and then installing them again.\n\n\
@@ -420,6 +441,7 @@ impl Commands {
             Commands::Install { .. }
             | Commands::Build { .. }
             | Commands::Remove { .. }
+            | Commands::Rollback { .. }
             | Commands::Reinstall { .. }
             | Commands::Upgrade { .. }
             | Commands::Probe { .. }
@@ -810,6 +832,23 @@ mod tests {
     }
 
     #[test]
+    fn rollback_parses_prune_and_dry_run_flags() {
+        let cli = Cli::parse_from(["upstream", "rollback", "rg", "--prune", "--dry-run"]);
+        match cli.command {
+            Commands::Rollback {
+                names,
+                prune,
+                dry_run,
+            } => {
+                assert_eq!(names, vec!["rg".to_string()]);
+                assert!(prune);
+                assert!(dry_run);
+            }
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
     fn package_remove_parses_name() {
         let cli = Cli::parse_from(["upstream", "package", "remove", "ripgrep"]);
 
@@ -991,6 +1030,14 @@ mod tests {
                 names: vec!["ripgrep".to_string()],
                 trust_mode: TrustMode::BestEffort,
                 dry_run: false,
+            }
+            .requires_lock()
+        );
+        assert!(
+            Commands::Rollback {
+                names: vec!["ripgrep".to_string()],
+                prune: false,
+                dry_run: true,
             }
             .requires_lock()
         );
