@@ -1221,5 +1221,15 @@
       "completed_at": "2026-05-06T01:50:35.479197899Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: Add automatic autocomplete installation (if available/found. e.g root/autocomplete/*)",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-06T01:52:12.567146465Z"
+    },
+    "version": null
   }
 ]
