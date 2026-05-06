@@ -1208,7 +1208,7 @@
     "version": {
       "major": 1,
       "minor": 14,
-      "patch": 0,
+      "patch": 1,
       "is_prerelease": false
     }
   },
@@ -1226,20 +1226,5 @@
       "patch": 1,
       "is_prerelease": false
     }
-  },
-  {
-    "change": {
-      "description": "feat: Add automatic autocomplete installation (if available/found. e.g root/autocomplete/*)",
-      "priority": "Medium",
-      "tags": [],
-      "commit": null,
-      "completed_at": "2026-05-06T01:52:12.567146465Z"
-    },
-    "version": {
-      "major": 1,
-      "minor": 14,
-      "patch": 1,
-      "is_prerelease": false
-    }
   }
-]
+  ]
