@@ -5,6 +5,9 @@
 
 ## Tasks
 
+- [ ] feat: package rollbacks for upgrade/reinstall/remove
+      @created 2026-05-06 01:26
+
 
 ## Completed
 
