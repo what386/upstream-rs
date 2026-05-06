@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-05-04*
+*Generated on 2026-05-06*
+
+## 1.13.1 — 2026-05-06
+
+### Changes
+
+- behavior/bug: Archives can now contain symlinks/hardlinks
+
 
 ## 1.13.0 — 2026-05-04
 
