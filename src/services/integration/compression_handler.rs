@@ -92,6 +92,7 @@ fn safe_join_extract_path(extract_dir: &Path, entry_path: &Path) -> Result<PathB
     Ok(out)
 }
 
+#[cfg(not(windows))]
 fn safe_join_link_target(base_path: &Path, link_target: &Path) -> Result<PathBuf> {
     if link_target.is_absolute() {
         return Err(anyhow!(
@@ -378,6 +379,14 @@ mod tests {
             .join(relative)
     }
 
+    fn assert_path_safety_error(err: &anyhow::Error) {
+        let message = err.to_string();
+        assert!(
+            message.contains("absolute path") || message.contains("escapes extraction root"),
+            "unexpected path safety error: {message}"
+        );
+    }
+
     #[test]
     fn decompress_single_gz_returns_decompressed_file() {
         let root = temp_root("single-gz");
@@ -483,6 +492,107 @@ mod tests {
 
         let err = decompress(&input, &output).expect_err("must reject traversal path");
         assert!(err.to_string().contains("escapes extraction root"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn decompress_rejects_zip_absolute_path_entries() {
+        let root = temp_root("zip-absolute");
+        let input = fixture_path("compression/archives/zip/zip-absolute-path.zip");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+
+        let err = decompress(&input, &output).expect_err("must reject absolute path");
+        assert!(err.to_string().contains("absolute path"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn decompress_rejects_zip_windows_absolute_path_entries() {
+        let root = temp_root("zip-windows-absolute");
+        let input = fixture_path("compression/archives/zip/zip-windows-absolute-path.zip");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+
+        let err = decompress(&input, &output).expect_err("must reject windows absolute path");
+        assert!(err.to_string().contains("absolute path"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn decompress_allows_safe_tar_hardlink_entries() {
+        let root = temp_root("tar-hardlink");
+        let input = fixture_path("compression/archives/tar/tar-hardlink-safe.tar.gz");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+
+        let extracted_root = decompress(&input, &output).expect("decompress with hardlink");
+        let link_path = extracted_root.join("link.txt");
+        let target_path = extracted_root.join("target.txt");
+        assert!(link_path.exists());
+        assert!(target_path.exists());
+        assert_eq!(
+            fs::read(link_path).expect("read through hardlink"),
+            b"target-content"
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn decompress_rejects_tar_hardlink_with_missing_target() {
+        let root = temp_root("tar-hardlink-missing");
+        let input = fixture_path("compression/archives/tar/tar-hardlink-missing-target.tar.gz");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+
+        let err = decompress(&input, &output).expect_err("must reject missing hardlink target");
+        assert!(err.to_string().contains("target is not available"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn decompress_rejects_tar_hardlink_with_absolute_target() {
+        let root = temp_root("tar-hardlink-abs");
+        let input = fixture_path("compression/archives/tar/tar-hardlink-absolute-target.tar.gz");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+
+        let err = decompress(&input, &output).expect_err("must reject absolute hardlink target");
+        assert_path_safety_error(&err);
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn decompress_rejects_tar_hardlink_with_traversal_target() {
+        let root = temp_root("tar-hardlink-traversal");
+        let input = fixture_path("compression/archives/tar/tar-hardlink-traversal-target.tar.gz");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+
+        let err = decompress(&input, &output).expect_err("must reject traversal hardlink target");
+        assert!(err.to_string().contains("escapes extraction root"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn decompress_rejects_tar_symlink_entries_on_windows() {
+        let root = temp_root("tar-symlink-windows");
+        let input = fixture_path("compression/archives/tar/tar-symlink-safe.tar.gz");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+
+        let err = decompress(&input, &output).expect_err("must reject symlink entries on windows");
+        assert!(err.to_string().contains("unsupported symlink entry"));
 
         cleanup(&root).expect("cleanup");
     }
