@@ -2,6 +2,13 @@
 
 *Generated on 2026-05-06*
 
+## 1.14.0 — 2026-05-06
+
+### Changes
+
+- feat: package rollbacks for upgrade/reinstall/remove
+
+
 ## 1.13.1 — 2026-05-06
 
 ### Changes
