@@ -1,5 +1,7 @@
 use crate::services::packaging::PackageRemover;
 use crate::{
+    services::packaging::RollbackManager,
+    services::storage::rollback_storage::RollbackSource,
     services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
@@ -18,6 +20,7 @@ pub struct RemoveOperation<'a> {
     remover: PackageRemover<'a>,
     package_storage: &'a mut PackageStorage,
     metadata_storage: &'a mut MetadataStorage,
+    paths: &'a UpstreamPaths,
 }
 
 impl<'a> RemoveOperation<'a> {
@@ -31,6 +34,7 @@ impl<'a> RemoveOperation<'a> {
             remover,
             package_storage,
             metadata_storage,
+            paths,
         }
     }
 
@@ -124,7 +128,8 @@ impl<'a> RemoveOperation<'a> {
         let package = self
             .package_storage
             .get_package_by_name(package_name)
-            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
+            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?
+            .clone();
 
         let install_path = package
             .install_path
@@ -173,10 +178,35 @@ impl<'a> RemoveOperation<'a> {
         let package = self
             .package_storage
             .get_package_by_name(package_name)
-            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
+            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?
+            .clone();
+
+        if !*purge_option {
+            let rollback_file = RollbackManager::rollback_file_path(self.paths);
+            let mut rollback_storage =
+                crate::services::storage::rollback_storage::RollbackStorage::new(&rollback_file)?;
+            let mut rollback_manager = RollbackManager::new(
+                self.paths,
+                self.package_storage,
+                self.metadata_storage,
+                &mut rollback_storage,
+            );
+            if let Err(err) = rollback_manager.capture_from_installed(
+                &package,
+                RollbackSource::Remove,
+                message_callback,
+            ) {
+                message!(
+                    message_callback,
+                    "Warning: failed to capture rollback for '{}': {}",
+                    package_name,
+                    err
+                );
+            }
+        }
 
         self.remover
-            .remove_package_files(package, message_callback)
+            .remove_package_files(&package, message_callback)
             .context(format!(
                 "Failed to perform removal operations for '{}'",
                 package_name
@@ -248,6 +278,7 @@ mod tests {
                 appimages_dir: dirs.data_dir.join("appimages"),
                 binaries_dir: dirs.data_dir.join("binaries"),
                 archives_dir: dirs.data_dir.join("archives"),
+                rollback_dir: dirs.data_dir.join("rollback"),
             },
             integration: IntegrationPaths {
                 symlinks_dir: dirs.data_dir.join("symlinks"),
