@@ -2,6 +2,14 @@
 
 *Generated on 2026-05-06*
 
+## 1.14.1 — 2026-05-06
+
+### Changes
+
+- bug: fix rollback 'stealing' deletion from remove and throwing an error
+- feat: Add automatic autocomplete installation (if available/found. e.g root/autocomplete/*)
+
+
 ## 1.14.0 — 2026-05-06
 
 ### Changes
