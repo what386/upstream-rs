@@ -12,7 +12,6 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         builder::{BuildRequest, worker::BuildWorker},
-        packaging::RollbackManager,
         storage::{
             config_storage::ConfigStorage, metadata_storage::MetadataStorage,
             package_storage::PackageStorage, rollback_storage::RollbackSource,
@@ -303,29 +302,13 @@ where
     reinstall_package.exec_path = None;
     reinstall_package.icon_path = None;
 
-    let rollback_file = RollbackManager::rollback_file_path(paths);
-    let mut rollback_storage =
-        crate::services::storage::rollback_storage::RollbackStorage::new(&rollback_file)?;
-    let mut rollback_manager = RollbackManager::new(
-        paths,
-        package_storage,
-        metadata_storage,
-        &mut rollback_storage,
-    );
-    if let Err(err) = rollback_manager.capture_from_installed(
-        &package,
+    let mut remove_op = RemoveOperation::new(package_storage, metadata_storage, paths);
+    remove_op.remove_single_with_source(
+        &package.name,
+        &false,
         RollbackSource::Reinstall,
         message_callback,
-    ) && let Some(cb) = message_callback.as_mut()
-    {
-        cb(&format!(
-            "Warning: failed to capture rollback for '{}': {}",
-            package.name, err
-        ));
-    }
-
-    let mut remove_op = RemoveOperation::new(package_storage, metadata_storage, paths);
-    remove_op.remove_single(&package.name, &false, message_callback)?;
+    )?;
 
     match package.install_type {
         InstallType::Release => {

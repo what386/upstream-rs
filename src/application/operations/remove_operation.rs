@@ -175,12 +175,31 @@ impl<'a> RemoveOperation<'a> {
     where
         H: FnMut(&str),
     {
+        self.remove_single_with_source(
+            package_name,
+            purge_option,
+            RollbackSource::Remove,
+            message_callback,
+        )
+    }
+
+    pub fn remove_single_with_source<H>(
+        &mut self,
+        package_name: &str,
+        purge_option: &bool,
+        rollback_source: RollbackSource,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
         let package = self
             .package_storage
             .get_package_by_name(package_name)
             .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?
             .clone();
 
+        let mut rollback_captured = false;
         if !*purge_option {
             let rollback_file = RollbackManager::rollback_file_path(self.paths);
             let mut rollback_storage =
@@ -191,26 +210,35 @@ impl<'a> RemoveOperation<'a> {
                 self.metadata_storage,
                 &mut rollback_storage,
             );
-            if let Err(err) = rollback_manager.capture_from_installed(
-                &package,
-                RollbackSource::Remove,
-                message_callback,
-            ) {
+            if let Err(err) =
+                rollback_manager.capture_from_installed(&package, rollback_source, message_callback)
+            {
                 message!(
                     message_callback,
                     "Warning: failed to capture rollback for '{}': {}",
                     package_name,
                     err
                 );
+            } else {
+                rollback_captured = true;
             }
         }
 
-        self.remover
-            .remove_package_files(&package, message_callback)
-            .context(format!(
-                "Failed to perform removal operations for '{}'",
-                package_name
-            ))?;
+        if rollback_captured {
+            self.remover
+                .remove_runtime_and_desktop_artifacts(&package, message_callback)
+                .context(format!(
+                    "Failed to perform removal operations for '{}'",
+                    package_name
+                ))?;
+        } else {
+            self.remover
+                .remove_package_files(&package, message_callback)
+                .context(format!(
+                    "Failed to perform removal operations for '{}'",
+                    package_name
+                ))?;
+        }
 
         self.package_storage
             .remove_package_by_name(package_name)
