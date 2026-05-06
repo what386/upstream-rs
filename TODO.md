@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.14.0
+# TODO — upstream-cli v1.14.1
 
 @created: 2026-01-31
 @modified: 2026-05-06
@@ -36,4 +36,5 @@
 - [x] bug: fix rollback 'stealing' deletion from remove and throwing an error
       @created 2026-05-06 01:50
       @completed 2026-05-06 01:50
+      @completed_version 1.14.1
 
