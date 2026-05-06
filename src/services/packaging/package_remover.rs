@@ -345,6 +345,7 @@ mod tests {
                 appimages_dir: dirs.data_dir.join("appimages"),
                 binaries_dir: dirs.data_dir.join("binaries"),
                 archives_dir: dirs.data_dir.join("archives"),
+                rollback_dir: dirs.data_dir.join("rollback"),
             },
             integration: IntegrationPaths {
                 symlinks_dir: dirs.data_dir.join("symlinks"),

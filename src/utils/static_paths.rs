@@ -59,6 +59,7 @@ pub struct InstallPaths {
     pub appimages_dir: PathBuf,
     pub binaries_dir: PathBuf,
     pub archives_dir: PathBuf,
+    pub rollback_dir: PathBuf,
 }
 
 impl InstallPaths {
@@ -67,6 +68,7 @@ impl InstallPaths {
             appimages_dir: dirs.data_dir.join("appimages"),
             binaries_dir: dirs.data_dir.join("binaries"),
             archives_dir: dirs.data_dir.join("archives"),
+            rollback_dir: dirs.data_dir.join("rollback"),
         }
     }
 }
@@ -141,6 +143,10 @@ mod tests {
         assert_eq!(
             paths.integration.symlinks_dir,
             paths.dirs.data_dir.join("symlinks")
+        );
+        assert_eq!(
+            paths.install.rollback_dir,
+            paths.dirs.data_dir.join("rollback")
         );
     }
 }

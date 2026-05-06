@@ -13,6 +13,8 @@ use crate::{
     services::{
         integration::{DesktopManager, IconManager},
         packaging::{PackageInstaller, PackageRemover},
+        packaging::RollbackManager,
+        storage::rollback_storage::{RollbackRecord, RollbackSource, RollbackStorage},
         trust::MinisignPublicKey,
     },
     utils::static_paths::UpstreamPaths,
@@ -56,6 +58,78 @@ impl<'a> PackageUpgrader<'a> {
         } else if path.is_file() {
             fs::remove_file(path).context(format!("Failed to remove file '{}'", path.display()))?;
         }
+        Ok(())
+    }
+
+    fn path_relative_to(base: &Path, full: &Path) -> Result<PathBuf> {
+        full.strip_prefix(base).map(Path::to_path_buf).map_err(|_| {
+            anyhow::anyhow!(
+                "Path '{}' is not under '{}'",
+                full.display(),
+                base.display()
+            )
+        })
+    }
+
+    fn capture_successful_upgrade_rollback(
+        paths: &UpstreamPaths,
+        package: &Package,
+        backup_path: &Path,
+    ) -> Result<()> {
+        let rollback_file = RollbackManager::rollback_file_path(paths);
+        let mut rollback_storage = RollbackStorage::new(&rollback_file)?;
+        let package_rollback_dir = paths.install.rollback_dir.join(&package.name);
+        if package_rollback_dir.exists() {
+            fs::remove_dir_all(&package_rollback_dir).context(format!(
+                "Failed to clear existing rollback directory '{}'",
+                package_rollback_dir.display()
+            ))?;
+        }
+        fs::create_dir_all(&package_rollback_dir).context(format!(
+            "Failed to create rollback directory '{}'",
+            package_rollback_dir.display()
+        ))?;
+
+        let backup_name = backup_path.file_name().ok_or_else(|| {
+            anyhow::anyhow!("Backup path '{}' has no file name", backup_path.display())
+        })?;
+        let rollback_artifact = package_rollback_dir.join(backup_name);
+        crate::utils::filesystem::safe_move::move_file_or_dir(backup_path, &rollback_artifact)?;
+
+        let icon_relative_path = if let Some(icon_path) = package.icon_path.as_ref() {
+            if icon_path.exists() {
+                let icon_name = icon_path.file_name().ok_or_else(|| {
+                    anyhow::anyhow!("Icon path '{}' has no file name", icon_path.display())
+                })?;
+                let icon_backup =
+                    package_rollback_dir.join(format!("icon-{}", icon_name.to_string_lossy()));
+                fs::copy(icon_path, &icon_backup).context(format!(
+                    "Failed to copy icon '{}' to '{}'",
+                    icon_path.display(),
+                    icon_backup.display()
+                ))?;
+                Some(Self::path_relative_to(
+                    &paths.install.rollback_dir,
+                    &icon_backup,
+                )?)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let record = RollbackRecord {
+            package_snapshot: package.clone(),
+            artifact_relative_path: Self::path_relative_to(
+                &paths.install.rollback_dir,
+                &rollback_artifact,
+            )?,
+            icon_relative_path,
+            source: RollbackSource::Upgrade,
+            created_at: chrono::Utc::now(),
+        };
+        rollback_storage.upsert_record(&package.name, record)?;
         Ok(())
     }
 
@@ -364,8 +438,21 @@ impl<'a> PackageUpgrader<'a> {
                 ))?;
         }
 
-        Self::remove_path_if_exists(&backup_path)
-            .context(format!("Failed to remove backup for '{}'", package.name))?;
+        if let Err(err) =
+            Self::capture_successful_upgrade_rollback(self.paths, package, &backup_path)
+        {
+            message!(
+                message_callback,
+                "{}",
+                style(format!(
+                    "Warning: failed to capture rollback for '{}': {}",
+                    package.name, err
+                ))
+                .yellow()
+            );
+            Self::remove_path_if_exists(&backup_path)
+                .context(format!("Failed to remove backup for '{}'", package.name))?;
+        }
 
         Ok(Some(updated_package))
     }
