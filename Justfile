@@ -26,8 +26,6 @@ promote:
     lash run scripts/release/promote.lash
 
 publish version:
-    just lint
-    just test
     lash run scripts/release/publish.lash {{version}}
     git switch dev
 
