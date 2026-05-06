@@ -25,6 +25,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand install 'Install a package from an upstream release source'
             cand build 'Build and install from source for release tags without artifacts'
             cand remove 'Remove one or more installed packages'
+            cand rollback 'Restore or prune stored rollback artifacts'
             cand reinstall 'Reinstall one or more packages (remove then install)'
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
@@ -82,6 +83,12 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;remove'= {
             cand --purge 'Remove all associated cached data'
             cand --dry-run 'Preview removal actions without deleting files or metadata'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;rollback'= {
+            cand --prune 'Prune rollback artifacts instead of restoring'
+            cand --dry-run 'Preview rollback/prune actions without modifying files or metadata'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -300,6 +307,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand install 'Install a package from an upstream release source'
             cand build 'Build and install from source for release tags without artifacts'
             cand remove 'Remove one or more installed packages'
+            cand rollback 'Restore or prune stored rollback artifacts'
             cand reinstall 'Reinstall one or more packages (remove then install)'
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
@@ -317,6 +325,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;build'= {
         }
         &'upstream;help;remove'= {
+        }
+        &'upstream;help;rollback'= {
         }
         &'upstream;help;reinstall'= {
         }

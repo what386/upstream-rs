@@ -87,6 +87,15 @@ _arguments "${_arguments_options[@]}" : \
 '*::names -- Names of packages to remove:_default' \
 && ret=0
 ;;
+(rollback)
+_arguments "${_arguments_options[@]}" : \
+'--prune[Prune rollback artifacts instead of restoring]' \
+'--dry-run[Preview rollback/prune actions without modifying files or metadata]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'*::names -- Package names to restore or prune:_default' \
+&& ret=0
+;;
 (reinstall)
 _arguments "${_arguments_options[@]}" : \
 '--trust=[Trust verification mode for release-asset reinstalls]:TRUST_MODE:(none best-effort checksum signature all)' \
@@ -471,6 +480,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(rollback)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (reinstall)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -630,6 +643,7 @@ _upstream_commands() {
 'install:Install a package from an upstream release source' \
 'build:Build and install from source for release tags without artifacts' \
 'remove:Remove one or more installed packages' \
+'rollback:Restore or prune stored rollback artifacts' \
 'reinstall:Reinstall one or more packages (remove then install)' \
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
@@ -744,6 +758,7 @@ _upstream__subcmd__help_commands() {
 'install:Install a package from an upstream release source' \
 'build:Build and install from source for release tags without artifacts' \
 'remove:Remove one or more installed packages' \
+'rollback:Restore or prune stored rollback artifacts' \
 'reinstall:Reinstall one or more packages (remove then install)' \
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
@@ -921,6 +936,11 @@ _upstream__subcmd__help__subcmd__reinstall_commands() {
 _upstream__subcmd__help__subcmd__remove_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help remove commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__rollback_commands] )) ||
+_upstream__subcmd__help__subcmd__rollback_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help rollback commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__upgrade_commands] )) ||
 _upstream__subcmd__help__subcmd__upgrade_commands() {
@@ -1126,6 +1146,11 @@ _upstream__subcmd__reinstall_commands() {
 _upstream__subcmd__remove_commands() {
     local commands; commands=()
     _describe -t commands 'upstream remove commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__rollback_commands] )) ||
+_upstream__subcmd__rollback_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream rollback commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__upgrade_commands] )) ||
 _upstream__subcmd__upgrade_commands() {
