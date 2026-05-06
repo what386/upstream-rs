@@ -117,6 +117,38 @@ impl<'a> PackageRemover<'a> {
         Ok(())
     }
 
+    /// Remove runtime integrations and stored desktop/icon artifacts without touching install_path.
+    pub fn remove_runtime_and_desktop_artifacts<H>(
+        &self,
+        package: &Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        self.remove_runtime_integrations(package, message_callback)?;
+
+        if let Some(icon_path) = &package.icon_path {
+            message!(message_callback, "Removing desktop entry ...");
+            DesktopManager::remove_entry(self.paths, &package.name).context(format!(
+                "Failed to remove desktop entry for '{}'",
+                package.name
+            ))?;
+
+            fs::remove_file(icon_path).context(format!(
+                "Failed to remove icon file at '{}'",
+                icon_path.display()
+            ))?;
+            message!(
+                message_callback,
+                "Removed stored icon: {}",
+                icon_path.display()
+            );
+        }
+
+        Ok(())
+    }
+
     /// Remove PATH and symlink state for a package without deleting installed files.
     pub fn remove_runtime_integrations<H>(
         &self,
