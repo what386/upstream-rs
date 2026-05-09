@@ -1246,5 +1246,20 @@
       "completed_at": "2026-05-09T03:38:34.139676282Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "feat: package rollbacks for upgrade/reinstall/remove",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-06T01:38:00Z"
+    },
+    "version": {
+      "major": 1,
+      "minor": 14,
+      "patch": 0,
+      "is_prerelease": false
+    }
   }
 ]
