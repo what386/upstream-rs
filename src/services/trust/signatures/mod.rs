@@ -1,7 +1,7 @@
 mod asset_selector;
 mod cosign;
-mod orchestrator;
 mod minisign;
+mod orchestrator;
 
 pub use orchestrator::SignatureVerifier;
 

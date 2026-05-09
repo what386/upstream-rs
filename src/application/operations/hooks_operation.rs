@@ -17,7 +17,8 @@ use std::path::Path;
 const SOURCE_LINE_BASH: &str =
     "[ -f $HOME/.upstream/metadata/paths.sh ] && source $HOME/.upstream/metadata/paths.sh";
 #[cfg(unix)]
-const SOURCE_LINE_FISH: &str = "test -f $HOME/.upstream/metadata/paths.sh; and source $HOME/.upstream/metadata/paths.sh";
+const SOURCE_LINE_FISH: &str =
+    "test -f $HOME/.upstream/metadata/paths.sh; and source $HOME/.upstream/metadata/paths.sh";
 
 pub struct InitCheckReport {
     pub ok: bool,

@@ -6,18 +6,13 @@ use crate::{
     providers::provider_manager::ProviderManager,
 };
 use anyhow::{Result, anyhow};
-use std::{
-    fs,
-    path::Path,
-};
+use std::{fs, path::Path};
 
 use super::{
-    TrustedSignatureKeys,
+    SignatureScheme, SignatureVerificationStatus, TrustedSignatureKeys,
     asset_selector::{find_signature_assets, signature_target_name},
     cosign::verify_cosign_signature,
     minisign::verify_minisign_signature,
-    SignatureScheme,
-    SignatureVerificationStatus,
 };
 
 enum SignatureTarget<'r> {
@@ -125,12 +120,21 @@ impl<'a> SignatureVerifier<'a> {
             let cosign_attempted = !trusted_keys.cosign_public_keys.is_empty();
 
             saw_no_trusted_key |= (minisign_attempted
-                && matches!(minisign_status, SignatureVerificationStatus::NoTrustedKeyMatched))
+                && matches!(
+                    minisign_status,
+                    SignatureVerificationStatus::NoTrustedKeyMatched
+                ))
                 || (cosign_attempted
-                    && matches!(cosign_status, SignatureVerificationStatus::NoTrustedKeyMatched));
+                    && matches!(
+                        cosign_status,
+                        SignatureVerificationStatus::NoTrustedKeyMatched
+                    ));
 
             saw_invalid_signature |= (minisign_attempted
-                && matches!(minisign_status, SignatureVerificationStatus::InvalidSignature))
+                && matches!(
+                    minisign_status,
+                    SignatureVerificationStatus::InvalidSignature
+                ))
                 || (cosign_attempted
                     && matches!(cosign_status, SignatureVerificationStatus::InvalidSignature));
         }
@@ -203,12 +207,8 @@ impl<'a> SignatureVerifier<'a> {
 #[cfg(test)]
 mod tests {
     use super::{
-        SignatureVerificationStatus,
-        SignatureTarget,
-        SignatureVerifier,
-        find_signature_assets,
-        signature_target_name,
-        verify_minisign_signature,
+        SignatureTarget, SignatureVerificationStatus, SignatureVerifier, find_signature_assets,
+        signature_target_name, verify_minisign_signature,
     };
     use crate::models::common::{enums::Provider, version::Version};
     use crate::models::provider::{Asset, Release};
@@ -380,8 +380,7 @@ mod tests {
 
         let signature = fixture_string("trust/signatures/valid-asset.bin.minisig");
         let keys = trusted_key_fixtures("trust/signatures/valid-keys.json");
-        let status = verify_minisign_signature(&asset_path, &signature, &keys)
-            .expect("status");
+        let status = verify_minisign_signature(&asset_path, &signature, &keys).expect("status");
         assert!(matches!(
             status,
             SignatureVerificationStatus::Verified {

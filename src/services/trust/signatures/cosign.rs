@@ -81,8 +81,7 @@ mod tests {
         let artifact_path = root.join("checksums.txt");
         fs::write(&artifact_path, b"payload bytes").expect("write artifact");
 
-        let signing_key =
-            SigningKey::from_bytes((&[7_u8; 32]).into()).expect("create signing key");
+        let signing_key = SigningKey::from_bytes((&[7_u8; 32]).into()).expect("create signing key");
         let public_key = signing_key
             .verifying_key()
             .to_public_key_pem(LineEnding::LF)
