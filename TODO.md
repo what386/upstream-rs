@@ -8,6 +8,9 @@
 - [ ] feat: `search` subcommand that can search providers for keywords
       @created 2026-05-09 02:46
 
+- [ ] bug: fix cosign not actually applying checksums to blobs (??)
+      @created 2026-05-09 03:37
+
 
 ## Completed
 
