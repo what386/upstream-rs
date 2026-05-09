@@ -1,11 +1,7 @@
 use super::{CosignPublicKey, SignatureScheme, SignatureVerificationStatus};
-use anyhow::Result;
-use sigstore_verification::verify_cosign_signature_with_key;
-use std::{
-    fs,
-    path::Path,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use anyhow::{Context, Result};
+use sigstore::crypto::{CosignVerificationKey, Signature};
+use std::{fs, path::Path};
 
 pub(crate) async fn verify_cosign_signature(
     asset_path: &Path,
@@ -16,30 +12,30 @@ pub(crate) async fn verify_cosign_signature(
         return Ok(SignatureVerificationStatus::NoTrustedKeyMatched);
     }
 
-    for key in trusted_keys {
-        let temp_root = std::env::temp_dir().join(format!(
-            "upstream-cosign-verify-{}",
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or(0)
-        ));
-        fs::create_dir_all(&temp_root)?;
-        let signature_path = temp_root.join("signature.sig");
-        let key_path = temp_root.join("key.pub");
-        fs::write(&signature_path, signature_contents)?;
-        fs::write(&key_path, &key.key)?;
+    let blob = fs::read(asset_path).with_context(|| {
+        format!(
+            "Failed to read asset '{}' for cosign signature verification",
+            asset_path.display()
+        )
+    })?;
+    let signature = signature_contents.trim();
+    let mut saw_valid_key = false;
+    let mut saw_parse_error = false;
 
-        let verified = match verify_cosign_signature_with_key(asset_path, &signature_path, &key_path).await {
-            Ok(v) => v,
+    for key in trusted_keys {
+        let verification_key = match CosignVerificationKey::try_from_pem(key.key.as_bytes()) {
+            Ok(key) => key,
             Err(_) => {
-                let _ = fs::remove_dir_all(&temp_root);
+                saw_parse_error = true;
                 continue;
             }
         };
+        saw_valid_key = true;
 
-        let _ = fs::remove_dir_all(&temp_root);
-        if verified {
+        if verification_key
+            .verify_signature(Signature::Base64Encoded(signature.as_bytes()), &blob)
+            .is_ok()
+        {
             return Ok(SignatureVerificationStatus::Verified {
                 scheme: SignatureScheme::Cosign,
                 key_id: key.id.clone(),
@@ -48,5 +44,72 @@ pub(crate) async fn verify_cosign_signature(
         }
     }
 
-    Ok(SignatureVerificationStatus::NoTrustedKeyMatched)
+    if saw_valid_key {
+        Ok(SignatureVerificationStatus::NoTrustedKeyMatched)
+    } else if saw_parse_error {
+        Ok(SignatureVerificationStatus::InvalidSignature)
+    } else {
+        Ok(SignatureVerificationStatus::NoTrustedKeyMatched)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::verify_cosign_signature;
+    use crate::services::trust::{CosignPublicKey, SignatureScheme, SignatureVerificationStatus};
+    use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
+    use p256::ecdsa::{DerSignature, SigningKey, signature::Signer};
+    use p256::pkcs8::{EncodePublicKey, LineEnding};
+    use std::{
+        fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    fn temp_root(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir().join(format!("upstream-cosign-test-{name}-{nanos}"))
+    }
+
+    #[tokio::test]
+    async fn verify_cosign_signature_verifies_blob_bytes_with_pem_key() {
+        let root = temp_root("blob-bytes");
+        fs::create_dir_all(&root).expect("create root");
+        let artifact_path = root.join("checksums.txt");
+        fs::write(&artifact_path, b"payload bytes").expect("write artifact");
+
+        let signing_key =
+            SigningKey::from_bytes((&[7_u8; 32]).into()).expect("create signing key");
+        let public_key = signing_key
+            .verifying_key()
+            .to_public_key_pem(LineEnding::LF)
+            .expect("encode public key");
+        let signature: DerSignature = signing_key.sign(b"payload bytes");
+        let signature = BASE64_STANDARD.encode(signature.to_bytes());
+
+        let status = verify_cosign_signature(
+            &artifact_path,
+            &signature,
+            &[CosignPublicKey {
+                id: Some("fixture".to_string()),
+                key: public_key,
+            }],
+        )
+        .await
+        .expect("verify cosign signature");
+
+        assert!(matches!(
+            status,
+            SignatureVerificationStatus::Verified {
+                scheme: SignatureScheme::Cosign,
+                key_id: Some(ref id),
+                ..
+            } if id == "fixture"
+        ));
+
+        let _ = fs::remove_dir_all(root);
+    }
 }
