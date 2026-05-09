@@ -34,7 +34,11 @@ pub async fn run(
 
     println!(
         "{}",
-        style(format!("Searching '{}' via {} ...", query, effective_provider)).cyan()
+        style(format!(
+            "Searching '{}' via {} ...",
+            query, effective_provider
+        ))
+        .cyan()
     );
 
     let results = provider_manager
@@ -163,11 +167,7 @@ fn format_relative_updated_with_now(updated_at: DateTime<Utc>, now: DateTime<Utc
 }
 
 fn default_dash(value: &str) -> &str {
-    if value.trim().is_empty() {
-        "-"
-    } else {
-        value
-    }
+    if value.trim().is_empty() { "-" } else { value }
 }
 
 fn truncate(value: &str, max: usize) -> String {
