@@ -1236,5 +1236,15 @@
       "completed_at": "2026-05-09T03:31:29.697535228Z"
     },
     "version": null
+  },
+  {
+    "change": {
+      "description": "bug: fix cosign not actually applying checksums to blobs (??)",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-09T03:38:34.139676282Z"
+    },
+    "version": null
   }
 ]
