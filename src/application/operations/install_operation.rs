@@ -7,7 +7,7 @@ use crate::{
     services::{
         integration::{DesktopManager, IconManager},
         storage::package_storage::PackageStorage,
-        trust::MinisignPublicKey,
+        trust::TrustedSignatureKeys,
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -33,7 +33,7 @@ pub struct InstallOperation<'a> {
     package_storage: &'a mut PackageStorage,
     provider_manager: &'a ProviderManager,
     paths: &'a UpstreamPaths,
-    trusted_keys: Vec<MinisignPublicKey>,
+    trusted_keys: TrustedSignatureKeys,
 }
 
 pub struct InstallPreview {
@@ -48,7 +48,7 @@ impl<'a> InstallOperation<'a> {
         provider_manager: &'a ProviderManager,
         package_storage: &'a mut PackageStorage,
         paths: &'a UpstreamPaths,
-        trusted_keys: Vec<MinisignPublicKey>,
+        trusted_keys: TrustedSignatureKeys,
     ) -> Result<Self> {
         let installer = PackageInstaller::new(provider_manager, paths)?;
         Ok(Self {
@@ -500,8 +500,13 @@ mod tests {
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
         let provider_manager = ProviderManager::new(None, None, None).expect("provider manager");
-        let op = InstallOperation::new(&provider_manager, &mut storage, &paths, Vec::new())
-            .expect("operation");
+        let op = InstallOperation::new(
+            &provider_manager,
+            &mut storage,
+            &paths,
+            crate::services::trust::TrustedSignatureKeys::default(),
+        )
+        .expect("operation");
 
         let mut package = Package::with_defaults(
             "tool".to_string(),
