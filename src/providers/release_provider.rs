@@ -2,8 +2,8 @@
 
 use std::path::Path;
 
-use async_trait::async_trait;
 use anyhow::{Result, anyhow};
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
 use crate::models::provider::{Asset, Release, RepositorySearchResult};
@@ -101,6 +101,8 @@ where
         destination_path: &Path,
         dl_callback: Option<&mut (dyn FnMut(u64, u64) + '_)>,
     ) -> Result<()> {
-        (*self).download_asset(asset, destination_path, dl_callback).await
+        (*self)
+            .download_asset(asset, destination_path, dl_callback)
+            .await
     }
 }

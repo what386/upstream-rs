@@ -63,7 +63,8 @@ impl ProviderManager {
             return Ok(adapter);
         }
 
-        let adapter = GitlabClient::new(self.gitlab_token.as_deref(), None).map(GitlabAdapter::new)?;
+        let adapter =
+            GitlabClient::new(self.gitlab_token.as_deref(), None).map(GitlabAdapter::new)?;
         Ok(self.gitlab.get_or_init(|| adapter))
     }
 
@@ -103,8 +104,10 @@ impl ProviderManager {
             Provider::Github => Ok(Box::new(self.github_adapter()?)),
             Provider::Gitlab => {
                 if let Some(base) = base_url {
-                    let adapter =
-                        GitlabAdapter::new(GitlabClient::new(self.gitlab_token.as_deref(), Some(base))?);
+                    let adapter = GitlabAdapter::new(GitlabClient::new(
+                        self.gitlab_token.as_deref(),
+                        Some(base),
+                    )?);
                     Ok(Box::new(adapter))
                 } else {
                     Ok(Box::new(self.gitlab_adapter()?))
@@ -112,8 +115,10 @@ impl ProviderManager {
             }
             Provider::Gitea => {
                 if let Some(base) = base_url {
-                    let adapter =
-                        GiteaAdapter::new(GiteaClient::new(self.gitea_token.as_deref(), Some(base))?);
+                    let adapter = GiteaAdapter::new(GiteaClient::new(
+                        self.gitea_token.as_deref(),
+                        Some(base),
+                    )?);
                     Ok(Box::new(adapter))
                 } else {
                     Ok(Box::new(self.gitea_adapter()?))
@@ -132,9 +137,18 @@ impl ProviderManager {
         base_url: Option<&str>,
     ) -> Result<Release> {
         match channel {
-            Channel::Stable => self.get_latest_stable_release(slug, provider, base_url).await,
-            Channel::Preview => self.get_latest_preview_release(slug, provider, base_url).await,
-            Channel::Nightly => self.get_latest_nightly_release(slug, provider, base_url).await,
+            Channel::Stable => {
+                self.get_latest_stable_release(slug, provider, base_url)
+                    .await
+            }
+            Channel::Preview => {
+                self.get_latest_preview_release(slug, provider, base_url)
+                    .await
+            }
+            Channel::Nightly => {
+                self.get_latest_nightly_release(slug, provider, base_url)
+                    .await
+            }
         }
     }
 
@@ -337,7 +351,8 @@ mod tests {
             .expect_err("gitlab search should be unsupported");
 
         assert!(
-            err.to_string().contains("Repository search is not supported"),
+            err.to_string()
+                .contains("Repository search is not supported"),
             "unexpected error: {err}"
         );
     }
