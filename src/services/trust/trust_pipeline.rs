@@ -9,7 +9,7 @@ use anyhow::{Result, anyhow};
 use std::path::Path;
 
 use super::{
-    checksum_verifier::ChecksumVerifier,
+    checksum_verifier::{ChecksumVerificationResult, ChecksumVerifier},
     signatures::{SignatureVerificationStatus, SignatureVerifier, TrustedSignatureKeys},
 };
 
@@ -48,27 +48,40 @@ impl<'a> TrustVerifier<'a> {
         }
     }
 
-    pub async fn verify_file<F>(
+    pub async fn verify_file<F, H>(
         &self,
         asset_path: &Path,
         release: &Release,
         provider: &Provider,
         dl_progress: &mut Option<F>,
+        message_callback: &mut Option<H>,
     ) -> Result<TrustVerificationStatus>
     where
         F: FnMut(u64, u64),
+        H: FnMut(&str),
     {
         if self.trust_mode == TrustMode::None {
             return Ok(TrustVerificationStatus::Skipped);
         }
 
-        let checksum_status = match self
+        let asset_filename = asset_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("downloaded asset");
+        if let Some(cb) = message_callback.as_mut() {
+            cb(&format!("Checksumming '{asset_filename}' ..."));
+        }
+
+        let checksum_result = self
             .checksum_verifier
             .try_verify_file(asset_path, release, provider, dl_progress)
-            .await?
-        {
-            true => ChecksumVerificationStatus::Verified,
-            false => ChecksumVerificationStatus::Missing,
+            .await?;
+        let checksum_status = match checksum_result {
+            ChecksumVerificationResult::Verified(info) => {
+                let _ = info;
+                ChecksumVerificationStatus::Verified
+            }
+            ChecksumVerificationResult::Missing => ChecksumVerificationStatus::Missing,
         };
 
         let signature_status = self
@@ -79,6 +92,7 @@ impl<'a> TrustVerifier<'a> {
                 provider,
                 self.trusted_keys,
                 dl_progress,
+                message_callback,
             )
             .await?;
 
@@ -107,7 +121,6 @@ impl<'a> TrustVerifier<'a> {
                         "Checksum is required but no checksum asset was found"
                     ));
                 }
-                self.enforce_signature_attempt_result(signature)?;
                 Ok(())
             }
             TrustMode::Signature => {
