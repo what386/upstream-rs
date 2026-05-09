@@ -1,4 +1,4 @@
-# TODO — upstream-cli v1.14.2
+# TODO — upstream-cli v1.15.0
 
 @created: 2026-01-31
 @modified: 2026-05-09
@@ -26,4 +26,5 @@
 - [x] feat: `search` subcommand that can search providers for keywords
       @created 2026-05-09 02:46
       @completed 2026-05-09 05:13
+      @completed_version 1.15.0
 
