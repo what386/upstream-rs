@@ -2,6 +2,13 @@
 
 *Generated on 2026-05-09*
 
+## 1.15.0 — 2026-05-09
+
+### Changes
+
+- feat: `search` subcommand that can search providers for keywords
+
+
 ## 1.14.2 — 2026-05-09
 
 ### Changes
