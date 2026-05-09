@@ -32,7 +32,7 @@ pub async fn run(
     let github_token = app_config.github.api_token.as_deref();
     let gitlab_token = app_config.gitlab.api_token.as_deref();
     let gitea_token = app_config.gitea.api_token.as_deref();
-    let trusted_keys = app_config.trusted_minisign_keys();
+    let trusted_keys = app_config.trusted_signature_keys();
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
     let mut operation = BuildOperation::new(

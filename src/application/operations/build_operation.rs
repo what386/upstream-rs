@@ -10,14 +10,14 @@ use crate::providers::discovery::{SourceKind, infer_source};
 use crate::providers::provider_manager::ProviderManager;
 use crate::services::builder::{BuildProfile, BuildRequest, worker::BuildWorker};
 use crate::services::storage::package_storage::PackageStorage;
-use crate::services::trust::MinisignPublicKey;
+use crate::services::trust::TrustedSignatureKeys;
 use crate::utils::static_paths::UpstreamPaths;
 
 pub struct BuildOperation<'a> {
     provider_manager: &'a ProviderManager,
     package_storage: &'a mut PackageStorage,
     paths: &'a UpstreamPaths,
-    trusted_keys: Vec<MinisignPublicKey>,
+    trusted_keys: TrustedSignatureKeys,
 }
 
 pub struct BuildCommandInput {
@@ -39,7 +39,7 @@ impl<'a> BuildOperation<'a> {
         provider_manager: &'a ProviderManager,
         package_storage: &'a mut PackageStorage,
         paths: &'a UpstreamPaths,
-        trusted_keys: Vec<MinisignPublicKey>,
+        trusted_keys: TrustedSignatureKeys,
     ) -> Self {
         Self {
             provider_manager,

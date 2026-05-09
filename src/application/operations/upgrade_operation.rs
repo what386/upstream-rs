@@ -4,7 +4,7 @@ use crate::{
     services::{
         packaging::{PackageChecker, PackageInstaller, PackageRemover, PackageUpgrader},
         storage::package_storage::PackageStorage,
-        trust::MinisignPublicKey,
+        trust::TrustedSignatureKeys,
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -153,7 +153,7 @@ impl<'a> UpgradeOperation<'a> {
         provider_manager: &'a ProviderManager,
         package_storage: &'a mut PackageStorage,
         paths: &'a UpstreamPaths,
-        trusted_keys: Vec<MinisignPublicKey>,
+        trusted_keys: TrustedSignatureKeys,
     ) -> Result<Self> {
         let installer = PackageInstaller::new(provider_manager, paths)?;
         let remover = PackageRemover::new(paths);
