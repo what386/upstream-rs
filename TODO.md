@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] feat: `search` subcommand that can search providers for keywords
-      @created 2026-05-09 02:46
-
 
 ## Completed
 
@@ -25,4 +22,8 @@
       @created 2026-05-09 03:39
       @completed 2026-05-09 03:40
       @completed_version 1.14.2
+
+- [x] feat: `search` subcommand that can search providers for keywords
+      @created 2026-05-09 02:46
+      @completed 2026-05-09 05:13
 
