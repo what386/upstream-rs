@@ -8,9 +8,6 @@
 - [ ] feat: `search` subcommand that can search providers for keywords
       @created 2026-05-09 02:46
 
-- [ ] bug: fix checksum signatures applying to binaries
-      @created 2026-05-09 03:31
-
 
 ## Completed
 
@@ -43,4 +40,8 @@
       @created 2026-05-06 01:50
       @completed 2026-05-06 01:50
       @completed_version 1.14.1
+
+- [x] bug: fix checksum signatures applying to binaries
+      @created 2026-05-09 03:31
+      @completed 2026-05-09 03:31
 
