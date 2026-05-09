@@ -15,7 +15,7 @@ use crate::{
         packaging::RollbackManager,
         packaging::{PackageInstaller, PackageRemover},
         storage::rollback_storage::{RollbackRecord, RollbackSource, RollbackStorage},
-        trust::MinisignPublicKey,
+        trust::TrustedSignatureKeys,
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -40,7 +40,7 @@ pub struct PackageUpgrader<'a> {
     installer: PackageInstaller<'a>,
     remover: PackageRemover<'a>,
     paths: &'a UpstreamPaths,
-    trusted_keys: Vec<MinisignPublicKey>,
+    trusted_keys: TrustedSignatureKeys,
 }
 
 impl<'a> PackageUpgrader<'a> {
@@ -138,7 +138,7 @@ impl<'a> PackageUpgrader<'a> {
         installer: PackageInstaller<'a>,
         remover: PackageRemover<'a>,
         paths: &'a UpstreamPaths,
-        trusted_keys: Vec<MinisignPublicKey>,
+        trusted_keys: TrustedSignatureKeys,
     ) -> Self {
         Self {
             provider_manager,
