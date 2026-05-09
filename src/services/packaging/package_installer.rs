@@ -6,8 +6,8 @@ use crate::{
         integration::{ShellManager, SymlinkManager, compression_handler, permission_handler},
         packaging::bundle_handler::BundleHandler,
         trust::{
-            ChecksumVerificationStatus, MinisignPublicKey, SignatureVerificationStatus,
-            TrustVerificationStatus, TrustVerifier,
+            ChecksumVerificationStatus, SignatureScheme, SignatureVerificationStatus,
+            TrustVerificationStatus, TrustVerifier, TrustedSignatureKeys,
         },
     },
     utils::{filesystem::safe_move, static_paths::UpstreamPaths},
@@ -87,7 +87,7 @@ impl<'a> PackageInstaller<'a> {
         mut package: Package,
         release: &Release,
         trust_mode: TrustMode,
-        trusted_keys: &[MinisignPublicKey],
+        trusted_keys: &TrustedSignatureKeys,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
     ) -> Result<Package>
@@ -195,17 +195,30 @@ impl<'a> PackageInstaller<'a> {
 
                 match signature {
                     SignatureVerificationStatus::Verified {
+                        scheme,
                         key_id,
                         signature_asset,
                     } => {
+                        let scheme_name = match scheme {
+                            SignatureScheme::Minisign => "minisign",
+                            SignatureScheme::Cosign => "cosign",
+                        };
                         if let Some(id) = key_id {
                             message!(
                                 message_callback,
                                 "{}",
-                                style(format!("Signature verified with key '{id}'")).green()
+                                style(format!(
+                                    "{} signature verified with key '{}'",
+                                    scheme_name, id
+                                ))
+                                .green()
                             );
                         } else {
-                            message!(message_callback, "{}", style("Signature verified").green());
+                            message!(
+                                message_callback,
+                                "{}",
+                                style(format!("{scheme_name} signature verified")).green()
+                            );
                         }
                         if !signature_asset.is_empty() {
                             message!(
