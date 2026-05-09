@@ -1261,5 +1261,15 @@
       "patch": 0,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "feat: update fish paths.sh line",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-09T03:40:00.935489271Z"
+    },
+    "version": null
   }
 ]
