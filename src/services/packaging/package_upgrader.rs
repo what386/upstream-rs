@@ -182,7 +182,7 @@ impl<'a> PackageUpgrader<'a> {
                 message!(message_callback, "Fetching latest release ...");
                 let release = if force {
                     self.provider_manager
-                        .get_latest_release_for(
+                        .get_latest_release(
                             &package.repo_slug,
                             &package.provider,
                             &package.channel,
@@ -231,7 +231,7 @@ impl<'a> PackageUpgrader<'a> {
         {
             let head_commit = self
                 .provider_manager
-                .get_branch_head_sha_for(
+                .get_branch_head_sha(
                     &package.repo_slug,
                     &package.provider,
                     branch,

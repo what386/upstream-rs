@@ -4,6 +4,7 @@ use std::path::Path;
 
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
+use crate::providers::release_provider::ReleaseProvider;
 
 use super::gitlab_client::GitlabClient;
 use super::gitlab_dtos::GitlabReleaseDto;
@@ -120,6 +121,40 @@ impl GitlabAdapter {
         }
         raw.parse::<DateTime<Utc>>()
             .unwrap_or(DateTime::<Utc>::MIN_UTC)
+    }
+}
+
+#[async_trait::async_trait(?Send)]
+impl ReleaseProvider for GitlabAdapter {
+    async fn get_latest_release(&self, slug: &str) -> Result<Release> {
+        GitlabAdapter::get_latest_release(self, slug).await
+    }
+
+    async fn get_releases(
+        &self,
+        slug: &str,
+        per_page: Option<u32>,
+        max_total: Option<u32>,
+    ) -> Result<Vec<Release>> {
+        GitlabAdapter::get_releases(self, slug, per_page, max_total).await
+    }
+
+    async fn get_release_by_tag(&self, slug: &str, tag: &str) -> Result<Release> {
+        GitlabAdapter::get_release_by_tag(self, slug, tag).await
+    }
+
+    async fn get_branch_head_sha(&self, slug: &str, branch: &str) -> Result<String> {
+        GitlabAdapter::get_branch_head_sha(self, slug, branch).await
+    }
+
+    async fn download_asset(
+        &self,
+        asset: &Asset,
+        destination_path: &Path,
+        dl_callback: Option<&mut (dyn FnMut(u64, u64) + '_)>,
+    ) -> Result<()> {
+        let mut forwarded = dl_callback;
+        GitlabAdapter::download_asset(self, asset, destination_path, &mut forwarded).await
     }
 }
 

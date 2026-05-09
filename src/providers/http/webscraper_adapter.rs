@@ -5,6 +5,7 @@ use std::path::Path;
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
 use crate::providers::http::http_client::{ConditionalDiscoveryResult, HttpClient};
+use crate::providers::release_provider::ReleaseProvider;
 
 #[derive(Debug, Clone)]
 pub struct WebScraperAdapter {
@@ -166,6 +167,44 @@ impl WebScraperAdapter {
         _max_total: Option<u32>,
     ) -> Result<Vec<Release>> {
         Ok(vec![self.get_latest_release(slug).await?])
+    }
+}
+
+#[async_trait::async_trait(?Send)]
+impl ReleaseProvider for WebScraperAdapter {
+    async fn get_latest_release(&self, slug: &str) -> Result<Release> {
+        WebScraperAdapter::get_latest_release(self, slug).await
+    }
+
+    async fn get_releases(
+        &self,
+        slug: &str,
+        per_page: Option<u32>,
+        max_total: Option<u32>,
+    ) -> Result<Vec<Release>> {
+        WebScraperAdapter::get_releases(self, slug, per_page, max_total).await
+    }
+
+    async fn get_release_by_tag(&self, slug: &str, tag: &str) -> Result<Release> {
+        WebScraperAdapter::get_release_by_tag(self, slug, tag).await
+    }
+
+    async fn get_latest_release_if_modified_since(
+        &self,
+        slug: &str,
+        last_upgraded: Option<DateTime<Utc>>,
+    ) -> Result<Option<Release>> {
+        WebScraperAdapter::get_latest_release_if_modified_since(self, slug, last_upgraded).await
+    }
+
+    async fn download_asset(
+        &self,
+        asset: &Asset,
+        destination_path: &Path,
+        dl_callback: Option<&mut (dyn FnMut(u64, u64) + '_)>,
+    ) -> Result<()> {
+        let mut forwarded = dl_callback;
+        WebScraperAdapter::download_asset(self, asset, destination_path, &mut forwarded).await
     }
 }
 

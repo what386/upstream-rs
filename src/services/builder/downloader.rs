@@ -59,7 +59,7 @@ impl<'a> SourceDownloader<'a> {
         if let Some(branch_name) = branch {
             let head_commit = self
                 .provider_manager
-                .get_branch_head_sha_for(repo_slug, provider, branch_name, base_url)
+                .get_branch_head_sha(repo_slug, provider, branch_name, base_url)
                 .await
                 .context(format!(
                     "Failed to fetch branch head for '{}' on '{}'",
@@ -110,7 +110,7 @@ impl<'a> SourceDownloader<'a> {
 
         let release = if let Some(tag_name) = tag {
             self.provider_manager
-                .get_release_by_tag_for(repo_slug, tag_name, provider, base_url)
+                .get_release_by_tag(repo_slug, tag_name, provider, base_url)
                 .await
                 .context(format!(
                     "Failed to fetch release '{}' for '{}'",
@@ -118,7 +118,7 @@ impl<'a> SourceDownloader<'a> {
                 ))?
         } else {
             self.provider_manager
-                .get_latest_release_for(repo_slug, provider, channel, base_url)
+                .get_latest_release(repo_slug, provider, channel, base_url)
                 .await
                 .context(format!(
                     "Failed to fetch latest release for '{}'",

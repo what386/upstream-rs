@@ -323,7 +323,7 @@ impl<'a> InstallOperation<'a> {
 
         let release = if let Some(version_tag) = version {
             self.provider_manager
-                .get_release_by_tag_for(
+                .get_release_by_tag(
                     &package.repo_slug,
                     version_tag,
                     &package.provider,
@@ -336,7 +336,7 @@ impl<'a> InstallOperation<'a> {
                 ))?
         } else {
             self.provider_manager
-                .get_latest_release_for(
+                .get_latest_release(
                     &package.repo_slug,
                     &package.provider,
                     &package.channel,
@@ -395,7 +395,7 @@ impl<'a> InstallOperation<'a> {
                 version_tag
             );
             self.provider_manager
-                .get_release_by_tag_for(
+                .get_release_by_tag(
                     &package.repo_slug,
                     version_tag,
                     &package.provider,
@@ -410,7 +410,7 @@ impl<'a> InstallOperation<'a> {
             // LATEST VERSION
             message!(message_callback, "Fetching latest release ...");
             self.provider_manager
-                .get_latest_release_for(
+                .get_latest_release(
                     &package.repo_slug,
                     &package.provider,
                     &package.channel,
