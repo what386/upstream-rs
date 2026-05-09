@@ -125,10 +125,12 @@ impl<'a> ChecksumVerifier<'a> {
         };
 
         if Self::verify_checksum(asset_path, checksum_entry)? {
-            return Ok(ChecksumVerificationResult::Verified(VerifiedChecksumAsset {
-                name: checksum_path.name,
-                path: checksum_path.path,
-            }));
+            return Ok(ChecksumVerificationResult::Verified(
+                VerifiedChecksumAsset {
+                    name: checksum_path.name,
+                    path: checksum_path.path,
+                },
+            ));
         }
 
         Err(anyhow!("Checksum mismatch for asset '{}'", asset_filename))

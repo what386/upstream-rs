@@ -112,7 +112,10 @@ impl ConfigStorage {
         })
     }
 
-    pub fn merge_trusted_cosign_keys(&mut self, keys: &[CosignPublicKey]) -> Result<KeyMergeSummary> {
+    pub fn merge_trusted_cosign_keys(
+        &mut self,
+        keys: &[CosignPublicKey],
+    ) -> Result<KeyMergeSummary> {
         let mut imported = 0_usize;
         let mut deduped = 0_usize;
         let total;
