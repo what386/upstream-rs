@@ -139,6 +139,17 @@ _arguments "${_arguments_options[@]}" : \
 ':repo_slug -- Repository identifier or URL to probe:_default' \
 && ret=0
 ;;
+(search)
+_arguments "${_arguments_options[@]}" : \
+'-p+[Source provider to search (defaults to github)]:PROVIDER:_default' \
+'--provider=[Source provider to search (defaults to github)]:PROVIDER:_default' \
+'--base-url=[Custom base URL for self-hosted providers]:BASE_URL:_default' \
+'--limit=[Maximum number of results to display]:LIMIT:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'*::query_words -- Query words (joined with spaces):_default' \
+&& ret=0
+;;
 (config)
 _arguments "${_arguments_options[@]}" : \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -500,6 +511,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(search)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (config)
 _arguments "${_arguments_options[@]}" : \
 ":: :_upstream__subcmd__help__subcmd__config_commands" \
@@ -648,6 +663,7 @@ _upstream_commands() {
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
 'probe:Inspect releases visible from a provider without installing' \
+'search:Search provider repositories by keyword(s)' \
 'config:Manage upstream configuration' \
 'package:Manage package-specific settings and metadata' \
 'hooks:Manage shell integration hooks and local upstream data' \
@@ -763,6 +779,7 @@ _upstream__subcmd__help_commands() {
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
 'probe:Inspect releases visible from a provider without installing' \
+'search:Search provider repositories by keyword(s)' \
 'config:Manage upstream configuration' \
 'package:Manage package-specific settings and metadata' \
 'hooks:Manage shell integration hooks and local upstream data' \
@@ -941,6 +958,11 @@ _upstream__subcmd__help__subcmd__remove_commands() {
 _upstream__subcmd__help__subcmd__rollback_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help rollback commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__search_commands] )) ||
+_upstream__subcmd__help__subcmd__search_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help search commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__upgrade_commands] )) ||
 _upstream__subcmd__help__subcmd__upgrade_commands() {
@@ -1151,6 +1173,11 @@ _upstream__subcmd__remove_commands() {
 _upstream__subcmd__rollback_commands() {
     local commands; commands=()
     _describe -t commands 'upstream rollback commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__search_commands] )) ||
+_upstream__subcmd__search_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream search commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__upgrade_commands] )) ||
 _upstream__subcmd__upgrade_commands() {
