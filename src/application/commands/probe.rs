@@ -39,7 +39,7 @@ pub async fn run(
             );
 
             let releases = provider_manager
-                .get_releases_for(
+                .get_releases(
                     &repo_slug,
                     &provider,
                     Some(limit),

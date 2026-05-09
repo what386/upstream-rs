@@ -148,7 +148,7 @@ async fn run_dry_run(
                 let version_tag = format!("v{}", package.version);
 
                 match provider_manager
-                    .get_release_by_tag_for(
+                    .get_release_by_tag(
                         &preview_package.repo_slug,
                         &version_tag,
                         &preview_package.provider,
@@ -201,7 +201,7 @@ async fn run_dry_run(
             InstallType::Build => {
                 if let Some(branch) = package.build_branch.clone() {
                     match provider_manager
-                        .get_branch_head_sha_for(
+                        .get_branch_head_sha(
                             &package.repo_slug,
                             &package.provider,
                             &branch,
@@ -236,7 +236,7 @@ async fn run_dry_run(
                 } else {
                     let version_tag = format!("v{}", package.version);
                     match provider_manager
-                        .get_release_by_tag_for(
+                        .get_release_by_tag(
                             &package.repo_slug,
                             &version_tag,
                             &package.provider,

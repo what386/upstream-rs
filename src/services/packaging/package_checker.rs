@@ -16,7 +16,7 @@ impl<'a> PackageChecker<'a> {
         if let Some(branch) = package.build_branch.as_deref() {
             let head = self
                 .provider_manager
-                .get_branch_head_sha_for(
+                .get_branch_head_sha(
                     &package.repo_slug,
                     &package.provider,
                     branch,

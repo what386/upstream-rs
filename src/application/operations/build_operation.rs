@@ -97,7 +97,7 @@ impl<'a> BuildOperation<'a> {
             if let Some(branch) = input.branch.as_deref() {
                 let commit = self
                     .provider_manager
-                    .get_branch_head_sha_for(
+                    .get_branch_head_sha(
                         &resolved_repo_slug,
                         &resolved_provider,
                         branch,
@@ -115,7 +115,7 @@ impl<'a> BuildOperation<'a> {
             } else {
                 let release = if let Some(tag) = input.tag.as_deref() {
                     self.provider_manager
-                        .get_release_by_tag_for(
+                        .get_release_by_tag(
                             &resolved_repo_slug,
                             tag,
                             &resolved_provider,
@@ -128,7 +128,7 @@ impl<'a> BuildOperation<'a> {
                         ))?
                 } else {
                     self.provider_manager
-                        .get_latest_release_for(
+                        .get_latest_release(
                             &resolved_repo_slug,
                             &resolved_provider,
                             &input.channel,

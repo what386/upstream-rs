@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::providers::download_handler;
 
-use super::github_dtos::GithubReleaseDto;
+use super::github_dtos::{GithubReleaseDto, GithubRepositorySearchResponseDto};
 #[derive(Debug, Deserialize)]
 struct GithubCommitDto {
     sha: String,
@@ -157,11 +157,30 @@ impl GithubClient {
         ))?;
         Ok(dto.sha)
     }
+
+    pub async fn search_repositories(
+        &self,
+        query: &str,
+        limit: Option<u32>,
+    ) -> Result<GithubRepositorySearchResponseDto> {
+        let per_page = limit.unwrap_or(10).clamp(1, 100);
+        let mut url = reqwest::Url::parse("https://api.github.com/search/repositories")
+            .context("Failed to build GitHub search URL")?;
+        url.query_pairs_mut()
+            .append_pair("q", query)
+            .append_pair("per_page", &per_page.to_string());
+
+        self.get_json(url.as_str())
+            .await
+            .context(format!("Failed to search repositories for '{}'", query))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::providers::github::github_dtos::GithubReleaseDto;
+    use crate::providers::github::github_dtos::{
+        GithubReleaseDto, GithubRepositorySearchResponseDto,
+    };
 
     #[test]
     fn github_release_dto_accepts_nullable_string_fields() {
@@ -193,5 +212,32 @@ mod tests {
         assert_eq!(parsed.published_at, "");
         assert_eq!(parsed.assets[0].content_type, "");
         assert_eq!(parsed.assets[0].created_at, "");
+    }
+
+    #[test]
+    fn github_search_dto_accepts_nullable_string_fields() {
+        let json = r#"
+        {
+          "items": [
+            {
+              "full_name": "BurntSushi/ripgrep",
+              "name": "ripgrep",
+              "description": null,
+              "stargazers_count": 10,
+              "language": null,
+              "updated_at": null,
+              "archived": false,
+              "fork": false
+            }
+          ]
+        }
+        "#;
+
+        let parsed = serde_json::from_str::<GithubRepositorySearchResponseDto>(json)
+            .expect("valid search JSON");
+        assert_eq!(parsed.items.len(), 1);
+        assert_eq!(parsed.items[0].description, "");
+        assert_eq!(parsed.items[0].language, "");
+        assert_eq!(parsed.items[0].updated_at, "");
     }
 }

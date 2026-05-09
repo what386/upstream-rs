@@ -3,10 +3,11 @@ use chrono::{DateTime, Utc};
 use std::path::Path;
 
 use crate::models::common::Version;
-use crate::models::provider::{Asset, Release};
+use crate::models::provider::{Asset, Release, RepositorySearchResult};
+use crate::providers::release_provider::ReleaseProvider;
 
 use super::github_client::GithubClient;
-use super::github_dtos::{GithubAssetDto, GithubReleaseDto};
+use super::github_dtos::{GithubAssetDto, GithubReleaseDto, GithubRepositorySearchItemDto};
 
 #[derive(Debug, Clone)]
 pub struct GithubAdapter {
@@ -59,6 +60,19 @@ impl GithubAdapter {
         self.client.get_branch_head_sha(slug, branch).await
     }
 
+    pub async fn search_repositories(
+        &self,
+        query: &str,
+        limit: Option<u32>,
+    ) -> Result<Vec<RepositorySearchResult>> {
+        let dto = self.client.search_repositories(query, limit).await?;
+        Ok(dto
+            .items
+            .into_iter()
+            .map(Self::convert_search_result)
+            .collect())
+    }
+
     fn convert_asset(dto: GithubAssetDto) -> Asset {
         let created_at = Self::parse_timestamp(&dto.created_at);
         Asset::new(
@@ -87,6 +101,17 @@ impl GithubAdapter {
         }
     }
 
+    fn convert_search_result(dto: GithubRepositorySearchItemDto) -> RepositorySearchResult {
+        RepositorySearchResult {
+            repo_slug: dto.full_name,
+            display_name: dto.name,
+            description: dto.description,
+            stars: dto.stargazers_count,
+            language: dto.language,
+            updated_at: Self::parse_timestamp(&dto.updated_at),
+        }
+    }
+
     fn parse_timestamp(raw: &str) -> DateTime<Utc> {
         if raw.trim().is_empty() {
             return DateTime::<Utc>::MIN_UTC;
@@ -96,11 +121,55 @@ impl GithubAdapter {
     }
 }
 
+#[async_trait::async_trait(?Send)]
+impl ReleaseProvider for GithubAdapter {
+    async fn get_latest_release(&self, slug: &str) -> Result<Release> {
+        GithubAdapter::get_latest_release(self, slug).await
+    }
+
+    async fn get_releases(
+        &self,
+        slug: &str,
+        per_page: Option<u32>,
+        max_total: Option<u32>,
+    ) -> Result<Vec<Release>> {
+        GithubAdapter::get_releases(self, slug, per_page, max_total).await
+    }
+
+    async fn get_release_by_tag(&self, slug: &str, tag: &str) -> Result<Release> {
+        GithubAdapter::get_release_by_tag(self, slug, tag).await
+    }
+
+    async fn get_branch_head_sha(&self, slug: &str, branch: &str) -> Result<String> {
+        GithubAdapter::get_branch_head_sha(self, slug, branch).await
+    }
+
+    async fn search_repositories(
+        &self,
+        query: &str,
+        limit: Option<u32>,
+    ) -> Result<Vec<RepositorySearchResult>> {
+        GithubAdapter::search_repositories(self, query, limit).await
+    }
+
+    async fn download_asset(
+        &self,
+        asset: &Asset,
+        destination_path: &Path,
+        dl_callback: Option<&mut (dyn FnMut(u64, u64) + '_)>,
+    ) -> Result<()> {
+        let mut forwarded = dl_callback;
+        GithubAdapter::download_asset(self, asset, destination_path, &mut forwarded).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::GithubAdapter;
     use crate::providers::github::github_client::GithubClient;
-    use crate::providers::github::github_dtos::{GithubAssetDto, GithubReleaseDto};
+    use crate::providers::github::github_dtos::{
+        GithubAssetDto, GithubReleaseDto, GithubRepositorySearchItemDto,
+    };
 
     #[test]
     fn parse_timestamp_returns_min_for_invalid_or_empty_values() {
@@ -142,5 +211,43 @@ mod tests {
         assert!(release.is_prerelease);
         assert_eq!(release.assets.len(), 1);
         assert_eq!(release.assets[0].id, 9);
+    }
+
+    #[test]
+    fn convert_search_result_maps_fields() {
+        let dto = GithubRepositorySearchItemDto {
+            full_name: "BurntSushi/ripgrep".to_string(),
+            name: "ripgrep".to_string(),
+            description: "fast grep".to_string(),
+            stargazers_count: 123,
+            language: "Rust".to_string(),
+            updated_at: "2026-05-09T00:00:00Z".to_string(),
+            archived: false,
+            fork: false,
+        };
+
+        let result = GithubAdapter::convert_search_result(dto);
+        assert_eq!(result.repo_slug, "BurntSushi/ripgrep");
+        assert_eq!(result.display_name, "ripgrep");
+        assert_eq!(result.description, "fast grep");
+        assert_eq!(result.stars, 123);
+        assert_eq!(result.language, "Rust");
+    }
+
+    #[test]
+    fn convert_search_result_invalid_timestamp_uses_min() {
+        let dto = GithubRepositorySearchItemDto {
+            full_name: "owner/repo".to_string(),
+            name: "repo".to_string(),
+            description: String::new(),
+            stargazers_count: 0,
+            language: String::new(),
+            updated_at: "nope".to_string(),
+            archived: false,
+            fork: false,
+        };
+
+        let result = GithubAdapter::convert_search_result(dto);
+        assert_eq!(result.updated_at, chrono::DateTime::<chrono::Utc>::MIN_UTC);
     }
 }

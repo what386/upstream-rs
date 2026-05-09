@@ -72,7 +72,7 @@ impl ProviderManager {
         }
 
         let mut releases = self
-            .get_releases_for(
+            .get_releases(
                 &discovered.repo_slug,
                 &discovered.provider,
                 Some(request.limit),

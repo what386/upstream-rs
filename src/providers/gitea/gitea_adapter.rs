@@ -4,6 +4,7 @@ use std::path::Path;
 
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
+use crate::providers::release_provider::ReleaseProvider;
 
 use super::gitea_client::GiteaClient;
 use super::gitea_dtos::{GiteaAssetDto, GiteaReleaseDto};
@@ -93,6 +94,41 @@ impl GiteaAdapter {
         }
         raw.parse::<DateTime<Utc>>()
             .unwrap_or(DateTime::<Utc>::MIN_UTC)
+    }
+}
+
+impl ReleaseProvider for GiteaAdapter {
+    async fn get_latest_release(&self, slug: &str) -> Result<Release> {
+        GiteaAdapter::get_latest_release(self, slug).await
+    }
+
+    async fn get_releases(
+        &self,
+        slug: &str,
+        per_page: Option<u32>,
+        max_total: Option<u32>,
+    ) -> Result<Vec<Release>> {
+        GiteaAdapter::get_releases(self, slug, per_page, max_total).await
+    }
+
+    async fn get_release_by_tag(&self, slug: &str, tag: &str) -> Result<Release> {
+        GiteaAdapter::get_release_by_tag(self, slug, tag).await
+    }
+
+    async fn get_branch_head_sha(&self, slug: &str, branch: &str) -> Result<String> {
+        GiteaAdapter::get_branch_head_sha(self, slug, branch).await
+    }
+
+    async fn download_asset<F>(
+        &self,
+        asset: &Asset,
+        destination_path: &Path,
+        dl_callback: &mut Option<F>,
+    ) -> Result<()>
+    where
+        F: FnMut(u64, u64),
+    {
+        GiteaAdapter::download_asset(self, asset, destination_path, dl_callback).await
     }
 }
 

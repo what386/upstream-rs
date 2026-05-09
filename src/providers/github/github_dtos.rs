@@ -30,6 +30,30 @@ pub struct GithubReleaseDto {
     pub assets: Vec<GithubAssetDto>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GithubRepositorySearchResponseDto {
+    pub items: Vec<GithubRepositorySearchItemDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GithubRepositorySearchItemDto {
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
+    pub full_name: String,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
+    pub name: String,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
+    pub description: String,
+    pub stargazers_count: u64,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
+    pub language: String,
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
+    pub updated_at: String,
+    #[serde(default)]
+    pub archived: bool,
+    #[serde(default)]
+    pub fork: bool,
+}
+
 fn deserialize_nullable_string<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
