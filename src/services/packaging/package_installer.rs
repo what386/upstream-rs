@@ -156,6 +156,7 @@ impl<'a> PackageInstaller<'a> {
                 release,
                 &package.provider,
                 download_progress_callback,
+                message_callback,
             )
             .await
             .context("Failed trust verification")?;
