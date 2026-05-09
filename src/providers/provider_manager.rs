@@ -47,6 +47,8 @@ impl ProviderManager {
         })
     }
 
+    // Construction is idempotent; a redundant build on concurrent init is acceptable.
+    // Applies to all adapter builds.
     fn github_adapter(&self) -> Result<&GithubAdapter> {
         if let Some(adapter) = self.github.get() {
             return Ok(adapter);
@@ -238,6 +240,7 @@ impl ProviderManager {
         branch: &str,
         base_url: Option<&str>,
     ) -> Result<String> {
+        // Keep this explicit guard for a clear forge-only error before provider resolution.
         if matches!(provider, Provider::WebScraper | Provider::Direct) {
             return Err(anyhow!(
                 "Branch builds support forge providers only (github/gitlab/gitea)"
@@ -266,9 +269,11 @@ impl ProviderManager {
 
         let download_filepath = cache_path.join(file_name);
         let resolved = self.resolve_provider(provider, None)?;
-        let mut callback = dl_progress.as_mut().map(|cb| cb as &mut dyn FnMut(u64, u64));
+        let callback = dl_progress
+            .as_mut()
+            .map(|cb| cb as &mut dyn FnMut(u64, u64));
         resolved
-            .download_asset(asset, &download_filepath, callback.take())
+            .download_asset(asset, &download_filepath, callback)
             .await?;
 
         Ok(download_filepath)
