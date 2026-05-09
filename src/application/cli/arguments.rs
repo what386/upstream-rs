@@ -1054,7 +1054,10 @@ mod tests {
                 limit,
             } => {
                 assert_eq!(query_words, vec!["ripgrep".to_string()]);
-                assert_eq!(provider, Some(crate::models::common::enums::Provider::Gitlab));
+                assert_eq!(
+                    provider,
+                    Some(crate::models::common::enums::Provider::Gitlab)
+                );
                 assert_eq!(base_url.as_deref(), Some("https://gitlab.example.com"));
                 assert_eq!(limit, 10);
             }
