@@ -30,6 +30,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
             cand probe 'Inspect releases visible from a provider without installing'
+            cand search 'Search provider repositories by keyword(s)'
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific settings and metadata'
             cand hooks 'Manage shell integration hooks and local upstream data'
@@ -120,6 +121,14 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --channel 'Channel view to display'
             cand --limit 'Maximum number of releases to display'
             cand --verbose 'Include scored candidate assets for each release'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;search'= {
+            cand -p 'Source provider to search (defaults to github)'
+            cand --provider 'Source provider to search (defaults to github)'
+            cand --base-url 'Custom base URL for self-hosted providers'
+            cand --limit 'Maximum number of results to display'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -312,6 +321,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
             cand probe 'Inspect releases visible from a provider without installing'
+            cand search 'Search provider repositories by keyword(s)'
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific settings and metadata'
             cand hooks 'Manage shell integration hooks and local upstream data'
@@ -335,6 +345,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;list'= {
         }
         &'upstream;help;probe'= {
+        }
+        &'upstream;help;search'= {
         }
         &'upstream;help;config'= {
             cand set 'Set configuration values'

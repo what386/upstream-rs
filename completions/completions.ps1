@@ -33,6 +33,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Upgrade installed packages to their latest versions')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages and their metadata')
             [CompletionResult]::new('probe', 'probe', [CompletionResultType]::ParameterValue, 'Inspect releases visible from a provider without installing')
+            [CompletionResult]::new('search', 'search', [CompletionResultType]::ParameterValue, 'Search provider repositories by keyword(s)')
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific settings and metadata')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
@@ -131,6 +132,15 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--channel', '--channel', [CompletionResultType]::ParameterName, 'Channel view to display')
             [CompletionResult]::new('--limit', '--limit', [CompletionResultType]::ParameterName, 'Maximum number of releases to display')
             [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Include scored candidate assets for each release')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;search' {
+            [CompletionResult]::new('-p', '-p', [CompletionResultType]::ParameterName, 'Source provider to search (defaults to github)')
+            [CompletionResult]::new('--provider', '--provider', [CompletionResultType]::ParameterName, 'Source provider to search (defaults to github)')
+            [CompletionResult]::new('--base-url', '--base-url', [CompletionResultType]::ParameterName, 'Custom base URL for self-hosted providers')
+            [CompletionResult]::new('--limit', '--limit', [CompletionResultType]::ParameterName, 'Maximum number of results to display')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
@@ -368,6 +378,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Upgrade installed packages to their latest versions')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages and their metadata')
             [CompletionResult]::new('probe', 'probe', [CompletionResultType]::ParameterValue, 'Inspect releases visible from a provider without installing')
+            [CompletionResult]::new('search', 'search', [CompletionResultType]::ParameterValue, 'Search provider repositories by keyword(s)')
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific settings and metadata')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
@@ -399,6 +410,9 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;probe' {
+            break
+        }
+        'upstream;help;search' {
             break
         }
         'upstream;help;config' {

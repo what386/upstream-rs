@@ -58,6 +58,9 @@ _upstream() {
             upstream,rollback)
                 cmd="upstream__subcmd__rollback"
                 ;;
+            upstream,search)
+                cmd="upstream__subcmd__search"
+                ;;
             upstream,upgrade)
                 cmd="upstream__subcmd__upgrade"
                 ;;
@@ -138,6 +141,9 @@ _upstream() {
                 ;;
             upstream__subcmd__help,rollback)
                 cmd="upstream__subcmd__help__subcmd__rollback"
+                ;;
+            upstream__subcmd__help,search)
+                cmd="upstream__subcmd__help__subcmd__search"
                 ;;
             upstream__subcmd__help,upgrade)
                 cmd="upstream__subcmd__help__subcmd__upgrade"
@@ -275,7 +281,7 @@ _upstream() {
 
     case "${cmd}" in
         upstream)
-            opts="-h -V --help --version install build remove rollback reinstall upgrade list probe config package hooks import export doctor help"
+            opts="-h -V --help --version install build remove rollback reinstall upgrade list probe search config package hooks import export doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -553,7 +559,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help)
-            opts="install build remove rollback reinstall upgrade list probe config package hooks import export doctor help"
+            opts="install build remove rollback reinstall upgrade list probe search config package hooks import export doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -973,6 +979,20 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__rollback)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__search)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1575,6 +1595,36 @@ _upstream() {
                 return 0
             fi
             case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__search)
+            opts="-p -h --provider --base-url --limit --help [QUERY_WORDS]..."
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --provider)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -p)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --base-url)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --limit)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;
