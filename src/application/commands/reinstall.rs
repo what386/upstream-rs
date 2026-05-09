@@ -16,7 +16,7 @@ use crate::{
             config_storage::ConfigStorage, metadata_storage::MetadataStorage,
             package_storage::PackageStorage, rollback_storage::RollbackSource,
         },
-        trust::MinisignPublicKey,
+        trust::TrustedSignatureKeys,
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -36,7 +36,7 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
     let gitlab_token = app_config.gitlab.api_token.as_deref();
     let gitea_token = app_config.gitea.api_token.as_deref();
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
-    let trusted_keys = app_config.trusted_minisign_keys();
+    let trusted_keys = app_config.trusted_signature_keys();
 
     if dry_run {
         return run_dry_run(names, trust_mode, &mut package_storage, &provider_manager).await;
@@ -289,7 +289,7 @@ async fn reinstall_one<H>(
     paths: &UpstreamPaths,
     package: Package,
     trust_mode: TrustMode,
-    trusted_keys: &[MinisignPublicKey],
+    trusted_keys: &TrustedSignatureKeys,
     message_callback: &mut Option<H>,
 ) -> Result<()>
 where
@@ -316,7 +316,7 @@ where
                 provider_manager,
                 package_storage,
                 paths,
-                trusted_keys.to_vec(),
+                trusted_keys.clone(),
             )?;
             install_op
                 .install_single(
@@ -357,7 +357,7 @@ where
                 provider_manager,
                 package_storage,
                 paths,
-                trusted_keys.to_vec(),
+                trusted_keys.clone(),
             )?;
             install_op
                 .install_local_artifact(

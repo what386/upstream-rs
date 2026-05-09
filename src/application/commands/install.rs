@@ -50,7 +50,7 @@ pub async fn run(
     let gitea_token = app_config.gitea.api_token.as_deref();
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
-    let trusted_keys = app_config.trusted_minisign_keys();
+    let trusted_keys = app_config.trusted_signature_keys();
 
     let package = build_package(
         &provider_manager,
