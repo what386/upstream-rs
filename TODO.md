@@ -8,6 +8,9 @@
 - [ ] feat: `search` subcommand that can search providers for keywords
       @created 2026-05-09 02:46
 
+- [ ] feat: update fish paths.sh line
+      @created 2026-05-09 03:39
+
 
 ## Completed
 
