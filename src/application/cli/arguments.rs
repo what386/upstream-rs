@@ -312,6 +312,32 @@ pub enum Commands {
         verbose: bool,
     },
 
+    /// Search provider repositories by keyword(s)
+    #[command(long_about = "Search for repositories on a provider.\n\n\
+        Defaults to GitHub when provider is omitted.\n\n\
+        EXAMPLES:\n  \
+        upstream search ripgrep\n  \
+        upstream search rip grep --limit 5\n  \
+        upstream search my tool -p github\n  \
+        upstream search widget -p gitlab --base-url https://gitlab.example.com")]
+    Search {
+        /// Query words (joined with spaces)
+        #[arg(num_args(1..), value_delimiter = ' ')]
+        query_words: Vec<String>,
+
+        /// Source provider to search (defaults to github)
+        #[arg(short = 'p', long)]
+        provider: Option<Provider>,
+
+        /// Custom base URL for self-hosted providers
+        #[arg(long, requires = "provider")]
+        base_url: Option<String>,
+
+        /// Maximum number of results to display
+        #[arg(long, default_value_t = 10)]
+        limit: u32,
+    },
+
     /// Manage upstream configuration
     #[command(long_about = "View and modify upstream's configuration.\n\n\
         Configuration is stored in TOML format and includes settings like \
@@ -431,6 +457,7 @@ impl Commands {
         match self {
             Commands::List { .. } => false,
             Commands::Doctor { fix, .. } => *fix,
+            Commands::Search { .. } => false,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
             Commands::Package { action } => !matches!(
                 action,
@@ -975,6 +1002,77 @@ mod tests {
                 action: ConfigAction::List,
             }
             .requires_lock()
+        );
+        assert!(
+            !Commands::Search {
+                query_words: vec!["ripgrep".to_string()],
+                provider: None,
+                base_url: None,
+                limit: 10,
+            }
+            .requires_lock()
+        );
+    }
+
+    #[test]
+    fn search_parses_variadic_query_words_and_limit() {
+        let cli = Cli::parse_from(["upstream", "search", "rip", "grep", "--limit", "5"]);
+
+        match cli.command {
+            Commands::Search {
+                query_words,
+                provider,
+                base_url,
+                limit,
+            } => {
+                assert_eq!(query_words, vec!["rip".to_string(), "grep".to_string()]);
+                assert!(provider.is_none());
+                assert!(base_url.is_none());
+                assert_eq!(limit, 5);
+            }
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn search_parses_provider_and_base_url() {
+        let cli = Cli::parse_from([
+            "upstream",
+            "search",
+            "ripgrep",
+            "--provider",
+            "gitlab",
+            "--base-url",
+            "https://gitlab.example.com",
+        ]);
+
+        match cli.command {
+            Commands::Search {
+                query_words,
+                provider,
+                base_url,
+                limit,
+            } => {
+                assert_eq!(query_words, vec!["ripgrep".to_string()]);
+                assert_eq!(provider, Some(crate::models::common::enums::Provider::Gitlab));
+                assert_eq!(base_url.as_deref(), Some("https://gitlab.example.com"));
+                assert_eq!(limit, 10);
+            }
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn search_requires_provider_when_base_url_is_set() {
+        assert!(
+            Cli::try_parse_from([
+                "upstream",
+                "search",
+                "ripgrep",
+                "--base-url",
+                "https://gitlab.example.com",
+            ])
+            .is_err()
         );
     }
 

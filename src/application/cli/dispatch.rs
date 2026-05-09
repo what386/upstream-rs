@@ -127,6 +127,12 @@ impl Cli {
                 limit,
                 verbose,
             } => commands::probe::run(repo_slug, provider, base_url, channel, limit, verbose).await,
+            Commands::Search {
+                query_words,
+                provider,
+                base_url,
+                limit,
+            } => commands::search::run(query_words, provider, base_url, limit).await,
 
             Commands::Config { action } => match action {
                 ConfigAction::Set { keys } => commands::config::run_set(keys),

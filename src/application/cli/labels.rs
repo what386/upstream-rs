@@ -13,6 +13,7 @@ impl fmt::Display for Commands {
             Commands::Upgrade { .. } => write!(f, "upgrade"),
             Commands::List { .. } => write!(f, "list"),
             Commands::Probe { .. } => write!(f, "probe"),
+            Commands::Search { .. } => write!(f, "search"),
             Commands::Config { action } => write!(f, "{action}"),
             Commands::Package { action } => write!(f, "{action}"),
             Commands::Hooks { action } => write!(f, "{action}"),
