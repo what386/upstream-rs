@@ -2,13 +2,15 @@ use crate::{
     models::upstream::PackageReference,
     services::{
         storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
-        trust::MinisignPublicKey,
+        trust::{CosignPublicKey, MinisignPublicKey},
     },
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow, bail};
 use console::style;
 use minisign_verify::PublicKey;
+use p256::ecdsa::VerifyingKey;
+use p256::pkcs8::DecodePublicKey;
 use serde::Deserialize;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, path::Path};
@@ -66,7 +68,7 @@ impl<'a> ImportOperation<'a> {
             return Ok(ImportKind::Manifest);
         }
 
-        if Self::parse_minisign_key_file(path).is_ok() {
+        if Self::parse_signature_key_file(path).is_ok() {
             return Ok(ImportKind::Keys);
         }
 
@@ -117,8 +119,8 @@ impl<'a> ImportOperation<'a> {
                 .await
             }
             ImportKind::Keys => {
-                let keys = Self::parse_minisign_key_file(path)?;
-                self.import_keys(keys, skip_failed, message_callback)
+                let (minisign_keys, cosign_keys) = Self::parse_signature_key_file(path)?;
+                self.import_keys(minisign_keys, cosign_keys, skip_failed, message_callback)
             }
         }
     }
@@ -206,7 +208,8 @@ impl<'a> ImportOperation<'a> {
 
     fn import_keys<H>(
         &mut self,
-        keys: Vec<MinisignPublicKey>,
+        minisign_keys: Vec<MinisignPublicKey>,
+        cosign_keys: Vec<CosignPublicKey>,
         skip_failed: bool,
         message_callback: &mut Option<H>,
     ) -> Result<()>
@@ -221,21 +224,31 @@ impl<'a> ImportOperation<'a> {
             );
         }
         let mut config_storage = ConfigStorage::new(&self.paths.config.config_file)?;
-        let summary = config_storage.merge_trusted_minisign_keys(&keys)?;
+        let minisign_summary = config_storage.merge_trusted_minisign_keys(&minisign_keys)?;
+        let cosign_summary = config_storage.merge_trusted_cosign_keys(&cosign_keys)?;
         message!(
             message_callback,
-            "Key import complete: {} imported, {} deduped, {} total trusted keys",
-            summary.imported,
-            summary.deduped,
-            summary.total
+            "Key import complete: minisign {} imported, {} deduped, {} total; cosign {} imported, {} deduped, {} total",
+            minisign_summary.imported,
+            minisign_summary.deduped,
+            minisign_summary.total,
+            cosign_summary.imported,
+            cosign_summary.deduped,
+            cosign_summary.total
         );
         Ok(())
     }
 
-    fn parse_minisign_key_file(path: &Path) -> Result<Vec<MinisignPublicKey>> {
+    fn parse_signature_key_file(
+        path: &Path,
+    ) -> Result<(Vec<MinisignPublicKey>, Vec<CosignPublicKey>)> {
         let content = fs::read_to_string(path)
             .context(format!("Failed to read key file '{}'", path.display()))?;
-        let mut keys = Vec::new();
+        let mut minisign_keys = Vec::new();
+        let mut cosign_keys = Vec::new();
+        let mut in_pem = false;
+        let mut pem_lines: Vec<String> = Vec::new();
+
         for raw_line in content.lines() {
             let line = raw_line.trim();
             if line.is_empty() || line.starts_with('#') {
@@ -245,21 +258,39 @@ impl<'a> ImportOperation<'a> {
                 continue;
             }
             if PublicKey::from_base64(line).is_ok() {
-                keys.push(MinisignPublicKey {
+                minisign_keys.push(MinisignPublicKey {
                     id: None,
                     key: line.to_string(),
                 });
+                continue;
+            }
+
+            if line.contains("BEGIN PUBLIC KEY") {
+                in_pem = true;
+                pem_lines.clear();
+            }
+
+            if in_pem {
+                pem_lines.push(raw_line.to_string());
+                if line.contains("END PUBLIC KEY") {
+                    in_pem = false;
+                    let pem = pem_lines.join("\n");
+                    if VerifyingKey::from_public_key_pem(&pem).is_ok() {
+                        cosign_keys.push(CosignPublicKey { id: None, key: pem });
+                    }
+                    pem_lines.clear();
+                }
             }
         }
 
-        if keys.is_empty() {
+        if minisign_keys.is_empty() && cosign_keys.is_empty() {
             return Err(anyhow!(
-                "No valid minisign public keys found in '{}'",
+                "No valid minisign or cosign public keys found in '{}'",
                 path.display()
             ));
         }
 
-        Ok(keys)
+        Ok((minisign_keys, cosign_keys))
     }
 
     // -----------------------------------------------------------------------
