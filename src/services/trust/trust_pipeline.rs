@@ -10,7 +10,7 @@ use std::path::Path;
 
 use super::{
     checksum_verifier::ChecksumVerifier,
-    signature_verifier::{MinisignPublicKey, SignatureVerificationStatus, SignatureVerifier},
+    signatures::{SignatureVerificationStatus, SignatureVerifier, TrustedSignatureKeys},
 };
 
 pub enum ChecksumVerificationStatus {
@@ -30,7 +30,7 @@ pub struct TrustVerifier<'a> {
     checksum_verifier: ChecksumVerifier<'a>,
     signature_verifier: SignatureVerifier<'a>,
     trust_mode: TrustMode,
-    trusted_keys: &'a [MinisignPublicKey],
+    trusted_keys: &'a TrustedSignatureKeys,
 }
 
 impl<'a> TrustVerifier<'a> {
@@ -38,7 +38,7 @@ impl<'a> TrustVerifier<'a> {
         provider_manager: &'a ProviderManager,
         download_cache: &'a Path,
         trust_mode: TrustMode,
-        trusted_keys: &'a [MinisignPublicKey],
+        trusted_keys: &'a TrustedSignatureKeys,
     ) -> Self {
         Self {
             checksum_verifier: ChecksumVerifier::new(provider_manager, download_cache),

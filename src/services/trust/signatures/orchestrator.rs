@@ -1,32 +1,24 @@
 use crate::{
     models::{
         common::enums::Provider,
-        provider::{Asset, Release},
+        provider::Release,
     },
     providers::provider_manager::ProviderManager,
 };
 use anyhow::{Result, anyhow};
-use minisign_verify::{PublicKey, Signature};
 use std::{
     fs,
     path::{Path, PathBuf},
 };
 
-#[derive(Debug, Clone)]
-pub struct MinisignPublicKey {
-    pub id: Option<String>,
-    pub key: String,
-}
-
-pub enum SignatureVerificationStatus {
-    Verified {
-        key_id: Option<String>,
-        signature_asset: String,
-    },
-    MissingSignature,
-    InvalidSignature,
-    NoTrustedKeyMatched,
-}
+use super::{
+    TrustedSignatureKeys,
+    asset_selector::find_signature_asset,
+    cosign::verify_cosign_signature,
+    minisign::verify_minisign_signature,
+    SignatureScheme,
+    SignatureVerificationStatus,
+};
 
 struct DownloadedSignatureAsset {
     name: String,
@@ -51,7 +43,7 @@ impl<'a> SignatureVerifier<'a> {
         asset_path: &Path,
         release: &Release,
         provider: &Provider,
-        trusted_keys: &[MinisignPublicKey],
+        trusted_keys: &TrustedSignatureKeys,
         dl_progress: &mut Option<F>,
     ) -> Result<SignatureVerificationStatus>
     where
@@ -71,26 +63,47 @@ impl<'a> SignatureVerifier<'a> {
         };
 
         let signature_contents = fs::read_to_string(signature_asset.path)?;
-        let status =
-            Self::verify_minisign_signature(asset_path, &signature_contents, trusted_keys)?;
 
-        Ok(match status {
-            SignatureVerificationStatus::Verified { key_id, .. } => {
-                SignatureVerificationStatus::Verified {
-                    key_id,
-                    signature_asset: signature_asset.name,
-                }
-            }
-            SignatureVerificationStatus::InvalidSignature => {
-                SignatureVerificationStatus::InvalidSignature
-            }
-            SignatureVerificationStatus::NoTrustedKeyMatched => {
-                SignatureVerificationStatus::NoTrustedKeyMatched
-            }
-            SignatureVerificationStatus::MissingSignature => {
-                SignatureVerificationStatus::MissingSignature
-            }
-        })
+        let minisign_status = verify_minisign_signature(
+            asset_path,
+            &signature_contents,
+            &trusted_keys.minisign_public_keys,
+        )?;
+        if let SignatureVerificationStatus::Verified { key_id, .. } = minisign_status {
+            return Ok(SignatureVerificationStatus::Verified {
+                scheme: SignatureScheme::Minisign,
+                key_id,
+                signature_asset: signature_asset.name,
+            });
+        }
+
+        let cosign_status = verify_cosign_signature(
+            asset_path,
+            &signature_contents,
+            &trusted_keys.cosign_public_keys,
+        )
+        .await?;
+        if let SignatureVerificationStatus::Verified { key_id, .. } = cosign_status {
+            return Ok(SignatureVerificationStatus::Verified {
+                scheme: SignatureScheme::Cosign,
+                key_id,
+                signature_asset: signature_asset.name,
+            });
+        }
+
+        if matches!(minisign_status, SignatureVerificationStatus::NoTrustedKeyMatched)
+            || matches!(cosign_status, SignatureVerificationStatus::NoTrustedKeyMatched)
+        {
+            return Ok(SignatureVerificationStatus::NoTrustedKeyMatched);
+        }
+
+        if matches!(minisign_status, SignatureVerificationStatus::InvalidSignature)
+            || matches!(cosign_status, SignatureVerificationStatus::InvalidSignature)
+        {
+            return Ok(SignatureVerificationStatus::InvalidSignature);
+        }
+
+        Ok(SignatureVerificationStatus::NoTrustedKeyMatched)
     }
 
     async fn try_download_signature<F>(
@@ -103,7 +116,7 @@ impl<'a> SignatureVerifier<'a> {
     where
         F: FnMut(u64, u64),
     {
-        let signature_asset = Self::find_signature_asset(release, asset_name);
+        let signature_asset = find_signature_asset(release, asset_name);
         let Some(asset) = signature_asset else {
             return Ok(None);
         };
@@ -118,94 +131,19 @@ impl<'a> SignatureVerifier<'a> {
             path,
         }))
     }
-
-    fn find_signature_asset<'r>(release: &'r Release, asset_name: &str) -> Option<&'r Asset> {
-        let basename = Path::new(asset_name)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or(asset_name);
-
-        let specific_candidates = [
-            format!("{asset_name}.minisig"),
-            format!("{basename}.minisig"),
-            format!("{asset_name}.sig"),
-            format!("{basename}.sig"),
-        ];
-
-        for candidate in &specific_candidates {
-            if let Some(asset) = release.get_asset_by_name_invariant(candidate) {
-                return Some(asset);
-            }
-        }
-
-        const COMMON_NAMES: &[&str] = &[
-            "minisig",
-            "signature.minisig",
-            "signature.sig",
-            "signatures.txt",
-        ];
-        for name in COMMON_NAMES {
-            if let Some(asset) = release.get_asset_by_name_invariant(name) {
-                return Some(asset);
-            }
-        }
-
-        release
-            .assets
-            .iter()
-            .find(|asset| Self::is_signature_filename(&asset.name))
-    }
-
-    fn is_signature_filename(name: &str) -> bool {
-        let lowered = name.to_ascii_lowercase();
-        lowered.ends_with(".minisig") || lowered.ends_with(".sig") || lowered.contains("signature")
-    }
-
-    fn verify_minisign_signature(
-        asset_path: &Path,
-        signature_contents: &str,
-        trusted_keys: &[MinisignPublicKey],
-    ) -> Result<SignatureVerificationStatus> {
-        if trusted_keys.is_empty() {
-            return Ok(SignatureVerificationStatus::NoTrustedKeyMatched);
-        }
-
-        let signature = match Signature::decode(signature_contents) {
-            Ok(sig) => sig,
-            Err(_) => return Ok(SignatureVerificationStatus::InvalidSignature),
-        };
-
-        let file_bytes = fs::read(asset_path).map_err(|e| {
-            anyhow!(
-                "Failed to read asset '{}' for signature verification: {}",
-                asset_path.display(),
-                e
-            )
-        })?;
-
-        for key in trusted_keys {
-            let public_key = match PublicKey::from_base64(&key.key) {
-                Ok(k) => k,
-                Err(_) => continue,
-            };
-
-            if public_key.verify(&file_bytes, &signature, false).is_ok() {
-                return Ok(SignatureVerificationStatus::Verified {
-                    key_id: key.id.clone(),
-                    signature_asset: String::new(),
-                });
-            }
-        }
-
-        Ok(SignatureVerificationStatus::NoTrustedKeyMatched)
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{MinisignPublicKey, SignatureVerificationStatus, SignatureVerifier};
+    use super::{
+        SignatureVerificationStatus,
+        SignatureVerifier,
+        find_signature_asset,
+        verify_minisign_signature,
+    };
     use crate::models::common::{enums::Provider, version::Version};
     use crate::models::provider::{Asset, Release};
+    use crate::services::trust::{MinisignPublicKey, TrustedSignatureKeys};
     use chrono::Utc;
     use serde::Deserialize;
     use std::{fs, path::PathBuf, time::SystemTime};
@@ -280,7 +218,7 @@ mod tests {
         ];
         let release = release_with_assets(assets);
 
-        let selected = SignatureVerifier::find_signature_asset(&release, "tool.tar.gz")
+        let selected = find_signature_asset(&release, "tool.tar.gz")
             .expect("must select signature asset");
         assert_eq!(selected.name, "tool.tar.gz.minisig");
     }
@@ -297,40 +235,11 @@ mod tests {
             key: "RWQx2345invalidbase64".to_string(),
         }];
         let signature = fixture_string("trust/signatures/malformed.minisig");
-        let status = SignatureVerifier::verify_minisign_signature(&asset_path, &signature, &keys)
+        let status = verify_minisign_signature(&asset_path, &signature, &keys)
             .expect("invalid signature must return status");
         assert!(matches!(
             status,
             SignatureVerificationStatus::InvalidSignature
-        ));
-
-        let _ = fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn verify_minisign_signature_returns_no_matching_key() {
-        let root = temp_root("no-key-match");
-        fs::create_dir_all(&root).expect("create root");
-        let asset_path = root.join("tool.tar.gz");
-        fs::copy(
-            fixture_path("trust/signatures/valid-asset.bin"),
-            &asset_path,
-        )
-        .expect("copy asset fixture");
-
-        let signature = fixture_string("trust/signatures/wrong-key.minisig");
-        let status = SignatureVerifier::verify_minisign_signature(
-            &asset_path,
-            &signature,
-            &[MinisignPublicKey {
-                id: Some("k1".to_string()),
-                key: "RWQx2345invalidbase64".to_string(),
-            }],
-        )
-        .expect("status");
-        assert!(matches!(
-            status,
-            SignatureVerificationStatus::NoTrustedKeyMatched
         ));
 
         let _ = fs::remove_dir_all(root);
@@ -349,7 +258,7 @@ mod tests {
 
         let signature = fixture_string("trust/signatures/valid-asset.bin.minisig");
         let keys = trusted_key_fixtures("trust/signatures/valid-keys.json");
-        let status = SignatureVerifier::verify_minisign_signature(&asset_path, &signature, &keys)
+        let status = verify_minisign_signature(&asset_path, &signature, &keys)
             .expect("status");
         assert!(matches!(
             status,
@@ -379,10 +288,13 @@ mod tests {
                 &asset_path,
                 &release_with_assets(vec![]),
                 &Provider::Github,
-                &[MinisignPublicKey {
-                    id: Some("k1".to_string()),
-                    key: "RWQx2345invalidbase64".to_string(),
-                }],
+                &TrustedSignatureKeys {
+                    minisign_public_keys: vec![MinisignPublicKey {
+                        id: Some("k1".to_string()),
+                        key: "RWQx2345invalidbase64".to_string(),
+                    }],
+                    cosign_public_keys: Vec::new(),
+                },
                 &mut progress,
             )
             .await
