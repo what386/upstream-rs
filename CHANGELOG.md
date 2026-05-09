@@ -1,6 +1,15 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-05-06*
+*Generated on 2026-05-09*
+
+## 1.14.2 — 2026-05-09
+
+### Changes
+
+- bug: fix checksum signatures applying to binaries
+- bug: fix cosign not actually applying checksums to blobs (??)
+- feat: update fish paths.sh line
+
 
 ## 1.14.1 — 2026-05-06
 
@@ -8,6 +17,13 @@
 
 - feat: package rollbacks for upgrade/reinstall/remove
 - bug: fix rollback 'stealing' deletion from remove and throwing an error
+
+
+## 1.14.0 — 2026-05-06
+
+### Changes
+
+- feat: package rollbacks for upgrade/reinstall/remove
 
 
 ## 1.13.1 — 2026-05-06
