@@ -97,6 +97,7 @@ impl GiteaAdapter {
     }
 }
 
+#[async_trait::async_trait(?Send)]
 impl ReleaseProvider for GiteaAdapter {
     async fn get_latest_release(&self, slug: &str) -> Result<Release> {
         GiteaAdapter::get_latest_release(self, slug).await
@@ -119,16 +120,14 @@ impl ReleaseProvider for GiteaAdapter {
         GiteaAdapter::get_branch_head_sha(self, slug, branch).await
     }
 
-    async fn download_asset<F>(
+    async fn download_asset(
         &self,
         asset: &Asset,
         destination_path: &Path,
-        dl_callback: &mut Option<F>,
-    ) -> Result<()>
-    where
-        F: FnMut(u64, u64),
-    {
-        GiteaAdapter::download_asset(self, asset, destination_path, dl_callback).await
+        dl_callback: Option<&mut (dyn FnMut(u64, u64) + '_)>,
+    ) -> Result<()> {
+        let mut forwarded = dl_callback;
+        GiteaAdapter::download_asset(self, asset, destination_path, &mut forwarded).await
     }
 }
 
