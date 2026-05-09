@@ -63,12 +63,11 @@ fn print_results(results: &[RepositorySearchResult]) {
     let widths = SearchColumnWidths::from_rows(results);
 
     println!(
-        "{:<slug$} {:>stars$} {:<lang$} {:<updated$} {}",
+        "{:<slug$} {:>stars$} {:<lang$} {:<updated$} Description",
         "Slug",
         "Stars",
         "Lang",
         "Updated",
-        "Description",
         slug = widths.slug,
         stars = widths.stars,
         lang = widths.lang,
