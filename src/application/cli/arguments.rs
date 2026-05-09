@@ -363,6 +363,7 @@ pub enum Commands {
         and then performs the selected import operation.\n\n\
         EXAMPLES:\n  \
         upstream import ./minisign.pub            # Import trusted minisign keys\n  \
+        upstream import ./cosign.pub              # Import trusted cosign PEM keys\n  \
         upstream import ./packages.json           # Import package metadata manifest\n  \
         upstream import ./backup.tar.gz           # Restore full snapshot\n  \
         upstream import ./input.bin --as keys --yes"
