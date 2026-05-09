@@ -28,6 +28,17 @@ struct DownloadedChecksumAsset {
     path: PathBuf,
 }
 
+#[derive(Debug, Clone)]
+pub struct VerifiedChecksumAsset {
+    pub name: String,
+    pub path: PathBuf,
+}
+
+pub enum ChecksumVerificationResult {
+    Verified(VerifiedChecksumAsset),
+    Missing,
+}
+
 pub struct ChecksumVerifier<'a> {
     provider_manager: &'a ProviderManager,
     download_cache: &'a Path,
@@ -47,7 +58,7 @@ impl<'a> ChecksumVerifier<'a> {
         release: &Release,
         provider: &Provider,
         dl_progress: &mut Option<F>,
-    ) -> Result<bool>
+    ) -> Result<ChecksumVerificationResult>
     where
         F: FnMut(u64, u64),
     {
@@ -62,7 +73,7 @@ impl<'a> ChecksumVerifier<'a> {
             .await?
         {
             Some(path) => path,
-            None => return Ok(false), // No checksum available, that's ok
+            None => return Ok(ChecksumVerificationResult::Missing), // No checksum available, that's ok
         };
 
         // Read and parse the checksum file
@@ -114,7 +125,10 @@ impl<'a> ChecksumVerifier<'a> {
         };
 
         if Self::verify_checksum(asset_path, checksum_entry)? {
-            return Ok(true);
+            return Ok(ChecksumVerificationResult::Verified(VerifiedChecksumAsset {
+                name: checksum_path.name,
+                path: checksum_path.path,
+            }));
         }
 
         Err(anyhow!("Checksum mismatch for asset '{}'", asset_filename))
@@ -547,7 +561,7 @@ impl<'a> ChecksumVerifier<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::ChecksumVerifier;
+    use super::{ChecksumVerificationResult, ChecksumVerifier};
     use crate::models::common::enums::Provider;
     use crate::models::common::version::Version;
     use crate::models::provider::{Asset, Release};
@@ -698,7 +712,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn try_verify_file_returns_false_when_release_has_no_checksum_asset() {
+    async fn try_verify_file_returns_missing_when_release_has_no_checksum_asset() {
         let root = temp_root("no-checksum");
         fs::create_dir_all(&root).expect("create root");
         let asset_path = root.join("tool.tar.gz");
@@ -717,7 +731,7 @@ mod tests {
             )
             .await
             .expect("verify without checksum");
-        assert!(!verified);
+        assert!(matches!(verified, ChecksumVerificationResult::Missing));
 
         cleanup(&root).expect("cleanup");
     }
