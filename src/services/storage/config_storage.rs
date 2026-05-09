@@ -5,8 +5,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use toml;
 
-use crate::models::upstream::{AppConfig, MinisignKeyConfig};
-use crate::services::trust::MinisignPublicKey;
+use crate::models::upstream::{AppConfig, CosignKeyConfig, MinisignKeyConfig};
+use crate::services::trust::{CosignPublicKey, MinisignPublicKey};
 use crate::utils::filesystem::atomic_ops::write_atomic;
 
 pub struct ConfigStorage {
@@ -18,6 +18,11 @@ pub struct KeyMergeSummary {
     pub imported: usize,
     pub deduped: usize,
     pub total: usize,
+}
+
+pub struct SignatureKeyMergeSummary {
+    pub minisign: KeyMergeSummary,
+    pub cosign: KeyMergeSummary,
 }
 
 impl ConfigStorage {
@@ -90,6 +95,42 @@ impl ConfigStorage {
                 }
 
                 existing.push(MinisignKeyConfig {
+                    id: key.id.clone(),
+                    key: normalized.to_string(),
+                });
+                imported += 1;
+            }
+            total = existing.len();
+        }
+
+        self.save_config()?;
+
+        Ok(KeyMergeSummary {
+            imported,
+            deduped,
+            total,
+        })
+    }
+
+    pub fn merge_trusted_cosign_keys(&mut self, keys: &[CosignPublicKey]) -> Result<KeyMergeSummary> {
+        let mut imported = 0_usize;
+        let mut deduped = 0_usize;
+        let total;
+
+        {
+            let existing = &mut self.config.trust.cosign_public_keys;
+            for key in keys {
+                let normalized = key.key.trim();
+                if normalized.is_empty() {
+                    continue;
+                }
+                let duplicate = existing.iter().any(|k| k.key.trim() == normalized);
+                if duplicate {
+                    deduped += 1;
+                    continue;
+                }
+
+                existing.push(CosignKeyConfig {
                     id: key.id.clone(),
                     key: normalized.to_string(),
                 });
