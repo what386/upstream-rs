@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] behavior: make icon matching more consistent
-      @created 2026-05-11 18:38
-
 
 ## Completed
 
@@ -30,4 +27,8 @@
       @created 2026-05-09 02:46
       @completed 2026-05-09 05:13
       @completed_version 1.15.0
+
+- [x] behavior: make icon matching more consistent
+      @created 2026-05-11 18:38
+      @completed 2026-05-11 19:02
 
