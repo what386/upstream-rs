@@ -84,6 +84,7 @@ impl<'a> IconManager<'a> {
         H: FnMut(&str),
     {
         message!(message_callback, "Searching system icon themes …");
+
         let home_dir = std::env::var("HOME").ok()?;
         let icon_dirs = vec![
             PathBuf::from(format!("{}/.local/share/icons", home_dir)),
@@ -93,23 +94,33 @@ impl<'a> IconManager<'a> {
             PathBuf::from("/usr/share/pixmaps"),
             PathBuf::from("/usr/local/share/pixmaps"),
         ];
+
         let name_lower = name.to_lowercase();
+        // Also try hyphenated variant (e.g. "YouTube Music" -> "youtube-music")
+        let name_hyphen = name_lower.replace(' ', "-");
+        let name_variants: Vec<&str> = if name_hyphen != name_lower {
+            vec![&name_lower, &name_hyphen]
+        } else {
+            vec![&name_lower]
+        };
         let extensions = [".svg", ".png", ".xpm", ".ico"];
 
-        // Strategy 1: exact matches
+        // Strategy 1: exact matches (case-insensitive via lowercased variants)
         for dir in &icon_dirs {
             if !dir.exists() {
                 continue;
             }
-            for ext in extensions {
-                let exact_match = dir.join(format!("{}{}", name, ext));
-                if exact_match.exists() {
-                    message!(
-                        message_callback,
-                        "Found system icon: {}",
-                        exact_match.display()
-                    );
-                    return Some(exact_match);
+            for variant in &name_variants {
+                for ext in extensions {
+                    let exact_match = dir.join(format!("{}{}", variant, ext));
+                    if exact_match.exists() {
+                        message!(
+                            message_callback,
+                            "Found system icon: {}",
+                            exact_match.display()
+                        );
+                        return Some(exact_match);
+                    }
                 }
             }
         }
@@ -127,35 +138,46 @@ impl<'a> IconManager<'a> {
                 if !theme_dir.exists() {
                     continue;
                 }
-                for ext in extensions {
-                    let icon_path = theme_dir.join(format!("{}{}", name, ext));
-                    if icon_path.exists() {
-                        message!(
-                            message_callback,
-                            "Found themed icon: {}",
-                            icon_path.display()
-                        );
-                        return Some(icon_path);
+                for variant in &name_variants {
+                    for ext in extensions {
+                        let icon_path = theme_dir.join(format!("{}{}", variant, ext));
+                        if icon_path.exists() {
+                            message!(
+                                message_callback,
+                                "Found themed icon: {}",
+                                icon_path.display()
+                            );
+                            return Some(icon_path);
+                        }
                     }
                 }
             }
         }
 
-        // Strategy 3: recursive glob
+        // Strategy 3: recursive glob — name-matched + generic fallbacks
         message!(message_callback, "Falling back to recursive icon search …");
         let mut all_candidates = Vec::new();
-        for dir in icon_dirs {
+
+        for dir in &icon_dirs {
             if !dir.exists() {
                 continue;
             }
-            for ext in extensions {
-                if let Ok(entries) =
-                    glob::glob(&format!("{}/**/*{}*{}", dir.display(), name_lower, ext))
-                {
-                    all_candidates.extend(entries.flatten().take(50));
-                    if all_candidates.len() >= 10 {
-                        break;
+            // Name-matched globs (case-insensitive via lowercased variants)
+            for variant in &name_variants {
+                for ext in extensions {
+                    if let Ok(entries) =
+                        glob::glob(&format!("{}/**/*{}*{}", dir.display(), variant, ext))
+                    {
+                        all_candidates.extend(entries.flatten().take(50));
                     }
+                }
+            }
+            // Generic fallbacks: anything ending in .svg or .ico
+            for ext in [".svg", ".ico"] {
+                if let Ok(entries) =
+                    glob::glob(&format!("{}/**/*{}", dir.display(), ext))
+                {
+                    all_candidates.extend(entries.flatten().take(20));
                 }
             }
             if all_candidates.len() >= 10 {
@@ -168,6 +190,7 @@ impl<'a> IconManager<'a> {
             return None;
         }
 
+        all_candidates.dedup();
         let best = all_candidates
             .into_iter()
             .max_by_key(|path| Self::score_icon(path, name));
@@ -191,14 +214,36 @@ impl<'a> IconManager<'a> {
         H: FnMut(&str),
     {
         message!(message_callback, "Searching extracted files for icons …");
+
+        let name_lower = name.to_lowercase();
+        // Also try hyphenated variant (e.g. "YouTube Music" -> "youtube-music")
+        let name_hyphen = name_lower.replace(' ', "-");
+        let name_variants: Vec<&str> = if name_hyphen != name_lower {
+            vec![&name_lower, &name_hyphen]
+        } else {
+            vec![&name_lower]
+        };
+
         let mut all_candidates = Vec::new();
 
-        for ext in [".svg", ".png", ".xpm", ".ico"] {
-            let exact_match = dir.join(format!("{}{}", name, ext));
-            if exact_match.exists() {
-                all_candidates.push(exact_match);
+        // Name-matched candidates (case-insensitive via lowercased variants)
+        for variant in &name_variants {
+            for ext in [".svg", ".png", ".xpm", ".ico"] {
+                let exact_match = dir.join(format!("{}{}", variant, ext));
+                if exact_match.exists() {
+                    all_candidates.push(exact_match);
+                }
+                if let Ok(entries) =
+                    glob::glob(&format!("{}/**/*{}*{}", dir.display(), variant, ext))
+                {
+                    all_candidates.extend(entries.flatten());
+                }
             }
-            if let Ok(entries) = glob::glob(&format!("{}/**/*{}*{}", dir.display(), name, ext)) {
+        }
+
+        // Generic fallbacks: anything ending in .svg or .ico
+        for ext in [".svg", ".ico"] {
+            if let Ok(entries) = glob::glob(&format!("{}/**/*{}", dir.display(), ext)) {
                 all_candidates.extend(entries.flatten());
             }
         }
@@ -208,6 +253,7 @@ impl<'a> IconManager<'a> {
             return None;
         }
 
+        all_candidates.dedup();
         let best = all_candidates
             .into_iter()
             .max_by_key(|path| Self::score_icon(path, name));
@@ -223,7 +269,8 @@ impl<'a> IconManager<'a> {
     }
 
     fn score_icon(path: &Path, app_name: &str) -> i32 {
-        let mut score = 0;
+        let mut score = 0i32;
+
         let path_str = path.to_string_lossy().to_lowercase();
         let file_stem = path
             .file_stem()
@@ -231,6 +278,10 @@ impl<'a> IconManager<'a> {
             .unwrap_or("")
             .to_lowercase();
 
+        let name_lower = app_name.to_lowercase();
+        let name_hyphen = name_lower.replace(' ', "-");
+
+        // Format scores
         if path_str.ends_with(".svg") {
             score += 100;
         } else if path_str.ends_with(".png") {
@@ -241,18 +292,35 @@ impl<'a> IconManager<'a> {
             score += 30;
         }
 
-        if file_stem == app_name.to_lowercase() {
+        // Name match (check both spaced and hyphenated variants)
+        if file_stem == name_lower || file_stem == name_hyphen {
             score += 60;
+        } else if file_stem.contains(&name_lower) || file_stem.contains(&name_hyphen) {
+            score += 30;
         }
-        if file_stem.contains("icon") {
-            score += 50;
+
+        // Generic "icon" filename bonus — rewards things like "icon.svg" or "app-icon.png"
+        // when no name match is found (fallback path)
+        if file_stem == "icon" {
+            score += 55; // near-name-match quality for a dedicated icon file
+        } else if file_stem.ends_with("-icon") || file_stem.ends_with("_icon") || file_stem.starts_with("icon-") || file_stem.starts_with("icon_") {
+            score += 40;
+        } else if file_stem.contains("icon") {
+            score += 20;
         }
+
+        // Location bonuses
         if path_str.contains("icons/")
             || path_str.contains("pixmaps/")
             || path_str.contains(".diricon")
         {
             score += 30;
         }
+        if path_str.contains("/hicolor/") || path_str.contains("/theme/") {
+            score += 25;
+        }
+
+        // Penalise obviously wrong images
         if file_stem.contains("screenshot")
             || file_stem.contains("banner")
             || file_stem.contains("splash")
@@ -262,18 +330,16 @@ impl<'a> IconManager<'a> {
             score -= 30;
         }
 
+        // Prefer larger (but not huge) raster sizes
         let size_indicators = ["16", "22", "24", "32", "48", "64", "128", "256", "512"];
         for size in size_indicators {
-            if file_stem.contains(size) {
+            if path_str.contains(&format!("{}x{}", size, size)) || file_stem.contains(size) {
                 score += 20;
                 break;
             }
         }
 
-        if path_str.contains("/hicolor/") || path_str.contains("/theme/") {
-            score += 25;
-        }
-
+        // File-size sanity
         if let Ok(metadata) = fs::metadata(path) {
             let size = metadata.len();
             if size > 10_000_000 {
