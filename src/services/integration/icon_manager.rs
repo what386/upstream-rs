@@ -174,9 +174,7 @@ impl<'a> IconManager<'a> {
             }
             // Generic fallbacks: anything ending in .svg or .ico
             for ext in [".svg", ".ico"] {
-                if let Ok(entries) =
-                    glob::glob(&format!("{}/**/*{}", dir.display(), ext))
-                {
+                if let Ok(entries) = glob::glob(&format!("{}/**/*{}", dir.display(), ext)) {
                     all_candidates.extend(entries.flatten().take(20));
                 }
             }
@@ -303,7 +301,11 @@ impl<'a> IconManager<'a> {
         // when no name match is found (fallback path)
         if file_stem == "icon" {
             score += 55; // near-name-match quality for a dedicated icon file
-        } else if file_stem.ends_with("-icon") || file_stem.ends_with("_icon") || file_stem.starts_with("icon-") || file_stem.starts_with("icon_") {
+        } else if file_stem.ends_with("-icon")
+            || file_stem.ends_with("_icon")
+            || file_stem.starts_with("icon-")
+            || file_stem.starts_with("icon_")
+        {
             score += 40;
         } else if file_stem.contains("icon") {
             score += 20;
