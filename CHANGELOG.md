@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-05-09*
+*Generated on 2026-05-11*
+
+## 1.15.1 — 2026-05-11
+
+### Changes
+
+- behavior: make icon matching more consistent
+
 
 ## 1.15.0 — 2026-05-09
 
