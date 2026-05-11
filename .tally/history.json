@@ -1301,5 +1301,15 @@
       "patch": 0,
       "is_prerelease": false
     }
+  },
+  {
+    "change": {
+      "description": "behavior: make icon matching more consistent",
+      "priority": "Medium",
+      "tags": [],
+      "commit": null,
+      "completed_at": "2026-05-11T19:02:18.202993001Z"
+    },
+    "version": null
   }
 ]
