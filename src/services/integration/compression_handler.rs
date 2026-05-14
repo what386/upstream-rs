@@ -92,30 +92,85 @@ fn safe_join_extract_path(extract_dir: &Path, entry_path: &Path) -> Result<PathB
     Ok(out)
 }
 
-#[cfg(not(windows))]
-fn safe_join_link_target(base_path: &Path, link_target: &Path) -> Result<PathBuf> {
-    if link_target.is_absolute() {
+fn resolve_relative_path_within_root(
+    extract_dir: &Path,
+    base_path: &Path,
+    relative_path: &Path,
+    absolute_err_label: &str,
+    escape_err_label: &str,
+) -> Result<PathBuf> {
+    if relative_path.is_absolute() {
         return Err(anyhow!(
-            "Archive symlink target has absolute path '{}'",
-            link_target.display()
+            "Archive {} has absolute path '{}'",
+            absolute_err_label,
+            relative_path.display()
         ));
     }
 
-    let mut out = PathBuf::from(base_path);
-    for component in link_target.components() {
+    let base_relative = base_path.strip_prefix(extract_dir).map_err(|_| {
+        anyhow!(
+            "Archive {} escapes extraction root: '{}'",
+            escape_err_label,
+            relative_path.display()
+        )
+    })?;
+
+    let mut normalized_parts: Vec<PathBuf> = Vec::new();
+
+    for component in base_relative.components() {
         match component {
             Component::CurDir => {}
-            Component::Normal(part) => out.push(part),
+            Component::Normal(part) => normalized_parts.push(PathBuf::from(part)),
             Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
                 return Err(anyhow!(
-                    "Archive symlink target escapes extraction root: '{}'",
-                    link_target.display()
+                    "Archive {} escapes extraction root: '{}'",
+                    escape_err_label,
+                    relative_path.display()
                 ));
             }
         }
     }
 
-    Ok(out)
+    for component in relative_path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::Normal(part) => normalized_parts.push(PathBuf::from(part)),
+            Component::ParentDir => {
+                if normalized_parts.pop().is_none() {
+                    return Err(anyhow!(
+                        "Archive {} escapes extraction root: '{}'",
+                        escape_err_label,
+                        relative_path.display()
+                    ));
+                }
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err(anyhow!(
+                    "Archive {} has absolute path '{}'",
+                    absolute_err_label,
+                    relative_path.display()
+                ));
+            }
+        }
+    }
+
+    Ok(normalized_parts
+        .into_iter()
+        .fold(extract_dir.to_path_buf(), |mut acc, part| {
+            acc.push(part);
+            acc
+        }))
+}
+
+#[cfg(not(windows))]
+fn safe_join_link_target(extract_dir: &Path, base_path: &Path, link_target: &Path) -> Result<PathBuf> {
+    resolve_relative_path_within_root(
+        extract_dir,
+        base_path,
+        link_target,
+        "symlink target",
+        "symlink target",
+    )
 }
 
 fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> Result<PathBuf> {
@@ -176,13 +231,7 @@ fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> 
                         entry_path.display()
                     )
                 })?;
-                let target_path = safe_join_link_target(parent, &raw_target)?;
-                if !target_path.starts_with(extract_dir) {
-                    return Err(anyhow!(
-                        "Archive symlink target escapes extraction root: '{}'",
-                        raw_target.display()
-                    ));
-                }
+                let _target_path = safe_join_link_target(extract_dir, parent, &raw_target)?;
 
                 if let Some(parent) = path.parent() {
                     std::fs::create_dir_all(parent)?;
@@ -356,9 +405,12 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::decompress;
+    use flate2::Compression;
+    use flate2::write::GzEncoder;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
+    use tar::{Builder, Header};
 
     fn temp_root(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
@@ -642,6 +694,54 @@ mod tests {
 
         let err = decompress(&input, &output).expect_err("must reject traversal symlink target");
         assert!(err.to_string().contains("escapes extraction root"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn decompress_allows_tar_symlink_parent_relative_target_within_root() {
+        let root = temp_root("tar-symlink-parent-rel-safe");
+        let archive_path = root.join("nested-symlink.tar.gz");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+
+        {
+            let file = fs::File::create(&archive_path).expect("create archive file");
+            let encoder = GzEncoder::new(file, Compression::default());
+            let mut builder = Builder::new(encoder);
+
+            let mut target_header = Header::new_gnu();
+            let target_content = b"nested-target-content";
+            target_header.set_size(target_content.len() as u64);
+            target_header.set_mode(0o644);
+            target_header.set_cksum();
+            builder
+                .append_data(&mut target_header, "dir/target.txt", &target_content[..])
+                .expect("append target");
+
+            let mut link_header = Header::new_gnu();
+            link_header.set_entry_type(tar::EntryType::Symlink);
+            link_header.set_size(0);
+            link_header.set_mode(0o777);
+            link_header
+                .set_link_name("../target.txt")
+                .expect("set symlink target");
+            link_header.set_cksum();
+            builder
+                .append_data(&mut link_header, "dir/sub/link.txt", io::empty())
+                .expect("append symlink");
+
+            builder.finish().expect("finish archive");
+        }
+
+        let extracted_root = decompress(&archive_path, &output).expect("decompress with symlink");
+        let link_path = extracted_root.join("sub/link.txt");
+        assert!(link_path.exists());
+        assert_eq!(
+            fs::read(link_path).expect("read through symlink"),
+            b"nested-target-content"
+        );
 
         cleanup(&root).expect("cleanup");
     }
