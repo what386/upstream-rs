@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-05-11*
+*Generated on 2026-05-14*
+
+## 1.15.2 — 2026-05-14
+
+### Changes
+
+- bug: sometimes harmless relative paths would be rejected in decompression 'e.g: ../README.md'
+
 
 ## 1.15.1 — 2026-05-11
 
@@ -313,6 +320,5 @@
 ### Minor Changes
 
 - consider removing dead functions `cleanup` ([`7669a1a`])
-
 
 
