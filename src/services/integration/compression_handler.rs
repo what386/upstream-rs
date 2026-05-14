@@ -163,7 +163,11 @@ fn resolve_relative_path_within_root(
 }
 
 #[cfg(not(windows))]
-fn safe_join_link_target(extract_dir: &Path, base_path: &Path, link_target: &Path) -> Result<PathBuf> {
+fn safe_join_link_target(
+    extract_dir: &Path,
+    base_path: &Path,
+    link_target: &Path,
+) -> Result<PathBuf> {
     resolve_relative_path_within_root(
         extract_dir,
         base_path,
