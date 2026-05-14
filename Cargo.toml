@@ -1,6 +1,6 @@
 [package]
 name = "upstream-rs"
-version = "1.15.1"
+version = "1.15.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -11,7 +11,6 @@ categories = ["command-line-utilities", "development-tools"]
 
 exclude = [
     ".github",
-    ".tally",
     "scripts/",
     "completions/"
 ]
