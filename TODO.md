@@ -1,7 +1,10 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-05-14
+@modified: 2026-05-23
 
 ## Tasks
+
+- [ ] feat: install detected autocompletion scripts to shells
+      @created 2026-05-23 21:23
 
