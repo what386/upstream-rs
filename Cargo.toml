@@ -56,3 +56,8 @@ winapi = { version = "0.3", features = ["winuser", "processthreadsapi", "handlea
 name = "completions"
 path = "src/completions.rs"
 required-features = ["shell-completions"]
+
+[[bin]]
+name = "upstream"
+path = "src/main.rs"
+
