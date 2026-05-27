@@ -1,4 +1,4 @@
-use crate::services::storage::config_storage::ConfigStorage;
+use crate::{application::output, services::storage::config_storage::ConfigStorage};
 use anyhow::Result;
 use console::style;
 use toml;
@@ -28,7 +28,17 @@ impl<'a> ConfigUpdater<'a> {
     {
         let (key_path, value) = Self::parse_set_key(set_key)?;
 
-        message!(message_callback, "Setting '{}' = '{}'", key_path, value);
+        let display_value = if output::is_sensitive_key(&key_path) {
+            output::redact_secret(&value)
+        } else {
+            value.clone()
+        };
+        message!(
+            message_callback,
+            "Setting '{}' = '{}'",
+            key_path,
+            display_value
+        );
 
         self.config_storage.try_set_value(&key_path, &value)?;
 
@@ -196,7 +206,7 @@ mod tests {
 
     #[test]
     fn parse_set_key_requires_key_value_format() {
-        assert!(ConfigUpdater::parse_set_key("github.rate_limit=10").is_ok());
+        assert!(ConfigUpdater::parse_set_key("github.api_token=ghp_abc").is_ok());
         assert!(ConfigUpdater::parse_set_key("missing-separator").is_err());
         assert!(ConfigUpdater::parse_set_key("   =x").is_err());
     }
@@ -210,12 +220,12 @@ mod tests {
         let mut messages: Option<fn(&str)> = None;
 
         updater
-            .set_key("github.rate_limit=123", &mut messages)
+            .set_key("github.api_token=ghp_abc", &mut messages)
             .expect("set key");
         let value = updater
-            .get_key("github.rate_limit", &mut messages)
+            .get_key("github.api_token", &mut messages)
             .expect("get key");
-        assert_eq!(value, "123");
+        assert_eq!(value, "ghp_abc");
 
         cleanup(&config_file).expect("cleanup");
     }
@@ -228,22 +238,22 @@ mod tests {
         let mut updater = ConfigUpdater::new(&mut storage);
         let mut messages: Option<fn(&str)> = None;
         let keys = vec![
-            "github.rate_limit=321".to_string(),
+            "github.api_token=ghp_abc".to_string(),
             "badformat".to_string(),
-            "gitlab.rate_limit=654".to_string(),
+            "gitlab.api_token=glpat_abc".to_string(),
         ];
 
         updater
             .set_bulk(&keys, &mut messages)
             .expect("bulk set should not abort");
         let github = updater
-            .get_key("github.rate_limit", &mut messages)
+            .get_key("github.api_token", &mut messages)
             .expect("github key");
         let gitlab = updater
-            .get_key("gitlab.rate_limit", &mut messages)
+            .get_key("gitlab.api_token", &mut messages)
             .expect("gitlab key");
-        assert_eq!(github, "321");
-        assert_eq!(gitlab, "654");
+        assert_eq!(github, "ghp_abc");
+        assert_eq!(gitlab, "glpat_abc");
 
         cleanup(&config_file).expect("cleanup");
     }
