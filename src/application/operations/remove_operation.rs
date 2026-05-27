@@ -131,7 +131,7 @@ impl<'a> RemoveOperation<'a> {
                 failures += 1;
                 continue;
             };
-            impact = impact.add(self.remover.estimate_remove_impact(package, purge_option));
+            impact = impact + self.remover.estimate_remove_impact(package, purge_option);
             planned += 1;
         }
 

@@ -164,12 +164,12 @@ fn estimate_restore_impact(names: &[String], manager: &RollbackManager<'_>) -> D
     names
         .iter()
         .filter_map(|name| manager.estimate_restore_impact(name))
-        .fold(DiskImpact::empty(), DiskImpact::add)
+        .fold(DiskImpact::empty(), |total, impact| total + impact)
 }
 
 fn estimate_prune_impact(names: &[String], manager: &RollbackManager<'_>) -> DiskImpact {
     names
         .iter()
         .filter_map(|name| manager.estimate_prune_impact(name))
-        .fold(DiskImpact::empty(), DiskImpact::add)
+        .fold(DiskImpact::empty(), |total, impact| total + impact)
 }
