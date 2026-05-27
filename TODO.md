@@ -5,6 +5,9 @@
 
 ## Tasks
 
+- [ ] feat: confirmations for destructive actions
+      @created 2026-05-27 21:47
+
 
 ## Completed
 
