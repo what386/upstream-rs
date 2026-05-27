@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, anyhow, bail};
 use console::style;
 
-use crate::application::operations::install_operation::InstallOperation;
+use crate::application::{operations::install_operation::InstallOperation, output};
 use crate::models::{
     common::enums::{Channel, Filetype, Provider},
     upstream::{InstallType, Package},
@@ -162,6 +162,11 @@ impl<'a> BuildOperation<'a> {
             println!("  actions: resolve only (no compile, no install, no metadata changes)");
             return Ok(());
         }
+
+        output::confirm_or_cancel(format!(
+            "Build and install '{}' from {} ({})?",
+            input.name, resolved_repo_slug, resolved_provider
+        ))?;
 
         let worker = BuildWorker::new(self.provider_manager);
         let output = worker
