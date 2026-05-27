@@ -119,6 +119,12 @@ impl Cli {
 
             Commands::List { name, json } => commands::list::run(name, json),
 
+            Commands::Changelog {
+                name,
+                from_tag,
+                to_tag,
+            } => commands::changelog::run(name, from_tag, to_tag).await,
+
             Commands::Probe {
                 repo_slug,
                 provider,

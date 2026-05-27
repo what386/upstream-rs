@@ -280,6 +280,28 @@ pub enum Commands {
         json: bool,
     },
 
+    /// Show upstream release notes for an installed package
+    #[command(long_about = "Show release notes for an installed package.\n\n\
+        By default, prints release bodies newer than the installed version up to \
+        the latest release for the package's tracked channel. Use --from and --to \
+        to override the range endpoints by release tag.\n\n\
+        EXAMPLES:\n  \
+        upstream changelog nvim\n  \
+        upstream changelog nvim --from v0.10.0\n  \
+        upstream changelog nvim --from v0.10.0 --to v0.11.0")]
+    Changelog {
+        /// Installed package name
+        name: String,
+
+        /// Override the starting release tag
+        #[arg(long = "from")]
+        from_tag: Option<String>,
+
+        /// Override the ending release tag
+        #[arg(long = "to")]
+        to_tag: Option<String>,
+    },
+
     /// Inspect releases visible from a provider without installing
     #[command(long_about = "Probe a repository/source and show parsed releases.\n\n\
         Useful for validating what upstream can see before installation.\n\n\
@@ -456,6 +478,7 @@ impl Commands {
     pub fn requires_lock(&self) -> bool {
         match self {
             Commands::List { .. } => false,
+            Commands::Changelog { .. } => false,
             Commands::Doctor { fix, .. } => *fix,
             Commands::Search { .. } => false,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
@@ -837,6 +860,32 @@ mod tests {
         let cli = Cli::parse_from(["upstream", "upgrade", "--dry-run"]);
         match cli.command {
             Commands::Upgrade { dry_run, .. } => assert!(dry_run),
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn changelog_parses_range_flags() {
+        let cli = Cli::parse_from([
+            "upstream",
+            "changelog",
+            "nvim",
+            "--from",
+            "v0.10.0",
+            "--to",
+            "v0.11.0",
+        ]);
+
+        match cli.command {
+            Commands::Changelog {
+                name,
+                from_tag,
+                to_tag,
+            } => {
+                assert_eq!(name, "nvim");
+                assert_eq!(from_tag.as_deref(), Some("v0.10.0"));
+                assert_eq!(to_tag.as_deref(), Some("v0.11.0"));
+            }
             other => panic!("unexpected command parsed: {}", other),
         }
     }
