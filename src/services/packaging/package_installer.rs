@@ -174,6 +174,7 @@ impl<'a> PackageInstaller<'a> {
                 signature,
             } => {
                 match checksum {
+                    ChecksumVerificationStatus::NotChecked => {}
                     ChecksumVerificationStatus::Verified => {
                         message!(message_callback, "{}", style("Checksum verified").green());
                     }
@@ -195,6 +196,7 @@ impl<'a> PackageInstaller<'a> {
                 }
 
                 match signature {
+                    SignatureVerificationStatus::NotChecked => {}
                     SignatureVerificationStatus::Verified {
                         scheme,
                         key_id,
