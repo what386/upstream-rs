@@ -1,4 +1,4 @@
-use crate::services::storage::config_storage::ConfigStorage;
+use crate::services::{integration::CompletionManager, storage::config_storage::ConfigStorage};
 use crate::utils::static_paths::UpstreamPaths;
 #[cfg(windows)]
 use anyhow::Context;
@@ -70,6 +70,27 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
         ("binaries directory", &paths.install.binaries_dir),
         ("archives directory", &paths.install.archives_dir),
     ] {
+        if path.exists() {
+            report
+                .messages
+                .push(format!("[OK] {} exists: {}", label, path.display()));
+        } else {
+            report.ok = false;
+            report
+                .messages
+                .push(format!("[FAIL] {} missing: {}", label, path.display()));
+        }
+    }
+
+    let completion_manager = CompletionManager::new(paths);
+    let completion_dirs = completion_manager.installed_shell_completion_dirs();
+    if completion_dirs.is_empty() {
+        report
+            .messages
+            .push("[OK] no supported shells detected for completion installation".to_string());
+    }
+    for (shell, path) in completion_dirs {
+        let label = format!("{shell} completions directory");
         if path.exists() {
             report
                 .messages
@@ -193,6 +214,9 @@ fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
     fs::create_dir_all(&paths.install.archives_dir)?;
     fs::create_dir_all(&paths.integration.icons_dir)?;
     fs::create_dir_all(&paths.integration.symlinks_dir)?;
+    for (_shell, dir) in CompletionManager::new(paths).installed_shell_completion_dirs() {
+        fs::create_dir_all(dir)?;
+    }
     Ok(())
 }
 
@@ -513,6 +537,11 @@ mod tests {
                 symlinks_dir: dirs.data_dir.join("symlinks"),
                 xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
                 icons_dir: dirs.data_dir.join("icons"),
+                bash_completions_dir: dirs
+                    .user_dir
+                    .join(".local/share/bash-completion/completions"),
+                fish_completions_dir: dirs.user_dir.join(".config/fish/completions"),
+                zsh_completions_dir: dirs.user_dir.join(".local/share/zsh/site-functions"),
             },
             dirs,
         }
