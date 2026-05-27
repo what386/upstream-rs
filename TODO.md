@@ -5,16 +5,18 @@
 
 ## Tasks
 
-- [ ] feat: install detected autocompletion scripts to shells
-      @created 2026-05-23 21:23
-
-- [ ] remove 'rate limit' key from cfg
-      @created 2026-05-27 20:58
-
 
 ## Completed
 
 - [x] changelog subcommand
       @created 2026-05-27 19:50
       @completed 2026-05-27 19:50
+
+- [x] feat: install detected autocompletion scripts to shells
+      @created 2026-05-23 21:23
+      @completed 2026-05-27 21:22
+
+- [x] remove 'rate limit' key from cfg
+      @created 2026-05-27 20:58
+      @completed 2026-05-27 21:22
 
