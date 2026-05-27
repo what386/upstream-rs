@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use crate::services::integration::ShellManager;
 use crate::{
     application::output::{self, Status},
-    services::integration::{SymlinkManager, permission_handler},
+    services::integration::{CompletionManager, SymlinkManager, permission_handler},
     services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
@@ -336,6 +336,28 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
             );
             report.hint(
                 "Run `upstream hooks init` to create missing upstream directories and metadata files.",
+            );
+        }
+    }
+
+    let completion_manager = CompletionManager::new(&paths);
+    let completion_dirs = completion_manager.installed_shell_completion_dirs();
+    if completion_dirs.is_empty() {
+        report.line(
+            Level::Ok,
+            "No supported shells detected for completion checks",
+        );
+    }
+    for (shell, path) in completion_dirs {
+        if path.exists() {
+            report.line(Level::Ok, format!("{shell} completions directory exists"));
+        } else {
+            report.line(
+                Level::Fail,
+                format!("{shell} completions directory missing: {}", path.display()),
+            );
+            report.hint(
+                "Run `upstream hooks init` to create completion directories for installed shells.",
             );
         }
     }
