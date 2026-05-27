@@ -5,15 +5,11 @@ use serde::{Deserialize, Serialize};
 #[serde(default)]
 pub struct ProviderConfig {
     pub api_token: Option<String>,
-    pub rate_limit: u32,
 }
 
 impl Default for ProviderConfig {
     fn default() -> Self {
-        Self {
-            api_token: None,
-            rate_limit: 5000,
-        }
+        Self { api_token: None }
     }
 }
 

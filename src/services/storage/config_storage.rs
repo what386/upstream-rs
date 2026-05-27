@@ -309,8 +309,8 @@ mod tests {
 
         let storage = ConfigStorage::new(&path).expect("create storage");
         assert!(!path.exists());
-        assert_eq!(storage.get_config().github.rate_limit, 5000);
-        assert_eq!(storage.get_config().gitlab.rate_limit, 5000);
+        assert!(storage.get_config().github.api_token.is_none());
+        assert!(storage.get_config().gitlab.api_token.is_none());
 
         cleanup(&path).expect("cleanup");
     }
@@ -324,20 +324,20 @@ mod tests {
         let mut storage = ConfigStorage::new(&path).expect("create storage");
 
         storage
-            .try_set_value("github.rate_limit", "1234")
-            .expect("set integer");
+            .try_set_value("github.api_token", "\"ghp_abc\"")
+            .expect("set github token");
         storage
             .try_set_value("gitlab.api_token", "\"abc\"")
             .expect("set string literal");
 
-        let rate_limit: u32 = storage
-            .try_get_value("github.rate_limit")
-            .expect("read rate limit");
+        let github_token: Option<String> = storage
+            .try_get_value("github.api_token")
+            .expect("read github token");
         let token: Option<String> = storage
             .try_get_value("gitlab.api_token")
             .expect("read token");
 
-        assert_eq!(rate_limit, 1234);
+        assert_eq!(github_token.as_deref(), Some("ghp_abc"));
         assert_eq!(token.as_deref(), Some("abc"));
 
         cleanup(&path).expect("cleanup");
@@ -352,8 +352,37 @@ mod tests {
         let storage = ConfigStorage::new(&path).expect("create storage");
         let flat = storage.get_flattened_config();
 
-        assert_eq!(flat.get("github.rate_limit"), Some(&"5000".to_string()));
-        assert_eq!(flat.get("gitlab.rate_limit"), Some(&"5000".to_string()));
+        assert!(!flat.contains_key("github.rate_limit"));
+        assert!(!flat.contains_key("gitlab.rate_limit"));
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn old_rate_limit_keys_are_ignored_when_loading_config() {
+        let path = temp_config_file("legacy-rate-limit");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        fs::write(
+            &path,
+            r#"
+[github]
+api_token = "ghp_abc"
+rate_limit = 1234
+
+[gitlab]
+rate_limit = 5678
+"#,
+        )
+        .expect("write config");
+
+        let storage = ConfigStorage::new(&path).expect("load legacy config");
+        assert_eq!(
+            storage.get_config().github.api_token.as_deref(),
+            Some("ghp_abc")
+        );
+        assert!(storage.get_config().gitlab.api_token.is_none());
 
         cleanup(&path).expect("cleanup");
     }
@@ -381,14 +410,11 @@ mod tests {
         }
         let mut storage = ConfigStorage::new(&path).expect("create storage");
         storage
-            .try_set_value("github.rate_limit", "99")
+            .try_set_value("github.api_token", "\"ghp_abc\"")
             .expect("set override");
         storage.reset_to_defaults().expect("reset defaults");
 
-        let rate_limit: u32 = storage
-            .try_get_value("github.rate_limit")
-            .expect("read reset value");
-        assert_eq!(rate_limit, 5000);
+        assert!(storage.get_config().github.api_token.is_none());
 
         cleanup(&path).expect("cleanup");
     }
