@@ -175,17 +175,7 @@ pub async fn run(
 }
 
 fn truncate_cell(value: &str, max: usize) -> String {
-    let char_count = value.chars().count();
-    if char_count <= max {
-        return value.to_string();
-    }
-
-    let mut out = String::new();
-    for ch in value.chars().take(max.saturating_sub(3)) {
-        out.push(ch);
-    }
-    out.push_str("...");
-    out
+    output::truncate_end(value, max)
 }
 
 fn render_check_table(rows: &[UpdateCheckRow]) {

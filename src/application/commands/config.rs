@@ -1,10 +1,14 @@
 use crate::{
-    application::operations::config_operation::ConfigUpdater,
+    application::operations::config_operation::ConfigUpdater, application::output,
     services::storage::config_storage::ConfigStorage, utils::static_paths::UpstreamPaths,
 };
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 
 pub fn run_set(set_keys: Vec<String>) -> Result<()> {
+    if set_keys.is_empty() {
+        return Err(anyhow!("At least one configuration assignment is required"));
+    }
+
     let paths = UpstreamPaths::new()?;
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
     let mut config_updater = ConfigUpdater::new(&mut config_storage);
@@ -24,6 +28,10 @@ pub fn run_set(set_keys: Vec<String>) -> Result<()> {
 }
 
 pub fn run_get(get_keys: Vec<String>) -> Result<()> {
+    if get_keys.is_empty() {
+        return Err(anyhow!("At least one configuration key is required"));
+    }
+
     let paths = UpstreamPaths::new()?;
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
     let config_updater = ConfigUpdater::new(&mut config_storage);
@@ -45,7 +53,7 @@ pub fn run_get(get_keys: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-pub fn run_list() -> Result<()> {
+pub fn run_list(show_secrets: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let config_storage = ConfigStorage::new(&paths.config.config_file)?;
 
@@ -64,11 +72,19 @@ pub fn run_list() -> Result<()> {
 
     for key in keys {
         if let Some(value) = flattened.get(key) {
-            println!("  {} = {}", key, value);
+            let display_value = format_config_value(key, value, show_secrets);
+            println!("  {} = {}", key, display_value);
         }
     }
 
     Ok(())
+}
+
+fn format_config_value(key: &str, value: &str, show_secrets: bool) -> String {
+    if !show_secrets && output::is_sensitive_key(key) {
+        return output::redact_secret(value);
+    }
+    value.to_string()
 }
 
 pub fn run_reset() -> Result<()> {
@@ -90,6 +106,24 @@ pub fn run_reset() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_config_value;
+
+    #[test]
+    fn config_list_redacts_sensitive_values_by_default() {
+        assert_eq!(
+            format_config_value("github.api_token", "ghp_abcdefghijklmnopqrstuvwxyz", false),
+            "ghp_...wxyz"
+        );
+        assert_eq!(
+            format_config_value("github.api_token", "ghp_abcdefghijklmnopqrstuvwxyz", true),
+            "ghp_abcdefghijklmnopqrstuvwxyz"
+        );
+        assert_eq!(format_config_value("github.enabled", "true", false), "true");
+    }
 }
 
 pub fn run_edit() -> Result<()> {

@@ -1,6 +1,6 @@
 use crate::{
-    models::upstream::Package, services::storage::package_storage::PackageStorage,
-    utils::static_paths::UpstreamPaths,
+    application::output, models::upstream::Package,
+    services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Result, anyhow};
 use console::Term;
@@ -73,23 +73,6 @@ fn shorten_home_path(path: &str) -> String {
 fn format_path(path: Option<&std::path::PathBuf>, default: &str) -> String {
     path.map(|p| shorten_home_path(&p.display().to_string()))
         .unwrap_or_else(|| default.to_string())
-}
-
-fn truncate_cell(value: &str, max: usize) -> String {
-    let char_count = value.chars().count();
-    if char_count <= max {
-        return value.to_string();
-    }
-    if max <= 3 {
-        return ".".repeat(max);
-    }
-
-    let mut out = String::new();
-    for ch in value.chars().take(max - 3) {
-        out.push(ch);
-    }
-    out.push_str("...");
-    out
 }
 
 fn format_package_details(package: &Package) -> String {
@@ -222,6 +205,7 @@ fn print_package_table(packages: &[Package]) {
     let widths = ColumnWidths::from_packages(packages, term_width);
 
     print_table_header(&widths);
+    println!("{}", output::divider(table_width(&widths)));
 
     for package in packages {
         print_package_row(package, &widths);
@@ -230,6 +214,18 @@ fn print_package_table(packages: &[Package]) {
     println!();
     println!("Total: {} packages", packages.len());
     println!("Flags: I=icon present, P=pinned");
+}
+
+fn table_width(widths: &ColumnWidths) -> usize {
+    widths.name
+        + widths.repo
+        + widths.version
+        + widths.channel
+        + widths.provider
+        + widths.flags
+        + widths.updated
+        + widths.path
+        + 7
 }
 
 fn print_table_header(widths: &ColumnWidths) {
@@ -255,7 +251,7 @@ fn print_table_header(widths: &ColumnWidths) {
 }
 
 fn print_package_row(package: &Package, widths: &ColumnWidths) {
-    let install_path = truncate_cell(
+    let install_path = output::truncate_middle(
         &format_path(package.install_path.as_ref(), "-"),
         widths.path,
     );
@@ -270,11 +266,11 @@ fn print_package_row(package: &Package, widths: &ColumnWidths) {
 
     println!(
         "{:<name$} {:<repo$} {:<ver$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
-        truncate_cell(&package.name, widths.name),
-        truncate_cell(&package.repo_slug, widths.repo),
-        truncate_cell(&package.version.to_string(), widths.version),
-        truncate_cell(&package.channel.to_string(), widths.channel),
-        truncate_cell(&package.provider.to_string(), widths.provider),
+        output::truncate_end(&package.name, widths.name),
+        output::truncate_end(&package.repo_slug, widths.repo),
+        output::truncate_end(&package.version.to_string(), widths.version),
+        output::truncate_end(&package.channel.to_string(), widths.channel),
+        output::truncate_end(&package.provider.to_string(), widths.provider),
         flags,
         last_updated,
         install_path,

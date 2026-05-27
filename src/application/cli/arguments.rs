@@ -22,9 +22,9 @@ pub enum ImportAs {
 #[command(about = "A package manager for everything else.")]
 #[command(
     long_about = "Upstream is a lightweight package manager that installs and manages \
-    applications from most software sources that dont have their own package manager.\n\n\
+    applications from most software sources that do not have their own package manager.\n\n\
     Install binaries, AppImages, and other artifacts with automatic updates, \
-    version pinning, and (hopefully) minimal configuration.\n\n\
+    version pinning, and minimal configuration.\n\n\
     EXAMPLES:\n  \
     upstream install nvim neovim/neovim --desktop\n  \
     upstream upgrade                # Upgrade all packages\n  \
@@ -344,7 +344,7 @@ pub enum Commands {
         upstream search widget -p gitlab --base-url https://gitlab.example.com")]
     Search {
         /// Query words (joined with spaces)
-        #[arg(num_args(1..), value_delimiter = ' ')]
+        #[arg(required = true, num_args(1..), value_delimiter = ' ')]
         query_words: Vec<String>,
 
         /// Source provider to search (defaults to github)
@@ -487,7 +487,7 @@ impl Commands {
                 PackageAction::GetKey { .. } | PackageAction::Metadata { .. }
             ),
             Commands::Config { action } => {
-                !matches!(action, ConfigAction::Get { .. } | ConfigAction::List)
+                !matches!(action, ConfigAction::Get { .. } | ConfigAction::List { .. })
             }
             Commands::Install { .. }
             | Commands::Build { .. }
@@ -553,6 +553,7 @@ pub enum ConfigAction {
         upstream config set gitlab.api_token=glpat_xxx")]
     Set {
         /// Configuration assignments (format: key.path=value)
+        #[arg(required = true)]
         keys: Vec<String>,
     },
 
@@ -564,11 +565,16 @@ pub enum ConfigAction {
         upstream config get github.api_token gitlab.api_token")]
     Get {
         /// Configuration keys to retrieve (format: key.path)
+        #[arg(required = true)]
         keys: Vec<String>,
     },
 
     /// List all configuration keys
-    List,
+    List {
+        /// Print sensitive values instead of redacting them
+        #[arg(long, default_value_t = false)]
+        show_secrets: bool,
+    },
 
     /// Open configuration file in your default editor
     Edit,
@@ -625,6 +631,7 @@ pub enum PackageAction {
         name: String,
 
         /// Metadata keys to retrieve
+        #[arg(required = true)]
         keys: Vec<String>,
     },
 
@@ -639,6 +646,7 @@ pub enum PackageAction {
         name: String,
 
         /// Metadata assignments (format: key=value)
+        #[arg(required = true)]
         keys: Vec<String>,
     },
 
@@ -1048,7 +1056,9 @@ mod tests {
         );
         assert!(
             !Commands::Config {
-                action: ConfigAction::List,
+                action: ConfigAction::List {
+                    show_secrets: false,
+                },
             }
             .requires_lock()
         );
@@ -1126,6 +1136,31 @@ mod tests {
             ])
             .is_err()
         );
+    }
+
+    #[test]
+    fn search_requires_query_words() {
+        assert!(Cli::try_parse_from(["upstream", "search"]).is_err());
+    }
+
+    #[test]
+    fn config_set_get_and_package_keys_require_operands() {
+        assert!(Cli::try_parse_from(["upstream", "config", "set"]).is_err());
+        assert!(Cli::try_parse_from(["upstream", "config", "get"]).is_err());
+        assert!(Cli::try_parse_from(["upstream", "package", "get-key", "rg"]).is_err());
+        assert!(Cli::try_parse_from(["upstream", "package", "set-key", "rg"]).is_err());
+    }
+
+    #[test]
+    fn config_list_parses_show_secrets() {
+        let cli = Cli::parse_from(["upstream", "config", "list", "--show-secrets"]);
+
+        match cli.command {
+            Commands::Config {
+                action: ConfigAction::List { show_secrets },
+            } => assert!(show_secrets),
+            other => panic!("unexpected command parsed: {}", other),
+        }
     }
 
     #[test]

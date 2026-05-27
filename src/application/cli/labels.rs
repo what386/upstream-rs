@@ -30,7 +30,7 @@ impl fmt::Display for ConfigAction {
         match self {
             ConfigAction::Set { .. } => write!(f, "config set"),
             ConfigAction::Get { .. } => write!(f, "config get"),
-            ConfigAction::List => write!(f, "config list"),
+            ConfigAction::List { .. } => write!(f, "config list"),
             ConfigAction::Edit => write!(f, "config edit"),
             ConfigAction::Reset => write!(f, "config reset"),
         }
