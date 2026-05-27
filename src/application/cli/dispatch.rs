@@ -4,11 +4,13 @@ use crate::application::cli::arguments::{
     Cli, Commands, ConfigAction, HooksAction, ImportAs, PackageAction,
 };
 use crate::application::commands;
+use crate::application::output;
 use crate::services::storage::lock_storage::LockStorage;
 use crate::utils::static_paths::UpstreamPaths;
 
 impl Cli {
     pub async fn run(self) -> Result<()> {
+        output::set_assume_yes(self.yes);
         let command = self.command;
         let paths = UpstreamPaths::new()?;
         let _lock = if command.requires_lock() {
@@ -22,7 +24,7 @@ impl Cli {
                 HooksAction::Init => commands::hooks::run_hooks_init(),
                 HooksAction::Check => commands::hooks::run_hooks_check(),
                 HooksAction::Clean => commands::hooks::run_hooks_clean(),
-                HooksAction::Purge { yes } => commands::hooks::run_hooks_purge(yes),
+                HooksAction::Purge => commands::hooks::run_hooks_purge(),
             },
             Commands::Install {
                 name,
@@ -36,7 +38,6 @@ impl Cli {
                 exclude_pattern,
                 desktop,
                 trust_mode,
-                yes,
                 dry_run,
             } => {
                 commands::install::run(
@@ -51,7 +52,6 @@ impl Cli {
                     exclude_pattern,
                     desktop,
                     trust_mode,
-                    yes,
                     dry_run,
                 )
                 .await
@@ -65,7 +65,6 @@ impl Cli {
                 base_url,
                 channel,
                 desktop,
-                yes,
                 build_profile,
                 build_output,
                 dry_run,
@@ -79,7 +78,6 @@ impl Cli {
                     base_url,
                     channel,
                     desktop,
-                    yes,
                     build_profile,
                     build_output,
                     dry_run,
@@ -165,14 +163,13 @@ impl Cli {
                 path,
                 skip_failed,
                 import_as,
-                yes,
             } => {
                 let forced_kind = import_as.map(|value| match value {
                     ImportAs::Keys => commands::import::ImportKindArg::Keys,
                     ImportAs::Manifest => commands::import::ImportKindArg::Manifest,
                     ImportAs::Snapshot => commands::import::ImportKindArg::Snapshot,
                 });
-                commands::import::run_import(path, skip_failed, forced_kind, yes).await
+                commands::import::run_import(path, skip_failed, forced_kind).await
             }
             Commands::Doctor {
                 names,

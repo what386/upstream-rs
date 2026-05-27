@@ -43,7 +43,7 @@ impl fmt::Display for HooksAction {
             HooksAction::Init => write!(f, "hooks init"),
             HooksAction::Check => write!(f, "hooks check"),
             HooksAction::Clean => write!(f, "hooks clean"),
-            HooksAction::Purge { .. } => write!(f, "hooks purge"),
+            HooksAction::Purge => write!(f, "hooks purge"),
         }
     }
 }
