@@ -1,17 +1,12 @@
 use crate::services::trust::{CosignPublicKey, MinisignPublicKey, TrustedSignatureKeys};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct ProviderConfig {
     pub api_token: Option<String>,
 }
 
-impl Default for ProviderConfig {
-    fn default() -> Self {
-        Self { api_token: None }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
