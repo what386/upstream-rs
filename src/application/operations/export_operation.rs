@@ -167,54 +167,16 @@ mod tests {
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use crate::services::storage::package_storage::PackageStorage;
-    use crate::utils::static_paths::{
-        AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, UpstreamPaths,
-    };
-    use std::path::{Path, PathBuf};
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use crate::utils::test_support;
+    use std::path::Path;
     use std::{fs, io};
 
-    fn temp_root(name: &str) -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        std::env::temp_dir().join(format!("upstream-export-test-{name}-{nanos}"))
+    fn temp_root(name: &str) -> std::path::PathBuf {
+        test_support::temp_root("upstream-export-test", name)
     }
 
-    fn test_paths(root: &Path) -> UpstreamPaths {
-        let dirs = AppDirs {
-            user_dir: root.to_path_buf(),
-            config_dir: root.join("config"),
-            data_dir: root.join("data"),
-            metadata_dir: root.join("data/metadata"),
-        };
-
-        UpstreamPaths {
-            config: ConfigPaths {
-                config_file: dirs.config_dir.join("config.toml"),
-                packages_file: dirs.metadata_dir.join("packages.json"),
-                metadata_file: dirs.metadata_dir.join("metadata.json"),
-                paths_file: dirs.metadata_dir.join("paths.sh"),
-            },
-            install: InstallPaths {
-                appimages_dir: dirs.data_dir.join("appimages"),
-                binaries_dir: dirs.data_dir.join("binaries"),
-                archives_dir: dirs.data_dir.join("archives"),
-                rollback_dir: dirs.data_dir.join("rollback"),
-            },
-            integration: IntegrationPaths {
-                symlinks_dir: dirs.data_dir.join("symlinks"),
-                xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
-                icons_dir: dirs.data_dir.join("icons"),
-                bash_completions_dir: dirs
-                    .user_dir
-                    .join(".local/share/bash-completion/completions"),
-                fish_completions_dir: dirs.user_dir.join(".config/fish/completions"),
-                zsh_completions_dir: dirs.user_dir.join(".local/share/zsh/site-functions"),
-            },
-            dirs,
-        }
+    fn test_paths(root: &Path) -> crate::utils::static_paths::UpstreamPaths {
+        test_support::upstream_paths(root)
     }
 
     fn cleanup(path: &Path) -> io::Result<()> {
