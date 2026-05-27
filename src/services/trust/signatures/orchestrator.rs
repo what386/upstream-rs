@@ -9,6 +9,7 @@ use anyhow::{Result, anyhow};
 use std::{fs, path::Path};
 
 use super::{
+    super::checksum_verifier::is_checksum_asset_name,
     SignatureScheme, SignatureVerificationStatus, TrustedSignatureKeys,
     asset_selector::{find_signature_assets, signature_target_name},
     cosign::verify_cosign_signature,
@@ -200,6 +201,7 @@ impl<'a> SignatureVerifier<'a> {
 
         release
             .get_asset_by_name_invariant(target_name)
+            .filter(|asset| is_checksum_asset_name(&asset.name))
             .map(SignatureTarget::ReleaseAsset)
     }
 }
@@ -343,6 +345,47 @@ mod tests {
             SignatureVerifier::resolve_signature_target_asset(&release, target_name, "tool.tar.gz");
 
         assert!(selected.is_none());
+    }
+
+    #[test]
+    fn resolve_signature_target_asset_ignores_other_binary_assets() {
+        let release = release_with_assets(vec![Asset::new(
+            "https://example.invalid/Nuclear-1.37.4-1.x86_64.rpm".to_string(),
+            1,
+            "Nuclear-1.37.4-1.x86_64.rpm".to_string(),
+            10,
+            Utc::now(),
+        )]);
+
+        let target_name =
+            signature_target_name("Nuclear-1.37.4-1.x86_64.rpm.sig").expect("target name");
+        let selected = SignatureVerifier::resolve_signature_target_asset(
+            &release,
+            target_name,
+            "Nuclear_1.37.4_amd64.AppImage",
+        );
+
+        assert!(selected.is_none());
+    }
+
+    #[test]
+    fn resolve_signature_target_asset_allows_checksum_assets_only_as_fallback_targets() {
+        let release = release_with_assets(vec![Asset::new(
+            "https://example.invalid/checksum.txt".to_string(),
+            1,
+            "checksum.txt".to_string(),
+            10,
+            Utc::now(),
+        )]);
+
+        let target_name = signature_target_name("checksum.txt.sig").expect("target name");
+        let selected =
+            SignatureVerifier::resolve_signature_target_asset(&release, target_name, "tool.tar.gz");
+
+        assert!(matches!(
+            selected,
+            Some(SignatureTarget::ReleaseAsset(asset)) if asset.name == "checksum.txt"
+        ));
     }
 
     #[test]

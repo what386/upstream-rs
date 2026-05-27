@@ -30,6 +30,7 @@ pub enum SignatureScheme {
 }
 
 pub enum SignatureVerificationStatus {
+    NotChecked,
     Verified {
         scheme: SignatureScheme,
         key_id: Option<String>,
