@@ -36,6 +36,10 @@ pub enum ImportAs {
     long_version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("GIT_HASH"), ")")
 )]
 pub struct Cli {
+    /// Accept confirmation prompts
+    #[arg(short = 'y', long, global = true, default_value_t = false)]
+    pub yes: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -93,10 +97,6 @@ pub enum Commands {
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
         trust_mode: TrustMode,
 
-        /// Accept the recommended discovered asset without prompting
-        #[arg(long, short = 'y', default_value_t = false)]
-        yes: bool,
-
         /// Preview install resolution without downloading or writing files
         #[arg(long, default_value_t = false)]
         dry_run: bool,
@@ -143,10 +143,6 @@ pub enum Commands {
         /// Whether or not to create a .desktop entry for GUI applications
         #[arg(short, long, default_value_t = false)]
         desktop: bool,
-
-        /// Accept the recommended discovered source/release without prompting
-        #[arg(long, short = 'y', default_value_t = false)]
-        yes: bool,
 
         /// Build profile used to compile/install from source (auto-detected when omitted)
         #[arg(long, value_enum)]
@@ -398,7 +394,7 @@ pub enum Commands {
         upstream hooks init\n  \
         upstream hooks check\n  \
         upstream hooks clean\n  \
-        upstream hooks purge --yes")]
+        upstream --yes hooks purge")]
     Hooks {
         #[command(subcommand)]
         action: HooksAction,
@@ -414,7 +410,7 @@ pub enum Commands {
         upstream import ./cosign.pub              # Import trusted cosign PEM keys\n  \
         upstream import ./packages.json           # Import package metadata manifest\n  \
         upstream import ./backup.tar.gz           # Restore full snapshot\n  \
-        upstream import ./input.bin --as keys --yes"
+        upstream --yes import ./input.bin --as keys"
     )]
     Import {
         /// Path to a keys file, metadata manifest, or snapshot archive
@@ -428,9 +424,6 @@ pub enum Commands {
         #[arg(long = "as", value_enum)]
         import_as: Option<ImportAs>,
 
-        /// Skip import confirmation prompt
-        #[arg(long, short = 'y', default_value_t = false)]
-        yes: bool,
     },
 
     /// Export packages to a manifest or full snapshot
@@ -532,15 +525,11 @@ pub enum HooksAction {
     #[command(
         long_about = "Remove upstream shell integration hooks and delete the local upstream data directory.\n\n\
         This deletes installed package files and metadata under ~/.upstream. \
-        Pass --yes to skip the confirmation prompt.\n\n\
+        Pass global --yes to skip the confirmation prompt.\n\n\
         EXAMPLE:\n  \
-        upstream hooks purge --yes"
+        upstream --yes hooks purge"
     )]
-    Purge {
-        /// Skip the confirmation prompt
-        #[arg(long, short = 'y', default_value_t = false)]
-        yes: bool,
-    },
+    Purge,
 }
 
 #[derive(Subcommand)]
@@ -692,6 +681,7 @@ mod tests {
             "--trust",
             "none",
         ]);
+        assert!(!cli.yes);
 
         match cli.command {
             Commands::Install { trust_mode, .. } => assert_eq!(trust_mode, TrustMode::None),
@@ -700,20 +690,31 @@ mod tests {
     }
 
     #[test]
-    fn install_provider_is_optional_and_yes_is_parsed() {
+    fn install_provider_is_optional_and_global_yes_is_parsed() {
         let cli = Cli::parse_from([
             "upstream",
+            "--yes",
             "install",
             "tool",
             "https://example.test",
-            "--yes",
         ]);
+        assert!(cli.yes);
 
         match cli.command {
-            Commands::Install { provider, yes, .. } => {
+            Commands::Install { provider, .. } => {
                 assert!(provider.is_none());
-                assert!(yes);
             }
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
+    fn global_yes_applies_to_commands_without_local_yes_flag() {
+        let cli = Cli::parse_from(["upstream", "--yes", "remove", "rg"]);
+        assert!(cli.yes);
+
+        match cli.command {
+            Commands::Remove { names, .. } => assert_eq!(names, vec!["rg".to_string()]),
             other => panic!("unexpected command parsed: {}", other),
         }
     }
@@ -946,27 +947,18 @@ mod tests {
     }
 
     #[test]
-    fn import_parses_as_and_yes_flags() {
-        let cli = Cli::parse_from([
-            "upstream",
-            "import",
-            "minisign.pub",
-            "--as",
-            "keys",
-            "--yes",
-        ]);
+    fn import_parses_as_flag() {
+        let cli = Cli::parse_from(["upstream", "import", "minisign.pub", "--as", "keys"]);
 
         match cli.command {
             Commands::Import {
                 path,
                 skip_failed,
                 import_as,
-                yes,
             } => {
                 assert_eq!(path, std::path::PathBuf::from("minisign.pub"));
                 assert!(!skip_failed);
                 assert_eq!(import_as, Some(ImportAs::Keys));
-                assert!(yes);
             }
             other => panic!("unexpected command parsed: {}", other),
         }
@@ -992,11 +984,11 @@ mod tests {
             }
         ));
 
-        let cli = Cli::parse_from(["upstream", "hooks", "purge", "--yes"]);
+        let cli = Cli::parse_from(["upstream", "hooks", "purge"]);
         assert!(matches!(
             cli.command,
             Commands::Hooks {
-                action: HooksAction::Purge { yes: true }
+                action: HooksAction::Purge
             }
         ));
     }
@@ -1178,7 +1170,6 @@ mod tests {
                 exclude_pattern: None,
                 desktop: false,
                 trust_mode: TrustMode::BestEffort,
-                yes: false,
                 dry_run: false,
             }
             .requires_lock()
@@ -1204,7 +1195,6 @@ mod tests {
                 base_url: None,
                 channel: crate::models::common::enums::Channel::Stable,
                 desktop: false,
-                yes: false,
                 build_profile: Some(BuildProfile::Rust),
                 build_output: None,
                 dry_run: false,
@@ -1284,7 +1274,7 @@ mod tests {
         );
         assert!(
             Commands::Hooks {
-                action: HooksAction::Purge { yes: true },
+                action: HooksAction::Purge,
             }
             .requires_lock()
         );
