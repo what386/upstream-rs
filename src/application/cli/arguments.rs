@@ -423,7 +423,6 @@ pub enum Commands {
         /// Force the input type instead of autodetection
         #[arg(long = "as", value_enum)]
         import_as: Option<ImportAs>,
-
     },
 
     /// Export packages to a manifest or full snapshot

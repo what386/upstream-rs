@@ -2,6 +2,9 @@ use crate::{
     models::common::enums::Filetype,
     models::upstream::Package,
     services::integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
+    services::packaging::disk_impact::{
+        ByteEstimate, DiskImpact, SignedByteEstimate, estimate_existing_paths,
+    },
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
@@ -51,6 +54,90 @@ impl<'a> PackageRemover<'a> {
 
     pub fn new(paths: &'a UpstreamPaths) -> Self {
         Self { paths }
+    }
+
+    pub fn estimate_remove_impact(&self, package: &Package, purge_option: bool) -> DiskImpact {
+        let active_size = self.estimate_active_size(package).unwrap_or(0);
+        let rollback_size =
+            estimate_existing_paths([self.paths.install.rollback_dir.join(&package.name)])
+                .unwrap_or(0);
+        let purge_size = if purge_option {
+            estimate_existing_paths(Self::purge_candidate_paths(&package.name)).unwrap_or(0)
+        } else {
+            0
+        };
+
+        if purge_option {
+            return DiskImpact {
+                download: ByteEstimate::exact(0),
+                net: SignedByteEstimate::exact(-i128::from(active_size.saturating_add(purge_size))),
+            };
+        }
+
+        DiskImpact {
+            download: ByteEstimate::exact(0),
+            net: SignedByteEstimate::exact(i128::from(active_size) - i128::from(rollback_size)),
+        }
+    }
+
+    pub fn estimate_active_size(&self, package: &Package) -> Result<u64> {
+        let mut paths = Vec::new();
+        if let Some(install_path) = package.install_path.as_ref() {
+            paths.push(install_path.clone());
+        }
+        if let Some(icon_path) = package.icon_path.as_ref() {
+            paths.push(icon_path.clone());
+        }
+        paths.push(self.paths.integration.symlinks_dir.join(&package.name));
+        paths.push(
+            self.paths
+                .integration
+                .xdg_applications_dir
+                .join(format!("{}.desktop", package.name)),
+        );
+        paths.push(
+            self.paths
+                .integration
+                .bash_completions_dir
+                .join(&package.name),
+        );
+        paths.push(
+            self.paths
+                .integration
+                .fish_completions_dir
+                .join(format!("{}.fish", package.name)),
+        );
+        paths.push(
+            self.paths
+                .integration
+                .zsh_completions_dir
+                .join(format!("_{}", package.name)),
+        );
+        estimate_existing_paths(paths)
+    }
+
+    fn purge_candidate_paths(package_name: &str) -> Vec<std::path::PathBuf> {
+        let mut candidates = Vec::new();
+        if let Some(config_dir) = dirs::config_dir() {
+            candidates.push(config_dir.join(package_name));
+            candidates.push(config_dir.join(package_name.to_lowercase()));
+        }
+        if let Some(cache_dir) = dirs::cache_dir() {
+            candidates.push(cache_dir.join(package_name));
+            candidates.push(cache_dir.join(package_name.to_lowercase()));
+        }
+        if let Some(data_dir) = dirs::data_local_dir() {
+            candidates.push(data_dir.join(package_name));
+            candidates.push(data_dir.join(package_name.to_lowercase()));
+        }
+
+        let mut unique = Vec::new();
+        for path in candidates {
+            if !unique.contains(&path) {
+                unique.push(path);
+            }
+        }
+        unique
     }
 
     /// Remove package files and integrations
@@ -264,29 +351,7 @@ impl<'a> PackageRemover<'a> {
         self.remove_matching_icons(package_name, message_callback)?;
 
         // Best-effort XDG/user-dir cleanup for app-owned state.
-        let mut candidates = Vec::new();
-        if let Some(config_dir) = dirs::config_dir() {
-            candidates.push(config_dir.join(package_name));
-            candidates.push(config_dir.join(package_name.to_lowercase()));
-        }
-        if let Some(cache_dir) = dirs::cache_dir() {
-            candidates.push(cache_dir.join(package_name));
-            candidates.push(cache_dir.join(package_name.to_lowercase()));
-        }
-        if let Some(data_dir) = dirs::data_local_dir() {
-            candidates.push(data_dir.join(package_name));
-            candidates.push(data_dir.join(package_name.to_lowercase()));
-        }
-
-        // Dedup while preserving order.
-        let mut unique = Vec::new();
-        for path in candidates {
-            if !unique.contains(&path) {
-                unique.push(path);
-            }
-        }
-
-        for path in unique {
+        for path in Self::purge_candidate_paths(package_name) {
             self.remove_path_if_exists(&path, message_callback)?;
         }
 
@@ -510,6 +575,63 @@ mod tests {
             PackageRemover::new(&paths).managed_path_entry(&package, &install_path),
             None
         );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn remove_impact_without_previous_rollback_uses_new_snapshot_size() {
+        let root = temp_root("impact-no-rollback");
+        let paths = test_paths(&root);
+        let install_path = paths.install.binaries_dir.join("tool");
+        fs::create_dir_all(install_path.parent().expect("parent")).expect("create parent");
+        fs::write(&install_path, vec![0_u8; 12]).expect("write binary");
+
+        let mut package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_path = Some(install_path.clone());
+        package.exec_path = Some(install_path);
+
+        let impact = PackageRemover::new(&paths).estimate_remove_impact(&package, false);
+        assert_eq!(impact.net.bytes, Some(12));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn remove_impact_with_previous_rollback_shows_snapshot_difference() {
+        let root = temp_root("impact-with-rollback");
+        let paths = test_paths(&root);
+        let install_path = paths.install.binaries_dir.join("tool");
+        let rollback_path = paths.install.rollback_dir.join("tool").join("old-tool");
+        fs::create_dir_all(install_path.parent().expect("parent")).expect("create install parent");
+        fs::create_dir_all(rollback_path.parent().expect("parent")).expect("create rollback dir");
+        fs::write(&install_path, vec![0_u8; 12]).expect("write binary");
+        fs::write(&rollback_path, vec![0_u8; 20]).expect("write rollback");
+
+        let mut package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_path = Some(install_path.clone());
+        package.exec_path = Some(install_path);
+
+        let impact = PackageRemover::new(&paths).estimate_remove_impact(&package, false);
+        assert_eq!(impact.net.bytes, Some(-8));
 
         cleanup(&root).expect("cleanup");
     }

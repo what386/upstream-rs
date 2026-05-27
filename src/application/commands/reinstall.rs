@@ -12,6 +12,10 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         builder::{BuildRequest, worker::BuildWorker},
+        packaging::disk_impact::{
+            ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_path_size,
+            install_impact_from_download,
+        },
         storage::{
             config_storage::ConfigStorage, metadata_storage::MetadataStorage,
             package_storage::PackageStorage, rollback_storage::RollbackSource,
@@ -39,8 +43,20 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
     let trusted_keys = app_config.trusted_signature_keys();
 
     if dry_run {
-        return run_dry_run(names, trust_mode, &mut package_storage, &provider_manager).await;
+        return run_dry_run(
+            names,
+            trust_mode,
+            &mut package_storage,
+            &provider_manager,
+            &paths,
+        )
+        .await;
     }
+
+    let impact =
+        estimate_reinstall_impact(&names, &package_storage, &provider_manager, &paths).await;
+    output::print_disk_impact(&impact);
+    output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()))?;
 
     let mut reinstalled = 0_u32;
     let mut failed = 0_u32;
@@ -122,9 +138,12 @@ async fn run_dry_run(
     trust_mode: TrustMode,
     package_storage: &mut PackageStorage,
     provider_manager: &ProviderManager,
+    paths: &UpstreamPaths,
 ) -> Result<()> {
     println!("{}", output::title("Reinstall preview"));
     output::kv("Trust", trust_mode);
+    let impact = estimate_reinstall_impact(&names, package_storage, provider_manager, paths).await;
+    output::print_disk_impact(&impact);
     output::action_note(
         "resolve only (no remove, no download, no build, no install, no metadata changes)",
     );
@@ -284,6 +303,66 @@ async fn run_dry_run(
         format!("{planned} planned, {failed} failed"),
     );
     Ok(())
+}
+
+async fn estimate_reinstall_impact(
+    names: &[String],
+    package_storage: &PackageStorage,
+    provider_manager: &ProviderManager,
+    paths: &UpstreamPaths,
+) -> DiskImpact {
+    let mut total = DiskImpact::empty();
+
+    for name in names {
+        let Some(package) = package_storage.get_package_by_name(name) else {
+            total = total.add(DiskImpact::unknown());
+            continue;
+        };
+
+        let existing_rollback =
+            estimate_path_size(&paths.install.rollback_dir.join(&package.name)).unwrap_or(0);
+        let new_install = match package.install_type {
+            InstallType::Release => {
+                let mut preview_package = package.clone();
+                preview_package.install_path = None;
+                preview_package.exec_path = None;
+                preview_package.icon_path = None;
+                let version_tag = format!("v{}", package.version);
+                match provider_manager
+                    .get_release_by_tag(
+                        &preview_package.repo_slug,
+                        &version_tag,
+                        &preview_package.provider,
+                        preview_package.base_url.as_deref(),
+                    )
+                    .await
+                    .and_then(|release| {
+                        provider_manager.find_recommended_asset(&release, &preview_package)
+                    }) {
+                    Ok(asset) => install_impact_from_download(asset_size_estimate(asset.size)),
+                    Err(_) => DiskImpact::unknown(),
+                }
+            }
+            InstallType::Build => DiskImpact::unknown(),
+        };
+
+        let package_impact = if let Some(new_bytes) = new_install.net.bytes {
+            DiskImpact {
+                download: new_install.download,
+                net: SignedByteEstimate::estimated(
+                    new_bytes.saturating_sub(i128::from(existing_rollback)),
+                ),
+            }
+        } else {
+            DiskImpact {
+                download: ByteEstimate::unknown(),
+                net: SignedByteEstimate::unknown(),
+            }
+        };
+        total = total.add(package_impact);
+    }
+
+    total
 }
 
 #[allow(clippy::too_many_arguments)]

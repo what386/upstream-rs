@@ -1,6 +1,9 @@
 use crate::{
     models::common::enums::{Channel, Provider, TrustMode},
     providers::provider_manager::ProviderManager,
+    services::packaging::disk_impact::{
+        ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate,
+    },
     services::{
         packaging::{PackageChecker, PackageInstaller, PackageRemover, PackageUpgrader},
         storage::package_storage::PackageStorage,
@@ -32,6 +35,8 @@ macro_rules! message {
 pub struct UpgradeOperation<'a> {
     upgrader: PackageUpgrader<'a>,
     checker: PackageChecker<'a>,
+    provider_manager: &'a ProviderManager,
+    paths: &'a UpstreamPaths,
     package_storage: &'a mut PackageStorage,
 }
 
@@ -166,8 +171,97 @@ impl<'a> UpgradeOperation<'a> {
         Ok(Self {
             upgrader,
             checker,
+            provider_manager,
+            paths,
             package_storage,
         })
+    }
+
+    pub async fn estimate_upgrade_impact(
+        &self,
+        names: Option<&[String]>,
+        force: bool,
+    ) -> DiskImpact {
+        let packages = match names {
+            Some(names) => names
+                .iter()
+                .filter_map(|name| self.package_storage.get_package_by_name(name).cloned())
+                .collect::<Vec<_>>(),
+            None => self.package_storage.get_all_packages().to_vec(),
+        };
+
+        let mut total = DiskImpact::empty();
+        for package in packages {
+            if package.is_pinned {
+                continue;
+            }
+
+            if package.install_type == crate::models::upstream::InstallType::Build {
+                total = total.add(DiskImpact::unknown());
+                continue;
+            }
+
+            let release = if force {
+                self.provider_manager
+                    .get_latest_release(
+                        &package.repo_slug,
+                        &package.provider,
+                        &package.channel,
+                        package.base_url.as_deref(),
+                    )
+                    .await
+                    .ok()
+            } else {
+                self.provider_manager
+                    .check_for_updates(&package)
+                    .await
+                    .ok()
+                    .flatten()
+            };
+            let Some(release) = release else {
+                continue;
+            };
+
+            if !force {
+                let up_to_date = if package.channel == Channel::Nightly {
+                    release.published_at <= package.last_upgraded
+                } else {
+                    !release.version.is_newer_than(&package.version)
+                };
+                if up_to_date {
+                    continue;
+                }
+            }
+
+            let Ok(asset) = self
+                .provider_manager
+                .find_recommended_asset(&release, &package)
+            else {
+                total = total.add(DiskImpact::unknown());
+                continue;
+            };
+
+            let new_size = asset_size_estimate(asset.size);
+            let old_rollback = crate::services::packaging::disk_impact::estimate_path_size(
+                &self.paths.install.rollback_dir.join(&package.name),
+            )
+            .unwrap_or(0);
+            let package_impact = match new_size.bytes {
+                Some(bytes) => DiskImpact {
+                    download: new_size,
+                    net: SignedByteEstimate::estimated(
+                        i128::from(bytes).saturating_sub(i128::from(old_rollback)),
+                    ),
+                },
+                None => DiskImpact {
+                    download: ByteEstimate::unknown(),
+                    net: SignedByteEstimate::unknown(),
+                },
+            };
+            total = total.add(package_impact);
+        }
+
+        total
     }
 
     pub async fn upgrade_all<F, G, H>(

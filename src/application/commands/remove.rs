@@ -26,6 +26,16 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
         return run_dry_run(names, purge, &mut package_remover);
     }
 
+    let (impact, _, failed) = package_remover.estimate_bulk_impact(&names, purge);
+    if failed == 0 {
+        output::print_local_disk_impact(&impact);
+    } else {
+        output::print_local_disk_impact(&impact);
+        output::action_note(format!(
+            "{failed} package(s) could not be included in disk estimate"
+        ));
+    }
+
     let action = if purge { "purge" } else { "remove" };
     output::confirm_or_cancel(format!("{} {} package(s)?", action, names.len()))?;
 
@@ -88,6 +98,13 @@ fn run_dry_run(
 ) -> Result<()> {
     println!("{}", output::title("Remove preview"));
     output::kv("Purge", if purge { "yes" } else { "no" });
+    let (impact, _, estimate_failed) = package_remover.estimate_bulk_impact(&names, purge);
+    output::print_local_disk_impact(&impact);
+    if estimate_failed > 0 {
+        output::action_note(format!(
+            "{estimate_failed} package(s) could not be included in disk estimate"
+        ));
+    }
     output::action_note("resolve only (no remove, no purge, no metadata changes)");
     println!();
 

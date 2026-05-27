@@ -1,9 +1,13 @@
 use console::{StyledObject, style};
+use indicatif::HumanBytes;
 use std::fmt;
 use std::io::{self, IsTerminal, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static ASSUME_YES: AtomicBool = AtomicBool::new(false);
+use crate::services::packaging::disk_impact::{
+    ByteEstimate, DiskImpact, SignedByteEstimate, SizeConfidence,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
@@ -195,6 +199,63 @@ pub fn status_line(status: Status, subject: impl fmt::Display, detail: impl fmt:
 
 pub fn summary_line(status: Status, detail: impl fmt::Display) {
     println!("{} {}", status_cell(status), detail);
+}
+
+pub fn print_disk_impact(impact: &DiskImpact) {
+    println!("{}", section("Disk impact:"));
+    if !matches!(impact.download.bytes, Some(0)) {
+        println!(
+            "  {} {}",
+            meta("Download:"),
+            format_unsigned(impact.download)
+        );
+    }
+    println!(
+        "  {} {}",
+        meta("Net disk change:"),
+        format_signed(impact.net)
+    );
+}
+
+pub fn print_local_disk_impact(impact: &DiskImpact) {
+    println!("{}", section("Disk impact:"));
+    println!("  {} {}", meta("Disk change:"), format_signed(impact.net));
+}
+
+fn format_unsigned(value: ByteEstimate) -> String {
+    match value.bytes {
+        Some(bytes) => format!(
+            "{}{}",
+            HumanBytes(bytes),
+            confidence_suffix(value.confidence)
+        ),
+        None => "unknown".to_string(),
+    }
+}
+
+fn format_signed(value: SignedByteEstimate) -> String {
+    match value.bytes {
+        Some(0) => format!("no change{}", confidence_suffix(value.confidence)),
+        Some(bytes) if bytes > 0 => format!(
+            "{} of additional disk space will be used{}",
+            HumanBytes(bytes as u64),
+            confidence_suffix(value.confidence)
+        ),
+        Some(bytes) => format!(
+            "{} of disk space will be freed{}",
+            HumanBytes(bytes.unsigned_abs() as u64),
+            confidence_suffix(value.confidence)
+        ),
+        None => "unknown".to_string(),
+    }
+}
+
+fn confidence_suffix(confidence: SizeConfidence) -> &'static str {
+    match confidence {
+        SizeConfidence::Exact => "",
+        SizeConfidence::Estimated => " (estimated)",
+        SizeConfidence::Unknown => "",
+    }
 }
 
 #[cfg(test)]

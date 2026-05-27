@@ -2,6 +2,7 @@ use anyhow::{Result, anyhow};
 
 use crate::application::output::{self, Status};
 use crate::services::packaging::RollbackManager;
+use crate::services::packaging::disk_impact::DiskImpact;
 use crate::services::storage::{
     metadata_storage::MetadataStorage, package_storage::PackageStorage,
     rollback_storage::RollbackStorage,
@@ -34,6 +35,7 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
 
     if dry_run {
         println!("{}", output::title("Rollback preview"));
+        output::print_local_disk_impact(&estimate_restore_impact(&names, &manager));
         for name in &names {
             let Some(record) = manager.rollback_record(name) else {
                 output::status_line(Status::Fail, name, "no rollback data found");
@@ -56,6 +58,7 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
         return Ok(());
     }
 
+    output::print_local_disk_impact(&estimate_restore_impact(&names, &manager));
     output::confirm_or_cancel(format!("Restore rollback for {} package(s)?", names.len()))?;
 
     let mut restored = 0_u32;
@@ -110,6 +113,7 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
             return Ok(());
         }
 
+        output::print_local_disk_impact(&estimate_prune_impact(&target_names, manager));
         for name in &target_names {
             if manager.rollback_record(name).is_some() {
                 output::status_line(Status::Plan, name, "prune rollback artifact");
@@ -122,6 +126,7 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
     }
 
     if !target_names.is_empty() {
+        output::print_local_disk_impact(&estimate_prune_impact(&target_names, manager));
         output::confirm_or_cancel(format!(
             "Prune rollback artifacts for {} package(s)?",
             target_names.len()
@@ -153,4 +158,18 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
     }
 
     Ok(())
+}
+
+fn estimate_restore_impact(names: &[String], manager: &RollbackManager<'_>) -> DiskImpact {
+    names
+        .iter()
+        .filter_map(|name| manager.estimate_restore_impact(name))
+        .fold(DiskImpact::empty(), DiskImpact::add)
+}
+
+fn estimate_prune_impact(names: &[String], manager: &RollbackManager<'_>) -> DiskImpact {
+    names
+        .iter()
+        .filter_map(|name| manager.estimate_prune_impact(name))
+        .fold(DiskImpact::empty(), DiskImpact::add)
 }

@@ -12,7 +12,12 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
-use crate::services::packaging::PackageInstaller;
+use crate::{
+    services::packaging::PackageInstaller,
+    services::packaging::disk_impact::{
+        DiskImpact, asset_size_estimate, install_impact_from_download,
+    },
+};
 
 use anyhow::{Context, Result, anyhow};
 use console::style;
@@ -41,6 +46,7 @@ pub struct InstallPreview {
     pub release_tag: String,
     pub asset_name: String,
     pub resolved_filetype: Filetype,
+    pub disk_impact: DiskImpact,
 }
 
 impl<'a> InstallOperation<'a> {
@@ -368,6 +374,7 @@ impl<'a> InstallOperation<'a> {
             release_tag: release.tag,
             asset_name: best_asset.name.clone(),
             resolved_filetype,
+            disk_impact: install_impact_from_download(asset_size_estimate(best_asset.size)),
         })
     }
 

@@ -58,6 +58,10 @@ pub async fn run(
     let target_count = names
         .as_ref()
         .map_or(installed_package_count, std::vec::Vec::len);
+    let impact = package_upgrade
+        .estimate_upgrade_impact(names.as_deref(), force_option)
+        .await;
+    output::print_disk_impact(&impact);
     output::confirm_or_cancel(format!("Upgrade {} package(s)?", target_count))?;
 
     // Normal upgrade flow
@@ -322,6 +326,10 @@ async fn run_dry_run(
 ) -> Result<()> {
     println!("{}", output::title("Upgrade preview"));
     output::kv("Trust", trust_mode);
+    let impact = package_upgrade
+        .estimate_upgrade_impact(names.as_deref(), force_option)
+        .await;
+    output::print_disk_impact(&impact);
     output::action_note("resolve only (no download, no install, no metadata changes)");
     println!();
     let rows = match names {

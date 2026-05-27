@@ -76,10 +76,11 @@ pub async fn run(
         trusted_keys,
     )?;
 
+    let preview = package_installer
+        .preview_single_install(&package, &version)
+        .await?;
+
     if dry_run {
-        let preview = package_installer
-            .preview_single_install(&package, &version)
-            .await?;
         println!("{}", output::title("Install preview"));
         output::kv("Package", &package.name);
         output::kv(
@@ -96,10 +97,12 @@ pub async fn run(
         );
         output::kv("Trust", trust_mode);
         output::kv("Desktop", if create_entry { "yes" } else { "no" });
+        output::print_disk_impact(&preview.disk_impact);
         output::action_note("resolve only (no download, no install, no metadata changes)");
         return Ok(());
     }
 
+    output::print_disk_impact(&preview.disk_impact);
     output::confirm_or_cancel(format!(
         "Install '{}' from {} ({})?",
         package.name, package.repo_slug, package.provider
