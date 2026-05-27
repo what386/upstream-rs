@@ -8,6 +8,9 @@
 - [ ] feat: confirmations for destructive actions
       @created 2026-05-27 21:47
 
+- [ ] feat: disk space free/used estimates
+      @created 2026-05-27 21:54
+
 
 ## Completed
 
