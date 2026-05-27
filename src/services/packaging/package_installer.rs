@@ -3,7 +3,10 @@ use crate::{
     models::{common::enums::Filetype, provider::Release, upstream::Package},
     providers::provider_manager::ProviderManager,
     services::{
-        integration::{ShellManager, SymlinkManager, compression_handler, permission_handler},
+        integration::{
+            CompletionManager, ShellManager, SymlinkManager, compression_handler,
+            permission_handler,
+        },
         packaging::bundle_handler::BundleHandler,
         trust::{
             ChecksumVerificationStatus, SignatureScheme, SignatureVerificationStatus,
@@ -252,6 +255,24 @@ impl<'a> PackageInstaller<'a> {
             }
         }
 
+        if let Err(err) = CompletionManager::new(self.paths)
+            .install_from_release_assets(
+                &package.name,
+                release,
+                self.provider_manager,
+                &package.provider,
+                &package_download_cache,
+                message_callback,
+            )
+            .await
+        {
+            message!(
+                message_callback,
+                "{}",
+                style(format!("Completion install skipped: {err}")).yellow()
+            );
+        }
+
         message!(message_callback, "Installing package ...");
 
         package.version = release.version.clone();
@@ -261,6 +282,7 @@ impl<'a> PackageInstaller<'a> {
                 #[cfg(target_os = "linux")]
                 {
                     self.handle_appimage(&download_path, package, message_callback)
+                        .await
                         .context("Failed to install AppImage")
                 }
                 #[cfg(not(target_os = "linux"))]
@@ -353,6 +375,18 @@ impl<'a> PackageInstaller<'a> {
 
         if extracted_path.is_file() {
             return self.handle_file(&extracted_path, package, message_callback);
+        }
+
+        if let Err(err) = CompletionManager::new(self.paths).install_from_root(
+            &package.name,
+            &extracted_path,
+            message_callback,
+        ) {
+            message!(
+                message_callback,
+                "{}",
+                style(format!("Completion install skipped: {err}")).yellow()
+            );
         }
 
         if let Some(app_bundle_path) =
@@ -473,7 +507,7 @@ impl<'a> PackageInstaller<'a> {
     }
 
     #[cfg(target_os = "linux")]
-    fn handle_appimage<H>(
+    async fn handle_appimage<H>(
         &self,
         asset_path: &Path,
         mut package: Package,
@@ -504,6 +538,41 @@ impl<'a> PackageInstaller<'a> {
         ))?;
 
         message!(message_callback, "Made '{}' executable", filename.display());
+
+        match crate::services::integration::AppImageExtractor::new() {
+            Ok(extractor) => match extractor
+                .extract(&package.name, &out_path, message_callback)
+                .await
+            {
+                Ok(root) => {
+                    if let Err(err) = CompletionManager::new(self.paths).install_from_root(
+                        &package.name,
+                        &root,
+                        message_callback,
+                    ) {
+                        message!(
+                            message_callback,
+                            "{}",
+                            style(format!("Completion install skipped: {err}")).yellow()
+                        );
+                    }
+                }
+                Err(err) => {
+                    message!(
+                        message_callback,
+                        "{}",
+                        style(format!("AppImage completion scan skipped: {err}")).yellow()
+                    );
+                }
+            },
+            Err(err) => {
+                message!(
+                    message_callback,
+                    "{}",
+                    style(format!("AppImage completion scan skipped: {err}")).yellow()
+                );
+            }
+        }
 
         SymlinkManager::new(&self.paths.integration.symlinks_dir)
             .add_link(&out_path, &package.name)
