@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow};
 
 use crate::{
+    application::output,
     models::{
         common::{enums::Channel, version::Version},
         provider::Release,
@@ -99,25 +100,47 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
 
     if releases.is_empty() {
         println!(
-            "No release notes found for '{}' from {} to {}.",
-            package.name, from_version, to_release.version
+            "{}",
+            output::warning(format!(
+                "No release notes found for '{}' from {} to {}.",
+                package.name, from_version, to_release.version
+            ))
         );
         return Ok(());
     }
 
-    for (index, release) in releases.iter().enumerate() {
-        if releases.len() > 1 {
-            if index > 0 {
-                println!();
-            }
-            println!("## {}", release_heading(release));
-        }
+    println!("{}", output::title(format!("Changelog: {}", package.name)));
+    output::kv(
+        "Range",
+        format!("{} -> {}", from_version, to_release.version),
+    );
+    output::kv(
+        "Source",
+        format!("{} ({})", package.repo_slug, package.provider),
+    );
+    output::kv("Channel", &package.channel);
+    println!();
 
+    for release in &releases {
+        println!(
+            "{}",
+            output::section(format!("## {}", release_heading(release)))
+        );
+        println!(
+            "{}",
+            output::meta(format!(
+                "tag {} - published {}",
+                release.tag,
+                release.published_at.format("%Y-%m-%d")
+            ))
+        );
+        println!();
         if release.body.trim().is_empty() {
-            println!("(no release notes)");
+            println!("{}", output::meta("(no release notes)"));
         } else {
             println!("{}", release.body.trim());
         }
+        println!();
     }
 
     Ok(())

@@ -1,10 +1,10 @@
 use anyhow::{Result, anyhow};
-use console::style;
 
 use crate::{
     application::operations::{
         install_operation::InstallOperation, remove_operation::RemoveOperation,
     },
+    application::output::{self, Status},
     models::{
         common::enums::TrustMode,
         upstream::{InstallType, Package},
@@ -46,7 +46,7 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
     let mut failed = 0_u32;
 
     for name in &names {
-        println!("{}", style(format!("Reinstalling '{}' ...", name)).cyan());
+        println!("{}", output::title(format!("Reinstalling {}", name)));
         let mut msg = Some(|line: &str| println!("{line}"));
 
         let package = match package_storage.get_package_by_name(name) {
@@ -54,11 +54,10 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
             None => {
                 println!(
                     "{}",
-                    style(format!(
+                    output::failure(format!(
                         "Reinstall failed: package '{}' is not installed",
                         name
                     ))
-                    .red()
                 );
                 failed += 1;
                 continue;
@@ -77,12 +76,12 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
         )
         .await
         {
-            println!("{}", style(format!("Reinstall failed: {}", err)).red());
+            println!("{}", output::failure(format!("Reinstall failed: {}", err)));
             failed += 1;
             continue;
         }
 
-        println!("{}", style("Package reinstalled").green());
+        println!("{}", output::success("Package reinstalled"));
         reinstalled += 1;
     }
 
@@ -90,7 +89,7 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
         if failed == 0 {
             println!(
                 "{}",
-                style("Reinstall complete: 1 reinstalled, 0 failed.").green()
+                output::success("Reinstall complete: 1 reinstalled, 0 failed.")
             );
             return Ok(());
         }
@@ -100,20 +99,18 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
     if failed > 0 {
         println!(
             "{}",
-            style(format!(
+            output::warning(format!(
                 "Reinstall complete: {} reinstalled, {} failed.",
                 reinstalled, failed
             ))
-            .yellow()
         );
     } else {
         println!(
             "{}",
-            style(format!(
+            output::success(format!(
                 "Reinstall complete: {} reinstalled, 0 failed.",
                 reinstalled
             ))
-            .green()
         );
     }
 
@@ -126,15 +123,19 @@ async fn run_dry_run(
     package_storage: &mut PackageStorage,
     provider_manager: &ProviderManager,
 ) -> Result<()> {
-    println!("{}", style("Dry run: reinstall preview").bold());
-    println!("  trust mode: {}", trust_mode);
+    println!("{}", output::title("Reinstall preview"));
+    output::kv("Trust", trust_mode);
+    output::action_note(
+        "resolve only (no remove, no download, no build, no install, no metadata changes)",
+    );
+    println!();
 
     let mut planned = 0_u32;
     let mut failed = 0_u32;
 
     for name in &names {
         let Some(package) = package_storage.get_package_by_name(name).cloned() else {
-            println!("{:<7} {:<28} not installed", "[x]", name);
+            output::status_line(Status::Fail, name, "not installed");
             failed += 1;
             continue;
         };
@@ -159,40 +160,42 @@ async fn run_dry_run(
                     Ok(release) => {
                         match provider_manager.find_recommended_asset(&release, &preview_package) {
                             Ok(asset) => {
-                                println!(
-                                    "{:<7} {:<28} would reinstall release {} ({}) asset {} ({:?})",
-                                    "[plan]",
-                                    package.name,
-                                    release.name,
-                                    release.tag,
-                                    asset.name,
-                                    if preview_package.filetype
-                                        == crate::models::common::enums::Filetype::Auto
-                                    {
-                                        asset.filetype
-                                    } else {
-                                        preview_package.filetype
-                                    }
+                                let resolved_filetype = if preview_package.filetype
+                                    == crate::models::common::enums::Filetype::Auto
+                                {
+                                    asset.filetype
+                                } else {
+                                    preview_package.filetype
+                                };
+                                output::status_line(
+                                    Status::Plan,
+                                    &package.name,
+                                    format!(
+                                        "reinstall release {} ({}) asset {} ({:?})",
+                                        release.name, release.tag, asset.name, resolved_filetype
+                                    ),
                                 );
-                                println!(
-                                    "        {:<28} would remove/install runtime files",
+                                output::action_note(format!(
+                                    "{:<28} remove/install runtime files",
                                     package.name
-                                );
+                                ));
                                 planned += 1;
                             }
                             Err(err) => {
-                                println!(
-                                    "{:<7} {:<28} failed to select release asset {}: {}",
-                                    "[!]", package.name, version_tag, err
+                                output::status_line(
+                                    Status::Fail,
+                                    &package.name,
+                                    format!("failed to select release asset {version_tag}: {err}"),
                                 );
                                 failed += 1;
                             }
                         }
                     }
                     Err(err) => {
-                        println!(
-                            "{:<7} {:<28} failed to resolve release {}: {}",
-                            "[!]", package.name, version_tag, err
+                        output::status_line(
+                            Status::Fail,
+                            &package.name,
+                            format!("failed to resolve release {version_tag}: {err}"),
                         );
                         failed += 1;
                     }
@@ -210,25 +213,25 @@ async fn run_dry_run(
                         .await
                     {
                         Ok(commit) => {
-                            println!(
-                                "{:<7} {:<28} would rebuild {} ({}) branch {} @ {}",
-                                "[plan]",
-                                package.name,
-                                package.repo_slug,
-                                package.provider,
-                                branch,
-                                commit
+                            output::status_line(
+                                Status::Plan,
+                                &package.name,
+                                format!(
+                                    "rebuild {} ({}) branch {} @ {}",
+                                    package.repo_slug, package.provider, branch, commit
+                                ),
                             );
-                            println!(
-                                "        {:<28} would remove/install runtime files",
+                            output::action_note(format!(
+                                "{:<28} remove/install runtime files",
                                 package.name
-                            );
+                            ));
                             planned += 1;
                         }
                         Err(err) => {
-                            println!(
-                                "{:<7} {:<28} failed to resolve build branch {}: {}",
-                                "[!]", package.name, branch, err
+                            output::status_line(
+                                Status::Fail,
+                                &package.name,
+                                format!("failed to resolve build branch {branch}: {err}"),
                             );
                             failed += 1;
                         }
@@ -245,25 +248,25 @@ async fn run_dry_run(
                         .await
                     {
                         Ok(release) => {
-                            println!(
-                                "{:<7} {:<28} would rebuild {} ({}) release {} ({})",
-                                "[plan]",
-                                package.name,
-                                package.repo_slug,
-                                package.provider,
-                                release.name,
-                                release.tag
+                            output::status_line(
+                                Status::Plan,
+                                &package.name,
+                                format!(
+                                    "rebuild {} ({}) release {} ({})",
+                                    package.repo_slug, package.provider, release.name, release.tag
+                                ),
                             );
-                            println!(
-                                "        {:<28} would remove/install runtime files",
+                            output::action_note(format!(
+                                "{:<28} remove/install runtime files",
                                 package.name
-                            );
+                            ));
                             planned += 1;
                         }
                         Err(err) => {
-                            println!(
-                                "{:<7} {:<28} failed to resolve release {}: {}",
-                                "[!]", package.name, version_tag, err
+                            output::status_line(
+                                Status::Fail,
+                                &package.name,
+                                format!("failed to resolve release {version_tag}: {err}"),
                             );
                             failed += 1;
                         }
@@ -274,9 +277,11 @@ async fn run_dry_run(
     }
 
     println!();
-    println!("Dry run complete: {} planned, {} failed.", planned, failed);
-    println!(
-        "  actions: resolve only (no remove, no download, no build, no install, no metadata changes)"
+    let status = if failed > 0 { Status::Warn } else { Status::Ok };
+    output::status_line(
+        status,
+        "summary",
+        format!("{planned} planned, {failed} failed"),
     );
     Ok(())
 }

@@ -1,11 +1,11 @@
 use anyhow::{Result, anyhow};
-use console::style;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::io::{self, IsTerminal, Write};
 use std::time::{Duration, Instant};
 
 use crate::{
     application::operations::install_operation::InstallOperation,
+    application::output,
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::Package,
@@ -66,13 +66,10 @@ pub async fn run(
     )
     .await?;
 
-    println!(
-        "{}",
-        style(format!(
-            "Installing {} from {} ...",
-            &package.name, &package.provider
-        ))
-        .cyan()
+    println!("{}", output::title(format!("Installing {}", &package.name)));
+    output::kv(
+        "Source",
+        format!("{} ({})", &package.repo_slug, &package.provider),
     );
 
     let mut package_installer = InstallOperation::new(
@@ -86,23 +83,23 @@ pub async fn run(
         let preview = package_installer
             .preview_single_install(&package, &version)
             .await?;
-        println!("{}", style("Dry run: install preview").bold());
-        println!("  package: {}", package.name);
-        println!("  source: {} ({})", package.repo_slug, package.provider);
-        println!(
-            "  release: {} ({})",
-            preview.release_name, preview.release_tag
+        println!("{}", output::title("Install preview"));
+        output::kv("Package", &package.name);
+        output::kv(
+            "Source",
+            format!("{} ({})", package.repo_slug, package.provider),
         );
-        println!(
-            "  asset: {} ({:?})",
-            preview.asset_name, preview.resolved_filetype
+        output::kv(
+            "Release",
+            format!("{} ({})", preview.release_name, preview.release_tag),
         );
-        println!("  trust mode: {}", trust_mode);
-        println!(
-            "  desktop entry: {}",
-            if create_entry { "yes" } else { "no" }
+        output::kv(
+            "Asset",
+            format!("{} ({:?})", preview.asset_name, preview.resolved_filetype),
         );
-        println!("  actions: resolve only (no download, no install, no metadata changes)");
+        output::kv("Trust", trust_mode);
+        output::kv("Desktop", if create_entry { "yes" } else { "no" });
+        output::action_note("resolve only (no download, no install, no metadata changes)");
         return Ok(());
     }
 
@@ -153,7 +150,7 @@ pub async fn run(
     pb.set_position(pb.length().unwrap_or(0));
 
     pb.finish_with_message("Install complete");
-    println!("{}", style("Install complete.").green());
+    println!("{}", output::success("Install complete."));
 
     Ok(())
 }
@@ -180,11 +177,10 @@ async fn build_package(
         if !matches!(source_info.kind, SourceKind::DownloadPage) {
             println!(
                 "{}",
-                style(format!(
+                output::title(format!(
                     "Discovered source: {} via {}",
                     source_info.repo_slug, source_info.provider
                 ))
-                .cyan()
             );
             return Ok(Package::with_defaults(
                 name,
@@ -243,11 +239,10 @@ async fn build_package(
 fn render_discovery_summary(discovery: &DiscoveryResult) {
     println!(
         "{}",
-        style(format!(
+        output::title(format!(
             "Discovered source: {} via {}",
             discovery.source.repo_slug, discovery.source.provider
         ))
-        .cyan()
     );
 
     let should_show_candidates = matches!(discovery.source.kind, SourceKind::DownloadPage)
@@ -258,7 +253,7 @@ fn render_discovery_summary(discovery: &DiscoveryResult) {
         return;
     }
 
-    println!("{}", style("Top discovered assets:").bold());
+    println!("{}", output::section("Top discovered assets:"));
     for (idx, candidate) in discovery.candidates.iter().take(5).enumerate() {
         println!(
             "  {}. {} ({:?}, score={})",

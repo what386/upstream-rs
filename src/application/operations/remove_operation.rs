@@ -104,7 +104,7 @@ impl<'a> RemoveOperation<'a> {
                     message!(
                         message_callback,
                         "{:<7} {:<28} {}",
-                        "[x]",
+                        "[fail]",
                         package_name,
                         err
                     );

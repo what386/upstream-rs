@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
-use console::style;
 
+use crate::application::output::{self, Status};
 use crate::services::packaging::RollbackManager;
 use crate::services::storage::{
     metadata_storage::MetadataStorage, package_storage::PackageStorage,
@@ -33,10 +33,10 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     }
 
     if dry_run {
-        println!("{}", style("Dry run: rollback preview").bold());
+        println!("{}", output::title("Rollback preview"));
         for name in &names {
             let Some(record) = manager.rollback_record(name) else {
-                println!("{:<7} {:<28} no rollback data found", "[x]", name);
+                output::status_line(Status::Fail, name, "no rollback data found");
                 continue;
             };
 
@@ -46,12 +46,13 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
                 .as_ref()
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "<missing>".to_string());
-            println!(
-                "{:<7} {:<28} would restore rollback from {} ({:?})",
-                "[plan]", name, target, record.source
+            output::status_line(
+                Status::Plan,
+                name,
+                format!("restore rollback from {} ({:?})", target, record.source),
             );
         }
-        println!("  actions: resolve only (no restore, no prune, no metadata changes)");
+        output::action_note("resolve only (no restore, no prune, no metadata changes)");
         return Ok(());
     }
 
@@ -61,11 +62,11 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
         let mut msg = Some(|line: &str| println!("{line}"));
         match manager.restore_package(name, &mut msg) {
             Ok(_) => {
-                println!("{:<7} {:<28} restored", "[✓]", name);
+                output::status_line(Status::Ok, name, "restored");
                 restored += 1;
             }
             Err(err) => {
-                println!("{:<7} {:<28} {}", "[!]", name, err);
+                output::status_line(Status::Fail, name, err);
                 failed += 1;
             }
         }
@@ -74,20 +75,18 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     if failed > 0 {
         println!(
             "{}",
-            style(format!(
+            output::warning(format!(
                 "Rollback complete: {} restored, {} failed.",
                 restored, failed
             ))
-            .yellow()
         );
     } else {
         println!(
             "{}",
-            style(format!(
+            output::success(format!(
                 "Rollback complete: {} restored, 0 failed.",
                 restored
             ))
-            .green()
         );
     }
 
@@ -102,21 +101,21 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
     };
 
     if dry_run {
-        println!("{}", style("Dry run: rollback prune preview").bold());
+        println!("{}", output::title("Rollback prune preview"));
         if target_names.is_empty() {
-            println!("No rollback artifacts to prune.");
-            println!("  actions: resolve only (no prune, no metadata changes)");
+            println!("{}", output::warning("No rollback artifacts to prune."));
+            output::action_note("resolve only (no prune, no metadata changes)");
             return Ok(());
         }
 
         for name in &target_names {
             if manager.rollback_record(name).is_some() {
-                println!("{:<7} {:<28} would prune rollback artifact", "[plan]", name);
+                output::status_line(Status::Plan, name, "prune rollback artifact");
             } else {
-                println!("{:<7} {:<28} no rollback data found", "[x]", name);
+                output::status_line(Status::Fail, name, "no rollback data found");
             }
         }
-        println!("  actions: resolve only (no prune, no metadata changes)");
+        output::action_note("resolve only (no prune, no metadata changes)");
         return Ok(());
     }
 
@@ -124,24 +123,23 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
     let mut missing = 0_u32;
     for name in &target_names {
         if manager.prune_package(name)? {
-            println!("{:<7} {:<28} pruned", "[✓]", name);
+            output::status_line(Status::Ok, name, "pruned");
             pruned += 1;
         } else {
-            println!("{:<7} {:<28} no rollback data found", "[x]", name);
+            output::status_line(Status::Fail, name, "no rollback data found");
             missing += 1;
         }
     }
 
     if target_names.is_empty() {
-        println!("No rollback artifacts to prune.");
+        println!("{}", output::warning("No rollback artifacts to prune."));
     } else {
         println!(
             "{}",
-            style(format!(
+            output::success(format!(
                 "Rollback prune complete: {} pruned, {} missing.",
                 pruned, missing
             ))
-            .green()
         );
     }
 
