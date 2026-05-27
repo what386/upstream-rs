@@ -2,6 +2,14 @@
 
 *Generated on 2026-05-27*
 
+## 1.16.1 — 2026-05-27
+
+### Changes
+
+- feat: disk space free/used estimates
+- feat: confirmations for destructive actions
+
+
 ## 1.16.0 — 2026-05-27
 
 ### Changes
