@@ -15,6 +15,8 @@ _upstream() {
 
     local context curcontext="$curcontext" state line
     _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '-V[Print version]' \
@@ -46,9 +48,9 @@ _arguments "${_arguments_options[@]}" : \
 '--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
 '-d[Whether or not to create a .desktop entry for GUI applications]' \
 '--desktop[Whether or not to create a .desktop entry for GUI applications]' \
-'-y[Accept the recommended discovered asset without prompting]' \
-'--yes[Accept the recommended discovered asset without prompting]' \
 '--dry-run[Preview install resolution without downloading or writing files]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name to register the application under:_default' \
@@ -69,9 +71,9 @@ _arguments "${_arguments_options[@]}" : \
 '--build-output=[Optional explicit output path for the compiled executable]:BUILD_OUTPUT:_default' \
 '-d[Whether or not to create a .desktop entry for GUI applications]' \
 '--desktop[Whether or not to create a .desktop entry for GUI applications]' \
-'-y[Accept the recommended discovered source/release without prompting]' \
-'--yes[Accept the recommended discovered source/release without prompting]' \
 '--dry-run[Preview build resolution without compiling or writing files]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name to register the application under:_default' \
@@ -82,6 +84,8 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '--purge[Remove all associated cached data]' \
 '--dry-run[Preview removal actions without deleting files or metadata]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Names of packages to remove:_default' \
@@ -91,6 +95,8 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '--prune[Prune rollback artifacts instead of restoring]' \
 '--dry-run[Preview rollback/prune actions without modifying files or metadata]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Package names to restore or prune:_default' \
@@ -100,6 +106,8 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '--trust=[Trust verification mode for release-asset reinstalls]:TRUST_MODE:(none best-effort checksum signature all)' \
 '--dry-run[Preview reinstall resolution without removing, building, or writing files]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Names of packages to reinstall:_default' \
@@ -112,6 +120,8 @@ _arguments "${_arguments_options[@]}" : \
 '--check[Check for available upgrades without applying them]' \
 '--machine-readable[Use script-friendly check output\: one line per update, "name oldver newver"]' \
 '--dry-run[Preview upgrade resolution without downloading or writing files]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Packages to upgrade (upgrades all if omitted):_default' \
@@ -120,9 +130,22 @@ _arguments "${_arguments_options[@]}" : \
 (list)
 _arguments "${_arguments_options[@]}" : \
 '--json[Print raw package metadata as JSON]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '::name -- Package name for detailed information:_default' \
+&& ret=0
+;;
+(changelog)
+_arguments "${_arguments_options[@]}" : \
+'--from=[Override the starting release tag]:FROM_TAG:_default' \
+'--to=[Override the ending release tag]:TO_TAG:_default' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':name -- Installed package name:_default' \
 && ret=0
 ;;
 (probe)
@@ -134,6 +157,8 @@ _arguments "${_arguments_options[@]}" : \
 '--channel=[Channel view to display]:CHANNEL:(stable preview nightly)' \
 '--limit=[Maximum number of releases to display]:LIMIT:_default' \
 '--verbose[Include scored candidate assets for each release]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':repo_slug -- Repository identifier or URL to probe:_default' \
@@ -145,6 +170,8 @@ _arguments "${_arguments_options[@]}" : \
 '--provider=[Source provider to search (defaults to github)]:PROVIDER:_default' \
 '--base-url=[Custom base URL for self-hosted providers]:BASE_URL:_default' \
 '--limit=[Maximum number of results to display]:LIMIT:_default' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::query_words -- Query words (joined with spaces):_default' \
@@ -152,6 +179,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (config)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__config_commands" \
@@ -166,6 +195,8 @@ _arguments "${_arguments_options[@]}" : \
         case $line[1] in
             (set)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::keys -- Configuration assignments (format\: key.path=value):_default' \
@@ -173,6 +204,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (get)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::keys -- Configuration keys to retrieve (format\: key.path):_default' \
@@ -180,18 +213,25 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (list)
 _arguments "${_arguments_options[@]}" : \
+'--show-secrets[Print sensitive values instead of redacting them]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help]' \
 '--help[Print help]' \
 && ret=0
 ;;
 (edit)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help]' \
 '--help[Print help]' \
 && ret=0
 ;;
 (reset)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help]' \
 '--help[Print help]' \
 && ret=0
@@ -242,6 +282,8 @@ esac
 ;;
 (package)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__package_commands" \
@@ -257,6 +299,8 @@ _arguments "${_arguments_options[@]}" : \
             (pin)
 _arguments "${_arguments_options[@]}" : \
 '--reason=[Optional reason for pinning this package]:REASON:_default' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name of package to pin:_default' \
@@ -264,6 +308,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (unpin)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name of package to unpin:_default' \
@@ -271,6 +317,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (remove)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name of package to remove from metadata:_default' \
@@ -278,6 +326,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (get-key)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name of package:_default' \
@@ -286,6 +336,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (set-key)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name of package:_default' \
@@ -294,6 +346,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (rename)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':old_name -- Existing package alias:_default' \
@@ -302,6 +356,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (metadata)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name of package:_default' \
@@ -361,6 +417,8 @@ esac
 ;;
 (hooks)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__hooks_commands" \
@@ -375,26 +433,32 @@ _arguments "${_arguments_options[@]}" : \
         case $line[1] in
             (init)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
 (check)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
 (clean)
 _arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
 (purge)
 _arguments "${_arguments_options[@]}" : \
-'-y[Skip the confirmation prompt]' \
-'--yes[Skip the confirmation prompt]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
@@ -443,8 +507,8 @@ esac
 _arguments "${_arguments_options[@]}" : \
 '--as=[Force the input type instead of autodetection]:IMPORT_AS:(keys manifest snapshot)' \
 '--skip-failed[Continue importing remaining entries when metadata manifest processing fails]' \
-'-y[Skip import confirmation prompt]' \
-'--yes[Skip import confirmation prompt]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Path to a keys file, metadata manifest, or snapshot archive:_files' \
@@ -453,6 +517,8 @@ _arguments "${_arguments_options[@]}" : \
 (export)
 _arguments "${_arguments_options[@]}" : \
 '--full[Export a full snapshot of the upstream directory instead of a manifest]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Output path for the manifest or snapshot archive:_files' \
@@ -462,6 +528,8 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '--verbose[Print each check result line in addition to summary output]' \
 '--fix[Attempt automatic repairs for detected issues]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Package names to check (all installed packages if omitted):_default' \
@@ -504,6 +572,10 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(changelog)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -662,6 +734,7 @@ _upstream_commands() {
 'reinstall:Reinstall one or more packages (remove then install)' \
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
+'changelog:Show upstream release notes for an installed package' \
 'probe:Inspect releases visible from a provider without installing' \
 'search:Search provider repositories by keyword(s)' \
 'config:Manage upstream configuration' \
@@ -678,6 +751,11 @@ _upstream_commands() {
 _upstream__subcmd__build_commands() {
     local commands; commands=()
     _describe -t commands 'upstream build commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__changelog_commands] )) ||
+_upstream__subcmd__changelog_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream changelog commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__config_commands] )) ||
 _upstream__subcmd__config_commands() {
@@ -778,6 +856,7 @@ _upstream__subcmd__help_commands() {
 'reinstall:Reinstall one or more packages (remove then install)' \
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
+'changelog:Show upstream release notes for an installed package' \
 'probe:Inspect releases visible from a provider without installing' \
 'search:Search provider repositories by keyword(s)' \
 'config:Manage upstream configuration' \
@@ -794,6 +873,11 @@ _upstream__subcmd__help_commands() {
 _upstream__subcmd__help__subcmd__build_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help build commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__changelog_commands] )) ||
+_upstream__subcmd__help__subcmd__changelog_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help changelog commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__config_commands] )) ||
 _upstream__subcmd__help__subcmd__config_commands() {
