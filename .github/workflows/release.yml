@@ -47,13 +47,13 @@ jobs:
       - name: Archive binary
         run: |
           mkdir dist
-          cp target/${{ matrix.target }}/release/upstream-rs${{ matrix.binary_ext }} dist/upstream-rs-${{ matrix.target }}${{ matrix.binary_ext }}
+          cp target/${{ matrix.target }}/release/upstream${{ matrix.binary_ext }} dist/upstream-${{ matrix.target }}${{ matrix.binary_ext }}
         shell: bash
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: upstream-rs-${{ matrix.target }}
-          path: dist/upstream-rs-${{ matrix.target }}${{ matrix.binary_ext }}
+          name: upstream-${{ matrix.target }}
+          path: dist/upstream-${{ matrix.target }}${{ matrix.binary_ext }}
   release:
     name: Create GitHub Release
     needs: build
