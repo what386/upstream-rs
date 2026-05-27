@@ -1,4 +1,5 @@
 pub mod build;
+pub mod changelog;
 pub mod config;
 pub mod doctor;
 pub mod export;
