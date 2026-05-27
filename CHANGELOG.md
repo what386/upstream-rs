@@ -1,6 +1,15 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-05-14*
+*Generated on 2026-05-27*
+
+## 1.16.0 — 2026-05-27
+
+### Changes
+
+- changelog subcommand
+- feat: install detected autocompletion scripts to shells
+- remove 'rate limit' key from cfg
+
 
 ## 1.15.2 — 2026-05-14
 
