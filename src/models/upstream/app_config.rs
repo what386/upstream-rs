@@ -7,7 +7,6 @@ pub struct ProviderConfig {
     pub api_token: Option<String>,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct MinisignKeyConfig {
