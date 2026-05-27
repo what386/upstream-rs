@@ -1,4 +1,5 @@
 pub mod bundle_handler;
+pub mod disk_impact;
 pub mod package_checker;
 pub mod package_installer;
 pub mod package_remover;

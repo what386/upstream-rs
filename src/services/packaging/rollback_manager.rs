@@ -6,6 +6,9 @@ use chrono::Utc;
 
 use crate::models::upstream::Package;
 use crate::services::packaging::PackageRemover;
+use crate::services::packaging::disk_impact::{
+    ByteEstimate, DiskImpact, SignedByteEstimate, estimate_path_size,
+};
 use crate::services::storage::{
     metadata_storage::MetadataStorage,
     package_storage::PackageStorage,
@@ -261,6 +264,34 @@ impl<'a> RollbackManager<'a> {
 
     pub fn rollback_record(&self, package_name: &str) -> Option<&RollbackRecord> {
         self.rollback_storage.get_record(package_name)
+    }
+
+    pub fn estimate_restore_impact(&self, package_name: &str) -> Option<DiskImpact> {
+        self.rollback_storage.get_record(package_name)?;
+        let current_size = self
+            .package_storage
+            .get_package_by_name(package_name)
+            .map(|package| {
+                PackageRemover::new(self.paths)
+                    .estimate_active_size(package)
+                    .unwrap_or(0)
+            })
+            .unwrap_or(0);
+        Some(DiskImpact {
+            download: ByteEstimate::exact(0),
+            net: SignedByteEstimate::exact(-i128::from(current_size)),
+        })
+    }
+
+    pub fn estimate_prune_impact(&self, package_name: &str) -> Option<DiskImpact> {
+        self.rollback_storage.get_record(package_name)?;
+        let rollback_dir_size =
+            estimate_path_size(&self.paths.install.rollback_dir.join(package_name)).unwrap_or(0);
+
+        Some(DiskImpact {
+            download: ByteEstimate::exact(0),
+            net: SignedByteEstimate::exact(-i128::from(rollback_dir_size)),
+        })
     }
 }
 

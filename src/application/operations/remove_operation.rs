@@ -1,6 +1,7 @@
-use crate::services::packaging::PackageRemover;
 use crate::{
+    services::packaging::PackageRemover,
     services::packaging::RollbackManager,
+    services::packaging::disk_impact::DiskImpact,
     services::storage::rollback_storage::RollbackSource,
     services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
@@ -114,6 +115,27 @@ impl<'a> RemoveOperation<'a> {
         }
 
         Ok((planned, failures))
+    }
+
+    pub fn estimate_bulk_impact(
+        &self,
+        package_names: &[String],
+        purge_option: bool,
+    ) -> (DiskImpact, u32, u32) {
+        let mut impact = DiskImpact::empty();
+        let mut planned = 0_u32;
+        let mut failures = 0_u32;
+
+        for package_name in package_names {
+            let Some(package) = self.package_storage.get_package_by_name(package_name) else {
+                failures += 1;
+                continue;
+            };
+            impact = impact.add(self.remover.estimate_remove_impact(package, purge_option));
+            planned += 1;
+        }
+
+        (impact, planned, failures)
     }
 
     pub fn preview_single<H>(

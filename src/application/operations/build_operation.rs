@@ -9,6 +9,9 @@ use crate::models::{
 use crate::providers::discovery::{SourceKind, infer_source};
 use crate::providers::provider_manager::ProviderManager;
 use crate::services::builder::{BuildProfile, BuildRequest, worker::BuildWorker};
+use crate::services::packaging::disk_impact::{
+    DiskImpact, asset_size_estimate, install_impact_from_download,
+};
 use crate::services::storage::package_storage::PackageStorage;
 use crate::services::trust::TrustedSignatureKeys;
 use crate::utils::static_paths::UpstreamPaths;
@@ -51,9 +54,13 @@ impl<'a> BuildOperation<'a> {
 
     pub async fn build_and_install(&mut self, input: BuildCommandInput) -> Result<()> {
         let (resolved_repo_slug, resolved_provider, resolved_base_url) = if let Some(selected) =
-            input.provider
+            input.provider.as_ref()
         {
-            (input.repo_slug.clone(), selected, input.base_url.clone())
+            (
+                input.repo_slug.clone(),
+                selected.clone(),
+                input.base_url.clone(),
+            )
         } else {
             let mut discovered = infer_source(&input.repo_slug)?;
             if let Some(base) = input.base_url.clone() {
@@ -94,6 +101,14 @@ impl<'a> BuildOperation<'a> {
         );
 
         if input.dry_run {
+            let disk_impact = self
+                .estimate_build_disk_impact(
+                    &input,
+                    &resolved_repo_slug,
+                    &resolved_provider,
+                    resolved_base_url.as_deref(),
+                )
+                .await;
             if let Some(branch) = input.branch.as_deref() {
                 let commit = self
                     .provider_manager
@@ -159,10 +174,20 @@ impl<'a> BuildOperation<'a> {
                 "  desktop entry: {}",
                 if input.desktop { "yes" } else { "no" }
             );
+            output::print_disk_impact(&disk_impact);
             println!("  actions: resolve only (no compile, no install, no metadata changes)");
             return Ok(());
         }
 
+        let disk_impact = self
+            .estimate_build_disk_impact(
+                &input,
+                &resolved_repo_slug,
+                &resolved_provider,
+                resolved_base_url.as_deref(),
+            )
+            .await;
+        output::print_disk_impact(&disk_impact);
         output::confirm_or_cancel(format!(
             "Build and install '{}' from {} ({})?",
             input.name, resolved_repo_slug, resolved_provider
@@ -232,5 +257,40 @@ impl<'a> BuildOperation<'a> {
         );
 
         Ok(())
+    }
+
+    async fn estimate_build_disk_impact(
+        &self,
+        input: &BuildCommandInput,
+        repo_slug: &str,
+        provider: &Provider,
+        base_url: Option<&str>,
+    ) -> DiskImpact {
+        if input.branch.is_some() {
+            return DiskImpact::unknown();
+        }
+
+        let release = if let Some(tag) = input.tag.as_deref() {
+            self.provider_manager
+                .get_release_by_tag(repo_slug, tag, provider, base_url)
+                .await
+        } else {
+            self.provider_manager
+                .get_latest_release(repo_slug, provider, &input.channel, base_url)
+                .await
+        };
+
+        let Ok(release) = release else {
+            return DiskImpact::unknown();
+        };
+
+        let source_size = release
+            .assets
+            .iter()
+            .find(|asset| asset.name.starts_with("source."))
+            .map(|asset| asset.size)
+            .unwrap_or(0);
+
+        install_impact_from_download(asset_size_estimate(source_size))
     }
 }
