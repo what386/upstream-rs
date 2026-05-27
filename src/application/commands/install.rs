@@ -1,6 +1,5 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
-use std::io::{self, IsTerminal, Write};
 use std::time::{Duration, Instant};
 
 use crate::{
@@ -34,7 +33,6 @@ pub async fn run(
     exclude_pattern: Option<String>,
     create_entry: bool,
     trust_mode: TrustMode,
-    yes: bool,
     dry_run: bool,
 ) -> Result<()> {
     const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
@@ -62,7 +60,6 @@ pub async fn run(
         channel,
         match_pattern,
         exclude_pattern,
-        yes,
     )
     .await?;
 
@@ -102,6 +99,11 @@ pub async fn run(
         output::action_note("resolve only (no download, no install, no metadata changes)");
         return Ok(());
     }
+
+    output::confirm_or_cancel(format!(
+        "Install '{}' from {} ({})?",
+        package.name, package.repo_slug, package.provider
+    ))?;
 
     let pb = ProgressBar::new(0);
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -166,7 +168,6 @@ async fn build_package(
     channel: Channel,
     match_pattern: Option<String>,
     exclude_pattern: Option<String>,
-    yes: bool,
 ) -> Result<Package> {
     let Some(provider) = provider else {
         let mut source_info = infer_source(&source)?;
@@ -208,7 +209,7 @@ async fn build_package(
             .await?;
 
         render_discovery_summary(&discovery);
-        confirm_discovery_if_needed(&discovery, yes)?;
+        confirm_discovery_if_needed(&discovery)?;
 
         return Ok(Package::with_defaults(
             name,
@@ -265,8 +266,8 @@ fn render_discovery_summary(discovery: &DiscoveryResult) {
     }
 }
 
-fn confirm_discovery_if_needed(discovery: &DiscoveryResult, yes: bool) -> Result<()> {
-    if yes
+fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
+    if output::assume_yes()
         || !matches!(discovery.source.kind, SourceKind::DownloadPage)
         || !discovery.is_ambiguous()
     {
@@ -277,25 +278,8 @@ fn confirm_discovery_if_needed(discovery: &DiscoveryResult, yes: bool) -> Result
         return Ok(());
     };
 
-    if !io::stdin().is_terminal() {
-        return Err(anyhow!(
-            "Discovery found multiple plausible assets for '{}'. Re-run with --yes to accept '{}' or use --match/--exclude to narrow the choice.",
-            discovery.source.original,
-            candidate.asset.name
-        ));
-    }
-
-    print!(
-        "Install recommended asset '{}' from this page? [Y/N]: ",
+    output::confirm_or_cancel(format!(
+        "Install recommended asset '{}' from this page?",
         candidate.asset.name
-    );
-    io::stdout().flush()?;
-
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-    if input.trim().to_lowercase().starts_with("y") {
-        Ok(())
-    } else {
-        Err(anyhow!("Install cancelled"))
-    }
+    ))
 }

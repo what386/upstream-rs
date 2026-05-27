@@ -91,19 +91,9 @@ pub fn run_reset() -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
 
-    print!("Are you sure you want to reset all configuration to defaults? (y/N): ");
-    use std::io::{self, Write};
-    io::stdout().flush()?;
-
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-
-    if input.trim().to_lowercase() == "y" {
-        config_storage.reset_to_defaults()?;
-        println!("Configuration reset to defaults!");
-    } else {
-        println!("Reset cancelled");
-    }
+    output::confirm_or_cancel("Reset all configuration to defaults?")?;
+    config_storage.reset_to_defaults()?;
+    println!("Configuration reset to defaults!");
 
     Ok(())
 }

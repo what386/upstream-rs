@@ -56,6 +56,8 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
         return Ok(());
     }
 
+    output::confirm_or_cancel(format!("Restore rollback for {} package(s)?", names.len()))?;
+
     let mut restored = 0_u32;
     let mut failed = 0_u32;
     for name in &names {
@@ -117,6 +119,13 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
         }
         output::action_note("resolve only (no prune, no metadata changes)");
         return Ok(());
+    }
+
+    if !target_names.is_empty() {
+        output::confirm_or_cancel(format!(
+            "Prune rollback artifacts for {} package(s)?",
+            target_names.len()
+        ))?;
     }
 
     let mut pruned = 0_u32;

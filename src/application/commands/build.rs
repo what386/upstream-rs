@@ -18,12 +18,10 @@ pub async fn run(
     base_url: Option<String>,
     channel: Channel,
     desktop: bool,
-    yes: bool,
     build_profile: Option<CliBuildProfile>,
     build_output: Option<String>,
     dry_run: bool,
 ) -> Result<()> {
-    let _ = yes;
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;

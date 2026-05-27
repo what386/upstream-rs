@@ -26,6 +26,9 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
         return run_dry_run(names, purge, &mut package_remover);
     }
 
+    let action = if purge { "purge" } else { "remove" };
+    output::confirm_or_cancel(format!("{} {} package(s)?", action, names.len()))?;
+
     let overall_pb = ProgressBar::new(0);
     overall_pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     overall_pb.set_style(ProgressStyle::with_template(
