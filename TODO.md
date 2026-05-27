@@ -8,6 +8,9 @@
 - [ ] feat: install detected autocompletion scripts to shells
       @created 2026-05-23 21:23
 
+- [ ] remove 'rate limit' key from cfg
+      @created 2026-05-27 20:58
+
 
 ## Completed
 
