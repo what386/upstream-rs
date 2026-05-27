@@ -30,7 +30,6 @@ pub async fn run_import(
     path: PathBuf,
     skip_failed: bool,
     import_as: Option<ImportKindArg>,
-    yes: bool,
 ) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
@@ -65,7 +64,6 @@ pub async fn run_import(
             &path,
             skip_failed,
             import_as.map(Into::into),
-            yes,
             &mut download_progress_callback,
             &mut overall_progress_callback,
             &mut message_callback,

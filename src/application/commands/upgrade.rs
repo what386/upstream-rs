@@ -55,6 +55,11 @@ pub async fn run(
         return run_dry_run(package_upgrade, names, force_option, trust_mode).await;
     }
 
+    let target_count = names
+        .as_ref()
+        .map_or(installed_package_count, std::vec::Vec::len);
+    output::confirm_or_cancel(format!("Upgrade {} package(s)?", target_count))?;
+
     // Normal upgrade flow
     let mp = MultiProgress::new();
     let download_pb = mp.add(ProgressBar::new(0));
