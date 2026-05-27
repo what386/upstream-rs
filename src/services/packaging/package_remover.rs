@@ -1,7 +1,7 @@
 use crate::{
     models::common::enums::Filetype,
     models::upstream::Package,
-    services::integration::{DesktopManager, ShellManager, SymlinkManager},
+    services::integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
@@ -183,6 +183,13 @@ impl<'a> PackageRemover<'a> {
             .remove_link(&package.name)
             .context(format!("Failed to remove symlink for '{}'", package.name))?;
 
+        CompletionManager::new(self.paths)
+            .remove_for_package(&package.name, message_callback)
+            .context(format!(
+                "Failed to remove completion files for '{}'",
+                package.name
+            ))?;
+
         Ok(())
     }
 
@@ -248,6 +255,12 @@ impl<'a> PackageRemover<'a> {
             "Failed to remove desktop entry for '{}'",
             package_name
         ))?;
+        CompletionManager::new(self.paths)
+            .remove_for_package(package_name, message_callback)
+            .context(format!(
+                "Failed to remove completion files for '{}'",
+                package_name
+            ))?;
         self.remove_matching_icons(package_name, message_callback)?;
 
         // Best-effort XDG/user-dir cleanup for app-owned state.
@@ -383,6 +396,11 @@ mod tests {
                 symlinks_dir: dirs.data_dir.join("symlinks"),
                 xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
                 icons_dir: dirs.data_dir.join("icons"),
+                bash_completions_dir: dirs
+                    .user_dir
+                    .join(".local/share/bash-completion/completions"),
+                fish_completions_dir: dirs.user_dir.join(".config/fish/completions"),
+                zsh_completions_dir: dirs.user_dir.join(".local/share/zsh/site-functions"),
             },
             dirs,
         }
