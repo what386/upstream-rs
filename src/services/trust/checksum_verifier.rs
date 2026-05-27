@@ -28,6 +28,37 @@ struct DownloadedChecksumAsset {
     path: PathBuf,
 }
 
+const COMMON_CHECKSUM_NAMES: &[&str] = &[
+    "checksums-bsd",
+    "checksums-bsd.txt",
+    "checksums.txt",
+    "checksum.txt",
+    "sha256sums.txt",
+    "sha256sum.txt",
+    "sha256sums",
+    "sha256sum",
+    "sha512sums.txt",
+    "sha512sum.txt",
+    "sha512sums",
+    "sha512sum",
+    "checksums",
+];
+
+pub(crate) fn is_checksum_asset_name(name: &str) -> bool {
+    let lowered = name.to_ascii_lowercase();
+    COMMON_CHECKSUM_NAMES
+        .iter()
+        .any(|common| lowered == *common)
+        || lowered.ends_with(".sha256")
+        || lowered.ends_with(".sha512")
+        || lowered.ends_with(".sha256sum")
+        || lowered.ends_with(".sha512sum")
+        || lowered.ends_with(".sha256.txt")
+        || lowered.ends_with(".sha512.txt")
+        || lowered.ends_with(".sum")
+        || lowered.contains("checksums")
+}
+
 #[derive(Debug, Clone)]
 pub struct VerifiedChecksumAsset {
     pub name: String,
@@ -209,23 +240,7 @@ impl<'a> ChecksumVerifier<'a> {
             }
         }
 
-        // Common release-level checksum files.
-        const COMMON_NAMES: &[&str] = &[
-            "checksums-bsd",
-            "checksums-bsd.txt",
-            "checksums.txt",
-            "checksum.txt",
-            "sha256sums.txt",
-            "sha256sum.txt",
-            "sha256sums",
-            "sha256sum",
-            "sha512sums.txt",
-            "sha512sum.txt",
-            "sha512sums",
-            "sha512sum",
-            "checksums",
-        ];
-        for name in COMMON_NAMES {
+        for name in COMMON_CHECKSUM_NAMES {
             if let Some(asset) = release.get_asset_by_name_invariant(name) {
                 return Some(asset);
             }
@@ -234,24 +249,11 @@ impl<'a> ChecksumVerifier<'a> {
         release
             .assets
             .iter()
-            .find(|asset| Self::is_checksum_filename(&asset.name))
+            .find(|asset| is_checksum_asset_name(&asset.name))
     }
 
     fn find_checksum_order_asset(release: &Release) -> Option<&Asset> {
         release.get_asset_by_name_invariant("checksums_hashes_order")
-    }
-
-    /// Check if a filename looks like a checksum artifact.
-    fn is_checksum_filename(name: &str) -> bool {
-        let lowered = name.to_ascii_lowercase();
-        lowered.ends_with(".sha256")
-            || lowered.ends_with(".sha512")
-            || lowered.ends_with(".sha256sum")
-            || lowered.ends_with(".sha512sum")
-            || lowered.ends_with(".sha256.txt")
-            || lowered.ends_with(".sha512.txt")
-            || lowered.ends_with(".sum")
-            || lowered.contains("checksums")
     }
 
     /// Parse checksum text that may contain GNU/coreutils, colon, OpenSSL, or

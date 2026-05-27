@@ -14,6 +14,7 @@ use super::{
 };
 
 pub enum ChecksumVerificationStatus {
+    NotChecked,
     Verified,
     Missing,
 }
@@ -64,37 +65,44 @@ impl<'a> TrustVerifier<'a> {
             return Ok(TrustVerificationStatus::Skipped);
         }
 
-        let asset_filename = asset_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("downloaded asset");
-        if let Some(cb) = message_callback.as_mut() {
-            cb(&format!("Checksumming '{asset_filename}' ..."));
-        }
-
-        let checksum_result = self
-            .checksum_verifier
-            .try_verify_file(asset_path, release, provider, dl_progress)
-            .await?;
-        let checksum_status = match checksum_result {
-            ChecksumVerificationResult::Verified(info) => {
-                let _ = info;
-                ChecksumVerificationStatus::Verified
+        let checksum_status = if self.should_verify_checksum() {
+            let asset_filename = asset_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("downloaded asset");
+            if let Some(cb) = message_callback.as_mut() {
+                cb(&format!("Checksumming '{asset_filename}' ..."));
             }
-            ChecksumVerificationResult::Missing => ChecksumVerificationStatus::Missing,
+
+            let checksum_result = self
+                .checksum_verifier
+                .try_verify_file(asset_path, release, provider, dl_progress)
+                .await?;
+            match checksum_result {
+                ChecksumVerificationResult::Verified(info) => {
+                    let _ = info;
+                    ChecksumVerificationStatus::Verified
+                }
+                ChecksumVerificationResult::Missing => ChecksumVerificationStatus::Missing,
+            }
+        } else {
+            ChecksumVerificationStatus::NotChecked
         };
 
-        let signature_status = self
-            .signature_verifier
-            .try_verify_file(
-                asset_path,
-                release,
-                provider,
-                self.trusted_keys,
-                dl_progress,
-                message_callback,
-            )
-            .await?;
+        let signature_status = if self.should_verify_signature() {
+            self.signature_verifier
+                .try_verify_file(
+                    asset_path,
+                    release,
+                    provider,
+                    self.trusted_keys,
+                    dl_progress,
+                    message_callback,
+                )
+                .await?
+        } else {
+            SignatureVerificationStatus::NotChecked
+        };
 
         self.enforce_policy(&checksum_status, &signature_status)?;
 
@@ -102,6 +110,20 @@ impl<'a> TrustVerifier<'a> {
             checksum: checksum_status,
             signature: signature_status,
         })
+    }
+
+    fn should_verify_checksum(&self) -> bool {
+        matches!(
+            self.trust_mode,
+            TrustMode::BestEffort | TrustMode::Checksum | TrustMode::All
+        )
+    }
+
+    fn should_verify_signature(&self) -> bool {
+        matches!(
+            self.trust_mode,
+            TrustMode::BestEffort | TrustMode::Signature | TrustMode::All
+        )
     }
 
     fn enforce_policy(
@@ -116,7 +138,7 @@ impl<'a> TrustVerifier<'a> {
                 Ok(())
             }
             TrustMode::Checksum => {
-                if matches!(checksum, ChecksumVerificationStatus::Missing) {
+                if !matches!(checksum, ChecksumVerificationStatus::Verified) {
                     return Err(anyhow!(
                         "Checksum is required but no checksum asset was found"
                     ));
@@ -124,7 +146,11 @@ impl<'a> TrustVerifier<'a> {
                 Ok(())
             }
             TrustMode::Signature => {
-                if matches!(signature, SignatureVerificationStatus::MissingSignature) {
+                if matches!(
+                    signature,
+                    SignatureVerificationStatus::MissingSignature
+                        | SignatureVerificationStatus::NotChecked
+                ) {
                     return Err(anyhow!(
                         "Signature is required but no signature asset was found"
                     ));
@@ -133,12 +159,16 @@ impl<'a> TrustVerifier<'a> {
                 Ok(())
             }
             TrustMode::All => {
-                if matches!(checksum, ChecksumVerificationStatus::Missing) {
+                if !matches!(checksum, ChecksumVerificationStatus::Verified) {
                     return Err(anyhow!(
                         "Checksum is required but no checksum asset was found"
                     ));
                 }
-                if matches!(signature, SignatureVerificationStatus::MissingSignature) {
+                if matches!(
+                    signature,
+                    SignatureVerificationStatus::MissingSignature
+                        | SignatureVerificationStatus::NotChecked
+                ) {
                     return Err(anyhow!(
                         "Signature is required but no signature asset was found"
                     ));
@@ -155,6 +185,7 @@ impl<'a> TrustVerifier<'a> {
     ) -> Result<()> {
         match signature {
             SignatureVerificationStatus::Verified { .. }
+            | SignatureVerificationStatus::NotChecked
             | SignatureVerificationStatus::MissingSignature => Ok(()),
             SignatureVerificationStatus::InvalidSignature => Err(anyhow!(
                 "Signature verification failed: signature is invalid"
@@ -163,5 +194,54 @@ impl<'a> TrustVerifier<'a> {
                 "Signature verification failed: no configured trusted key matched"
             )),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TrustVerifier;
+    use crate::{
+        models::common::enums::TrustMode, providers::provider_manager::ProviderManager,
+        services::trust::TrustedSignatureKeys,
+    };
+    use std::path::Path;
+
+    fn with_verifier(mode: TrustMode, assert: impl FnOnce(TrustVerifier<'_>)) {
+        let provider_manager = ProviderManager::new(None, None, None).expect("provider manager");
+        let trusted_keys = TrustedSignatureKeys::default();
+        assert(TrustVerifier::new(
+            &provider_manager,
+            Path::new("/tmp"),
+            mode,
+            &trusted_keys,
+        ));
+    }
+
+    #[test]
+    fn checksum_mode_only_attempts_checksum_verification() {
+        with_verifier(TrustMode::Checksum, |verifier| {
+            assert!(verifier.should_verify_checksum());
+            assert!(!verifier.should_verify_signature());
+        });
+    }
+
+    #[test]
+    fn signature_mode_only_attempts_signature_verification() {
+        with_verifier(TrustMode::Signature, |verifier| {
+            assert!(!verifier.should_verify_checksum());
+            assert!(verifier.should_verify_signature());
+        });
+    }
+
+    #[test]
+    fn all_and_best_effort_attempt_both_verifiers() {
+        with_verifier(TrustMode::All, |verifier| {
+            assert!(verifier.should_verify_checksum());
+            assert!(verifier.should_verify_signature());
+        });
+        with_verifier(TrustMode::BestEffort, |verifier| {
+            assert!(verifier.should_verify_checksum());
+            assert!(verifier.should_verify_signature());
+        });
     }
 }
