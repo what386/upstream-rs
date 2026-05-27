@@ -315,7 +315,7 @@ async fn estimate_reinstall_impact(
 
     for name in names {
         let Some(package) = package_storage.get_package_by_name(name) else {
-            total = total.add(DiskImpact::unknown());
+            total = total + DiskImpact::unknown();
             continue;
         };
 
@@ -359,7 +359,7 @@ async fn estimate_reinstall_impact(
                 net: SignedByteEstimate::unknown(),
             }
         };
-        total = total.add(package_impact);
+        total = total + package_impact;
     }
 
     total

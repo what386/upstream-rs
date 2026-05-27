@@ -197,7 +197,7 @@ impl<'a> UpgradeOperation<'a> {
             }
 
             if package.install_type == crate::models::upstream::InstallType::Build {
-                total = total.add(DiskImpact::unknown());
+                total = total + DiskImpact::unknown();
                 continue;
             }
 
@@ -237,7 +237,7 @@ impl<'a> UpgradeOperation<'a> {
                 .provider_manager
                 .find_recommended_asset(&release, &package)
             else {
-                total = total.add(DiskImpact::unknown());
+                total = total + DiskImpact::unknown();
                 continue;
             };
 
@@ -258,7 +258,7 @@ impl<'a> UpgradeOperation<'a> {
                     net: SignedByteEstimate::unknown(),
                 },
             };
-            total = total.add(package_impact);
+            total = total + package_impact;
         }
 
         total

@@ -98,24 +98,6 @@ pub fn run_reset() -> Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::format_config_value;
-
-    #[test]
-    fn config_list_redacts_sensitive_values_by_default() {
-        assert_eq!(
-            format_config_value("github.api_token", "ghp_abcdefghijklmnopqrstuvwxyz", false),
-            "ghp_...wxyz"
-        );
-        assert_eq!(
-            format_config_value("github.api_token", "ghp_abcdefghijklmnopqrstuvwxyz", true),
-            "ghp_abcdefghijklmnopqrstuvwxyz"
-        );
-        assert_eq!(format_config_value("github.enabled", "true", false), "true");
-    }
-}
-
 pub fn run_edit() -> Result<()> {
     let paths = UpstreamPaths::new()?;
 
@@ -151,4 +133,22 @@ pub fn run_edit() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_config_value;
+
+    #[test]
+    fn config_list_redacts_sensitive_values_by_default() {
+        assert_eq!(
+            format_config_value("github.api_token", "ghp_abcdefghijklmnopqrstuvwxyz", false),
+            "ghp_...wxyz"
+        );
+        assert_eq!(
+            format_config_value("github.api_token", "ghp_abcdefghijklmnopqrstuvwxyz", true),
+            "ghp_abcdefghijklmnopqrstuvwxyz"
+        );
+        assert_eq!(format_config_value("github.enabled", "true", false), "true");
+    }
 }

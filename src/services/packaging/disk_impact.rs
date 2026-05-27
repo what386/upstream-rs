@@ -72,7 +72,15 @@ impl SignedByteEstimate {
         }
     }
 
-    pub fn add(self, other: Self) -> Self {
+    pub fn is_unknown(self) -> bool {
+        self.bytes.is_none()
+    }
+}
+
+impl std::ops::Add for SignedByteEstimate {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
         match (self.bytes, other.bytes) {
             (Some(left), Some(right)) => {
                 let confidence = combine_confidence(self.confidence, other.confidence);
@@ -83,10 +91,6 @@ impl SignedByteEstimate {
             }
             _ => Self::unknown(),
         }
-    }
-
-    pub fn is_unknown(self) -> bool {
-        self.bytes.is_none()
     }
 }
 
@@ -110,10 +114,14 @@ impl DiskImpact {
             net: SignedByteEstimate::unknown(),
         }
     }
+}
 
-    pub fn add(mut self, other: Self) -> Self {
+impl std::ops::Add for DiskImpact {
+    type Output = Self;
+
+    fn add(mut self, other: Self) -> Self {
         self.download = add_unsigned(self.download, other.download);
-        self.net = self.net.add(other.net);
+        self.net = self.net + other.net;
         self
     }
 }
@@ -196,7 +204,7 @@ mod tests {
 
     #[test]
     fn signed_estimates_add_and_preserve_estimated_confidence() {
-        let total = SignedByteEstimate::exact(10).add(SignedByteEstimate::estimated(-3));
+        let total = SignedByteEstimate::exact(10) + SignedByteEstimate::estimated(-3);
         assert_eq!(total.bytes, Some(7));
         assert_eq!(format!("{:?}", total.confidence), "Estimated");
     }
@@ -205,7 +213,7 @@ mod tests {
     fn disk_impacts_add_totals() {
         let left = DiskImpact::empty();
         let right = DiskImpact::empty();
-        let merged = left.add(right);
+        let merged = left + right;
         assert_eq!(merged.net.bytes, Some(0));
     }
 
