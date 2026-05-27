@@ -14,6 +14,8 @@ It fetches release assets, selects the best match for your system, and keeps the
 * Rootless (user-level installs)
 * Track update channels: `stable`, `preview`, `nightly`
 * Flexible asset matching and filtering
+* Dry-run previews for install, build, upgrade, remove, rollback, and reinstall workflows
+* Optional checksum and signature verification modes
 
 ---
 
@@ -95,6 +97,15 @@ upstream install rg BurntSushi/ripgrep
 
 ---
 
+### Search and inspect sources
+
+```bash
+upstream search ripgrep
+upstream probe BurntSushi/ripgrep
+```
+
+---
+
 ### Upgrade
 
 ```bash
@@ -139,6 +150,8 @@ Options:
 * `--match-pattern` / `--exclude-pattern`
 * `--desktop` → create launcher entry
 * `--yes` → accept the recommended discovered asset without prompting
+* `--dry-run` → preview resolution without downloading or writing files
+* `--trust` → verification mode (`none`, `best-effort`, `checksum`, `signature`, `all`)
 
 Examples:
 
@@ -158,7 +171,18 @@ upstream install tool https://example.com/downloads
 ### Upgrade
 
 ```bash
-upstream upgrade [packages...] [--check] [--force]
+upstream upgrade [packages...] [--check] [--force] [--dry-run]
+```
+
+Use `--check --machine-readable` for script-friendly update checks.
+
+---
+
+### Search and Probe
+
+```bash
+upstream search <query> [--limit 20]
+upstream probe <source> [--channel stable] [--verbose]
 ```
 
 ---
@@ -204,7 +228,12 @@ upstream import file.json
 
 ## Shell Completions
 
-Download a completion file from releases or generate one.
+Upstream automatically installs package completion scripts for detected local
+shells when a release includes matching `bash`, `fish`, or `zsh` files such as
+`<name>.fish`, `completions.bash`, or `completions/*.zsh`. Archives and
+AppImages are scanned after extraction.
+
+Download upstream's own completion file from releases or generate one.
 
 Install automatically via helper scripts:
 
