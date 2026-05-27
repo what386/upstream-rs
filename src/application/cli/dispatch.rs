@@ -143,7 +143,7 @@ impl Cli {
             Commands::Config { action } => match action {
                 ConfigAction::Set { keys } => commands::config::run_set(keys),
                 ConfigAction::Get { keys } => commands::config::run_get(keys),
-                ConfigAction::List => commands::config::run_list(),
+                ConfigAction::List { show_secrets } => commands::config::run_list(show_secrets),
                 ConfigAction::Edit => commands::config::run_edit(),
                 ConfigAction::Reset => commands::config::run_reset(),
             },

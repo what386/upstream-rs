@@ -4,7 +4,7 @@ use crate::{
     services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 
 pub fn run_pin(name: String, reason: Option<String>) -> Result<()> {
     let paths = UpstreamPaths::new()?;
@@ -55,6 +55,10 @@ pub fn run_remove(name: String) -> Result<()> {
 }
 
 pub fn run_set_key(name: String, keys: Vec<String>) -> Result<()> {
+    if keys.is_empty() {
+        return Err(anyhow!("At least one metadata assignment is required"));
+    }
+
     let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
@@ -76,6 +80,10 @@ pub fn run_set_key(name: String, keys: Vec<String>) -> Result<()> {
 }
 
 pub fn run_get_key(name: String, keys: Vec<String>) -> Result<()> {
+    if keys.is_empty() {
+        return Err(anyhow!("At least one metadata key is required"));
+    }
+
     let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;

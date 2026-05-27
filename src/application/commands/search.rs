@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use console::style;
 
 use crate::{
+    application::output,
     models::{common::enums::Provider, provider::RepositorySearchResult},
     providers::provider_manager::ProviderManager,
     services::storage::config_storage::ConfigStorage,
@@ -80,7 +81,7 @@ fn print_results(results: &[RepositorySearchResult]) {
 
     if results.len() > 1 {
         println!();
-        println!("{}", "─".repeat(widths.table_width()));
+        println!("{}", output::divider(widths.table_width()));
         println!();
 
         for row in results.iter().skip(1) {
@@ -170,17 +171,7 @@ fn default_dash(value: &str) -> &str {
 }
 
 fn truncate(value: &str, max: usize) -> String {
-    let char_count = value.chars().count();
-    if char_count <= max {
-        return value.to_string();
-    }
-
-    let mut out = String::new();
-    for ch in value.chars().take(max.saturating_sub(3)) {
-        out.push(ch);
-    }
-    out.push_str("...");
-    out
+    output::truncate_end(value, max)
 }
 
 struct SearchColumnWidths {
