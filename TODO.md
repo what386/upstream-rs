@@ -8,6 +8,10 @@
 - [ ] feat: install detected autocompletion scripts to shells
       @created 2026-05-23 21:23
 
-- [ ] changelog subcommand
+
+## Completed
+
+- [x] changelog subcommand
       @created 2026-05-27 19:50
+      @completed 2026-05-27 19:50
 
