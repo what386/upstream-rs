@@ -78,6 +78,9 @@ pub struct IntegrationPaths {
     pub symlinks_dir: PathBuf,
     pub xdg_applications_dir: PathBuf,
     pub icons_dir: PathBuf,
+    pub bash_completions_dir: PathBuf,
+    pub fish_completions_dir: PathBuf,
+    pub zsh_completions_dir: PathBuf,
 }
 
 impl IntegrationPaths {
@@ -86,6 +89,11 @@ impl IntegrationPaths {
             symlinks_dir: dirs.data_dir.join("symlinks"),
             icons_dir: dirs.data_dir.join("icons"),
             xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
+            bash_completions_dir: dirs
+                .user_dir
+                .join(".local/share/bash-completion/completions"),
+            fish_completions_dir: dirs.user_dir.join(".config/fish/completions"),
+            zsh_completions_dir: dirs.user_dir.join(".local/share/zsh/site-functions"),
         }
     }
 }
@@ -143,6 +151,10 @@ mod tests {
         assert_eq!(
             paths.integration.symlinks_dir,
             paths.dirs.data_dir.join("symlinks")
+        );
+        assert_eq!(
+            paths.integration.fish_completions_dir,
+            paths.dirs.user_dir.join(".config/fish/completions")
         );
         assert_eq!(
             paths.install.rollback_dir,
