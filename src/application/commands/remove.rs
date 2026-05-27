@@ -1,10 +1,10 @@
 use anyhow::Result;
-use console::style;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
     application::operations::remove_operation::RemoveOperation,
+    application::output::{self, Status},
     services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
@@ -55,16 +55,15 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
         if failed > 0 {
             println!(
                 "{}",
-                style(format!(
+                output::warning(format!(
                     "Removal complete: {} removed, {} failed.",
                     removed, failed
                 ))
-                .yellow()
             );
         } else {
             println!(
                 "{}",
-                style(format!("Removal complete: {} removed, 0 failed.", removed)).green()
+                output::success(format!("Removal complete: {} removed, 0 failed.", removed))
             );
         }
     } else {
@@ -72,7 +71,7 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
         overall_pb.finish_and_clear();
         println!(
             "{}",
-            style("Removal complete: 1 removed, 0 failed.").green()
+            output::success("Removal complete: 1 removed, 0 failed.")
         );
     }
 
@@ -84,21 +83,27 @@ fn run_dry_run(
     purge: bool,
     package_remover: &mut RemoveOperation<'_>,
 ) -> Result<()> {
-    println!("{}", style("Dry run: remove preview").bold());
-    println!("  purge: {}", if purge { "yes" } else { "no" });
-    println!("  actions: resolve only (no remove, no purge, no metadata changes)");
+    println!("{}", output::title("Remove preview"));
+    output::kv("Purge", if purge { "yes" } else { "no" });
+    output::action_note("resolve only (no remove, no purge, no metadata changes)");
+    println!();
 
     let mut message_callback = Some(|msg: &str| println!("{msg}"));
     if names.len() > 1 {
         let (planned, failed) =
             package_remover.preview_bulk(&names, &purge, &mut message_callback)?;
         println!();
-        println!("Dry run complete: {} planned, {} failed.", planned, failed);
+        let status = if failed > 0 { Status::Warn } else { Status::Ok };
+        output::status_line(
+            status,
+            "summary",
+            format!("{planned} planned, {failed} failed"),
+        );
         return Ok(());
     }
 
     package_remover.preview_single(&names[0], &purge, &mut message_callback)?;
     println!();
-    println!("Dry run complete: 1 planned, 0 failed.");
+    output::status_line(Status::Ok, "summary", "1 planned, 0 failed");
     Ok(())
 }

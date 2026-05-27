@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 #[cfg(unix)]
 use crate::services::integration::ShellManager;
 use crate::{
+    application::output::{self, Status},
     services::integration::{SymlinkManager, permission_handler},
     services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
@@ -48,21 +49,21 @@ impl DoctorReport {
             Level::Ok => {
                 self.ok += 1;
                 if self.verbose {
-                    println!("{} {}", style("[OK]").green(), msg);
+                    println!("{} {}", output::status_label(Status::Ok), msg);
                 }
             }
             Level::Warn => {
                 self.warn += 1;
                 self.warnings.push(msg.to_string());
                 if self.verbose {
-                    println!("{} {}", style("[WARN]").yellow(), msg);
+                    println!("{} {}", output::status_label(Status::Warn), msg);
                 }
             }
             Level::Fail => {
                 self.fail += 1;
                 self.failures.push(msg.to_string());
                 if self.verbose {
-                    println!("{} {}", style("[FAIL]").red(), msg);
+                    println!("{} {}", output::status_label(Status::Fail), msg);
                 }
             }
         }

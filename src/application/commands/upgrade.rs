@@ -2,13 +2,13 @@ use crate::{
     application::operations::upgrade_operation::{
         UpdateCheckRow, UpdateCheckStatus, UpgradeOperation,
     },
+    application::output::{self, Status},
     models::common::enums::TrustMode,
     providers::provider_manager::ProviderManager,
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
-use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -118,7 +118,7 @@ pub async fn run(
     if names.is_none() {
         println!(
             "{}",
-            style(format!("Upgrading {} package(s)", installed_package_count)).cyan()
+            output::title(format!("Upgrading {} package(s)", installed_package_count))
         );
         print_upgrade_titlebar();
         package_upgrade
@@ -141,7 +141,7 @@ pub async fn run(
     };
     println!(
         "{}",
-        style(format!("Upgrading {} package(s)", name_vec.len())).cyan()
+        output::title(format!("Upgrading {} package(s)", name_vec.len()))
     );
     if name_vec.len() > 1 {
         print_upgrade_titlebar();
@@ -169,7 +169,7 @@ pub async fn run(
 
     download_pb.finish_and_clear();
     overall_pb.finish_with_message("Upgrade complete");
-    println!("{}", style("Upgrade complete.").green());
+    println!("{}", output::success("Upgrade complete."));
 
     Ok(())
 }
@@ -223,28 +223,31 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
         }
     }
 
-    println!("Checking for updates...\n");
+    println!("{}", output::title("Checking for updates"));
 
     if !display_rows.is_empty() {
+        println!();
         println!(
-            "{:<5} {:<28} {:<10} {:<3} {:<10} Version",
-            "State", "Name", "Branch", "Op", "Remote"
+            "{}",
+            output::section(format!(
+                "{:<8} {:<28} {:<10} {:<10} Version",
+                "State", "Name", "Channel", "Source"
+            ))
         );
     }
 
-    for row in display_rows {
-        let (status, op, version) = match &row.status {
+    for row in &display_rows {
+        let (status, version) = match &row.status {
             UpdateCheckStatus::UpdateAvailable { current, latest } => (
-                "[✓]".to_string(),
-                "u".to_string(),
+                output::status_cell(Status::Plan).to_string(),
                 format!("{current} -> {latest}"),
             ),
-            UpdateCheckStatus::Failed { error } => {
-                ("[!]".to_string(), "!".to_string(), truncate_cell(error, 32))
-            }
+            UpdateCheckStatus::Failed { error } => (
+                output::status_cell(Status::Fail).to_string(),
+                truncate_cell(error, 32),
+            ),
             UpdateCheckStatus::NotInstalled => (
-                "[x]".to_string(),
-                "?".to_string(),
+                output::status_cell(Status::Fail).to_string(),
                 "not installed".to_string(),
             ),
             UpdateCheckStatus::UpToDate { .. } => continue,
@@ -262,20 +265,29 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
             .unwrap_or_else(|| "-".to_string());
 
         println!(
-            "{:<5} {:<28} {:<10} {:<3} {:<10} {}",
+            "{} {:<28} {:<10} {:<10} {}",
             status,
             truncate_cell(&row.name, 28),
             truncate_cell(&branch, 10),
-            op,
             truncate_cell(&remote, 10),
             version
         );
     }
 
-    println!();
-    println!(
-        "Checks complete. {} available, {} up to date, {} failed, {} not installed.",
-        available, up_to_date, failed, not_installed
+    let status = if failed > 0 || not_installed > 0 {
+        Status::Warn
+    } else {
+        Status::Ok
+    };
+    if !display_rows.is_empty() {
+        println!();
+    }
+    output::summary_line(
+        status,
+        format!(
+            "{} available, {} up to date, {} failed, {} not installed",
+            available, up_to_date, failed, not_installed
+        ),
     );
 }
 
@@ -313,21 +325,26 @@ async fn run_dry_run(
     force_option: bool,
     trust_mode: TrustMode,
 ) -> Result<()> {
-    println!("{}", style("Dry run: upgrade preview").bold());
+    println!("{}", output::title("Upgrade preview"));
+    output::kv("Trust", trust_mode);
+    output::action_note("resolve only (no download, no install, no metadata changes)");
+    println!();
     let rows = match names {
         None => package_upgrade.check_all_detailed().await,
         Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
     };
 
     if rows.is_empty() {
-        println!("No installed packages to check.");
-        println!("  actions: resolve only (no download, no install, no metadata changes)");
+        println!("{}", output::warning("No installed packages to check."));
         return Ok(());
     }
 
     println!(
-        "{:<7} {:<28} {:<10} {:<10} Plan",
-        "State", "Name", "Branch", "Remote"
+        "{}",
+        output::section(format!(
+            "{:<8} {:<28} {:<10} {:<10} Plan",
+            "State", "Name", "Channel", "Source"
+        ))
     );
 
     let mut would_upgrade = 0_u32;
@@ -356,8 +373,8 @@ async fn run_dry_run(
                     format!("would upgrade {current} -> {latest}")
                 };
                 println!(
-                    "{:<7} {:<28} {:<10} {:<10} {}",
-                    "[plan]",
+                    "{} {:<28} {:<10} {:<10} {}",
+                    output::status_cell(Status::Plan),
                     truncate_cell(&row.name, 28),
                     truncate_cell(&branch, 10),
                     truncate_cell(&remote, 10),
@@ -368,8 +385,8 @@ async fn run_dry_run(
                 if force_option {
                     would_upgrade += 1;
                     println!(
-                        "{:<7} {:<28} {:<10} {:<10} would force-upgrade {}",
-                        "[plan]",
+                        "{} {:<28} {:<10} {:<10} force-upgrade {}",
+                        output::status_cell(Status::Plan),
                         truncate_cell(&row.name, 28),
                         truncate_cell(&branch, 10),
                         truncate_cell(&remote, 10),
@@ -377,21 +394,14 @@ async fn run_dry_run(
                     );
                 } else {
                     up_to_date += 1;
-                    println!(
-                        "{:<7} {:<28} {:<10} {:<10} up to date ({})",
-                        "[=]",
-                        truncate_cell(&row.name, 28),
-                        truncate_cell(&branch, 10),
-                        truncate_cell(&remote, 10),
-                        current
-                    );
+                    let _ = current;
                 }
             }
             UpdateCheckStatus::Failed { error } => {
                 failed += 1;
                 println!(
-                    "{:<7} {:<28} {:<10} {:<10} failed to resolve: {}",
-                    "[!]",
+                    "{} {:<28} {:<10} {:<10} failed to resolve: {}",
+                    output::status_cell(Status::Fail),
                     truncate_cell(&row.name, 28),
                     truncate_cell(&branch, 10),
                     truncate_cell(&remote, 10),
@@ -401,8 +411,8 @@ async fn run_dry_run(
             UpdateCheckStatus::NotInstalled => {
                 not_installed += 1;
                 println!(
-                    "{:<7} {:<28} {:<10} {:<10} not installed",
-                    "[x]",
+                    "{} {:<28} {:<10} {:<10} not installed",
+                    output::status_cell(Status::Fail),
                     truncate_cell(&row.name, 28),
                     truncate_cell(&branch, 10),
                     truncate_cell(&remote, 10)
@@ -412,11 +422,18 @@ async fn run_dry_run(
     }
 
     println!();
-    println!(
-        "Dry run complete. {} planned, {} up to date, {} failed, {} not installed.",
-        would_upgrade, up_to_date, failed, not_installed
+    let status = if failed > 0 || not_installed > 0 {
+        Status::Warn
+    } else {
+        Status::Ok
+    };
+    output::status_line(
+        status,
+        "summary",
+        format!(
+            "{} planned, {} up to date, {} failed, {} not installed",
+            would_upgrade, up_to_date, failed, not_installed
+        ),
     );
-    println!("  trust mode: {}", trust_mode);
-    println!("  actions: resolve only (no download, no install, no metadata changes)");
     Ok(())
 }

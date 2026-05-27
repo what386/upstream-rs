@@ -294,7 +294,7 @@ impl<'a> UpgradeOperation<'a> {
                     updated_packages.push(updated);
                     message!(
                         message_callback,
-                        "[✓] {:<28} {:<10} {:<3} {:<10} {}",
+                        "[ok] {:<28} {:<10} {:<3} {:<10} {}",
                         name,
                         channel.to_string().to_lowercase(),
                         "u",
@@ -303,21 +303,11 @@ impl<'a> UpgradeOperation<'a> {
                     );
                     upgraded += 1;
                 }
-                Ok(None) => {
-                    message!(
-                        message_callback,
-                        "[=] {:<28} {:<10} {:<3} {:<10} {}",
-                        name,
-                        channel.to_string().to_lowercase(),
-                        "-",
-                        provider.to_string(),
-                        transfer
-                    );
-                }
+                Ok(None) => {}
                 Err(e) => {
                     message!(
                         message_callback,
-                        "[!] {:<28} {:<10} {:<3} {:<10} {}",
+                        "[fail] {:<28} {:<10} {:<3} {:<10} {}",
                         name,
                         channel.to_string().to_lowercase(),
                         "!",
