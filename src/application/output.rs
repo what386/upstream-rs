@@ -1,5 +1,9 @@
 use console::{StyledObject, style};
 use std::fmt;
+use std::io::{self, IsTerminal, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static ASSUME_YES: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
@@ -40,6 +44,43 @@ pub fn kv(label: &str, value: impl fmt::Display) {
 
 pub fn action_note(text: impl fmt::Display) {
     println!("  {}", meta(text));
+}
+
+pub fn set_assume_yes(value: bool) {
+    ASSUME_YES.store(value, Ordering::Relaxed);
+}
+
+pub fn assume_yes() -> bool {
+    ASSUME_YES.load(Ordering::Relaxed)
+}
+
+pub fn confirm(prompt: impl fmt::Display) -> anyhow::Result<bool> {
+    if assume_yes() {
+        return Ok(true);
+    }
+
+    if !io::stdin().is_terminal() {
+        anyhow::bail!(
+            "Confirmation required for non-interactive input. Re-run with --yes to continue."
+        );
+    }
+
+    print!("{} [y/N]: ", prompt);
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    Ok(matches!(
+        input.trim().to_ascii_lowercase().as_str(),
+        "y" | "yes"
+    ))
+}
+
+pub fn confirm_or_cancel(prompt: impl fmt::Display) -> anyhow::Result<()> {
+    if confirm(prompt)? {
+        return Ok(());
+    }
+    anyhow::bail!("Cancelled")
 }
 
 pub fn divider(width: usize) -> String {
@@ -159,8 +200,8 @@ pub fn summary_line(status: Status, detail: impl fmt::Display) {
 #[cfg(test)]
 mod tests {
     use super::{
-        Status, is_sensitive_key, redact_secret, status_cell, status_label, truncate_end,
-        truncate_middle,
+        Status, assume_yes, is_sensitive_key, redact_secret, set_assume_yes, status_cell,
+        status_label, truncate_end, truncate_middle,
     };
 
     #[test]
@@ -199,5 +240,14 @@ mod tests {
             "ghp_...wxyz"
         );
         assert_eq!(redact_secret("short"), "********");
+    }
+
+    #[test]
+    fn assume_yes_flag_is_shared() {
+        set_assume_yes(false);
+        assert!(!assume_yes());
+        set_assume_yes(true);
+        assert!(assume_yes());
+        set_assume_yes(false);
     }
 }
