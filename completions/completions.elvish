@@ -18,6 +18,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
     }
     var completions = [
         &'upstream'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand -V 'Print version'
@@ -29,6 +31,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand reinstall 'Reinstall one or more packages (remove then install)'
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
+            cand changelog 'Show upstream release notes for an installed package'
             cand probe 'Inspect releases visible from a provider without installing'
             cand search 'Search provider repositories by keyword(s)'
             cand config 'Manage upstream configuration'
@@ -56,9 +59,9 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --trust 'Trust verification mode for downloaded assets'
             cand -d 'Whether or not to create a .desktop entry for GUI applications'
             cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
-            cand -y 'Accept the recommended discovered asset without prompting'
-            cand --yes 'Accept the recommended discovered asset without prompting'
             cand --dry-run 'Preview install resolution without downloading or writing files'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -75,27 +78,33 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --build-output 'Optional explicit output path for the compiled executable'
             cand -d 'Whether or not to create a .desktop entry for GUI applications'
             cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
-            cand -y 'Accept the recommended discovered source/release without prompting'
-            cand --yes 'Accept the recommended discovered source/release without prompting'
             cand --dry-run 'Preview build resolution without compiling or writing files'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;remove'= {
             cand --purge 'Remove all associated cached data'
             cand --dry-run 'Preview removal actions without deleting files or metadata'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;rollback'= {
             cand --prune 'Prune rollback artifacts instead of restoring'
             cand --dry-run 'Preview rollback/prune actions without modifying files or metadata'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;reinstall'= {
             cand --trust 'Trust verification mode for release-asset reinstalls'
             cand --dry-run 'Preview reinstall resolution without removing, building, or writing files'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -105,11 +114,23 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --check 'Check for available upgrades without applying them'
             cand --machine-readable 'Use script-friendly check output: one line per update, "name oldver newver"'
             cand --dry-run 'Preview upgrade resolution without downloading or writing files'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;list'= {
             cand --json 'Print raw package metadata as JSON'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;changelog'= {
+            cand --from 'Override the starting release tag'
+            cand --to 'Override the ending release tag'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -121,6 +142,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --channel 'Channel view to display'
             cand --limit 'Maximum number of releases to display'
             cand --verbose 'Include scored candidate assets for each release'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -129,10 +152,14 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --provider 'Source provider to search (defaults to github)'
             cand --base-url 'Custom base URL for self-hosted providers'
             cand --limit 'Maximum number of results to display'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand set 'Set configuration values'
@@ -143,22 +170,33 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;config;set'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config;get'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config;list'= {
+            cand --show-secrets 'Print sensitive values instead of redacting them'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help'
             cand --help 'Print help'
         }
         &'upstream;config;edit'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help'
             cand --help 'Print help'
         }
         &'upstream;config;reset'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help'
             cand --help 'Print help'
         }
@@ -183,6 +221,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;config;help;help'= {
         }
         &'upstream;package'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand pin 'Pin a package to its current version'
@@ -196,30 +236,44 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;package;pin'= {
             cand --reason 'Optional reason for pinning this package'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;unpin'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;remove'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;get-key'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;set-key'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;rename'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;metadata'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -250,6 +304,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;package;help;help'= {
         }
         &'upstream;hooks'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand init 'Add upstream shell integration hooks'
@@ -259,20 +315,26 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;hooks;init'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;hooks;check'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;hooks;clean'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;hooks;purge'= {
-            cand -y 'Skip the confirmation prompt'
-            cand --yes 'Skip the confirmation prompt'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -296,19 +358,23 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;import'= {
             cand --as 'Force the input type instead of autodetection'
             cand --skip-failed 'Continue importing remaining entries when metadata manifest processing fails'
-            cand -y 'Skip import confirmation prompt'
-            cand --yes 'Skip import confirmation prompt'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;export'= {
             cand --full 'Export a full snapshot of the upstream directory instead of a manifest'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;doctor'= {
             cand --verbose 'Print each check result line in addition to summary output'
             cand --fix 'Attempt automatic repairs for detected issues'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -320,6 +386,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand reinstall 'Reinstall one or more packages (remove then install)'
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
+            cand changelog 'Show upstream release notes for an installed package'
             cand probe 'Inspect releases visible from a provider without installing'
             cand search 'Search provider repositories by keyword(s)'
             cand config 'Manage upstream configuration'
@@ -343,6 +410,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;upgrade'= {
         }
         &'upstream;help;list'= {
+        }
+        &'upstream;help;changelog'= {
         }
         &'upstream;help;probe'= {
         }
