@@ -483,6 +483,11 @@ mod tests {
                 symlinks_dir: dirs.data_dir.join("symlinks"),
                 xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
                 icons_dir: dirs.data_dir.join("icons"),
+                bash_completions_dir: dirs
+                    .user_dir
+                    .join(".local/share/bash-completion/completions"),
+                fish_completions_dir: dirs.user_dir.join(".config/fish/completions"),
+                zsh_completions_dir: dirs.user_dir.join(".local/share/zsh/site-functions"),
             },
             dirs,
         }
