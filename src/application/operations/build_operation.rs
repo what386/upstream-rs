@@ -114,9 +114,12 @@ impl<'a> BuildOperation<'a> {
                         branch, resolved_repo_slug
                     ))?;
                 println!("{}", output::title("Build preview"));
-                println!("  package: {}", input.name);
-                println!("  source: {} ({})", resolved_repo_slug, resolved_provider);
-                println!("  ref: branch {} @ {}", branch, commit);
+                output::kv("Package", &input.name);
+                output::kv(
+                    "Source",
+                    format!("{} ({})", resolved_repo_slug, resolved_provider),
+                );
+                output::kv("Ref", format!("branch {} @ {}", branch, commit));
                 output::print_transaction_table(
                     &[output::TransactionRow::single_version(
                         format!("{}/{}", resolved_provider, input.name),
@@ -156,9 +159,12 @@ impl<'a> BuildOperation<'a> {
                         ))?
                 };
                 println!("{}", output::title("Build preview"));
-                println!("  package: {}", input.name);
-                println!("  source: {} ({})", resolved_repo_slug, resolved_provider);
-                println!("  ref: release {} ({})", release.name, release.tag);
+                output::kv("Package", &input.name);
+                output::kv(
+                    "Source",
+                    format!("{} ({})", resolved_repo_slug, resolved_provider),
+                );
+                output::kv("Ref", format!("release {} ({})", release.name, release.tag));
                 output::print_transaction_table(
                     &[output::TransactionRow::single_version(
                         format!("{}/{}", resolved_provider, input.name),
@@ -172,19 +178,16 @@ impl<'a> BuildOperation<'a> {
             }
 
             match input.build_profile {
-                Some(profile) => println!("  profile: {:?}", profile),
-                None => println!("  profile: auto-detect at build time"),
+                Some(profile) => output::kv("Profile", format!("{:?}", profile)),
+                None => output::kv("Profile", "auto-detect at build time"),
             }
             if let Some(path) = input.build_output.as_deref() {
-                println!("  build output override: {}", path);
+                output::kv("Build Output", path);
             } else {
-                println!("  build output override: none");
+                output::kv("Build Output", "none");
             }
-            println!(
-                "  desktop entry: {}",
-                if input.desktop { "yes" } else { "no" }
-            );
-            println!("  actions: resolve only (no compile, no install, no metadata changes)");
+            output::kv("Desktop", if input.desktop { "yes" } else { "no" });
+            output::action_note("resolve only (no compile, no install, no metadata changes)");
             return Ok(());
         }
 
@@ -259,7 +262,7 @@ impl<'a> BuildOperation<'a> {
             self.paths,
             self.trusted_keys.clone(),
         )?;
-        let mut msg = Some(|line: &str| println!("{line}"));
+        let mut msg = Some(|_: &str| {});
         let installed = install_operation
             .install_local_artifact(
                 package,

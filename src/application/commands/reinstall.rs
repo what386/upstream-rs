@@ -1,4 +1,6 @@
 use anyhow::{Result, anyhow};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use std::time::Duration;
 
 use crate::{
     application::operations::{
@@ -27,6 +29,24 @@ use crate::{
     },
     utils::static_paths::UpstreamPaths,
 };
+
+fn reinstall_phase_label(message: &str) -> &'static str {
+    if message.starts_with("Removing") {
+        "Removing current install ..."
+    } else if message.starts_with("Installing") || message.starts_with("Extracting") {
+        "Installing package ..."
+    } else if message.starts_with("Searching for executable") {
+        "Resolving executable ..."
+    } else if message.starts_with("Added '") && message.contains("' to PATH") {
+        "Updating PATH ..."
+    } else if message.starts_with("Creating symlink") || message.starts_with("Updating symlink") {
+        "Creating runtime links ..."
+    } else if message.starts_with("Saving package metadata") {
+        "Saving metadata ..."
+    } else {
+        "Processing ..."
+    }
+}
 
 pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Result<()> {
     if names.is_empty() {
@@ -65,21 +85,28 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
 
     let mut reinstalled = 0_u32;
     let mut failed = 0_u32;
+    let pb = ProgressBar::new_spinner();
+    pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
+    pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
+    pb.enable_steady_tick(Duration::from_millis(120));
+    pb.set_message("Reinstalling packages ...");
+    let mut completion_lines = Vec::new();
 
     for name in &names {
-        println!("{}", output::title(format!("Reinstalling {}", name)));
-        let mut msg = Some(|line: &str| println!("{line}"));
+        let package_name = name.clone();
+        let progress_pb = pb.clone();
+        let mut msg = Some(move |line: &str| {
+            progress_pb.set_message(format!(
+                "Reinstalling {package_name}\n {:<28} {}",
+                package_name,
+                reinstall_phase_label(line)
+            ));
+        });
 
         let package = match package_storage.get_package_by_name(name) {
             Some(pkg) => pkg.clone(),
             None => {
-                println!(
-                    "{}",
-                    output::failure(format!(
-                        "Reinstall failed: package '{}' is not installed",
-                        name
-                    ))
-                );
+                completion_lines.push(format!("[fail] {:<28} package is not installed", name));
                 failed += 1;
                 continue;
             }
@@ -97,13 +124,17 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
         )
         .await
         {
-            println!("{}", output::failure(format!("Reinstall failed: {}", err)));
+            completion_lines.push(format!("[fail] {:<28} {}", name, err));
             failed += 1;
             continue;
         }
 
-        println!("{}", output::success("Package reinstalled"));
+        completion_lines.push(format!("[ok] {:<28} reinstalled", name));
         reinstalled += 1;
+    }
+    pb.finish_and_clear();
+    for line in completion_lines {
+        println!("{line}");
     }
 
     if names.len() == 1 {
@@ -424,8 +455,8 @@ where
     reinstall_package.icon_path = None;
 
     let mut remove_op = RemoveOperation::new(package_storage, metadata_storage, paths);
-    let mut no_remove_progress: Option<fn(&str, crate::services::packaging::PackageProgressEvent)> =
-        None;
+    let mut no_remove_progress =
+        Some(|_: &str, _: crate::services::packaging::PackageProgressEvent| {});
     remove_op.remove_single_with_source(
         &package.name,
         &false,
@@ -448,7 +479,7 @@ where
                     &Some(version_tag),
                     &had_icon,
                     trust_mode,
-                    &mut None::<fn(u64, u64)>,
+                    &mut Some(|_: u64, _: u64| {}),
                     message_callback,
                 )
                 .await?;

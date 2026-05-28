@@ -1,6 +1,5 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use console::style;
 
 use crate::{
     application::output,
@@ -18,7 +17,7 @@ pub async fn run(
 ) -> Result<()> {
     let query = query_words.join(" ").trim().to_string();
     if query.is_empty() {
-        println!("Search query cannot be empty.");
+        println!("{}", output::warning("Search query cannot be empty."));
         return Ok(());
     }
 
@@ -33,14 +32,8 @@ pub async fn run(
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
     let effective_provider = provider.unwrap_or(Provider::Github);
 
-    println!(
-        "{}",
-        style(format!(
-            "Searching '{}' via {} ...",
-            query, effective_provider
-        ))
-        .cyan()
-    );
+    println!("{}", output::title("Search"));
+    output::action_note(format!("Query: '{}' via {}", query, effective_provider));
 
     let results = provider_manager
         .search_repositories(
@@ -52,7 +45,7 @@ pub async fn run(
         .await?;
 
     if results.is_empty() {
-        println!("No repositories found.");
+        println!("{}", output::warning("No repositories found."));
         return Ok(());
     }
 
@@ -74,19 +67,10 @@ fn print_results(results: &[RepositorySearchResult]) {
         lang = widths.lang,
         updated = widths.updated,
     );
+    println!("{}", output::divider(widths.table_width()));
 
-    if let Some(top) = results.first() {
-        print_row(top, &widths);
-    }
-
-    if results.len() > 1 {
-        println!();
-        println!("{}", output::divider(widths.table_width()));
-        println!();
-
-        for row in results.iter().skip(1) {
-            print_row(row, &widths);
-        }
+    for row in results {
+        print_row(row, &widths);
     }
 
     println!();

@@ -247,10 +247,30 @@ fn run_dry_run(
     output::action_note("resolve only (no remove, no purge, no metadata changes)");
     println!();
 
-    let mut message_callback = Some(|msg: &str| println!("{msg}"));
+    let mut message_callback = Some(|_: &str| {});
     if names.len() > 1 {
-        let (planned, failed) =
-            package_remover.preview_bulk(&names, &purge, &mut message_callback)?;
+        let mut planned = 0_u32;
+        let mut failed = 0_u32;
+        for name in &names {
+            match package_remover.preview_single(name, &purge, &mut message_callback) {
+                Ok(_) => {
+                    planned += 1;
+                    output::status_line(
+                        Status::Plan,
+                        name,
+                        if purge {
+                            "remove package files + purge app-owned data"
+                        } else {
+                            "remove package files"
+                        },
+                    );
+                }
+                Err(err) => {
+                    failed += 1;
+                    output::status_line(Status::Fail, name, err);
+                }
+            }
+        }
         println!();
         let status = if failed > 0 { Status::Warn } else { Status::Ok };
         output::status_line(
@@ -262,6 +282,15 @@ fn run_dry_run(
     }
 
     package_remover.preview_single(&names[0], &purge, &mut message_callback)?;
+    output::status_line(
+        Status::Plan,
+        &names[0],
+        if purge {
+            "remove package files + purge app-owned data"
+        } else {
+            "remove package files"
+        },
+    );
     println!();
     output::status_line(Status::Ok, "summary", "1 planned, 0 failed");
     Ok(())

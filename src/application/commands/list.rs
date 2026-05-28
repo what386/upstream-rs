@@ -52,10 +52,11 @@ fn display_all_packages(storage: &PackageStorage) -> Result<()> {
     packages.sort_by_key(|p| p.name.to_lowercase());
 
     if packages.is_empty() {
-        println!("No packages installed.");
+        println!("{}", output::warning("No packages installed."));
         return Ok(());
     }
 
+    println!("{}", output::title("Installed packages"));
     print_package_table(&packages);
     Ok(())
 }
@@ -212,8 +213,8 @@ fn print_package_table(packages: &[Package]) {
     }
 
     println!();
-    println!("Total: {} packages", packages.len());
-    println!("Flags: I=icon present, P=pinned");
+    output::kv("Total", format!("{} packages", packages.len()));
+    output::action_note("Flags: I=icon present, P=pinned");
 }
 
 fn table_width(widths: &ColumnWidths) -> usize {
