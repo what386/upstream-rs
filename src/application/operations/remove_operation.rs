@@ -454,7 +454,7 @@ mod tests {
         let mut metadata_storage =
             MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
         let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
-        let mut msg: Option<fn(&str)> = None;
+        let mut msg = Some(|_: &str| {});
 
         let err = op
             .remove_single("missing", &false, &mut msg)
@@ -474,7 +474,7 @@ mod tests {
         let mut metadata_storage =
             MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
         let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
-        let mut msg: Option<fn(&str)> = None;
+        let mut msg = Some(|_: &str| {});
         let mut progress_calls = Vec::new();
         let mut progress = Some(|done: u32, total: u32| {
             progress_calls.push((done, total));
@@ -500,7 +500,7 @@ mod tests {
         let mut metadata_storage =
             MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
         let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
-        let mut msg: Option<fn(&str)> = None;
+        let mut msg = Some(|_: &str| {});
 
         let err = op
             .preview_single("missing", &false, &mut msg)
@@ -520,7 +520,7 @@ mod tests {
         let mut metadata_storage =
             MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
         let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
-        let mut msg: Option<fn(&str)> = None;
+        let mut msg = Some(|_: &str| {});
 
         let names = vec!["a".to_string(), "b".to_string()];
         let (planned, failed) = op

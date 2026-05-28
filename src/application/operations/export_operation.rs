@@ -1,5 +1,7 @@
 use crate::{
-    models::upstream::PackageReference, services::storage::package_storage::PackageStorage,
+    models::upstream::PackageReference,
+    services::packaging::{OperationPhase, OperationProgressEvent},
+    services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
@@ -33,9 +35,9 @@ impl<'a> ExportOperation<'a> {
     }
 
     /// Light export: write a JSON manifest of PackageReferences.
-    pub fn export_manifest<H>(&self, output: &Path, message_callback: &mut Option<H>) -> Result<()>
+    pub fn export_manifest<P>(&self, output: &Path, progress_callback: &mut Option<P>) -> Result<()>
     where
-        H: FnMut(&str),
+        P: FnMut(OperationProgressEvent),
     {
         let packages = self.package_storage.get_all_packages();
 
@@ -49,8 +51,10 @@ impl<'a> ExportOperation<'a> {
             return Err(anyhow!("No installed packages to export"));
         }
 
-        if let Some(cb) = message_callback {
-            cb("Serialising manifest...");
+        if let Some(cb) = progress_callback.as_mut() {
+            cb(OperationProgressEvent::Phase(
+                OperationPhase::SerializingManifest,
+            ));
         }
 
         let manifest = ExportManifest {
@@ -62,8 +66,10 @@ impl<'a> ExportOperation<'a> {
         let json =
             serde_json::to_string_pretty(&manifest).context("Failed to serialise manifest")?;
 
-        if let Some(cb) = message_callback {
-            cb("Writing manifest file...");
+        if let Some(cb) = progress_callback.as_mut() {
+            cb(OperationProgressEvent::Phase(
+                OperationPhase::WritingManifest,
+            ));
         }
 
         fs::write(output, json).context(format!(
@@ -73,15 +79,9 @@ impl<'a> ExportOperation<'a> {
     }
 
     /// Full export: tarball the entire .upstream directory.
-    pub fn export_snapshot<F, H>(
-        &self,
-        output: &Path,
-        progress_callback: &mut Option<F>,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
+    pub fn export_snapshot<P>(&self, output: &Path, progress_callback: &mut Option<P>) -> Result<()>
     where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
+        P: FnMut(OperationProgressEvent),
     {
         let upstream_dir = &self.paths.dirs.data_dir;
 
@@ -92,8 +92,8 @@ impl<'a> ExportOperation<'a> {
             ));
         }
 
-        if let Some(cb) = message_callback {
-            cb("Scanning files...");
+        if let Some(cb) = progress_callback.as_mut() {
+            cb(OperationProgressEvent::Phase(OperationPhase::ScanningFiles));
         }
 
         // Collect entries first to get deterministic total
@@ -105,8 +105,11 @@ impl<'a> ExportOperation<'a> {
 
         let total_files = entries.iter().filter(|e| e.file_type().is_file()).count() as u64;
 
-        if let Some(cb) = progress_callback {
-            cb(0, total_files);
+        if let Some(cb) = progress_callback.as_mut() {
+            cb(OperationProgressEvent::Count {
+                done: 0,
+                total: total_files,
+            });
         }
 
         let file = fs::File::create(output).context(format!(
@@ -135,8 +138,11 @@ impl<'a> ExportOperation<'a> {
                 tar.append_dir(&archive_path, path)
                     .context(format!("Failed to append directory '{}'", path.display()))?;
             } else if entry.file_type().is_file() {
-                if let Some(cb) = message_callback {
-                    cb(&format!("Archiving {}", rel_path.display()));
+                if let Some(cb) = progress_callback.as_mut() {
+                    cb(OperationProgressEvent::Detail(format!(
+                        "Archiving {}",
+                        rel_path.display()
+                    )));
                 }
 
                 let mut file = fs::File::open(path)
@@ -147,14 +153,19 @@ impl<'a> ExportOperation<'a> {
 
                 processed += 1;
 
-                if let Some(cb) = progress_callback {
-                    cb(processed, total_files);
+                if let Some(cb) = progress_callback.as_mut() {
+                    cb(OperationProgressEvent::Count {
+                        done: processed,
+                        total: total_files,
+                    });
                 }
             }
         }
 
-        if let Some(cb) = message_callback {
-            cb("Finalising archive...");
+        if let Some(cb) = progress_callback.as_mut() {
+            cb(OperationProgressEvent::Phase(
+                OperationPhase::FinalizingArchive,
+            ));
         }
 
         tar.finish().context("Failed to finalise snapshot archive")
@@ -192,10 +203,10 @@ mod tests {
         let storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
         let operation = ExportOperation::new(&storage, &paths);
         let output = root.join("manifest.json");
-        let mut msg: Option<fn(&str)> = None;
+        let mut progress: Option<fn(crate::services::packaging::OperationProgressEvent)> = None;
 
         let err = operation
-            .export_manifest(&output, &mut msg)
+            .export_manifest(&output, &mut progress)
             .expect_err("no installed packages");
         assert!(err.to_string().contains("No installed packages"));
 
@@ -228,9 +239,9 @@ mod tests {
 
         let operation = ExportOperation::new(&storage, &paths);
         let output = root.join("manifest.json");
-        let mut msg: Option<fn(&str)> = None;
+        let mut progress: Option<fn(crate::services::packaging::OperationProgressEvent)> = None;
         operation
-            .export_manifest(&output, &mut msg)
+            .export_manifest(&output, &mut progress)
             .expect("export manifest");
 
         let content = fs::read_to_string(&output).expect("read manifest");

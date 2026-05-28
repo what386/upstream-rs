@@ -564,7 +564,7 @@ mod tests {
         );
         package.install_path = Some(paths.install.binaries_dir.join("tool"));
         let mut dl: Option<fn(u64, u64)> = None;
-        let mut msg: Option<fn(&str)> = None;
+        let mut msg = Some(|_: &str| {});
         let mut progress: Option<fn(PackageProgressEvent)> = None;
 
         let err = op

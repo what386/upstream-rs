@@ -450,7 +450,7 @@ mod tests {
             crate::providers::provider_manager::ProviderManager::new(None, None, None).expect("pm");
         let verifier = SignatureVerifier::new(&manager, &root);
         let mut progress: Option<fn(u64, u64)> = None;
-        let mut messages: Option<fn(&str)> = None;
+        let mut messages = Some(|_: &str| {});
         let mut package_progress: Option<fn(PackageProgressEvent)> = None;
 
         let status = verifier

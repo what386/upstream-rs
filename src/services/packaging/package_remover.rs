@@ -438,7 +438,7 @@ mod tests {
         fs::create_dir_all(nested_dir.join("x")).expect("create nested dir");
 
         let remover = PackageRemover::new(&paths);
-        let mut messages: Option<fn(&str)> = None;
+        let mut messages = Some(|_: &str| {});
         remover
             .remove_path_if_exists(&file, &mut messages)
             .expect("remove file");
@@ -474,7 +474,7 @@ mod tests {
             None,
         );
         let remover = PackageRemover::new(&paths);
-        let mut messages: Option<fn(&str)> = None;
+        let mut messages = Some(|_: &str| {});
 
         let err = remover
             .remove_runtime_integrations(&package, &mut messages)
