@@ -781,7 +781,7 @@ mod tests {
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use crate::utils::test_support;
-    use std::{fs, path::Path};
+    use std::fs;
 
     fn make_package(
         name: &str,
@@ -800,6 +800,51 @@ mod tests {
         )
     }
 
+    #[cfg(target_os = "linux")]
+    fn host_linux_gnu_dir() -> Option<&'static str> {
+        if cfg!(target_arch = "x86_64") {
+            Some("x86_64-unknown-linux-gnu")
+        } else if cfg!(target_arch = "x86") {
+            Some("x86_32-unknown-linux-gnu")
+        } else if cfg!(target_arch = "aarch64") {
+            Some("aarch64-unknown-linux-gnu")
+        } else if cfg!(target_arch = "arm") {
+            Some("armv7-unknown-linux-gnueabihf")
+        } else {
+            None
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn host_linux_glibc_dir() -> Option<&'static str> {
+        if cfg!(target_arch = "x86_64") {
+            Some("x86_64-unknown-linux-gnu-glibc2.28")
+        } else if cfg!(target_arch = "x86") {
+            Some("x86_32-unknown-linux-gnu-glibc2.28")
+        } else if cfg!(target_arch = "aarch64") {
+            Some("aarch64-unknown-linux-gnu-glibc2.28")
+        } else if cfg!(target_arch = "arm") {
+            Some("armv7-unknown-linux-gnueabihf-glibc2.28")
+        } else {
+            None
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn host_linux_musl_dir() -> Option<&'static str> {
+        if cfg!(target_arch = "x86_64") {
+            Some("x86_64-unknown-linux-musl")
+        } else if cfg!(target_arch = "x86") {
+            Some("x86_32-unknown-linux-musl")
+        } else if cfg!(target_arch = "aarch64") {
+            Some("aarch64-unknown-linux-musl")
+        } else if cfg!(target_arch = "arm") {
+            Some("armv7-unknown-linux-musleabihf")
+        } else {
+            None
+        }
+    }
+
     #[test]
     fn package_cache_key_sanitizes_disallowed_characters() {
         let key = PackageInstaller::package_cache_key("my/pkg v1.0");
@@ -810,9 +855,12 @@ mod tests {
         );
     }
 
-    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    #[cfg(target_os = "linux")]
     #[test]
     fn nested_archive_root_prefers_host_linux_gnu_payload() {
+        let Some(expected_dir) = host_linux_gnu_dir() else {
+            return;
+        };
         let root = test_support::temp_root("upstream-installer-test", "nested-broot");
         let extracted = root.join("broot_1.56.4");
         fs::create_dir_all(&extracted).expect("create extracted root");
@@ -823,6 +871,9 @@ mod tests {
             "x86_64-unknown-linux-gnu-glibc2.28",
             "x86_64-unknown-linux-gnu",
             "aarch64-unknown-linux-gnu",
+            "aarch64-unknown-linux-musl",
+            "armv7-unknown-linux-gnueabihf",
+            "armv7-unknown-linux-musleabihf",
         ] {
             let payload = extracted.join(dir);
             fs::create_dir_all(&payload).expect("create payload");
@@ -846,23 +897,26 @@ mod tests {
         )
         .expect("select nested root");
 
-        assert!(selected.ends_with(Path::new("x86_64-unknown-linux-gnu")));
+        assert!(selected.ends_with(expected_dir));
 
         fs::remove_dir_all(&root).expect("cleanup");
     }
 
-    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    #[cfg(target_os = "linux")]
     #[test]
     fn nested_archive_root_honors_match_and_exclude_patterns() {
+        let (Some(musl_dir), Some(gnu_dir), Some(glibc_dir)) = (
+            host_linux_musl_dir(),
+            host_linux_gnu_dir(),
+            host_linux_glibc_dir(),
+        ) else {
+            return;
+        };
         let root = test_support::temp_root("upstream-installer-test", "nested-patterns");
         let extracted = root.join("tool_1.0.0");
         fs::create_dir_all(&extracted).expect("create extracted root");
 
-        for dir in [
-            "x86_64-unknown-linux-musl",
-            "x86_64-unknown-linux-gnu",
-            "x86_64-unknown-linux-gnu-glibc2.28",
-        ] {
+        for dir in [musl_dir, gnu_dir, glibc_dir] {
             let payload = extracted.join(dir);
             fs::create_dir_all(&payload).expect("create payload");
             fs::write(payload.join("tool"), b"bin").expect("write payload binary");
@@ -873,14 +927,14 @@ mod tests {
             &make_package("tool", Some("musl"), None),
         )
         .expect("select musl root");
-        assert!(selected_musl.ends_with(Path::new("x86_64-unknown-linux-musl")));
+        assert!(selected_musl.ends_with(musl_dir));
 
         let selected_glibc = PackageInstaller::select_nested_archive_root(
             &extracted,
             &make_package("tool", None, Some("linux-gnu")),
         )
         .expect("select non-excluded root");
-        assert!(selected_glibc.ends_with(Path::new("x86_64-unknown-linux-musl")));
+        assert!(selected_glibc.ends_with(musl_dir));
 
         fs::remove_dir_all(&root).expect("cleanup");
     }

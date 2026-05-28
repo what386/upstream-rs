@@ -92,6 +92,7 @@ fn safe_join_extract_path(extract_dir: &Path, entry_path: &Path) -> Result<PathB
     Ok(out)
 }
 
+#[cfg(not(windows))]
 fn resolve_relative_path_within_root(
     extract_dir: &Path,
     base_path: &Path,
@@ -409,11 +410,13 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::decompress;
-    use flate2::Compression;
-    use flate2::write::GzEncoder;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
+
+    #[cfg(not(windows))]
+    use flate2::{Compression, write::GzEncoder};
+    #[cfg(not(windows))]
     use tar::{Builder, Header};
 
     fn temp_root(name: &str) -> PathBuf {
