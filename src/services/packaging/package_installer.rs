@@ -602,7 +602,7 @@ impl<'a> PackageInstaller<'a> {
             if name.contains("musl") {
                 return 10;
             }
-            return 0;
+            0
         }
 
         #[cfg(not(target_os = "linux"))]
