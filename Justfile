@@ -11,7 +11,7 @@ lint:
     cargo xwin clippy --all-targets -- -D warnings
 
 test:
-    cargo nextest --all
+    cargo nextest run --all
     cargo xwin test --all --target x86_64-pc-windows-msvc
 
 
