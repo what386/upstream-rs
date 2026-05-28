@@ -7,8 +7,8 @@ use crate::{
     },
     services::{
         packaging::{
-            PackageChecker, PackageInstaller, PackageRemover, PackageUpgrader,
-            ResolvedUpgradeTarget,
+            PackageChecker, PackageInstaller, PackageProgressEvent, PackageRemover,
+            PackageUpgrader, ResolvedUpgradeTarget,
         },
         storage::package_storage::PackageStorage,
         trust::TrustedSignatureKeys,
@@ -149,6 +149,20 @@ impl<'a> UpgradeOperation<'a> {
         );
     }
 
+    fn record_progress_event(
+        progress_state: &ProgressState,
+        name: &str,
+        channel: &Channel,
+        provider: &Provider,
+        event: PackageProgressEvent,
+    ) {
+        let status = match event {
+            PackageProgressEvent::Phase(phase) => phase.label().to_string(),
+            PackageProgressEvent::Warning(message) => message,
+        };
+        Self::record_status_progress(progress_state, name, channel, provider, &status);
+    }
+
     fn emit_progress_updates<H>(
         progress_state: &ProgressState,
         last_progress_render: &mut BTreeMap<String, String>,
@@ -220,6 +234,13 @@ impl<'a> UpgradeOperation<'a> {
             .chain()
             .map(|cause| cause.to_string())
             .collect::<Vec<_>>();
+        if parts.len() > 1
+            && parts
+                .first()
+                .is_some_and(|part| part.starts_with("Failed to upgrade package "))
+        {
+            parts.remove(0);
+        }
         parts.dedup();
         Self::truncate_error(&parts.join(": "), max)
     }
@@ -658,9 +679,7 @@ impl<'a> UpgradeOperation<'a> {
                     bytes_total = t;
                     Self::record_download_progress(&state_ref, &name, &channel, &provider, d, t);
                 });
-                let mut status_cb = Some(|message: &str| {
-                    Self::record_status_progress(&state_ref, &name, &channel, &provider, message);
-                });
+                let mut no_messages: Option<fn(&str)> = None;
 
                 let result = upgrader
                     .upgrade(
@@ -668,7 +687,7 @@ impl<'a> UpgradeOperation<'a> {
                         force,
                         trust_mode,
                         &mut download_cb,
-                        &mut status_cb,
+                        &mut no_messages,
                     )
                     .await
                     .context(format!("Failed to upgrade package '{}'", name));
@@ -807,17 +826,19 @@ impl<'a> UpgradeOperation<'a> {
                     bytes_total = t;
                     Self::record_download_progress(&state_ref, &name, &channel, &provider, d, t);
                 });
-                let mut status_cb = Some(|message: &str| {
-                    Self::record_status_progress(&state_ref, &name, &channel, &provider, message);
+                let mut no_messages: Option<fn(&str)> = None;
+                let mut progress_cb = Some(|event: PackageProgressEvent| {
+                    Self::record_progress_event(&state_ref, &name, &channel, &provider, event);
                 });
 
                 let result = upgrader
-                    .upgrade_resolved(
+                    .upgrade_resolved_with_progress(
                         &package,
                         row.target,
                         trust_mode,
                         &mut download_cb,
-                        &mut status_cb,
+                        &mut no_messages,
+                        &mut progress_cb,
                     )
                     .await
                     .context(format!("Failed to upgrade package '{}'", name));
@@ -1000,6 +1021,7 @@ impl<'a> UpgradeOperation<'a> {
 mod tests {
     use super::{ProgressState, UpgradeOperation};
     use crate::models::common::enums::{Channel, Provider};
+    use crate::services::packaging::{PackagePhase, PackageProgressEvent};
     use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::rc::Rc;
@@ -1021,9 +1043,38 @@ mod tests {
 
         let formatted = UpgradeOperation::format_error_chain(&err, 160);
 
-        assert!(formatted.contains("Failed to upgrade package 'pnpm'"));
+        assert!(!formatted.contains("Failed to upgrade package 'pnpm'"));
         assert!(formatted.contains("Failed to download asset"));
         assert!(formatted.contains("download request failed"));
+    }
+
+    #[test]
+    fn format_error_chain_keeps_wrapper_when_it_is_the_only_error() {
+        let err = anyhow::anyhow!("Failed to upgrade package 'pnpm'");
+
+        let formatted = UpgradeOperation::format_error_chain(&err, 160);
+
+        assert_eq!(formatted, "Failed to upgrade package 'pnpm'");
+    }
+
+    #[test]
+    fn package_phase_labels_are_high_level() {
+        assert_eq!(
+            PackagePhase::CreatingSnapshot.label(),
+            "Creating snapshot ..."
+        );
+        assert_eq!(
+            PackagePhase::ChecksummingPackage.label(),
+            "Checksumming package ..."
+        );
+        assert_eq!(
+            PackagePhase::VerifyingSignature.label(),
+            "Verifying signature ..."
+        );
+        assert_eq!(
+            PackagePhase::InstallingPackage.label(),
+            "Installing package ..."
+        );
     }
 
     #[test]
@@ -1055,16 +1106,16 @@ mod tests {
     fn progress_state_tracks_status_and_download_progress() {
         let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
 
-        UpgradeOperation::record_status_progress(
+        UpgradeOperation::record_progress_event(
             &state,
             "ripgrep",
             &Channel::Stable,
             &Provider::Github,
-            "Selecting asset ...",
+            PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot),
         );
         assert_eq!(
             state.lock().expect("state")["ripgrep"].status,
-            "Selecting asset ..."
+            "Creating snapshot ..."
         );
 
         UpgradeOperation::record_download_progress(
@@ -1080,15 +1131,15 @@ mod tests {
             let entry = &state["ripgrep"];
             assert_eq!(entry.downloaded, 128);
             assert_eq!(entry.total, 256);
-            assert_eq!(entry.status, "Selecting asset ...");
+            assert_eq!(entry.status, "Creating snapshot ...");
         }
 
-        UpgradeOperation::record_status_progress(
+        UpgradeOperation::record_progress_event(
             &state,
             "ripgrep",
             &Channel::Stable,
             &Provider::Github,
-            "Installing package ...",
+            PackageProgressEvent::Phase(PackagePhase::InstallingPackage),
         );
         assert_eq!(
             state.lock().expect("state")["ripgrep"].status,

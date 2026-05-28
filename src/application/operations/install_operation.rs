@@ -430,6 +430,7 @@ impl<'a> InstallOperation<'a> {
                 ))?
         };
 
+        let mut no_progress: Option<fn(crate::services::packaging::PackageProgressEvent)> = None;
         self.installer
             .install_package_files(
                 package,
@@ -438,6 +439,7 @@ impl<'a> InstallOperation<'a> {
                 &self.trusted_keys,
                 download_progress_callback,
                 message_callback,
+                &mut no_progress,
             )
             .await
     }
