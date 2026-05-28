@@ -1,13 +1,113 @@
 use anyhow::{Result, anyhow};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use std::time::Duration;
 
-use crate::application::output::{self, Status};
+use crate::application::output::{self, Status, TransactionRow};
 use crate::services::packaging::RollbackManager;
-use crate::services::packaging::disk_impact::DiskImpact;
+use crate::services::packaging::disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate};
 use crate::services::storage::{
     metadata_storage::MetadataStorage, package_storage::PackageStorage,
     rollback_storage::RollbackStorage,
 };
 use crate::utils::static_paths::UpstreamPaths;
+
+fn restore_preview_rows(names: &[String], manager: &RollbackManager<'_>) -> Vec<TransactionRow> {
+    names
+        .iter()
+        .filter_map(|name| {
+            let record = manager.rollback_record(name)?;
+            let pkg = &record.package_snapshot;
+            Some(TransactionRow::single_version(
+                format!("{}/{}", pkg.provider, pkg.name),
+                pkg.version.to_string(),
+                manager
+                    .estimate_restore_impact(name)
+                    .map(|impact| impact.net)
+                    .unwrap_or(SignedByteEstimate::exact(0)),
+                ByteEstimate::exact(0),
+            ))
+        })
+        .collect()
+}
+
+fn prune_preview_rows(names: &[String], manager: &RollbackManager<'_>) -> Vec<TransactionRow> {
+    names
+        .iter()
+        .filter_map(|name| {
+            let record = manager.rollback_record(name)?;
+            let pkg = &record.package_snapshot;
+            Some(TransactionRow::single_version(
+                format!("{}/{}", pkg.provider, pkg.name),
+                pkg.version.to_string(),
+                manager
+                    .estimate_prune_impact(name)
+                    .map(|impact| impact.net)
+                    .unwrap_or(SignedByteEstimate::exact(0)),
+                ByteEstimate::exact(0),
+            ))
+        })
+        .collect()
+}
+
+fn restore_phase_label(message: &str) -> &'static str {
+    if message.starts_with("Removing current installation for ") {
+        "Removing current install ..."
+    } else if message.starts_with("Restoring rollback artifact for ") {
+        "Restoring rollback artifact ..."
+    } else if message.starts_with("Restoring '") && message.contains("' to PATH") {
+        "Restoring PATH entries ..."
+    } else if message.starts_with("Restoring symlink for ") {
+        "Restoring runtime links ..."
+    } else if message.starts_with("Installing completion scripts for ") {
+        "Installing completions ..."
+    } else {
+        "Restoring rollback ..."
+    }
+}
+
+fn show_restore_preview(rows: &[TransactionRow], impact: &DiskImpact, names: &[String]) {
+    println!("{}", output::title("Rollback preview"));
+    if rows.is_empty() {
+        println!(
+            "{}",
+            output::warning("No rollback artifacts found for selected packages.")
+        );
+    } else {
+        output::print_transaction_table(rows, impact, "Net disk change:");
+    }
+    for name in names {
+        if !rows
+            .iter()
+            .any(|row| row.package.ends_with(&format!("/{name}")))
+        {
+            output::status_line(Status::Fail, name, "no rollback data found");
+        }
+    }
+}
+
+fn show_prune_preview(
+    rows: &[TransactionRow],
+    impact: &DiskImpact,
+    names: &[String],
+    dry_run: bool,
+) {
+    if dry_run {
+        println!("{}", output::title("Rollback prune preview"));
+    }
+    if rows.is_empty() {
+        println!("{}", output::warning("No rollback artifacts to prune."));
+    } else {
+        output::print_transaction_table(rows, impact, "Net disk change:");
+    }
+    for name in names {
+        if !rows
+            .iter()
+            .any(|row| row.package.ends_with(&format!("/{name}")))
+        {
+            output::status_line(Status::Fail, name, "no rollback data found");
+        }
+    }
+}
 
 pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
@@ -33,12 +133,13 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
         ));
     }
 
+    let preview_rows = restore_preview_rows(&names, &manager);
+    let impact = estimate_restore_impact(&names, &manager);
+
     if dry_run {
-        println!("{}", output::title("Rollback preview"));
-        output::print_local_disk_impact(&estimate_restore_impact(&names, &manager));
+        show_restore_preview(&preview_rows, &impact, &names);
         for name in &names {
             let Some(record) = manager.rollback_record(name) else {
-                output::status_line(Status::Fail, name, "no rollback data found");
                 continue;
             };
 
@@ -58,23 +159,42 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
         return Ok(());
     }
 
-    output::print_local_disk_impact(&estimate_restore_impact(&names, &manager));
+    show_restore_preview(&preview_rows, &impact, &names);
     output::confirm_or_cancel(format!("Restore rollback for {} package(s)?", names.len()))?;
+
+    let pb = ProgressBar::new_spinner();
+    pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
+    pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
+    pb.enable_steady_tick(Duration::from_millis(120));
+    pb.set_message("Restoring rollback");
 
     let mut restored = 0_u32;
     let mut failed = 0_u32;
+    let mut completion_lines = Vec::new();
     for name in &names {
-        let mut msg = Some(|line: &str| println!("{line}"));
+        let package_name = name.clone();
+        let phase_pb = pb.clone();
+        let mut msg = Some(move |line: &str| {
+            phase_pb.set_message(format!(
+                "Restoring rollback for {package_name}\n {:<28} {}",
+                package_name,
+                restore_phase_label(line)
+            ));
+        });
         match manager.restore_package(name, &mut msg) {
             Ok(_) => {
-                output::status_line(Status::Ok, name, "restored");
+                completion_lines.push(format!("[ok] {:<28} restored", name));
                 restored += 1;
             }
             Err(err) => {
-                output::status_line(Status::Fail, name, err);
+                completion_lines.push(format!("[fail] {:<28} {}", name, err));
                 failed += 1;
             }
         }
+    }
+    pb.finish_and_clear();
+    for line in completion_lines {
+        println!("{line}");
     }
 
     if failed > 0 {
@@ -104,29 +224,17 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
     } else {
         names
     };
+    let preview_rows = prune_preview_rows(&target_names, manager);
+    let impact = estimate_prune_impact(&target_names, manager);
 
     if dry_run {
-        println!("{}", output::title("Rollback prune preview"));
-        if target_names.is_empty() {
-            println!("{}", output::warning("No rollback artifacts to prune."));
-            output::action_note("resolve only (no prune, no metadata changes)");
-            return Ok(());
-        }
-
-        output::print_local_disk_impact(&estimate_prune_impact(&target_names, manager));
-        for name in &target_names {
-            if manager.rollback_record(name).is_some() {
-                output::status_line(Status::Plan, name, "prune rollback artifact");
-            } else {
-                output::status_line(Status::Fail, name, "no rollback data found");
-            }
-        }
+        show_prune_preview(&preview_rows, &impact, &target_names, true);
         output::action_note("resolve only (no prune, no metadata changes)");
         return Ok(());
     }
 
     if !target_names.is_empty() {
-        output::print_local_disk_impact(&estimate_prune_impact(&target_names, manager));
+        show_prune_preview(&preview_rows, &impact, &target_names, false);
         output::confirm_or_cancel(format!(
             "Prune rollback artifacts for {} package(s)?",
             target_names.len()
