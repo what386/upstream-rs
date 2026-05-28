@@ -25,6 +25,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use crate::utils::{
+    filename_parser::{parse_arch, parse_os},
+    platform::platform_info::{ArchitectureInfo, CpuArch, OSKind},
+};
+
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
         if let Some(cb) = $cb.as_mut() {
@@ -402,6 +407,8 @@ impl<'a> PackageInstaller<'a> {
             .file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
         let out_path = self.paths.install.archives_dir.join(dirname);
+        let install_root = Self::select_nested_archive_root(&extracted_path, &package)
+            .unwrap_or_else(|| extracted_path.clone());
 
         message!(
             message_callback,
@@ -409,9 +416,9 @@ impl<'a> PackageInstaller<'a> {
             out_path.display()
         );
 
-        safe_move::move_file_or_dir(&extracted_path, &out_path).context(format!(
+        safe_move::move_file_or_dir(&install_root, &out_path).context(format!(
             "Failed to move extracted directory from '{}' to '{}'",
-            extracted_path.display(),
+            install_root.display(),
             out_path.display()
         ))?;
 
@@ -481,6 +488,128 @@ impl<'a> PackageInstaller<'a> {
         package.install_path = Some(out_path);
         package.last_upgraded = Utc::now();
         Ok(package)
+    }
+
+    fn select_nested_archive_root(extracted_path: &Path, package: &Package) -> Option<PathBuf> {
+        if !extracted_path.is_dir() {
+            return None;
+        }
+
+        let architecture = ArchitectureInfo::new();
+        let mut candidates = fs::read_dir(extracted_path)
+            .ok()?
+            .flatten()
+            .filter_map(|entry| {
+                let file_type = entry.file_type().ok()?;
+                if !file_type.is_dir() {
+                    return None;
+                }
+
+                let name = entry.file_name().to_string_lossy().to_string();
+                let target_os = parse_os(&name)?;
+                let target_arch = parse_arch(&name)?;
+
+                if target_os != architecture.os_kind {
+                    return None;
+                }
+
+                let lower = name.to_ascii_lowercase();
+                if let Some(pattern) = package.exclude_pattern.as_deref()
+                    && lower.contains(&pattern.to_ascii_lowercase())
+                {
+                    return None;
+                }
+
+                let arch_score = Self::nested_arch_score(&architecture.cpu_arch, &target_arch)?;
+                permission_handler::find_executable(&entry.path(), &package.name)?;
+                let score = Self::nested_archive_score(
+                    &name,
+                    &target_os,
+                    arch_score,
+                    package.match_pattern.as_deref(),
+                );
+
+                Some((score, name, entry.path()))
+            })
+            .collect::<Vec<_>>();
+
+        if candidates.is_empty() {
+            return None;
+        }
+
+        candidates.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+        candidates.into_iter().next().map(|(_, _, path)| path)
+    }
+
+    fn nested_arch_score(host_arch: &CpuArch, target_arch: &CpuArch) -> Option<i32> {
+        if host_arch == target_arch {
+            return Some(100);
+        }
+
+        if *host_arch == CpuArch::X86_64 && *target_arch == CpuArch::X86 {
+            return Some(40);
+        }
+
+        if *host_arch == CpuArch::Aarch64 && *target_arch == CpuArch::Arm {
+            return Some(40);
+        }
+
+        None
+    }
+
+    fn nested_archive_score(
+        name: &str,
+        target_os: &OSKind,
+        arch_score: i32,
+        match_pattern: Option<&str>,
+    ) -> i32 {
+        let lower = name.to_ascii_lowercase();
+        let mut score = arch_score;
+
+        if *target_os == OSKind::Linux {
+            score += Self::linux_abi_score(&lower);
+        }
+
+        if let Some(pattern) = match_pattern
+            && lower.contains(&pattern.to_ascii_lowercase())
+        {
+            score += 100;
+        }
+
+        score
+    }
+
+    fn linux_abi_score(name: &str) -> i32 {
+        #[cfg(all(target_os = "linux", target_env = "musl"))]
+        {
+            if name.contains("musl") {
+                return 30;
+            }
+            if name.contains("gnu") || name.contains("glibc") {
+                return 10;
+            }
+            return 0;
+        }
+
+        #[cfg(all(target_os = "linux", not(target_env = "musl")))]
+        {
+            if name.contains("linux-gnu") && !name.contains("glibc") {
+                return 30;
+            }
+            if name.contains("glibc") {
+                return 20;
+            }
+            if name.contains("musl") {
+                return 10;
+            }
+            return 0;
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = name;
+            0
+        }
     }
 
     fn handle_compressed<H>(
@@ -649,6 +778,27 @@ impl<'a> Drop for PackageInstaller<'a> {
 #[cfg(test)]
 mod tests {
     use super::PackageInstaller;
+    use crate::models::common::enums::{Channel, Filetype, Provider};
+    use crate::models::upstream::Package;
+    use crate::utils::test_support;
+    use std::{fs, path::Path};
+
+    fn make_package(
+        name: &str,
+        match_pattern: Option<&str>,
+        exclude_pattern: Option<&str>,
+    ) -> Package {
+        Package::with_defaults(
+            name.to_string(),
+            format!("owner/{name}"),
+            Filetype::Archive,
+            match_pattern.map(str::to_string),
+            exclude_pattern.map(str::to_string),
+            Channel::Stable,
+            Provider::Github,
+            None,
+        )
+    }
 
     #[test]
     fn package_cache_key_sanitizes_disallowed_characters() {
@@ -658,5 +808,99 @@ mod tests {
             key.chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
         );
+    }
+
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    #[test]
+    fn nested_archive_root_prefers_host_linux_gnu_payload() {
+        let root = test_support::temp_root("upstream-installer-test", "nested-broot");
+        let extracted = root.join("broot_1.56.4");
+        fs::create_dir_all(&extracted).expect("create extracted root");
+
+        for dir in [
+            "x86_64-pc-windows-gnu",
+            "x86_64-unknown-linux-musl",
+            "x86_64-unknown-linux-gnu-glibc2.28",
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
+        ] {
+            let payload = extracted.join(dir);
+            fs::create_dir_all(&payload).expect("create payload");
+            fs::write(
+                payload.join(if dir.contains("windows") {
+                    "broot.exe"
+                } else {
+                    "broot"
+                }),
+                b"bin",
+            )
+            .expect("write payload binary");
+        }
+
+        fs::create_dir_all(extracted.join("completion")).expect("create completion");
+        fs::write(extracted.join("broot.1"), b"manpage").expect("write manpage");
+
+        let selected = PackageInstaller::select_nested_archive_root(
+            &extracted,
+            &make_package("broot", None, None),
+        )
+        .expect("select nested root");
+
+        assert!(selected.ends_with(Path::new("x86_64-unknown-linux-gnu")));
+
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    #[test]
+    fn nested_archive_root_honors_match_and_exclude_patterns() {
+        let root = test_support::temp_root("upstream-installer-test", "nested-patterns");
+        let extracted = root.join("tool_1.0.0");
+        fs::create_dir_all(&extracted).expect("create extracted root");
+
+        for dir in [
+            "x86_64-unknown-linux-musl",
+            "x86_64-unknown-linux-gnu",
+            "x86_64-unknown-linux-gnu-glibc2.28",
+        ] {
+            let payload = extracted.join(dir);
+            fs::create_dir_all(&payload).expect("create payload");
+            fs::write(payload.join("tool"), b"bin").expect("write payload binary");
+        }
+
+        let selected_musl = PackageInstaller::select_nested_archive_root(
+            &extracted,
+            &make_package("tool", Some("musl"), None),
+        )
+        .expect("select musl root");
+        assert!(selected_musl.ends_with(Path::new("x86_64-unknown-linux-musl")));
+
+        let selected_glibc = PackageInstaller::select_nested_archive_root(
+            &extracted,
+            &make_package("tool", None, Some("linux-gnu")),
+        )
+        .expect("select non-excluded root");
+        assert!(selected_glibc.ends_with(Path::new("x86_64-unknown-linux-musl")));
+
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn nested_archive_root_ignores_ordinary_archive_layouts() {
+        let root = test_support::temp_root("upstream-installer-test", "ordinary-archive");
+        let extracted = root.join("tool_1.0.0");
+        fs::create_dir_all(extracted.join("bin")).expect("create bin");
+        fs::write(extracted.join("bin").join("tool"), b"bin").expect("write binary");
+        fs::create_dir_all(extracted.join("docs")).expect("create docs");
+
+        assert!(
+            PackageInstaller::select_nested_archive_root(
+                &extracted,
+                &make_package("tool", None, None),
+            )
+            .is_none()
+        );
+
+        fs::remove_dir_all(&root).expect("cleanup");
     }
 }
