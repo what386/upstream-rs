@@ -420,10 +420,6 @@ impl TransactionTableLayout {
                 "Total Download Size:   {}",
                 format_compact_unsigned(totals.download)
             );
-            println!(
-                "Total Installed Size:  {}",
-                format_compact_unsigned(totals.download)
-            );
         }
         if size_rows.is_empty() {
             println!("{net_label:<22} {}", format_compact_signed(totals.net));
