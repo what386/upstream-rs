@@ -28,7 +28,14 @@ use tokio::time::{self, Duration};
 
 const CHECK_CONCURRENCY: usize = 8;
 const UPGRADE_CONCURRENCY: usize = 4;
-type ProgressEntry = (Channel, Provider, u64, u64);
+#[derive(Clone)]
+struct ProgressEntry {
+    channel: Channel,
+    provider: Provider,
+    downloaded: u64,
+    total: u64,
+    status: String,
+}
 type ProgressState = Arc<Mutex<BTreeMap<String, ProgressEntry>>>;
 
 macro_rules! message {
@@ -99,14 +106,46 @@ impl<'a> UpgradeOperation<'a> {
             return;
         };
 
-        if total > 0 && downloaded >= total {
-            state.remove(name);
-            return;
-        }
-
+        let status = state
+            .get(name)
+            .map(|entry| entry.status.clone())
+            .unwrap_or_else(|| "Downloading ...".to_string());
         state.insert(
             name.to_string(),
-            (channel.clone(), provider.clone(), downloaded, total),
+            ProgressEntry {
+                channel: channel.clone(),
+                provider: provider.clone(),
+                downloaded,
+                total,
+                status,
+            },
+        );
+    }
+
+    fn record_status_progress(
+        progress_state: &ProgressState,
+        name: &str,
+        channel: &Channel,
+        provider: &Provider,
+        status: &str,
+    ) {
+        let Ok(mut state) = progress_state.lock() else {
+            return;
+        };
+
+        let (downloaded, total) = state
+            .get(name)
+            .map(|entry| (entry.downloaded, entry.total))
+            .unwrap_or((0, 0));
+        state.insert(
+            name.to_string(),
+            ProgressEntry {
+                channel: channel.clone(),
+                provider: provider.clone(),
+                downloaded,
+                total,
+                status: status.to_string(),
+            },
         );
     }
 
@@ -127,8 +166,15 @@ impl<'a> UpgradeOperation<'a> {
             })
             .unwrap_or_default();
 
-        for (name, (channel, provider, downloaded, total_bytes)) in &snapshot {
-            let row = Self::render_progress_row(name, channel, provider, *downloaded, *total_bytes);
+        for (name, entry) in &snapshot {
+            let row = Self::render_progress_row(
+                name,
+                &entry.channel,
+                &entry.provider,
+                entry.downloaded,
+                entry.total,
+                &entry.status,
+            );
             let changed = last_progress_render
                 .get(name)
                 .map(|prev| prev != &row)
@@ -169,6 +215,15 @@ impl<'a> UpgradeOperation<'a> {
         out
     }
 
+    fn format_error_chain(err: &anyhow::Error, max: usize) -> String {
+        let mut parts = err
+            .chain()
+            .map(|cause| cause.to_string())
+            .collect::<Vec<_>>();
+        parts.dedup();
+        Self::truncate_error(&parts.join(": "), max)
+    }
+
     fn format_transfer(downloaded: u64, total: u64) -> String {
         if total > 0 {
             format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
@@ -185,14 +240,16 @@ impl<'a> UpgradeOperation<'a> {
         provider: &Provider,
         downloaded: u64,
         total: u64,
+        status: &str,
     ) -> String {
         format!(
-            " {:<28} {:<10} {:<3} {:<10} {}",
+            " {:<28} {:<10} {:<3} {:<10} {:<24} {}",
             name,
             channel.to_string().to_lowercase(),
             "u",
             provider.to_string(),
-            Self::format_transfer(downloaded, total)
+            Self::format_transfer(downloaded, total),
+            Self::truncate_error(status, 64)
         )
     }
 
@@ -601,7 +658,9 @@ impl<'a> UpgradeOperation<'a> {
                     bytes_total = t;
                     Self::record_download_progress(&state_ref, &name, &channel, &provider, d, t);
                 });
-                let mut no_messages: Option<fn(&str)> = None;
+                let mut status_cb = Some(|message: &str| {
+                    Self::record_status_progress(&state_ref, &name, &channel, &provider, message);
+                });
 
                 let result = upgrader
                     .upgrade(
@@ -609,7 +668,7 @@ impl<'a> UpgradeOperation<'a> {
                         force,
                         trust_mode,
                         &mut download_cb,
-                        &mut no_messages,
+                        &mut status_cb,
                     )
                     .await
                     .context(format!("Failed to upgrade package '{}'", name));
@@ -658,7 +717,7 @@ impl<'a> UpgradeOperation<'a> {
                         channel.to_string().to_lowercase(),
                         "!",
                         provider.to_string(),
-                        Self::truncate_error(&e.to_string(), 36)
+                        Self::format_error_chain(&e, 96)
                     );
                     failures += 1;
                 }
@@ -748,7 +807,9 @@ impl<'a> UpgradeOperation<'a> {
                     bytes_total = t;
                     Self::record_download_progress(&state_ref, &name, &channel, &provider, d, t);
                 });
-                let mut no_messages: Option<fn(&str)> = None;
+                let mut status_cb = Some(|message: &str| {
+                    Self::record_status_progress(&state_ref, &name, &channel, &provider, message);
+                });
 
                 let result = upgrader
                     .upgrade_resolved(
@@ -756,7 +817,7 @@ impl<'a> UpgradeOperation<'a> {
                         row.target,
                         trust_mode,
                         &mut download_cb,
-                        &mut no_messages,
+                        &mut status_cb,
                     )
                     .await
                     .context(format!("Failed to upgrade package '{}'", name));
@@ -801,7 +862,7 @@ impl<'a> UpgradeOperation<'a> {
                                 message_callback,
                                 "[fail] {:<28} {}",
                                 name,
-                                Self::truncate_error(&err.to_string(), 64)
+                                Self::format_error_chain(&err, 160)
                             );
                         }
                     }
@@ -953,6 +1014,19 @@ mod tests {
     }
 
     #[test]
+    fn format_error_chain_includes_underlying_cause() {
+        let err = anyhow::anyhow!("download request failed")
+            .context("Failed to download asset")
+            .context("Failed to upgrade package 'pnpm'");
+
+        let formatted = UpgradeOperation::format_error_chain(&err, 160);
+
+        assert!(formatted.contains("Failed to upgrade package 'pnpm'"));
+        assert!(formatted.contains("Failed to download asset"));
+        assert!(formatted.contains("download request failed"));
+    }
+
+    #[test]
     fn format_transfer_handles_known_unknown_and_empty_sizes() {
         assert_eq!(UpgradeOperation::format_transfer(0, 0), "-");
         assert!(UpgradeOperation::format_transfer(42, 0).contains("42"));
@@ -968,16 +1042,30 @@ mod tests {
             &Provider::Github,
             128,
             256,
+            "Installing package ...",
         );
         assert!(row.contains("ripgrep"));
         assert!(row.contains("stable"));
         assert!(row.contains("github"));
         assert!(row.contains('/'));
+        assert!(row.contains("Installing package"));
     }
 
     #[test]
-    fn download_progress_state_removes_known_completed_transfers() {
+    fn progress_state_tracks_status_and_download_progress() {
         let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
+
+        UpgradeOperation::record_status_progress(
+            &state,
+            "ripgrep",
+            &Channel::Stable,
+            &Provider::Github,
+            "Selecting asset ...",
+        );
+        assert_eq!(
+            state.lock().expect("state")["ripgrep"].status,
+            "Selecting asset ..."
+        );
 
         UpgradeOperation::record_download_progress(
             &state,
@@ -987,21 +1075,29 @@ mod tests {
             128,
             256,
         );
-        assert!(state.lock().expect("state").contains_key("ripgrep"));
+        {
+            let state = state.lock().expect("state");
+            let entry = &state["ripgrep"];
+            assert_eq!(entry.downloaded, 128);
+            assert_eq!(entry.total, 256);
+            assert_eq!(entry.status, "Selecting asset ...");
+        }
 
-        UpgradeOperation::record_download_progress(
+        UpgradeOperation::record_status_progress(
             &state,
             "ripgrep",
             &Channel::Stable,
             &Provider::Github,
-            256,
-            256,
+            "Installing package ...",
         );
-        assert!(!state.lock().expect("state").contains_key("ripgrep"));
+        assert_eq!(
+            state.lock().expect("state")["ripgrep"].status,
+            "Installing package ..."
+        );
     }
 
     #[test]
-    fn progress_updates_emit_done_for_rows_removed_by_callbacks() {
+    fn progress_updates_emit_done_for_removed_rows() {
         let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
         let mut last_render = BTreeMap::new();
         let messages = Rc::new(RefCell::new(Vec::new()));
@@ -1025,14 +1121,7 @@ mod tests {
                 .any(|msg| msg.starts_with("__UPGRADE_PROGRESS_ROW__ ripgrep\t"))
         );
 
-        UpgradeOperation::record_download_progress(
-            &state,
-            "ripgrep",
-            &Channel::Stable,
-            &Provider::Github,
-            256,
-            256,
-        );
+        state.lock().expect("state").remove("ripgrep");
         UpgradeOperation::emit_progress_updates(&state, &mut last_render, &mut callback);
         assert!(
             messages
