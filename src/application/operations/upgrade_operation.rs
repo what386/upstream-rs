@@ -156,11 +156,22 @@ impl<'a> UpgradeOperation<'a> {
         provider: &Provider,
         event: PackageProgressEvent,
     ) {
-        let status = match event {
-            PackageProgressEvent::Phase(phase) => phase.label().to_string(),
-            PackageProgressEvent::Warning(message) => message,
-        };
-        Self::record_status_progress(progress_state, name, channel, provider, &status);
+        match event {
+            PackageProgressEvent::Phase(phase) => {
+                Self::record_status_progress(progress_state, name, channel, provider, phase.label())
+            }
+            PackageProgressEvent::Download { downloaded, total } => Self::record_download_progress(
+                progress_state,
+                name,
+                channel,
+                provider,
+                downloaded,
+                total,
+            ),
+            PackageProgressEvent::Warning(message) => {
+                Self::record_status_progress(progress_state, name, channel, provider, &message)
+            }
+        }
     }
 
     fn emit_progress_updates<H>(

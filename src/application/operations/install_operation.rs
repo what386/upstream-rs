@@ -13,10 +13,10 @@ use crate::{
 };
 
 use crate::{
-    services::packaging::PackageInstaller,
     services::packaging::disk_impact::{
         DiskImpact, asset_size_estimate, install_impact_from_download,
     },
+    services::packaging::{PackageInstaller, PackagePhase, PackageProgressEvent},
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -29,6 +29,14 @@ macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
         if let Some(cb) = $cb.as_mut() {
             cb(&format!($($arg)*));
+        }
+    }};
+}
+
+macro_rules! progress {
+    ($cb:expr, $event:expr) => {{
+        if let Some(cb) = $cb.as_mut() {
+            cb($event);
         }
     }};
 }
@@ -160,15 +168,44 @@ impl<'a> InstallOperation<'a> {
         F: FnMut(u64, u64),
         H: FnMut(&str),
     {
+        let mut no_progress: Option<fn(PackageProgressEvent)> = None;
+        self.install_single_with_progress(
+            package,
+            version,
+            add_entry,
+            trust_mode,
+            download_progress_callback,
+            message_callback,
+            &mut no_progress,
+        )
+        .await
+    }
+
+    pub async fn install_single_with_progress<F, H, P>(
+        &mut self,
+        package: Package,
+        version: &Option<String>,
+        add_entry: &bool,
+        trust_mode: TrustMode,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<()>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
         let package_name = package.name.clone();
 
         let mut installed_package = self
-            .perform_install(
+            .perform_install_with_progress(
                 package,
                 version,
                 trust_mode,
                 download_progress_callback,
                 message_callback,
+                progress_callback,
             )
             .await
             .context(format!(
@@ -177,6 +214,11 @@ impl<'a> InstallOperation<'a> {
             ))?;
 
         if *add_entry {
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Phase(PackagePhase::CreatingDesktopEntry)
+            );
+
             #[cfg(target_os = "linux")]
             let appimage_extractor =
                 AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
@@ -229,6 +271,10 @@ impl<'a> InstallOperation<'a> {
                 ))?;
         }
 
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::SavingMetadata)
+        );
         self.package_storage
             .add_or_update_package(installed_package.clone())
             .context(format!(
@@ -378,21 +424,28 @@ impl<'a> InstallOperation<'a> {
         })
     }
 
-    async fn perform_install<F, H>(
+    async fn perform_install_with_progress<F, H, P>(
         &self,
         package: Package,
         version: &Option<String>,
         trust_mode: TrustMode,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
     ) -> Result<Package>
     where
         F: FnMut(u64, u64),
         H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
     {
         if package.install_path.is_some() {
             return Err(anyhow!("Package '{}' is already installed", package.name));
         }
+
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::ResolvingRelease)
+        );
 
         let release = if let Some(version_tag) = version {
             // SPECIFIC VERSION
@@ -430,16 +483,30 @@ impl<'a> InstallOperation<'a> {
                 ))?
         };
 
-        let mut no_progress: Option<fn(crate::services::packaging::PackageProgressEvent)> = None;
+        let progress_callback = std::cell::RefCell::new(progress_callback.as_mut());
+        let mut bridged_progress = Some(|event: PackageProgressEvent| {
+            if let Some(cb) = progress_callback.borrow_mut().as_deref_mut() {
+                cb(event);
+            }
+        });
+        let mut bridged_download_progress = Some(|downloaded: u64, total: u64| {
+            if let Some(cb) = download_progress_callback.as_mut() {
+                cb(downloaded, total);
+            }
+            if let Some(cb) = progress_callback.borrow_mut().as_deref_mut() {
+                cb(PackageProgressEvent::Download { downloaded, total });
+            }
+        });
+
         self.installer
             .install_package_files(
                 package,
                 &release,
                 trust_mode,
                 &self.trusted_keys,
-                download_progress_callback,
+                &mut bridged_download_progress,
                 message_callback,
-                &mut no_progress,
+                &mut bridged_progress,
             )
             .await
     }
@@ -451,6 +518,7 @@ mod tests {
     use crate::models::common::enums::{Channel, Filetype, Provider, TrustMode};
     use crate::models::upstream::Package;
     use crate::providers::provider_manager::ProviderManager;
+    use crate::services::packaging::PackageProgressEvent;
     use crate::services::storage::package_storage::PackageStorage;
     use crate::utils::test_support;
     use std::path::Path;
@@ -497,9 +565,17 @@ mod tests {
         package.install_path = Some(paths.install.binaries_dir.join("tool"));
         let mut dl: Option<fn(u64, u64)> = None;
         let mut msg: Option<fn(&str)> = None;
+        let mut progress: Option<fn(PackageProgressEvent)> = None;
 
         let err = op
-            .perform_install(package, &None, TrustMode::BestEffort, &mut dl, &mut msg)
+            .perform_install_with_progress(
+                package,
+                &None,
+                TrustMode::BestEffort,
+                &mut dl,
+                &mut msg,
+                &mut progress,
+            )
             .await
             .expect_err("already-installed guard");
         assert!(err.to_string().contains("already installed"));
