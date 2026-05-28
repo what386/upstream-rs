@@ -1,14 +1,52 @@
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
-use std::time::Duration;
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use crate::{
     application::operations::remove_operation::RemoveOperation,
     application::output::{self, Status, TransactionRow},
-    services::packaging::disk_impact::{ByteEstimate, DiskImpact},
+    services::packaging::{
+        PackageProgressEvent,
+        disk_impact::{ByteEstimate, DiskImpact},
+    },
     services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
+
+fn render_remove_progress(
+    completed_rows: &BTreeMap<String, String>,
+    active_rows: &BTreeMap<String, String>,
+) -> String {
+    if completed_rows.is_empty() && active_rows.is_empty() {
+        return String::new();
+    }
+
+    let rows = completed_rows
+        .values()
+        .chain(active_rows.values())
+        .cloned()
+        .collect::<Vec<_>>();
+    format!("\n{}", rows.join("\n"))
+}
+
+fn completion_message_key(message: &str) -> Option<String> {
+    let rest = message
+        .strip_prefix("[ok] ")
+        .or_else(|| message.strip_prefix("[fail] "))?;
+    rest.split_whitespace().next().map(str::to_string)
+}
+
+fn render_remove_progress_row(name: &str, event: PackageProgressEvent) -> String {
+    let status = match event {
+        PackageProgressEvent::Phase(phase) => phase.label().to_string(),
+        PackageProgressEvent::Warning(message) => message,
+    };
+    format!(" {:<28} {}", name, status)
+}
 
 pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
@@ -45,7 +83,7 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
     let overall_pb = ProgressBar::new(0);
     overall_pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     overall_pb.set_style(ProgressStyle::with_template(
-        "{spinner:.green} Removed {pos}/{len} packages",
+        "{spinner:.green} Removed {pos}/{len} packages{msg}",
     )?);
     overall_pb.enable_steady_tick(Duration::from_millis(120));
 
@@ -56,18 +94,66 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
     });
 
     let overall_pb_for_messages = overall_pb.clone();
+    let active_progress_rows: Arc<Mutex<BTreeMap<String, String>>> =
+        Arc::new(Mutex::new(BTreeMap::new()));
+    let completed_progress_rows: Arc<Mutex<BTreeMap<String, String>>> =
+        Arc::new(Mutex::new(BTreeMap::new()));
+    let persistent_completion_rows = Arc::new(Mutex::new(Vec::new()));
+    let active_rows_for_messages = Arc::clone(&active_progress_rows);
+    let completed_rows_for_messages = Arc::clone(&completed_progress_rows);
+    let completion_rows_ref = Arc::clone(&persistent_completion_rows);
     let mut message_callback = Some(move |msg: &str| {
-        overall_pb_for_messages.println(msg);
+        if let Some(key) = completion_message_key(msg) {
+            if let Ok(mut rows) = active_rows_for_messages.lock() {
+                rows.remove(&key);
+            }
+            if let Ok(mut rows) = completed_rows_for_messages.lock() {
+                rows.insert(key, msg.to_string());
+            }
+            if let Ok(mut rows) = completion_rows_ref.lock() {
+                rows.push(msg.to_string());
+            }
+            let message = match (
+                completed_rows_for_messages.lock(),
+                active_rows_for_messages.lock(),
+            ) {
+                (Ok(completed), Ok(active)) => render_remove_progress(&completed, &active),
+                _ => String::new(),
+            };
+            overall_pb_for_messages.set_message(message);
+        }
+    });
+    let remove_pb_for_progress = overall_pb.clone();
+    let active_rows_for_progress = Arc::clone(&active_progress_rows);
+    let completed_rows_for_progress = Arc::clone(&completed_progress_rows);
+    let mut progress_callback = Some(move |name: &str, event: PackageProgressEvent| {
+        if let Ok(mut rows) = active_rows_for_progress.lock() {
+            rows.insert(name.to_string(), render_remove_progress_row(name, event));
+        }
+        let message = match (
+            completed_rows_for_progress.lock(),
+            active_rows_for_progress.lock(),
+        ) {
+            (Ok(completed), Ok(active)) => render_remove_progress(&completed, &active),
+            _ => String::new(),
+        };
+        remove_pb_for_progress.set_message(message);
     });
 
     if names.len() > 1 {
-        let (removed, failed) = package_remover.remove_bulk(
+        let (removed, failed) = package_remover.remove_bulk_with_progress(
             &names,
             &purge,
             &mut message_callback,
             &mut overall_progress_callback,
+            &mut progress_callback,
         )?;
         overall_pb.finish_and_clear();
+        if let Ok(rows) = persistent_completion_rows.lock() {
+            for row in rows.iter() {
+                println!("{row}");
+            }
+        }
         if failed > 0 {
             println!(
                 "{}",
@@ -83,8 +169,40 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
             );
         }
     } else {
-        package_remover.remove_single(&names[0], &purge, &mut message_callback)?;
+        match package_remover.remove_single_with_progress(
+            &names[0],
+            &purge,
+            &mut message_callback,
+            &mut progress_callback,
+        ) {
+            Ok(()) => {
+                if let Some(cb) = message_callback.as_mut() {
+                    cb(&format!("[ok] {:<28} removed", names[0]));
+                }
+            }
+            Err(err) => {
+                if let Some(cb) = message_callback.as_mut() {
+                    cb(&format!("[fail] {:<28} {}", names[0], err));
+                }
+                overall_pb.finish_and_clear();
+                if let Ok(rows) = persistent_completion_rows.lock() {
+                    for row in rows.iter() {
+                        println!("{row}");
+                    }
+                }
+                println!(
+                    "{}",
+                    output::warning("Removal complete: 0 removed, 1 failed.")
+                );
+                return Ok(());
+            }
+        }
         overall_pb.finish_and_clear();
+        if let Ok(rows) = persistent_completion_rows.lock() {
+            for row in rows.iter() {
+                println!("{row}");
+            }
+        }
         println!(
             "{}",
             output::success("Removal complete: 1 removed, 0 failed.")

@@ -1,18 +1,24 @@
 use crate::{
-    services::packaging::PackageRemover,
-    services::packaging::RollbackManager,
     services::packaging::disk_impact::DiskImpact,
+    services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover, RollbackManager},
     services::storage::rollback_storage::RollbackSource,
     services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
-use console::style;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
         if let Some(cb) = $cb.as_mut() {
             cb(&format!($($arg)*));
+        }
+    }};
+}
+
+macro_rules! progress {
+    ($cb:expr, $name:expr, $event:expr) => {{
+        if let Some(cb) = $cb.as_mut() {
+            cb($name, $event);
         }
     }};
 }
@@ -50,20 +56,52 @@ impl<'a> RemoveOperation<'a> {
         H: FnMut(&str),
         G: FnMut(u32, u32),
     {
+        let mut no_progress: Option<fn(&str, PackageProgressEvent)> = None;
+        self.remove_bulk_with_progress(
+            package_names,
+            purge_option,
+            message_callback,
+            overall_progress_callback,
+            &mut no_progress,
+        )
+    }
+
+    pub fn remove_bulk_with_progress<H, G, P>(
+        &mut self,
+        package_names: &Vec<String>,
+        purge_option: &bool,
+        message_callback: &mut Option<H>,
+        overall_progress_callback: &mut Option<G>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<(u32, u32)>
+    where
+        H: FnMut(&str),
+        G: FnMut(u32, u32),
+        P: FnMut(&str, PackageProgressEvent),
+    {
         let total = package_names.len() as u32;
         let mut completed = 0;
         let mut failures = 0;
 
         for package_name in package_names {
-            message!(message_callback, "Removing '{}' ...", package_name);
+            progress!(
+                progress_callback,
+                package_name,
+                PackageProgressEvent::Phase(PackagePhase::RemovingPackage)
+            );
 
             match self
-                .remove_single(package_name, purge_option, message_callback)
+                .remove_single_with_progress(
+                    package_name,
+                    purge_option,
+                    message_callback,
+                    progress_callback,
+                )
                 .context(format!("Failed to remove package '{}'", package_name))
             {
-                Ok(_) => message!(message_callback, "{}", style("Package removed").green()),
+                Ok(_) => message!(message_callback, "[ok] {:<28} removed", package_name),
                 Err(e) => {
-                    message!(message_callback, "{} {}", style("Removal failed:").red(), e);
+                    message!(message_callback, "[fail] {:<28} {}", package_name, e);
                     failures += 1;
                 }
             }
@@ -218,23 +256,46 @@ impl<'a> RemoveOperation<'a> {
     where
         H: FnMut(&str),
     {
+        let mut no_progress: Option<fn(&str, PackageProgressEvent)> = None;
+        self.remove_single_with_progress(
+            package_name,
+            purge_option,
+            message_callback,
+            &mut no_progress,
+        )
+    }
+
+    pub fn remove_single_with_progress<H, P>(
+        &mut self,
+        package_name: &str,
+        purge_option: &bool,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+        P: FnMut(&str, PackageProgressEvent),
+    {
         self.remove_single_with_source(
             package_name,
             purge_option,
             RollbackSource::Remove,
             message_callback,
+            progress_callback,
         )
     }
 
-    pub fn remove_single_with_source<H>(
+    pub fn remove_single_with_source<H, P>(
         &mut self,
         package_name: &str,
         purge_option: &bool,
         rollback_source: RollbackSource,
         message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
     ) -> Result<()>
     where
         H: FnMut(&str),
+        P: FnMut(&str, PackageProgressEvent),
     {
         let package = self
             .package_storage
@@ -244,6 +305,11 @@ impl<'a> RemoveOperation<'a> {
 
         let mut rollback_captured = false;
         if !*purge_option {
+            progress!(
+                progress_callback,
+                package_name,
+                PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot)
+            );
             let rollback_file = RollbackManager::rollback_file_path(self.paths);
             let mut rollback_storage =
                 crate::services::storage::rollback_storage::RollbackStorage::new(&rollback_file)?;
@@ -256,11 +322,12 @@ impl<'a> RemoveOperation<'a> {
             if let Err(err) =
                 rollback_manager.capture_from_installed(&package, rollback_source, message_callback)
             {
-                message!(
-                    message_callback,
-                    "Warning: failed to capture rollback for '{}': {}",
+                progress!(
+                    progress_callback,
                     package_name,
-                    err
+                    PackageProgressEvent::Warning(format!(
+                        "Warning: failed to capture rollback: {err}"
+                    ))
                 );
             } else {
                 rollback_captured = true;
@@ -268,6 +335,11 @@ impl<'a> RemoveOperation<'a> {
         }
 
         if rollback_captured {
+            progress!(
+                progress_callback,
+                package_name,
+                PackageProgressEvent::Phase(PackagePhase::RemovingRuntimeLinks)
+            );
             self.remover
                 .remove_runtime_and_desktop_artifacts(&package, message_callback)
                 .context(format!(
@@ -275,6 +347,11 @@ impl<'a> RemoveOperation<'a> {
                     package_name
                 ))?;
         } else {
+            progress!(
+                progress_callback,
+                package_name,
+                PackageProgressEvent::Phase(PackagePhase::RemovingPackage)
+            );
             self.remover
                 .remove_package_files(&package, message_callback)
                 .context(format!(
@@ -283,6 +360,11 @@ impl<'a> RemoveOperation<'a> {
                 ))?;
         }
 
+        progress!(
+            progress_callback,
+            package_name,
+            PackageProgressEvent::Phase(PackagePhase::RemovingMetadata)
+        );
         self.package_storage
             .remove_package_by_name(package_name)
             .context(format!(
@@ -297,6 +379,11 @@ impl<'a> RemoveOperation<'a> {
             ))?;
 
         if *purge_option {
+            progress!(
+                progress_callback,
+                package_name,
+                PackageProgressEvent::Phase(PackagePhase::PurgingPackageData)
+            );
             self.remover
                 .purge_configs(package_name, message_callback)
                 .context(format!(
