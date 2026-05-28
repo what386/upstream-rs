@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use crate::{
     application::operations::install_operation::InstallOperation,
-    application::output,
+    application::output::{self, TransactionRow},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::Package,
@@ -63,12 +63,6 @@ pub async fn run(
     )
     .await?;
 
-    println!("{}", output::title(format!("Installing {}", &package.name)));
-    output::kv(
-        "Source",
-        format!("{} ({})", &package.repo_slug, &package.provider),
-    );
-
     let mut package_installer = InstallOperation::new(
         &provider_manager,
         &mut package_storage,
@@ -102,11 +96,14 @@ pub async fn run(
         return Ok(());
     }
 
-    output::print_disk_impact(&preview.disk_impact);
-    output::confirm_or_cancel(format!(
-        "Install '{}' from {} ({})?",
-        package.name, package.repo_slug, package.provider
-    ))?;
+    let transaction_rows = vec![TransactionRow::single_version(
+        format!("{}/{}", package.provider, package.name),
+        &preview.release_tag,
+        preview.disk_impact.net,
+        preview.disk_impact.download,
+    )];
+    output::print_transaction_table(&transaction_rows, &preview.disk_impact, "Net Install Size:");
+    output::confirm_yes_default_or_cancel("Proceed with installation?")?;
 
     let pb = ProgressBar::new(0);
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));

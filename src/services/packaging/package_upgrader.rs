@@ -6,6 +6,7 @@ use crate::{
             DesktopEntry,
             enums::{Channel, TrustMode},
         },
+        provider::Release,
         upstream::{InstallType, Package},
     },
     providers::provider_manager::ProviderManager,
@@ -20,7 +21,7 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use console::style;
 use std::{
     fs,
@@ -41,6 +42,12 @@ pub struct PackageUpgrader<'a> {
     remover: PackageRemover<'a>,
     paths: &'a UpstreamPaths,
     trusted_keys: TrustedSignatureKeys,
+}
+
+#[derive(Clone)]
+pub enum ResolvedUpgradeTarget {
+    Release(Release),
+    Branch { branch: String, head_commit: String },
 }
 
 impl<'a> PackageUpgrader<'a> {
@@ -175,57 +182,56 @@ impl<'a> PackageUpgrader<'a> {
             return Ok(None);
         }
 
-        let latest_release =
-            if package.install_type == InstallType::Build && package.build_branch.is_some() {
-                None
+        let target = if package.install_type == InstallType::Build && package.build_branch.is_some()
+        {
+            None
+        } else {
+            message!(message_callback, "Fetching latest release ...");
+            let release = if force {
+                self.provider_manager
+                    .get_latest_release(
+                        &package.repo_slug,
+                        &package.provider,
+                        &package.channel,
+                        package.base_url.as_deref(),
+                    )
+                    .await
+                    .context(format!(
+                        "Failed to fetch latest release for '{}'",
+                        package.name
+                    ))?
             } else {
-                message!(message_callback, "Fetching latest release ...");
-                let release = if force {
-                    self.provider_manager
-                        .get_latest_release(
-                            &package.repo_slug,
-                            &package.provider,
-                            &package.channel,
-                            package.base_url.as_deref(),
-                        )
-                        .await
-                        .context(format!(
-                            "Failed to fetch latest release for '{}'",
-                            package.name
-                        ))?
-                } else {
-                    let Some(latest_release) = self
-                        .provider_manager
-                        .check_for_updates(package)
-                        .await
-                        .context(format!(
-                            "Failed to fetch latest release for '{}'",
-                            package.name
-                        ))?
-                    else {
-                        message!(message_callback, "'{}' is already up to date", package.name);
-                        return Ok(None);
-                    };
-
-                    latest_release
+                let Some(latest_release) = self
+                    .provider_manager
+                    .check_for_updates(package)
+                    .await
+                    .context(format!(
+                    "Failed to fetch latest release for '{}'",
+                    package.name
+                ))?
+                else {
+                    message!(message_callback, "'{}' is already up to date", package.name);
+                    return Ok(None);
                 };
 
-                if !force {
-                    let up_to_date = if package.channel == Channel::Nightly {
-                        release.published_at <= package.last_upgraded
-                    } else {
-                        !release.version.is_newer_than(&package.version)
-                    };
-
-                    if up_to_date {
-                        message!(message_callback, "'{}' is already up to date", package.name);
-                        return Ok(None);
-                    }
-                }
-                Some(release)
+                latest_release
             };
 
-        let mut branch_head_commit: Option<String> = None;
+            if !force {
+                let up_to_date = if package.channel == Channel::Nightly {
+                    release.published_at <= package.last_upgraded
+                } else {
+                    !release.version.is_newer_than(&package.version)
+                };
+
+                if up_to_date {
+                    message!(message_callback, "'{}' is already up to date", package.name);
+                    return Ok(None);
+                }
+            }
+            Some(ResolvedUpgradeTarget::Release(release))
+        };
+
         if package.install_type == InstallType::Build
             && let Some(branch) = package.build_branch.as_deref()
         {
@@ -255,7 +261,50 @@ impl<'a> PackageUpgrader<'a> {
                 );
                 return Ok(None);
             }
-            branch_head_commit = Some(head_commit);
+            return self
+                .upgrade_resolved(
+                    package,
+                    ResolvedUpgradeTarget::Branch {
+                        branch: branch.to_string(),
+                        head_commit,
+                    },
+                    trust_mode,
+                    download_progress,
+                    message_callback,
+                )
+                .await
+                .map(Some);
+        }
+
+        let Some(target) = target else {
+            return Ok(None);
+        };
+
+        self.upgrade_resolved(
+            package,
+            target,
+            trust_mode,
+            download_progress,
+            message_callback,
+        )
+        .await
+        .map(Some)
+    }
+
+    pub async fn upgrade_resolved<F, H>(
+        &self,
+        package: &Package,
+        target: ResolvedUpgradeTarget,
+        trust_mode: TrustMode,
+        download_progress: &mut Option<F>,
+        message_callback: &mut Option<H>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+    {
+        if package.is_pinned {
+            bail!("Package '{}' is pinned", package.name);
         }
 
         let had_desktop_integration = package.icon_path.is_some();
@@ -306,6 +355,13 @@ impl<'a> PackageUpgrader<'a> {
         // Install new version
         let install_result = if package.install_type == InstallType::Build {
             message!(message_callback, "Rebuilding from source ...");
+            let (version_tag, branch, branch_head_commit) = match &target {
+                ResolvedUpgradeTarget::Release(release) => (Some(release.tag.clone()), None, None),
+                ResolvedUpgradeTarget::Branch {
+                    branch,
+                    head_commit,
+                } => (None, Some(branch.clone()), Some(head_commit.clone())),
+            };
             let worker = BuildWorker::new(self.provider_manager);
             let build_result = worker
                 .build(
@@ -314,8 +370,8 @@ impl<'a> PackageUpgrader<'a> {
                         repo_slug: package.repo_slug.clone(),
                         provider: package.provider.clone(),
                         base_url: package.base_url.clone(),
-                        version_tag: None,
-                        branch: package.build_branch.clone(),
+                        version_tag,
+                        branch,
                         requested_profile: None,
                         build_output: None,
                     },
@@ -340,12 +396,16 @@ impl<'a> PackageUpgrader<'a> {
                 }
             }
         } else {
+            let ResolvedUpgradeTarget::Release(release) = &target else {
+                bail!(
+                    "Resolved branch target cannot be used for release package '{}'",
+                    package.name
+                );
+            };
             self.installer
                 .install_package_files(
                     package.clone(),
-                    latest_release
-                        .as_ref()
-                        .expect("release install path requires latest release"),
+                    release,
                     trust_mode,
                     &self.trusted_keys,
                     download_progress,
@@ -454,7 +514,7 @@ impl<'a> PackageUpgrader<'a> {
                 .context(format!("Failed to remove backup for '{}'", package.name))?;
         }
 
-        Ok(Some(updated_package))
+        Ok(updated_package)
     }
 }
 

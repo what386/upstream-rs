@@ -80,8 +80,37 @@ pub fn confirm(prompt: impl fmt::Display) -> anyhow::Result<bool> {
     ))
 }
 
+pub fn confirm_yes_default(prompt: impl fmt::Display) -> anyhow::Result<bool> {
+    if assume_yes() {
+        return Ok(true);
+    }
+
+    if !io::stdin().is_terminal() {
+        anyhow::bail!(
+            "Confirmation required for non-interactive input. Re-run with --yes to continue."
+        );
+    }
+
+    print!("{} [Y/n] ", prompt);
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    Ok(matches!(
+        input.trim().to_ascii_lowercase().as_str(),
+        "" | "y" | "yes"
+    ))
+}
+
 pub fn confirm_or_cancel(prompt: impl fmt::Display) -> anyhow::Result<()> {
     if confirm(prompt)? {
+        return Ok(());
+    }
+    anyhow::bail!("Cancelled")
+}
+
+pub fn confirm_yes_default_or_cancel(prompt: impl fmt::Display) -> anyhow::Result<()> {
+    if confirm_yes_default(prompt)? {
         return Ok(());
     }
     anyhow::bail!("Cancelled")
@@ -201,6 +230,182 @@ pub fn summary_line(status: Status, detail: impl fmt::Display) {
     println!("{} {}", status_cell(status), detail);
 }
 
+pub struct TransactionRow {
+    pub package: String,
+    pub old_version: String,
+    pub new_version: Option<String>,
+    pub net_change: SignedByteEstimate,
+    pub download: ByteEstimate,
+}
+
+impl TransactionRow {
+    pub fn new(
+        package: impl Into<String>,
+        old_version: impl Into<String>,
+        new_version: impl Into<String>,
+        net_change: SignedByteEstimate,
+        download: ByteEstimate,
+    ) -> Self {
+        Self {
+            package: package.into(),
+            old_version: old_version.into(),
+            new_version: Some(new_version.into()),
+            net_change,
+            download,
+        }
+    }
+
+    pub fn single_version(
+        package: impl Into<String>,
+        version: impl Into<String>,
+        net_change: SignedByteEstimate,
+        download: ByteEstimate,
+    ) -> Self {
+        Self {
+            package: package.into(),
+            old_version: version.into(),
+            new_version: None,
+            net_change,
+            download,
+        }
+    }
+}
+
+pub fn print_transaction_table(rows: &[TransactionRow], totals: &DiskImpact, net_label: &str) {
+    let layout = TransactionTableLayout::from_rows(rows);
+    layout.print_header();
+    for row in rows {
+        layout.print_row(row);
+    }
+    layout.print_totals(totals, net_label);
+}
+
+pub struct TransactionTableLayout {
+    package_label: String,
+    package_width: usize,
+    show_download: bool,
+    show_new_version: bool,
+    net_magnitude_width: usize,
+}
+
+const LIVE_UPGRADE_NET_MAGNITUDE_WIDTH: usize = 10;
+
+impl TransactionTableLayout {
+    pub fn from_rows(rows: &[TransactionRow]) -> Self {
+        let package_header = format!("Package ({})", rows.len());
+        let package_width = rows
+            .iter()
+            .map(|row| row.package.chars().count())
+            .chain(std::iter::once(package_header.chars().count()))
+            .max()
+            .unwrap_or(package_header.len())
+            .clamp(11, 44);
+        let show_download = rows.iter().any(|row| row.download.bytes != Some(0));
+        let show_new_version = rows.iter().any(|row| row.new_version.is_some());
+        let net_magnitude_width = rows
+            .iter()
+            .map(|row| compact_signed_magnitude(row.net_change).chars().count())
+            .chain(std::iter::once("Net Change".len().saturating_sub(1)))
+            .max()
+            .unwrap_or(9);
+
+        Self {
+            package_label: format!("Package ({})", rows.len()),
+            package_width,
+            show_download,
+            show_new_version,
+            net_magnitude_width,
+        }
+    }
+
+    pub fn upgrade_preview(package_width: usize) -> Self {
+        Self {
+            package_label: "Package".to_string(),
+            package_width: package_width.max("Package".len()).clamp(11, 44),
+            show_download: true,
+            show_new_version: true,
+            net_magnitude_width: LIVE_UPGRADE_NET_MAGNITUDE_WIDTH,
+        }
+    }
+
+    fn header_line(&self) -> String {
+        let version_header = if self.show_new_version {
+            "Old Version"
+        } else {
+            "Version"
+        };
+        let net_width = self.net_magnitude_width + 1;
+
+        let mut line = format!(
+            "{:<package_width$} {:<12}",
+            self.package_label,
+            version_header,
+            package_width = self.package_width
+        );
+        if self.show_new_version {
+            line.push_str(&format!(" {:<13}", "New Version"));
+        }
+        line.push_str(&format!(" {:>net_width$}", "Net Change"));
+        if self.show_download {
+            line.push_str(&format!(" {:>14}", "Download Size"));
+        }
+        line
+    }
+
+    fn divider_line(&self) -> String {
+        divider(self.header_line().len())
+    }
+
+    pub fn print_header(&self) {
+        println!("{}", self.header_line());
+        println!("{}", self.divider_line());
+    }
+
+    fn row_line(&self, row: &TransactionRow) -> String {
+        let mut line = format!(
+            "{:<package_width$} {:<12}",
+            truncate_end(&row.package, self.package_width),
+            truncate_end(&row.old_version, 12),
+            package_width = self.package_width
+        );
+        if self.show_new_version {
+            line.push_str(&format!(
+                " {:<13}",
+                truncate_end(row.new_version.as_deref().unwrap_or("-"), 13)
+            ));
+        }
+        line.push_str(&format!(
+            " {}",
+            format_compact_signed_cell(row.net_change, self.net_magnitude_width)
+        ));
+        if self.show_download {
+            line.push_str(&format!(" {:>14}", format_compact_unsigned(row.download)));
+        }
+        line
+    }
+
+    pub fn print_row(&self, row: &TransactionRow) {
+        print!("{}", self.row_line(row));
+        println!();
+    }
+
+    pub fn print_totals(&self, totals: &DiskImpact, net_label: &str) {
+        println!();
+        if self.show_download && !matches!(totals.download.bytes, Some(0)) {
+            println!(
+                "Total Download Size:   {}",
+                format_compact_unsigned(totals.download)
+            );
+            println!(
+                "Total Installed Size:  {}",
+                format_compact_unsigned(totals.download)
+            );
+        }
+        println!("{net_label:<22} {}", format_compact_signed(totals.net));
+        println!();
+    }
+}
+
 pub fn print_disk_impact(impact: &DiskImpact) {
     println!("{}", section("Disk impact:"));
     if !matches!(impact.download.bytes, Some(0)) {
@@ -220,6 +425,48 @@ pub fn print_disk_impact(impact: &DiskImpact) {
 pub fn print_local_disk_impact(impact: &DiskImpact) {
     println!("{}", section("Disk impact:"));
     println!("  {} {}", meta("Disk change:"), format_signed(impact.net));
+}
+
+fn format_compact_unsigned(value: ByteEstimate) -> String {
+    match value.bytes {
+        Some(bytes) => format!("{}", HumanBytes(bytes)),
+        None => "unknown".to_string(),
+    }
+}
+
+fn format_compact_signed(value: SignedByteEstimate) -> String {
+    match value.bytes {
+        Some(bytes) => {
+            let magnitude = HumanBytes(bytes.unsigned_abs() as u64);
+            if bytes < 0 {
+                format!("-{magnitude}")
+            } else {
+                format!("{magnitude}")
+            }
+        }
+        None => "unknown".to_string(),
+    }
+}
+
+fn format_compact_signed_cell(value: SignedByteEstimate, magnitude_width: usize) -> String {
+    match value.bytes {
+        Some(bytes) => {
+            let sign = if bytes < 0 { "-" } else { " " };
+            let magnitude = compact_signed_magnitude(value);
+            format!("{sign}{magnitude:<magnitude_width$}")
+        }
+        None => format!(" {:<magnitude_width$}", "unknown"),
+    }
+}
+
+fn compact_signed_magnitude(value: SignedByteEstimate) -> String {
+    match value.bytes {
+        Some(bytes) => {
+            let magnitude = HumanBytes(bytes.unsigned_abs() as u64);
+            format!("{magnitude}")
+        }
+        None => "unknown".to_string(),
+    }
 }
 
 fn format_unsigned(value: ByteEstimate) -> String {
@@ -262,9 +509,11 @@ fn confidence_suffix(confidence: SizeConfidence) -> &'static str {
 mod tests {
     use console::strip_ansi_codes;
 
+    use crate::services::packaging::disk_impact::{ByteEstimate, SignedByteEstimate};
+
     use super::{
-        Status, assume_yes, is_sensitive_key, redact_secret, set_assume_yes, status_cell,
-        status_label, truncate_end, truncate_middle,
+        Status, TransactionRow, TransactionTableLayout, assume_yes, is_sensitive_key,
+        redact_secret, set_assume_yes, status_cell, status_label, truncate_end, truncate_middle,
     };
 
     #[test]
@@ -312,6 +561,28 @@ mod tests {
         );
         assert_eq!(truncate_end("abc", 10), "abc");
         assert_eq!(truncate_middle("abc", 10), "abc");
+    }
+
+    #[test]
+    fn live_upgrade_preview_keeps_download_column_aligned() {
+        let layout = TransactionTableLayout::upgrade_preview("stable/forge".len());
+        let row = TransactionRow::new(
+            "stable/forge",
+            "0.1.2",
+            "0.2.2",
+            SignedByteEstimate::estimated(-227_604),
+            ByteEstimate::exact(5 * 1024 * 1024),
+        );
+
+        let header = layout.header_line();
+        let rendered_row = layout.row_line(&row);
+
+        assert_eq!(header.len(), rendered_row.len());
+        assert_eq!(
+            header.find("Download Size").expect("download header") + "Download Size".len(),
+            rendered_row.find("5.00 MiB").expect("download size") + "5.00 MiB".len()
+        );
+        assert_eq!(layout.divider_line(), "-".repeat(header.len()));
     }
 
     #[test]

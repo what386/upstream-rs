@@ -138,6 +138,27 @@ impl<'a> RemoveOperation<'a> {
         (impact, planned, failures)
     }
 
+    pub fn transaction_impact_rows(
+        &self,
+        package_names: &[String],
+        purge_option: bool,
+    ) -> Result<Vec<(String, String, DiskImpact)>> {
+        package_names
+            .iter()
+            .map(|package_name| {
+                let package = self
+                    .package_storage
+                    .get_package_by_name(package_name)
+                    .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
+                Ok((
+                    format!("{}/{}", package.provider, package.name),
+                    package.version.to_string(),
+                    self.remover.estimate_remove_impact(package, purge_option),
+                ))
+            })
+            .collect()
+    }
+
     pub fn preview_single<H>(
         &mut self,
         package_name: &str,

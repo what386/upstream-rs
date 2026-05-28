@@ -9,5 +9,5 @@ pub mod rollback_manager;
 pub use package_checker::PackageChecker;
 pub use package_installer::PackageInstaller;
 pub use package_remover::PackageRemover;
-pub use package_upgrader::PackageUpgrader;
+pub use package_upgrader::{PackageUpgrader, ResolvedUpgradeTarget};
 pub use rollback_manager::RollbackManager;
