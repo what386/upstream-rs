@@ -241,17 +241,29 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
         ))?;
     }
 
+    let pb = ProgressBar::new_spinner();
+    pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
+    pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
+    pb.enable_steady_tick(Duration::from_millis(120));
+    pb.set_message("Pruning rollback artifacts");
+
     let mut pruned = 0_u32;
     let mut missing = 0_u32;
-    for name in &target_names {
+    let total = target_names.len();
+    for (idx, name) in target_names.iter().enumerate() {
+        pb.set_message(format!(
+            "Pruning rollback artifacts for {:<28} ({}/{})",
+            name,
+            idx + 1,
+            total
+        ));
         if manager.prune_package(name)? {
-            output::status_line(Status::Ok, name, "pruned");
             pruned += 1;
         } else {
-            output::status_line(Status::Fail, name, "no rollback data found");
             missing += 1;
         }
     }
+    pb.finish_and_clear();
 
     if target_names.is_empty() {
         println!("{}", output::warning("No rollback artifacts to prune."));
