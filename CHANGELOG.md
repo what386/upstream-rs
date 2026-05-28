@@ -2,6 +2,13 @@
 
 *Generated on 2026-05-28*
 
+## 1.16.3 — 2026-05-28
+
+### Changes
+
+- bug: fix test failures on windows
+
+
 ## 1.16.2 — 2026-05-28
 
 ### Changes
