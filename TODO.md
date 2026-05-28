@@ -5,6 +5,10 @@
 
 ## Tasks
 
-- [ ] bug: fix test failures on windows
+
+## Completed
+
+- [x] bug: fix test failures on windows
       @created 2026-05-28 00:42
+      @completed 2026-05-28 00:42
 
