@@ -5,3 +5,6 @@
 
 ## Tasks
 
+- [ ] near-complete CLI update to modernize output
+      @created 2026-05-28 22:31
+
