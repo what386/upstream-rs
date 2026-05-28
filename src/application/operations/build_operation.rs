@@ -1,5 +1,4 @@
 use anyhow::{Context, Result, anyhow, bail};
-use console::style;
 
 use crate::application::{operations::install_operation::InstallOperation, output};
 use crate::models::{
@@ -91,15 +90,6 @@ impl<'a> BuildOperation<'a> {
             bail!("Build supports forge providers only (github/gitlab/gitea)");
         }
 
-        println!(
-            "{}",
-            style(format!(
-                "Building {} from {} ...",
-                &input.name, &resolved_provider
-            ))
-            .cyan()
-        );
-
         if input.dry_run {
             let disk_impact = self
                 .estimate_build_disk_impact(
@@ -123,10 +113,20 @@ impl<'a> BuildOperation<'a> {
                         "Failed to fetch branch head for '{}' on '{}'",
                         branch, resolved_repo_slug
                     ))?;
-                println!("{}", style("Dry run: build preview").bold());
+                println!("{}", output::title("Build preview"));
                 println!("  package: {}", input.name);
                 println!("  source: {} ({})", resolved_repo_slug, resolved_provider);
                 println!("  ref: branch {} @ {}", branch, commit);
+                output::print_transaction_table(
+                    &[output::TransactionRow::single_version(
+                        format!("{}/{}", resolved_provider, input.name),
+                        branch,
+                        disk_impact.net,
+                        disk_impact.download,
+                    )],
+                    &disk_impact,
+                    "Net Build Size:",
+                );
             } else {
                 let release = if let Some(tag) = input.tag.as_deref() {
                     self.provider_manager
@@ -155,10 +155,20 @@ impl<'a> BuildOperation<'a> {
                             resolved_repo_slug
                         ))?
                 };
-                println!("{}", style("Dry run: build preview").bold());
+                println!("{}", output::title("Build preview"));
                 println!("  package: {}", input.name);
                 println!("  source: {} ({})", resolved_repo_slug, resolved_provider);
                 println!("  ref: release {} ({})", release.name, release.tag);
+                output::print_transaction_table(
+                    &[output::TransactionRow::single_version(
+                        format!("{}/{}", resolved_provider, input.name),
+                        &release.tag,
+                        disk_impact.net,
+                        disk_impact.download,
+                    )],
+                    &disk_impact,
+                    "Net Build Size:",
+                );
             }
 
             match input.build_profile {
@@ -174,7 +184,6 @@ impl<'a> BuildOperation<'a> {
                 "  desktop entry: {}",
                 if input.desktop { "yes" } else { "no" }
             );
-            output::print_disk_impact(&disk_impact);
             println!("  actions: resolve only (no compile, no install, no metadata changes)");
             return Ok(());
         }
@@ -187,14 +196,25 @@ impl<'a> BuildOperation<'a> {
                 resolved_base_url.as_deref(),
             )
             .await;
-        output::print_disk_impact(&disk_impact);
-        output::confirm_or_cancel(format!(
-            "Build and install '{}' from {} ({})?",
-            input.name, resolved_repo_slug, resolved_provider
-        ))?;
+        let new_version = input
+            .branch
+            .as_deref()
+            .or(input.tag.as_deref())
+            .unwrap_or("latest");
+        output::print_transaction_table(
+            &[output::TransactionRow::single_version(
+                format!("{}/{}", resolved_provider, input.name),
+                new_version,
+                disk_impact.net,
+                disk_impact.download,
+            )],
+            &disk_impact,
+            "Net Build Size:",
+        );
+        output::confirm_yes_default_or_cancel("Proceed with installation?")?;
 
         let worker = BuildWorker::new(self.provider_manager);
-        let output = worker
+        let build_result = worker
             .build(
                 BuildRequest {
                     name: input.name.clone(),
@@ -212,12 +232,11 @@ impl<'a> BuildOperation<'a> {
 
         println!(
             "{}",
-            style(format!(
+            output::title(format!(
                 "Built artifact: {} ({:?})",
-                output.artifact_path.display(),
-                output.profile
+                build_result.artifact_path.display(),
+                build_result.profile
             ))
-            .cyan()
         );
 
         let mut package = Package::with_defaults(
@@ -231,8 +250,8 @@ impl<'a> BuildOperation<'a> {
             resolved_base_url,
         );
         package.install_type = InstallType::Build;
-        package.build_branch = output.branch.clone();
-        package.build_commit = output.commit.clone();
+        package.build_branch = build_result.branch.clone();
+        package.build_commit = build_result.commit.clone();
 
         let mut install_operation = InstallOperation::new(
             self.provider_manager,
@@ -244,8 +263,8 @@ impl<'a> BuildOperation<'a> {
         let installed = install_operation
             .install_local_artifact(
                 package,
-                &output.artifact_path,
-                output.version,
+                &build_result.artifact_path,
+                build_result.version,
                 &input.desktop,
                 &mut msg,
             )
@@ -253,7 +272,7 @@ impl<'a> BuildOperation<'a> {
 
         println!(
             "{}",
-            style(format!("Build install complete for '{}'.", installed.name)).green()
+            output::success(format!("Build install complete for '{}'.", installed.name))
         );
 
         Ok(())

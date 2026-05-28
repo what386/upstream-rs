@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use crate::{
     application::operations::remove_operation::RemoveOperation,
-    application::output::{self, Status},
+    application::output::{self, Status, TransactionRow},
+    services::packaging::disk_impact::{ByteEstimate, DiskImpact},
     services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
@@ -26,18 +27,20 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
         return run_dry_run(names, purge, &mut package_remover);
     }
 
-    let (impact, _, failed) = package_remover.estimate_bulk_impact(&names, purge);
-    if failed == 0 {
-        output::print_local_disk_impact(&impact);
-    } else {
-        output::print_local_disk_impact(&impact);
-        output::action_note(format!(
-            "{failed} package(s) could not be included in disk estimate"
-        ));
-    }
-
-    let action = if purge { "purge" } else { "remove" };
-    output::confirm_or_cancel(format!("{} {} package(s)?", action, names.len()))?;
+    let impact_rows = package_remover.transaction_impact_rows(&names, purge)?;
+    let impact = impact_rows
+        .iter()
+        .fold(DiskImpact::empty(), |total, (_, _, impact)| {
+            total + impact.clone()
+        });
+    let transaction_rows = impact_rows
+        .iter()
+        .map(|(name, version, impact)| {
+            TransactionRow::single_version(name, version, impact.net, ByteEstimate::exact(0))
+        })
+        .collect::<Vec<_>>();
+    output::print_transaction_table(&transaction_rows, &impact, "Net Remove Size:");
+    output::confirm_yes_default_or_cancel("Proceed with removal?")?;
 
     let overall_pb = ProgressBar::new(0);
     overall_pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
