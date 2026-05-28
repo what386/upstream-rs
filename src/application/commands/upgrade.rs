@@ -2,7 +2,7 @@ use crate::{
     application::operations::upgrade_operation::{
         UpdateCheckRow, UpdateCheckStatus, UpgradeOperation, UpgradePreviewEvent,
     },
-    application::output::{self, Status, TransactionRow, TransactionTableLayout},
+    application::output::{self, SizeImpactRow, Status, TransactionRow, TransactionTableLayout},
     models::common::enums::TrustMode,
     providers::provider_manager::ProviderManager,
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
@@ -142,13 +142,22 @@ pub async fn run(
             println!("No upgrades available.");
             return Ok(());
         }
-        layout.print_totals(&impact, "Net disk change:");
+        let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(&preview_rows);
+        let size_rows = rollback_size_rows(rollback_impact);
+        layout.print_totals(&impact, "Net disk change:", &size_rows);
     } else {
         let transaction_rows = preview_rows
             .iter()
             .map(upgrade_transaction_row)
             .collect::<Vec<_>>();
-        output::print_transaction_table(&transaction_rows, &impact, "Net disk change:");
+        let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(&preview_rows);
+        let size_rows = rollback_size_rows(rollback_impact);
+        output::print_transaction_table_with_size_rows(
+            &transaction_rows,
+            &impact,
+            "Net disk change:",
+            &size_rows,
+        );
     }
     output::confirm_yes_default_or_cancel("Proceed with installation?")?;
 
@@ -246,6 +255,16 @@ pub async fn run(
     }
 
     Ok(())
+}
+
+fn rollback_size_rows(
+    rollback_impact: crate::services::packaging::disk_impact::SignedByteEstimate,
+) -> Vec<SizeImpactRow> {
+    if matches!(rollback_impact.bytes, Some(0)) {
+        Vec::new()
+    } else {
+        vec![SizeImpactRow::new("Rollback storage", rollback_impact)]
+    }
 }
 
 fn truncate_cell(value: &str, max: usize) -> String {
@@ -391,10 +410,27 @@ async fn run_dry_run(
 ) -> Result<()> {
     println!("{}", output::title("Upgrade preview"));
     output::kv("Trust", trust_mode);
-    let impact = package_upgrade
-        .estimate_upgrade_impact(names.as_deref(), force_option)
+    let preview_rows = package_upgrade
+        .preview_upgrade(names.as_deref(), force_option)
         .await;
-    output::print_disk_impact(&impact);
+    let (impact, rollback_impact) = match &preview_rows {
+        Ok(rows) => {
+            let impact = rows.iter().fold(
+                crate::services::packaging::disk_impact::DiskImpact::empty(),
+                |total, row| total + row.disk_impact.clone(),
+            );
+            (
+                impact,
+                package_upgrade.estimate_upgrade_rollback_impact(rows),
+            )
+        }
+        Err(_) => (
+            crate::services::packaging::disk_impact::DiskImpact::unknown(),
+            crate::services::packaging::disk_impact::SignedByteEstimate::unknown(),
+        ),
+    };
+    let size_rows = rollback_size_rows(rollback_impact);
+    output::print_disk_impact_with_size_rows(&impact, &size_rows);
     output::action_note("resolve only (no download, no install, no metadata changes)");
     println!();
     let rows = match names {

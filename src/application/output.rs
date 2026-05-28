@@ -238,6 +238,21 @@ pub struct TransactionRow {
     pub download: ByteEstimate,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SizeImpactRow {
+    pub label: String,
+    pub value: SignedByteEstimate,
+}
+
+impl SizeImpactRow {
+    pub fn new(label: impl Into<String>, value: SignedByteEstimate) -> Self {
+        Self {
+            label: label.into(),
+            value,
+        }
+    }
+}
+
 impl TransactionRow {
     pub fn new(
         package: impl Into<String>,
@@ -272,12 +287,21 @@ impl TransactionRow {
 }
 
 pub fn print_transaction_table(rows: &[TransactionRow], totals: &DiskImpact, net_label: &str) {
+    print_transaction_table_with_size_rows(rows, totals, net_label, &[]);
+}
+
+pub fn print_transaction_table_with_size_rows(
+    rows: &[TransactionRow],
+    totals: &DiskImpact,
+    net_label: &str,
+    size_rows: &[SizeImpactRow],
+) {
     let layout = TransactionTableLayout::from_rows(rows);
     layout.print_header();
     for row in rows {
         layout.print_row(row);
     }
-    layout.print_totals(totals, net_label);
+    layout.print_totals(totals, net_label, size_rows);
 }
 
 pub struct TransactionTableLayout {
@@ -389,7 +413,7 @@ impl TransactionTableLayout {
         println!();
     }
 
-    pub fn print_totals(&self, totals: &DiskImpact, net_label: &str) {
+    pub fn print_totals(&self, totals: &DiskImpact, net_label: &str, size_rows: &[SizeImpactRow]) {
         println!();
         if self.show_download && !matches!(totals.download.bytes, Some(0)) {
             println!(
@@ -401,13 +425,37 @@ impl TransactionTableLayout {
                 format_compact_unsigned(totals.download)
             );
         }
-        println!("{net_label:<22} {}", format_compact_signed(totals.net));
+        if size_rows.is_empty() {
+            println!("{net_label:<22} {}", format_compact_signed(totals.net));
+        } else {
+            println!(
+                "{:<22} {}",
+                "Package files:",
+                format_compact_delta(totals.net)
+            );
+            for row in size_rows {
+                println!(
+                    "{:<22} {}",
+                    format!("{}:", row.label),
+                    format_compact_delta(row.value)
+                );
+            }
+            println!(
+                "{:<22} {}",
+                "Net disk change:",
+                format_compact_signed(total_disk_change(totals.net, size_rows))
+            );
+        }
         println!();
     }
 }
 
 pub fn print_disk_impact(impact: &DiskImpact) {
-    println!("{}", section("Disk impact:"));
+    print_disk_impact_with_size_rows(impact, &[]);
+}
+
+pub fn print_disk_impact_with_size_rows(impact: &DiskImpact, size_rows: &[SizeImpactRow]) {
+    println!("{}", section("Size impact:"));
     if !matches!(impact.download.bytes, Some(0)) {
         println!(
             "  {} {}",
@@ -415,20 +463,73 @@ pub fn print_disk_impact(impact: &DiskImpact) {
             format_unsigned(impact.download)
         );
     }
-    println!(
-        "  {} {}",
-        meta("Net disk change:"),
-        format_signed(impact.net)
-    );
+    if size_rows.is_empty() {
+        println!(
+            "  {} {}",
+            meta("Net disk change:"),
+            format_signed(impact.net)
+        );
+    } else {
+        println!(
+            "  {} {}",
+            meta("Package files:"),
+            format_signed_delta(impact.net)
+        );
+        for row in size_rows {
+            println!(
+                "  {} {}",
+                meta(format!("{}:", row.label)),
+                format_signed_delta(row.value)
+            );
+        }
+        println!(
+            "  {} {}",
+            meta("Net disk change:"),
+            format_signed(total_disk_change(impact.net, size_rows))
+        );
+    }
 }
 
 pub fn print_local_disk_impact(impact: &DiskImpact) {
-    println!("{}", section("Disk impact:"));
-    println!(
-        "  {} {}",
-        meta("Net disk change:"),
-        format_signed(impact.net)
-    );
+    print_local_disk_impact_with_size_rows(impact, &[]);
+}
+
+pub fn print_local_disk_impact_with_size_rows(impact: &DiskImpact, size_rows: &[SizeImpactRow]) {
+    println!("{}", section("Size impact:"));
+    if size_rows.is_empty() {
+        println!(
+            "  {} {}",
+            meta("Net disk change:"),
+            format_signed(impact.net)
+        );
+    } else {
+        println!(
+            "  {} {}",
+            meta("Package files:"),
+            format_signed_delta(impact.net)
+        );
+        for row in size_rows {
+            println!(
+                "  {} {}",
+                meta(format!("{}:", row.label)),
+                format_signed_delta(row.value)
+            );
+        }
+        println!(
+            "  {} {}",
+            meta("Net disk change:"),
+            format_signed(total_disk_change(impact.net, size_rows))
+        );
+    }
+}
+
+fn total_disk_change(
+    package_files: SignedByteEstimate,
+    size_rows: &[SizeImpactRow],
+) -> SignedByteEstimate {
+    size_rows
+        .iter()
+        .fold(package_files, |total, row| total + row.value)
 }
 
 fn format_compact_unsigned(value: ByteEstimate) -> String {
@@ -448,6 +549,15 @@ fn format_compact_signed(value: SignedByteEstimate) -> String {
                 format!("{magnitude}")
             }
         }
+        None => "unknown".to_string(),
+    }
+}
+
+fn format_compact_delta(value: SignedByteEstimate) -> String {
+    match value.bytes {
+        Some(bytes) if bytes > 0 => format!("+{}", HumanBytes(bytes as u64)),
+        Some(bytes) if bytes < 0 => format!("-{}", HumanBytes(bytes.unsigned_abs() as u64)),
+        Some(_) => "no change".to_string(),
         None => "unknown".to_string(),
     }
 }
@@ -503,6 +613,23 @@ fn format_signed(value: SignedByteEstimate) -> String {
     }
 }
 
+fn format_signed_delta(value: SignedByteEstimate) -> String {
+    match value.bytes {
+        Some(bytes) if bytes > 0 => format!(
+            "+{}{}",
+            HumanBytes(bytes as u64),
+            confidence_suffix(value.confidence)
+        ),
+        Some(bytes) if bytes < 0 => format!(
+            "-{}{}",
+            HumanBytes(bytes.unsigned_abs() as u64),
+            confidence_suffix(value.confidence)
+        ),
+        Some(_) => format!("no change{}", confidence_suffix(value.confidence)),
+        None => "unknown".to_string(),
+    }
+}
+
 fn confidence_suffix(confidence: SizeConfidence) -> &'static str {
     match confidence {
         SizeConfidence::Exact => "",
@@ -518,8 +645,9 @@ mod tests {
     use crate::services::packaging::disk_impact::{ByteEstimate, SignedByteEstimate};
 
     use super::{
-        Status, TransactionRow, TransactionTableLayout, assume_yes, format_signed,
-        is_sensitive_key, redact_secret, set_assume_yes, status_cell, status_label, truncate_end,
+        SizeImpactRow, Status, TransactionRow, TransactionTableLayout, assume_yes,
+        format_compact_delta, format_signed, format_signed_delta, is_sensitive_key, redact_secret,
+        set_assume_yes, status_cell, status_label, total_disk_change, truncate_end,
         truncate_middle,
     };
 
@@ -602,6 +730,35 @@ mod tests {
             format_signed(SignedByteEstimate::exact(-5 * 1024 * 1024)),
             "-5.00 MiB"
         );
+    }
+
+    #[test]
+    fn auxiliary_size_rows_render_as_deltas() {
+        assert_eq!(
+            format_signed_delta(SignedByteEstimate::exact(5 * 1024 * 1024)),
+            "+5.00 MiB"
+        );
+        assert_eq!(
+            format_signed_delta(SignedByteEstimate::estimated(-5 * 1024 * 1024)),
+            "-5.00 MiB (estimated)"
+        );
+        assert_eq!(
+            format_compact_delta(SignedByteEstimate::exact(5 * 1024 * 1024)),
+            "+5.00 MiB"
+        );
+    }
+
+    #[test]
+    fn total_disk_change_includes_auxiliary_rows() {
+        let total = total_disk_change(
+            SignedByteEstimate::exact(-10),
+            &[SizeImpactRow::new(
+                "Rollback storage",
+                SignedByteEstimate::exact(10),
+            )],
+        );
+
+        assert_eq!(total.bytes, Some(0));
     }
 
     #[test]
