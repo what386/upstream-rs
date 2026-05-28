@@ -31,12 +31,13 @@ pub async fn run(
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
 
+    println!("{}", crate::application::output::title("Probe"));
     let (effective_repo_slug, effective_provider, effective_base_url, mut releases) =
         if let Some(provider) = provider {
-            println!(
-                "{}",
-                style(format!("Probing '{}' via {} ...", repo_slug, provider)).cyan()
-            );
+            crate::application::output::action_note(format!(
+                "Probing '{}' via {}",
+                repo_slug, provider
+            ));
 
             let releases = provider_manager
                 .get_releases(
@@ -62,14 +63,10 @@ pub async fn run(
                 })
                 .await?;
 
-            println!(
-                "{}",
-                style(format!(
-                    "Probing '{}' as '{}' via {} ...",
-                    repo_slug, discovery.source.repo_slug, discovery.source.provider
-                ))
-                .cyan()
-            );
+            crate::application::output::action_note(format!(
+                "Probing '{}' as '{}' via {}",
+                repo_slug, discovery.source.repo_slug, discovery.source.provider
+            ));
 
             (
                 discovery.source.repo_slug,
@@ -83,7 +80,13 @@ pub async fn run(
     releases.sort_by(|a, b| b.version.cmp(&a.version));
 
     if releases.is_empty() {
-        println!("No releases found for channel '{}'.", channel);
+        println!(
+            "{}",
+            crate::application::output::warning(format!(
+                "No releases found for channel '{}'.",
+                channel
+            ))
+        );
         return Ok(());
     }
 
