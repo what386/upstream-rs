@@ -59,7 +59,6 @@ pub struct UpgradeOperation<'a> {
     upgrader: PackageUpgrader<'a>,
     checker: PackageChecker<'a>,
     provider_manager: &'a ProviderManager,
-    paths: &'a UpstreamPaths,
     package_storage: &'a mut PackageStorage,
 }
 
@@ -361,7 +360,6 @@ impl<'a> UpgradeOperation<'a> {
             upgrader,
             checker,
             provider_manager,
-            paths,
             package_storage,
         })
     }
@@ -593,16 +591,10 @@ impl<'a> UpgradeOperation<'a> {
         };
 
         let new_size = asset_size_estimate(asset.size);
-        let old_rollback = crate::services::packaging::disk_impact::estimate_path_size(
-            &self.paths.install.rollback_dir.join(&package.name),
-        )
-        .unwrap_or(0);
         match new_size.bytes {
             Some(bytes) => DiskImpact {
                 download: new_size,
-                net: SignedByteEstimate::estimated(
-                    i128::from(bytes).saturating_sub(i128::from(old_rollback)),
-                ),
+                net: SignedByteEstimate::estimated(i128::from(bytes)),
             },
             None => DiskImpact {
                 download: ByteEstimate::unknown(),

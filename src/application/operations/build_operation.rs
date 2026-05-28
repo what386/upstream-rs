@@ -125,7 +125,7 @@ impl<'a> BuildOperation<'a> {
                         disk_impact.download,
                     )],
                     &disk_impact,
-                    "Net Build Size:",
+                    "Net disk change:",
                 );
             } else {
                 let release = if let Some(tag) = input.tag.as_deref() {
@@ -167,7 +167,7 @@ impl<'a> BuildOperation<'a> {
                         disk_impact.download,
                     )],
                     &disk_impact,
-                    "Net Build Size:",
+                    "Net disk change:",
                 );
             }
 
@@ -209,7 +209,7 @@ impl<'a> BuildOperation<'a> {
                 disk_impact.download,
             )],
             &disk_impact,
-            "Net Build Size:",
+            "Net disk change:",
         );
         output::confirm_yes_default_or_cancel("Proceed with installation?")?;
 
