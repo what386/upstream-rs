@@ -166,6 +166,10 @@ upstream install app https://example.com/app.tar.gz -k archive
 upstream install tool https://example.com/downloads
 ```
 
+Archives that contain platform-specific subdirectories are resolved automatically.
+Use `--match-pattern` or `--exclude-pattern` to steer selection when an archive
+ships multiple compatible payloads.
+
 ---
 
 ### Upgrade
