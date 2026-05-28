@@ -193,7 +193,7 @@ pub async fn run(
     });
 
     let mut no_download_progress: Option<fn(u64, u64)> = None;
-    let mut no_messages: Option<fn(&str)> = None;
+    let mut ignored_messages = Some(|_: &str| {});
 
     let install_result = package_installer
         .install_single_with_progress(
@@ -202,7 +202,7 @@ pub async fn run(
             &create_entry,
             trust_mode,
             &mut no_download_progress,
-            &mut no_messages,
+            &mut ignored_messages,
             &mut progress_callback,
         )
         .await;

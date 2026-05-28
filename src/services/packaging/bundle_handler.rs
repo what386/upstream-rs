@@ -638,7 +638,7 @@ mod tests {
             crate::models::common::enums::Provider::Github,
             None,
         );
-        let mut message_callback: Option<fn(&str)> = None;
+        let mut message_callback = Some(|_: &str| {});
 
         let err = handler
             .install_dmg(&dmg_path, package, &mut message_callback)

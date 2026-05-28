@@ -1,13 +1,24 @@
 use anyhow::Result;
-use console::style;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::{
     application::operations::export_operation::ExportOperation,
-    services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
+    application::output,
+    services::{packaging::OperationProgressEvent, storage::package_storage::PackageStorage},
+    utils::static_paths::UpstreamPaths,
 };
+
+fn render_export_progress(event: OperationProgressEvent) -> String {
+    match event {
+        OperationProgressEvent::Phase(phase) => phase.label().to_string(),
+        OperationProgressEvent::Count { done, total } => format!("Exporting ... {done}/{total}"),
+        OperationProgressEvent::Warning(message) | OperationProgressEvent::Detail(message) => {
+            message
+        }
+    }
+}
 
 pub async fn run_export(path: PathBuf, full: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
@@ -16,44 +27,36 @@ pub async fn run_export(path: PathBuf, full: bool) -> Result<()> {
 
     let pb = ProgressBar::new(0);
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
-    pb.set_style(ProgressStyle::with_template(
-        "{msg}\n{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
-    )?);
+    pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
     pb.enable_steady_tick(Duration::from_millis(120));
+    pb.set_message("Exporting ...");
 
-    let pb_ref = &pb;
-
-    let mut progress_callback = Some(move |done: u64, total: u64| {
-        pb_ref.set_length(total);
-        pb_ref.set_position(done);
-    });
-
-    let mut message_callback = Some(move |msg: &str| {
-        pb_ref.set_message(msg.to_string());
+    let progress_pb = pb.clone();
+    let mut progress_callback = Some(move |event: OperationProgressEvent| {
+        progress_pb.set_message(render_export_progress(event));
     });
 
     if full {
-        println!("{}", style("Creating full snapshot ...").cyan());
+        println!("{}", output::title("Export snapshot"));
+        output::action_note(format!("Destination: {}", path.display()));
 
-        export_op.export_snapshot(&path, &mut progress_callback, &mut message_callback)?;
+        export_op.export_snapshot(&path, &mut progress_callback)?;
 
-        pb.set_position(pb.length().unwrap_or(0));
-        pb.finish_with_message("Snapshot complete");
-
+        pb.finish_and_clear();
         println!(
             "{}",
-            style(format!("Snapshot complete: saved to '{}'.", path.display())).green()
+            output::success(format!("Snapshot complete: saved to '{}'.", path.display()))
         );
     } else {
-        println!("{}", style("Exporting package manifest ...").cyan());
+        println!("{}", output::title("Export manifest"));
+        output::action_note(format!("Destination: {}", path.display()));
 
-        export_op.export_manifest(&path, &mut message_callback)?;
+        export_op.export_manifest(&path, &mut progress_callback)?;
 
-        pb.finish_with_message("Manifest complete");
-
+        pb.finish_and_clear();
         println!(
             "{}",
-            style(format!("Manifest complete: saved to '{}'.", path.display())).green()
+            output::success(format!("Manifest complete: saved to '{}'.", path.display()))
         );
     }
 

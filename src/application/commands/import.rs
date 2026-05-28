@@ -1,10 +1,10 @@
 use crate::{
     application::operations::import_operation::{ImportKind, ImportOperation},
-    services::storage::package_storage::PackageStorage,
+    application::output,
+    services::{packaging::OperationProgressEvent, storage::package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
-use console::style;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -26,6 +26,16 @@ impl From<ImportKindArg> for ImportKind {
     }
 }
 
+fn render_import_progress(event: OperationProgressEvent) -> String {
+    match event {
+        OperationProgressEvent::Phase(phase) => phase.label().to_string(),
+        OperationProgressEvent::Count { done, total } => format!("Importing ... {done}/{total}"),
+        OperationProgressEvent::Warning(message) | OperationProgressEvent::Detail(message) => {
+            message
+        }
+    }
+}
+
 pub async fn run_import(
     path: PathBuf,
     skip_failed: bool,
@@ -35,28 +45,18 @@ pub async fn run_import(
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let mut import_op = ImportOperation::new(&mut package_storage, &paths);
 
-    println!(
-        "{}",
-        style(format!("Importing from '{}' ...", path.display())).cyan()
-    );
+    println!("{}", output::title("Import"));
+    output::action_note(format!("Source: {}", path.display()));
 
     let pb = ProgressBar::new(0);
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
-    pb.set_style(ProgressStyle::with_template(
-        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
-    )?);
+    pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
     pb.enable_steady_tick(Duration::from_millis(120));
+    pb.set_message("Importing ...");
 
-    let pb_ref = &pb;
-    let mut download_progress_callback = Some(move |downloaded: u64, total: u64| {
-        pb_ref.set_length(total);
-        pb_ref.set_position(downloaded);
-    });
-
-    let mut overall_progress_callback: Option<Box<dyn FnMut(u32, u32)>> = None;
-
-    let mut message_callback = Some(move |msg: &str| {
-        pb_ref.println(msg);
+    let progress_pb = pb.clone();
+    let mut progress_callback = Some(move |event: OperationProgressEvent| {
+        progress_pb.set_message(render_import_progress(event));
     });
 
     import_op
@@ -64,15 +64,12 @@ pub async fn run_import(
             &path,
             skip_failed,
             import_as.map(Into::into),
-            &mut download_progress_callback,
-            &mut overall_progress_callback,
-            &mut message_callback,
+            &mut progress_callback,
         )
         .await?;
 
-    pb.set_position(pb.length().unwrap_or(0));
-    pb.finish_with_message("Import complete");
-    println!("{}", style("Import complete.").green());
+    pb.finish_and_clear();
+    println!("{}", output::success("Import complete."));
 
     Ok(())
 }

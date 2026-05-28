@@ -2,19 +2,28 @@ use crate::services::storage::{
     metadata_storage::MetadataStorage, package_storage::PackageStorage,
 };
 use anyhow::{Context, Result};
-use console::style;
-
-macro_rules! message {
-    ($cb:expr, $($arg:tt)*) => {{
-        if let Some(cb) = $cb.as_mut() {
-            cb(&format!($($arg)*));
-        }
-    }};
-}
 
 pub struct MetadataManager<'a> {
     package_storage: &'a mut PackageStorage,
     metadata_storage: &'a mut MetadataStorage,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetadataSetResult {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetadataBulkSetResult {
+    pub applied: Vec<MetadataSetResult>,
+    pub failures: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetadataBulkGetResult {
+    pub values: Vec<(String, String)>,
+    pub failures: Vec<(String, String)>,
 }
 
 impl<'a> MetadataManager<'a> {
@@ -29,65 +38,33 @@ impl<'a> MetadataManager<'a> {
     }
 
     /// Pins a package to its current version, preventing automatic updates.
-    pub fn pin_package<H>(
-        &mut self,
-        name: &str,
-        reason: Option<String>,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
-        message!(message_callback, "Pinning package '{}'...", name);
-
+    pub fn pin_package(&mut self, name: &str, reason: Option<String>) -> Result<()> {
         let package = self
             .package_storage
             .get_mut_package_by_name(name)
             .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
 
         if package.is_pinned {
-            message!(
-                message_callback,
-                "{}",
-                style(format!("Package '{}' is already pinned", name)).yellow()
-            );
             return Ok(());
         }
 
-        let version = package.version.clone();
         package.is_pinned = true;
         self.package_storage.save_packages()?;
         if let Some(reason) = reason {
             self.metadata_storage.set_pin_reason(name, reason)?;
         }
 
-        message!(
-            message_callback,
-            "{}",
-            style(format!("Package '{}' pinned at version {}", name, version)).green()
-        );
-
         Ok(())
     }
 
     /// Unpins a package, allowing it to receive automatic updates.
-    pub fn unpin_package<H>(&mut self, name: &str, message_callback: &mut Option<H>) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
-        message!(message_callback, "Unpinning package '{}'...", name);
-
+    pub fn unpin_package(&mut self, name: &str) -> Result<()> {
         let package = self
             .package_storage
             .get_mut_package_by_name(name)
             .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
 
         if !package.is_pinned {
-            message!(
-                message_callback,
-                "{}",
-                style(format!("Package '{}' is not pinned", name)).yellow()
-            );
             return Ok(());
         }
 
@@ -95,50 +72,21 @@ impl<'a> MetadataManager<'a> {
         self.package_storage.save_packages()?;
         self.metadata_storage.clear_pin_reason(name)?;
 
-        message!(
-            message_callback,
-            "{}",
-            style(format!("Package '{}' unpinned", name)).green()
-        );
-
         Ok(())
     }
 
     /// Removes package metadata for a package without touching runtime artifacts.
-    pub fn remove_package<H>(&mut self, name: &str, message_callback: &mut Option<H>) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
-        message!(
-            message_callback,
-            "Removing package metadata for '{}'...",
-            name
-        );
-
+    pub fn remove_package(&mut self, name: &str) -> Result<()> {
         if !self.package_storage.remove_package_by_name(name)? {
             return Err(anyhow::anyhow!("Package '{}' not found", name));
         }
         self.metadata_storage.remove_package(name)?;
 
-        message!(
-            message_callback,
-            "{}",
-            style(format!("Package '{}' metadata removed", name)).green()
-        );
-
         Ok(())
     }
 
     /// Renames a package alias without changing provider/repo/version metadata.
-    pub fn rename_package<H>(
-        &mut self,
-        old_name: &str,
-        new_name: &str,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
+    pub fn rename_package(&mut self, old_name: &str, new_name: &str) -> Result<bool> {
         let old_name = old_name.trim();
         let new_name = new_name.trim();
 
@@ -147,24 +95,12 @@ impl<'a> MetadataManager<'a> {
         }
 
         if old_name == new_name {
-            message!(
-                message_callback,
-                "{}",
-                style("Old and new package names are identical; no changes made").yellow()
-            );
-            return Ok(());
+            return Ok(false);
         }
 
         if self.package_storage.get_package_by_name(new_name).is_some() {
             return Err(anyhow::anyhow!("Package '{}' already exists", new_name));
         }
-
-        message!(
-            message_callback,
-            "Renaming package '{}' -> '{}' ...",
-            old_name,
-            new_name
-        );
 
         let package = self
             .package_storage
@@ -175,35 +111,13 @@ impl<'a> MetadataManager<'a> {
         self.package_storage.save_packages()?;
         self.metadata_storage.rename_package(old_name, new_name)?;
 
-        message!(
-            message_callback,
-            "{}",
-            style(format!("Package '{}' renamed to '{}'", old_name, new_name)).green()
-        );
-
-        Ok(())
+        Ok(true)
     }
 
     /// Sets a package metadata field using dot-notation key path.
     /// Example: "is_pinned=true" or "pattern=.*x86_64.*"
-    pub fn set_key<H>(
-        &mut self,
-        name: &str,
-        set_key: &str,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
+    pub fn set_key(&mut self, name: &str, set_key: &str) -> Result<MetadataSetResult> {
         let (key_path, value) = Self::parse_set_key(set_key)?;
-
-        message!(
-            message_callback,
-            "Setting '{}' for package '{}' = '{}'",
-            key_path,
-            name,
-            value
-        );
 
         // Get the package
         let package = self
@@ -225,37 +139,19 @@ impl<'a> MetadataManager<'a> {
         self.package_storage
             .add_or_update_package(updated_package)?;
 
-        message!(
-            message_callback,
-            "{}",
-            style("Package metadata updated successfully").green()
-        );
-
-        Ok(())
+        Ok(MetadataSetResult {
+            key: key_path,
+            value,
+        })
     }
 
     /// Gets a package metadata field using dot-notation key path.
     /// Example: "is_pinned" or "version"
-    pub fn get_key<H>(
-        &self,
-        name: &str,
-        get_key: &str,
-        message_callback: &mut Option<H>,
-    ) -> Result<String>
-    where
-        H: FnMut(&str),
-    {
+    pub fn get_key(&self, name: &str, get_key: &str) -> Result<String> {
         let key_path = get_key.trim();
         if key_path.is_empty() {
             return Err(anyhow::anyhow!("Key path cannot be empty"));
         }
-
-        message!(
-            message_callback,
-            "Getting value for '{}' from package '{}'",
-            key_path,
-            name
-        );
 
         // Get the package
         let package = self
@@ -270,81 +166,40 @@ impl<'a> MetadataManager<'a> {
         let value = Self::get_nested_value(&json_value, key_path)?;
 
         let value_str = Self::format_value(&value);
-        message!(
-            message_callback,
-            "{}.{} = {}",
-            name,
-            key_path,
-            style(&value_str).cyan()
-        );
 
         Ok(value_str)
     }
 
     /// Sets multiple package metadata fields in bulk.
-    pub fn set_bulk<H>(
-        &mut self,
-        name: &str,
-        set_keys: &[String],
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
-        let mut failures = 0;
+    pub fn set_bulk(&mut self, name: &str, set_keys: &[String]) -> MetadataBulkSetResult {
+        let mut applied = Vec::new();
+        let mut failures = Vec::new();
 
         for set_key in set_keys {
-            match self.set_key(name, set_key, message_callback) {
-                Ok(_) => {}
-                Err(e) => {
-                    message!(message_callback, "Failed to set '{}': {}", set_key, e);
-                    failures += 1;
-                }
+            match self.set_key(name, set_key) {
+                Ok(result) => applied.push(result),
+                Err(err) => failures.push((set_key.clone(), err.to_string())),
             }
         }
 
-        if failures > 0 {
-            message!(
-                message_callback,
-                "{} {}",
-                failures,
-                style("key(s) failed to be set").red()
-            );
-        }
-
-        Ok(())
+        MetadataBulkSetResult { applied, failures }
     }
 
     /// Gets multiple package metadata fields in bulk.
-    pub fn get_bulk<H>(
-        &self,
-        name: &str,
-        get_keys: &[String],
-        message_callback: &mut Option<H>,
-    ) -> Result<Vec<(String, String)>>
-    where
-        H: FnMut(&str),
-    {
-        let mut results = Vec::new();
+    pub fn get_bulk(&self, name: &str, get_keys: &[String]) -> MetadataBulkGetResult {
+        let mut values = Vec::new();
+        let mut failures = Vec::new();
 
         for get_key in get_keys {
-            match self.get_key(name, get_key, message_callback) {
+            match self.get_key(name, get_key) {
                 Ok(value) => {
-                    results.push((get_key.clone(), value));
+                    values.push((get_key.clone(), value));
                 }
-                Err(e) => {
-                    message!(
-                        message_callback,
-                        "{} '{}': {}",
-                        style("Failed to get").red(),
-                        get_key,
-                        e
-                    );
-                }
+                Err(err) => failures.push((get_key.clone(), err.to_string())),
             }
         }
 
-        Ok(results)
+        MetadataBulkGetResult { values, failures }
     }
 
     /// Parses a set_key string in the format "key=value" into (key_path, value).
@@ -545,11 +400,8 @@ mod tests {
             .add_or_update_package(test_package("fd"))
             .expect("store package");
         let mut manager = MetadataManager::new(&mut storage, &mut metadata_storage);
-        let mut messages: Option<fn(&str)> = None;
 
-        manager
-            .pin_package("fd", None, &mut messages)
-            .expect("pin package");
+        manager.pin_package("fd", None).expect("pin package");
         assert!(
             manager
                 .package_storage
@@ -558,9 +410,7 @@ mod tests {
                 .is_pinned
         );
 
-        manager
-            .unpin_package("fd", &mut messages)
-            .expect("unpin package");
+        manager.unpin_package("fd").expect("unpin package");
         assert!(
             !manager
                 .package_storage
@@ -584,25 +434,20 @@ mod tests {
             .add_or_update_package(test_package("rg"))
             .expect("store package");
         let mut manager = MetadataManager::new(&mut storage, &mut metadata_storage);
-        let mut messages: Option<fn(&str)> = None;
 
         manager
-            .set_key("rg", "is_pinned=true", &mut messages)
+            .set_key("rg", "is_pinned=true")
             .expect("set bool key");
         manager
-            .set_key("rg", "version.major=12", &mut messages)
+            .set_key("rg", "version.major=12")
             .expect("set nested numeric key");
 
         assert_eq!(
-            manager
-                .get_key("rg", "is_pinned", &mut messages)
-                .expect("get bool"),
+            manager.get_key("rg", "is_pinned").expect("get bool"),
             "true"
         );
         assert_eq!(
-            manager
-                .get_key("rg", "version.major", &mut messages)
-                .expect("get nested"),
+            manager.get_key("rg", "version.major").expect("get nested"),
             "12"
         );
 
@@ -624,15 +469,10 @@ mod tests {
             .add_or_update_package(test_package("taken"))
             .expect("store taken");
         let mut manager = MetadataManager::new(&mut storage, &mut metadata_storage);
-        let mut messages: Option<fn(&str)> = None;
 
-        assert!(
-            manager
-                .rename_package("old", "taken", &mut messages)
-                .is_err()
-        );
+        assert!(manager.rename_package("old", "taken").is_err());
         manager
-            .rename_package("old", "new", &mut messages)
+            .rename_package("old", "new")
             .expect("rename package");
         assert!(manager.package_storage.get_package_by_name("new").is_some());
         assert!(manager.package_storage.get_package_by_name("old").is_none());
@@ -652,15 +492,14 @@ mod tests {
             .add_or_update_package(test_package("fd"))
             .expect("store package");
         let mut manager = MetadataManager::new(&mut storage, &mut metadata_storage);
-        let mut messages: Option<fn(&str)> = None;
 
         manager
-            .remove_package("fd", &mut messages)
+            .remove_package("fd")
             .expect("remove package metadata");
         assert!(manager.package_storage.get_package_by_name("fd").is_none());
 
         let err = manager
-            .remove_package("fd", &mut messages)
+            .remove_package("fd")
             .expect_err("missing package should error");
         assert!(err.to_string().contains("Package 'fd' not found"));
 

@@ -1,18 +1,27 @@
 use crate::{application::output, services::storage::config_storage::ConfigStorage};
 use anyhow::Result;
-use console::style;
 use toml;
-
-macro_rules! message {
-    ($cb:expr, $($arg:tt)*) => {{
-        if let Some(cb) = $cb.as_mut() {
-            cb(&format!($($arg)*));
-        }
-    }};
-}
 
 pub struct ConfigUpdater<'a> {
     config_storage: &'a mut ConfigStorage,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigSetResult {
+    pub key: String,
+    pub display_value: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigBulkSetResult {
+    pub applied: Vec<ConfigSetResult>,
+    pub failures: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigBulkGetResult {
+    pub values: Vec<(String, String)>,
+    pub failures: Vec<(String, String)>,
 }
 
 impl<'a> ConfigUpdater<'a> {
@@ -22,10 +31,7 @@ impl<'a> ConfigUpdater<'a> {
 
     /// Sets a configuration value using dot-notation key path.
     /// Example: "parent.child=value" or "github.api_token=abc123"
-    pub fn set_key<H>(&mut self, set_key: &str, message_callback: &mut Option<H>) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
+    pub fn set_key(&mut self, set_key: &str) -> Result<ConfigSetResult> {
         let (key_path, value) = Self::parse_set_key(set_key)?;
 
         let display_value = if output::is_sensitive_key(&key_path) {
@@ -33,114 +39,59 @@ impl<'a> ConfigUpdater<'a> {
         } else {
             value.clone()
         };
-        message!(
-            message_callback,
-            "Setting '{}' = '{}'",
-            key_path,
-            display_value
-        );
 
         self.config_storage.try_set_value(&key_path, &value)?;
 
-        message!(
-            message_callback,
-            "{}",
-            style("Configuration updated successfully").green()
-        );
-
-        Ok(())
+        Ok(ConfigSetResult {
+            key: key_path,
+            display_value,
+        })
     }
 
     /// Gets a configuration value using dot-notation key path.
     /// Example: "parent.child" or "github.api_token"
-    pub fn get_key<H>(&self, get_key: &str, message_callback: &mut Option<H>) -> Result<String>
-    where
-        H: FnMut(&str),
-    {
+    pub fn get_key(&self, get_key: &str) -> Result<String> {
         let key_path = get_key.trim();
 
         if key_path.is_empty() {
             return Err(anyhow::anyhow!("Key path cannot be empty"));
         }
 
-        message!(message_callback, "Getting value for '{}'", key_path);
-
         let value: toml::Value = self.config_storage.try_get_value(key_path)?;
 
-        let value_str = Self::format_value(&value);
-
-        message!(
-            message_callback,
-            "{} = {}",
-            key_path,
-            style(&value_str).cyan()
-        );
-
-        Ok(value_str)
+        Ok(Self::format_value(&value))
     }
 
     /// Sets multiple configuration values in bulk.
-    pub fn set_bulk<H>(
-        &mut self,
-        set_keys: &[String],
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
-        let mut failures = 0;
+    pub fn set_bulk(&mut self, set_keys: &[String]) -> ConfigBulkSetResult {
+        let mut applied = Vec::new();
+        let mut failures = Vec::new();
 
         for set_key in set_keys {
-            match self.set_key(set_key, message_callback) {
-                Ok(_) => {}
-                Err(e) => {
-                    message!(message_callback, "Failed to set '{}': {}", set_key, e);
-                    failures += 1;
-                }
+            match self.set_key(set_key) {
+                Ok(result) => applied.push(result),
+                Err(err) => failures.push((set_key.clone(), err.to_string())),
             }
         }
 
-        if failures > 0 {
-            message!(
-                message_callback,
-                "{} {}",
-                failures,
-                style("key(s) failed to be set").red()
-            );
-        }
-
-        Ok(())
+        ConfigBulkSetResult { applied, failures }
     }
 
     /// Gets multiple configuration values in bulk.
-    pub fn get_bulk<H>(
-        &self,
-        get_keys: &[String],
-        message_callback: &mut Option<H>,
-    ) -> Result<Vec<(String, String)>>
-    where
-        H: FnMut(&str),
-    {
-        let mut results = Vec::new();
+    pub fn get_bulk(&self, get_keys: &[String]) -> ConfigBulkGetResult {
+        let mut values = Vec::new();
+        let mut failures = Vec::new();
 
         for get_key in get_keys {
-            match self.get_key(get_key, message_callback) {
+            match self.get_key(get_key) {
                 Ok(value) => {
-                    results.push((get_key.clone(), value));
+                    values.push((get_key.clone(), value));
                 }
-                Err(e) => {
-                    message!(
-                        message_callback,
-                        "{} '{}': {}",
-                        style("Failed to get").red(),
-                        get_key,
-                        e
-                    );
-                }
+                Err(err) => failures.push((get_key.clone(), err.to_string())),
             }
         }
 
-        Ok(results)
+        ConfigBulkGetResult { values, failures }
     }
 
     /// Parses a set_key string in the format "key.path=value" into (key_path, value).
@@ -217,14 +168,11 @@ mod tests {
         fs::create_dir_all(config_file.parent().expect("config parent")).expect("create parent");
         let mut storage = ConfigStorage::new(&config_file).expect("create storage");
         let mut updater = ConfigUpdater::new(&mut storage);
-        let mut messages: Option<fn(&str)> = None;
 
         updater
-            .set_key("github.api_token=ghp_abc", &mut messages)
+            .set_key("github.api_token=ghp_abc")
             .expect("set key");
-        let value = updater
-            .get_key("github.api_token", &mut messages)
-            .expect("get key");
+        let value = updater.get_key("github.api_token").expect("get key");
         assert_eq!(value, "ghp_abc");
 
         cleanup(&config_file).expect("cleanup");
@@ -236,22 +184,17 @@ mod tests {
         fs::create_dir_all(config_file.parent().expect("config parent")).expect("create parent");
         let mut storage = ConfigStorage::new(&config_file).expect("create storage");
         let mut updater = ConfigUpdater::new(&mut storage);
-        let mut messages: Option<fn(&str)> = None;
         let keys = vec![
             "github.api_token=ghp_abc".to_string(),
             "badformat".to_string(),
             "gitlab.api_token=glpat_abc".to_string(),
         ];
 
-        updater
-            .set_bulk(&keys, &mut messages)
-            .expect("bulk set should not abort");
-        let github = updater
-            .get_key("github.api_token", &mut messages)
-            .expect("github key");
-        let gitlab = updater
-            .get_key("gitlab.api_token", &mut messages)
-            .expect("gitlab key");
+        let result = updater.set_bulk(&keys);
+        assert_eq!(result.applied.len(), 2);
+        assert_eq!(result.failures.len(), 1);
+        let github = updater.get_key("github.api_token").expect("github key");
+        let gitlab = updater.get_key("gitlab.api_token").expect("gitlab key");
         assert_eq!(github, "ghp_abc");
         assert_eq!(gitlab, "glpat_abc");
 

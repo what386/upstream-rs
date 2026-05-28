@@ -1,3 +1,4 @@
+use crate::application::output::Status;
 use crate::{
     application::operations::config_operation::ConfigUpdater, application::output,
     services::storage::config_storage::ConfigStorage, utils::static_paths::UpstreamPaths,
@@ -13,17 +14,30 @@ pub fn run_set(set_keys: Vec<String>) -> Result<()> {
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
     let mut config_updater = ConfigUpdater::new(&mut config_storage);
 
-    let mut message_callback = Some(move |msg: &str| {
-        println!("{}", msg);
-    });
+    println!("{}", output::title("Config set"));
 
     if set_keys.len() > 1 {
-        config_updater.set_bulk(&set_keys, &mut message_callback)?;
+        let results = config_updater.set_bulk(&set_keys);
+        for applied in &results.applied {
+            output::status_line(
+                Status::Ok,
+                &applied.key,
+                format!("set to '{}'", applied.display_value),
+            );
+        }
+        for (key, err) in &results.failures {
+            output::status_line(Status::Fail, key, err);
+        }
     } else {
-        config_updater.set_key(&set_keys[0], &mut message_callback)?;
+        let applied = config_updater.set_key(&set_keys[0])?;
+        output::status_line(
+            Status::Ok,
+            &applied.key,
+            format!("set to '{}'", applied.display_value),
+        );
     }
 
-    println!("Configuration saved!");
+    println!("{}", output::success("Configuration saved."));
     Ok(())
 }
 
@@ -36,18 +50,24 @@ pub fn run_get(get_keys: Vec<String>) -> Result<()> {
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
     let config_updater = ConfigUpdater::new(&mut config_storage);
 
-    let mut message_callback = Some(move |msg: &str| {
-        println!("{}", msg);
-    });
+    println!("{}", output::title("Config get"));
 
     if get_keys.len() > 1 {
-        let results = config_updater.get_bulk(&get_keys, &mut message_callback)?;
+        let results = config_updater.get_bulk(&get_keys);
 
-        if results.is_empty() {
-            println!("No values found");
+        if results.values.is_empty() {
+            println!("{}", output::warning("No values found."));
+        } else {
+            for (key, value) in results.values {
+                output::kv(&key, value);
+            }
+        }
+        for (key, err) in results.failures {
+            output::status_line(Status::Fail, key, err);
         }
     } else {
-        config_updater.get_key(&get_keys[0], &mut message_callback)?;
+        let value = config_updater.get_key(&get_keys[0])?;
+        output::kv(&get_keys[0], value);
     }
 
     Ok(())
@@ -60,12 +80,11 @@ pub fn run_list(show_secrets: bool) -> Result<()> {
     let flattened = config_storage.get_flattened_config();
 
     if flattened.is_empty() {
-        println!("No configuration found");
+        println!("{}", output::warning("No configuration found."));
         return Ok(());
     }
 
-    println!("Current configuration:");
-    println!();
+    println!("{}", output::title("Current configuration"));
 
     let mut keys: Vec<_> = flattened.keys().collect();
     keys.sort();
@@ -93,7 +112,7 @@ pub fn run_reset() -> Result<()> {
 
     output::confirm_or_cancel("Reset all configuration to defaults?")?;
     config_storage.reset_to_defaults()?;
-    println!("Configuration reset to defaults!");
+    println!("{}", output::success("Configuration reset to defaults."));
 
     Ok(())
 }
@@ -111,25 +130,29 @@ pub fn run_edit() -> Result<()> {
             }
         });
 
-    println!("Opening config file with {}...", editor);
+    println!("{}", output::title("Config edit"));
+    output::action_note(format!("Opening with {}", editor));
 
     let status = std::process::Command::new(&editor)
         .arg(&paths.config.config_file)
         .status()?;
 
     if status.success() {
-        println!("Config file closed");
+        println!("{}", output::success("Editor closed."));
 
         // Validate the config can still be loaded
         match ConfigStorage::new(&paths.config.config_file) {
-            Ok(_) => println!("Configuration is valid"),
+            Ok(_) => println!("{}", output::success("Configuration is valid.")),
             Err(e) => {
-                eprintln!("Warning: Configuration file may have errors: {}", e);
-                eprintln!("You may need to fix it manually or run 'config reset'");
+                println!(
+                    "{}",
+                    output::warning(format!("Configuration may have errors: {}", e))
+                );
+                output::action_note("Fix manually or run 'upstream config reset'.");
             }
         }
     } else {
-        eprintln!("Editor exited with error");
+        println!("{}", output::warning("Editor exited with error."));
     }
 
     Ok(())

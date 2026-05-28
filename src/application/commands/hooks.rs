@@ -9,19 +9,23 @@ use crate::{
 pub fn run_hooks_init() -> Result<()> {
     let paths = UpstreamPaths::new()?;
     initialize(&paths)?;
-    println!("Initialized upstream shell integration hooks.");
+    println!(
+        "{}",
+        output::success("Hooks complete: shell integration initialized.")
+    );
     Ok(())
 }
 
 pub fn run_hooks_check() -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let report = check(&paths)?;
+    println!("{}", output::title("Hooks check"));
     for line in &report.messages {
-        println!("{}", line);
+        output::action_note(line);
     }
 
     if report.ok {
-        println!("Hook check passed.");
+        println!("{}", output::success("Hooks check passed."));
         return Ok(());
     }
 
@@ -31,7 +35,10 @@ pub fn run_hooks_check() -> Result<()> {
 pub fn run_hooks_clean() -> Result<()> {
     let paths = UpstreamPaths::new()?;
     cleanup(&paths)?;
-    println!("Removed upstream shell integration hooks.");
+    println!(
+        "{}",
+        output::success("Hooks complete: shell integration removed.")
+    );
     Ok(())
 }
 
@@ -44,9 +51,7 @@ pub fn run_hooks_purge() -> Result<()> {
 
     cleanup(&paths)?;
     purge_data(&paths)?;
-    println!(
-        "Removed upstream shell integration hooks and deleted '{}'.",
-        paths.dirs.data_dir.display()
-    );
+    println!("{}", output::success("Hooks purge complete."));
+    output::action_note(format!("Deleted '{}'", paths.dirs.data_dir.display()));
     Ok(())
 }

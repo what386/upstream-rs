@@ -1,5 +1,6 @@
 use crate::{
     application::operations::metadata_operation::MetadataManager,
+    application::output::{self, Status},
     services::integration::SymlinkManager,
     services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
@@ -12,12 +13,10 @@ pub fn run_pin(name: String, reason: Option<String>) -> Result<()> {
     let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
     let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
 
-    let mut message_callback = Some(move |msg: &str| {
-        println!("{}", msg);
-    });
+    println!("{}", output::title("Package pin"));
 
-    package_manager.pin_package(&name, reason, &mut message_callback)?;
-    println!("Package '{}' has been pinned", name);
+    package_manager.pin_package(&name, reason)?;
+    output::status_line(Status::Ok, &name, "pinned");
 
     Ok(())
 }
@@ -28,12 +27,10 @@ pub fn run_unpin(name: String) -> Result<()> {
     let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
     let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
 
-    let mut message_callback = Some(move |msg: &str| {
-        println!("{}", msg);
-    });
+    println!("{}", output::title("Package unpin"));
 
-    package_manager.unpin_package(&name, &mut message_callback)?;
-    println!("Package '{}' has been unpinned", name);
+    package_manager.unpin_package(&name)?;
+    output::status_line(Status::Ok, &name, "unpinned");
 
     Ok(())
 }
@@ -44,12 +41,10 @@ pub fn run_remove(name: String) -> Result<()> {
     let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
     let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
 
-    let mut message_callback = Some(move |msg: &str| {
-        println!("{}", msg);
-    });
+    println!("{}", output::title("Package metadata remove"));
 
-    package_manager.remove_package(&name, &mut message_callback)?;
-    println!("Package '{}' metadata has been removed", name);
+    package_manager.remove_package(&name)?;
+    output::status_line(Status::Ok, &name, "metadata removed");
 
     Ok(())
 }
@@ -64,17 +59,30 @@ pub fn run_set_key(name: String, keys: Vec<String>) -> Result<()> {
     let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
     let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
 
-    let mut message_callback = Some(move |msg: &str| {
-        println!("{}", msg);
-    });
+    println!("{}", output::title("Package metadata set"));
 
     if keys.len() > 1 {
-        package_manager.set_bulk(&name, &keys, &mut message_callback)?;
+        let results = package_manager.set_bulk(&name, &keys);
+        for applied in &results.applied {
+            output::status_line(
+                Status::Ok,
+                &applied.key,
+                format!("set to '{}'", applied.value),
+            );
+        }
+        for (key, err) in &results.failures {
+            output::status_line(Status::Fail, key, err);
+        }
     } else {
-        package_manager.set_key(&name, &keys[0], &mut message_callback)?;
+        let applied = package_manager.set_key(&name, &keys[0])?;
+        output::status_line(
+            Status::Ok,
+            &applied.key,
+            format!("set to '{}'", applied.value),
+        );
     }
 
-    println!("Package metadata saved!");
+    println!("{}", output::success("Package metadata saved."));
 
     Ok(())
 }
@@ -89,17 +97,23 @@ pub fn run_get_key(name: String, keys: Vec<String>) -> Result<()> {
     let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
     let package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
 
-    let mut message_callback = Some(move |msg: &str| {
-        println!("{}", msg);
-    });
+    println!("{}", output::title("Package metadata get"));
 
     if keys.len() > 1 {
-        let results = package_manager.get_bulk(&name, &keys, &mut message_callback)?;
-        if results.is_empty() {
-            println!("No values found");
+        let results = package_manager.get_bulk(&name, &keys);
+        if results.values.is_empty() {
+            println!("{}", output::warning("No values found."));
+        } else {
+            for (key, value) in results.values {
+                output::kv(&key, value);
+            }
+        }
+        for (key, err) in results.failures {
+            output::status_line(Status::Fail, key, err);
         }
     } else {
-        package_manager.get_key(&name, &keys[0], &mut message_callback)?;
+        let value = package_manager.get_key(&name, &keys[0])?;
+        output::kv(&keys[0], value);
     }
 
     Ok(())
@@ -113,8 +127,7 @@ pub fn run_metadata(name: String) -> Result<()> {
         .get_package_by_name(&name)
         .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
 
-    println!("Metadata for package '{}':", name);
-    println!();
+    println!("{}", output::title(format!("Metadata for '{}'", name)));
 
     let json = serde_json::to_string_pretty(package)?;
     println!("{}", json);
@@ -132,11 +145,13 @@ pub fn run_rename(old_name: String, new_name: String) -> Result<()> {
 
     let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
     let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
-    let mut message_callback = Some(move |msg: &str| {
-        println!("{}", msg);
-    });
+    println!("{}", output::title("Package rename"));
 
-    package_manager.rename_package(&old_name, &new_name, &mut message_callback)?;
+    let renamed = package_manager.rename_package(&old_name, &new_name)?;
+    if !renamed {
+        output::status_line(Status::Skip, &old_name, "old and new names are identical");
+        return Ok(());
+    }
 
     if let Some(exec_path) = package_before.exec_path.as_ref() {
         let symlink_manager = SymlinkManager::new(&paths.integration.symlinks_dir);
@@ -144,8 +159,11 @@ pub fn run_rename(old_name: String, new_name: String) -> Result<()> {
 
         if let Err(err) = symlink_manager.add_link(exec_path, &new_name) {
             println!(
-                "Warning: package was renamed, but failed to create new symlink '{}': {}",
-                new_name, err
+                "{}",
+                output::warning(format!(
+                    "Renamed package but failed to create new symlink '{}': {}",
+                    new_name, err
+                ))
             );
         } else {
             created_new = true;
@@ -153,12 +171,18 @@ pub fn run_rename(old_name: String, new_name: String) -> Result<()> {
 
         if created_new && let Err(err) = symlink_manager.remove_link(&old_name) {
             println!(
-                "Warning: package was renamed, but failed to remove old symlink '{}': {}",
-                old_name, err
+                "{}",
+                output::warning(format!(
+                    "Renamed package but failed to remove old symlink '{}': {}",
+                    old_name, err
+                ))
             );
         }
     }
 
-    println!("Package '{}' has been renamed to '{}'", old_name, new_name);
+    println!(
+        "{}",
+        output::success(format!("Package '{}' renamed to '{}'.", old_name, new_name))
+    );
     Ok(())
 }

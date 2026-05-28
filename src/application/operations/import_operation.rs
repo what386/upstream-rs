@@ -1,13 +1,13 @@
 use crate::{
     models::upstream::PackageReference,
     services::{
+        packaging::{OperationPhase, OperationProgressEvent},
         storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
         trust::{CosignPublicKey, MinisignPublicKey},
     },
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow, bail};
-use console::style;
 use minisign_verify::PublicKey;
 use p256::ecdsa::VerifyingKey;
 use p256::pkcs8::DecodePublicKey;
@@ -79,47 +79,36 @@ impl<'a> ImportOperation<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn import<F, G, H>(
+    pub async fn import<P>(
         &mut self,
         path: &Path,
         skip_failed: bool,
         forced_kind: Option<ImportKind>,
-        download_progress_callback: &mut Option<F>,
-        overall_progress_callback: &mut Option<G>,
-        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
     ) -> Result<()>
     where
-        F: FnMut(u64, u64),
-        G: FnMut(u32, u32),
-        H: FnMut(&str),
+        P: FnMut(OperationProgressEvent),
     {
         let kind = Self::detect_kind(path, forced_kind)?;
 
         match kind {
             ImportKind::Snapshot => {
                 if skip_failed {
-                    message!(
-                        message_callback,
-                        "{}",
-                        style("Note: --skip-failed has no effect for snapshot imports").yellow()
+                    emit_warning(
+                        progress_callback,
+                        "--skip-failed has no effect for snapshot imports",
                     );
                 }
-                self.import_snapshot(path, message_callback)
+                self.import_snapshot(path, progress_callback)
             }
             ImportKind::Manifest => {
                 let manifest = Self::read_manifest(path)?;
-                self.import_manifest_metadata(
-                    manifest,
-                    skip_failed,
-                    download_progress_callback,
-                    overall_progress_callback,
-                    message_callback,
-                )
-                .await
+                self.import_manifest_metadata(manifest, skip_failed, progress_callback)
+                    .await
             }
             ImportKind::Keys => {
                 let (minisign_keys, cosign_keys) = Self::parse_signature_key_file(path)?;
-                self.import_keys(minisign_keys, cosign_keys, skip_failed, message_callback)
+                self.import_keys(minisign_keys, cosign_keys, skip_failed, progress_callback)
             }
         }
     }
@@ -138,25 +127,20 @@ impl<'a> ImportOperation<'a> {
         Ok(manifest)
     }
 
-    async fn import_manifest_metadata<F, G, H>(
+    async fn import_manifest_metadata<P>(
         &mut self,
         manifest: ImportManifest,
         skip_failed: bool,
-        download_progress_callback: &mut Option<F>,
-        overall_progress_callback: &mut Option<G>,
-        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
     ) -> Result<()>
     where
-        F: FnMut(u64, u64),
-        G: FnMut(u32, u32),
-        H: FnMut(&str),
+        P: FnMut(OperationProgressEvent),
     {
-        let _ = download_progress_callback;
-
         let total = manifest.packages.len() as u32;
         let mut completed = 0_u32;
         let mut imported = 0_u32;
         let mut skipped = 0_u32;
+        emit_phase(progress_callback, OperationPhase::ImportingManifest);
 
         for reference in manifest.packages {
             if self
@@ -165,11 +149,9 @@ impl<'a> ImportOperation<'a> {
                 .is_some()
             {
                 skipped += 1;
-                message!(
-                    message_callback,
-                    "{} Package '{}' already exists; skipping",
-                    style("Skipped:").yellow(),
-                    reference.name
+                emit_warning(
+                    progress_callback,
+                    format!("Package '{}' already exists; skipping", reference.name),
                 );
             } else if let Err(err) = self
                 .package_storage
@@ -177,11 +159,9 @@ impl<'a> ImportOperation<'a> {
             {
                 if skip_failed {
                     skipped += 1;
-                    message!(
-                        message_callback,
-                        "{} {}",
-                        style("Failed to import package metadata:").red(),
-                        err
+                    emit_warning(
+                        progress_callback,
+                        format!("Failed to import package metadata: {err}"),
                     );
                 } else {
                     return Err(err);
@@ -191,49 +171,55 @@ impl<'a> ImportOperation<'a> {
             }
 
             completed += 1;
-            if let Some(cb) = overall_progress_callback.as_mut() {
-                cb(completed, total);
+            if let Some(cb) = progress_callback.as_mut() {
+                cb(OperationProgressEvent::Count {
+                    done: completed.into(),
+                    total: total.into(),
+                });
             }
         }
 
-        message!(
-            message_callback,
-            "Manifest import complete: {} added, {} skipped",
-            imported,
-            skipped
+        emit_detail(
+            progress_callback,
+            format!(
+                "Manifest import complete: {} added, {} skipped",
+                imported, skipped
+            ),
         );
         Ok(())
     }
 
-    fn import_keys<H>(
+    fn import_keys<P>(
         &mut self,
         minisign_keys: Vec<MinisignPublicKey>,
         cosign_keys: Vec<CosignPublicKey>,
         skip_failed: bool,
-        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
     ) -> Result<()>
     where
-        H: FnMut(&str),
+        P: FnMut(OperationProgressEvent),
     {
+        emit_phase(progress_callback, OperationPhase::ImportingKeys);
         if skip_failed {
-            message!(
-                message_callback,
-                "{}",
-                style("Note: --skip-failed has no effect for key imports").yellow()
+            emit_warning(
+                progress_callback,
+                "--skip-failed has no effect for key imports",
             );
         }
         let mut config_storage = ConfigStorage::new(&self.paths.config.config_file)?;
         let minisign_summary = config_storage.merge_trusted_minisign_keys(&minisign_keys)?;
         let cosign_summary = config_storage.merge_trusted_cosign_keys(&cosign_keys)?;
-        message!(
-            message_callback,
-            "Key import complete: minisign {} imported, {} deduped, {} total; cosign {} imported, {} deduped, {} total",
-            minisign_summary.imported,
-            minisign_summary.deduped,
-            minisign_summary.total,
-            cosign_summary.imported,
-            cosign_summary.deduped,
-            cosign_summary.total
+        emit_detail(
+            progress_callback,
+            format!(
+                "Key import complete: minisign {} imported, {} deduped, {} total; cosign {} imported, {} deduped, {} total",
+                minisign_summary.imported,
+                minisign_summary.deduped,
+                minisign_summary.total,
+                cosign_summary.imported,
+                cosign_summary.deduped,
+                cosign_summary.total
+            ),
         );
         Ok(())
     }
@@ -296,9 +282,9 @@ impl<'a> ImportOperation<'a> {
     // Full import (snapshot)
     // -----------------------------------------------------------------------
 
-    fn import_snapshot<H>(&mut self, path: &Path, message_callback: &mut Option<H>) -> Result<()>
+    fn import_snapshot<P>(&mut self, path: &Path, progress_callback: &mut Option<P>) -> Result<()>
     where
-        H: FnMut(&str),
+        P: FnMut(OperationProgressEvent),
     {
         let upstream_dir = &self.paths.dirs.data_dir;
         let upstream_parent = upstream_dir
@@ -318,10 +304,7 @@ impl<'a> ImportOperation<'a> {
             temp_dir.display()
         ))?;
 
-        message!(
-            message_callback,
-            "Extracting snapshot to staging directory ..."
-        );
+        emit_phase(progress_callback, OperationPhase::ExtractingSnapshot);
 
         // Decompress the tarball into temp_dir.  The archive contains an
         // "upstream/" top-level dir, so after extraction we move that into place.
@@ -347,11 +330,7 @@ impl<'a> ImportOperation<'a> {
 
         let mut backed_up_existing = false;
         if upstream_dir.exists() {
-            message!(
-                message_callback,
-                "{}",
-                style("Existing upstream directory detected; creating rollback backup").yellow()
-            );
+            emit_phase(progress_callback, OperationPhase::CreatingSnapshotBackup);
             fs::rename(upstream_dir, &backup_dir).context(format!(
                 "Failed to move existing upstream directory '{}' to backup '{}'",
                 upstream_dir.display(),
@@ -360,6 +339,7 @@ impl<'a> ImportOperation<'a> {
             backed_up_existing = true;
         }
 
+        emit_phase(progress_callback, OperationPhase::RestoringSnapshot);
         if let Err(err) = fs::rename(&source, upstream_dir) {
             if backed_up_existing {
                 let _ = fs::rename(&backup_dir, upstream_dir);
@@ -378,32 +358,48 @@ impl<'a> ImportOperation<'a> {
         let _ = fs::remove_dir_all(&temp_dir);
 
         // Reload storage from the restored files.
+        emit_phase(progress_callback, OperationPhase::LoadingMetadata);
         self.package_storage.load_packages().context(
             "Snapshot restored but failed to reload package storage — check the files manually",
         )?;
 
-        message!(
-            message_callback,
-            "{}",
-            style("Snapshot restored successfully").green()
-        );
+        emit_detail(progress_callback, "Snapshot restored successfully");
 
         Ok(())
     }
 }
 
-macro_rules! message {
-    ($cb:expr, $($arg:tt)*) => {{
-        if let Some(cb) = $cb.as_mut() {
-            cb(&format!($($arg)*));
-        }
-    }};
+fn emit_phase<P>(progress_callback: &mut Option<P>, phase: OperationPhase)
+where
+    P: FnMut(OperationProgressEvent),
+{
+    if let Some(cb) = progress_callback.as_mut() {
+        cb(OperationProgressEvent::Phase(phase));
+    }
 }
-use message;
+
+fn emit_warning<P>(progress_callback: &mut Option<P>, message: impl Into<String>)
+where
+    P: FnMut(OperationProgressEvent),
+{
+    if let Some(cb) = progress_callback.as_mut() {
+        cb(OperationProgressEvent::Warning(message.into()));
+    }
+}
+
+fn emit_detail<P>(progress_callback: &mut Option<P>, message: impl Into<String>)
+where
+    P: FnMut(OperationProgressEvent),
+{
+    if let Some(cb) = progress_callback.as_mut() {
+        cb(OperationProgressEvent::Detail(message.into()));
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::{ImportKind, ImportOperation, is_snapshot};
+    use crate::services::packaging::OperationProgressEvent;
     use crate::services::storage::package_storage::PackageStorage;
     use crate::utils::test_support;
     use std::path::Path;
@@ -443,18 +439,14 @@ mod tests {
 
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
         let mut operation = ImportOperation::new(&mut storage, &paths);
-        let mut dlp: Option<fn(u64, u64)> = None;
-        let mut op: Option<fn(u32, u32)> = None;
-        let mut msg: Option<fn(&str)> = None;
+        let mut progress: Option<fn(OperationProgressEvent)> = None;
 
         let err = operation
             .import(
                 &manifest_path,
                 false,
                 Some(ImportKind::Manifest),
-                &mut dlp,
-                &mut op,
-                &mut msg,
+                &mut progress,
             )
             .await
             .expect_err("must reject unsupported version");

@@ -51,3 +51,44 @@ pub enum PackageProgressEvent {
     Download { downloaded: u64, total: u64 },
     Warning(String),
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperationPhase {
+    SerializingManifest,
+    WritingManifest,
+    ScanningFiles,
+    ArchivingFiles,
+    FinalizingArchive,
+    ImportingManifest,
+    ImportingKeys,
+    ExtractingSnapshot,
+    CreatingSnapshotBackup,
+    RestoringSnapshot,
+    LoadingMetadata,
+}
+
+impl OperationPhase {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::SerializingManifest => "Serializing manifest ...",
+            Self::WritingManifest => "Writing manifest ...",
+            Self::ScanningFiles => "Scanning files ...",
+            Self::ArchivingFiles => "Archiving files ...",
+            Self::FinalizingArchive => "Finalizing archive ...",
+            Self::ImportingManifest => "Importing manifest ...",
+            Self::ImportingKeys => "Importing keys ...",
+            Self::ExtractingSnapshot => "Extracting snapshot ...",
+            Self::CreatingSnapshotBackup => "Creating snapshot backup ...",
+            Self::RestoringSnapshot => "Restoring snapshot ...",
+            Self::LoadingMetadata => "Loading metadata ...",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OperationProgressEvent {
+    Phase(OperationPhase),
+    Count { done: u64, total: u64 },
+    Warning(String),
+    Detail(String),
+}

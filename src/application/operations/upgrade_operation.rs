@@ -393,9 +393,9 @@ impl<'a> UpgradeOperation<'a> {
         names: Option<&[String]>,
         force: bool,
     ) -> DiskImpact {
-        let mut no_messages: Option<fn(&str)> = None;
+        let mut ignored_messages = Some(|_: &str| {});
         let Ok(rows) = self
-            .preview_upgrade_with_messages(names, force, &mut no_messages)
+            .preview_upgrade_with_messages(names, force, &mut ignored_messages)
             .await
         else {
             return DiskImpact::unknown();
@@ -409,8 +409,8 @@ impl<'a> UpgradeOperation<'a> {
         names: Option<&[String]>,
         force: bool,
     ) -> Result<Vec<UpgradePreviewRow>> {
-        let mut no_messages: Option<fn(&str)> = None;
-        self.preview_upgrade_with_messages(names, force, &mut no_messages)
+        let mut ignored_messages = Some(|_: &str| {});
+        self.preview_upgrade_with_messages(names, force, &mut ignored_messages)
             .await
     }
 
@@ -711,7 +711,7 @@ impl<'a> UpgradeOperation<'a> {
                     bytes_total = t;
                     Self::record_download_progress(&state_ref, &name, &channel, &provider, d, t);
                 });
-                let mut no_messages: Option<fn(&str)> = None;
+                let mut ignored_messages = Some(|_: &str| {});
 
                 let result = upgrader
                     .upgrade(
@@ -719,7 +719,7 @@ impl<'a> UpgradeOperation<'a> {
                         force,
                         trust_mode,
                         &mut download_cb,
-                        &mut no_messages,
+                        &mut ignored_messages,
                     )
                     .await
                     .context(format!("Failed to upgrade package '{}'", name));
@@ -858,7 +858,7 @@ impl<'a> UpgradeOperation<'a> {
                     bytes_total = t;
                     Self::record_download_progress(&state_ref, &name, &channel, &provider, d, t);
                 });
-                let mut no_messages: Option<fn(&str)> = None;
+                let mut ignored_messages = Some(|_: &str| {});
                 let mut progress_cb = Some(|event: PackageProgressEvent| {
                     Self::record_progress_event(&state_ref, &name, &channel, &provider, event);
                 });
@@ -869,7 +869,7 @@ impl<'a> UpgradeOperation<'a> {
                         row.target,
                         trust_mode,
                         &mut download_cb,
-                        &mut no_messages,
+                        &mut ignored_messages,
                         &mut progress_cb,
                     )
                     .await
