@@ -13,7 +13,7 @@ use crate::{
     services::{
         builder::{BuildRequest, worker::BuildWorker},
         packaging::disk_impact::{
-            ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_path_size,
+            ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate,
             install_impact_from_download,
         },
         storage::{
@@ -43,18 +43,10 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
     let trusted_keys = app_config.trusted_signature_keys();
 
     if dry_run {
-        return run_dry_run(
-            names,
-            trust_mode,
-            &mut package_storage,
-            &provider_manager,
-            &paths,
-        )
-        .await;
+        return run_dry_run(names, trust_mode, &mut package_storage, &provider_manager).await;
     }
 
-    let impact =
-        estimate_reinstall_impact(&names, &package_storage, &provider_manager, &paths).await;
+    let impact = estimate_reinstall_impact(&names, &package_storage, &provider_manager).await;
     output::print_disk_impact(&impact);
     output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()))?;
 
@@ -138,11 +130,10 @@ async fn run_dry_run(
     trust_mode: TrustMode,
     package_storage: &mut PackageStorage,
     provider_manager: &ProviderManager,
-    paths: &UpstreamPaths,
 ) -> Result<()> {
     println!("{}", output::title("Reinstall preview"));
     output::kv("Trust", trust_mode);
-    let impact = estimate_reinstall_impact(&names, package_storage, provider_manager, paths).await;
+    let impact = estimate_reinstall_impact(&names, package_storage, provider_manager).await;
     output::print_disk_impact(&impact);
     output::action_note(
         "resolve only (no remove, no download, no build, no install, no metadata changes)",
@@ -309,7 +300,6 @@ async fn estimate_reinstall_impact(
     names: &[String],
     package_storage: &PackageStorage,
     provider_manager: &ProviderManager,
-    paths: &UpstreamPaths,
 ) -> DiskImpact {
     let mut total = DiskImpact::empty();
 
@@ -319,8 +309,6 @@ async fn estimate_reinstall_impact(
             continue;
         };
 
-        let existing_rollback =
-            estimate_path_size(&paths.install.rollback_dir.join(&package.name)).unwrap_or(0);
         let new_install = match package.install_type {
             InstallType::Release => {
                 let mut preview_package = package.clone();
@@ -349,9 +337,7 @@ async fn estimate_reinstall_impact(
         let package_impact = if let Some(new_bytes) = new_install.net.bytes {
             DiskImpact {
                 download: new_install.download,
-                net: SignedByteEstimate::estimated(
-                    new_bytes.saturating_sub(i128::from(existing_rollback)),
-                ),
+                net: SignedByteEstimate::estimated(new_bytes),
             }
         } else {
             DiskImpact {

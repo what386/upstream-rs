@@ -142,13 +142,13 @@ pub async fn run(
             println!("No upgrades available.");
             return Ok(());
         }
-        layout.print_totals(&impact, "Net Upgrade Size:");
+        layout.print_totals(&impact, "Net disk change:");
     } else {
         let transaction_rows = preview_rows
             .iter()
             .map(upgrade_transaction_row)
             .collect::<Vec<_>>();
-        output::print_transaction_table(&transaction_rows, &impact, "Net Upgrade Size:");
+        output::print_transaction_table(&transaction_rows, &impact, "Net disk change:");
     }
     output::confirm_yes_default_or_cancel("Proceed with installation?")?;
 

@@ -58,25 +58,15 @@ impl<'a> PackageRemover<'a> {
 
     pub fn estimate_remove_impact(&self, package: &Package, purge_option: bool) -> DiskImpact {
         let active_size = self.estimate_active_size(package).unwrap_or(0);
-        let rollback_size =
-            estimate_existing_paths([self.paths.install.rollback_dir.join(&package.name)])
-                .unwrap_or(0);
         let purge_size = if purge_option {
             estimate_existing_paths(Self::purge_candidate_paths(&package.name)).unwrap_or(0)
         } else {
             0
         };
 
-        if purge_option {
-            return DiskImpact {
-                download: ByteEstimate::exact(0),
-                net: SignedByteEstimate::exact(-i128::from(active_size.saturating_add(purge_size))),
-            };
-        }
-
         DiskImpact {
             download: ByteEstimate::exact(0),
-            net: SignedByteEstimate::exact(i128::from(active_size) - i128::from(rollback_size)),
+            net: SignedByteEstimate::exact(-i128::from(active_size.saturating_add(purge_size))),
         }
     }
 
@@ -580,7 +570,7 @@ mod tests {
     }
 
     #[test]
-    fn remove_impact_without_previous_rollback_uses_new_snapshot_size() {
+    fn remove_impact_without_purge_reports_removed_active_size() {
         let root = temp_root("impact-no-rollback");
         let paths = test_paths(&root);
         let install_path = paths.install.binaries_dir.join("tool");
@@ -601,13 +591,13 @@ mod tests {
         package.exec_path = Some(install_path);
 
         let impact = PackageRemover::new(&paths).estimate_remove_impact(&package, false);
-        assert_eq!(impact.net.bytes, Some(12));
+        assert_eq!(impact.net.bytes, Some(-12));
 
         cleanup(&root).expect("cleanup");
     }
 
     #[test]
-    fn remove_impact_with_previous_rollback_shows_snapshot_difference() {
+    fn remove_impact_with_previous_rollback_still_reports_removed_active_size() {
         let root = temp_root("impact-with-rollback");
         let paths = test_paths(&root);
         let install_path = paths.install.binaries_dir.join("tool");
@@ -631,7 +621,7 @@ mod tests {
         package.exec_path = Some(install_path);
 
         let impact = PackageRemover::new(&paths).estimate_remove_impact(&package, false);
-        assert_eq!(impact.net.bytes, Some(-8));
+        assert_eq!(impact.net.bytes, Some(-12));
 
         cleanup(&root).expect("cleanup");
     }

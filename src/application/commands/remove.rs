@@ -78,7 +78,7 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
             TransactionRow::single_version(name, version, impact.net, ByteEstimate::exact(0))
         })
         .collect::<Vec<_>>();
-    output::print_transaction_table(&transaction_rows, &impact, "Net Remove Size:");
+    output::print_transaction_table(&transaction_rows, &impact, "Net disk change:");
     output::confirm_yes_default_or_cancel("Proceed with removal?")?;
 
     let overall_pb = ProgressBar::new(0);

@@ -168,7 +168,7 @@ pub async fn run(
         preview.disk_impact.net,
         preview.disk_impact.download,
     )];
-    output::print_transaction_table(&transaction_rows, &preview.disk_impact, "Net Install Size:");
+    output::print_transaction_table(&transaction_rows, &preview.disk_impact, "Net disk change:");
     output::confirm_yes_default_or_cancel("Proceed with installation?")?;
 
     let pb = ProgressBar::new_spinner();
