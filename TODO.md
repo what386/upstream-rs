@@ -8,3 +8,6 @@
 - [ ] near-complete CLI update to modernize output
       @created 2026-05-28 22:31
 
+- [ ] make rollback a continous callback instead of multiple printlines
+      @created 2026-05-28 23:16
+
