@@ -260,6 +260,8 @@ fn confidence_suffix(confidence: SizeConfidence) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use console::strip_ansi_codes;
+
     use super::{
         Status, assume_yes, is_sensitive_key, redact_secret, set_assume_yes, status_cell,
         status_label, truncate_end, truncate_middle,
@@ -267,17 +269,38 @@ mod tests {
 
     #[test]
     fn status_labels_are_stable_without_color() {
-        assert_eq!(status_label(Status::Ok).to_string(), "[ok]");
-        assert_eq!(status_label(Status::Warn).to_string(), "[warn]");
-        assert_eq!(status_label(Status::Fail).to_string(), "[fail]");
-        assert_eq!(status_label(Status::Plan).to_string(), "[plan]");
-        assert_eq!(status_label(Status::Skip).to_string(), "[skip]");
+        assert_eq!(
+            strip_ansi_codes(&status_label(Status::Ok).to_string()),
+            "[ok]"
+        );
+        assert_eq!(
+            strip_ansi_codes(&status_label(Status::Warn).to_string()),
+            "[warn]"
+        );
+        assert_eq!(
+            strip_ansi_codes(&status_label(Status::Fail).to_string()),
+            "[fail]"
+        );
+        assert_eq!(
+            strip_ansi_codes(&status_label(Status::Plan).to_string()),
+            "[plan]"
+        );
+        assert_eq!(
+            strip_ansi_codes(&status_label(Status::Skip).to_string()),
+            "[skip]"
+        );
     }
 
     #[test]
     fn status_cells_are_padded_before_styling() {
-        assert_eq!(status_cell(Status::Ok).to_string(), "[ok]    ");
-        assert_eq!(status_cell(Status::Plan).to_string(), "[plan]  ");
+        assert_eq!(
+            strip_ansi_codes(&status_cell(Status::Ok).to_string()),
+            "[ok]    "
+        );
+        assert_eq!(
+            strip_ansi_codes(&status_cell(Status::Plan).to_string()),
+            "[plan]  "
+        );
     }
 
     #[test]
