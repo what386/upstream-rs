@@ -387,11 +387,14 @@ where
     reinstall_package.icon_path = None;
 
     let mut remove_op = RemoveOperation::new(package_storage, metadata_storage, paths);
+    let mut no_remove_progress: Option<fn(&str, crate::services::packaging::PackageProgressEvent)> =
+        None;
     remove_op.remove_single_with_source(
         &package.name,
         &false,
         RollbackSource::Reinstall,
         message_callback,
+        &mut no_remove_progress,
     )?;
 
     match package.install_type {
