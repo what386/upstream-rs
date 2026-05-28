@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-05-27*
+*Generated on 2026-05-28*
+
+## 1.16.2 — 2026-05-28
+
+### Changes
+
+- feat: fix asset detection for weird nested archives (e.g. broot)
+
 
 ## 1.16.1 — 2026-05-27
 
