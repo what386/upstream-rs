@@ -4,10 +4,12 @@ pub mod package_checker;
 pub mod package_installer;
 pub mod package_remover;
 pub mod package_upgrader;
+pub mod progress;
 pub mod rollback_manager;
 
 pub use package_checker::PackageChecker;
 pub use package_installer::PackageInstaller;
 pub use package_remover::PackageRemover;
 pub use package_upgrader::{PackageUpgrader, ResolvedUpgradeTarget};
+pub use progress::{PackagePhase, PackageProgressEvent};
 pub use rollback_manager::RollbackManager;

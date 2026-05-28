@@ -4,6 +4,7 @@ use crate::{
         provider::Release,
     },
     providers::provider_manager::ProviderManager,
+    services::packaging::{PackagePhase, PackageProgressEvent},
 };
 use anyhow::{Result, anyhow};
 use std::path::Path;
@@ -49,17 +50,19 @@ impl<'a> TrustVerifier<'a> {
         }
     }
 
-    pub async fn verify_file<F, H>(
+    pub async fn verify_file<F, H, P>(
         &self,
         asset_path: &Path,
         release: &Release,
         provider: &Provider,
         dl_progress: &mut Option<F>,
         message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
     ) -> Result<TrustVerificationStatus>
     where
         F: FnMut(u64, u64),
         H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
     {
         if self.trust_mode == TrustMode::None {
             return Ok(TrustVerificationStatus::Skipped);
@@ -70,8 +73,11 @@ impl<'a> TrustVerifier<'a> {
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("downloaded asset");
-            if let Some(cb) = message_callback.as_mut() {
-                cb(&format!("Checksumming '{asset_filename}' ..."));
+            let _ = asset_filename;
+            if let Some(cb) = progress_callback.as_mut() {
+                cb(PackageProgressEvent::Phase(
+                    PackagePhase::ChecksummingPackage,
+                ));
             }
 
             let checksum_result = self
@@ -98,6 +104,7 @@ impl<'a> TrustVerifier<'a> {
                     self.trusted_keys,
                     dl_progress,
                     message_callback,
+                    progress_callback,
                 )
                 .await?
         } else {

@@ -4,6 +4,7 @@ use crate::{
         provider::{Asset, Release},
     },
     providers::provider_manager::ProviderManager,
+    services::packaging::{PackagePhase, PackageProgressEvent},
 };
 use anyhow::{Result, anyhow};
 use std::{fs, path::Path};
@@ -39,18 +40,20 @@ impl<'a> SignatureVerifier<'a> {
         }
     }
 
-    pub async fn try_verify_file<F, H>(
+    pub async fn try_verify_file<F, H, P>(
         &self,
         asset_path: &Path,
         release: &Release,
         provider: &Provider,
         trusted_keys: &TrustedSignatureKeys,
         dl_progress: &mut Option<F>,
-        message_callback: &mut Option<H>,
+        _message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
     ) -> Result<SignatureVerificationStatus>
     where
         F: FnMut(u64, u64),
         H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
     {
         let asset_filename = asset_path
             .file_name()
@@ -77,10 +80,10 @@ impl<'a> SignatureVerifier<'a> {
             };
             saw_targeted_signature = true;
 
-            if let Some(cb) = message_callback.as_mut() {
-                cb(&format!(
-                    "Checking signature for '{}' using '{}' ...",
-                    target.name, signature_asset.name
+            let _ = &target.name;
+            if let Some(cb) = progress_callback.as_mut() {
+                cb(PackageProgressEvent::Phase(
+                    PackagePhase::VerifyingSignature,
                 ));
             }
 
@@ -214,6 +217,7 @@ mod tests {
     };
     use crate::models::common::{enums::Provider, version::Version};
     use crate::models::provider::{Asset, Release};
+    use crate::services::packaging::PackageProgressEvent;
     use crate::services::trust::{MinisignPublicKey, TrustedSignatureKeys};
     use chrono::Utc;
     use serde::Deserialize;
@@ -447,6 +451,7 @@ mod tests {
         let verifier = SignatureVerifier::new(&manager, &root);
         let mut progress: Option<fn(u64, u64)> = None;
         let mut messages: Option<fn(&str)> = None;
+        let mut package_progress: Option<fn(PackageProgressEvent)> = None;
 
         let status = verifier
             .try_verify_file(
@@ -462,6 +467,7 @@ mod tests {
                 },
                 &mut progress,
                 &mut messages,
+                &mut package_progress,
             )
             .await
             .expect("status");

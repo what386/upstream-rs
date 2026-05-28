@@ -7,7 +7,7 @@ use crate::{
             CompletionManager, ShellManager, SymlinkManager, compression_handler,
             permission_handler,
         },
-        packaging::bundle_handler::BundleHandler,
+        packaging::{PackagePhase, PackageProgressEvent, bundle_handler::BundleHandler},
         trust::{
             ChecksumVerificationStatus, SignatureScheme, SignatureVerificationStatus,
             TrustVerificationStatus, TrustVerifier, TrustedSignatureKeys,
@@ -34,6 +34,14 @@ macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
         if let Some(cb) = $cb.as_mut() {
             cb(&format!($($arg)*));
+        }
+    }};
+}
+
+macro_rules! progress {
+    ($cb:expr, $event:expr) => {{
+        if let Some(cb) = $cb.as_mut() {
+            cb($event);
         }
     }};
 }
@@ -90,7 +98,7 @@ impl<'a> PackageInstaller<'a> {
 
     /// Install package files from a release
     /// Returns the updated package with installation paths set
-    pub async fn install_package_files<F, H>(
+    pub async fn install_package_files<F, H, P>(
         &self,
         mut package: Package,
         release: &Release,
@@ -98,10 +106,12 @@ impl<'a> PackageInstaller<'a> {
         trusted_keys: &TrustedSignatureKeys,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
     ) -> Result<Package>
     where
         F: FnMut(u64, u64),
         H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
     {
         let cache_key = Self::package_cache_key(&package.name);
         let package_download_cache = self.download_cache.join(&cache_key);
@@ -134,7 +144,10 @@ impl<'a> PackageInstaller<'a> {
             package.filetype = best_asset.filetype;
         }
 
-        message!(message_callback, "Downloading '{}' ...", best_asset.name);
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::DownloadingPackage)
+        );
 
         let download_path = self
             .provider_manager
@@ -147,11 +160,6 @@ impl<'a> PackageInstaller<'a> {
             .await
             .context(format!("Failed to download asset '{}'", best_asset.name))?;
 
-        message!(
-            message_callback,
-            "Applying trust policy '{}' ...",
-            trust_mode
-        );
         let trust_verifier = TrustVerifier::new(
             self.provider_manager,
             &package_download_cache,
@@ -165,6 +173,7 @@ impl<'a> PackageInstaller<'a> {
                 &package.provider,
                 download_progress_callback,
                 message_callback,
+                progress_callback,
             )
             .await
             .context("Failed trust verification")?;
@@ -260,6 +269,10 @@ impl<'a> PackageInstaller<'a> {
             }
         }
 
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::InstallingCompletions)
+        );
         if let Err(err) = CompletionManager::new(self.paths)
             .install_from_release_assets(
                 &package.name,
@@ -271,14 +284,16 @@ impl<'a> PackageInstaller<'a> {
             )
             .await
         {
-            message!(
-                message_callback,
-                "{}",
-                style(format!("Completion install skipped: {err}")).yellow()
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Warning(format!("Completion install skipped: {err}"))
             );
         }
 
-        message!(message_callback, "Installing package ...");
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
+        );
 
         package.version = release.version.clone();
 
@@ -301,25 +316,40 @@ impl<'a> PackageInstaller<'a> {
             Filetype::MacDmg => BundleHandler::new(self.paths, &self.extract_cache)
                 .install_dmg(&download_path, package, message_callback)
                 .context("Failed to install macOS disk image"),
-            Filetype::Compressed => self
-                .handle_compressed(
+            Filetype::Compressed => {
+                progress!(
+                    progress_callback,
+                    PackageProgressEvent::Phase(PackagePhase::ExtractingPackage)
+                );
+                self.handle_compressed(
                     &download_path,
                     &package_extract_cache,
                     package,
                     message_callback,
                 )
-                .context("Failed to install compressed file"),
-            Filetype::Archive => self
-                .handle_archive(
+                .context("Failed to install compressed file")
+            }
+            Filetype::Archive => {
+                progress!(
+                    progress_callback,
+                    PackageProgressEvent::Phase(PackagePhase::ExtractingPackage)
+                );
+                self.handle_archive(
                     &download_path,
                     &package_extract_cache,
                     package,
                     message_callback,
                 )
-                .context("Failed to install archive"),
-            _ => self
-                .handle_file(&download_path, package, message_callback)
-                .context("Failed to install file"),
+                .context("Failed to install archive")
+            }
+            _ => {
+                progress!(
+                    progress_callback,
+                    PackageProgressEvent::Phase(PackagePhase::CreatingRuntimeLinks)
+                );
+                self.handle_file(&download_path, package, message_callback)
+                    .context("Failed to install file")
+            }
         }
     }
 

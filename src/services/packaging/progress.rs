@@ -10,6 +10,9 @@ pub enum PackagePhase {
     CreatingRuntimeLinks,
     InstallingCompletions,
     RebuildingFromSource,
+    RemovingPackage,
+    RemovingMetadata,
+    PurgingPackageData,
     RollingBack,
     RestoringSnapshot,
 }
@@ -27,6 +30,9 @@ impl PackagePhase {
             Self::CreatingRuntimeLinks => "Creating runtime links ...",
             Self::InstallingCompletions => "Installing completions ...",
             Self::RebuildingFromSource => "Rebuilding from source ...",
+            Self::RemovingPackage => "Removing package ...",
+            Self::RemovingMetadata => "Removing metadata ...",
+            Self::PurgingPackageData => "Purging package data ...",
             Self::RollingBack => "Rolling back ...",
             Self::RestoringSnapshot => "Restoring snapshot ...",
         }

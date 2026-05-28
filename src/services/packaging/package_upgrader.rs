@@ -14,7 +14,7 @@ use crate::{
     services::{
         integration::{DesktopManager, IconManager},
         packaging::RollbackManager,
-        packaging::{PackageInstaller, PackageRemover},
+        packaging::{PackageInstaller, PackagePhase, PackageProgressEvent, PackageRemover},
         storage::rollback_storage::{RollbackRecord, RollbackSource, RollbackStorage},
         trust::TrustedSignatureKeys,
     },
@@ -32,6 +32,14 @@ macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
         if let Some(cb) = $cb.as_mut() {
             cb(&format!($($arg)*));
+        }
+    }};
+}
+
+macro_rules! progress {
+    ($cb:expr, $event:expr) => {{
+        if let Some(cb) = $cb.as_mut() {
+            cb($event);
         }
     }};
 }
@@ -303,6 +311,32 @@ impl<'a> PackageUpgrader<'a> {
         F: FnMut(u64, u64),
         H: FnMut(&str),
     {
+        let mut no_progress: Option<fn(PackageProgressEvent)> = None;
+        self.upgrade_resolved_with_progress(
+            package,
+            target,
+            trust_mode,
+            download_progress,
+            message_callback,
+            &mut no_progress,
+        )
+        .await
+    }
+
+    pub async fn upgrade_resolved_with_progress<F, H, P>(
+        &self,
+        package: &Package,
+        target: ResolvedUpgradeTarget,
+        trust_mode: TrustMode,
+        download_progress: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
         if package.is_pinned {
             bail!("Package '{}' is pinned", package.name);
         }
@@ -326,10 +360,9 @@ impl<'a> PackageUpgrader<'a> {
 
         Self::remove_path_if_exists(&backup_path)?;
 
-        message!(
-            message_callback,
-            "Backing up existing install to '{}' ...",
-            backup_path.display()
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot)
         );
         fs::rename(&original_install_path, &backup_path).context(format!(
             "Failed to back up '{}' to '{}'",
@@ -338,6 +371,10 @@ impl<'a> PackageUpgrader<'a> {
         ))?;
 
         // Remove runtime integrations (PATH/symlink) but keep desktop assets
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::RemovingRuntimeLinks)
+        );
         if let Err(e) = self
             .remover
             .remove_runtime_integrations(package, message_callback)
@@ -354,7 +391,10 @@ impl<'a> PackageUpgrader<'a> {
 
         // Install new version
         let install_result = if package.install_type == InstallType::Build {
-            message!(message_callback, "Rebuilding from source ...");
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Phase(PackagePhase::RebuildingFromSource)
+            );
             let (version_tag, branch, branch_head_commit) = match &target {
                 ResolvedUpgradeTarget::Release(release) => (Some(release.tag.clone()), None, None),
                 ResolvedUpgradeTarget::Branch {
@@ -410,23 +450,23 @@ impl<'a> PackageUpgrader<'a> {
                     &self.trusted_keys,
                     download_progress,
                     message_callback,
+                    progress_callback,
                 )
                 .await
         };
         let mut updated_package = match install_result {
             Ok(updated_package) => updated_package,
             Err(install_err) => {
-                message!(
-                    message_callback,
-                    "{}",
-                    style(format!(
-                        "Upgrade failed for '{}', rolling back ...",
-                        package.name
-                    ))
-                    .yellow()
+                progress!(
+                    progress_callback,
+                    PackageProgressEvent::Phase(PackagePhase::RollingBack)
                 );
 
                 let _ = Self::remove_path_if_exists(&original_install_path);
+                progress!(
+                    progress_callback,
+                    PackageProgressEvent::Phase(PackagePhase::RestoringSnapshot)
+                );
                 fs::rename(&backup_path, &original_install_path).context(format!(
                     "Upgrade failed for '{}': {}. Rollback failed while restoring backup",
                     package.name, install_err
@@ -448,7 +488,10 @@ impl<'a> PackageUpgrader<'a> {
 
         // Restore desktop integration if it existed before
         if had_desktop_integration {
-            message!(message_callback, "Restoring desktop integration ...");
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Phase(PackagePhase::CreatingRuntimeLinks)
+            );
 
             #[cfg(target_os = "linux")]
             let appimage_extractor =
@@ -501,14 +544,12 @@ impl<'a> PackageUpgrader<'a> {
         if let Err(err) =
             Self::capture_successful_upgrade_rollback(self.paths, package, &backup_path)
         {
-            message!(
-                message_callback,
-                "{}",
-                style(format!(
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Warning(format!(
                     "Warning: failed to capture rollback for '{}': {}",
                     package.name, err
                 ))
-                .yellow()
             );
             Self::remove_path_if_exists(&backup_path)
                 .context(format!("Failed to remove backup for '{}'", package.name))?;
