@@ -43,6 +43,7 @@ fn completion_message_key(message: &str) -> Option<String> {
 fn render_remove_progress_row(name: &str, event: PackageProgressEvent) -> String {
     let status = match event {
         PackageProgressEvent::Phase(phase) => phase.label().to_string(),
+        PackageProgressEvent::Download { .. } => "Downloading package ...".to_string(),
         PackageProgressEvent::Warning(message) => message,
     };
     format!(" {:<28} {}", name, status)

@@ -1,6 +1,6 @@
 use anyhow::Result;
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
-use std::time::{Duration, Instant};
+use indicatif::{HumanBytes, ProgressBar, ProgressDrawTarget, ProgressStyle};
+use std::time::Duration;
 
 use crate::{
     application::operations::install_operation::InstallOperation,
@@ -16,9 +16,77 @@ use crate::{
         },
         provider_manager::ProviderManager,
     },
-    services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+    services::{
+        packaging::{PackagePhase, PackageProgressEvent},
+        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+    },
     utils::static_paths::UpstreamPaths,
 };
+
+const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
+
+fn format_transfer(downloaded: u64, total: u64) -> String {
+    if total > 0 {
+        format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
+    } else if downloaded > 0 {
+        format!("{}", HumanBytes(downloaded))
+    } else {
+        "-".to_string()
+    }
+}
+
+fn format_error_chain(err: &anyhow::Error, max: usize) -> String {
+    let mut parts = err
+        .chain()
+        .map(|cause| cause.to_string())
+        .collect::<Vec<_>>();
+    if parts.len() > 1
+        && parts
+            .first()
+            .is_some_and(|part| part.starts_with("Failed to perform installation for "))
+    {
+        parts.remove(0);
+    }
+    parts.dedup();
+
+    let value = parts.join(": ");
+    if value.chars().count() <= max {
+        return value;
+    }
+
+    let mut out = String::new();
+    for ch in value.chars().take(max.saturating_sub(3)) {
+        out.push(ch);
+    }
+    out.push_str("...");
+    out
+}
+
+fn render_install_progress_message(name: &str, event: PackageProgressEvent) -> String {
+    format!(
+        "Installing {name}\n{}",
+        render_install_progress_row(name, event)
+    )
+}
+
+fn render_install_progress_row(name: &str, event: PackageProgressEvent) -> String {
+    match event {
+        PackageProgressEvent::Phase(phase) => {
+            format!(" {:<28} {}", name, phase.label())
+        }
+        PackageProgressEvent::Download { downloaded, total } => {
+            format!(
+                " {:<28} {:<28} {}",
+                name,
+                PackagePhase::DownloadingPackage.label(),
+                format_transfer(downloaded, total)
+            )
+        }
+        PackageProgressEvent::Warning(message) => {
+            format!(" {:<28} {}", name, message)
+        }
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
@@ -35,8 +103,6 @@ pub async fn run(
     trust_mode: TrustMode,
     dry_run: bool,
 ) -> Result<()> {
-    const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
-
     let paths = UpstreamPaths::new()?;
 
     let config = ConfigStorage::new(&paths.config.config_file)?;
@@ -105,54 +171,64 @@ pub async fn run(
     output::print_transaction_table(&transaction_rows, &preview.disk_impact, "Net Install Size:");
     output::confirm_yes_default_or_cancel("Proceed with installation?")?;
 
-    let pb = ProgressBar::new(0);
+    let pb = ProgressBar::new_spinner();
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
-    pb.set_style(ProgressStyle::with_template(
-        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta}) {msg}",
-    )?);
+    pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
     pb.enable_steady_tick(Duration::from_millis(120));
+    pb.set_message(format!("Installing {}", package.name));
 
-    // Borrow pb for the closures
-    let pb_ref = &pb;
-    let mut last_emit: Option<Instant> = None;
-    let mut last_progress: Option<(u64, u64)> = None;
-    let mut download_progress_callback = Some(|downloaded: u64, total: u64| {
-        last_progress = Some((downloaded, total));
+    let install_name = package.name.clone();
+    let progress_name = install_name.clone();
+    let install_version = preview.release_tag.clone();
+    let progress_pb = pb.clone();
+    let mut last_emit = None;
+    let mut progress_callback = Some(move |event: PackageProgressEvent| {
         let should_emit = last_emit
-            .map(|t| t.elapsed() >= PROGRESS_UPDATE_INTERVAL)
+            .map(|elapsed: std::time::Instant| elapsed.elapsed() >= PROGRESS_UPDATE_INTERVAL)
             .unwrap_or(true);
-        if should_emit {
-            pb_ref.set_length(total);
-            pb_ref.set_position(downloaded);
-            last_emit = Some(Instant::now());
+        if should_emit || !matches!(event, PackageProgressEvent::Download { .. }) {
+            progress_pb.set_message(render_install_progress_message(&progress_name, event));
+            last_emit = Some(std::time::Instant::now());
         }
     });
 
-    let mut message_callback = Some(move |msg: &str| {
-        pb_ref.println(msg);
-    });
+    let mut no_download_progress: Option<fn(u64, u64)> = None;
+    let mut no_messages: Option<fn(&str)> = None;
 
-    package_installer
-        .install_single(
+    let install_result = package_installer
+        .install_single_with_progress(
             package,
             &version,
             &create_entry,
             trust_mode,
-            &mut download_progress_callback,
-            &mut message_callback,
+            &mut no_download_progress,
+            &mut no_messages,
+            &mut progress_callback,
         )
-        .await?;
+        .await;
 
-    if let Some((downloaded, total)) = last_progress {
-        pb.set_length(total);
-        pb.set_position(downloaded);
+    pb.finish_and_clear();
+
+    match install_result {
+        Ok(()) => {
+            println!("[ok] {:<28} installed {}", install_name, install_version);
+            println!(
+                "{}",
+                output::success("Install complete: 1 installed, 0 failed.")
+            );
+        }
+        Err(err) => {
+            println!(
+                "[fail] {:<28} {}",
+                install_name,
+                format_error_chain(&err, 160)
+            );
+            println!(
+                "{}",
+                output::warning("Install complete: 0 installed, 1 failed.")
+            );
+        }
     }
-
-    // Set pb to 100%
-    pb.set_position(pb.length().unwrap_or(0));
-
-    pb.finish_with_message("Install complete");
-    println!("{}", output::success("Install complete."));
 
     Ok(())
 }
@@ -263,6 +339,64 @@ fn render_discovery_summary(discovery: &DiscoveryResult) {
             candidate.asset.filetype,
             candidate.score
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{format_error_chain, render_install_progress_message, render_install_progress_row};
+    use crate::services::packaging::{PackagePhase, PackageProgressEvent};
+
+    #[test]
+    fn install_progress_row_renders_phase_warning_and_download() {
+        assert_eq!(
+            render_install_progress_row(
+                "pnpm",
+                PackageProgressEvent::Phase(PackagePhase::VerifyingSignature)
+            ),
+            " pnpm                         Verifying signature ..."
+        );
+        assert_eq!(
+            render_install_progress_row(
+                "pnpm",
+                PackageProgressEvent::Warning("Completion install skipped".to_string())
+            ),
+            " pnpm                         Completion install skipped"
+        );
+        assert!(
+            render_install_progress_row(
+                "pnpm",
+                PackageProgressEvent::Download {
+                    downloaded: 1024,
+                    total: 2048,
+                },
+            )
+            .contains('/')
+        );
+    }
+
+    #[test]
+    fn install_progress_message_keeps_phase_inside_spinner_message() {
+        assert_eq!(
+            render_install_progress_message(
+                "pnpm",
+                PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
+            ),
+            "Installing pnpm\n pnpm                         Installing package ..."
+        );
+    }
+
+    #[test]
+    fn install_error_chain_removes_outer_install_wrapper() {
+        let err = anyhow::anyhow!("signature key missing")
+            .context("Failed trust verification")
+            .context("Failed to perform installation for 'pnpm'");
+
+        let formatted = format_error_chain(&err, 160);
+
+        assert!(!formatted.contains("Failed to perform installation for 'pnpm'"));
+        assert!(formatted.contains("Failed trust verification"));
+        assert!(formatted.contains("signature key missing"));
     }
 }
 

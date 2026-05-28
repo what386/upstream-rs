@@ -424,7 +424,11 @@ pub fn print_disk_impact(impact: &DiskImpact) {
 
 pub fn print_local_disk_impact(impact: &DiskImpact) {
     println!("{}", section("Disk impact:"));
-    println!("  {} {}", meta("Disk change:"), format_signed(impact.net));
+    println!(
+        "  {} {}",
+        meta("Net disk change:"),
+        format_signed(impact.net)
+    );
 }
 
 fn format_compact_unsigned(value: ByteEstimate) -> String {
@@ -483,13 +487,15 @@ fn format_unsigned(value: ByteEstimate) -> String {
 fn format_signed(value: SignedByteEstimate) -> String {
     match value.bytes {
         Some(0) => format!("no change{}", confidence_suffix(value.confidence)),
-        Some(bytes) if bytes > 0 => format!(
-            "{} of additional disk space will be used{}",
-            HumanBytes(bytes as u64),
-            confidence_suffix(value.confidence)
-        ),
+        Some(bytes) if bytes > 0 => {
+            format!(
+                "{}{}",
+                HumanBytes(bytes as u64),
+                confidence_suffix(value.confidence)
+            )
+        }
         Some(bytes) => format!(
-            "{} of disk space will be freed{}",
+            "-{}{}",
             HumanBytes(bytes.unsigned_abs() as u64),
             confidence_suffix(value.confidence)
         ),
@@ -512,8 +518,9 @@ mod tests {
     use crate::services::packaging::disk_impact::{ByteEstimate, SignedByteEstimate};
 
     use super::{
-        Status, TransactionRow, TransactionTableLayout, assume_yes, is_sensitive_key,
-        redact_secret, set_assume_yes, status_cell, status_label, truncate_end, truncate_middle,
+        Status, TransactionRow, TransactionTableLayout, assume_yes, format_signed,
+        is_sensitive_key, redact_secret, set_assume_yes, status_cell, status_label, truncate_end,
+        truncate_middle,
     };
 
     #[test]
@@ -583,6 +590,18 @@ mod tests {
             rendered_row.find("5.00 MiB").expect("download size") + "5.00 MiB".len()
         );
         assert_eq!(layout.divider_line(), "-".repeat(header.len()));
+    }
+
+    #[test]
+    fn signed_disk_impact_uses_label_context() {
+        assert_eq!(
+            format_signed(SignedByteEstimate::estimated(5 * 1024 * 1024)),
+            "5.00 MiB (estimated)"
+        );
+        assert_eq!(
+            format_signed(SignedByteEstimate::exact(-5 * 1024 * 1024)),
+            "-5.00 MiB"
+        );
     }
 
     #[test]
