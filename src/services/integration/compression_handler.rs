@@ -67,6 +67,81 @@ pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
     }
 }
 
+/// Estimate logical unpacked byte size for a compressed artifact without extracting to disk.
+///
+/// This sums archive entry payload sizes where metadata is available, or counts bytes from a
+/// decompression stream for single-file compressed payloads.
+pub fn estimate_archive_unpacked_size(input: &Path) -> Result<u64> {
+    let ext = input
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    let file_name = input
+        .file_name()
+        .ok_or_else(|| anyhow!("Invalid archive path: no filename"))?
+        .to_string_lossy();
+    let name = file_name.to_lowercase();
+
+    if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
+        return estimate_tar_from_reader(GzDecoder::new(File::open(input)?));
+    }
+    if name.ends_with(".tar.bz2") || name.ends_with(".tbz2") || name.ends_with(".tbz") {
+        return estimate_tar_from_reader(BzDecoder::new(File::open(input)?));
+    }
+    if name.ends_with(".tar.xz") || name.ends_with(".txz") {
+        return estimate_tar_from_reader(XzDecoder::new(File::open(input)?));
+    }
+    if name.ends_with(".tar.zst") || name.ends_with(".tzst") {
+        return estimate_tar_from_reader(ZstdDecoder::new(File::open(input)?)?);
+    }
+
+    match ext.as_str() {
+        "zip" => estimate_zip_size(input),
+        "tar" => estimate_tar_from_reader(File::open(input)?),
+        "gz" => estimate_stream_size(GzDecoder::new(File::open(input)?)),
+        "bz2" => estimate_stream_size(BzDecoder::new(File::open(input)?)),
+        "xz" => estimate_stream_size(XzDecoder::new(File::open(input)?)),
+        "zst" => estimate_stream_size(ZstdDecoder::new(File::open(input)?)?),
+        _ => Err(anyhow!("Unsupported format: {}", input.display())),
+    }
+}
+
+fn estimate_stream_size<R: Read>(mut reader: R) -> Result<u64> {
+    let mut total = 0_u64;
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = reader.read(&mut buffer)?;
+        if read == 0 {
+            return Ok(total);
+        }
+        total = total.saturating_add(read as u64);
+    }
+}
+
+fn estimate_tar_from_reader<R: Read>(reader: R) -> Result<u64> {
+    let mut archive = Archive::new(reader);
+    let mut total = 0_u64;
+    for entry in archive.entries()? {
+        let entry = entry?;
+        total = total.saturating_add(entry.header().size()?);
+    }
+    Ok(total)
+}
+
+fn estimate_zip_size(input: &Path) -> Result<u64> {
+    let file = File::open(input)?;
+    let mut archive = ZipArchive::new(file)?;
+    let mut total = 0_u64;
+    for i in 0..archive.len() {
+        let file = archive.by_index(i)?;
+        if !file.is_dir() {
+            total = total.saturating_add(file.size());
+        }
+    }
+    Ok(total)
+}
+
 fn safe_join_extract_path(extract_dir: &Path, entry_path: &Path) -> Result<PathBuf> {
     if entry_path.is_absolute() {
         return Err(anyhow!(
@@ -409,7 +484,7 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::decompress;
+    use super::{decompress, estimate_archive_unpacked_size};
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -461,6 +536,13 @@ mod tests {
     }
 
     #[test]
+    fn estimate_unpacked_size_for_single_gz() {
+        let input = fixture_path("compression/archives/hello.gz");
+        let estimated = estimate_archive_unpacked_size(&input).expect("estimate .gz");
+        assert_eq!(estimated, b"hello-gz".len() as u64);
+    }
+
+    #[test]
     fn decompress_single_zst_returns_decompressed_file() {
         let root = temp_root("single-zst");
         let input = fixture_path("compression/archives/hello.zst");
@@ -490,6 +572,13 @@ mod tests {
         );
 
         cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn estimate_unpacked_size_for_tar_gz() {
+        let input = fixture_path("compression/archives/tar/tar-gz-single-file.tar.gz");
+        let estimated = estimate_archive_unpacked_size(&input).expect("estimate .tar.gz");
+        assert_eq!(estimated, b"tar-gz-content".len() as u64);
     }
 
     #[test]
@@ -527,6 +616,13 @@ mod tests {
         assert!(!extracted_root.join("pkg").exists());
 
         cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn estimate_unpacked_size_for_zip() {
+        let input = fixture_path("compression/archives/zip/zip-single-root.zip");
+        let estimated = estimate_archive_unpacked_size(&input).expect("estimate .zip");
+        assert_eq!(estimated, b"zip-content".len() as u64);
     }
 
     #[test]
