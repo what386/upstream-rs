@@ -3,7 +3,7 @@ use crate::{
     models::provider::Release,
     providers::provider_manager::ProviderManager,
     services::packaging::disk_impact::{
-        ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate,
+        ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_path_size,
     },
     services::{
         packaging::{
@@ -59,6 +59,7 @@ pub struct UpgradeOperation<'a> {
     upgrader: PackageUpgrader<'a>,
     checker: PackageChecker<'a>,
     provider_manager: &'a ProviderManager,
+    paths: &'a UpstreamPaths,
     package_storage: &'a mut PackageStorage,
 }
 
@@ -360,8 +361,31 @@ impl<'a> UpgradeOperation<'a> {
             upgrader,
             checker,
             provider_manager,
+            paths,
             package_storage,
         })
+    }
+
+    pub fn estimate_upgrade_rollback_impact(
+        &self,
+        rows: &[UpgradePreviewRow],
+    ) -> SignedByteEstimate {
+        rows.iter()
+            .map(|row| {
+                let Some(package) = self.package_storage.get_package_by_name(&row.name) else {
+                    return SignedByteEstimate::unknown();
+                };
+                let active_size = PackageRemover::new(self.paths)
+                    .estimate_active_size(package)
+                    .unwrap_or(0);
+                let existing_rollback =
+                    estimate_path_size(&self.paths.install.rollback_dir.join(&package.name))
+                        .unwrap_or(0);
+                SignedByteEstimate::exact(
+                    i128::from(active_size).saturating_sub(i128::from(existing_rollback)),
+                )
+            })
+            .fold(SignedByteEstimate::exact(0), |total, impact| total + impact)
     }
 
     pub async fn estimate_upgrade_impact(
@@ -591,10 +615,15 @@ impl<'a> UpgradeOperation<'a> {
         };
 
         let new_size = asset_size_estimate(asset.size);
+        let active_size = PackageRemover::new(self.paths)
+            .estimate_active_size(package)
+            .unwrap_or(0);
         match new_size.bytes {
             Some(bytes) => DiskImpact {
                 download: new_size,
-                net: SignedByteEstimate::estimated(i128::from(bytes)),
+                net: SignedByteEstimate::estimated(
+                    i128::from(bytes).saturating_sub(i128::from(active_size)),
+                ),
             },
             None => DiskImpact {
                 download: ByteEstimate::unknown(),

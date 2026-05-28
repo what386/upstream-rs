@@ -1,5 +1,5 @@
 use crate::{
-    services::packaging::disk_impact::DiskImpact,
+    services::packaging::disk_impact::{DiskImpact, SignedByteEstimate, estimate_path_size},
     services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover, RollbackManager},
     services::storage::rollback_storage::RollbackSource,
     services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
@@ -195,6 +195,32 @@ impl<'a> RemoveOperation<'a> {
                 ))
             })
             .collect()
+    }
+
+    pub fn estimate_rollback_impact(
+        &self,
+        package_names: &[String],
+        purge_option: bool,
+    ) -> SignedByteEstimate {
+        if purge_option {
+            return SignedByteEstimate::exact(0);
+        }
+
+        package_names
+            .iter()
+            .map(|package_name| {
+                let Some(package) = self.package_storage.get_package_by_name(package_name) else {
+                    return SignedByteEstimate::unknown();
+                };
+                let active_size = self.remover.estimate_active_size(package).unwrap_or(0);
+                let existing_rollback =
+                    estimate_path_size(&self.paths.install.rollback_dir.join(&package.name))
+                        .unwrap_or(0);
+                SignedByteEstimate::exact(
+                    i128::from(active_size).saturating_sub(i128::from(existing_rollback)),
+                )
+            })
+            .fold(SignedByteEstimate::exact(0), |total, impact| total + impact)
     }
 
     pub fn preview_single<H>(
