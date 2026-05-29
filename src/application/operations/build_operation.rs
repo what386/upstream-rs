@@ -214,7 +214,7 @@ impl<'a> BuildOperation<'a> {
             &disk_impact,
             "Net disk change:",
         );
-        output::confirm_yes_default_or_cancel("Proceed with installation?")?;
+        output::confirm_or_cancel("Proceed with installation?", true)?;
 
         let worker = BuildWorker::new(self.provider_manager);
         let build_result = worker

@@ -85,8 +85,8 @@ pub async fn run(
         estimate_reinstall_impact(&names, &package_storage, &provider_manager, &paths).await;
     let rollback_impact = estimate_reinstall_rollback_impact(&names, &package_storage, &paths);
     let size_rows = rollback_size_rows(rollback_impact);
-    output::print_disk_impact_with_size_rows(&impact, &size_rows);
-    output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()))?;
+    output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
+    output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()), false)?;
 
     let mut reinstalled = 0_u32;
     let mut failed = 0_u32;
@@ -191,7 +191,7 @@ async fn run_dry_run(
     let impact = estimate_reinstall_impact(&names, package_storage, provider_manager, paths).await;
     let rollback_impact = estimate_reinstall_rollback_impact(&names, package_storage, paths);
     let size_rows = rollback_size_rows(rollback_impact);
-    output::print_disk_impact_with_size_rows(&impact, &size_rows);
+    output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
     output::action_note(
         "resolve only (no remove, no download, no build, no install, no metadata changes)",
     );

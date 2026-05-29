@@ -175,7 +175,7 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     output::confirm_or_cancel(format!(
         "Restore rollback for {} package(s)?",
         restorable_names.len()
-    ))?;
+    ), false)?;
 
     let pb = ProgressBar::new_spinner();
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -253,7 +253,7 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
         output::confirm_or_cancel(format!(
             "Prune rollback artifacts for {} package(s)?",
             target_names.len()
-        ))?;
+        ), false)?;
     }
 
     let pb = ProgressBar::new_spinner();

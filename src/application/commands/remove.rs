@@ -98,7 +98,7 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
         "Net disk change:",
         &size_rows,
     );
-    output::confirm_yes_default_or_cancel("Proceed with removal?")?;
+    output::confirm_or_cancel("Proceed with removal?", true)?;
 
     let overall_pb = ProgressBar::new(0);
     overall_pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -244,7 +244,7 @@ fn run_dry_run(
     let (impact, _, estimate_failed) = package_remover.estimate_bulk_impact(&names, purge);
     let rollback_impact = package_remover.estimate_rollback_impact(&names, purge);
     let size_rows = rollback_size_rows(rollback_impact);
-    output::print_local_disk_impact_with_size_rows(&impact, &size_rows);
+    output::print_disk_impact_with_size_rows(&impact, &size_rows, false);
     if estimate_failed > 0 {
         output::action_note(format!(
             "{estimate_failed} package(s) could not be included in disk estimate"
