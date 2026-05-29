@@ -91,7 +91,7 @@ pub struct UpgradePreviewRow {
 pub enum UpgradePreviewEvent {
     Started { package_width: usize },
     Checking { name: String },
-    Row(UpgradePreviewRow),
+    Row(Box<UpgradePreviewRow>),
 }
 
 impl<'a> UpgradeOperation<'a> {
@@ -491,7 +491,7 @@ impl<'a> UpgradeOperation<'a> {
 
         while let Some((idx, row)) = pending.next().await {
             if let Some(row) = row.clone() {
-                event_callback(UpgradePreviewEvent::Row(row));
+                event_callback(UpgradePreviewEvent::Row(Box::new(row)));
             }
             rows_by_index[idx] = row;
 
@@ -523,41 +523,41 @@ impl<'a> UpgradeOperation<'a> {
             return None;
         }
 
-        if package.install_type == crate::models::upstream::InstallType::Build {
-            if let Some(branch) = package.build_branch.as_deref() {
-                let head_commit = self
-                    .provider_manager
-                    .get_branch_head_sha(
-                        &package.repo_slug,
-                        &package.provider,
-                        branch,
-                        package.base_url.as_deref(),
-                    )
-                    .await
-                    .ok()?;
-                let up_to_date = package
-                    .build_commit
-                    .as_deref()
-                    .is_some_and(|saved| saved == head_commit);
-                if up_to_date && !force {
-                    return None;
-                }
-
-                return Some(UpgradePreviewRow {
-                    name: package.name.clone(),
-                    source: package.channel.to_string().to_lowercase(),
-                    old_version: build_ref_version(
-                        package.version.to_string(),
-                        package.build_commit.as_deref(),
-                    ),
-                    new_version: build_ref_version(branch, Some(&head_commit)),
-                    disk_impact: DiskImpact::unknown(),
-                    target: ResolvedUpgradeTarget::Branch {
-                        branch: branch.to_string(),
-                        head_commit,
-                    },
-                });
+        if package.install_type == crate::models::upstream::InstallType::Build
+            && let Some(branch) = package.build_branch.as_deref()
+        {
+            let head_commit = self
+                .provider_manager
+                .get_branch_head_sha(
+                    &package.repo_slug,
+                    &package.provider,
+                    branch,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .ok()?;
+            let up_to_date = package
+                .build_commit
+                .as_deref()
+                .is_some_and(|saved| saved == head_commit);
+            if up_to_date && !force {
+                return None;
             }
+
+            return Some(UpgradePreviewRow {
+                name: package.name.clone(),
+                source: package.channel.to_string().to_lowercase(),
+                old_version: build_ref_version(
+                    package.version.to_string(),
+                    package.build_commit.as_deref(),
+                ),
+                new_version: build_ref_version(branch, Some(&head_commit)),
+                disk_impact: DiskImpact::unknown(),
+                target: ResolvedUpgradeTarget::Branch {
+                    branch: branch.to_string(),
+                    head_commit,
+                },
+            });
         }
 
         let release = if force {

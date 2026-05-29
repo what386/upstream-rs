@@ -40,6 +40,7 @@ impl<'a> SignatureVerifier<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn try_verify_file<F, H, P>(
         &self,
         asset_path: &Path,
