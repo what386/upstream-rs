@@ -35,7 +35,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand probe 'Inspect releases visible from a provider without installing'
             cand search 'Search provider repositories by keyword(s)'
             cand config 'Manage upstream configuration'
-            cand package 'Manage package-specific settings and metadata'
+            cand package 'Manage package-specific behavior'
             cand hooks 'Manage shell integration hooks and local upstream data'
             cand import 'Import trusted keys, package metadata manifests, or full snapshots'
             cand export 'Export packages to a manifest or full snapshot'
@@ -86,6 +86,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;remove'= {
             cand --purge 'Remove all associated cached data'
+            cand --force 'Ignore uninstall errors and remove metadata anyway'
             cand --dry-run 'Preview removal actions without deleting files or metadata'
             cand -y 'Accept confirmation prompts'
             cand --yes 'Accept confirmation prompts'
@@ -102,6 +103,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;reinstall'= {
             cand --trust 'Trust verification mode for release-asset reinstalls'
+            cand --force 'Ignore uninstall errors and remove metadata anyway before reinstalling'
             cand --dry-run 'Preview reinstall resolution without removing, building, or writing files'
             cand -y 'Accept confirmation prompts'
             cand --yes 'Accept confirmation prompts'
@@ -227,11 +229,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
             cand pin 'Pin a package to its current version'
             cand unpin 'Unpin a package to allow updates'
-            cand remove 'Remove a package entry from upstream metadata'
-            cand get-key 'Get specific package metadata fields'
-            cand set-key 'Manually set package metadata fields'
             cand rename 'Rename package alias without reinstalling'
-            cand metadata 'Display all metadata for a package'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;package;pin'= {
@@ -247,31 +245,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
-        &'upstream;package;remove'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
-        }
-        &'upstream;package;get-key'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
-        }
-        &'upstream;package;set-key'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
-        }
         &'upstream;package;rename'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
-        }
-        &'upstream;package;metadata'= {
             cand -y 'Accept confirmation prompts'
             cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
@@ -280,26 +254,14 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;package;help'= {
             cand pin 'Pin a package to its current version'
             cand unpin 'Unpin a package to allow updates'
-            cand remove 'Remove a package entry from upstream metadata'
-            cand get-key 'Get specific package metadata fields'
-            cand set-key 'Manually set package metadata fields'
             cand rename 'Rename package alias without reinstalling'
-            cand metadata 'Display all metadata for a package'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;package;help;pin'= {
         }
         &'upstream;package;help;unpin'= {
         }
-        &'upstream;package;help;remove'= {
-        }
-        &'upstream;package;help;get-key'= {
-        }
-        &'upstream;package;help;set-key'= {
-        }
         &'upstream;package;help;rename'= {
-        }
-        &'upstream;package;help;metadata'= {
         }
         &'upstream;package;help;help'= {
         }
@@ -390,7 +352,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand probe 'Inspect releases visible from a provider without installing'
             cand search 'Search provider repositories by keyword(s)'
             cand config 'Manage upstream configuration'
-            cand package 'Manage package-specific settings and metadata'
+            cand package 'Manage package-specific behavior'
             cand hooks 'Manage shell integration hooks and local upstream data'
             cand import 'Import trusted keys, package metadata manifests, or full snapshots'
             cand export 'Export packages to a manifest or full snapshot'
@@ -437,25 +399,13 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;package'= {
             cand pin 'Pin a package to its current version'
             cand unpin 'Unpin a package to allow updates'
-            cand remove 'Remove a package entry from upstream metadata'
-            cand get-key 'Get specific package metadata fields'
-            cand set-key 'Manually set package metadata fields'
             cand rename 'Rename package alias without reinstalling'
-            cand metadata 'Display all metadata for a package'
         }
         &'upstream;help;package;pin'= {
         }
         &'upstream;help;package;unpin'= {
         }
-        &'upstream;help;package;remove'= {
-        }
-        &'upstream;help;package;get-key'= {
-        }
-        &'upstream;help;package;set-key'= {
-        }
         &'upstream;help;package;rename'= {
-        }
-        &'upstream;help;package;metadata'= {
         }
         &'upstream;help;hooks'= {
             cand init 'Add upstream shell integration hooks'

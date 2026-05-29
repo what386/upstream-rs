@@ -83,6 +83,7 @@ _arguments "${_arguments_options[@]}" : \
 (remove)
 _arguments "${_arguments_options[@]}" : \
 '--purge[Remove all associated cached data]' \
+'--force[Ignore uninstall errors and remove metadata anyway]' \
 '--dry-run[Preview removal actions without deleting files or metadata]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
@@ -105,6 +106,7 @@ _arguments "${_arguments_options[@]}" : \
 (reinstall)
 _arguments "${_arguments_options[@]}" : \
 '--trust=[Trust verification mode for release-asset reinstalls]:TRUST_MODE:(none best-effort checksum signature all)' \
+'--force[Ignore uninstall errors and remove metadata anyway before reinstalling]' \
 '--dry-run[Preview reinstall resolution without removing, building, or writing files]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
@@ -315,35 +317,6 @@ _arguments "${_arguments_options[@]}" : \
 ':name -- Name of package to unpin:_default' \
 && ret=0
 ;;
-(remove)
-_arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-':name -- Name of package to remove from metadata:_default' \
-&& ret=0
-;;
-(get-key)
-_arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-':name -- Name of package:_default' \
-'*::keys -- Metadata keys to retrieve:_default' \
-&& ret=0
-;;
-(set-key)
-_arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-':name -- Name of package:_default' \
-'*::keys -- Metadata assignments (format\: key=value):_default' \
-&& ret=0
-;;
 (rename)
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts]' \
@@ -352,15 +325,6 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':old_name -- Existing package alias:_default' \
 ':new_name -- New package alias:_default' \
-&& ret=0
-;;
-(metadata)
-_arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-':name -- Name of package:_default' \
 && ret=0
 ;;
 (help)
@@ -383,23 +347,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(remove)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(get-key)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(set-key)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
 (rename)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(metadata)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -643,23 +591,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(remove)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(get-key)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(set-key)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
 (rename)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(metadata)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -738,7 +670,7 @@ _upstream_commands() {
 'probe:Inspect releases visible from a provider without installing' \
 'search:Search provider repositories by keyword(s)' \
 'config:Manage upstream configuration' \
-'package:Manage package-specific settings and metadata' \
+'package:Manage package-specific behavior' \
 'hooks:Manage shell integration hooks and local upstream data' \
 'import:Import trusted keys, package metadata manifests, or full snapshots' \
 'export:Export packages to a manifest or full snapshot' \
@@ -860,7 +792,7 @@ _upstream__subcmd__help_commands() {
 'probe:Inspect releases visible from a provider without installing' \
 'search:Search provider repositories by keyword(s)' \
 'config:Manage upstream configuration' \
-'package:Manage package-specific settings and metadata' \
+'package:Manage package-specific behavior' \
 'hooks:Manage shell integration hooks and local upstream data' \
 'import:Import trusted keys, package metadata manifests, or full snapshots' \
 'export:Export packages to a manifest or full snapshot' \
@@ -980,43 +912,19 @@ _upstream__subcmd__help__subcmd__package_commands() {
     local commands; commands=(
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
-'remove:Remove a package entry from upstream metadata' \
-'get-key:Get specific package metadata fields' \
-'set-key:Manually set package metadata fields' \
 'rename:Rename package alias without reinstalling' \
-'metadata:Display all metadata for a package' \
     )
     _describe -t commands 'upstream help package commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__get-key_commands] )) ||
-_upstream__subcmd__help__subcmd__package__subcmd__get-key_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help package get-key commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__metadata_commands] )) ||
-_upstream__subcmd__help__subcmd__package__subcmd__metadata_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help package metadata commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__pin_commands] )) ||
 _upstream__subcmd__help__subcmd__package__subcmd__pin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package pin commands' commands "$@"
 }
-(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__remove_commands] )) ||
-_upstream__subcmd__help__subcmd__package__subcmd__remove_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help package remove commands' commands "$@"
-}
 (( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__rename_commands] )) ||
 _upstream__subcmd__help__subcmd__package__subcmd__rename_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package rename commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__set-key_commands] )) ||
-_upstream__subcmd__help__subcmd__package__subcmd__set-key_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help package set-key commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__unpin_commands] )) ||
 _upstream__subcmd__help__subcmd__package__subcmd__unpin_commands() {
@@ -1140,98 +1048,50 @@ _upstream__subcmd__package_commands() {
     local commands; commands=(
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
-'remove:Remove a package entry from upstream metadata' \
-'get-key:Get specific package metadata fields' \
-'set-key:Manually set package metadata fields' \
 'rename:Rename package alias without reinstalling' \
-'metadata:Display all metadata for a package' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream package commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__package__subcmd__get-key_commands] )) ||
-_upstream__subcmd__package__subcmd__get-key_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream package get-key commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__package__subcmd__help_commands] )) ||
 _upstream__subcmd__package__subcmd__help_commands() {
     local commands; commands=(
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
-'remove:Remove a package entry from upstream metadata' \
-'get-key:Get specific package metadata fields' \
-'set-key:Manually set package metadata fields' \
 'rename:Rename package alias without reinstalling' \
-'metadata:Display all metadata for a package' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream package help commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__get-key_commands] )) ||
-_upstream__subcmd__package__subcmd__help__subcmd__get-key_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream package help get-key commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__help_commands] )) ||
 _upstream__subcmd__package__subcmd__help__subcmd__help_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help help commands' commands "$@"
 }
-(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__metadata_commands] )) ||
-_upstream__subcmd__package__subcmd__help__subcmd__metadata_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream package help metadata commands' commands "$@"
-}
 (( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__pin_commands] )) ||
 _upstream__subcmd__package__subcmd__help__subcmd__pin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help pin commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__remove_commands] )) ||
-_upstream__subcmd__package__subcmd__help__subcmd__remove_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream package help remove commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__rename_commands] )) ||
 _upstream__subcmd__package__subcmd__help__subcmd__rename_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help rename commands' commands "$@"
 }
-(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__set-key_commands] )) ||
-_upstream__subcmd__package__subcmd__help__subcmd__set-key_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream package help set-key commands' commands "$@"
-}
 (( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__unpin_commands] )) ||
 _upstream__subcmd__package__subcmd__help__subcmd__unpin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help unpin commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__package__subcmd__metadata_commands] )) ||
-_upstream__subcmd__package__subcmd__metadata_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream package metadata commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__package__subcmd__pin_commands] )) ||
 _upstream__subcmd__package__subcmd__pin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package pin commands' commands "$@"
 }
-(( $+functions[_upstream__subcmd__package__subcmd__remove_commands] )) ||
-_upstream__subcmd__package__subcmd__remove_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream package remove commands' commands "$@"
-}
 (( $+functions[_upstream__subcmd__package__subcmd__rename_commands] )) ||
 _upstream__subcmd__package__subcmd__rename_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package rename commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__package__subcmd__set-key_commands] )) ||
-_upstream__subcmd__package__subcmd__set-key_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream package set-key commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__package__subcmd__unpin_commands] )) ||
 _upstream__subcmd__package__subcmd__unpin_commands() {
