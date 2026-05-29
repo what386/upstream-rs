@@ -161,10 +161,12 @@ pub enum Commands {
     #[command(
         long_about = "Uninstall packages and optionally remove cached data.\n\n\
         By default, removes the package binary/files but preserves cached release data. \
-        Use --purge to remove everything.\n\n\
+        Use --purge to remove everything. Use --force to ignore uninstall errors \
+        (for example, missing files) and still remove package metadata.\n\n\
         EXAMPLES:\n  \
         upstream remove nvim\n  \
         upstream remove rg fd bat --purge\n  \
+        upstream remove rg --force\n  \
         upstream remove rg --dry-run"
     )]
     Remove {
@@ -174,6 +176,10 @@ pub enum Commands {
         /// Remove all associated cached data
         #[arg(long, default_value_t = false)]
         purge: bool,
+
+        /// Ignore uninstall errors and remove metadata anyway
+        #[arg(long, default_value_t = false)]
+        force: bool,
 
         /// Preview removal actions without deleting files or metadata
         #[arg(long, default_value_t = false)]
@@ -209,6 +215,7 @@ pub enum Commands {
         EXAMPLES:\n  \
         upstream reinstall nvim\n  \
         upstream reinstall rg fd\n  \
+        upstream reinstall rg --force\n  \
         upstream reinstall rg --trust none"
     )]
     Reinstall {
@@ -218,6 +225,10 @@ pub enum Commands {
         /// Trust verification mode for release-asset reinstalls
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
         trust_mode: TrustMode,
+
+        /// Ignore uninstall errors and remove metadata anyway before reinstalling
+        #[arg(long, default_value_t = false)]
+        force: bool,
 
         /// Preview reinstall resolution without removing, building, or writing files
         #[arg(long, default_value_t = false)]
@@ -370,16 +381,14 @@ pub enum Commands {
         action: ConfigAction,
     },
 
-    /// Manage package-specific settings and metadata
+    /// Manage package-specific behavior
     #[command(
-        long_about = "Control package behavior and view internal metadata.\n\n\
-        Pin packages to prevent upgrades, view installation details, or manually \
-        adjust package metadata when needed.\n\n\
+        long_about = "Control package behavior.\n\n\
+        Pin packages to prevent upgrades or rename installed package aliases.\n\n\
         EXAMPLES:\n  \
         upstream package pin nvim\n  \
-        upstream package remove nvim\n  \
-        upstream package metadata nvim\n  \
-        upstream package get-key nvim install_path"
+        upstream package unpin nvim\n  \
+        upstream package rename nvim neovim"
     )]
     Package {
         #[command(subcommand)]
@@ -474,10 +483,7 @@ impl Commands {
             Commands::Doctor { fix, .. } => *fix,
             Commands::Search { .. } => false,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
-            Commands::Package { action } => !matches!(
-                action,
-                PackageAction::GetKey { .. } | PackageAction::Metadata { .. }
-            ),
+            Commands::Package { .. } => true,
             Commands::Config { action } => {
                 !matches!(action, ConfigAction::Get { .. } | ConfigAction::List { .. })
             }
@@ -597,47 +603,6 @@ pub enum PackageAction {
         name: String,
     },
 
-    /// Remove a package entry from upstream metadata
-    #[command(long_about = "Delete a package from local upstream metadata.\n\n\
-        This removes only metadata tracking. It does not remove installed files, \
-        symlinks, or other runtime integrations.\n\n\
-        EXAMPLE:\n  \
-        upstream package remove nvim")]
-    Remove {
-        /// Name of package to remove from metadata
-        name: String,
-    },
-
-    /// Get specific package metadata fields
-    #[command(long_about = "Retrieve raw metadata values for a package.\n\n\
-        Access internal package data like install paths, versions, and checksums.\n\n\
-        EXAMPLES:\n  \
-        upstream package get-key nvim install_path\n  \
-        upstream package get-key nvim version checksum")]
-    GetKey {
-        /// Name of package
-        name: String,
-
-        /// Metadata keys to retrieve
-        #[arg(required = true)]
-        keys: Vec<String>,
-    },
-
-    /// Manually set package metadata fields
-    #[command(long_about = "Manually modify package metadata.\n\n\
-        Advanced operation - use with caution. Typically used for manual corrections \
-        or testing.\n\n\
-        EXAMPLE:\n  \
-        upstream package set-key nvim is_pinned=false")]
-    SetKey {
-        /// Name of package
-        name: String,
-
-        /// Metadata assignments (format: key=value)
-        #[arg(required = true)]
-        keys: Vec<String>,
-    },
-
     /// Rename package alias without reinstalling
     #[command(long_about = "Rename the local alias of an installed package.\n\n\
         This changes how upstream tracks the package and updates integration aliases \
@@ -652,16 +617,6 @@ pub enum PackageAction {
         new_name: String,
     },
 
-    /// Display all metadata for a package
-    #[command(long_about = "Show complete package metadata in JSON format.\n\n\
-        Displays all internal data for the specified package including installation \
-        details, version info, and configuration.\n\n\
-        EXAMPLE:\n  \
-        upstream package metadata nvim")]
-    Metadata {
-        /// Name of package
-        name: String,
-    },
 }
 
 #[cfg(test)]
@@ -864,6 +819,15 @@ mod tests {
     }
 
     #[test]
+    fn reinstall_parses_force_flag() {
+        let cli = Cli::parse_from(["upstream", "reinstall", "rg", "--force"]);
+        match cli.command {
+            Commands::Reinstall { force, .. } => assert!(force),
+            other => panic!("unexpected command parsed: {}", other),
+        }
+    }
+
+    #[test]
     fn upgrade_parses_dry_run_flag() {
         let cli = Cli::parse_from(["upstream", "upgrade", "--dry-run"]);
         match cli.command {
@@ -934,13 +898,10 @@ mod tests {
     }
 
     #[test]
-    fn package_remove_parses_name() {
-        let cli = Cli::parse_from(["upstream", "package", "remove", "ripgrep"]);
-
+    fn remove_parses_force_flag() {
+        let cli = Cli::parse_from(["upstream", "remove", "rg", "--force"]);
         match cli.command {
-            Commands::Package {
-                action: PackageAction::Remove { name },
-            } => assert_eq!(name, "ripgrep"),
+            Commands::Remove { force, .. } => assert!(force),
             other => panic!("unexpected command parsed: {}", other),
         }
     }
@@ -1017,23 +978,6 @@ mod tests {
         assert!(
             !Commands::Hooks {
                 action: HooksAction::Check,
-            }
-            .requires_lock()
-        );
-        assert!(
-            !Commands::Package {
-                action: PackageAction::GetKey {
-                    name: "ripgrep".to_string(),
-                    keys: vec!["version".to_string()],
-                },
-            }
-            .requires_lock()
-        );
-        assert!(
-            !Commands::Package {
-                action: PackageAction::Metadata {
-                    name: "ripgrep".to_string(),
-                },
             }
             .requires_lock()
         );
@@ -1135,11 +1079,9 @@ mod tests {
     }
 
     #[test]
-    fn config_set_get_and_package_keys_require_operands() {
+    fn config_set_and_get_require_operands() {
         assert!(Cli::try_parse_from(["upstream", "config", "set"]).is_err());
         assert!(Cli::try_parse_from(["upstream", "config", "get"]).is_err());
-        assert!(Cli::try_parse_from(["upstream", "package", "get-key", "rg"]).is_err());
-        assert!(Cli::try_parse_from(["upstream", "package", "set-key", "rg"]).is_err());
     }
 
     #[test]
@@ -1204,6 +1146,7 @@ mod tests {
             Commands::Reinstall {
                 names: vec!["ripgrep".to_string()],
                 trust_mode: TrustMode::BestEffort,
+                force: false,
                 dry_run: false,
             }
             .requires_lock()
@@ -1220,6 +1163,7 @@ mod tests {
             Commands::Remove {
                 names: vec!["ripgrep".to_string()],
                 purge: false,
+                force: false,
                 dry_run: true,
             }
             .requires_lock()
@@ -1234,8 +1178,9 @@ mod tests {
         );
         assert!(
             Commands::Package {
-                action: PackageAction::Remove {
+                action: PackageAction::Pin {
                     name: "ripgrep".to_string(),
+                    reason: None,
                 },
             }
             .requires_lock()
