@@ -181,23 +181,11 @@ _upstream() {
             upstream__subcmd__help__subcmd__hooks,purge)
                 cmd="upstream__subcmd__help__subcmd__hooks__subcmd__purge"
                 ;;
-            upstream__subcmd__help__subcmd__package,get-key)
-                cmd="upstream__subcmd__help__subcmd__package__subcmd__get__subcmd__key"
-                ;;
-            upstream__subcmd__help__subcmd__package,metadata)
-                cmd="upstream__subcmd__help__subcmd__package__subcmd__metadata"
-                ;;
             upstream__subcmd__help__subcmd__package,pin)
                 cmd="upstream__subcmd__help__subcmd__package__subcmd__pin"
                 ;;
-            upstream__subcmd__help__subcmd__package,remove)
-                cmd="upstream__subcmd__help__subcmd__package__subcmd__remove"
-                ;;
             upstream__subcmd__help__subcmd__package,rename)
                 cmd="upstream__subcmd__help__subcmd__package__subcmd__rename"
-                ;;
-            upstream__subcmd__help__subcmd__package,set-key)
-                cmd="upstream__subcmd__help__subcmd__package__subcmd__set__subcmd__key"
                 ;;
             upstream__subcmd__help__subcmd__package,unpin)
                 cmd="upstream__subcmd__help__subcmd__package__subcmd__unpin"
@@ -232,50 +220,26 @@ _upstream() {
             upstream__subcmd__hooks__subcmd__help,purge)
                 cmd="upstream__subcmd__hooks__subcmd__help__subcmd__purge"
                 ;;
-            upstream__subcmd__package,get-key)
-                cmd="upstream__subcmd__package__subcmd__get__subcmd__key"
-                ;;
             upstream__subcmd__package,help)
                 cmd="upstream__subcmd__package__subcmd__help"
-                ;;
-            upstream__subcmd__package,metadata)
-                cmd="upstream__subcmd__package__subcmd__metadata"
                 ;;
             upstream__subcmd__package,pin)
                 cmd="upstream__subcmd__package__subcmd__pin"
                 ;;
-            upstream__subcmd__package,remove)
-                cmd="upstream__subcmd__package__subcmd__remove"
-                ;;
             upstream__subcmd__package,rename)
                 cmd="upstream__subcmd__package__subcmd__rename"
-                ;;
-            upstream__subcmd__package,set-key)
-                cmd="upstream__subcmd__package__subcmd__set__subcmd__key"
                 ;;
             upstream__subcmd__package,unpin)
                 cmd="upstream__subcmd__package__subcmd__unpin"
                 ;;
-            upstream__subcmd__package__subcmd__help,get-key)
-                cmd="upstream__subcmd__package__subcmd__help__subcmd__get__subcmd__key"
-                ;;
             upstream__subcmd__package__subcmd__help,help)
                 cmd="upstream__subcmd__package__subcmd__help__subcmd__help"
-                ;;
-            upstream__subcmd__package__subcmd__help,metadata)
-                cmd="upstream__subcmd__package__subcmd__help__subcmd__metadata"
                 ;;
             upstream__subcmd__package__subcmd__help,pin)
                 cmd="upstream__subcmd__package__subcmd__help__subcmd__pin"
                 ;;
-            upstream__subcmd__package__subcmd__help,remove)
-                cmd="upstream__subcmd__package__subcmd__help__subcmd__remove"
-                ;;
             upstream__subcmd__package__subcmd__help,rename)
                 cmd="upstream__subcmd__package__subcmd__help__subcmd__rename"
-                ;;
-            upstream__subcmd__package__subcmd__help,set-key)
-                cmd="upstream__subcmd__package__subcmd__help__subcmd__set__subcmd__key"
                 ;;
             upstream__subcmd__package__subcmd__help,unpin)
                 cmd="upstream__subcmd__package__subcmd__help__subcmd__unpin"
@@ -867,36 +831,8 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__package)
-            opts="pin unpin remove get-key set-key rename metadata"
+            opts="pin unpin rename"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__help__subcmd__package__subcmd__get__subcmd__key)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__help__subcmd__package__subcmd__metadata)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -922,35 +858,7 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        upstream__subcmd__help__subcmd__package__subcmd__remove)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
         upstream__subcmd__help__subcmd__package__subcmd__rename)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__help__subcmd__package__subcmd__set__subcmd__key)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1319,7 +1227,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__package)
-            opts="-y -h --yes --help pin unpin remove get-key set-key rename metadata help"
+            opts="-y -h --yes --help pin unpin rename help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1332,37 +1240,9 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        upstream__subcmd__package__subcmd__get__subcmd__key)
-            opts="-y -h --yes --help <NAME> <KEYS>..."
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
         upstream__subcmd__package__subcmd__help)
-            opts="pin unpin remove get-key set-key rename metadata help"
+            opts="pin unpin rename help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__package__subcmd__help__subcmd__get__subcmd__key)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -1375,20 +1255,6 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__package__subcmd__help__subcmd__help)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__package__subcmd__help__subcmd__metadata)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1416,35 +1282,7 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        upstream__subcmd__package__subcmd__help__subcmd__remove)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
         upstream__subcmd__package__subcmd__help__subcmd__rename)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__package__subcmd__help__subcmd__set__subcmd__key)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1461,20 +1299,6 @@ _upstream() {
         upstream__subcmd__package__subcmd__help__subcmd__unpin)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__package__subcmd__metadata)
-            opts="-y -h --yes --help <NAME>"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -1504,36 +1328,8 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        upstream__subcmd__package__subcmd__remove)
-            opts="-y -h --yes --help <NAME>"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
         upstream__subcmd__package__subcmd__rename)
             opts="-y -h --yes --help <OLD_NAME> <NEW_NAME>"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__package__subcmd__set__subcmd__key)
-            opts="-y -h --yes --help <NAME> <KEYS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1599,7 +1395,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__reinstall)
-            opts="-y -h --trust --dry-run --yes --help [NAMES]..."
+            opts="-y -h --trust --force --dry-run --yes --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1617,7 +1413,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__remove)
-            opts="-y -h --purge --dry-run --yes --help [NAMES]..."
+            opts="-y -h --purge --force --dry-run --yes --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
