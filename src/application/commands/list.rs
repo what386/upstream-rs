@@ -214,7 +214,7 @@ fn print_package_table(packages: &[Package]) {
 
     println!();
     output::kv("Total", format!("{} packages", packages.len()));
-    output::action_note("Flags: I=icon present, P=pinned");
+    output::action_note("Flags: D=desktop present, P=pinned");
 }
 
 fn table_width(widths: &ColumnWidths) -> usize {
@@ -256,13 +256,13 @@ fn print_package_row(package: &Package, widths: &ColumnWidths) {
         &format_path(package.install_path.as_ref(), "-"),
         widths.path,
     );
-    let icon_indicator = if package.icon_path.is_some() {
-        "I"
+    let desktop_indicator = if package.icon_path.is_some() {
+        "D"
     } else {
         "-"
     };
     let pin_indicator = if package.is_pinned { "P" } else { "-" };
-    let flags = format!("{icon_indicator}{pin_indicator}");
+    let flags = format!("{desktop_indicator}{pin_indicator}");
     let last_updated = package.last_upgraded.format("%Y-%m-%d").to_string();
 
     println!(
