@@ -22,10 +22,6 @@ pub fn title(text: impl fmt::Display) -> StyledObject<String> {
     style(text.to_string()).cyan().bold()
 }
 
-pub fn packages_title(count: usize) -> StyledObject<String> {
-    title(format!("Packages ({count})"))
-}
-
 pub fn section(text: impl fmt::Display) -> StyledObject<String> {
     style(text.to_string()).bold()
 }
@@ -40,10 +36,6 @@ pub fn success(text: impl fmt::Display) -> StyledObject<String> {
 
 pub fn warning(text: impl fmt::Display) -> StyledObject<String> {
     style(text.to_string()).yellow()
-}
-
-pub fn failure(text: impl fmt::Display) -> StyledObject<String> {
-    style(text.to_string()).red()
 }
 
 pub fn kv(label: &str, value: impl fmt::Display) {
@@ -62,7 +54,7 @@ pub fn assume_yes() -> bool {
     ASSUME_YES.load(Ordering::Relaxed)
 }
 
-pub fn confirm(prompt: impl fmt::Display) -> anyhow::Result<bool> {
+fn confirm_impl(prompt: impl fmt::Display, default_yes: bool) -> anyhow::Result<bool> {
     if assume_yes() {
         return Ok(true);
     }
@@ -73,48 +65,22 @@ pub fn confirm(prompt: impl fmt::Display) -> anyhow::Result<bool> {
         );
     }
 
-    print!("{} [y/N]: ", prompt);
+    let suffix = if default_yes { " [Y/n] " } else { " [y/N]: " };
+    print!("{prompt}{suffix}");
     io::stdout().flush()?;
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
-    Ok(matches!(
-        input.trim().to_ascii_lowercase().as_str(),
-        "y" | "yes"
-    ))
+    let normalized = input.trim().to_ascii_lowercase();
+    Ok(match normalized.as_str() {
+        "y" | "yes" => true,
+        "" => default_yes,
+        _ => false,
+    })
 }
 
-pub fn confirm_yes_default(prompt: impl fmt::Display) -> anyhow::Result<bool> {
-    if assume_yes() {
-        return Ok(true);
-    }
-
-    if !io::stdin().is_terminal() {
-        anyhow::bail!(
-            "Confirmation required for non-interactive input. Re-run with --yes to continue."
-        );
-    }
-
-    print!("{} [Y/n] ", prompt);
-    io::stdout().flush()?;
-
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-    Ok(matches!(
-        input.trim().to_ascii_lowercase().as_str(),
-        "" | "y" | "yes"
-    ))
-}
-
-pub fn confirm_or_cancel(prompt: impl fmt::Display) -> anyhow::Result<()> {
-    if confirm(prompt)? {
-        return Ok(());
-    }
-    anyhow::bail!("Cancelled")
-}
-
-pub fn confirm_yes_default_or_cancel(prompt: impl fmt::Display) -> anyhow::Result<()> {
-    if confirm_yes_default(prompt)? {
+pub fn confirm_or_cancel(prompt: impl fmt::Display, default_yes: bool) -> anyhow::Result<()> {
+    if confirm_impl(prompt, default_yes)? {
         return Ok(());
     }
     anyhow::bail!("Cancelled")
@@ -194,31 +160,11 @@ pub fn redact_secret(value: &str) -> String {
 }
 
 pub fn status_label(status: Status) -> StyledObject<&'static str> {
-    match status {
-        Status::Ok => style("[ok]").green(),
-        Status::Warn => style("[warn]").yellow(),
-        Status::Fail => style("[fail]").red(),
-        Status::Plan => style("[plan]").yellow(),
-        Status::Skip => style("[skip]").dim(),
-    }
+    style_status(status_label_text(status), status)
 }
 
 pub fn status_cell(status: Status) -> StyledObject<String> {
-    let label = match status {
-        Status::Ok => "[ok]",
-        Status::Warn => "[warn]",
-        Status::Fail => "[fail]",
-        Status::Plan => "[plan]",
-        Status::Skip => "[skip]",
-    };
-    let padded = format!("{label:<8}");
-    match status {
-        Status::Ok => style(padded).green(),
-        Status::Warn => style(padded).yellow(),
-        Status::Fail => style(padded).red(),
-        Status::Plan => style(padded).yellow(),
-        Status::Skip => style(padded).dim(),
-    }
+    style_status(format!("{:<8}", status_label_text(status)), status)
 }
 
 pub fn status_line(status: Status, subject: impl fmt::Display, detail: impl fmt::Display) {
@@ -240,6 +186,26 @@ pub fn status_line_text(
 
 pub fn summary_line(status: Status, detail: impl fmt::Display) {
     println!("{} {}", status_cell(status), detail);
+}
+
+fn status_label_text(status: Status) -> &'static str {
+    match status {
+        Status::Ok => "[ok]",
+        Status::Warn => "[warn]",
+        Status::Fail => "[fail]",
+        Status::Plan => "[plan]",
+        Status::Skip => "[skip]",
+    }
+}
+
+fn style_status<T: fmt::Display>(text: T, status: Status) -> StyledObject<T> {
+    match status {
+        Status::Ok => style(text).green(),
+        Status::Warn => style(text).yellow(),
+        Status::Fail => style(text).red(),
+        Status::Plan => style(text).yellow(),
+        Status::Skip => style(text).dim(),
+    }
 }
 
 pub struct TransactionRow {
@@ -458,77 +424,41 @@ impl TransactionTableLayout {
     }
 }
 
-pub fn print_disk_impact(impact: &DiskImpact) {
-    print_disk_impact_with_size_rows(impact, &[]);
+pub fn print_disk_impact(impact: &DiskImpact, include_download: bool) {
+    print_disk_impact_with_size_rows(impact, &[], include_download);
 }
 
-pub fn print_disk_impact_with_size_rows(impact: &DiskImpact, size_rows: &[SizeImpactRow]) {
+pub fn print_disk_impact_with_size_rows(
+    impact: &DiskImpact,
+    size_rows: &[SizeImpactRow],
+    include_download: bool,
+) {
     println!("{}", section("Size impact:"));
-    if !matches!(impact.download.bytes, Some(0)) {
-        println!(
-            "  {} {}",
-            meta("Download:"),
-            format_unsigned(impact.download)
-        );
+    if include_download && !matches!(impact.download.bytes, Some(0)) {
+        println!("  {} {}", meta("Download:"), format_unsigned(impact.download));
     }
     if size_rows.is_empty() {
+        println!("  {} {}", meta("Net disk change:"), format_signed(impact.net));
+        return;
+    }
+
+    println!(
+        "  {} {}",
+        meta("Package files:"),
+        format_signed_delta(impact.net)
+    );
+    for row in size_rows {
         println!(
             "  {} {}",
-            meta("Net disk change:"),
-            format_signed(impact.net)
-        );
-    } else {
-        println!(
-            "  {} {}",
-            meta("Package files:"),
-            format_signed_delta(impact.net)
-        );
-        for row in size_rows {
-            println!(
-                "  {} {}",
-                meta(format!("{}:", row.label)),
-                format_signed_delta(row.value)
-            );
-        }
-        println!(
-            "  {} {}",
-            meta("Net disk change:"),
-            format_signed(total_disk_change(impact.net, size_rows))
+            meta(format!("{}:", row.label)),
+            format_signed_delta(row.value)
         );
     }
-}
-
-pub fn print_local_disk_impact(impact: &DiskImpact) {
-    print_local_disk_impact_with_size_rows(impact, &[]);
-}
-
-pub fn print_local_disk_impact_with_size_rows(impact: &DiskImpact, size_rows: &[SizeImpactRow]) {
-    println!("{}", section("Size impact:"));
-    if size_rows.is_empty() {
-        println!(
-            "  {} {}",
-            meta("Net disk change:"),
-            format_signed(impact.net)
-        );
-    } else {
-        println!(
-            "  {} {}",
-            meta("Package files:"),
-            format_signed_delta(impact.net)
-        );
-        for row in size_rows {
-            println!(
-                "  {} {}",
-                meta(format!("{}:", row.label)),
-                format_signed_delta(row.value)
-            );
-        }
-        println!(
-            "  {} {}",
-            meta("Net disk change:"),
-            format_signed(total_disk_change(impact.net, size_rows))
-        );
-    }
+    println!(
+        "  {} {}",
+        meta("Net disk change:"),
+        format_signed(total_disk_change(impact.net, size_rows))
+    );
 }
 
 fn total_disk_change(

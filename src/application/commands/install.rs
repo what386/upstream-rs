@@ -157,7 +157,7 @@ pub async fn run(
         );
         output::kv("Trust", trust_mode);
         output::kv("Desktop", if create_entry { "yes" } else { "no" });
-        output::print_disk_impact(&preview.disk_impact);
+        output::print_disk_impact(&preview.disk_impact, true);
         output::action_note("resolve only (no download, no install, no metadata changes)");
         return Ok(());
     }
@@ -169,7 +169,7 @@ pub async fn run(
         preview.disk_impact.download,
     )];
     output::print_transaction_table(&transaction_rows, &preview.disk_impact, "Net disk change:");
-    output::confirm_yes_default_or_cancel("Proceed with installation?")?;
+    output::confirm_or_cancel("Proceed with installation?", true)?;
 
     let pb = ProgressBar::new_spinner();
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -364,10 +364,13 @@ fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
         return Ok(());
     };
 
-    output::confirm_or_cancel(format!(
-        "Install recommended asset '{}' from this page?",
-        candidate.asset.name
-    ))
+    output::confirm_or_cancel(
+        format!(
+            "Install recommended asset '{}' from this page?",
+            candidate.asset.name
+        ),
+        false,
+    )
 }
 
 #[cfg(test)]

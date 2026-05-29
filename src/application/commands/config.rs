@@ -110,7 +110,7 @@ pub fn run_reset() -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
 
-    output::confirm_or_cancel("Reset all configuration to defaults?")?;
+    output::confirm_or_cancel("Reset all configuration to defaults?", false)?;
     config_storage.reset_to_defaults()?;
     println!("{}", output::success("Configuration reset to defaults."));
 

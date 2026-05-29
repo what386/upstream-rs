@@ -163,7 +163,7 @@ pub async fn run(
             &size_rows,
         );
     }
-    output::confirm_yes_default_or_cancel("Proceed with installation?")?;
+    output::confirm_or_cancel("Proceed with installation?", true)?;
 
     let overall_pb = ProgressBar::new(preview_rows.len() as u64);
     overall_pb.set_style(ProgressStyle::with_template(
@@ -434,7 +434,7 @@ async fn run_dry_run(
         ),
     };
     let size_rows = rollback_size_rows(rollback_impact);
-    output::print_disk_impact_with_size_rows(&impact, &size_rows);
+    output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
     output::action_note("resolve only (no download, no install, no metadata changes)");
     println!();
     let rows = match names {
