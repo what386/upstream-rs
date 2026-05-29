@@ -11,6 +11,9 @@
 - [ ] remove set-key, get-key, metadata from package subcommand
       @created 2026-05-29 00:15
 
+- [ ] force flag for uninstall
+      @created 2026-05-29 00:15
+
 
 ## Completed
 
