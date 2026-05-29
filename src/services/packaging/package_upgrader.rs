@@ -403,6 +403,15 @@ impl<'a> PackageUpgrader<'a> {
                 } => (None, Some(branch.clone()), Some(head_commit.clone())),
             };
             let worker = BuildWorker::new(self.provider_manager);
+            let mut build_line_callback = Some(|line: &str| {
+                let line = line.trim();
+                if !line.is_empty() {
+                    progress!(
+                        progress_callback,
+                        PackageProgressEvent::Warning(line.to_string())
+                    );
+                }
+            });
             let build_result = worker
                 .build(
                     BuildRequest {
@@ -416,19 +425,35 @@ impl<'a> PackageUpgrader<'a> {
                         build_output: None,
                     },
                     package.channel.clone(),
+                    &mut build_line_callback,
                 )
                 .await;
+            drop(build_line_callback);
 
             match build_result {
                 Ok(output) => {
                     let mut install_pkg = package.clone();
                     install_pkg.build_branch = output.branch.clone();
                     install_pkg.build_commit = output.commit.or(branch_head_commit.clone());
+                    progress!(
+                        progress_callback,
+                        PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
+                    );
+                    let mut install_message_callback = Some(|line: &str| {
+                        let line = line.trim();
+                        if !line.is_empty() {
+                            progress!(
+                                progress_callback,
+                                PackageProgressEvent::Warning(line.to_string())
+                            );
+                            message!(message_callback, "{}", line);
+                        }
+                    });
                     self.installer.install_local_artifact(
                         install_pkg,
                         &output.artifact_path,
                         output.version,
-                        message_callback,
+                        &mut install_message_callback,
                     )
                 }
                 Err(e) => {
