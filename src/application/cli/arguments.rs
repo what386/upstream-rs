@@ -382,14 +382,12 @@ pub enum Commands {
     },
 
     /// Manage package-specific behavior
-    #[command(
-        long_about = "Control package behavior.\n\n\
+    #[command(long_about = "Control package behavior.\n\n\
         Pin packages to prevent upgrades or rename installed package aliases.\n\n\
         EXAMPLES:\n  \
         upstream package pin nvim\n  \
         upstream package unpin nvim\n  \
-        upstream package rename nvim neovim"
-    )]
+        upstream package rename nvim neovim")]
     Package {
         #[command(subcommand)]
         action: PackageAction,
@@ -616,7 +614,6 @@ pub enum PackageAction {
         /// New package alias
         new_name: String,
     },
-
 }
 
 #[cfg(test)]

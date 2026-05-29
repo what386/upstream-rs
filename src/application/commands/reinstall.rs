@@ -48,7 +48,12 @@ fn reinstall_phase_label(message: &str) -> &'static str {
     }
 }
 
-pub async fn run(names: Vec<String>, trust_mode: TrustMode, force: bool, dry_run: bool) -> Result<()> {
+pub async fn run(
+    names: Vec<String>,
+    trust_mode: TrustMode,
+    force: bool,
+    dry_run: bool,
+) -> Result<()> {
     if names.is_empty() {
         return Err(anyhow!("At least one package name is required"));
     }
