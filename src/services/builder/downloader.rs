@@ -3,6 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
+use indicatif::HumanBytes;
 
 use crate::models::{
     common::enums::{Channel, Provider},
@@ -49,6 +50,7 @@ impl<'a> SourceDownloader<'a> {
         channel: &Channel,
         tag: Option<&str>,
         branch: Option<&str>,
+        status_callback: &mut Option<&mut dyn FnMut(&str)>,
     ) -> Result<SourceDownload> {
         if branch.is_some() && tag.is_some() {
             return Err(anyhow!(
@@ -57,6 +59,10 @@ impl<'a> SourceDownloader<'a> {
         }
 
         if let Some(branch_name) = branch {
+            Self::emit_status(
+                status_callback,
+                format!("Fetching branch head for '{branch_name}' ..."),
+            );
             let head_commit = self
                 .provider_manager
                 .get_branch_head_sha(repo_slug, provider, branch_name, base_url)
@@ -68,10 +74,18 @@ impl<'a> SourceDownloader<'a> {
             let branch_archive =
                 self.make_source_archive_asset(repo_slug, provider, branch_name, base_url)?;
 
-            let mut no_progress: Option<fn(u64, u64)> = None;
+            Self::emit_status(status_callback, "Downloading source archive ...");
+            let mut download_progress = Some(|downloaded: u64, total: u64| {
+                Self::emit_download_status(status_callback, downloaded, total);
+            });
             let downloaded = self
                 .provider_manager
-                .download_asset(&branch_archive, provider, &self.cache_dir, &mut no_progress)
+                .download_asset(
+                    &branch_archive,
+                    provider,
+                    &self.cache_dir,
+                    &mut download_progress,
+                )
                 .await
                 .context(format!(
                     "Failed to download branch source archive '{}' for '{}'",
@@ -84,8 +98,10 @@ impl<'a> SourceDownloader<'a> {
                 extract_root.display()
             ))?;
 
+            Self::emit_status(status_callback, "Unpacking source archive ...");
             let extracted_path = compression_handler::decompress(&downloaded, &extract_root)
                 .context("Failed to unpack source archive")?;
+            Self::emit_status(status_callback, "Resolving source workspace ...");
             let workspace_path = Self::resolve_workspace_root(&extracted_path)?;
 
             let release = Release {
@@ -109,6 +125,10 @@ impl<'a> SourceDownloader<'a> {
         }
 
         let release = if let Some(tag_name) = tag {
+            Self::emit_status(
+                status_callback,
+                format!("Fetching release metadata for '{tag_name}' ..."),
+            );
             self.provider_manager
                 .get_release_by_tag(repo_slug, tag_name, provider, base_url)
                 .await
@@ -117,6 +137,7 @@ impl<'a> SourceDownloader<'a> {
                     tag_name, repo_slug
                 ))?
         } else {
+            Self::emit_status(status_callback, "Fetching latest release metadata ...");
             self.provider_manager
                 .get_latest_release(repo_slug, provider, channel, base_url)
                 .await
@@ -128,27 +149,35 @@ impl<'a> SourceDownloader<'a> {
 
         let primary_archive =
             self.make_source_archive_asset(repo_slug, provider, &release.tag, base_url)?;
-        let mut no_progress: Option<fn(u64, u64)> = None;
-        let downloaded_primary = self
-            .provider_manager
-            .download_asset(
-                &primary_archive,
-                provider,
-                &self.cache_dir,
-                &mut no_progress,
-            )
-            .await
-            .context(format!(
-                "Failed to download source archive for '{}'",
-                repo_slug
-            ));
+        Self::emit_status(status_callback, "Downloading source archive ...");
+        let downloaded_primary = {
+            let mut download_progress = Some(|downloaded: u64, total: u64| {
+                Self::emit_download_status(status_callback, downloaded, total);
+            });
+            self.provider_manager
+                .download_asset(
+                    &primary_archive,
+                    provider,
+                    &self.cache_dir,
+                    &mut download_progress,
+                )
+                .await
+                .context(format!(
+                    "Failed to download source archive for '{}'",
+                    repo_slug
+                ))
+        };
 
         let downloaded = match downloaded_primary {
             Ok(path) => path,
             Err(primary_err) => {
                 if let Some(fallback) = Self::find_release_source_asset(&release) {
+                    Self::emit_status(status_callback, "Trying release source asset fallback ...");
+                    let mut download_progress = Some(|downloaded: u64, total: u64| {
+                        Self::emit_download_status(status_callback, downloaded, total);
+                    });
                     self.provider_manager
-                        .download_asset(fallback, provider, &self.cache_dir, &mut no_progress)
+                        .download_asset(fallback, provider, &self.cache_dir, &mut download_progress)
                         .await
                         .context(format!(
                             "Failed source download for '{}' using provider endpoint and release source asset fallback: {}",
@@ -166,8 +195,10 @@ impl<'a> SourceDownloader<'a> {
             extract_root.display()
         ))?;
 
+        Self::emit_status(status_callback, "Unpacking source archive ...");
         let extracted_path = compression_handler::decompress(&downloaded, &extract_root)
             .context("Failed to unpack source archive")?;
+        Self::emit_status(status_callback, "Resolving source workspace ...");
         let workspace_path = Self::resolve_workspace_root(&extracted_path)?;
 
         Ok(SourceDownload {
@@ -213,6 +244,34 @@ impl<'a> SourceDownloader<'a> {
                     listed
                 ))
             }
+        }
+    }
+
+    fn emit_status(status_callback: &mut Option<&mut dyn FnMut(&str)>, status: impl AsRef<str>) {
+        if let Some(callback) = status_callback.as_deref_mut() {
+            callback(status.as_ref());
+        }
+    }
+
+    fn emit_download_status(
+        status_callback: &mut Option<&mut dyn FnMut(&str)>,
+        downloaded: u64,
+        total: u64,
+    ) {
+        if total == 0 {
+            Self::emit_status(
+                status_callback,
+                format!("Downloading source archive ... {}", HumanBytes(downloaded)),
+            );
+        } else {
+            Self::emit_status(
+                status_callback,
+                format!(
+                    "Downloading source archive ... {} / {}",
+                    HumanBytes(downloaded),
+                    HumanBytes(total)
+                ),
+            );
         }
     }
 

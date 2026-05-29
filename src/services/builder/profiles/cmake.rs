@@ -1,9 +1,12 @@
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 use anyhow::{Context, Result, anyhow, bail};
 
-use crate::services::builder::{BuildProfile, profiles::BuildProfileHandler};
+use crate::services::builder::{
+    BuildProfile,
+    profiles::{BuildProfileHandler, emit_line_callback, run_command_with_line_callback},
+};
 
 pub struct CmakeProfile;
 
@@ -42,6 +45,7 @@ impl BuildProfileHandler for CmakeProfile {
         workspace: &Path,
         package_name: &str,
         output_override: Option<&Path>,
+        line_callback: &mut Option<&mut dyn FnMut(&str)>,
     ) -> Result<PathBuf> {
         let project_dir = Self::find_project_dir(workspace).ok_or_else(|| {
             anyhow!(
@@ -56,32 +60,34 @@ impl BuildProfileHandler for CmakeProfile {
             build_dir.display()
         ))?;
 
-        let configure = Command::new("cmake")
-            .arg("-S")
-            .arg(&project_dir)
-            .arg("-B")
-            .arg(&build_dir)
-            .arg("-DCMAKE_BUILD_TYPE=Release")
-            .current_dir(&project_dir)
-            .stdin(Stdio::null())
-            .status()
-            .context("Failed to run 'cmake -S . -B <build-dir> -DCMAKE_BUILD_TYPE=Release'. Is CMake installed?")?;
+        emit_line_callback(line_callback, "Running cmake configure ...");
+        let configure = run_command_with_line_callback(
+            Command::new("cmake")
+                .arg("-S")
+                .arg(&project_dir)
+                .arg("-B")
+                .arg(&build_dir)
+                .arg("-DCMAKE_BUILD_TYPE=Release")
+                .current_dir(&project_dir),
+            "Failed to run 'cmake -S . -B <build-dir> -DCMAKE_BUILD_TYPE=Release'. Is CMake installed?",
+            line_callback,
+        )?;
 
         if !configure.success() {
             bail!("CMake configure failed for '{}'", package_name);
         }
 
-        let build = Command::new("cmake")
-            .arg("--build")
-            .arg(&build_dir)
-            .arg("--config")
-            .arg("Release")
-            .current_dir(&project_dir)
-            .stdin(Stdio::null())
-            .status()
-            .context(
-                "Failed to run 'cmake --build <build-dir> --config Release'. Is CMake installed?",
-            )?;
+        emit_line_callback(line_callback, "Running cmake build ...");
+        let build = run_command_with_line_callback(
+            Command::new("cmake")
+                .arg("--build")
+                .arg(&build_dir)
+                .arg("--config")
+                .arg("Release")
+                .current_dir(&project_dir),
+            "Failed to run 'cmake --build <build-dir> --config Release'. Is CMake installed?",
+            line_callback,
+        )?;
 
         if !build.success() {
             bail!("CMake build failed for '{}'", package_name);

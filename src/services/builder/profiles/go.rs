@@ -1,9 +1,12 @@
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 use anyhow::{Context, Result, anyhow, bail};
 
-use crate::services::builder::{BuildProfile, profiles::BuildProfileHandler};
+use crate::services::builder::{
+    BuildProfile,
+    profiles::{BuildProfileHandler, emit_line_callback, run_command_with_line_callback},
+};
 
 pub struct GoProfile;
 
@@ -42,6 +45,7 @@ impl BuildProfileHandler for GoProfile {
         workspace: &Path,
         package_name: &str,
         output_override: Option<&Path>,
+        line_callback: &mut Option<&mut dyn FnMut(&str)>,
     ) -> Result<PathBuf> {
         let project_dir = Self::find_project_dir(workspace).ok_or_else(|| {
             anyhow!(
@@ -69,29 +73,37 @@ impl BuildProfileHandler for GoProfile {
             ))?;
         }
 
-        let root_status = Command::new("go")
-            .arg("build")
-            .arg("-o")
-            .arg(&artifact)
-            .arg(".")
-            .current_dir(&project_dir)
-            .stdin(Stdio::null())
-            .status()
-            .context("Failed to run 'go build -o <artifact> .'. Is Go installed?")?;
-
-        if !root_status.success() {
-            let cmd_target = format!("./cmd/{package_name}");
-            let cmd_status = Command::new("go")
+        emit_line_callback(line_callback, "Running go build -o <artifact> . ...");
+        let root_status = run_command_with_line_callback(
+            Command::new("go")
                 .arg("build")
                 .arg("-o")
                 .arg(&artifact)
-                .arg(&cmd_target)
-                .current_dir(&project_dir)
-                .stdin(Stdio::null())
-                .status()
-                .context(format!(
-                    "Failed to run fallback 'go build -o <artifact> {cmd_target}'. Is Go installed?"
-                ))?;
+                .arg(".")
+                .current_dir(&project_dir),
+            "Failed to run 'go build -o <artifact> .'. Is Go installed?",
+            line_callback,
+        )?;
+
+        if !root_status.success() {
+            let cmd_target = format!("./cmd/{package_name}");
+            let context = format!(
+                "Failed to run fallback 'go build -o <artifact> {cmd_target}'. Is Go installed?"
+            );
+            emit_line_callback(
+                line_callback,
+                format!("Running go build -o <artifact> {cmd_target} ..."),
+            );
+            let cmd_status = run_command_with_line_callback(
+                Command::new("go")
+                    .arg("build")
+                    .arg("-o")
+                    .arg(&artifact)
+                    .arg(&cmd_target)
+                    .current_dir(&project_dir),
+                &context,
+                line_callback,
+            )?;
 
             if !cmd_status.success() {
                 bail!(

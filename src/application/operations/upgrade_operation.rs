@@ -85,6 +85,7 @@ pub struct UpgradePreviewRow {
     pub old_version: String,
     pub new_version: String,
     pub disk_impact: DiskImpact,
+    pub source_build: bool,
     pub target: ResolvedUpgradeTarget,
 }
 
@@ -553,6 +554,7 @@ impl<'a> UpgradeOperation<'a> {
                 ),
                 new_version: build_ref_version(branch, Some(&head_commit)),
                 disk_impact: DiskImpact::unknown(),
+                source_build: true,
                 target: ResolvedUpgradeTarget::Branch {
                     branch: branch.to_string(),
                     head_commit,
@@ -589,16 +591,18 @@ impl<'a> UpgradeOperation<'a> {
             }
         }
 
+        let source_build = package.install_type == crate::models::upstream::InstallType::Build;
         Some(UpgradePreviewRow {
             name: package.name.clone(),
             source: package.channel.to_string().to_lowercase(),
             old_version: package.version.to_string(),
             new_version: release.version.to_string(),
-            disk_impact: if package.install_type == crate::models::upstream::InstallType::Build {
+            disk_impact: if source_build {
                 DiskImpact::unknown()
             } else {
                 self.estimate_release_upgrade_impact(&package, &release)
             },
+            source_build,
             target: ResolvedUpgradeTarget::Release(release),
         })
     }

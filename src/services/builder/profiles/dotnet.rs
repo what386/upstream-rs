@@ -3,7 +3,10 @@ use std::process::Command;
 
 use anyhow::{Context, Result, anyhow, bail};
 
-use crate::services::builder::{BuildProfile, profiles::BuildProfileHandler};
+use crate::services::builder::{
+    BuildProfile,
+    profiles::{BuildProfileHandler, emit_line_callback, run_command_with_line_callback},
+};
 
 pub struct DotnetProfile;
 
@@ -49,6 +52,7 @@ impl BuildProfileHandler for DotnetProfile {
         workspace: &Path,
         package_name: &str,
         output_override: Option<&Path>,
+        line_callback: &mut Option<&mut dyn FnMut(&str)>,
     ) -> Result<PathBuf> {
         let project_dir = Self::find_project_dir(workspace).ok_or_else(|| {
             anyhow!(
@@ -63,15 +67,18 @@ impl BuildProfileHandler for DotnetProfile {
             publish_dir.display()
         ))?;
 
-        let status = Command::new("dotnet")
-            .arg("publish")
-            .arg("-c")
-            .arg("Release")
-            .arg("-o")
-            .arg(&publish_dir)
-            .current_dir(&project_dir)
-            .status()
-            .context("Failed to run 'dotnet publish'. Is .NET SDK installed?")?;
+        emit_line_callback(line_callback, "Running dotnet publish ...");
+        let status = run_command_with_line_callback(
+            Command::new("dotnet")
+                .arg("publish")
+                .arg("-c")
+                .arg("Release")
+                .arg("-o")
+                .arg(&publish_dir)
+                .current_dir(&project_dir),
+            "Failed to run 'dotnet publish'. Is .NET SDK installed?",
+            line_callback,
+        )?;
 
         if !status.success() {
             bail!("Dotnet publish failed for '{}'", package_name);

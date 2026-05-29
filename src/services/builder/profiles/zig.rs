@@ -1,9 +1,12 @@
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Result, anyhow, bail};
 
-use crate::services::builder::{BuildProfile, profiles::BuildProfileHandler};
+use crate::services::builder::{
+    BuildProfile,
+    profiles::{BuildProfileHandler, emit_line_callback, run_command_with_line_callback},
+};
 
 pub struct ZigProfile;
 
@@ -42,6 +45,7 @@ impl BuildProfileHandler for ZigProfile {
         workspace: &Path,
         package_name: &str,
         output_override: Option<&Path>,
+        line_callback: &mut Option<&mut dyn FnMut(&str)>,
     ) -> Result<PathBuf> {
         let project_dir = Self::find_project_dir(workspace).ok_or_else(|| {
             anyhow!(
@@ -50,13 +54,18 @@ impl BuildProfileHandler for ZigProfile {
             )
         })?;
 
-        let status = Command::new("zig")
-            .arg("build")
-            .arg("-Doptimize=ReleaseSafe")
-            .current_dir(&project_dir)
-            .stdin(Stdio::null())
-            .status()
-            .context("Failed to run 'zig build -Doptimize=ReleaseSafe'. Is Zig installed?")?;
+        emit_line_callback(
+            line_callback,
+            "Running zig build -Doptimize=ReleaseSafe ...",
+        );
+        let status = run_command_with_line_callback(
+            Command::new("zig")
+                .arg("build")
+                .arg("-Doptimize=ReleaseSafe")
+                .current_dir(&project_dir),
+            "Failed to run 'zig build -Doptimize=ReleaseSafe'. Is Zig installed?",
+            line_callback,
+        )?;
 
         if !status.success() {
             bail!("Zig build failed for '{}'", package_name);
