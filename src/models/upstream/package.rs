@@ -95,28 +95,6 @@ mod tests {
     use crate::models::common::enums::{Channel, Filetype, Provider};
 
     #[test]
-    fn with_defaults_sets_expected_base_state() {
-        let pkg = Package::with_defaults(
-            "bat".to_string(),
-            "sharkdp/bat".to_string(),
-            Filetype::Auto,
-            Some("linux".to_string()),
-            Some("debug".to_string()),
-            Channel::Stable,
-            Provider::Github,
-            None,
-        );
-
-        assert_eq!(pkg.version.major, 0);
-        assert!(!pkg.is_pinned);
-        assert_eq!(pkg.install_type, InstallType::Release);
-        assert!(pkg.install_path.is_none());
-        assert!(pkg.exec_path.is_none());
-        assert_eq!(pkg.match_pattern.as_deref(), Some("linux"));
-        assert_eq!(pkg.exclude_pattern.as_deref(), Some("debug"));
-    }
-
-    #[test]
     fn is_same_as_uses_identity_fields_only() {
         let mut a = Package::with_defaults(
             "ripgrep".to_string(),

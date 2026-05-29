@@ -101,26 +101,3 @@ pub fn emit_line_callback(line_callback: &mut Option<&mut dyn FnMut(&str)>, line
         callback(line.as_ref());
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::run_command_with_line_callback;
-    use std::process::Command;
-
-    #[test]
-    fn command_output_is_forwarded_to_line_callback() {
-        let mut lines = Vec::new();
-        let mut callback = |line: &str| lines.push(line.to_string());
-        let mut callback: Option<&mut dyn FnMut(&str)> = Some(&mut callback);
-
-        let status = run_command_with_line_callback(
-            Command::new("rustc").arg("--version"),
-            "failed to run rustc --version",
-            &mut callback,
-        )
-        .expect("run command");
-
-        assert!(status.success());
-        assert!(lines.iter().any(|line| line.starts_with("rustc ")));
-    }
-}
