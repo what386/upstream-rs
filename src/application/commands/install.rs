@@ -352,6 +352,24 @@ fn render_discovery_summary(discovery: &DiscoveryResult) {
     }
 }
 
+fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
+    if output::assume_yes()
+        || !matches!(discovery.source.kind, SourceKind::DownloadPage)
+        || !discovery.is_ambiguous()
+    {
+        return Ok(());
+    }
+
+    let Some(candidate) = discovery.recommended_candidate() else {
+        return Ok(());
+    };
+
+    output::confirm_or_cancel(format!(
+        "Install recommended asset '{}' from this page?",
+        candidate.asset.name
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{format_error_chain, render_install_progress_message, render_install_progress_row};
@@ -408,22 +426,4 @@ mod tests {
         assert!(formatted.contains("Failed trust verification"));
         assert!(formatted.contains("signature key missing"));
     }
-}
-
-fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
-    if output::assume_yes()
-        || !matches!(discovery.source.kind, SourceKind::DownloadPage)
-        || !discovery.is_ambiguous()
-    {
-        return Ok(());
-    }
-
-    let Some(candidate) = discovery.recommended_candidate() else {
-        return Ok(());
-    };
-
-    output::confirm_or_cancel(format!(
-        "Install recommended asset '{}' from this page?",
-        candidate.asset.name
-    ))
 }
