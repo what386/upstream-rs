@@ -56,7 +56,13 @@ fn display_all_packages(storage: &PackageStorage) -> Result<()> {
         return Ok(());
     }
 
-    println!("{}", output::title("Installed packages"));
+    println!(
+        "{}",
+        output::title(format!(
+            "Packages ({})  Flags: D=desktop present, P=pinned",
+            packages.len()
+        ))
+    );
     print_package_table(&packages);
     Ok(())
 }
@@ -213,8 +219,6 @@ fn print_package_table(packages: &[Package]) {
     }
 
     println!();
-    output::kv("Total", format!("{} packages", packages.len()));
-    output::action_note("Flags: D=desktop present, P=pinned");
 }
 
 fn table_width(widths: &ColumnWidths) -> usize {
