@@ -160,7 +160,22 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     }
 
     show_restore_preview(&preview_rows, &impact, &names);
-    output::confirm_or_cancel(format!("Restore rollback for {} package(s)?", names.len()))?;
+    let restorable_names = names
+        .iter()
+        .filter(|name| manager.rollback_record(name).is_some())
+        .cloned()
+        .collect::<Vec<_>>();
+    if restorable_names.is_empty() {
+        println!(
+            "{}",
+            output::warning("No rollback artifacts to restore for selected packages.")
+        );
+        return Ok(());
+    }
+    output::confirm_or_cancel(format!(
+        "Restore rollback for {} package(s)?",
+        restorable_names.len()
+    ))?;
 
     let pb = ProgressBar::new_spinner();
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -171,7 +186,7 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     let mut restored = 0_u32;
     let mut failed = 0_u32;
     let mut completion_lines = Vec::new();
-    for name in &names {
+    for name in &restorable_names {
         let package_name = name.clone();
         let phase_pb = pb.clone();
         let mut msg = Some(move |line: &str| {
@@ -183,11 +198,11 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
         });
         match manager.restore_package(name, &mut msg) {
             Ok(_) => {
-                completion_lines.push(format!("[ok] {:<28} restored", name));
+                completion_lines.push(output::status_line_text(Status::Ok, name, "restored"));
                 restored += 1;
             }
             Err(err) => {
-                completion_lines.push(format!("[fail] {:<28} {}", name, err));
+                completion_lines.push(output::status_line_text(Status::Fail, name, err));
                 failed += 1;
             }
         }
