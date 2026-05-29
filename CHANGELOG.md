@@ -2,6 +2,14 @@
 
 *Generated on 2026-05-29*
 
+## 1.17.1 — 2026-05-29
+
+### Changes
+
+- refactor output formatter
+- make list show package count in top element
+
+
 ## 1.17.0 — 2026-05-29
 
 ### Changes
