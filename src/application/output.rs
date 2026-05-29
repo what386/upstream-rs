@@ -22,6 +22,10 @@ pub fn title(text: impl fmt::Display) -> StyledObject<String> {
     style(text.to_string()).cyan().bold()
 }
 
+pub fn packages_title(count: usize) -> StyledObject<String> {
+    title(format!("Packages ({count})"))
+}
+
 pub fn section(text: impl fmt::Display) -> StyledObject<String> {
     style(text.to_string()).bold()
 }
