@@ -268,6 +268,15 @@ pub fn print_transaction_table(rows: &[TransactionRow], totals: &DiskImpact, net
     print_transaction_table_with_size_rows(rows, totals, net_label, &[]);
 }
 
+pub fn print_transaction_table_without_size(rows: &[TransactionRow]) {
+    let layout = TransactionTableLayout::from_rows_without_size(rows);
+    layout.print_header();
+    for row in rows {
+        layout.print_row(row);
+    }
+    println!();
+}
+
 pub fn print_transaction_table_with_size_rows(
     rows: &[TransactionRow],
     totals: &DiskImpact,
@@ -287,6 +296,7 @@ pub struct TransactionTableLayout {
     package_width: usize,
     show_download: bool,
     show_new_version: bool,
+    show_net_change: bool,
     net_magnitude_width: usize,
 }
 
@@ -316,8 +326,16 @@ impl TransactionTableLayout {
             package_width,
             show_download,
             show_new_version,
+            show_net_change: true,
             net_magnitude_width,
         }
+    }
+
+    pub fn from_rows_without_size(rows: &[TransactionRow]) -> Self {
+        let mut layout = Self::from_rows(rows);
+        layout.show_download = false;
+        layout.show_net_change = false;
+        layout
     }
 
     pub fn upgrade_preview(package_width: usize) -> Self {
@@ -326,6 +344,7 @@ impl TransactionTableLayout {
             package_width: package_width.max("Package".len()).clamp(11, 44),
             show_download: true,
             show_new_version: true,
+            show_net_change: true,
             net_magnitude_width: LIVE_UPGRADE_NET_MAGNITUDE_WIDTH,
         }
     }
@@ -347,7 +366,9 @@ impl TransactionTableLayout {
         if self.show_new_version {
             line.push_str(&format!(" {:<13}", "New Version"));
         }
-        line.push_str(&format!(" {:>net_width$}", "Net Change"));
+        if self.show_net_change {
+            line.push_str(&format!(" {:>net_width$}", "Net Change"));
+        }
         if self.show_download {
             line.push_str(&format!(" {:>14}", "Download Size"));
         }
@@ -376,10 +397,12 @@ impl TransactionTableLayout {
                 truncate_end(row.new_version.as_deref().unwrap_or("-"), 13)
             ));
         }
-        line.push_str(&format!(
-            " {}",
-            format_compact_signed_cell(row.net_change, self.net_magnitude_width)
-        ));
+        if self.show_net_change {
+            line.push_str(&format!(
+                " {}",
+                format_compact_signed_cell(row.net_change, self.net_magnitude_width)
+            ));
+        }
         if self.show_download {
             line.push_str(&format!(" {:>14}", format_compact_unsigned(row.download)));
         }

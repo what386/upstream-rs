@@ -120,16 +120,14 @@ impl<'a> BuildOperation<'a> {
                     format!("{} ({})", resolved_repo_slug, resolved_provider),
                 );
                 output::kv("Ref", format!("branch {} @ {}", branch, commit));
-                output::print_transaction_table(
-                    &[output::TransactionRow::single_version(
+                output::print_transaction_table_without_size(&[
+                    output::TransactionRow::single_version(
                         format!("{}/{}", resolved_provider, input.name),
                         branch,
                         disk_impact.net,
                         disk_impact.download,
-                    )],
-                    &disk_impact,
-                    "Net disk change:",
-                );
+                    ),
+                ]);
             } else {
                 let release = if let Some(tag) = input.tag.as_deref() {
                     self.provider_manager
@@ -165,16 +163,14 @@ impl<'a> BuildOperation<'a> {
                     format!("{} ({})", resolved_repo_slug, resolved_provider),
                 );
                 output::kv("Ref", format!("release {} ({})", release.name, release.tag));
-                output::print_transaction_table(
-                    &[output::TransactionRow::single_version(
+                output::print_transaction_table_without_size(&[
+                    output::TransactionRow::single_version(
                         format!("{}/{}", resolved_provider, input.name),
                         &release.tag,
                         disk_impact.net,
                         disk_impact.download,
-                    )],
-                    &disk_impact,
-                    "Net disk change:",
-                );
+                    ),
+                ]);
             }
 
             match input.build_profile {
@@ -204,19 +200,17 @@ impl<'a> BuildOperation<'a> {
             .as_deref()
             .or(input.tag.as_deref())
             .unwrap_or("latest");
-        output::print_transaction_table(
-            &[output::TransactionRow::single_version(
-                format!("{}/{}", resolved_provider, input.name),
-                new_version,
-                disk_impact.net,
-                disk_impact.download,
-            )],
-            &disk_impact,
-            "Net disk change:",
-        );
+        output::print_transaction_table_without_size(&[output::TransactionRow::single_version(
+            format!("{}/{}", resolved_provider, input.name),
+            new_version,
+            disk_impact.net,
+            disk_impact.download,
+        )]);
         output::confirm_or_cancel("Proceed with installation?", true)?;
 
         let worker = BuildWorker::new(self.provider_manager);
+        let mut build_line_callback =
+            Some(|line: &str| output::status_line(output::Status::Plan, "build", line));
         let build_result = worker
             .build(
                 BuildRequest {
@@ -230,6 +224,7 @@ impl<'a> BuildOperation<'a> {
                     build_output: input.build_output.map(std::path::PathBuf::from),
                 },
                 input.channel.clone(),
+                &mut build_line_callback,
             )
             .await?;
 

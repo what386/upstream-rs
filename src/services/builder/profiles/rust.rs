@@ -2,9 +2,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{fs, str::FromStr};
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Result, anyhow, bail};
 
-use crate::services::builder::{BuildProfile, profiles::BuildProfileHandler};
+use crate::services::builder::{
+    BuildProfile,
+    profiles::{BuildProfileHandler, emit_line_callback, run_command_with_line_callback},
+};
 
 pub struct RustProfile;
 
@@ -61,6 +64,7 @@ impl BuildProfileHandler for RustProfile {
         workspace: &Path,
         package_name: &str,
         output_override: Option<&Path>,
+        line_callback: &mut Option<&mut dyn FnMut(&str)>,
     ) -> Result<PathBuf> {
         let project_dir = Self::find_project_dir(workspace).ok_or_else(|| {
             anyhow!(
@@ -70,23 +74,27 @@ impl BuildProfileHandler for RustProfile {
         })?;
 
         let status = if Self::has_multiple_declared_bins(&project_dir) {
-            Command::new("cargo")
-                .arg("build")
-                .arg("--release")
-                .arg("--bin")
-                .arg(package_name)
-                .current_dir(&project_dir)
-                .status()
-                .context(
-                    "Failed to run 'cargo build --release --bin <name>'. Is Cargo installed?",
-                )?
+            emit_line_callback(line_callback, "Running cargo build --release --bin ...");
+            run_command_with_line_callback(
+                Command::new("cargo")
+                    .arg("build")
+                    .arg("--release")
+                    .arg("--bin")
+                    .arg(package_name)
+                    .current_dir(&project_dir),
+                "Failed to run 'cargo build --release --bin <name>'. Is Cargo installed?",
+                line_callback,
+            )?
         } else {
-            Command::new("cargo")
-                .arg("build")
-                .arg("--release")
-                .current_dir(&project_dir)
-                .status()
-                .context("Failed to run 'cargo build --release'. Is Cargo installed?")?
+            emit_line_callback(line_callback, "Running cargo build --release ...");
+            run_command_with_line_callback(
+                Command::new("cargo")
+                    .arg("build")
+                    .arg("--release")
+                    .current_dir(&project_dir),
+                "Failed to run 'cargo build --release'. Is Cargo installed?",
+                line_callback,
+            )?
         };
 
         if !status.success() {

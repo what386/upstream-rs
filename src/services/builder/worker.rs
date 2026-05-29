@@ -20,8 +20,20 @@ impl<'a> BuildWorker<'a> {
         Self { provider_manager }
     }
 
-    pub async fn build(&self, request: BuildRequest, channel: Channel) -> Result<BuildOutput> {
+    pub async fn build<H>(
+        &self,
+        request: BuildRequest,
+        channel: Channel,
+        line_callback: &mut Option<H>,
+    ) -> Result<BuildOutput>
+    where
+        H: FnMut(&str),
+    {
+        Self::emit_status(line_callback, "Preparing source download ...");
         let downloader = SourceDownloader::new(self.provider_manager)?;
+        let mut status_callback = line_callback
+            .as_mut()
+            .map(|callback| callback as &mut dyn FnMut(&str));
         let source = downloader
             .fetch_source(
                 &request.repo_slug,
@@ -30,25 +42,61 @@ impl<'a> BuildWorker<'a> {
                 &channel,
                 request.version_tag.as_deref(),
                 request.branch.as_deref(),
+                &mut status_callback,
             )
             .await?;
+        drop(status_callback);
 
-        let handlers = handlers();
-        let profile =
-            determine_profile(&source.workspace_path, request.requested_profile, &handlers)
-                .map_err(|err| {
-                    anyhow!("{} (workspace: '{}')", err, source.workspace_path.display())
-                })?;
-        let selected = handlers
-            .iter()
-            .find(|handler| handler.profile() == profile)
-            .ok_or_else(|| anyhow!("Unsupported build profile"))?;
-
-        let artifact = selected.run_build(
+        Self::emit_status(line_callback, "Detecting build profile ...");
+        let profile_handlers = handlers();
+        let profile = determine_profile(
             &source.workspace_path,
-            &request.name,
-            request.build_output.as_deref(),
-        )?;
+            request.requested_profile,
+            &profile_handlers,
+        )
+        .map_err(|err| anyhow!("{} (workspace: '{}')", err, source.workspace_path.display()))?;
+
+        Self::emit_status(
+            line_callback,
+            format!("Building with {profile:?} profile ..."),
+        );
+        let (build_tx, mut build_rx) = tokio::sync::mpsc::unbounded_channel();
+        let workspace_path = source.workspace_path.clone();
+        let package_name = request.name.clone();
+        let output_override = request.build_output.clone();
+        let mut build_handle = tokio::task::spawn_blocking(move || {
+            let handlers = handlers();
+            let selected = handlers
+                .iter()
+                .find(|handler| handler.profile() == profile)
+                .ok_or_else(|| anyhow!("Unsupported build profile"))?;
+            let mut sender_callback = |line: &str| {
+                let _ = build_tx.send(line.to_string());
+            };
+            let mut build_line_callback: Option<&mut dyn FnMut(&str)> = Some(&mut sender_callback);
+
+            selected.run_build(
+                &workspace_path,
+                &package_name,
+                output_override.as_deref(),
+                &mut build_line_callback,
+            )
+        });
+
+        let artifact = loop {
+            tokio::select! {
+                Some(line) = build_rx.recv() => {
+                    Self::emit_status(line_callback, line);
+                }
+                result = &mut build_handle => {
+                    while let Ok(line) = build_rx.try_recv() {
+                        Self::emit_status(line_callback, line);
+                    }
+                    break result.context("Build task failed")??;
+                }
+            }
+        };
+        Self::emit_status(line_callback, "Staging built artifact ...");
         let persisted_artifact = Self::persist_artifact(&artifact)?;
 
         let version = if source.release.version == Version::new(0, 0, 0, false) {
@@ -65,6 +113,15 @@ impl<'a> BuildWorker<'a> {
             branch: source.branch,
             commit: source.commit,
         })
+    }
+
+    fn emit_status<H>(line_callback: &mut Option<H>, status: impl AsRef<str>)
+    where
+        H: FnMut(&str),
+    {
+        if let Some(callback) = line_callback.as_mut() {
+            callback(status.as_ref());
+        }
     }
 
     fn persist_artifact(artifact_path: &Path) -> Result<PathBuf> {
