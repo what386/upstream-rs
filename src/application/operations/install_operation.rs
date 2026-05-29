@@ -181,6 +181,7 @@ impl<'a> InstallOperation<'a> {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn install_single_with_progress<F, H, P>(
         &mut self,
         package: Package,

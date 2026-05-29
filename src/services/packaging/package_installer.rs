@@ -98,6 +98,7 @@ impl<'a> PackageInstaller<'a> {
 
     /// Install package files from a release
     /// Returns the updated package with installation paths set
+    #[allow(clippy::too_many_arguments)]
     pub async fn install_package_files<F, H, P>(
         &self,
         mut package: Package,
