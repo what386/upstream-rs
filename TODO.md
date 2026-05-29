@@ -8,13 +8,14 @@
 - [ ] near-complete CLI update to modernize output
       @created 2026-05-28 22:31
 
-- [ ] fix prompting for nonexistant packages in rollback
-      @created 2026-05-29 00:06
-
 
 ## Completed
 
 - [x] make rollback a continous callback instead of multiple printlines
       @created 2026-05-28 23:16
       @completed 2026-05-28 23:59
+
+- [x] fix prompting for nonexistant packages in rollback
+      @created 2026-05-29 00:06
+      @completed 2026-05-29 00:07
 
