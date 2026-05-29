@@ -88,8 +88,9 @@ impl Cli {
             Commands::Remove {
                 names,
                 purge: purge_option,
+                force,
                 dry_run,
-            } => commands::remove::run(names, purge_option, dry_run),
+            } => commands::remove::run(names, purge_option, force, dry_run),
 
             Commands::Rollback {
                 names,
@@ -100,8 +101,9 @@ impl Cli {
             Commands::Reinstall {
                 names,
                 trust_mode,
+                force,
                 dry_run,
-            } => commands::reinstall::run(names, trust_mode, dry_run).await,
+            } => commands::reinstall::run(names, trust_mode, force, dry_run).await,
 
             Commands::Upgrade {
                 names,
@@ -149,13 +151,9 @@ impl Cli {
             Commands::Package { action } => match action {
                 PackageAction::Pin { name, reason } => commands::package::run_pin(name, reason),
                 PackageAction::Unpin { name } => commands::package::run_unpin(name),
-                PackageAction::Remove { name } => commands::package::run_remove(name),
-                PackageAction::SetKey { name, keys } => commands::package::run_set_key(name, keys),
                 PackageAction::Rename { old_name, new_name } => {
                     commands::package::run_rename(old_name, new_name)
                 }
-                PackageAction::GetKey { name, keys } => commands::package::run_get_key(name, keys),
-                PackageAction::Metadata { name } => commands::package::run_metadata(name),
             },
 
             Commands::Export { path, full } => commands::export::run_export(path, full).await,
