@@ -11,9 +11,6 @@
 - [ ] remove set-key, get-key, metadata from package subcommand
       @created 2026-05-29 00:15
 
-- [ ] force flag for uninstall
-      @created 2026-05-29 00:15
-
 
 ## Completed
 
@@ -24,4 +21,8 @@
 - [x] fix prompting for nonexistant packages in rollback
       @created 2026-05-29 00:06
       @completed 2026-05-29 00:07
+
+- [x] force flag for uninstall
+      @created 2026-05-29 00:15
+      @completed 2026-05-29 00:29
 
