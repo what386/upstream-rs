@@ -213,7 +213,11 @@ pub async fn run(
         Ok(()) => {
             println!(
                 "{}",
-                output::status_line_text(Status::Ok, &install_name, format!("installed {install_version}"))
+                output::status_line_text(
+                    Status::Ok,
+                    &install_name,
+                    format!("installed {install_version}")
+                )
             );
             println!(
                 "{}",
@@ -223,7 +227,11 @@ pub async fn run(
         Err(err) => {
             println!(
                 "{}",
-                output::status_line_text(Status::Fail, &install_name, format_error_chain(&err, 160))
+                output::status_line_text(
+                    Status::Fail,
+                    &install_name,
+                    format_error_chain(&err, 160)
+                )
             );
             println!(
                 "{}",
