@@ -1,4 +1,5 @@
 use anyhow::Result;
+use console::strip_ansi_codes;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::{
     collections::BTreeMap,
@@ -34,9 +35,12 @@ fn render_remove_progress(
 }
 
 fn completion_message_key(message: &str) -> Option<String> {
-    let rest = message
-        .strip_prefix("[ok] ")
-        .or_else(|| message.strip_prefix("[fail] "))?;
+    let cleaned = strip_ansi_codes(message);
+    let rest = cleaned
+        .trim_start()
+        .strip_prefix("[ok]")
+        .or_else(|| cleaned.trim_start().strip_prefix("[fail]"))?
+        .trim_start();
     rest.split_whitespace().next().map(str::to_string)
 }
 
@@ -193,12 +197,12 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
         ) {
             Ok(()) => {
                 if let Some(cb) = message_callback.as_mut() {
-                    cb(&format!("[ok] {:<28} removed", names[0]));
+                    cb(&output::status_line_text(Status::Ok, &names[0], "removed"));
                 }
             }
             Err(err) => {
                 if let Some(cb) = message_callback.as_mut() {
-                    cb(&format!("[fail] {:<28} {}", names[0], err));
+                    cb(&output::status_line_text(Status::Fail, &names[0], err));
                 }
                 overall_pb.finish_and_clear();
                 if let Ok(rows) = persistent_completion_rows.lock() {

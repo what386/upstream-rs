@@ -1,4 +1,5 @@
 use crate::{
+    application::output::{self, Status},
     models::common::enums::{Channel, Provider, TrustMode},
     models::provider::Release,
     providers::provider_manager::ProviderManager,
@@ -750,12 +751,18 @@ impl<'a> UpgradeOperation<'a> {
                     updated_packages.push(updated);
                     message!(
                         message_callback,
-                        "[ok] {:<28} {:<10} {:<3} {:<10} {}",
-                        name,
-                        channel.to_string().to_lowercase(),
-                        "u",
-                        provider.to_string(),
-                        transfer
+                        "{}",
+                        output::status_line_text(
+                            Status::Ok,
+                            &name,
+                            format!(
+                                "{:<10} {:<3} {:<10} {}",
+                                channel.to_string().to_lowercase(),
+                                "u",
+                                provider.to_string(),
+                                transfer
+                            )
+                        )
                     );
                     upgraded += 1;
                 }
@@ -763,12 +770,18 @@ impl<'a> UpgradeOperation<'a> {
                 Err(e) => {
                     message!(
                         message_callback,
-                        "[fail] {:<28} {:<10} {:<3} {:<10} {}",
-                        name,
-                        channel.to_string().to_lowercase(),
-                        "!",
-                        provider.to_string(),
-                        Self::format_error_chain(&e, 96)
+                        "{}",
+                        output::status_line_text(
+                            Status::Fail,
+                            &name,
+                            format!(
+                                "{:<10} {:<3} {:<10} {}",
+                                channel.to_string().to_lowercase(),
+                                "!",
+                                provider.to_string(),
+                                Self::format_error_chain(&e, 96)
+                            )
+                        )
                     );
                     failures += 1;
                 }
@@ -903,19 +916,24 @@ impl<'a> UpgradeOperation<'a> {
                             upgraded += 1;
                             message!(
                                 message_callback,
-                                "[ok] {:<28} upgraded to {:<13} {}",
-                                name,
-                                new_version,
-                                transfer
+                                "{}",
+                                output::status_line_text(
+                                    Status::Ok,
+                                    &name,
+                                    format!("upgraded to {:<13} {}", new_version, transfer)
+                                )
                             );
                         }
                         Err(err) => {
                             failures += 1;
                             message!(
                                 message_callback,
-                                "[fail] {:<28} {}",
-                                name,
-                                Self::format_error_chain(&err, 160)
+                                "{}",
+                                output::status_line_text(
+                                    Status::Fail,
+                                    &name,
+                                    Self::format_error_chain(&err, 160)
+                                )
                             );
                         }
                     }

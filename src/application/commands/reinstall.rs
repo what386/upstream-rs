@@ -106,7 +106,11 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
         let package = match package_storage.get_package_by_name(name) {
             Some(pkg) => pkg.clone(),
             None => {
-                completion_lines.push(format!("[fail] {:<28} package is not installed", name));
+                completion_lines.push(output::status_line_text(
+                    Status::Fail,
+                    name,
+                    "package is not installed",
+                ));
                 failed += 1;
                 continue;
             }
@@ -124,12 +128,12 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
         )
         .await
         {
-            completion_lines.push(format!("[fail] {:<28} {}", name, err));
+            completion_lines.push(output::status_line_text(Status::Fail, name, err));
             failed += 1;
             continue;
         }
 
-        completion_lines.push(format!("[ok] {:<28} reinstalled", name));
+        completion_lines.push(output::status_line_text(Status::Ok, name, "reinstalled"));
         reinstalled += 1;
     }
     pb.finish_and_clear();
