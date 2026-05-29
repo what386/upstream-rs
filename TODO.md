@@ -8,6 +8,9 @@
 - [ ] near-complete CLI update to modernize output
       @created 2026-05-28 22:31
 
+- [ ] remove set-key, get-key, metadata from package subcommand
+      @created 2026-05-29 00:15
+
 
 ## Completed
 
