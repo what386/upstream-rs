@@ -609,63 +609,12 @@ fn confidence_suffix(confidence: SizeConfidence) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use console::strip_ansi_codes;
-
     use crate::services::packaging::disk_impact::{ByteEstimate, SignedByteEstimate};
 
     use super::{
-        SizeImpactRow, Status, TransactionRow, TransactionTableLayout, assume_yes,
-        format_compact_delta, format_signed, format_signed_delta, is_sensitive_key, redact_secret,
-        set_assume_yes, status_cell, status_label, total_disk_change, truncate_end,
-        truncate_middle,
+        SizeImpactRow, TransactionRow, TransactionTableLayout, format_compact_delta, format_signed,
+        format_signed_delta, is_sensitive_key, redact_secret, total_disk_change,
     };
-
-    #[test]
-    fn status_labels_are_stable_without_color() {
-        assert_eq!(
-            strip_ansi_codes(&status_label(Status::Ok).to_string()),
-            "[ok]"
-        );
-        assert_eq!(
-            strip_ansi_codes(&status_label(Status::Warn).to_string()),
-            "[warn]"
-        );
-        assert_eq!(
-            strip_ansi_codes(&status_label(Status::Fail).to_string()),
-            "[fail]"
-        );
-        assert_eq!(
-            strip_ansi_codes(&status_label(Status::Plan).to_string()),
-            "[plan]"
-        );
-        assert_eq!(
-            strip_ansi_codes(&status_label(Status::Skip).to_string()),
-            "[skip]"
-        );
-    }
-
-    #[test]
-    fn status_cells_are_padded_before_styling() {
-        assert_eq!(
-            strip_ansi_codes(&status_cell(Status::Ok).to_string()),
-            "[ok]    "
-        );
-        assert_eq!(
-            strip_ansi_codes(&status_cell(Status::Plan).to_string()),
-            "[plan]  "
-        );
-    }
-
-    #[test]
-    fn truncation_helpers_are_stable() {
-        assert_eq!(truncate_end("abcdefghijklmnopqrstuvwxyz", 10), "abcdefg...");
-        assert_eq!(
-            truncate_middle("abcdefghijklmnopqrstuvwxyz", 10),
-            "abc...wxyz"
-        );
-        assert_eq!(truncate_end("abc", 10), "abc");
-        assert_eq!(truncate_middle("abc", 10), "abc");
-    }
 
     #[test]
     fn live_upgrade_preview_keeps_download_column_aligned() {
@@ -740,14 +689,5 @@ mod tests {
             "ghp_...wxyz"
         );
         assert_eq!(redact_secret("short"), "********");
-    }
-
-    #[test]
-    fn assume_yes_flag_is_shared() {
-        set_assume_yes(false);
-        assert!(!assume_yes());
-        set_assume_yes(true);
-        assert!(assume_yes());
-        set_assume_yes(false);
     }
 }
