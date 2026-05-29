@@ -8,9 +8,6 @@
 - [ ] near-complete CLI update to modernize output
       @created 2026-05-28 22:31
 
-- [ ] remove set-key, get-key, metadata from package subcommand
-      @created 2026-05-29 00:15
-
 
 ## Completed
 
@@ -23,6 +20,10 @@
       @completed 2026-05-29 00:07
 
 - [x] force flag for uninstall
+      @created 2026-05-29 00:15
+      @completed 2026-05-29 00:29
+
+- [x] remove set-key, get-key, metadata from package subcommand
       @created 2026-05-29 00:15
       @completed 2026-05-29 00:29
 
