@@ -218,12 +218,20 @@ pub fn status_cell(status: Status) -> StyledObject<String> {
 }
 
 pub fn status_line(status: Status, subject: impl fmt::Display, detail: impl fmt::Display) {
-    println!(
+    println!("{}", status_line_text(status, subject, detail));
+}
+
+pub fn status_line_text(
+    status: Status,
+    subject: impl fmt::Display,
+    detail: impl fmt::Display,
+) -> String {
+    format!(
         "{} {:<28} {}",
         status_cell(status),
         subject.to_string(),
         detail
-    );
+    )
 }
 
 pub fn summary_line(status: Status, detail: impl fmt::Display) {
