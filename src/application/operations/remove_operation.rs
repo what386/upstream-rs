@@ -50,6 +50,7 @@ impl<'a> RemoveOperation<'a> {
         &mut self,
         package_names: &Vec<String>,
         purge_option: &bool,
+        force_option: &bool,
         message_callback: &mut Option<H>,
         overall_progress_callback: &mut Option<G>,
     ) -> Result<(u32, u32)>
@@ -61,6 +62,7 @@ impl<'a> RemoveOperation<'a> {
         self.remove_bulk_with_progress(
             package_names,
             purge_option,
+            force_option,
             message_callback,
             overall_progress_callback,
             &mut no_progress,
@@ -71,6 +73,7 @@ impl<'a> RemoveOperation<'a> {
         &mut self,
         package_names: &Vec<String>,
         purge_option: &bool,
+        force_option: &bool,
         message_callback: &mut Option<H>,
         overall_progress_callback: &mut Option<G>,
         progress_callback: &mut Option<P>,
@@ -95,6 +98,7 @@ impl<'a> RemoveOperation<'a> {
                 .remove_single_with_progress(
                     package_name,
                     purge_option,
+                    force_option,
                     message_callback,
                     progress_callback,
                 )
@@ -284,6 +288,7 @@ impl<'a> RemoveOperation<'a> {
         &mut self,
         package_name: &str,
         purge_option: &bool,
+        force_option: &bool,
         message_callback: &mut Option<H>,
     ) -> Result<()>
     where
@@ -293,6 +298,7 @@ impl<'a> RemoveOperation<'a> {
         self.remove_single_with_progress(
             package_name,
             purge_option,
+            force_option,
             message_callback,
             &mut no_progress,
         )
@@ -302,6 +308,7 @@ impl<'a> RemoveOperation<'a> {
         &mut self,
         package_name: &str,
         purge_option: &bool,
+        force_option: &bool,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
     ) -> Result<()>
@@ -312,6 +319,7 @@ impl<'a> RemoveOperation<'a> {
         self.remove_single_with_source(
             package_name,
             purge_option,
+            force_option,
             RollbackSource::Remove,
             message_callback,
             progress_callback,
@@ -322,6 +330,7 @@ impl<'a> RemoveOperation<'a> {
         &mut self,
         package_name: &str,
         purge_option: &bool,
+        force_option: &bool,
         rollback_source: RollbackSource,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
@@ -367,7 +376,7 @@ impl<'a> RemoveOperation<'a> {
             }
         }
 
-        if rollback_captured {
+        let removal_result = if rollback_captured {
             progress!(
                 progress_callback,
                 package_name,
@@ -378,7 +387,7 @@ impl<'a> RemoveOperation<'a> {
                 .context(format!(
                     "Failed to perform removal operations for '{}'",
                     package_name
-                ))?;
+                ))
         } else {
             progress!(
                 progress_callback,
@@ -390,7 +399,21 @@ impl<'a> RemoveOperation<'a> {
                 .context(format!(
                     "Failed to perform removal operations for '{}'",
                     package_name
-                ))?;
+                ))
+        };
+
+        if let Err(err) = removal_result {
+            if !*force_option {
+                return Err(err);
+            }
+            message!(
+                message_callback,
+                "{}",
+                output::warning(format!(
+                    "Ignoring uninstall error for '{}': {}",
+                    package_name, err
+                ))
+            );
         }
 
         progress!(
@@ -417,12 +440,26 @@ impl<'a> RemoveOperation<'a> {
                 package_name,
                 PackageProgressEvent::Phase(PackagePhase::PurgingPackageData)
             );
-            self.remover
+            let purge_result = self
+                .remover
                 .purge_configs(package_name, message_callback)
                 .context(format!(
                     "Failed to purge configuration files for '{}'",
                     package_name
-                ))?;
+                ));
+            if let Err(err) = purge_result {
+                if !*force_option {
+                    return Err(err);
+                }
+                message!(
+                    message_callback,
+                    "{}",
+                    output::warning(format!(
+                        "Ignoring purge error for '{}': {}",
+                        package_name, err
+                    ))
+                );
+            }
         }
 
         Ok(())
@@ -464,7 +501,7 @@ mod tests {
         let mut msg = Some(|_: &str| {});
 
         let err = op
-            .remove_single("missing", &false, &mut msg)
+            .remove_single("missing", &false, &false, &mut msg)
             .expect_err("missing package");
         assert!(err.to_string().contains("is not installed"));
 
@@ -489,7 +526,7 @@ mod tests {
         let names = vec!["a".to_string(), "b".to_string()];
 
         let (removed, failed) = op
-            .remove_bulk(&names, &false, &mut msg, &mut progress)
+            .remove_bulk(&names, &false, &false, &mut msg, &mut progress)
             .expect("bulk remove");
         assert_eq!((removed, failed), (0, 2));
         assert_eq!(progress_calls.last().copied(), Some((2, 2)));
