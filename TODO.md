@@ -8,3 +8,6 @@
 - [ ] make list show package count in top element
       @created 2026-05-29 01:00
 
+- [ ] refactor output formatter
+      @created 2026-05-29 01:16
+
