@@ -30,21 +30,32 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
-fn reinstall_phase_label(message: &str) -> &'static str {
+fn reinstall_phase_label(message: &str) -> String {
     if message.starts_with("Removing") {
-        "Removing current install ..."
+        "Removing current install ...".to_string()
     } else if message.starts_with("Installing") || message.starts_with("Extracting") {
-        "Installing package ..."
+        "Installing package ...".to_string()
     } else if message.starts_with("Searching for executable") {
-        "Resolving executable ..."
+        "Resolving executable ...".to_string()
     } else if message.starts_with("Added '") && message.contains("' to PATH") {
-        "Updating PATH ..."
+        "Updating PATH ...".to_string()
     } else if message.starts_with("Creating symlink") || message.starts_with("Updating symlink") {
-        "Creating runtime links ..."
+        "Creating runtime links ...".to_string()
     } else if message.starts_with("Saving package metadata") {
-        "Saving metadata ..."
+        "Saving metadata ...".to_string()
+    } else if message.contains("source")
+        || message.starts_with("Fetching ")
+        || message.starts_with("Downloading ")
+        || message.starts_with("Unpacking ")
+        || message.starts_with("Resolving ")
+        || message.starts_with("Detecting ")
+        || message.starts_with("Building ")
+        || message.starts_with("Running ")
+        || message.starts_with("Staging ")
+    {
+        message.to_string()
     } else {
-        "Processing ..."
+        format!("Building package ... {message}")
     }
 }
 
@@ -498,6 +509,11 @@ where
         }
         InstallType::Build => {
             let worker = BuildWorker::new(provider_manager);
+            let mut build_line_callback = Some(|line: &str| {
+                if let Some(callback) = message_callback.as_mut() {
+                    callback(line);
+                }
+            });
             let output = worker
                 .build(
                     BuildRequest {
@@ -515,8 +531,10 @@ where
                         build_output: None,
                     },
                     reinstall_package.channel.clone(),
+                    &mut build_line_callback,
                 )
                 .await?;
+            drop(build_line_callback);
             reinstall_package.build_branch = output.branch.clone();
             reinstall_package.build_commit = output.commit.clone();
 
