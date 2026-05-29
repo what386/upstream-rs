@@ -146,22 +146,30 @@ pub async fn run(
             println!("No upgrades available.");
             return Ok(());
         }
-        let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(&preview_rows);
-        let size_rows = rollback_size_rows(rollback_impact);
-        layout.print_totals(&impact, "Net disk change:", &size_rows);
+        if preview_rows.iter().all(|row| row.source_build) {
+            println!();
+        } else {
+            let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(&preview_rows);
+            let size_rows = rollback_size_rows(rollback_impact);
+            layout.print_totals(&impact, "Net disk change:", &size_rows);
+        }
     } else {
         let transaction_rows = preview_rows
             .iter()
             .map(upgrade_transaction_row)
             .collect::<Vec<_>>();
-        let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(&preview_rows);
-        let size_rows = rollback_size_rows(rollback_impact);
-        output::print_transaction_table_with_size_rows(
-            &transaction_rows,
-            &impact,
-            "Net disk change:",
-            &size_rows,
-        );
+        if preview_rows.iter().all(|row| row.source_build) {
+            output::print_transaction_table_without_size(&transaction_rows);
+        } else {
+            let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(&preview_rows);
+            let size_rows = rollback_size_rows(rollback_impact);
+            output::print_transaction_table_with_size_rows(
+                &transaction_rows,
+                &impact,
+                "Net disk change:",
+                &size_rows,
+            );
+        }
     }
     output::confirm_or_cancel("Proceed with installation?", true)?;
 
