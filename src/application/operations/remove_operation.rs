@@ -1,4 +1,5 @@
 use crate::{
+    application::output::{self, Status},
     services::packaging::disk_impact::{DiskImpact, SignedByteEstimate, estimate_path_size},
     services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover, RollbackManager},
     services::storage::rollback_storage::RollbackSource,
@@ -99,9 +100,17 @@ impl<'a> RemoveOperation<'a> {
                 )
                 .context(format!("Failed to remove package '{}'", package_name))
             {
-                Ok(_) => message!(message_callback, "[ok] {:<28} removed", package_name),
+                Ok(_) => message!(
+                    message_callback,
+                    "{}",
+                    output::status_line_text(Status::Ok, package_name, "removed")
+                ),
                 Err(e) => {
-                    message!(message_callback, "[fail] {:<28} {}", package_name, e);
+                    message!(
+                        message_callback,
+                        "{}",
+                        output::status_line_text(Status::Fail, package_name, e)
+                    );
                     failures += 1;
                 }
             }
@@ -142,10 +151,8 @@ impl<'a> RemoveOperation<'a> {
                 Err(err) => {
                     message!(
                         message_callback,
-                        "{:<7} {:<28} {}",
-                        "[fail]",
-                        package_name,
-                        err
+                        "{}",
+                        output::status_line_text(Status::Fail, package_name, err)
                     );
                     failures += 1;
                 }

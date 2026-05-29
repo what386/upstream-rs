@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::{
     application::operations::install_operation::InstallOperation,
-    application::output::{self, TransactionRow},
+    application::output::{self, Status, TransactionRow},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::Package,
@@ -211,7 +211,10 @@ pub async fn run(
 
     match install_result {
         Ok(()) => {
-            println!("[ok] {:<28} installed {}", install_name, install_version);
+            println!(
+                "{}",
+                output::status_line_text(Status::Ok, &install_name, format!("installed {install_version}"))
+            );
             println!(
                 "{}",
                 output::success("Install complete: 1 installed, 0 failed.")
@@ -219,9 +222,8 @@ pub async fn run(
         }
         Err(err) => {
             println!(
-                "[fail] {:<28} {}",
-                install_name,
-                format_error_chain(&err, 160)
+                "{}",
+                output::status_line_text(Status::Fail, &install_name, format_error_chain(&err, 160))
             );
             println!(
                 "{}",

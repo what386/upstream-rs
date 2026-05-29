@@ -9,6 +9,7 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
+use console::strip_ansi_codes;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::{
     collections::BTreeMap,
@@ -45,9 +46,12 @@ fn render_upgrade_progress(
 }
 
 fn completion_message_key(message: &str) -> Option<String> {
-    let rest = message
-        .strip_prefix("[ok] ")
-        .or_else(|| message.strip_prefix("[fail] "))?;
+    let cleaned = strip_ansi_codes(message);
+    let rest = cleaned
+        .trim_start()
+        .strip_prefix("[ok]")
+        .or_else(|| cleaned.trim_start().strip_prefix("[fail]"))?
+        .trim_start();
     rest.split_whitespace().next().map(str::to_string)
 }
 
