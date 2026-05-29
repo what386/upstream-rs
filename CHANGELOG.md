@@ -1,6 +1,17 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-05-28*
+*Generated on 2026-05-29*
+
+## 1.17.0 — 2026-05-29
+
+### Changes
+
+- make rollback a continous callback instead of multiple printlines
+- fix prompting for nonexistant packages in rollback
+- force flag for uninstall
+- remove set-key, get-key, metadata from package subcommand
+- near-complete CLI update to modernize output
+
 
 ## 1.16.3 — 2026-05-28
 
