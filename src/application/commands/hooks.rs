@@ -44,10 +44,13 @@ pub fn run_hooks_clean() -> Result<()> {
 
 pub fn run_hooks_purge() -> Result<()> {
     let paths = UpstreamPaths::new()?;
-    output::confirm_or_cancel(format!(
-        "Delete upstream data directory '{}' and remove shell hooks?",
-        paths.dirs.data_dir.display()
-    ), false)?;
+    output::confirm_or_cancel(
+        format!(
+            "Delete upstream data directory '{}' and remove shell hooks?",
+            paths.dirs.data_dir.display()
+        ),
+        false,
+    )?;
 
     cleanup(&paths)?;
     purge_data(&paths)?;
