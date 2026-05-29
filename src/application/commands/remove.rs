@@ -61,7 +61,7 @@ fn rollback_size_rows(rollback_impact: SignedByteEstimate) -> Vec<SizeImpactRow>
     }
 }
 
-pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
+pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
 
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
@@ -164,6 +164,7 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
         let (removed, failed) = package_remover.remove_bulk_with_progress(
             &names,
             &purge,
+            &force,
             &mut message_callback,
             &mut overall_progress_callback,
             &mut progress_callback,
@@ -192,6 +193,7 @@ pub fn run(names: Vec<String>, purge: bool, dry_run: bool) -> Result<()> {
         match package_remover.remove_single_with_progress(
             &names[0],
             &purge,
+            &force,
             &mut message_callback,
             &mut progress_callback,
         ) {

@@ -48,7 +48,7 @@ fn reinstall_phase_label(message: &str) -> &'static str {
     }
 }
 
-pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Result<()> {
+pub async fn run(names: Vec<String>, trust_mode: TrustMode, force: bool, dry_run: bool) -> Result<()> {
     if names.is_empty() {
         return Err(anyhow!("At least one package name is required"));
     }
@@ -123,6 +123,7 @@ pub async fn run(names: Vec<String>, trust_mode: TrustMode, dry_run: bool) -> Re
             &paths,
             package,
             trust_mode,
+            force,
             &trusted_keys,
             &mut msg,
         )
@@ -445,6 +446,7 @@ async fn reinstall_one<H>(
     paths: &UpstreamPaths,
     package: Package,
     trust_mode: TrustMode,
+    force: bool,
     trusted_keys: &TrustedSignatureKeys,
     message_callback: &mut Option<H>,
 ) -> Result<()>
@@ -464,6 +466,7 @@ where
     remove_op.remove_single_with_source(
         &package.name,
         &false,
+        &force,
         RollbackSource::Reinstall,
         message_callback,
         &mut no_remove_progress,
