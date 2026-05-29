@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] near-complete CLI update to modernize output
-      @created 2026-05-28 22:31
-
 
 ## Completed
 
@@ -25,5 +22,9 @@
 
 - [x] remove set-key, get-key, metadata from package subcommand
       @created 2026-05-29 00:15
+      @completed 2026-05-29 00:29
+
+- [x] near-complete CLI update to modernize output
+      @created 2026-05-28 22:31
       @completed 2026-05-29 00:29
 
