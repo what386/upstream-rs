@@ -435,10 +435,18 @@ pub fn print_disk_impact_with_size_rows(
 ) {
     println!("{}", section("Size impact:"));
     if include_download && !matches!(impact.download.bytes, Some(0)) {
-        println!("  {} {}", meta("Download:"), format_unsigned(impact.download));
+        println!(
+            "  {} {}",
+            meta("Download:"),
+            format_unsigned(impact.download)
+        );
     }
     if size_rows.is_empty() {
-        println!("  {} {}", meta("Net disk change:"), format_signed(impact.net));
+        println!(
+            "  {} {}",
+            meta("Net disk change:"),
+            format_signed(impact.net)
+        );
         return;
     }
 
