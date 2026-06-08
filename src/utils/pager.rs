@@ -211,7 +211,8 @@ fn action_for_key(key: Key) -> PagerAction {
 #[cfg(test)]
 mod tests {
     use super::{
-        PagerAction, PagerState, action_for_key, footer_text, truncate_width, visible_lines,
+        PagerAction, PagerState, action_for_key, footer_text, page_text, truncate_width,
+        visible_lines,
     };
     use console::Key;
 
@@ -287,5 +288,18 @@ mod tests {
         assert_eq!(action_for_key(Key::Char('g')), PagerAction::Top);
         assert_eq!(action_for_key(Key::Char('G')), PagerAction::Bottom);
         assert_eq!(action_for_key(Key::Unknown), PagerAction::Ignore);
+    }
+
+    #[test]
+    #[ignore = "manual pager smoke test; run with --ignored --nocapture in a terminal"]
+    fn manual_force_pager() {
+        let mut text = String::new();
+        for index in 1..=160 {
+            text.push_str(&format!(
+                "{index:03}  This is a manually generated pager test line with enough content to exercise truncation and navigation.\n"
+            ));
+        }
+
+        page_text(Some("Manual pager smoke test"), &text).expect("pager should run");
     }
 }
