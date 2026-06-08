@@ -24,6 +24,14 @@ impl PagerConfig {
     fn visible_rows(&self) -> usize {
         self.rows.saturating_sub(FOOTER_ROWS).max(MIN_VISIBLE_ROWS)
     }
+
+    fn content_rows(&self, has_title: bool) -> usize {
+        let title_rows = usize::from(has_title);
+        self.rows
+            .saturating_sub(FOOTER_ROWS)
+            .saturating_sub(title_rows)
+            .max(MIN_VISIBLE_ROWS)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,12 +124,12 @@ fn page_lines(
     lines: &[String],
     config: PagerConfig,
 ) -> Result<()> {
-    let mut state = PagerState::new(lines.len(), config.visible_rows());
+    let mut state = PagerState::new(lines.len(), config.content_rows(title.is_some()));
     let mut rendered_lines = 0;
 
     loop {
         if rendered_lines > 0 {
-            term.clear_last_lines(rendered_lines)?;
+            clear_rendered_view(term, rendered_lines)?;
         }
         rendered_lines = render_view(term, title, lines, &state, config.cols)?;
 
@@ -133,7 +141,7 @@ fn page_lines(
     }
 
     if rendered_lines > 0 {
-        term.clear_last_lines(rendered_lines)?;
+        clear_rendered_view(term, rendered_lines)?;
     }
     Ok(())
 }
@@ -157,10 +165,18 @@ fn render_view(
         rendered += 1;
     }
 
-    term.write_line(&truncate_width(&footer_text(state), cols))?;
+    term.write_str(&truncate_width(&footer_text(state), cols))?;
     rendered += 1;
 
     Ok(rendered)
+}
+
+fn clear_rendered_view(term: &Term, rendered_lines: usize) -> Result<()> {
+    term.clear_line()?;
+    if rendered_lines > 1 {
+        term.clear_last_lines(rendered_lines - 1)?;
+    }
+    Ok(())
 }
 
 fn visible_lines<'a>(lines: &'a [String], state: &PagerState) -> &'a [String] {
