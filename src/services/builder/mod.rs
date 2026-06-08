@@ -1,6 +1,7 @@
 pub mod determine;
 pub mod downloader;
 pub mod profiles;
+pub mod scripts;
 pub mod worker;
 
 use std::path::PathBuf;
@@ -29,6 +30,7 @@ pub struct BuildRequest {
     pub branch: Option<String>,
     pub requested_profile: Option<BuildProfile>,
     pub build_output: Option<PathBuf>,
+    pub script_action: scripts::BuildScriptAction,
 }
 
 #[derive(Debug, Clone)]

@@ -9,7 +9,7 @@ use crate::providers::provider_manager::ProviderManager;
 use crate::services::builder::determine::determine_profile;
 use crate::services::builder::downloader::SourceDownloader;
 use crate::services::builder::profiles::handlers;
-use crate::services::builder::{BuildOutput, BuildRequest};
+use crate::services::builder::{BuildOutput, BuildRequest, scripts};
 
 pub struct BuildWorker<'a> {
     provider_manager: &'a ProviderManager,
@@ -96,6 +96,17 @@ impl<'a> BuildWorker<'a> {
                 }
             }
         };
+        if scripts::script_for(request.script_action, &source.workspace_path).is_some() {
+            Self::emit_status(line_callback, "Running build scripts ...");
+            let build_script_callback = line_callback
+                .as_mut()
+                .map(|callback| callback as &mut dyn FnMut(&str));
+            scripts::run_build_script(
+                request.script_action,
+                &source.workspace_path,
+                build_script_callback,
+            )?;
+        }
         Self::emit_status(line_callback, "Staging built artifact ...");
         let persisted_artifact = Self::persist_artifact(&artifact)?;
 
