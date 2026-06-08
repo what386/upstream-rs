@@ -7,6 +7,7 @@ use crate::models::{
 };
 use crate::providers::discovery::{SourceKind, infer_source};
 use crate::providers::provider_manager::ProviderManager;
+use crate::services::builder::scripts::BuildScriptAction;
 use crate::services::builder::{BuildProfile, BuildRequest, worker::BuildWorker};
 use crate::services::packaging::disk_impact::{
     DiskImpact, asset_size_estimate, install_impact_from_download,
@@ -222,6 +223,7 @@ impl<'a> BuildOperation<'a> {
                     branch: input.branch,
                     requested_profile: input.build_profile,
                     build_output: input.build_output.map(std::path::PathBuf::from),
+                    script_action: BuildScriptAction::Install,
                 },
                 input.channel.clone(),
                 &mut build_line_callback,

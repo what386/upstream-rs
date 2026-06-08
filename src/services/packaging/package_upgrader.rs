@@ -10,7 +10,7 @@ use crate::{
         upstream::{InstallType, Package},
     },
     providers::provider_manager::ProviderManager,
-    services::builder::{BuildRequest, worker::BuildWorker},
+    services::builder::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         integration::{DesktopManager, IconManager},
         packaging::RollbackManager,
@@ -423,6 +423,7 @@ impl<'a> PackageUpgrader<'a> {
                         branch,
                         requested_profile: None,
                         build_output: None,
+                        script_action: BuildScriptAction::Upgrade,
                     },
                     package.channel.clone(),
                     &mut build_line_callback,

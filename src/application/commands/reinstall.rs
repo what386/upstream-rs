@@ -13,6 +13,7 @@ use crate::{
     },
     providers::provider_manager::ProviderManager,
     services::{
+        builder::scripts::BuildScriptAction,
         builder::{BuildRequest, worker::BuildWorker},
         packaging::{
             PackageRemover,
@@ -529,6 +530,7 @@ where
                         branch: reinstall_package.build_branch.clone(),
                         requested_profile: None,
                         build_output: None,
+                        script_action: BuildScriptAction::Upgrade,
                     },
                     reinstall_package.channel.clone(),
                     &mut build_line_callback,
