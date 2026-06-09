@@ -2,6 +2,13 @@
 
 *Generated on 2026-06-09*
 
+## 1.18.1 — 2026-06-09
+
+### Changes
+
+- support 7zip format
+
+
 ## 1.18.0 — 2026-06-09
 
 ### Changes
