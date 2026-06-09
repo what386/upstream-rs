@@ -11,3 +11,6 @@
 - [ ] mutlithreaded downloading for assets?
       @created 2026-06-09 17:54
 
+- [ ] support 7zip format
+      @created 2026-06-09 17:59
+
