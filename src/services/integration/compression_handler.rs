@@ -1,6 +1,7 @@
 use anyhow::{Result, anyhow};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
@@ -63,6 +64,7 @@ pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
         "xz" => decompress_xz_single(input, &extract_dir),
         "zst" => decompress_zst_single(input, &extract_dir),
         "tar" => unpack_tar(input, &extract_dir),
+        "7z" => decompress_7z(input, &extract_dir),
         _ => Err(anyhow!("Unsupported format: {}", input.display())),
     }
 }
@@ -277,6 +279,25 @@ fn decompress_zip(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
             paths.push(out_path);
         }
     }
+    common_root(&paths, extract_dir)
+}
+
+// ---------------- 7Z ----------------
+fn decompress_7z(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
+    let mut paths = Vec::new();
+
+    sevenz_rust2::decompress_file_with_extract_fn(input, extract_dir, |entry, reader, _dest| {
+        let out_path = safe_join_extract_path(extract_dir, Path::new(entry.name()))
+            .map_err(|err| sevenz_rust2::Error::Other(Cow::Owned(err.to_string())))?;
+
+        let extracted = sevenz_rust2::default_entry_extract_fn(entry, reader, &out_path)?;
+        if extracted && !entry.is_directory() {
+            paths.push(out_path);
+        }
+
+        Ok(extracted)
+    })?;
+
     common_root(&paths, extract_dir)
 }
 
@@ -523,6 +544,28 @@ mod tests {
         assert_eq!(
             fs::read(flattened_file).expect("read flattened file"),
             b"zip-content"
+        );
+        assert!(!extracted_root.join("pkg").exists());
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn decompress_7z_flattens_single_top_level_directory() {
+        let root = temp_root("7z-flatten");
+        let source = root.join("pkg");
+        let archive = root.join("pkg.7z");
+        let output = root.join("out");
+        fs::create_dir_all(&source).expect("create source");
+        fs::write(source.join("tool"), b"7z-content").expect("write source file");
+        sevenz_rust2::compress_to_path(&source, &archive).expect("create .7z archive");
+
+        let extracted_root = decompress(&archive, &output).expect("decompress .7z");
+        let flattened_file = extracted_root.join("tool");
+        assert!(flattened_file.exists());
+        assert_eq!(
+            fs::read(flattened_file).expect("read flattened file"),
+            b"7z-content"
         );
         assert!(!extracted_root.join("pkg").exists());
 
