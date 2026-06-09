@@ -102,20 +102,27 @@ pub fn should_page(line_count: usize) -> bool {
 pub fn page_text(title: Option<&str>, text: &str) -> Result<()> {
     let term = Term::stdout();
     if !term.is_term() {
-        print!("{text}");
-        io::stdout().flush()?;
+        print_without_pager(title, text)?;
         return Ok(());
     }
 
     let config = PagerConfig::from_term(&term);
     let lines = text.lines().map(ToString::to_string).collect::<Vec<_>>();
-    if lines.len() <= config.visible_rows() {
-        print!("{text}");
-        io::stdout().flush()?;
+    if lines.len() <= config.content_rows(title.is_some()) {
+        print_without_pager(title, text)?;
         return Ok(());
     }
 
     page_lines(&term, title, &lines, config)
+}
+
+fn print_without_pager(title: Option<&str>, text: &str) -> Result<()> {
+    if let Some(title) = title {
+        println!("{}", style(title).cyan().bold());
+    }
+    print!("{text}");
+    io::stdout().flush()?;
+    Ok(())
 }
 
 fn page_lines(
