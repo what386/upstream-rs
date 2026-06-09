@@ -31,21 +31,22 @@ impl<'a> BuildWorker<'a> {
     {
         Self::emit_status(line_callback, "Preparing source download ...");
         let downloader = SourceDownloader::new(self.provider_manager)?;
-        let mut status_callback = line_callback
-            .as_mut()
-            .map(|callback| callback as &mut dyn FnMut(&str));
-        let source = downloader
-            .fetch_source(
-                &request.repo_slug,
-                &request.provider,
-                request.base_url.as_deref(),
-                &channel,
-                request.version_tag.as_deref(),
-                request.branch.as_deref(),
-                &mut status_callback,
-            )
-            .await?;
-        drop(status_callback);
+        let source = {
+            let mut status_callback = line_callback
+                .as_mut()
+                .map(|callback| callback as &mut dyn FnMut(&str));
+            downloader
+                .fetch_source(
+                    &request.repo_slug,
+                    &request.provider,
+                    request.base_url.as_deref(),
+                    &channel,
+                    request.version_tag.as_deref(),
+                    request.branch.as_deref(),
+                    &mut status_callback,
+                )
+                .await?
+        };
 
         Self::emit_status(line_callback, "Detecting build profile ...");
         let profile_handlers = handlers();

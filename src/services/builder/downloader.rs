@@ -42,6 +42,7 @@ impl<'a> SourceDownloader<'a> {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn fetch_source(
         &self,
         repo_slug: &str,

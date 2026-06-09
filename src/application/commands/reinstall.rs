@@ -510,33 +510,34 @@ where
         }
         InstallType::Build => {
             let worker = BuildWorker::new(provider_manager);
-            let mut build_line_callback = Some(|line: &str| {
-                if let Some(callback) = message_callback.as_mut() {
-                    callback(line);
-                }
-            });
-            let output = worker
-                .build(
-                    BuildRequest {
-                        name: reinstall_package.name.clone(),
-                        repo_slug: reinstall_package.repo_slug.clone(),
-                        provider: reinstall_package.provider.clone(),
-                        base_url: reinstall_package.base_url.clone(),
-                        version_tag: if reinstall_package.build_branch.is_some() {
-                            None
-                        } else {
-                            Some(version_tag)
+            let output = {
+                let mut build_line_callback = Some(|line: &str| {
+                    if let Some(callback) = message_callback.as_mut() {
+                        callback(line);
+                    }
+                });
+                worker
+                    .build(
+                        BuildRequest {
+                            name: reinstall_package.name.clone(),
+                            repo_slug: reinstall_package.repo_slug.clone(),
+                            provider: reinstall_package.provider.clone(),
+                            base_url: reinstall_package.base_url.clone(),
+                            version_tag: if reinstall_package.build_branch.is_some() {
+                                None
+                            } else {
+                                Some(version_tag)
+                            },
+                            branch: reinstall_package.build_branch.clone(),
+                            requested_profile: None,
+                            build_output: None,
+                            script_action: BuildScriptAction::Upgrade,
                         },
-                        branch: reinstall_package.build_branch.clone(),
-                        requested_profile: None,
-                        build_output: None,
-                        script_action: BuildScriptAction::Upgrade,
-                    },
-                    reinstall_package.channel.clone(),
-                    &mut build_line_callback,
-                )
-                .await?;
-            drop(build_line_callback);
+                        reinstall_package.channel.clone(),
+                        &mut build_line_callback,
+                    )
+                    .await?
+            };
             reinstall_package.build_branch = output.branch.clone();
             reinstall_package.build_commit = output.commit.clone();
 

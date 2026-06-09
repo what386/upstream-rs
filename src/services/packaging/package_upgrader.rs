@@ -403,33 +403,34 @@ impl<'a> PackageUpgrader<'a> {
                 } => (None, Some(branch.clone()), Some(head_commit.clone())),
             };
             let worker = BuildWorker::new(self.provider_manager);
-            let mut build_line_callback = Some(|line: &str| {
-                let line = line.trim();
-                if !line.is_empty() {
-                    progress!(
-                        progress_callback,
-                        PackageProgressEvent::Warning(line.to_string())
-                    );
-                }
-            });
-            let build_result = worker
-                .build(
-                    BuildRequest {
-                        name: package.name.clone(),
-                        repo_slug: package.repo_slug.clone(),
-                        provider: package.provider.clone(),
-                        base_url: package.base_url.clone(),
-                        version_tag,
-                        branch,
-                        requested_profile: None,
-                        build_output: None,
-                        script_action: BuildScriptAction::Upgrade,
-                    },
-                    package.channel.clone(),
-                    &mut build_line_callback,
-                )
-                .await;
-            drop(build_line_callback);
+            let build_result = {
+                let mut build_line_callback = Some(|line: &str| {
+                    let line = line.trim();
+                    if !line.is_empty() {
+                        progress!(
+                            progress_callback,
+                            PackageProgressEvent::Warning(line.to_string())
+                        );
+                    }
+                });
+                worker
+                    .build(
+                        BuildRequest {
+                            name: package.name.clone(),
+                            repo_slug: package.repo_slug.clone(),
+                            provider: package.provider.clone(),
+                            base_url: package.base_url.clone(),
+                            version_tag,
+                            branch,
+                            requested_profile: None,
+                            build_output: None,
+                            script_action: BuildScriptAction::Upgrade,
+                        },
+                        package.channel.clone(),
+                        &mut build_line_callback,
+                    )
+                    .await
+            };
 
             match build_result {
                 Ok(output) => {
