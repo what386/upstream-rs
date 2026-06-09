@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 
 use anyhow::Result;
-use console::{Key, Term};
+use console::{Key, Term, style};
 
 const MIN_VISIBLE_ROWS: usize = 1;
 const FOOTER_ROWS: usize = 1;
@@ -156,7 +156,8 @@ fn render_view(
     let mut rendered = 0;
 
     if let Some(title) = title {
-        term.write_line(&truncate_width(title, cols))?;
+        let title = truncate_width(title, cols);
+        term.write_line(&style(title).cyan().bold().to_string())?;
         rendered += 1;
     }
 
@@ -165,7 +166,8 @@ fn render_view(
         rendered += 1;
     }
 
-    term.write_str(&truncate_width(&footer_text(state), cols))?;
+    let footer = truncate_width(&footer_text(state), cols);
+    term.write_str(&style(footer).dim().to_string())?;
     rendered += 1;
 
     Ok(rendered)
