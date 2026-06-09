@@ -8,6 +8,10 @@
 - [ ] Implement pager for long command outputs
       @created 2026-06-09 17:28
 
-- [ ] add autorun of build/install scripts as fallback
+
+## Completed
+
+- [x] add autorun of build/install scripts as fallback
       @created 2026-06-09 17:28
+      @completed 2026-06-09 17:28
 
