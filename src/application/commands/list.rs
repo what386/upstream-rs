@@ -1,9 +1,12 @@
 use crate::{
-    application::output, models::upstream::Package,
-    services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
+    application::output,
+    models::upstream::Package,
+    services::storage::package_storage::PackageStorage,
+    utils::{pager, static_paths::UpstreamPaths},
 };
 use anyhow::{Result, anyhow};
 use console::Term;
+use std::fmt::Write as _;
 
 pub fn run(package_name: Option<String>, json: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
@@ -43,7 +46,7 @@ fn display_single_package(storage: &PackageStorage, name: &str) -> Result<()> {
         .get_package_by_name(name)
         .ok_or_else(|| anyhow!("Package '{}' is not installed.", name))?;
 
-    println!("{}", format_package_details(package));
+    pager::page_text(None, &format_package_details(package))?;
     Ok(())
 }
 
@@ -56,14 +59,11 @@ fn display_all_packages(storage: &PackageStorage) -> Result<()> {
         return Ok(());
     }
 
-    println!(
-        "{}",
-        output::title(format!(
-            "Packages ({})  Flags: D=desktop present, P=pinned",
-            packages.len()
-        ))
+    let title = format!(
+        "Packages ({})  Flags: D=desktop present, P=pinned",
+        packages.len()
     );
-    print_package_table(&packages);
+    pager::page_text(Some(&title), &format_package_table(&packages))?;
     Ok(())
 }
 
@@ -206,19 +206,21 @@ impl ColumnWidths {
     }
 }
 
-fn print_package_table(packages: &[Package]) {
+fn format_package_table(packages: &[Package]) -> String {
     let terminal_cols = Term::stdout().size().1 as usize;
     let term_width = terminal_cols.max(80);
     let widths = ColumnWidths::from_packages(packages, term_width);
+    let mut out = String::new();
 
-    print_table_header(&widths);
-    println!("{}", output::divider(table_width(&widths)));
+    write_table_header(&mut out, &widths);
+    writeln!(out, "{}", output::divider(table_width(&widths))).expect("write table divider");
 
     for package in packages {
-        print_package_row(package, &widths);
+        write_package_row(&mut out, package, &widths);
     }
 
-    println!();
+    out.push('\n');
+    out
 }
 
 fn table_width(widths: &ColumnWidths) -> usize {
@@ -233,8 +235,9 @@ fn table_width(widths: &ColumnWidths) -> usize {
         + 7
 }
 
-fn print_table_header(widths: &ColumnWidths) {
-    println!(
+fn write_table_header(out: &mut String, widths: &ColumnWidths) {
+    writeln!(
+        out,
         "{:<name$} {:<repo$} {:<ver$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
         "Name",
         "Repo",
@@ -252,10 +255,11 @@ fn print_table_header(widths: &ColumnWidths) {
         flags = widths.flags,
         updated = widths.updated,
         path = widths.path
-    );
+    )
+    .expect("write table header");
 }
 
-fn print_package_row(package: &Package, widths: &ColumnWidths) {
+fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths) {
     let install_path = output::truncate_middle(
         &format_path(package.install_path.as_ref(), "-"),
         widths.path,
@@ -269,7 +273,8 @@ fn print_package_row(package: &Package, widths: &ColumnWidths) {
     let flags = format!("{desktop_indicator}{pin_indicator}");
     let last_updated = package.last_upgraded.format("%Y-%m-%d").to_string();
 
-    println!(
+    writeln!(
+        out,
         "{:<name$} {:<repo$} {:<ver$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
         output::truncate_end(&package.name, widths.name),
         output::truncate_end(&package.repo_slug, widths.repo),
@@ -287,5 +292,6 @@ fn print_package_row(package: &Package, widths: &ColumnWidths) {
         flags = widths.flags,
         updated = widths.updated,
         path = widths.path
-    );
+    )
+    .expect("write package row");
 }

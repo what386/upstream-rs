@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::application::output;
+use crate::{application::output, utils::pager};
 use anyhow::{Context, Result, anyhow, bail};
 
 use super::profiles::run_command_with_line_callback;
@@ -122,13 +122,19 @@ fn command_for(path: &Path) -> Result<Command> {
 fn review_script(path: &Path) -> Result<()> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read build script '{}'", path.display()))?;
-    println!(
-        "{}",
-        output::title(format!("Reviewing script: {}", path.display()))
-    );
+    let mut preview = String::new();
     for line in content.lines() {
-        println!("  {line}");
+        preview.push_str("  ");
+        preview.push_str(line);
+        preview.push('\n');
     }
+    preview.push('\n');
+    preview.push_str(&format!("  Command: {}\n", command_preview(path)));
+
+    pager::page_text(
+        Some(&format!("Reviewing script: {}", path.display())),
+        &preview,
+    )?;
     Ok(())
 }
 
@@ -143,10 +149,6 @@ pub fn run_build_script(
 
     validate_script(&path)?;
     review_script(&path)?;
-    println!(
-        "  {}",
-        output::meta(format!("Command: {}", command_preview(&path)))
-    );
     output::confirm_or_cancel(
         format!(
             "Run {} script '{}' from '{}' ?",
