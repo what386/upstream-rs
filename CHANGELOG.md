@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-05-29*
+*Generated on 2026-06-09*
+
+## 1.18.0 — 2026-06-09
+
+### Changes
+
+- add autorun of build/install scripts as fallback
+- Implement pager for long command outputs
+
 
 ## 1.17.1 — 2026-05-29
 

@@ -5,14 +5,3 @@
 
 ## Tasks
 
-
-## Completed
-
-- [x] add autorun of build/install scripts as fallback
-      @created 2026-06-09 17:28
-      @completed 2026-06-09 17:28
-
-- [x] Implement pager for long command outputs
-      @created 2026-06-09 17:28
-      @completed 2026-06-09 17:28
-
