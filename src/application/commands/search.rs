@@ -6,8 +6,9 @@ use crate::{
     models::{common::enums::Provider, provider::RepositorySearchResult},
     providers::provider_manager::ProviderManager,
     services::storage::config_storage::ConfigStorage,
-    utils::static_paths::UpstreamPaths,
+    utils::{pager, static_paths::UpstreamPaths},
 };
+use std::fmt::Write as _;
 
 pub async fn run(
     query_words: Vec<String>,
@@ -32,9 +33,6 @@ pub async fn run(
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
     let effective_provider = provider.unwrap_or(Provider::Github);
 
-    println!("{}", output::title("Search"));
-    output::action_note(format!("Query: '{}' via {}", query, effective_provider));
-
     let results = provider_manager
         .search_repositories(
             &query,
@@ -49,14 +47,17 @@ pub async fn run(
         return Ok(());
     }
 
-    print_results(&results);
+    let title = format!("Search: '{}' via {}", query, effective_provider);
+    pager::page_text(Some(&title), &format_results(&results))?;
     Ok(())
 }
 
-fn print_results(results: &[RepositorySearchResult]) {
+fn format_results(results: &[RepositorySearchResult]) -> String {
     let widths = SearchColumnWidths::from_rows(results);
+    let mut out = String::new();
 
-    println!(
+    writeln!(
+        out,
         "{:<slug$} {:>stars$} {:<lang$} {:<updated$} Description",
         "Slug",
         "Stars",
@@ -66,19 +67,23 @@ fn print_results(results: &[RepositorySearchResult]) {
         stars = widths.stars,
         lang = widths.lang,
         updated = widths.updated,
-    );
-    println!("{}", output::divider(widths.table_width()));
+    )
+    .expect("write search header");
+    writeln!(out, "{}", output::divider(widths.table_width())).expect("write search divider");
 
     for row in results {
-        print_row(row, &widths);
+        write_row(&mut out, row, &widths);
     }
 
-    println!();
-    println!("{} results — use --limit to see more", results.len());
+    writeln!(out).expect("write search spacer");
+    writeln!(out, "{} results - use --limit to see more", results.len())
+        .expect("write search footer");
+    out
 }
 
-fn print_row(row: &RepositorySearchResult, widths: &SearchColumnWidths) {
-    println!(
+fn write_row(out: &mut String, row: &RepositorySearchResult, widths: &SearchColumnWidths) {
+    writeln!(
+        out,
         "{:<slug$} {:>stars$} {:<lang$} {:<updated$} {}",
         truncate(&row.repo_slug, widths.slug),
         format_stars(row.stars),
@@ -89,7 +94,8 @@ fn print_row(row: &RepositorySearchResult, widths: &SearchColumnWidths) {
         stars = widths.stars,
         lang = widths.lang,
         updated = widths.updated,
-    );
+    )
+    .expect("write search row");
 }
 
 fn format_stars(stars: u64) -> String {
