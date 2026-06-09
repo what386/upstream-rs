@@ -9,7 +9,7 @@ use crate::{
     },
     providers::provider_manager::ProviderManager,
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
-    utils::static_paths::UpstreamPaths,
+    utils::{pager, static_paths::UpstreamPaths},
 };
 
 pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>) -> Result<()> {
@@ -109,39 +109,34 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
         return Ok(());
     }
 
-    println!("{}", output::title(format!("Changelog: {}", package.name)));
-    output::kv(
-        "Range",
-        format!("{} -> {}", from_version, to_release.version),
-    );
-    output::kv(
-        "Source",
-        format!("{} ({})", package.repo_slug, package.provider),
-    );
-    output::kv("Channel", &package.channel);
-    println!();
+    let mut changelog = String::new();
+    changelog.push_str(&format!(
+        "  Range:        {} -> {}\n",
+        from_version, to_release.version
+    ));
+    changelog.push_str(&format!(
+        "  Source:       {} ({})\n",
+        package.repo_slug, package.provider
+    ));
+    changelog.push_str(&format!("  Channel:      {}\n\n", package.channel));
 
     for release in &releases {
-        println!(
-            "{}",
-            output::section(format!("## {}", release_heading(release)))
-        );
-        println!(
-            "{}",
-            output::meta(format!(
-                "tag {} - published {}",
-                release.tag,
-                release.published_at.format("%Y-%m-%d")
-            ))
-        );
-        println!();
+        changelog.push_str(&format!("## {}\n", release_heading(release)));
+        changelog.push_str(&format!(
+            "tag {} - published {}\n\n",
+            release.tag,
+            release.published_at.format("%Y-%m-%d")
+        ));
         if release.body.trim().is_empty() {
-            println!("{}", output::meta("(no release notes)"));
+            changelog.push_str("(no release notes)\n");
         } else {
-            println!("{}", release.body.trim());
+            changelog.push_str(release.body.trim());
+            changelog.push('\n');
         }
-        println!();
+        changelog.push('\n');
     }
+
+    pager::page_text(Some(&format!("Changelog: {}", package.name)), &changelog)?;
 
     Ok(())
 }

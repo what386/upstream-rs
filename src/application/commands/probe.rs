@@ -1,6 +1,7 @@
 use anyhow::Result;
 use console::style;
 use indicatif::HumanBytes;
+use std::fmt::Write as _;
 
 use crate::{
     models::{
@@ -10,7 +11,7 @@ use crate::{
     providers::discovery::DiscoveryRequest,
     providers::{asset_selector::AssetCandidate, provider_manager::ProviderManager},
     services::storage::config_storage::ConfigStorage,
-    utils::static_paths::UpstreamPaths,
+    utils::{pager, static_paths::UpstreamPaths},
 };
 
 pub async fn run(
@@ -31,13 +32,10 @@ pub async fn run(
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
 
-    println!("{}", crate::application::output::title("Probe"));
+    let mut probe_notes = Vec::new();
     let (effective_repo_slug, effective_provider, effective_base_url, mut releases) =
         if let Some(provider) = provider {
-            crate::application::output::action_note(format!(
-                "Probing '{}' via {}",
-                repo_slug, provider
-            ));
+            probe_notes.push(format!("Probing '{}' via {}", repo_slug, provider));
 
             let releases = provider_manager
                 .get_releases(
@@ -63,7 +61,7 @@ pub async fn run(
                 })
                 .await?;
 
-            crate::application::output::action_note(format!(
+            probe_notes.push(format!(
                 "Probing '{}' as '{}' via {}",
                 repo_slug, discovery.source.repo_slug, discovery.source.provider
             ));
@@ -102,7 +100,60 @@ pub async fn run(
     );
 
     let rows = build_probe_rows(&releases, &provider_manager, &probe_package);
-    let widths = ProbeColumnWidths::from_rows(&rows);
+    pager::page_text(
+        Some("Probe"),
+        &format_probe_results(&probe_notes, &rows, verbose),
+    )?;
+
+    Ok(())
+}
+
+fn write_candidates(out: &mut String, row: &ProbeRow) {
+    let Some(candidates) = row.candidates.as_ref() else {
+        writeln!(
+            out,
+            "     candidates: failed ({})",
+            truncate(row.candidate_error.as_deref().unwrap_or("unknown"), 48)
+        )
+        .expect("write candidate error");
+        return;
+    };
+
+    if candidates.is_empty() {
+        writeln!(out, "     candidates: none").expect("write empty candidates");
+        return;
+    }
+
+    writeln!(out, "     candidates:").expect("write candidates label");
+    for (rank, candidate) in candidates.iter().take(6).enumerate() {
+        let asset = &candidate.asset;
+        writeln!(
+            out,
+            "       #{} {:<44} {:>11} {:<10} score={}",
+            rank + 1,
+            truncate(&asset.name, 46),
+            HumanBytes(asset.size),
+            format!("{:?}", asset.filetype),
+            candidate.score
+        )
+        .expect("write candidate row");
+    }
+    if candidates.len() > 6 {
+        writeln!(out, "       ... and {} more", candidates.len() - 6)
+            .expect("write candidate overflow");
+    }
+}
+
+fn format_probe_results(notes: &[String], rows: &[ProbeRow], verbose: bool) -> String {
+    let widths = ProbeColumnWidths::from_rows(rows);
+    let mut out = String::new();
+
+    for note in notes {
+        writeln!(out, "  {note}").expect("write probe note");
+    }
+    if !notes.is_empty() {
+        writeln!(out).expect("write probe note spacer");
+    }
 
     let header = format!(
         "{:<id$} {:<state$} {:<tag$} {:<ver$} {:<pubd$} {:<assets$} {}",
@@ -120,11 +171,12 @@ pub async fn run(
         pubd = widths.published,
         assets = widths.assets
     );
-    println!("{}", style(header).bold());
-    println!("{}", "-".repeat(widths.table_width()));
+    writeln!(out, "{}", style(header).bold()).expect("write probe header");
+    writeln!(out, "{}", "-".repeat(widths.table_width())).expect("write probe divider");
 
-    for row in &rows {
-        println!(
+    for row in rows {
+        writeln!(
+            out,
             "{:<id$} {} {:<tag$} {:<ver$} {:<pubd$} {:<assets$} {}",
             row.row_id,
             format_state_cell(&row.state, widths.state),
@@ -138,45 +190,15 @@ pub async fn run(
             ver = widths.version,
             pubd = widths.published,
             assets = widths.assets
-        );
+        )
+        .expect("write probe row");
 
         if verbose {
-            render_candidates(row);
+            write_candidates(&mut out, row);
         }
     }
 
-    Ok(())
-}
-
-fn render_candidates(row: &ProbeRow) {
-    let Some(candidates) = row.candidates.as_ref() else {
-        println!(
-            "     candidates: failed ({})",
-            truncate(row.candidate_error.as_deref().unwrap_or("unknown"), 48)
-        );
-        return;
-    };
-
-    if candidates.is_empty() {
-        println!("     candidates: none");
-        return;
-    }
-
-    println!("     candidates:");
-    for (rank, candidate) in candidates.iter().take(6).enumerate() {
-        let asset = &candidate.asset;
-        println!(
-            "       #{} {:<44} {:>11} {:<10} score={}",
-            rank + 1,
-            truncate(&asset.name, 46),
-            HumanBytes(asset.size),
-            format!("{:?}", asset.filetype),
-            candidate.score
-        );
-    }
-    if candidates.len() > 6 {
-        println!("       ... and {} more", candidates.len() - 6);
-    }
+    out
 }
 
 fn build_probe_rows(

@@ -1,7 +1,9 @@
 use crate::application::output::Status;
 use crate::{
-    application::operations::config_operation::ConfigUpdater, application::output,
-    services::storage::config_storage::ConfigStorage, utils::static_paths::UpstreamPaths,
+    application::operations::config_operation::ConfigUpdater,
+    application::output,
+    services::storage::config_storage::ConfigStorage,
+    utils::{pager, static_paths::UpstreamPaths},
 };
 use anyhow::{Result, anyhow};
 
@@ -84,18 +86,18 @@ pub fn run_list(show_secrets: bool) -> Result<()> {
         return Ok(());
     }
 
-    println!("{}", output::title("Current configuration"));
-
     let mut keys: Vec<_> = flattened.keys().collect();
     keys.sort();
+    let mut config_output = String::new();
 
     for key in keys {
         if let Some(value) = flattened.get(key) {
             let display_value = format_config_value(key, value, show_secrets);
-            println!("  {} = {}", key, display_value);
+            config_output.push_str(&format!("  {} = {}\n", key, display_value));
         }
     }
 
+    pager::page_text(Some("Current configuration"), &config_output)?;
     Ok(())
 }
 
