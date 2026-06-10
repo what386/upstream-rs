@@ -44,7 +44,7 @@ This installs the binary, enables self-updates, and configures shell completion 
 ### Install with Cargo
 
 ```bash
-cargo install upstream-rs
+cargo install upstream
 ```
 
 Ensure Cargo bin is in PATH:
@@ -64,13 +64,13 @@ export PATH="$HOME/.cargo/bin:$PATH"
 2. Make it executable:
 
 ```bash
-chmod +x upstream-rs
+chmod +x upstream
 ```
 
 Optional: install upstream via itself:
 
 ```bash
-./upstream-rs install upstream what386/upstream-rs -k binary
+./upstream install upstream what386/upstream-rs -k binary
 ```
 
 ---
