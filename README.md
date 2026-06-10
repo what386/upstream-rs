@@ -37,7 +37,7 @@ curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/in
 iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.ps1 | iex
 ```
 
-This installs the binary, enables self-updates, and configures shell completion for the installer shell.
+This installs the binary and enables self-updates. Upstream manages package completion installation itself.
 
 ---
 
@@ -237,9 +237,7 @@ shells when a release includes matching `bash`, `fish`, or `zsh` files such as
 `<name>.fish`, `completions.bash`, or `completions/*.zsh`. Archives and
 AppImages are scanned after extraction.
 
-Download upstream's own completion file from releases or generate one.
-
-Install automatically via helper scripts:
+Install manually via helper scripts:
 
 ```bash
 scripts/install/completions.sh bash
@@ -251,38 +249,6 @@ scripts/install/completions.sh elvish
 ```powershell
 pwsh -File scripts/install/completions.ps1
 ```
-
-### Install
-
-#### Bash
-
-```bash
-mkdir -p ~/.local/share/bash-completion/completions
-cp upstream ~/.local/share/bash-completion/completions/
-```
-
-#### Fish
-
-```fish
-mkdir -p ~/.config/fish/completions
-cp upstream.fish ~/.config/fish/completions/
-```
-
-#### Zsh
-
-```zsh
-mkdir -p ~/.zfunc
-cp _upstream ~/.zfunc/
-```
-
-Add to `.zshrc` if needed:
-
-```zsh
-fpath=(~/.zfunc $fpath)
-autoload -Uz compinit && compinit
-```
-
----
 
 ## Architecture Detection
 
