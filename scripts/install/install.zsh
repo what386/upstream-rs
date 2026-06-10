@@ -9,7 +9,7 @@ NC='\033[0m' # No Color
 
 GITHUB_USER="what386"
 GITHUB_REPO="upstream-rs"
-BINARY_NAME="upstream-rs"
+BINARY_NAME="upstream"
 OS="apple-darwin"
 
 INSTALL_COMMANDS=(

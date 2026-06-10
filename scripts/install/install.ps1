@@ -12,7 +12,7 @@ $NC = "`e[0m" # No Color
 
 $GITHUB_USER = "what386"
 $GITHUB_REPO = "upstream-rs"
-$BINARY_NAME = "upstream-rs"
+$BINARY_NAME = "upstream"
 
 $INSTALL_COMMANDS = @(
     "hooks init",
