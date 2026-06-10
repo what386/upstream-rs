@@ -14,43 +14,8 @@ OS="unknown-linux-gnu"
 
 INSTALL_COMMANDS=(
     "hooks init"
-    "install upstream what386/upstream-rs -k binary"
+    "--yes install upstream what386/upstream-rs -k binary"
 )
-
-install_completion() {
-    local helper_url helper_script
-    helper_url="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/scripts/install/completions.sh"
-    helper_script="${TMP_DIR}/completions.sh"
-
-    echo -e "${YELLOW}Installing bash completion...${NC}"
-
-    if command -v curl &>/dev/null; then
-        if ! curl -fsSL "$helper_url" -o "$helper_script"; then
-            echo -e "${YELLOW}Warning: Failed to download completion installer from ${helper_url}${NC}"
-            return
-        fi
-    elif command -v wget &>/dev/null; then
-        if ! wget -q "$helper_url" -O "$helper_script"; then
-            echo -e "${YELLOW}Warning: Failed to download completion installer from ${helper_url}${NC}"
-            return
-        fi
-    else
-        echo -e "${YELLOW}Warning: Neither curl nor wget found; skipping completion install.${NC}"
-        return
-    fi
-
-    if ! chmod +x "$helper_script"; then
-        echo -e "${YELLOW}Warning: Failed to make completion installer executable${NC}"
-        return
-    fi
-
-    if ! "$helper_script" bash; then
-        echo -e "${YELLOW}Warning: Completion installer failed for bash${NC}"
-        return
-    fi
-
-    echo -e "${GREEN}Bash completion installed${NC}"
-}
 
 detect_arch() {
     case "$(uname -m)" in
@@ -93,15 +58,12 @@ main() {
         cmd="${INSTALL_COMMANDS[$i]}"
         echo -e "${YELLOW}Running command $((i + 1))/${#INSTALL_COMMANDS[@]}: ${NC}$cmd"
 
-        if ! $TMP_FILE $cmd; then
+        if ! "$TMP_FILE" $cmd; then
             echo -e "${RED}Error: Command failed: $cmd${NC}"
             rm -rf "$TMP_DIR"
             exit 1
         fi
     done
-
-    # Best-effort completion setup; do not fail installation if it cannot be configured.
-    install_completion
 
     # Cleanup
     rm -rf "$TMP_DIR"
