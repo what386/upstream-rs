@@ -14,43 +14,8 @@ OS="apple-darwin"
 
 INSTALL_COMMANDS=(
   "hooks init"
-  "install upstream what386/upstream-rs -k binary"
+  "--yes install upstream what386/upstream-rs -k binary"
 )
-
-install_completion() {
-  local helper_url helper_script
-  helper_url="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/scripts/install/completions.sh"
-  helper_script="${TMP_DIR}/completions.sh"
-
-  echo -e "${YELLOW}Installing zsh completion...${NC}"
-
-  if command -v curl &>/dev/null; then
-    if ! curl -fsSL "$helper_url" -o "$helper_script"; then
-      echo -e "${YELLOW}Warning: Failed to download completion installer from ${helper_url}${NC}"
-      return
-    fi
-  elif command -v wget &>/dev/null; then
-    if ! wget -q "$helper_url" -O "$helper_script"; then
-      echo -e "${YELLOW}Warning: Failed to download completion installer from ${helper_url}${NC}"
-      return
-    fi
-  else
-    echo -e "${YELLOW}Warning: Neither curl nor wget found; skipping completion install.${NC}"
-    return
-  fi
-
-  if ! chmod +x "$helper_script"; then
-    echo -e "${YELLOW}Warning: Failed to make completion installer executable${NC}"
-    return
-  fi
-
-  if ! "$helper_script" zsh; then
-    echo -e "${YELLOW}Warning: Completion installer failed for zsh${NC}"
-    return
-  fi
-
-  echo -e "${GREEN}Zsh completion installed${NC}"
-}
 
 detect_arch() {
   case "$(uname -m)" in
@@ -105,9 +70,6 @@ main() {
       exit 1
     fi
   done
-
-  # Best-effort completion setup; do not fail installation if it cannot be configured.
-  install_completion
 
   rm -rf "$TMP_DIR"
   echo -e "${GREEN}Installation complete!${NC}"

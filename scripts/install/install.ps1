@@ -15,8 +15,8 @@ $GITHUB_REPO = "upstream-rs"
 $BINARY_NAME = "upstream"
 
 $INSTALL_COMMANDS = @(
-    "hooks init",
-    "install upstream what386/upstream-rs -k win-exe"
+    @("hooks", "init"),
+    @("--yes", "install", "upstream", "what386/upstream-rs", "-k", "win-exe")
 )
 
 function Write-ColorOutput {
@@ -31,24 +31,6 @@ function Write-ColorOutput {
     else {
         Write-Host "${Color}${Message}${NC}"
     }
-}
-
-function Install-Completion {
-    $helperUrl = "https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/scripts/install/completions.ps1"
-    $helperFile = Join-Path $TMP_DIR "completions.ps1"
-
-    Write-ColorOutput "Installing PowerShell completion..." $YELLOW
-
-    try {
-        Invoke-WebRequest -Uri $helperUrl -OutFile $helperFile -UseBasicParsing
-        & $helperFile
-    }
-    catch {
-        Write-ColorOutput "Warning: Completion installer failed ($_) - continuing." $YELLOW
-        return
-    }
-
-    Write-ColorOutput "PowerShell completion installed." $GREEN
 }
 
 function Detect-Arch {
@@ -119,26 +101,17 @@ function Main {
 
         # Run installation commands
         for ($i = 0; $i -lt $INSTALL_COMMANDS.Count; $i++) {
-            $cmd = $INSTALL_COMMANDS[$i]
+            $cmd = [string[]]$INSTALL_COMMANDS[$i]
             Write-ColorOutput "Running command $($i + 1)/$($INSTALL_COMMANDS.Count): " $YELLOW -NoNewline
-            Write-Host $cmd
+            Write-Host ($cmd -join ' ')
 
-            $cmdArgs = $cmd -split ' ', 2
-            if ($cmdArgs.Count -eq 1) {
-                $process = Start-Process -FilePath $TMP_FILE -ArgumentList $cmdArgs[0] -Wait -NoNewWindow -PassThru
-            }
-            else {
-                $process = Start-Process -FilePath $TMP_FILE -ArgumentList $cmdArgs -Wait -NoNewWindow -PassThru
-            }
+            $process = Start-Process -FilePath $TMP_FILE -ArgumentList $cmd -Wait -NoNewWindow -PassThru
 
             if ($process.ExitCode -ne 0) {
-                Write-ColorOutput "Error: Command failed: $cmd" $RED
+                Write-ColorOutput "Error: Command failed: $($cmd -join ' ')" $RED
                 throw "Command execution failed"
             }
         }
-
-        # Best-effort completion setup; do not fail installation if it cannot be configured.
-        Install-Completion
 
         Write-ColorOutput "Installation complete!" $GREEN
     }
