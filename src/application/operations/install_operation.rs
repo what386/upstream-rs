@@ -6,6 +6,7 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         integration::{DesktopManager, IconManager},
+        packaging::PackageRemover,
         storage::package_storage::PackageStorage,
         trust::TrustedSignatureKeys,
     },
@@ -220,68 +221,36 @@ impl<'a> InstallOperation<'a> {
                 PackageProgressEvent::Phase(PackagePhase::CreatingDesktopEntry)
             );
 
-            #[cfg(target_os = "linux")]
-            let appimage_extractor =
-                AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
-
-            #[cfg(target_os = "linux")]
-            let icon_manager = IconManager::new(self.paths, &appimage_extractor);
-            #[cfg(not(target_os = "linux"))]
-            let icon_manager = IconManager::new(self.paths);
-
-            #[cfg(target_os = "linux")]
-            let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
-            #[cfg(not(target_os = "linux"))]
-            let desktop_manager = DesktopManager::new(self.paths);
-
-            let install_path = installed_package.install_path.clone().ok_or_else(|| {
-                anyhow!(
-                    "Package '{}' has no install path after installation",
-                    installed_package.name
-                )
-            })?;
-
-            let icon_path = icon_manager
-                .add_icon(
-                    &installed_package.name,
-                    &install_path,
-                    &installed_package.filetype,
-                    message_callback,
-                )
+            if let Err(err) = self
+                .add_desktop_entry(&mut installed_package, message_callback)
                 .await
-                .context(format!(
-                    "Failed to add icon for '{}'",
-                    installed_package.name
-                ))?;
-
-            installed_package.icon_path = icon_path;
-
-            let desktop_entry = DesktopEntry::from_package(&installed_package);
-
-            let _ = desktop_manager
-                .create_entry(
-                    &install_path,
-                    &installed_package.filetype,
-                    desktop_entry,
-                    message_callback,
-                )
-                .await
-                .context(format!(
-                    "Failed to create desktop entry for '{}'",
-                    installed_package.name
-                ))?;
+            {
+                return self
+                    .fail_after_partial_install(
+                        installed_package,
+                        err.context("Failed to create desktop integration"),
+                        message_callback,
+                    )
+                    .map(|_| ());
+            }
         }
 
         progress!(
             progress_callback,
             PackageProgressEvent::Phase(PackagePhase::SavingMetadata)
         );
-        self.package_storage
+        if let Err(err) = self
+            .package_storage
             .add_or_update_package(installed_package.clone())
             .context(format!(
                 "Failed to save package '{}' to storage",
                 installed_package.name
-            ))?;
+            ))
+        {
+            return self
+                .fail_after_partial_install(installed_package, err, message_callback)
+                .map(|_| ());
+        }
 
         Ok(())
     }
@@ -302,67 +271,135 @@ impl<'a> InstallOperation<'a> {
             .install_local_artifact(package, artifact_path, version, message_callback)
             .context("Failed to install local artifact")?;
 
-        if *add_entry {
-            #[cfg(target_os = "linux")]
-            let appimage_extractor =
-                AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
-
-            #[cfg(target_os = "linux")]
-            let icon_manager = IconManager::new(self.paths, &appimage_extractor);
-            #[cfg(not(target_os = "linux"))]
-            let icon_manager = IconManager::new(self.paths);
-
-            #[cfg(target_os = "linux")]
-            let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
-            #[cfg(not(target_os = "linux"))]
-            let desktop_manager = DesktopManager::new(self.paths);
-
-            let install_path = installed_package.install_path.clone().ok_or_else(|| {
-                anyhow!(
-                    "Package '{}' has no install path after installation",
-                    installed_package.name
-                )
-            })?;
-
-            let icon_path = icon_manager
-                .add_icon(
-                    &installed_package.name,
-                    &install_path,
-                    &installed_package.filetype,
-                    message_callback,
-                )
+        if *add_entry
+            && let Err(err) = self
+                .add_desktop_entry(&mut installed_package, message_callback)
                 .await
-                .context(format!(
-                    "Failed to add icon for '{}'",
-                    installed_package.name
-                ))?;
-
-            installed_package.icon_path = icon_path;
-
-            let desktop_entry = DesktopEntry::from_package(&installed_package);
-
-            let _ = desktop_manager
-                .create_entry(
-                    &install_path,
-                    &installed_package.filetype,
-                    desktop_entry,
-                    message_callback,
-                )
-                .await
-                .context(format!(
-                    "Failed to create desktop entry for '{}'",
-                    installed_package.name
-                ))?;
+        {
+            return self.fail_after_partial_install(
+                installed_package,
+                err.context("Failed to create desktop integration"),
+                message_callback,
+            );
         }
 
-        self.package_storage
+        if let Err(err) = self
+            .package_storage
             .add_or_update_package(installed_package.clone())
             .context(format!(
                 "Failed to save package '{}' to storage",
                 installed_package.name
-            ))?;
+            ))
+        {
+            return self.fail_after_partial_install(installed_package, err, message_callback);
+        }
 
         Ok(installed_package)
+    }
+
+    async fn add_desktop_entry<H>(
+        &self,
+        installed_package: &mut Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        #[cfg(target_os = "linux")]
+        let appimage_extractor =
+            AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
+
+        #[cfg(target_os = "linux")]
+        let icon_manager = IconManager::new(self.paths, &appimage_extractor);
+        #[cfg(not(target_os = "linux"))]
+        let icon_manager = IconManager::new(self.paths);
+
+        #[cfg(target_os = "linux")]
+        let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
+        #[cfg(not(target_os = "linux"))]
+        let desktop_manager = DesktopManager::new(self.paths);
+
+        let install_path = installed_package.install_path.clone().ok_or_else(|| {
+            anyhow!(
+                "Package '{}' has no install path after installation",
+                installed_package.name
+            )
+        })?;
+
+        let icon_path = icon_manager
+            .add_icon(
+                &installed_package.name,
+                &install_path,
+                &installed_package.filetype,
+                message_callback,
+            )
+            .await
+            .context(format!(
+                "Failed to add icon for '{}'",
+                installed_package.name
+            ))?;
+
+        installed_package.icon_path = icon_path;
+
+        let desktop_entry = DesktopEntry::from_package(installed_package);
+
+        desktop_manager
+            .create_entry(
+                &install_path,
+                &installed_package.filetype,
+                desktop_entry,
+                message_callback,
+            )
+            .await
+            .context(format!(
+                "Failed to create desktop entry for '{}'",
+                installed_package.name
+            ))?;
+
+        Ok(())
+    }
+
+    fn fail_after_partial_install<H>(
+        &self,
+        installed_package: Package,
+        err: anyhow::Error,
+        message_callback: &mut Option<H>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+    {
+        match self.cleanup_partial_install(&installed_package, message_callback) {
+            Ok(()) => Err(err.context(format!(
+                "Rolled back partial install for '{}'",
+                installed_package.name
+            ))),
+            Err(cleanup_err) => Err(anyhow!(
+                "{}. Additionally failed to roll back partial install for '{}': {}",
+                err,
+                installed_package.name,
+                cleanup_err
+            )),
+        }
+    }
+
+    fn cleanup_partial_install<H>(
+        &self,
+        installed_package: &Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        if installed_package.install_path.is_none() {
+            return Ok(());
+        }
+
+        PackageRemover::new(self.paths)
+            .remove_package_files(installed_package, message_callback)
+            .context(format!(
+                "Failed to clean up partial install for '{}'",
+                installed_package.name
+            ))
     }
 
     pub async fn preview_single_install(
@@ -581,6 +618,47 @@ mod tests {
             .expect_err("already-installed guard");
         assert!(err.to_string().contains("already installed"));
 
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn cleanup_partial_install_removes_installed_binary() {
+        let root = temp_root("cleanup-partial-install");
+        let paths = test_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
+        fs::create_dir_all(&paths.integration.symlinks_dir).expect("create symlinks dir");
+        fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
+            .expect("create metadata dir");
+        let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
+        let provider_manager = ProviderManager::new(None, None, None).expect("provider manager");
+        let op = InstallOperation::new(
+            &provider_manager,
+            &mut storage,
+            &paths,
+            crate::services::trust::TrustedSignatureKeys::default(),
+        )
+        .expect("operation");
+
+        let install_path = paths.install.binaries_dir.join("tool");
+        fs::write(&install_path, b"new").expect("write installed binary");
+        let mut package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_path = Some(install_path.clone());
+        package.exec_path = Some(install_path.clone());
+        let mut msg = Some(|_: &str| {});
+
+        op.cleanup_partial_install(&package, &mut msg)
+            .expect("cleanup partial install");
+
+        assert!(!install_path.exists());
         cleanup(&root).expect("cleanup");
     }
 }
