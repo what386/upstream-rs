@@ -138,7 +138,7 @@ impl TransactionTableLayout {
     pub fn upgrade_preview(package_width: usize) -> Self {
         Self {
             package_label: "Package".to_string(),
-            package_width: package_width.max("Package".len()).clamp(11, 44),
+            package_width: package_width.max("Package".len()).min(44),
             show_download: true,
             show_new_version: true,
             show_net_change: true,
@@ -433,6 +433,14 @@ mod tests {
             rendered_row.find("5.00 MiB").expect("download size") + "5.00 MiB".len()
         );
         assert_eq!(layout.divider_line(), "-".repeat(header.len()));
+    }
+
+    #[test]
+    fn live_upgrade_preview_uses_computed_package_width() {
+        let layout = TransactionTableLayout::upgrade_preview("stable/gh".len());
+
+        assert_eq!(layout.package_width, "stable/gh".len());
+        assert!(layout.header_line().starts_with("Package   Old Version"));
     }
 
     #[test]

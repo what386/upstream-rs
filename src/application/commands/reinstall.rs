@@ -108,6 +108,7 @@ pub async fn run(
     pb.enable_steady_tick(Duration::from_millis(120));
     pb.set_message("Reinstalling packages ...");
     let mut completion_lines = Vec::new();
+    let completion_subject_width = output::status_subject_width(names.iter().map(String::as_str));
 
     for name in &names {
         let package_name = name.clone();
@@ -123,10 +124,11 @@ pub async fn run(
         let package = match package_storage.get_package_by_name(name) {
             Some(pkg) => pkg.clone(),
             None => {
-                completion_lines.push(output::status_line_text(
+                completion_lines.push(output::status_line_text_with_width(
                     Status::Fail,
                     name,
                     "package is not installed",
+                    completion_subject_width,
                 ));
                 failed += 1;
                 continue;
@@ -146,16 +148,22 @@ pub async fn run(
         )
         .await
         {
-            completion_lines.push(output::status_line_text(
+            completion_lines.push(output::status_line_text_with_width(
                 Status::Fail,
                 name,
                 output::error_summary(&err),
+                completion_subject_width,
             ));
             failed += 1;
             continue;
         }
 
-        completion_lines.push(output::status_line_text(Status::Ok, name, "reinstalled"));
+        completion_lines.push(output::status_line_text_with_width(
+            Status::Ok,
+            name,
+            "reinstalled",
+            completion_subject_width,
+        ));
         reinstalled += 1;
     }
     pb.finish_and_clear();

@@ -56,6 +56,23 @@ fn build_ref_version(label: impl AsRef<str>, commit: Option<&str>) -> String {
     format!("{label}@{short}")
 }
 
+fn preview_package_source(package: &crate::models::upstream::Package) -> String {
+    package.channel.to_string().to_lowercase()
+}
+
+fn preview_package_label(package: &crate::models::upstream::Package) -> String {
+    format!("{}/{}", preview_package_source(package), package.name)
+}
+
+fn preview_package_width(packages: &[crate::models::upstream::Package]) -> usize {
+    packages
+        .iter()
+        .map(|package| preview_package_label(package).chars().count())
+        .chain(std::iter::once("Package".len()))
+        .max()
+        .unwrap_or("Package".len())
+}
+
 pub struct UpgradeOperation<'a> {
     upgrader: PackageUpgrader<'a>,
     checker: PackageChecker<'a>,
@@ -439,19 +456,7 @@ impl<'a> UpgradeOperation<'a> {
                 .collect::<Result<Vec<_>>>()?,
             None => self.package_storage.get_all_packages().to_vec(),
         };
-        let package_width = packages
-            .iter()
-            .map(|package| {
-                format!(
-                    "{}/{}",
-                    package.channel.to_string().to_lowercase(),
-                    package.name
-                )
-                .chars()
-                .count()
-            })
-            .max()
-            .unwrap_or("Package".len());
+        let package_width = preview_package_width(&packages);
         event_callback(UpgradePreviewEvent::Started { package_width });
 
         let package_count = packages.len();
@@ -531,7 +536,7 @@ impl<'a> UpgradeOperation<'a> {
 
             return Some(UpgradePreviewRow {
                 name: package.name.clone(),
-                source: package.channel.to_string().to_lowercase(),
+                source: preview_package_source(&package),
                 old_version: build_ref_version(
                     package.version.to_string(),
                     package.build_commit.as_deref(),
@@ -578,7 +583,7 @@ impl<'a> UpgradeOperation<'a> {
         let source_build = package.install_type == crate::models::upstream::InstallType::Build;
         Some(UpgradePreviewRow {
             name: package.name.clone(),
-            source: package.channel.to_string().to_lowercase(),
+            source: preview_package_source(&package),
             old_version: package.version.to_string(),
             new_version: release.version.to_string(),
             disk_impact: if source_build {
@@ -674,6 +679,8 @@ impl<'a> UpgradeOperation<'a> {
         let upgrader = &self.upgrader;
         let progress_state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
         let mut last_progress_render: BTreeMap<String, String> = BTreeMap::new();
+        let completion_subject_width =
+            output::status_subject_width(names.iter().map(String::as_str));
 
         let packages: Vec<_> = names
             .iter()
@@ -740,7 +747,7 @@ impl<'a> UpgradeOperation<'a> {
                     message!(
                         message_callback,
                         "{}",
-                        output::status_line_text(
+                        output::status_line_text_with_width(
                             Status::Ok,
                             &name,
                             format!(
@@ -749,7 +756,8 @@ impl<'a> UpgradeOperation<'a> {
                                 "u",
                                 provider.to_string(),
                                 transfer
-                            )
+                            ),
+                            completion_subject_width
                         )
                     );
                     upgraded += 1;
@@ -759,7 +767,7 @@ impl<'a> UpgradeOperation<'a> {
                     message!(
                         message_callback,
                         "{}",
-                        output::status_line_text(
+                        output::status_line_text_with_width(
                             Status::Fail,
                             &name,
                             format!(
@@ -768,7 +776,8 @@ impl<'a> UpgradeOperation<'a> {
                                 "!",
                                 provider.to_string(),
                                 output::error_summary_with_limit(&e, 96)
-                            )
+                            ),
+                            completion_subject_width
                         )
                     );
                     failures += 1;
@@ -844,6 +853,8 @@ impl<'a> UpgradeOperation<'a> {
         let mut updated_packages = Vec::new();
         let progress_state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
         let mut last_progress_render: BTreeMap<String, String> = BTreeMap::new();
+        let completion_subject_width =
+            output::status_subject_width(rows.iter().map(|row| row.name.as_str()));
         let mut pending = stream::iter(packages.into_iter().map(|(package, row)| {
             let state_ref = Arc::clone(&progress_state);
             async move {
@@ -905,10 +916,11 @@ impl<'a> UpgradeOperation<'a> {
                             message!(
                                 message_callback,
                                 "{}",
-                                output::status_line_text(
+                                output::status_line_text_with_width(
                                     Status::Ok,
                                     &name,
-                                    format!("upgraded to {:<13} {}", new_version, transfer)
+                                    format!("upgraded to {new_version} {transfer}"),
+                                    completion_subject_width
                                 )
                             );
                         }
@@ -917,10 +929,11 @@ impl<'a> UpgradeOperation<'a> {
                             message!(
                                 message_callback,
                                 "{}",
-                                output::status_line_text(
+                                output::status_line_text_with_width(
                                     Status::Fail,
                                     &name,
-                                    output::error_summary(&err)
+                                    output::error_summary(&err),
+                                    completion_subject_width
                                 )
                             );
                         }
@@ -1057,13 +1070,27 @@ impl<'a> UpgradeOperation<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ProgressState, UpgradeOperation};
-    use crate::models::common::enums::{Channel, Provider};
+    use super::{ProgressState, UpgradeOperation, preview_package_width};
+    use crate::models::common::enums::{Channel, Filetype, Provider};
+    use crate::models::upstream::Package;
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
     use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::rc::Rc;
     use std::sync::{Arc, Mutex};
+
+    fn test_package(name: &str, channel: Channel) -> Package {
+        Package::with_defaults(
+            name.to_string(),
+            format!("owner/{name}"),
+            Filetype::Archive,
+            None,
+            None,
+            channel,
+            Provider::Github,
+            None,
+        )
+    }
 
     #[test]
     fn truncate_error_adds_ellipsis_when_limit_exceeded() {
@@ -1090,6 +1117,19 @@ mod tests {
         assert_eq!(
             PackagePhase::InstallingPackage.label(),
             "Installing package ..."
+        );
+    }
+
+    #[test]
+    fn preview_package_width_uses_source_prefixed_package_labels() {
+        let packages = vec![
+            test_package("gh", Channel::Stable),
+            test_package("longer-package", Channel::Nightly),
+        ];
+
+        assert_eq!(
+            preview_package_width(&packages),
+            "nightly/longer-package".len()
         );
     }
 
