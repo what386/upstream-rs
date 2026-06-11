@@ -11,9 +11,6 @@
 - [ ] mutlithreaded downloading for assets?
       @created 2026-06-09 17:54
 
-- [ ] Fix README command and installer script drift #docs #cli #installer
-      @created 2026-06-11 01:15
-
 
 ## Completed
 
@@ -32,3 +29,8 @@
 - [x] Make desktop restoration failures during upgrade roll back consistently (high) #bug #upgrade #desktop #rollback
       @created 2026-06-11 01:14
       @completed 2026-06-11 01:15
+
+- [x] Fix README command and installer script drift #docs #cli #installer
+      @created 2026-06-11 01:15
+      @completed 2026-06-11 01:29
+
