@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::{output, output::pager};
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, bail};
 
 use super::profiles::run_command_with_line_callback;
 
@@ -61,14 +61,7 @@ fn is_ps1(path: &Path) -> bool {
 
 fn validate_script(path: &Path) -> Result<()> {
     if is_ps1(path) {
-        #[cfg(windows)]
         return Ok(());
-
-        #[cfg(not(windows))]
-        bail!(
-            "Build script '{}' is a PowerShell script, which is only supported on Windows",
-            path.display()
-        );
     }
 
     let content = std::fs::read(path)
@@ -85,10 +78,7 @@ fn validate_script(path: &Path) -> Result<()> {
 
 fn command_preview(path: &Path) -> String {
     if is_ps1(path) {
-        return format!(
-            "powershell -ExecutionPolicy Bypass -File {}",
-            path.display()
-        );
+        return format!("pwsh -File {}", path.display());
     }
 
     path.display().to_string()
@@ -96,24 +86,9 @@ fn command_preview(path: &Path) -> String {
 
 fn command_for(path: &Path) -> Result<Command> {
     if is_ps1(path) {
-        #[cfg(windows)]
-        {
-            let mut command = Command::new("powershell");
-            command
-                .arg("-ExecutionPolicy")
-                .arg("Bypass")
-                .arg("-File")
-                .arg(path);
-            return Ok(command);
-        }
-
-        #[cfg(not(windows))]
-        {
-            return Err(anyhow!(
-                "Build script '{}' is a PowerShell script, which is only supported on Windows",
-                path.display()
-            ));
-        }
+        let mut command = Command::new("pwsh");
+        command.arg("-File").arg(path);
+        return Ok(command);
     }
 
     Ok(Command::new(path))
@@ -190,7 +165,9 @@ pub fn run_build_script(
 
 #[cfg(test)]
 mod tests {
-    use super::{BuildScriptAction, is_ps1, script_for, validate_script};
+    use super::{
+        BuildScriptAction, command_for, command_preview, is_ps1, script_for, validate_script,
+    };
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, path::PathBuf};
 
@@ -254,6 +231,32 @@ mod tests {
         let path = script_for(BuildScriptAction::Install, &root).expect("detect script");
         assert_eq!(path, root.join("install.ps1"));
         assert!(is_ps1(&path));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn ps1_script_uses_pwsh_on_all_platforms() {
+        let root = temp_root("ps1-command");
+        fs::create_dir_all(&root).expect("create root");
+        let script = root.join("install.ps1");
+        fs::write(&script, "Write-Output install\n").expect("write ps1");
+
+        validate_script(&script).expect("ps1 script is valid");
+        assert_eq!(
+            command_preview(&script),
+            format!("pwsh -File {}", script.display())
+        );
+
+        let command = command_for(&script).expect("build command");
+        assert_eq!(command.get_program().to_string_lossy(), "pwsh");
+        assert_eq!(
+            command
+                .get_args()
+                .map(|arg| arg.to_string_lossy().to_string())
+                .collect::<Vec<_>>(),
+            vec!["-File".to_string(), script.to_string_lossy().to_string()]
+        );
+
         let _ = fs::remove_dir_all(&root);
     }
 
