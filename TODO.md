@@ -17,10 +17,15 @@
 - [ ] Make desktop restoration failures during upgrade roll back consistently (high) #bug #upgrade #desktop #rollback
       @created 2026-06-11 01:14
 
+- [ ] Remove build --build-output override #bug #build #cli
+      @created 2026-06-11 01:15
+
+- [ ] Fix README command and installer script drift #docs #cli #installer
+      @created 2026-06-11 01:15
+
 
 ## Completed
 
 - [x] remove secret redaction in config list
       @created 2026-06-11 00:47
       @completed 2026-06-11 00:49
-
