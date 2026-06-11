@@ -14,6 +14,9 @@
 - [ ] Make desktop-entry install failures roll back installed files and links (high) #bug #install #desktop #transactions
       @created 2026-06-11 01:14
 
+- [ ] Make desktop restoration failures during upgrade roll back consistently (high) #bug #upgrade #desktop #rollback
+      @created 2026-06-11 01:14
+
 
 ## Completed
 
