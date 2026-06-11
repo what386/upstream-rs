@@ -73,7 +73,7 @@ pub fn run_get(get_keys: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-pub fn run_list(show_secrets: bool) -> Result<()> {
+pub fn run_list() -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let config_storage = ConfigStorage::new(&paths.config.config_file)?;
 
@@ -90,20 +90,12 @@ pub fn run_list(show_secrets: bool) -> Result<()> {
 
     for key in keys {
         if let Some(value) = flattened.get(key) {
-            let display_value = format_config_value(key, value, show_secrets);
-            config_output.push_str(&format!("  {} = {}\n", key, display_value));
+            config_output.push_str(&format!("  {} = {}\n", key, value));
         }
     }
 
     pager::page_text(Some("Current configuration"), &config_output)?;
     Ok(())
-}
-
-fn format_config_value(key: &str, value: &str, show_secrets: bool) -> String {
-    if !show_secrets && output::is_sensitive_key(key) {
-        return output::redact_secret(value);
-    }
-    value.to_string()
 }
 
 pub fn run_reset() -> Result<()> {
@@ -156,22 +148,4 @@ pub fn run_edit() -> Result<()> {
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::format_config_value;
-
-    #[test]
-    fn config_list_redacts_sensitive_values_by_default() {
-        assert_eq!(
-            format_config_value("github.api_token", "ghp_abcdefghijklmnopqrstuvwxyz", false),
-            "ghp_...wxyz"
-        );
-        assert_eq!(
-            format_config_value("github.api_token", "ghp_abcdefghijklmnopqrstuvwxyz", true),
-            "ghp_abcdefghijklmnopqrstuvwxyz"
-        );
-        assert_eq!(format_config_value("github.enabled", "true", false), "true");
-    }
 }

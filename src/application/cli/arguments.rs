@@ -483,7 +483,7 @@ impl Commands {
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
             Commands::Package { .. } => true,
             Commands::Config { action } => {
-                !matches!(action, ConfigAction::Get { .. } | ConfigAction::List { .. })
+                !matches!(action, ConfigAction::Get { .. } | ConfigAction::List)
             }
             Commands::Install { .. }
             | Commands::Build { .. }
@@ -562,11 +562,7 @@ pub enum ConfigAction {
     },
 
     /// List all configuration keys
-    List {
-        /// Print sensitive values instead of redacting them
-        #[arg(long, default_value_t = false)]
-        show_secrets: bool,
-    },
+    List,
 
     /// Open configuration file in your default editor
     Edit,
