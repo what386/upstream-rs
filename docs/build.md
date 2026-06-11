@@ -62,7 +62,7 @@ upgrade.ps1
 
 If no upgrade script exists, upgrade flows fall back to install scripts. Scripts are shown for review and require confirmation before execution unless `--yes` is used.
 
-Unix scripts must include a shebang. PowerShell scripts are supported on Windows.
+Unix shell scripts must include a shebang. PowerShell scripts run through `pwsh` when selected.
 
 ## Installation After Build
 
