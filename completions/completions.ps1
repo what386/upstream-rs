@@ -80,7 +80,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Update channel to track')
             [CompletionResult]::new('--channel', '--channel', [CompletionResultType]::ParameterName, 'Update channel to track')
             [CompletionResult]::new('--build-profile', '--build-profile', [CompletionResultType]::ParameterName, 'Build profile used to compile/install from source (auto-detected when omitted)')
-            [CompletionResult]::new('--build-output', '--build-output', [CompletionResultType]::ParameterName, 'Optional explicit output path for the compiled executable')
             [CompletionResult]::new('-d', '-d', [CompletionResultType]::ParameterName, 'Whether or not to create a .desktop entry for GUI applications')
             [CompletionResult]::new('--desktop', '--desktop', [CompletionResultType]::ParameterName, 'Whether or not to create a .desktop entry for GUI applications')
             [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview build resolution without compiling or writing files')
@@ -201,7 +200,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;config;list' {
-            [CompletionResult]::new('--show-secrets', '--show-secrets', [CompletionResultType]::ParameterName, 'Print sensitive values instead of redacting them')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
