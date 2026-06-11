@@ -146,7 +146,11 @@ pub async fn run(
         )
         .await
         {
-            completion_lines.push(output::status_line_text(Status::Fail, name, err));
+            completion_lines.push(output::status_line_text(
+                Status::Fail,
+                name,
+                output::error_summary(&err),
+            ));
             failed += 1;
             continue;
         }

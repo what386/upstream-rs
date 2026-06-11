@@ -1,5 +1,5 @@
 use console::{StyledObject, style};
-use std::fmt;
+use std::{collections::HashSet, fmt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
@@ -39,6 +39,59 @@ pub fn summary_line(status: Status, detail: impl fmt::Display) {
     println!("{} {}", status_cell(status), detail);
 }
 
+const ERROR_SUMMARY_MAX_CHARS: usize = 160;
+
+pub fn error_summary(err: &anyhow::Error) -> String {
+    error_summary_with_limit(err, ERROR_SUMMARY_MAX_CHARS)
+}
+
+pub(crate) fn error_summary_with_limit(err: &anyhow::Error, max: usize) -> String {
+    let mut seen = HashSet::new();
+    let mut parts = Vec::new();
+    for message in err.chain().map(|cause| cause.to_string()) {
+        if seen.insert(message.clone()) {
+            parts.push(message);
+        }
+    }
+
+    let Some(root) = parts.last() else {
+        return truncate_for_error(&err.to_string(), max);
+    };
+    let Some(parent) = parts.iter().rev().nth(1) else {
+        return truncate_for_error(root, max);
+    };
+
+    let value = format!("{parent}: {root}");
+    if value.chars().count() <= max {
+        return value;
+    }
+
+    let root_len = root.chars().count();
+    if root_len.saturating_add(2) >= max {
+        return truncate_for_error(root, max);
+    }
+
+    let parent_max = max - root_len - 2;
+    format!("{}: {}", truncate_for_error(parent, parent_max), root)
+}
+
+fn truncate_for_error(value: &str, max: usize) -> String {
+    let char_count = value.chars().count();
+    if char_count <= max {
+        return value.to_string();
+    }
+    if max <= 3 {
+        return ".".repeat(max);
+    }
+
+    let mut out = String::new();
+    for ch in value.chars().take(max - 3) {
+        out.push(ch);
+    }
+    out.push_str("...");
+    out
+}
+
 fn status_label_text(status: Status) -> &'static str {
     match status {
         Status::Ok => "[ok]",
@@ -56,5 +109,62 @@ fn style_status<T: fmt::Display>(text: T, status: Status) -> StyledObject<T> {
         Status::Fail => style(text).red(),
         Status::Plan => style(text).yellow(),
         Status::Skip => style(text).dim(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::error_summary;
+
+    #[test]
+    fn error_summary_returns_single_layer_error() {
+        let err = anyhow::anyhow!("plain failure");
+
+        assert_eq!(error_summary(&err), "plain failure");
+    }
+
+    #[test]
+    fn error_summary_returns_parent_and_root_cause() {
+        let err = anyhow::anyhow!("os error 5")
+            .context("file does not exist")
+            .context("Failed to install archive");
+
+        assert_eq!(error_summary(&err), "file does not exist: os error 5");
+    }
+
+    #[test]
+    fn error_summary_omits_outer_wrappers() {
+        let err = anyhow::anyhow!("Access is denied. (os error 5)")
+            .context("Failed to move extracted directory")
+            .context("Failed to install archive")
+            .context("Failed to perform installation for 'just'");
+
+        assert_eq!(
+            error_summary(&err),
+            "Failed to move extracted directory: Access is denied. (os error 5)"
+        );
+    }
+
+    #[test]
+    fn error_summary_truncates_parent_before_root() {
+        let err = anyhow::anyhow!("Access is denied. (os error 5)")
+            .context("Failed to move extracted directory from a very long source path")
+            .context("Failed to install archive");
+
+        let formatted = super::error_summary_with_limit(&err, 52);
+
+        assert!(formatted.ends_with(": Access is denied. (os error 5)"));
+        assert!(formatted.starts_with("Failed to move"));
+        assert!(formatted.contains("...: Access is denied"));
+        assert!(formatted.chars().count() <= 52);
+    }
+
+    #[test]
+    fn error_summary_truncates_root_when_root_is_too_long() {
+        let err = anyhow::anyhow!("this root cause is too long to fit").context("context");
+
+        let formatted = super::error_summary_with_limit(&err, 12);
+
+        assert_eq!(formatted, "this root...");
     }
 }

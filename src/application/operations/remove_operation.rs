@@ -113,7 +113,11 @@ impl<'a> RemoveOperation<'a> {
                     message!(
                         message_callback,
                         "{}",
-                        output::status_line_text(Status::Fail, package_name, e)
+                        output::status_line_text(
+                            Status::Fail,
+                            package_name,
+                            output::error_summary(&e)
+                        )
                     );
                     failures += 1;
                 }
@@ -156,7 +160,11 @@ impl<'a> RemoveOperation<'a> {
                     message!(
                         message_callback,
                         "{}",
-                        output::status_line_text(Status::Fail, package_name, err)
+                        output::status_line_text(
+                            Status::Fail,
+                            package_name,
+                            output::error_summary(&err)
+                        )
                     );
                     failures += 1;
                 }
