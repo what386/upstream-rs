@@ -35,33 +35,6 @@ fn format_transfer(downloaded: u64, total: u64) -> String {
     }
 }
 
-fn format_error_chain(err: &anyhow::Error, max: usize) -> String {
-    let mut parts = err
-        .chain()
-        .map(|cause| cause.to_string())
-        .collect::<Vec<_>>();
-    if parts.len() > 1
-        && parts
-            .first()
-            .is_some_and(|part| part.starts_with("Failed to perform installation for "))
-    {
-        parts.remove(0);
-    }
-    parts.dedup();
-
-    let value = parts.join(": ");
-    if value.chars().count() <= max {
-        return value;
-    }
-
-    let mut out = String::new();
-    for ch in value.chars().take(max.saturating_sub(3)) {
-        out.push(ch);
-    }
-    out.push_str("...");
-    out
-}
-
 fn render_install_progress_message(name: &str, event: PackageProgressEvent) -> String {
     format!(
         "Installing {name}\n{}",
@@ -227,11 +200,7 @@ pub async fn run(
         Err(err) => {
             println!(
                 "{}",
-                output::status_line_text(
-                    Status::Fail,
-                    &install_name,
-                    format_error_chain(&err, 160)
-                )
+                output::status_line_text(Status::Fail, &install_name, output::error_summary(&err))
             );
             println!(
                 "{}",
@@ -375,7 +344,7 @@ fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_error_chain, render_install_progress_message, render_install_progress_row};
+    use super::{render_install_progress_message, render_install_progress_row};
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
 
     #[test]
@@ -415,18 +384,5 @@ mod tests {
             ),
             "Installing pnpm\n pnpm                         Installing package ..."
         );
-    }
-
-    #[test]
-    fn install_error_chain_removes_outer_install_wrapper() {
-        let err = anyhow::anyhow!("signature key missing")
-            .context("Failed trust verification")
-            .context("Failed to perform installation for 'pnpm'");
-
-        let formatted = format_error_chain(&err, 160);
-
-        assert!(!formatted.contains("Failed to perform installation for 'pnpm'"));
-        assert!(formatted.contains("Failed trust verification"));
-        assert!(formatted.contains("signature key missing"));
     }
 }

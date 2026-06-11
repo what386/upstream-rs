@@ -204,7 +204,11 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
             }
             Err(err) => {
                 if let Some(cb) = message_callback.as_mut() {
-                    cb(&output::status_line_text(Status::Fail, &names[0], err));
+                    cb(&output::status_line_text(
+                        Status::Fail,
+                        &names[0],
+                        output::error_summary(&err),
+                    ));
                 }
                 overall_pb.finish_and_clear();
                 if let Ok(rows) = persistent_completion_rows.lock() {
@@ -273,7 +277,7 @@ fn run_dry_run(
                 }
                 Err(err) => {
                     failed += 1;
-                    output::status_line(Status::Fail, name, err);
+                    output::status_line(Status::Fail, name, output::error_summary(&err));
                 }
             }
         }

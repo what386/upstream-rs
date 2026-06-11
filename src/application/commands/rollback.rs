@@ -205,7 +205,11 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
                 restored += 1;
             }
             Err(err) => {
-                completion_lines.push(output::status_line_text(Status::Fail, name, err));
+                completion_lines.push(output::status_line_text(
+                    Status::Fail,
+                    name,
+                    output::error_summary(&err),
+                ));
                 failed += 1;
             }
         }

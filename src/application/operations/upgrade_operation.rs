@@ -242,22 +242,6 @@ impl<'a> UpgradeOperation<'a> {
         out
     }
 
-    fn format_error_chain(err: &anyhow::Error, max: usize) -> String {
-        let mut parts = err
-            .chain()
-            .map(|cause| cause.to_string())
-            .collect::<Vec<_>>();
-        if parts.len() > 1
-            && parts
-                .first()
-                .is_some_and(|part| part.starts_with("Failed to upgrade package "))
-        {
-            parts.remove(0);
-        }
-        parts.dedup();
-        Self::truncate_error(&parts.join(": "), max)
-    }
-
     fn format_transfer(downloaded: u64, total: u64) -> String {
         if total > 0 {
             format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
@@ -783,7 +767,7 @@ impl<'a> UpgradeOperation<'a> {
                                 channel.to_string().to_lowercase(),
                                 "!",
                                 provider.to_string(),
-                                Self::format_error_chain(&e, 96)
+                                output::error_summary_with_limit(&e, 96)
                             )
                         )
                     );
@@ -936,7 +920,7 @@ impl<'a> UpgradeOperation<'a> {
                                 output::status_line_text(
                                     Status::Fail,
                                     &name,
-                                    Self::format_error_chain(&err, 160)
+                                    output::error_summary(&err)
                                 )
                             );
                         }
@@ -1087,28 +1071,6 @@ mod tests {
         let truncated = UpgradeOperation::truncate_error(input, 12);
         assert!(truncated.ends_with("..."));
         assert!(truncated.chars().count() <= 12);
-    }
-
-    #[test]
-    fn format_error_chain_includes_underlying_cause() {
-        let err = anyhow::anyhow!("download request failed")
-            .context("Failed to download asset")
-            .context("Failed to upgrade package 'pnpm'");
-
-        let formatted = UpgradeOperation::format_error_chain(&err, 160);
-
-        assert!(!formatted.contains("Failed to upgrade package 'pnpm'"));
-        assert!(formatted.contains("Failed to download asset"));
-        assert!(formatted.contains("download request failed"));
-    }
-
-    #[test]
-    fn format_error_chain_keeps_wrapper_when_it_is_the_only_error() {
-        let err = anyhow::anyhow!("Failed to upgrade package 'pnpm'");
-
-        let formatted = UpgradeOperation::format_error_chain(&err, 160);
-
-        assert_eq!(formatted, "Failed to upgrade package 'pnpm'");
     }
 
     #[test]
