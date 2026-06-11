@@ -34,7 +34,6 @@ pub struct BuildCommandInput {
     pub channel: Channel,
     pub desktop: bool,
     pub build_profile: Option<BuildProfile>,
-    pub build_output: Option<String>,
     pub dry_run: bool,
 }
 
@@ -179,11 +178,6 @@ impl<'a> BuildOperation<'a> {
                 Some(profile) => output::kv("Profile", format!("{:?}", profile)),
                 None => output::kv("Profile", "auto-detect at build time"),
             }
-            if let Some(path) = input.build_output.as_deref() {
-                output::kv("Build Output", path);
-            } else {
-                output::kv("Build Output", "none");
-            }
             output::kv("Desktop", if input.desktop { "yes" } else { "no" });
             output::action_note("resolve only (no compile, no install, no metadata changes)");
             return Ok(());
@@ -223,7 +217,6 @@ impl<'a> BuildOperation<'a> {
                     version_tag: input.tag,
                     branch: input.branch,
                     requested_profile: input.build_profile,
-                    build_output: input.build_output.map(std::path::PathBuf::from),
                     script_action: BuildScriptAction::Install,
                 },
                 input.channel.clone(),

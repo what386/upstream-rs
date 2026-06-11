@@ -423,7 +423,6 @@ impl<'a> PackageUpgrader<'a> {
                             version_tag,
                             branch,
                             requested_profile: None,
-                            build_output: None,
                             script_action: BuildScriptAction::Upgrade,
                         },
                         package.channel.clone(),

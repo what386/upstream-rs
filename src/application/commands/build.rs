@@ -19,7 +19,6 @@ pub async fn run(
     channel: Channel,
     desktop: bool,
     build_profile: Option<CliBuildProfile>,
-    build_output: Option<String>,
     dry_run: bool,
 ) -> Result<()> {
     let paths = UpstreamPaths::new()?;
@@ -57,7 +56,6 @@ pub async fn run(
                 CliBuildProfile::Zig => BuildProfile::Zig,
                 CliBuildProfile::Cmake => BuildProfile::Cmake,
             }),
-            build_output,
             dry_run,
         })
         .await

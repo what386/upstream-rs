@@ -66,7 +66,6 @@ impl Cli {
                 channel,
                 desktop,
                 build_profile,
-                build_output,
                 dry_run,
             } => {
                 commands::build::run(
@@ -79,7 +78,6 @@ impl Cli {
                     channel,
                     desktop,
                     build_profile,
-                    build_output,
                     dry_run,
                 )
                 .await

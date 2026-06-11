@@ -51,7 +51,6 @@ impl BuildProfileHandler for DotnetProfile {
         &self,
         workspace: &Path,
         package_name: &str,
-        output_override: Option<&Path>,
         line_callback: &mut Option<&mut dyn FnMut(&str)>,
     ) -> Result<PathBuf> {
         let project_dir = Self::find_project_dir(workspace).ok_or_else(|| {
@@ -84,20 +83,11 @@ impl BuildProfileHandler for DotnetProfile {
             bail!("Dotnet publish failed for '{}'", package_name);
         }
 
-        let candidate = if let Some(path) = output_override {
-            if path.is_absolute() {
-                path.to_path_buf()
-            } else {
-                project_dir.join(path)
-            }
-        } else {
-            publish_dir.join(Self::binary_name(package_name))
-        };
+        let candidate = publish_dir.join(Self::binary_name(package_name));
 
         if !candidate.exists() {
             return Err(anyhow!(
-                "Dotnet publish succeeded but artifact was not found at '{}'. \
-                 Use --build-output to provide a custom path.",
+                "Dotnet publish succeeded but artifact was not found at '{}'",
                 candidate.display()
             ));
         }

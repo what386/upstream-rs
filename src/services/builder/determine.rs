@@ -74,7 +74,6 @@ mod tests {
             &self,
             _workspace: &Path,
             _package_name: &str,
-            _output_override: Option<&Path>,
             _line_callback: &mut Option<&mut dyn FnMut(&str)>,
         ) -> anyhow::Result<PathBuf> {
             unreachable!("run_build is not used in determine tests")

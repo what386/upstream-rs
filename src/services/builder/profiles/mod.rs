@@ -34,7 +34,6 @@ pub trait BuildProfileHandler {
         &self,
         workspace: &Path,
         package_name: &str,
-        output_override: Option<&Path>,
         line_callback: &mut Option<&mut dyn FnMut(&str)>,
     ) -> Result<PathBuf>;
 }

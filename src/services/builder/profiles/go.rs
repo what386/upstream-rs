@@ -44,7 +44,6 @@ impl BuildProfileHandler for GoProfile {
         &self,
         workspace: &Path,
         package_name: &str,
-        output_override: Option<&Path>,
         line_callback: &mut Option<&mut dyn FnMut(&str)>,
     ) -> Result<PathBuf> {
         let project_dir = Self::find_project_dir(workspace).ok_or_else(|| {
@@ -54,17 +53,9 @@ impl BuildProfileHandler for GoProfile {
             )
         })?;
 
-        let artifact = if let Some(path) = output_override {
-            if path.is_absolute() {
-                path.to_path_buf()
-            } else {
-                project_dir.join(path)
-            }
-        } else {
-            project_dir
-                .join(".upstream-build")
-                .join(Self::binary_name(package_name))
-        };
+        let artifact = project_dir
+            .join(".upstream-build")
+            .join(Self::binary_name(package_name));
 
         if let Some(parent) = artifact.parent() {
             std::fs::create_dir_all(parent).context(format!(
@@ -116,8 +107,7 @@ impl BuildProfileHandler for GoProfile {
 
         if !artifact.exists() {
             return Err(anyhow!(
-                "Go build succeeded but artifact was not found at '{}'. \
-                 Use --build-output to provide a custom path.",
+                "Go build succeeded but artifact was not found at '{}'",
                 artifact.display()
             ));
         }
