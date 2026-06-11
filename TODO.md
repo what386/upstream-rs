@@ -11,9 +11,6 @@
 - [ ] mutlithreaded downloading for assets?
       @created 2026-06-09 17:54
 
-- [ ] verbose option that prints entire error trace
-      @created 2026-06-11 17:37
-
 
 ## Completed
 
