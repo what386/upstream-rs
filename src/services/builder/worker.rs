@@ -64,7 +64,6 @@ impl<'a> BuildWorker<'a> {
         let (build_tx, mut build_rx) = tokio::sync::mpsc::unbounded_channel();
         let workspace_path = source.workspace_path.clone();
         let package_name = request.name.clone();
-        let output_override = request.build_output.clone();
         let mut build_handle = tokio::task::spawn_blocking(move || {
             let handlers = handlers();
             let selected = handlers
@@ -76,12 +75,7 @@ impl<'a> BuildWorker<'a> {
             };
             let mut build_line_callback: Option<&mut dyn FnMut(&str)> = Some(&mut sender_callback);
 
-            selected.run_build(
-                &workspace_path,
-                &package_name,
-                output_override.as_deref(),
-                &mut build_line_callback,
-            )
+            selected.run_build(&workspace_path, &package_name, &mut build_line_callback)
         });
 
         let artifact = loop {

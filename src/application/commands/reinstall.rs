@@ -530,7 +530,6 @@ where
                             },
                             branch: reinstall_package.build_branch.clone(),
                             requested_profile: None,
-                            build_output: None,
                             script_action: BuildScriptAction::Upgrade,
                         },
                         reinstall_package.channel.clone(),

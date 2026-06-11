@@ -111,8 +111,7 @@ pub enum Commands {
         upstream build rg BurntSushi/ripgrep\n  \
         upstream build rg BurntSushi/ripgrep --branch main\n  \
         upstream build rg BurntSushi/ripgrep --build-profile rust\n  \
-        upstream build app owner/repo --build-profile dotnet --tag v1.2.3\n  \
-        upstream build tool owner/repo --build-profile rust --build-output target/release/tool")]
+        upstream build app owner/repo --build-profile dotnet --tag v1.2.3")]
     Build {
         /// Name to register the application under
         name: String,
@@ -147,10 +146,6 @@ pub enum Commands {
         /// Build profile used to compile/install from source (auto-detected when omitted)
         #[arg(long, value_enum)]
         build_profile: Option<BuildProfile>,
-
-        /// Optional explicit output path for the compiled executable
-        #[arg(long)]
-        build_output: Option<String>,
 
         /// Preview build resolution without compiling or writing files
         #[arg(long, default_value_t = false)]

@@ -29,7 +29,6 @@ pub struct BuildRequest {
     pub version_tag: Option<String>,
     pub branch: Option<String>,
     pub requested_profile: Option<BuildProfile>,
-    pub build_output: Option<PathBuf>,
     pub script_action: scripts::BuildScriptAction,
 }
 
