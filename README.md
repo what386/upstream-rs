@@ -35,7 +35,7 @@ iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/ins
 ### Cargo
 
 ```bash
-cargo install upstream
+cargo install upstream-rs
 ```
 
 Cargo installs do not support `upstream upgrade` self-updates.
@@ -225,7 +225,15 @@ Use `-y` or `--yes` to accept confirmation prompts automatically.
 
 Detailed documentation is available in [`docs/`](docs/):
 
-{{ ADD DOCS HERE!!! }}
+* [Documentation index](docs/index.md)
+* [Installation and paths](docs/installation.md)
+* [Command reference](docs/commands.md)
+* [Package lifecycle](docs/packages.md)
+* [Building from source](docs/build.md)
+* [Configuration](docs/configuration.md)
+* [Trust and verification](docs/trust.md)
+* [Backup, import, and export](docs/backup.md)
+* [Troubleshooting](docs/troubleshooting.md)
 
 ## Notes
 
@@ -234,4 +242,3 @@ Upstream installs packages in user space and does not manage dependencies.
 ## License
 
 MIT OR Apache-2.0
-
