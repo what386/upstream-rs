@@ -1,6 +1,21 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-09*
+*Generated on 2026-06-11*
+
+## 1.18.4 — 2026-06-11
+
+### High Priority
+
+- Make desktop-entry install failures roll back installed files and links `bug`, `install`, `desktop`, `transactions`
+- Make desktop restoration failures during upgrade roll back consistently `bug`, `upgrade`, `desktop`, `rollback`
+
+### Changes
+
+- remove secret redaction in config list
+- Remove build --build-output override `build`, `cli`
+- Fix README command and installer script drift `docs`, `cli`, `installer`
+- dynamic table sizing based on package names
+
 
 ## 1.18.1 — 2026-06-09
 
