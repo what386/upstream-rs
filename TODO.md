@@ -18,7 +18,7 @@
       @created 2026-06-11 00:47
       @completed 2026-06-11 00:49
 
-- [x] Remove build --build-output override #bug #build #cli
+- [x] Remove build --build-output override #build #cli
       @created 2026-06-11 01:15
       @completed 2026-06-11 01:15
 
