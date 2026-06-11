@@ -1,273 +1,237 @@
 # Upstream
 
-**Upstream** is a rootless package manager for installing software directly from release sources like GitHub, GitLab, and arbitrary download pages.
+**Upstream** is a rootless package manager for installing software directly from upstream release sources.
 
-It fetches release assets, selects the best match for your system, and keeps them updated.
-
----
+It installs binaries, archives, AppImages, and other release artifacts from sources like GitHub, GitLab, Gitea, direct URLs, and scraped download pages. It can also build from source when prebuilt artifacts are unavailable.
 
 ## Features
 
-* Install from GitHub, GitLab, Gitea, direct URLs, or scraped pages
-* Automatic OS + architecture detection (Linux/macOS, x86_64/ARM)
-* Supports binaries, archives, AppImages, and compressed files
-* Rootless (user-level installs)
-* Track update channels: `stable`, `preview`, `nightly`
-* Flexible asset matching and filtering
-* Dry-run previews for install, build, upgrade, remove, rollback, and reinstall workflows
-* Optional checksum and signature verification modes
-
----
+* Install packages without root
+* Automatically select assets for your OS and architecture
+* Upgrade, remove, reinstall, and roll back packages
+* Build from source using Rust, .NET, Go, Zig, or CMake
+* Track `stable`, `preview`, or `nightly` channels
+* Pin packages to prevent upgrades
+* Create desktop entries for GUI apps
+* Import/export package manifests and full snapshots
+* Optional checksum and signature verification
+* Shell integration hooks and diagnostics
 
 ## Installation
 
-### Recommended (auto-install)
+### Recommended
 
 ```bash
 # Linux
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.bash | bash
 
-# Linux (Fish)
-curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.fish | fish
-
 # macOS
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.zsh | zsh
 
-# Windows (PowerShell)
+# Windows PowerShell
 iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.ps1 | iex
 ```
 
-This installs the binary and enables self-updates. Upstream manages package completion installation itself.
-
----
-
-### Install with Cargo
+### Cargo
 
 ```bash
 cargo install upstream
 ```
 
-Ensure Cargo bin is in PATH:
+Cargo installs do not support `upstream upgrade` self-updates.
 
-```bash
-export PATH="$HOME/.cargo/bin:$PATH"
+### Manual
+
+Download a release from:
+
+```text
+https://github.com/what386/upstream-rs/releases/latest
 ```
 
-> ⚠️ Cargo installs do not support `upstream upgrade` self-updates.
-
----
-
-### Manual install
-
-1. Download a release from
-   [https://github.com/what386/upstream-rs/releases/latest](https://github.com/what386/upstream-rs/releases/latest)
-2. Make it executable:
+Then make it executable:
 
 ```bash
 chmod +x upstream
 ```
 
-Optional: install upstream via itself:
-
-```bash
-./upstream install upstream what386/upstream-rs -k binary
-```
-
----
-
 ## Quick Start
 
-### Initialize
+Initialize shell integration:
 
 ```bash
 upstream hooks init
 ```
 
-### Install a package
-
-```bash
-upstream install mytool owner/repo
-```
-
-Example:
+Install a package:
 
 ```bash
 upstream install rg BurntSushi/ripgrep
 ```
 
----
+Install a specific asset kind:
 
-### Search and inspect sources
+```bash
+upstream install rg BurntSushi/ripgrep -k binary
+```
+
+Preview an install without changing anything:
+
+```bash
+upstream install rg BurntSushi/ripgrep --dry-run
+```
+
+Search for repositories:
 
 ```bash
 upstream search ripgrep
+```
+
+Inspect releases before installing:
+
+```bash
 upstream probe BurntSushi/ripgrep
 ```
 
----
-
-### Upgrade
+Upgrade installed packages:
 
 ```bash
 upstream upgrade
 ```
 
----
-
-### Remove
+Check for available updates:
 
 ```bash
-upstream remove mytool
+upstream upgrade --check
 ```
 
----
-
-### List
+List installed packages:
 
 ```bash
 upstream list
 ```
 
----
-
-## Usage
-
-### Install
+Remove a package:
 
 ```bash
-upstream install <name> <source> [options]
+upstream remove rg
 ```
 
-* `<name>` → local alias
-* `<source>` → repo (`owner/repo`) or URL
+Run diagnostics:
 
-Options:
+```bash
+upstream doctor
+```
 
-* `--kind` → asset type (`auto`, `archive`, `binary`, etc.)
-* `--provider` → override auto-detection (`github`, `gitlab`, `gitea`, `direct`, `scraper`)
-* `--channel` → `stable`, `preview`, `nightly`
-* `--tag` → specific version
-* `--match-pattern` / `--exclude-pattern`
-* `--desktop` → create launcher entry
-* `--yes` → accept the recommended discovered asset without prompting
-* `--dry-run` → preview resolution without downloading or writing files
-* `--trust` → verification mode (`none`, `best-effort`, `checksum`, `signature`, `all`)
+## Common Workflows
+
+### Install from a release source
+
+```bash
+upstream install <name> <repo-or-url>
+```
 
 Examples:
 
 ```bash
-# GitHub install
 upstream install fd sharkdp/fd
-
-# Direct download
-upstream install app https://example.com/app.tar.gz -k archive
-
-# Download assets from a download page
-upstream install tool https://example.com/downloads
+upstream install nvim neovim/neovim --tag v0.11.0
+upstream install app owner/repo --desktop
 ```
 
-Archives that contain platform-specific subdirectories are resolved automatically.
-Use `--match-pattern` or `--exclude-pattern` to steer selection when an archive
-ships multiple compatible payloads.
-
----
-
-### Upgrade
+Use `--match` and `--exclude` to guide asset selection:
 
 ```bash
-upstream upgrade [packages...] [--check] [--force] [--dry-run]
+upstream install app owner/repo --match linux --exclude debug
 ```
 
-Use `--check --machine-readable` for script-friendly update checks.
-
----
-
-### Search and Probe
+### Build from source
 
 ```bash
-upstream search <query> [--limit 20]
-upstream probe <source> [--channel stable] [--verbose]
+upstream build <name> <repo-or-url>
 ```
 
----
-
-### Remove
+Examples:
 
 ```bash
-upstream remove <packages...> [--purge]
+upstream build rg BurntSushi/ripgrep
+upstream build rg BurntSushi/ripgrep --branch main
+upstream build app owner/repo --build-profile dotnet
 ```
 
----
+Supported build profiles:
 
-### Config
+```text
+rust
+dotnet
+go
+zig
+cmake
+```
+
+### Upgrade packages
 
 ```bash
-upstream config set key=value
-upstream config get key
-upstream config list
-upstream config edit
+upstream upgrade
+upstream upgrade nvim rg
+upstream upgrade --check
+upstream upgrade --check --machine-readable
 ```
 
----
-
-### Package management
+### Manage packages
 
 ```bash
-upstream package pin <name>
-upstream package unpin <name>
-upstream package remove <name>
-upstream package metadata <name>
+upstream remove rg
+upstream reinstall rg
+upstream rollback rg
+upstream package pin nvim
+upstream package unpin nvim
+upstream package rename nvim neovim
 ```
 
----
-
-### Import / Export
+### Import and export
 
 ```bash
-upstream export file.json
-upstream import file.json
+upstream export ./packages.json
+upstream import ./packages.json
+
+upstream export ./backup.tar.gz --full
+upstream import ./backup.tar.gz
 ```
 
----
+## Command Overview
 
-## Shell Completions
+| Command     | Purpose                              |
+| ----------- | ------------------------------------ |
+| `install`   | Install from a release source        |
+| `build`     | Build and install from source        |
+| `upgrade`   | Upgrade packages                     |
+| `remove`    | Remove packages                      |
+| `reinstall` | Reinstall using stored metadata      |
+| `rollback`  | Restore rollback artifacts           |
+| `list`      | Show installed packages              |
+| `changelog` | Show upstream release notes          |
+| `search`    | Search provider repositories         |
+| `probe`     | Inspect releases without installing  |
+| `config`    | Manage configuration                 |
+| `package`   | Pin, unpin, or rename packages       |
+| `hooks`     | Manage shell integration             |
+| `import`    | Import keys, manifests, or snapshots |
+| `export`    | Export manifests or snapshots        |
+| `doctor`    | Check installation health            |
 
-Upstream automatically installs package completion scripts for detected local
-shells when a release includes matching `bash`, `fish`, or `zsh` files such as
-`<name>.fish`, `completions.bash`, or `completions/*.zsh`. Archives and
-AppImages are scanned after extraction.
+Use `-y` or `--yes` to accept confirmation prompts automatically.
 
-Install manually via helper scripts:
+## Documentation
 
-```bash
-scripts/install/completions.sh bash
-scripts/install/completions.sh fish
-scripts/install/completions.sh zsh
-scripts/install/completions.sh elvish
-```
+Detailed documentation is available in [`docs/`](docs/):
 
-```powershell
-pwsh -File scripts/install/completions.ps1
-```
-
-## Architecture Detection
-
-Upstream automatically selects assets based on:
-
-* OS: Linux, macOS
-* Arch: x86_64, ARM64
-
-Selection is based on filename patterns and extensions.
-
----
+{{ ADD DOCS HERE!!! }}
 
 ## Notes
 
-* Upstream installs packages in user space (no root required)
-* It does not manage system dependencies
-
----
+Upstream installs packages in user space and does not manage dependencies.
 
 ## License
 
 MIT OR Apache-2.0
+
