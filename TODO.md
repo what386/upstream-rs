@@ -11,6 +11,9 @@
 - [ ] mutlithreaded downloading for assets?
       @created 2026-06-09 17:54
 
+- [ ] dynamic table sizing based on package names
+      @created 2026-06-11 18:30
+
 
 ## Completed
 
