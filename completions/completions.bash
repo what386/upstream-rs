@@ -265,7 +265,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__build)
-            opts="-t -p -c -d -y -h --tag --branch --provider --base-url --channel --desktop --build-profile --build-output --dry-run --yes --help <NAME> <REPO_SLUG>"
+            opts="-t -p -c -d -y -h --tag --branch --provider --base-url --channel --desktop --build-profile --dry-run --yes --help <NAME> <REPO_SLUG>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -305,10 +305,6 @@ _upstream() {
                     ;;
                 --build-profile)
                     COMPREPLY=($(compgen -W "rust dotnet go zig cmake" -- "${cur}"))
-                    return 0
-                    ;;
-                --build-output)
-                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 *)
@@ -481,7 +477,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__config__subcmd__list)
-            opts="-y -h --show-secrets --yes --help"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

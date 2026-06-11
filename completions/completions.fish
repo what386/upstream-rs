@@ -82,7 +82,6 @@ dotnet\t''
 go\t''
 zig\t''
 cmake\t''"
-complete -c upstream -n "__fish_upstream_using_subcommand build" -l build-output -d 'Optional explicit output path for the compiled executable' -r
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s d -l desktop -d 'Whether or not to create a .desktop entry for GUI applications'
 complete -c upstream -n "__fish_upstream_using_subcommand build" -l dry-run -d 'Preview build resolution without compiling or writing files'
 complete -c upstream -n "__fish_upstream_using_subcommand build" -s y -l yes -d 'Accept confirmation prompts'
@@ -149,7 +148,6 @@ complete -c upstream -n "__fish_upstream_using_subcommand config; and __fish_see
 complete -c upstream -n "__fish_upstream_using_subcommand config; and __fish_seen_subcommand_from set" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand config; and __fish_seen_subcommand_from get" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand config; and __fish_seen_subcommand_from get" -s h -l help -d 'Print help (see more with \'--help\')'
-complete -c upstream -n "__fish_upstream_using_subcommand config; and __fish_seen_subcommand_from list" -l show-secrets -d 'Print sensitive values instead of redacting them'
 complete -c upstream -n "__fish_upstream_using_subcommand config; and __fish_seen_subcommand_from list" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand config; and __fish_seen_subcommand_from list" -s h -l help -d 'Print help'
 complete -c upstream -n "__fish_upstream_using_subcommand config; and __fish_seen_subcommand_from edit" -s y -l yes -d 'Accept confirmation prompts'
