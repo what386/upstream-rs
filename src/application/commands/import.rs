@@ -1,6 +1,6 @@
 use crate::{
     application::operations::import_operation::{ImportKind, ImportOperation},
-    application::output,
+    output,
     services::{packaging::OperationProgressEvent, storage::package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };

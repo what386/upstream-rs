@@ -1,15 +1,16 @@
 use anyhow::{Context, Result, anyhow};
 
 use crate::{
-    application::output,
     models::{
         common::{enums::Channel, version::Version},
         provider::Release,
         upstream::Package,
     },
+    output,
+    output::pager,
     providers::provider_manager::ProviderManager,
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
-    utils::{pager, static_paths::UpstreamPaths},
+    utils::static_paths::UpstreamPaths,
 };
 
 pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>) -> Result<()> {

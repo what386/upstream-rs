@@ -2,8 +2,8 @@ use crate::{
     application::operations::upgrade_operation::{
         UpdateCheckRow, UpdateCheckStatus, UpgradeOperation, UpgradePreviewEvent,
     },
-    application::output::{self, SizeImpactRow, Status, TransactionRow, TransactionTableLayout},
     models::common::enums::TrustMode,
+    output::{self, SizeImpactRow, Status, TransactionRow, TransactionTableLayout},
     providers::provider_manager::ProviderManager,
     services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,

@@ -1,10 +1,11 @@
 use anyhow::{Context, Result, anyhow, bail};
 
-use crate::application::{operations::install_operation::InstallOperation, output};
+use crate::application::operations::install_operation::InstallOperation;
 use crate::models::{
     common::enums::{Channel, Filetype, Provider},
     upstream::{InstallType, Package},
 };
+use crate::output;
 use crate::providers::discovery::{SourceKind, infer_source};
 use crate::providers::provider_manager::ProviderManager;
 use crate::services::builder::scripts::BuildScriptAction;

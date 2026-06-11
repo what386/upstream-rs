@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::{application::output, utils::pager};
+use crate::{output, output::pager};
 use anyhow::{Context, Result, anyhow, bail};
 
 use super::profiles::run_command_with_line_callback;

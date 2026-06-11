@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     application::operations::remove_operation::RemoveOperation,
-    application::output::{self, SizeImpactRow, Status, TransactionRow},
+    output::{self, SizeImpactRow, Status, TransactionRow},
     services::packaging::{
         PackageProgressEvent,
         disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate},

@@ -1,7 +1,7 @@
 use crate::{
-    application::output::{self, Status},
     models::common::enums::{Channel, Provider, TrustMode},
     models::provider::Release,
+    output::{self, Status},
     providers::provider_manager::ProviderManager,
     services::packaging::disk_impact::{
         ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_path_size,

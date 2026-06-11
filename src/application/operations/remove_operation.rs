@@ -1,5 +1,5 @@
 use crate::{
-    application::output::{self, Status},
+    output::{self, Status},
     services::packaging::disk_impact::{DiskImpact, SignedByteEstimate, estimate_path_size},
     services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover, RollbackManager},
     services::storage::rollback_storage::RollbackSource,
