@@ -11,12 +11,6 @@
 - [ ] mutlithreaded downloading for assets?
       @created 2026-06-09 17:54
 
-- [ ] Make desktop-entry install failures roll back installed files and links (high) #bug #install #desktop #transactions
-      @created 2026-06-11 01:14
-
-- [ ] Make desktop restoration failures during upgrade roll back consistently (high) #bug #upgrade #desktop #rollback
-      @created 2026-06-11 01:14
-
 - [ ] Fix README command and installer script drift #docs #cli #installer
       @created 2026-06-11 01:15
 
@@ -29,4 +23,12 @@
 
 - [x] Remove build --build-output override #bug #build #cli
       @created 2026-06-11 01:15
+      @completed 2026-06-11 01:15
+
+- [x] Make desktop-entry install failures roll back installed files and links (high) #bug #install #desktop #transactions
+      @created 2026-06-11 01:14
+      @completed 2026-06-11 01:15
+
+- [x] Make desktop restoration failures during upgrade roll back consistently (high) #bug #upgrade #desktop #rollback
+      @created 2026-06-11 01:14
       @completed 2026-06-11 01:15
