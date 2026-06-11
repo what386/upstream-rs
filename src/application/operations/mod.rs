@@ -1,5 +1,6 @@
 pub mod build_operation;
 pub mod config_operation;
+pub mod doctor_operation;
 pub mod export_operation;
 pub mod hooks_operation;
 pub mod import_operation;
