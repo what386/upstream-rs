@@ -11,3 +11,6 @@
 - [ ] mutlithreaded downloading for assets?
       @created 2026-06-09 17:54
 
+- [ ] fix install script coloring on windows
+      @created 2026-06-11 23:52
+
