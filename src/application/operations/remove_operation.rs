@@ -86,6 +86,8 @@ impl<'a> RemoveOperation<'a> {
         let total = package_names.len() as u32;
         let mut completed = 0;
         let mut failures = 0;
+        let completion_subject_width =
+            output::status_subject_width(package_names.iter().map(String::as_str));
 
         for package_name in package_names {
             progress!(
@@ -107,16 +109,22 @@ impl<'a> RemoveOperation<'a> {
                 Ok(_) => message!(
                     message_callback,
                     "{}",
-                    output::status_line_text(Status::Ok, package_name, "removed")
+                    output::status_line_text_with_width(
+                        Status::Ok,
+                        package_name,
+                        "removed",
+                        completion_subject_width
+                    )
                 ),
                 Err(e) => {
                     message!(
                         message_callback,
                         "{}",
-                        output::status_line_text(
+                        output::status_line_text_with_width(
                             Status::Fail,
                             package_name,
-                            output::error_summary(&e)
+                            output::error_summary(&e),
+                            completion_subject_width
                         )
                     );
                     failures += 1;
@@ -152,6 +160,8 @@ impl<'a> RemoveOperation<'a> {
     {
         let mut planned = 0;
         let mut failures = 0;
+        let completion_subject_width =
+            output::status_subject_width(package_names.iter().map(String::as_str));
 
         for package_name in package_names {
             match self.preview_single(package_name, purge_option, message_callback) {
@@ -160,10 +170,11 @@ impl<'a> RemoveOperation<'a> {
                     message!(
                         message_callback,
                         "{}",
-                        output::status_line_text(
+                        output::status_line_text_with_width(
                             Status::Fail,
                             package_name,
-                            output::error_summary(&err)
+                            output::error_summary(&err),
+                            completion_subject_width
                         )
                     );
                     failures += 1;

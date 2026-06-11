@@ -189,6 +189,8 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     let mut restored = 0_u32;
     let mut failed = 0_u32;
     let mut completion_lines = Vec::new();
+    let completion_subject_width =
+        output::status_subject_width(restorable_names.iter().map(String::as_str));
     for name in &restorable_names {
         let package_name = name.clone();
         let phase_pb = pb.clone();
@@ -201,14 +203,20 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
         });
         match manager.restore_package(name, &mut msg) {
             Ok(_) => {
-                completion_lines.push(output::status_line_text(Status::Ok, name, "restored"));
+                completion_lines.push(output::status_line_text_with_width(
+                    Status::Ok,
+                    name,
+                    "restored",
+                    completion_subject_width,
+                ));
                 restored += 1;
             }
             Err(err) => {
-                completion_lines.push(output::status_line_text(
+                completion_lines.push(output::status_line_text_with_width(
                     Status::Fail,
                     name,
                     output::error_summary(&err),
+                    completion_subject_width,
                 ));
                 failed += 1;
             }

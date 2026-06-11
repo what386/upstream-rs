@@ -1,6 +1,9 @@
 use console::{StyledObject, style};
 use std::{collections::HashSet, fmt};
 
+const STATUS_CELL_WIDTH: usize = 7;
+const STATUS_SUBJECT_MARGIN: usize = 3;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
     Ok,
@@ -15,7 +18,10 @@ pub fn status_label(status: Status) -> StyledObject<&'static str> {
 }
 
 pub fn status_cell(status: Status) -> StyledObject<String> {
-    style_status(format!("{:<8}", status_label_text(status)), status)
+    style_status(
+        format!("{:<STATUS_CELL_WIDTH$}", status_label_text(status)),
+        status,
+    )
 }
 
 pub fn status_line(status: Status, subject: impl fmt::Display, detail: impl fmt::Display) {
@@ -27,12 +33,36 @@ pub fn status_line_text(
     subject: impl fmt::Display,
     detail: impl fmt::Display,
 ) -> String {
+    let subject = subject.to_string();
+    status_line_text_with_width(
+        status,
+        &subject,
+        detail,
+        status_subject_width([subject.as_str()]),
+    )
+}
+
+pub fn status_line_text_with_width(
+    status: Status,
+    subject: impl fmt::Display,
+    detail: impl fmt::Display,
+    subject_width: usize,
+) -> String {
     format!(
-        "{} {:<28} {}",
+        "{} {:<subject_width$} {}",
         status_cell(status),
         subject.to_string(),
         detail
     )
+}
+
+pub fn status_subject_width<'a>(subjects: impl IntoIterator<Item = &'a str>) -> usize {
+    subjects
+        .into_iter()
+        .map(|subject| subject.chars().count())
+        .max()
+        .unwrap_or(0)
+        + STATUS_SUBJECT_MARGIN
 }
 
 pub fn summary_line(status: Status, detail: impl fmt::Display) {
@@ -114,13 +144,50 @@ fn style_status<T: fmt::Display>(text: T, status: Status) -> StyledObject<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::error_summary;
+    use super::{
+        Status, error_summary, status_line_text, status_line_text_with_width, status_subject_width,
+    };
 
     #[test]
     fn error_summary_returns_single_layer_error() {
         let err = anyhow::anyhow!("plain failure");
 
         assert_eq!(error_summary(&err), "plain failure");
+    }
+
+    #[test]
+    fn status_line_uses_compact_subject_spacing() {
+        assert_eq!(
+            console::strip_ansi_codes(&status_line_text(Status::Ok, "gh", "upgraded to 2.94.0"))
+                .to_string(),
+            "[ok]    gh    upgraded to 2.94.0"
+        );
+    }
+
+    #[test]
+    fn status_line_can_align_to_batch_subject_width() {
+        let width = status_subject_width(["gh", "ripgrep"]);
+
+        assert_eq!(
+            console::strip_ansi_codes(&status_line_text_with_width(
+                Status::Ok,
+                "gh",
+                "upgraded",
+                width
+            ))
+            .to_string(),
+            "[ok]    gh         upgraded"
+        );
+        assert_eq!(
+            console::strip_ansi_codes(&status_line_text_with_width(
+                Status::Ok,
+                "ripgrep",
+                "upgraded",
+                width
+            ))
+            .to_string(),
+            "[ok]    ripgrep    upgraded"
+        );
     }
 
     #[test]
