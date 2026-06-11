@@ -1,4 +1,4 @@
-use crate::{output, services::storage::config_storage::ConfigStorage};
+use crate::services::storage::config_storage::ConfigStorage;
 use anyhow::Result;
 use toml;
 
@@ -34,17 +34,11 @@ impl<'a> ConfigUpdater<'a> {
     pub fn set_key(&mut self, set_key: &str) -> Result<ConfigSetResult> {
         let (key_path, value) = Self::parse_set_key(set_key)?;
 
-        let display_value = if output::is_sensitive_key(&key_path) {
-            output::redact_secret(&value)
-        } else {
-            value.clone()
-        };
-
         self.config_storage.try_set_value(&key_path, &value)?;
 
         Ok(ConfigSetResult {
             key: key_path,
-            display_value,
+            display_value: value,
         })
     }
 

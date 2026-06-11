@@ -11,6 +11,10 @@
 - [ ] mutlithreaded downloading for assets?
       @created 2026-06-09 17:54
 
-- [ ] remove secret redaction in config list
+
+## Completed
+
+- [x] remove secret redaction in config list
       @created 2026-06-11 00:47
+      @completed 2026-06-11 00:49
 
