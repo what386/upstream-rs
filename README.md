@@ -29,6 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/in
 #### MacOS
 ```zsh
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.zsh | zsh
+```
 
 #### Windows
 ```ps1
