@@ -21,14 +21,17 @@ It installs binaries, archives, AppImages, and other release artifacts from sour
 
 ### Recommended
 
+#### Linux
 ```bash
-# Linux
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.bash | bash
+```
 
-# macOS
+#### MacOS
+```zsh
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.zsh | zsh
 
-# Windows PowerShell
+#### Windows
+```ps1
 iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.ps1 | iex
 ```
 
