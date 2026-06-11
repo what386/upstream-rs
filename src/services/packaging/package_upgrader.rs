@@ -667,7 +667,7 @@ mod tests {
     use crate::providers::provider_manager::ProviderManager;
     use crate::services::packaging::{PackageInstaller, PackageRemover};
     use crate::services::trust::TrustedSignatureKeys;
-    use crate::utils::test_support;
+    use crate::utils::{static_paths::UpstreamPaths, test_support};
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -682,6 +682,18 @@ mod tests {
 
     fn cleanup(path: &Path) -> io::Result<()> {
         fs::remove_dir_all(path)
+    }
+
+    fn expected_symlink_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
+        let base = paths.integration.symlinks_dir.join(name);
+        #[cfg(windows)]
+        {
+            return base.with_extension("exe");
+        }
+        #[cfg(not(windows))]
+        {
+            base
+        }
     }
 
     fn test_paths(root: &Path) -> crate::utils::static_paths::UpstreamPaths {
@@ -775,7 +787,7 @@ mod tests {
             b"old"
         );
         assert!(!backup_path.exists());
-        assert!(paths.integration.symlinks_dir.join("tool").exists());
+        assert!(expected_symlink_path(&paths, "tool").exists());
 
         cleanup(&root).expect("cleanup");
     }
