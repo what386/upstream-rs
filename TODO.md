@@ -11,9 +11,6 @@
 - [ ] mutlithreaded downloading for assets?
       @created 2026-06-09 17:54
 
-- [ ] dynamic table sizing based on package names
-      @created 2026-06-11 18:30
-
 
 ## Completed
 
@@ -36,4 +33,8 @@
 - [x] Fix README command and installer script drift #docs #cli #installer
       @created 2026-06-11 01:15
       @completed 2026-06-11 01:29
+
+- [x] dynamic table sizing based on package names
+      @created 2026-06-11 18:30
+      @completed 2026-06-11 18:30
 
