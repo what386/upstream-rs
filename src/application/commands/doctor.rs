@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 #[cfg(unix)]
 use crate::services::integration::ShellManager;
 use crate::{
-    application::output::{self, Status},
+    output::{self, Status},
     services::integration::{CompletionManager, SymlinkManager, permission_handler},
     services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,

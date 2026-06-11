@@ -4,7 +4,7 @@ use crate::application::cli::arguments::{
     Cli, Commands, ConfigAction, HooksAction, ImportAs, PackageAction,
 };
 use crate::application::commands;
-use crate::application::output;
+use crate::output;
 use crate::services::storage::lock_storage::LockStorage;
 use crate::utils::static_paths::UpstreamPaths;
 

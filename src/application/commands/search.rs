@@ -2,11 +2,12 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 
 use crate::{
-    application::output,
     models::{common::enums::Provider, provider::RepositorySearchResult},
+    output,
+    output::pager,
     providers::provider_manager::ProviderManager,
     services::storage::config_storage::ConfigStorage,
-    utils::{pager, static_paths::UpstreamPaths},
+    utils::static_paths::UpstreamPaths,
 };
 use std::fmt::Write as _;
 

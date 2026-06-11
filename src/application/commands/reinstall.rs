@@ -6,11 +6,11 @@ use crate::{
     application::operations::{
         install_operation::InstallOperation, remove_operation::RemoveOperation,
     },
-    application::output::{self, SizeImpactRow, Status},
     models::{
         common::enums::TrustMode,
         upstream::{InstallType, Package},
     },
+    output::{self, SizeImpactRow, Status},
     providers::provider_manager::ProviderManager,
     services::{
         builder::scripts::BuildScriptAction,

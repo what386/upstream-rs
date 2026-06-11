@@ -8,10 +8,11 @@ use crate::{
         common::enums::{Channel, Filetype, Provider},
         upstream::Package,
     },
+    output::pager,
     providers::discovery::DiscoveryRequest,
     providers::{asset_selector::AssetCandidate, provider_manager::ProviderManager},
     services::storage::config_storage::ConfigStorage,
-    utils::{pager, static_paths::UpstreamPaths},
+    utils::static_paths::UpstreamPaths,
 };
 
 pub async fn run(
@@ -80,10 +81,7 @@ pub async fn run(
     if releases.is_empty() {
         println!(
             "{}",
-            crate::application::output::warning(format!(
-                "No releases found for channel '{}'.",
-                channel
-            ))
+            crate::output::warning(format!("No releases found for channel '{}'.", channel))
         );
         return Ok(());
     }

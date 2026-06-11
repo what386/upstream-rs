@@ -1,6 +1,5 @@
 pub mod filename_parser;
 pub mod filesystem;
-pub mod pager;
 pub mod platform;
 pub mod static_paths;
 

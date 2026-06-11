@@ -4,11 +4,11 @@ use std::time::Duration;
 
 use crate::{
     application::operations::install_operation::InstallOperation,
-    application::output::{self, Status, TransactionRow},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::Package,
     },
+    output::{self, Status, TransactionRow},
     providers::{
         discovery::{
             DiscoveryRequest, DiscoveryResult, SourceKind, infer_source,

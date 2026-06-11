@@ -1,6 +1,6 @@
 use crate::{
     application::operations::metadata_operation::MetadataManager,
-    application::output::{self, Status},
+    output::{self, Status},
     services::integration::SymlinkManager,
     services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,

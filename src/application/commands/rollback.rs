@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
-use crate::application::output::{self, Status, TransactionRow};
+use crate::output::{self, Status, TransactionRow};
 use crate::services::packaging::RollbackManager;
 use crate::services::packaging::disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate};
 use crate::services::storage::{

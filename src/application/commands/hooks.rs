@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 
 use crate::{
     application::operations::hooks_operation::{check, cleanup, initialize, purge_data},
-    application::output,
+    output,
     utils::static_paths::UpstreamPaths,
 };
 
