@@ -550,7 +550,7 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
                     format!("{} has no executable path recorded", package_label),
                 );
                 report.hint(format!(
-                    "Try `upstream upgrade {} --force` to rebuild executable metadata.",
+                    "Try `upstream reinstall {}` to rebuild executable metadata.",
                     package.name
                 ));
                 if fix && let Some(install_path) = &package.install_path {
@@ -605,7 +605,7 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
                                 ),
                             );
                             report.hint(format!(
-                                "Try `upstream upgrade {} --force` to recreate broken symlinks.",
+                                "Try `upstream reinstall {}` to recreate broken symlinks.",
                                 package.name
                             ));
                         } else if matches_expected {
@@ -636,7 +636,7 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
                             ),
                         );
                         report.hint(format!(
-                            "Try `upstream upgrade {} --force` to recreate missing links.",
+                            "Try `upstream reinstall {}` to recreate missing links.",
                             package.name
                         ));
                         if fix {
@@ -666,7 +666,7 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
                             ),
                         );
                         report.hint(format!(
-                            "Remove '{}' and run `upstream upgrade {} --force`.",
+                            "Remove '{}' and run `upstream reinstall {}`.",
                             link_path.display(),
                             package.name
                         ));
@@ -707,7 +707,7 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool) -> Result<()> {
                         ),
                     );
                     report.hint(format!(
-                        "Try `upstream upgrade {} --force` to recreate missing links.",
+                        "Try `upstream reinstall {}` to recreate missing links.",
                         package.name
                     ));
                     if fix && let Some(exec_path) = &resolved_exec_path {
