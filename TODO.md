@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-06-09
+@modified: 2026-06-11
 
 ## Tasks
 
@@ -10,4 +10,7 @@
 
 - [ ] mutlithreaded downloading for assets?
       @created 2026-06-09 17:54
+
+- [ ] remove secret redaction in config list
+      @created 2026-06-11 00:47
 
