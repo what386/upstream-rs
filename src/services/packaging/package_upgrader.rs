@@ -58,6 +58,14 @@ pub enum ResolvedUpgradeTarget {
     Branch { branch: String, head_commit: String },
 }
 
+struct FailedUpgradeRollback<'a> {
+    previous_package: &'a Package,
+    partially_installed_package: Option<&'a Package>,
+    original_install_path: &'a Path,
+    backup_path: &'a Path,
+    failure_context: &'a str,
+}
+
 impl<'a> PackageUpgrader<'a> {
     fn backup_path(install_path: &Path) -> Result<PathBuf> {
         let file_name = install_path.file_name().ok_or_else(|| {
@@ -488,27 +496,17 @@ impl<'a> PackageUpgrader<'a> {
                     PackageProgressEvent::Phase(PackagePhase::RollingBack)
                 );
 
-                let _ = Self::remove_path_if_exists(&original_install_path);
-                progress!(
-                    progress_callback,
-                    PackageProgressEvent::Phase(PackagePhase::RestoringSnapshot)
+                return self.rollback_failed_upgrade(
+                    FailedUpgradeRollback {
+                        previous_package: package,
+                        partially_installed_package: None,
+                        original_install_path: &original_install_path,
+                        backup_path: &backup_path,
+                        failure_context: "Failed to install new version",
+                    },
+                    install_err,
+                    message_callback,
                 );
-                fs::rename(&backup_path, &original_install_path).context(format!(
-                    "Upgrade failed for '{}': {}. Rollback failed while restoring backup",
-                    package.name, install_err
-                ))?;
-
-                self.remover
-                    .restore_runtime_integrations(package, message_callback)
-                    .context(format!(
-                        "Upgrade failed for '{}': {}. Rollback failed while restoring runtime links",
-                        package.name, install_err
-                    ))?;
-
-                return Err(install_err).context(format!(
-                    "Failed to install new version of '{}' (previous version restored)",
-                    package.name
-                ));
             }
         };
 
@@ -519,52 +517,26 @@ impl<'a> PackageUpgrader<'a> {
                 PackageProgressEvent::Phase(PackagePhase::CreatingRuntimeLinks)
             );
 
-            #[cfg(target_os = "linux")]
-            let appimage_extractor =
-                AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
-
-            #[cfg(target_os = "linux")]
-            let icon_manager = IconManager::new(self.paths, &appimage_extractor);
-            #[cfg(not(target_os = "linux"))]
-            let icon_manager = IconManager::new(self.paths);
-
-            #[cfg(target_os = "linux")]
-            let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
-            #[cfg(not(target_os = "linux"))]
-            let desktop_manager = DesktopManager::new(self.paths);
-            let install_path = updated_package.install_path.clone().ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Package '{}' has no install path after upgrade",
-                    updated_package.name
-                )
-            })?;
-
-            let icon_path = icon_manager
-                .add_icon(
-                    &updated_package.name,
-                    &install_path,
-                    &updated_package.filetype,
-                    message_callback,
-                )
+            if let Err(err) = self
+                .add_desktop_integration(&mut updated_package, message_callback)
                 .await
-                .context(format!("Failed to add icon for '{}'", updated_package.name))?;
-
-            updated_package.icon_path = icon_path;
-
-            let desktop_entry = DesktopEntry::from_package(&updated_package);
-
-            let _ = desktop_manager
-                .create_entry(
-                    &install_path,
-                    &updated_package.filetype,
-                    desktop_entry,
+            {
+                progress!(
+                    progress_callback,
+                    PackageProgressEvent::Phase(PackagePhase::RollingBack)
+                );
+                return self.rollback_failed_upgrade(
+                    FailedUpgradeRollback {
+                        previous_package: package,
+                        partially_installed_package: Some(&updated_package),
+                        original_install_path: &original_install_path,
+                        backup_path: &backup_path,
+                        failure_context: "Failed to restore desktop integration",
+                    },
+                    err.context("Failed to restore desktop integration"),
                     message_callback,
-                )
-                .await
-                .context(format!(
-                    "Failed to create desktop entry for '{}'",
-                    updated_package.name
-                ))?;
+                );
+            }
         }
 
         if let Err(err) =
@@ -583,11 +555,119 @@ impl<'a> PackageUpgrader<'a> {
 
         Ok(updated_package)
     }
+
+    async fn add_desktop_integration<H>(
+        &self,
+        updated_package: &mut Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        #[cfg(target_os = "linux")]
+        let appimage_extractor =
+            AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
+
+        #[cfg(target_os = "linux")]
+        let icon_manager = IconManager::new(self.paths, &appimage_extractor);
+        #[cfg(not(target_os = "linux"))]
+        let icon_manager = IconManager::new(self.paths);
+
+        #[cfg(target_os = "linux")]
+        let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
+        #[cfg(not(target_os = "linux"))]
+        let desktop_manager = DesktopManager::new(self.paths);
+
+        let install_path = updated_package.install_path.clone().ok_or_else(|| {
+            anyhow::anyhow!(
+                "Package '{}' has no install path after upgrade",
+                updated_package.name
+            )
+        })?;
+
+        let icon_path = icon_manager
+            .add_icon(
+                &updated_package.name,
+                &install_path,
+                &updated_package.filetype,
+                message_callback,
+            )
+            .await
+            .context(format!("Failed to add icon for '{}'", updated_package.name))?;
+
+        updated_package.icon_path = icon_path;
+
+        let desktop_entry = DesktopEntry::from_package(updated_package);
+
+        desktop_manager
+            .create_entry(
+                &install_path,
+                &updated_package.filetype,
+                desktop_entry,
+                message_callback,
+            )
+            .await
+            .context(format!(
+                "Failed to create desktop entry for '{}'",
+                updated_package.name
+            ))?;
+
+        Ok(())
+    }
+
+    fn rollback_failed_upgrade<H>(
+        &self,
+        rollback: FailedUpgradeRollback<'_>,
+        failure: anyhow::Error,
+        message_callback: &mut Option<H>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+    {
+        let cleanup_result = if let Some(partial) = rollback.partially_installed_package {
+            self.remover.remove_package_files(partial, message_callback)
+        } else {
+            Self::remove_path_if_exists(rollback.original_install_path)
+        };
+
+        if let Err(cleanup_err) = cleanup_result {
+            return Err(anyhow::anyhow!(
+                "{} for '{}': {}. Rollback failed while removing partial install: {}",
+                rollback.failure_context,
+                rollback.previous_package.name,
+                failure,
+                cleanup_err
+            ));
+        }
+
+        fs::rename(rollback.backup_path, rollback.original_install_path).context(format!(
+            "{} for '{}': {}. Rollback failed while restoring backup",
+            rollback.failure_context, rollback.previous_package.name, failure
+        ))?;
+
+        self.remover
+            .restore_runtime_integrations(rollback.previous_package, message_callback)
+            .context(format!(
+                "{} for '{}': {}. Rollback failed while restoring runtime links",
+                rollback.failure_context, rollback.previous_package.name, failure
+            ))?;
+
+        Err(failure).context(format!(
+            "{} for '{}' (previous version restored)",
+            rollback.failure_context, rollback.previous_package.name
+        ))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::PackageUpgrader;
+    use super::{FailedUpgradeRollback, PackageUpgrader};
+    use crate::models::common::enums::{Channel, Filetype, Provider};
+    use crate::models::upstream::Package;
+    use crate::providers::provider_manager::ProviderManager;
+    use crate::services::packaging::{PackageInstaller, PackageRemover};
+    use crate::services::trust::TrustedSignatureKeys;
+    use crate::utils::test_support;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -602,6 +682,26 @@ mod tests {
 
     fn cleanup(path: &Path) -> io::Result<()> {
         fs::remove_dir_all(path)
+    }
+
+    fn test_paths(root: &Path) -> crate::utils::static_paths::UpstreamPaths {
+        test_support::upstream_paths(root)
+    }
+
+    fn test_package(name: &str, install_path: PathBuf) -> Package {
+        let mut package = Package::with_defaults(
+            name.to_string(),
+            format!("owner/{name}"),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_path = Some(install_path.clone());
+        package.exec_path = Some(install_path);
+        package
     }
 
     #[test]
@@ -625,6 +725,57 @@ mod tests {
 
         assert!(!file.exists());
         assert!(!dir.exists());
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn rollback_failed_upgrade_removes_partial_install_and_restores_previous_binary() {
+        let root = temp_root("rollback-desktop-failure");
+        let paths = test_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
+        fs::create_dir_all(&paths.integration.symlinks_dir).expect("create symlinks dir");
+
+        let install_path = paths.install.binaries_dir.join("tool");
+        let backup_path = paths.install.binaries_dir.join("tool.old");
+        fs::write(&install_path, b"new").expect("write partial new binary");
+        fs::write(&backup_path, b"old").expect("write backup binary");
+
+        let previous = test_package("tool", install_path.clone());
+        let partial = test_package("tool", install_path.clone());
+        let provider_manager = ProviderManager::new(None, None, None).expect("provider manager");
+        let installer = PackageInstaller::new(&provider_manager, &paths).expect("installer");
+        let remover = PackageRemover::new(&paths);
+        let upgrader = PackageUpgrader::new(
+            &provider_manager,
+            installer,
+            remover,
+            &paths,
+            TrustedSignatureKeys::default(),
+        );
+        let mut msg = Some(|_: &str| {});
+
+        let err = upgrader
+            .rollback_failed_upgrade(
+                FailedUpgradeRollback {
+                    previous_package: &previous,
+                    partially_installed_package: Some(&partial),
+                    original_install_path: &install_path,
+                    backup_path: &backup_path,
+                    failure_context: "Failed to restore desktop integration",
+                },
+                anyhow::anyhow!("desktop failed"),
+                &mut msg,
+            )
+            .expect_err("rollback helper returns original failure");
+
+        assert!(err.to_string().contains("previous version restored"));
+        assert_eq!(
+            fs::read(&install_path).expect("read restored binary"),
+            b"old"
+        );
+        assert!(!backup_path.exists());
+        assert!(paths.integration.symlinks_dir.join("tool").exists());
 
         cleanup(&root).expect("cleanup");
     }
