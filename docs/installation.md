@@ -62,7 +62,8 @@ Upstream stores data in user-owned locations:
 | `$XDG_CONFIG_HOME/upstream/config.toml` | Main configuration file |
 | `$HOME/.upstream/metadata/packages.json` | Installed package metadata |
 | `$HOME/.upstream/metadata/metadata.json` | Sidecar metadata such as pin reasons |
-| `$HOME/.upstream/metadata/paths.sh` | Unix PATH export managed by hooks |
+| `$HOME/.upstream/metadata/paths.sh` | POSIX/fish PATH export managed by hooks |
+| `$HOME/.upstream/metadata/paths.nu` | Nushell PATH export managed by hooks |
 | `$HOME/.upstream/binaries/` | Installed binary artifacts |
 | `$HOME/.upstream/appimages/` | Installed AppImage artifacts |
 | `$HOME/.upstream/archives/` | Extracted archive installs |

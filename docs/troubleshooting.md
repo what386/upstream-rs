@@ -19,13 +19,14 @@ upstream hooks check
 upstream hooks init
 ```
 
-Restart the shell after initializing hooks. On Unix, Upstream writes a managed PATH file at:
+Restart the shell after initializing hooks. On Unix, Upstream writes managed PATH files at:
 
 ```text
 $HOME/.upstream/metadata/paths.sh
+$HOME/.upstream/metadata/paths.nu
 ```
 
-and sources it from supported shell profiles.
+and sources the appropriate file from supported shell profiles.
 
 ## Stale or Missing Symlinks
 
