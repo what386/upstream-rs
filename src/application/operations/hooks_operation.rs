@@ -1,6 +1,8 @@
 #[cfg(unix)]
 use crate::services::integration::{nushell_paths_file_contains_path, render_nushell_paths_file};
 use crate::services::{integration::CompletionManager, storage::config_storage::ConfigStorage};
+#[cfg(unix)]
+use crate::utils::platform::shells::installed_shell_commands;
 use crate::utils::static_paths::UpstreamPaths;
 #[cfg(windows)]
 use anyhow::Context;
@@ -129,30 +131,6 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
     Ok(report)
 }
 
-#[cfg(unix)]
-fn get_installed_shells() -> io::Result<Vec<String>> {
-    const SHELLS_FILE: &str = "/etc/shells";
-    if !Path::new(SHELLS_FILE).exists() {
-        return Ok(Vec::new());
-    }
-    let content = fs::read_to_string(SHELLS_FILE)?;
-    let shells = content
-        .lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .map(|l| l.to_string())
-        .collect();
-    Ok(shells)
-}
-
-#[cfg(unix)]
-fn shell_name(shell_path: &str) -> &str {
-    Path::new(shell_path)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("")
-}
-
 #[cfg(windows)]
 fn add_to_windows_path(paths: &UpstreamPaths) -> Result<()> {
     use winreg::RegKey;
@@ -274,9 +252,8 @@ fn create_metadata_files(_paths: &UpstreamPaths) -> io::Result<()> {
 
 #[cfg(unix)]
 fn update_shell_profiles(paths: &UpstreamPaths) -> io::Result<()> {
-    let shells = get_installed_shells()?;
-    for shell_path in shells {
-        match shell_name(&shell_path).to_lowercase().as_str() {
+    for shell in installed_shell_commands() {
+        match shell.as_str() {
             "bash" | "sh" => {
                 add_line_to_profile(paths, ".bashrc", SOURCE_LINE_BASH)?;
             }
@@ -355,9 +332,8 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
     }
 
     let mut profiles_to_check: BTreeSet<(String, String)> = BTreeSet::new();
-    for shell_path in get_installed_shells()? {
-        let shell_name = shell_name(&shell_path).to_ascii_lowercase();
-        match shell_name.as_str() {
+    for shell in installed_shell_commands() {
+        match shell.as_str() {
             "bash" | "sh" => {
                 profiles_to_check.insert((".bashrc".to_string(), SOURCE_LINE_BASH.to_string()));
             }
@@ -442,9 +418,8 @@ fn add_line_to_profile(paths: &UpstreamPaths, relative_path: &str, line: &str) -
 
 #[cfg(unix)]
 pub fn cleanup(paths: &UpstreamPaths) -> Result<()> {
-    let shells = get_installed_shells()?;
-    for shell_path in shells {
-        let profile = match shell_name(&shell_path).to_lowercase().as_str() {
+    for shell in installed_shell_commands() {
+        let profile = match shell.as_str() {
             "bash" | "sh" => Some(".bashrc"),
             "zsh" => Some(".zshrc"),
             "fish" => Some(".config/fish/config.fish"),
