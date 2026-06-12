@@ -8,6 +8,9 @@
 - [ ] harden https scraper (use https://www.gyan.dev/ffmpeg/builds/)
       @created 2026-06-09 17:54
 
+- [ ] fix custom domains for gitlab + gitea autodetection
+      @created 2026-06-12 23:30
+
 
 ## Completed
 
