@@ -11,9 +11,6 @@
 - [ ] mutlithreaded downloading for assets?
       @created 2026-06-09 17:54
 
-- [ ] update shell detection behavior to use /etc/shells
-      @created 2026-06-12 18:13
-
 
 ## Completed
 
@@ -24,4 +21,8 @@
 - [x] fix install script coloring on windows
       @created 2026-06-11 23:52
       @completed 2026-06-12 17:23
+
+- [x] update shell detection behavior to use /etc/shells
+      @created 2026-06-12 18:13
+      @completed 2026-06-12 23:27
 
