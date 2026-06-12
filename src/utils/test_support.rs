@@ -27,6 +27,7 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
             packages_file: dirs.metadata_dir.join("packages.json"),
             metadata_file: dirs.metadata_dir.join("metadata.json"),
             paths_file: dirs.metadata_dir.join("paths.sh"),
+            paths_nu_file: dirs.metadata_dir.join("paths.nu"),
         },
         install: InstallPaths {
             appimages_dir: dirs.data_dir.join("appimages"),

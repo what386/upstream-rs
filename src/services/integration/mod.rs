@@ -15,4 +15,6 @@ pub use completion_manager::CompletionManager;
 pub use desktop_manager::DesktopManager;
 pub use icon_manager::IconManager;
 pub use shell_manager::ShellManager;
+#[cfg(unix)]
+pub(crate) use shell_manager::escape_nushell_string;
 pub use symlink_manager::SymlinkManager;

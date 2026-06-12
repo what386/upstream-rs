@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 #[cfg(unix)]
-use crate::services::integration::ShellManager;
+use crate::services::integration::{ShellManager, escape_nushell_string};
 use crate::{
     services::integration::{CompletionManager, SymlinkManager, permission_handler},
     services::storage::package_storage::PackageStorage,
@@ -246,11 +246,11 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
     match fs::read_to_string(&paths.config.paths_file) {
         Ok(content) => {
             if content.contains(&expected_line) {
-                report.line(Level::Ok, "Shell PATH integration file looks valid");
+                report.line(Level::Ok, "POSIX shell PATH integration file looks valid");
             } else {
                 report.line(
                     Level::Warn,
-                    "Shell PATH file does not include upstream symlinks export line",
+                    "POSIX shell PATH file does not include upstream symlinks export line",
                 );
             }
         }
@@ -259,6 +259,43 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
             format!(
                 "Failed to read PATH integration file '{}': {}",
                 paths.config.paths_file.display(),
+                e
+            ),
+        ),
+    }
+
+    if !paths.config.paths_nu_file.exists() {
+        report.line(
+            Level::Warn,
+            format!(
+                "Nushell PATH file missing: {}",
+                paths.config.paths_nu_file.display()
+            ),
+        );
+        return;
+    }
+
+    let expected_nushell_line = format!(
+        r#"$env.PATH = ($env.PATH | prepend "{}")"#,
+        escape_nushell_string(&paths.integration.symlinks_dir.display().to_string())
+    );
+
+    match fs::read_to_string(&paths.config.paths_nu_file) {
+        Ok(content) => {
+            if content.contains(&expected_nushell_line) {
+                report.line(Level::Ok, "Nushell PATH integration file looks valid");
+            } else {
+                report.line(
+                    Level::Warn,
+                    "Nushell PATH file does not include upstream symlinks export line",
+                );
+            }
+        }
+        Err(e) => report.line(
+            Level::Warn,
+            format!(
+                "Failed to read Nushell PATH integration file '{}': {}",
+                paths.config.paths_nu_file.display(),
                 e
             ),
         ),
