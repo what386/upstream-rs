@@ -1,12 +1,12 @@
 use anyhow::{Context, Result};
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::{env, fs};
 use walkdir::WalkDir;
 
 use crate::{
     models::{common::enums::Provider, provider::Release},
     providers::provider_manager::ProviderManager,
-    utils::static_paths::UpstreamPaths,
+    utils::{platform::shells::installed_shell_commands, static_paths::UpstreamPaths},
 };
 
 macro_rules! message {
@@ -34,15 +34,16 @@ impl CompletionShell {
         }
     }
 
-    fn label(self) -> &'static str {
-        match self {
-            Self::Bash => "bash",
-            Self::Fish => "fish",
-            Self::Zsh => "zsh",
+    fn from_command(command: &str) -> Option<Self> {
+        match command {
+            "bash" => Some(Self::Bash),
+            "fish" => Some(Self::Fish),
+            "zsh" => Some(Self::Zsh),
+            _ => None,
         }
     }
 
-    fn command(self) -> &'static str {
+    fn label(self) -> &'static str {
         match self {
             Self::Bash => "bash",
             Self::Fish => "fish",
@@ -68,17 +69,7 @@ impl<'a> CompletionManager<'a> {
     }
 
     pub fn installed_shells() -> Vec<CompletionShell> {
-        let path_value = env::var_os("PATH").unwrap_or_default();
-        let path_dirs: Vec<PathBuf> = env::split_paths(&path_value).collect();
-
-        [
-            CompletionShell::Bash,
-            CompletionShell::Fish,
-            CompletionShell::Zsh,
-        ]
-        .into_iter()
-        .filter(|shell| shell_is_available_in_dirs(*shell, &path_dirs))
-        .collect()
+        installed_completion_shells()
     }
 
     pub fn installed_shell_completion_dirs(&self) -> Vec<(&'static str, PathBuf)> {
@@ -267,27 +258,14 @@ impl<'a> CompletionManager<'a> {
 }
 
 fn shell_is_available(shell: CompletionShell) -> bool {
-    let path_value = env::var_os("PATH").unwrap_or_default();
-    let path_dirs: Vec<PathBuf> = env::split_paths(&path_value).collect();
-    shell_is_available_in_dirs(shell, &path_dirs)
+    installed_completion_shells().contains(&shell)
 }
 
-fn shell_is_available_in_dirs(shell: CompletionShell, path_dirs: &[PathBuf]) -> bool {
-    path_dirs.iter().any(|dir| {
-        let command_path = dir.join(shell.command());
-        if command_path.is_file() {
-            return true;
-        }
-
-        #[cfg(windows)]
-        {
-            if dir.join(format!("{}.exe", shell.command())).is_file() {
-                return true;
-            }
-        }
-
-        false
-    })
+fn installed_completion_shells() -> Vec<CompletionShell> {
+    installed_shell_commands()
+        .into_iter()
+        .filter_map(|shell| CompletionShell::from_command(&shell))
+        .collect()
 }
 
 fn find_completion_files(package_name: &str, root: &Path) -> Vec<CompletionCandidate> {
@@ -371,10 +349,8 @@ fn classify_completion_path(package_name: &str, path: &Path) -> Option<Completio
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        CompletionShell, choose_one_per_shell, classify_completion_path, shell_is_available_in_dirs,
-    };
-    use std::path::{Path, PathBuf};
+    use super::{CompletionShell, choose_one_per_shell, classify_completion_path};
+    use std::path::Path;
 
     #[test]
     fn classifies_supported_completion_names() {
@@ -412,24 +388,15 @@ mod tests {
     }
 
     #[test]
-    fn detects_shell_commands_from_path_dirs() {
-        let root = std::env::temp_dir().join(format!(
-            "upstream-completion-shell-test-{}",
-            std::process::id()
-        ));
-        let bin = root.join("bin");
-        std::fs::create_dir_all(&bin).expect("create bin");
-        std::fs::write(bin.join("fish"), "").expect("create fish");
-
-        assert!(shell_is_available_in_dirs(
-            CompletionShell::Fish,
-            &[PathBuf::from(&bin)]
-        ));
-        assert!(!shell_is_available_in_dirs(
-            CompletionShell::Zsh,
-            &[PathBuf::from(&bin)]
-        ));
-
-        std::fs::remove_dir_all(root).expect("cleanup");
+    fn maps_supported_shell_command_names() {
+        assert_eq!(
+            CompletionShell::from_command("bash"),
+            Some(CompletionShell::Bash)
+        );
+        assert_eq!(
+            CompletionShell::from_command("fish"),
+            Some(CompletionShell::Fish)
+        );
+        assert_eq!(CompletionShell::from_command("nu"), None);
     }
 }
