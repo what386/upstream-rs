@@ -11,13 +11,14 @@
 - [ ] mutlithreaded downloading for assets?
       @created 2026-06-09 17:54
 
-- [ ] fix install script coloring on windows
-      @created 2026-06-11 23:52
-
 
 ## Completed
 
 - [x] nushell support
       @created 2026-06-12 16:09
+      @completed 2026-06-12 17:23
+
+- [x] fix install script coloring on windows
+      @created 2026-06-11 23:52
       @completed 2026-06-12 17:23
 
