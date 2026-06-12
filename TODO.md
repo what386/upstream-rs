@@ -11,6 +11,9 @@
 - [ ] fix custom domains for gitlab + gitea autodetection
       @created 2026-06-12 23:30
 
+- [ ] fix custom domains for gitlab + gitea autodetection in build command
+      @created 2026-06-12 23:31
+
 
 ## Completed
 
