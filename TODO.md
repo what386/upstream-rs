@@ -14,6 +14,9 @@
 - [ ] update shell detection behavior to use /etc/shells
       @created 2026-06-12 18:13
 
+- [ ] etc
+      @created 2026-06-12 23:27
+
 
 ## Completed
 
