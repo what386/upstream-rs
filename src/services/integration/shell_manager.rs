@@ -69,16 +69,14 @@ impl<'a> ShellManager<'a> {
                     .context("Failed to write paths file")?;
             }
 
-            let mut nushell_content = fs::read_to_string(&self.paths_nu_file)
-                .unwrap_or_else(|_| "# Upstream managed PATH additions\n".to_string());
-            let nushell_line = format!(
-                r#"$env.PATH = ($env.PATH | prepend "{}")"#,
-                escape_nushell_string(&install_path.to_string_lossy())
-            );
+            let nushell_content = fs::read_to_string(&self.paths_nu_file).unwrap_or_default();
+            let mut nushell_paths = parse_nushell_paths_file(&nushell_content);
+            let install_path = install_path.to_string_lossy().to_string();
 
-            if !nushell_content.contains(&nushell_line) {
-                nushell_content.push_str(&format!("{nushell_line}\n"));
-                write_atomic(&self.paths_nu_file, nushell_content.as_bytes())
+            if !nushell_paths.contains(&install_path) {
+                nushell_paths.insert(0, install_path);
+                let rendered = render_nushell_paths_file(&nushell_paths);
+                write_atomic(&self.paths_nu_file, rendered.as_bytes())
                     .context("Failed to write Nushell paths file")?;
             }
         }
@@ -114,16 +112,18 @@ impl<'a> ShellManager<'a> {
                 .context("Failed to write paths file")?;
 
             if self.paths_nu_file.exists() {
-                let mut nushell_content = fs::read_to_string(&self.paths_nu_file)
+                let nushell_content = fs::read_to_string(&self.paths_nu_file)
                     .context("Failed to read Nushell paths file")?;
-                let nushell_line = format!(
-                    r#"$env.PATH = ($env.PATH | prepend "{}")"#,
-                    escape_nushell_string(&install_path.to_string_lossy())
-                );
-                nushell_content = nushell_content.replace(&format!("{nushell_line}\n"), "");
-                nushell_content = nushell_content.replace(&nushell_line, "");
-                write_atomic(&self.paths_nu_file, nushell_content.as_bytes())
-                    .context("Failed to write Nushell paths file")?;
+                let target = install_path.to_string_lossy().to_string();
+                let mut nushell_paths = parse_nushell_paths_file(&nushell_content);
+                let original_len = nushell_paths.len();
+                nushell_paths.retain(|path| path != &target);
+
+                if nushell_paths.len() != original_len {
+                    let rendered = render_nushell_paths_file(&nushell_paths);
+                    write_atomic(&self.paths_nu_file, rendered.as_bytes())
+                        .context("Failed to write Nushell paths file")?;
+                }
             }
         }
 
@@ -236,14 +236,117 @@ impl<'a> ShellManager<'a> {
 }
 
 #[cfg(unix)]
-pub(crate) fn escape_nushell_string(value: &str) -> String {
+fn escape_nushell_string(value: &str) -> String {
     value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+#[cfg(unix)]
+pub(crate) fn render_nushell_paths_file(paths: &[String]) -> String {
+    let mut content = String::from("# Upstream managed PATH additions\n\nlet upstream_paths = [\n");
+    for path in paths {
+        content.push_str(&format!("    \"{}\"\n", escape_nushell_string(path)));
+    }
+    content.push_str("]\n\n$env.PATH = ($upstream_paths ++ $env.PATH)\n");
+    content
+}
+
+#[cfg(unix)]
+pub(crate) fn nushell_paths_file_contains_path(content: &str, path: &str) -> bool {
+    parse_nushell_paths_file(content)
+        .iter()
+        .any(|entry| entry == path)
+}
+
+#[cfg(unix)]
+fn parse_nushell_paths_file(content: &str) -> Vec<String> {
+    let mut list_entries = Vec::new();
+    let mut prepend_entries = Vec::new();
+    let mut in_list = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed == "let upstream_paths = [" {
+            in_list = true;
+            continue;
+        }
+        if in_list && trimmed == "]" {
+            in_list = false;
+            continue;
+        }
+
+        if in_list {
+            if let Some((path, _)) = parse_nushell_string_literal(trimmed) {
+                list_entries.push(path);
+            }
+            continue;
+        }
+
+        if let Some(prepend_index) = trimmed.find("| prepend ") {
+            let rest = trimmed[prepend_index + "| prepend ".len()..].trim_start();
+            if let Some((path, _)) = parse_nushell_string_literal(rest) {
+                prepend_entries.push(path);
+            }
+        }
+    }
+
+    if list_entries.is_empty() {
+        prepend_entries.reverse();
+        dedupe_preserving_order(prepend_entries)
+    } else {
+        prepend_entries.reverse();
+        list_entries.extend(prepend_entries);
+        dedupe_preserving_order(list_entries)
+    }
+}
+
+#[cfg(unix)]
+fn parse_nushell_string_literal(input: &str) -> Option<(String, usize)> {
+    let mut chars = input.char_indices();
+    let (_, first) = chars.next()?;
+    if first != '"' {
+        return None;
+    }
+
+    let mut output = String::new();
+    let mut escaped = false;
+    for (index, ch) in chars {
+        if escaped {
+            match ch {
+                '"' | '\\' => output.push(ch),
+                other => {
+                    output.push('\\');
+                    output.push(other);
+                }
+            }
+            escaped = false;
+            continue;
+        }
+
+        match ch {
+            '\\' => escaped = true,
+            '"' => return Some((output, index + ch.len_utf8())),
+            other => output.push(other),
+        }
+    }
+
+    None
+}
+
+#[cfg(unix)]
+fn dedupe_preserving_order(paths: Vec<String>) -> Vec<String> {
+    let mut unique = Vec::new();
+    for path in paths {
+        if !unique.contains(&path) {
+            unique.push(path);
+        }
+    }
+    unique
 }
 
 #[cfg(test)]
 mod tests {
     #[cfg(unix)]
-    use super::ShellManager;
+    use super::{ShellManager, parse_nushell_paths_file};
     #[cfg(unix)]
     use std::path::{Path, PathBuf};
     #[cfg(unix)]
@@ -286,7 +389,12 @@ mod tests {
         assert!(content.contains("\\$"));
 
         let nushell_content = fs::read_to_string(&paths_nu_file).expect("read paths.nu");
-        assert_eq!(nushell_content.matches(" | prepend ").count(), 1);
+        assert!(nushell_content.contains("let upstream_paths = ["));
+        assert!(nushell_content.contains("$env.PATH = ($upstream_paths ++ $env.PATH)"));
+        assert_eq!(
+            parse_nushell_paths_file(&nushell_content),
+            vec![install_path.to_string_lossy().to_string()]
+        );
         assert!(nushell_content.contains("\\\""));
         assert!(nushell_content.contains("$"));
 
@@ -314,7 +422,49 @@ mod tests {
         assert!(!content.contains("export PATH="));
 
         let nushell_content = fs::read_to_string(&paths_nu_file).expect("read paths.nu");
-        assert!(!nushell_content.contains("$env.PATH"));
+        assert!(parse_nushell_paths_file(&nushell_content).is_empty());
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn add_to_paths_migrates_old_nushell_prepend_lines_to_managed_list() {
+        let root = temp_root("migrate-nu");
+        let first_path = root.join("first/bin");
+        let second_path = root.join("second/bin");
+        let new_path = root.join("new/bin");
+        let paths_file = root.join("paths.sh");
+        let paths_nu_file = root.join("paths.nu");
+        fs::create_dir_all(&first_path).expect("create first dir");
+        fs::create_dir_all(&second_path).expect("create second dir");
+        fs::create_dir_all(&new_path).expect("create new dir");
+        fs::write(&paths_file, "#!/usr/bin/env sh\n").expect("create paths file");
+        fs::write(
+            &paths_nu_file,
+            format!(
+                "# Upstream managed PATH additions\n\
+                 $env.PATH = ($env.PATH | prepend \"{}\")\n\
+                 $env.PATH = ($env.PATH | prepend \"{}\")\n",
+                first_path.display(),
+                second_path.display()
+            ),
+        )
+        .expect("create old paths.nu");
+        let manager = ShellManager::new(&paths_file);
+
+        manager.add_to_paths(&new_path).expect("add path");
+
+        let nushell_content = fs::read_to_string(&paths_nu_file).expect("read paths.nu");
+        assert!(!nushell_content.contains(" | prepend "));
+        assert_eq!(
+            parse_nushell_paths_file(&nushell_content),
+            vec![
+                new_path.to_string_lossy().to_string(),
+                second_path.to_string_lossy().to_string(),
+                first_path.to_string_lossy().to_string(),
+            ]
+        );
 
         cleanup(&root).expect("cleanup");
     }

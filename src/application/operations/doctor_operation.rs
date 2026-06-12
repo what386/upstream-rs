@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 #[cfg(unix)]
-use crate::services::integration::{ShellManager, escape_nushell_string};
+use crate::services::integration::{ShellManager, nushell_paths_file_contains_path};
 use crate::{
     services::integration::{CompletionManager, SymlinkManager, permission_handler},
     services::storage::package_storage::PackageStorage,
@@ -275,19 +275,16 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
         return;
     }
 
-    let expected_nushell_line = format!(
-        r#"$env.PATH = ($env.PATH | prepend "{}")"#,
-        escape_nushell_string(&paths.integration.symlinks_dir.display().to_string())
-    );
+    let expected_nushell_path = paths.integration.symlinks_dir.display().to_string();
 
     match fs::read_to_string(&paths.config.paths_nu_file) {
         Ok(content) => {
-            if content.contains(&expected_nushell_line) {
+            if nushell_paths_file_contains_path(&content, &expected_nushell_path) {
                 report.line(Level::Ok, "Nushell PATH integration file looks valid");
             } else {
                 report.line(
                     Level::Warn,
-                    "Nushell PATH file does not include upstream symlinks export line",
+                    "Nushell PATH file does not include upstream symlinks path",
                 );
             }
         }
