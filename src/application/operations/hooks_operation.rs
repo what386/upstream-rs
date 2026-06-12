@@ -145,6 +145,14 @@ fn get_installed_shells() -> io::Result<Vec<String>> {
     Ok(shells)
 }
 
+#[cfg(unix)]
+fn shell_name(shell_path: &str) -> &str {
+    Path::new(shell_path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+}
+
 #[cfg(windows)]
 fn add_to_windows_path(paths: &UpstreamPaths) -> Result<()> {
     use winreg::RegKey;
@@ -268,11 +276,7 @@ fn create_metadata_files(_paths: &UpstreamPaths) -> io::Result<()> {
 fn update_shell_profiles(paths: &UpstreamPaths) -> io::Result<()> {
     let shells = get_installed_shells()?;
     for shell_path in shells {
-        let shell_name = Path::new(&shell_path)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
-        match shell_name.to_lowercase().as_str() {
+        match shell_name(&shell_path).to_lowercase().as_str() {
             "bash" | "sh" => {
                 add_line_to_profile(paths, ".bashrc", SOURCE_LINE_BASH)?;
             }
@@ -352,11 +356,7 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
 
     let mut profiles_to_check: BTreeSet<(String, String)> = BTreeSet::new();
     for shell_path in get_installed_shells()? {
-        let shell_name = Path::new(&shell_path)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_ascii_lowercase();
+        let shell_name = shell_name(&shell_path).to_ascii_lowercase();
         match shell_name.as_str() {
             "bash" | "sh" => {
                 profiles_to_check.insert((".bashrc".to_string(), SOURCE_LINE_BASH.to_string()));
@@ -444,11 +444,7 @@ fn add_line_to_profile(paths: &UpstreamPaths, relative_path: &str, line: &str) -
 pub fn cleanup(paths: &UpstreamPaths) -> Result<()> {
     let shells = get_installed_shells()?;
     for shell_path in shells {
-        let shell_name = Path::new(&shell_path)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
-        let profile = match shell_name.to_lowercase().as_str() {
+        let profile = match shell_name(&shell_path).to_lowercase().as_str() {
             "bash" | "sh" => Some(".bashrc"),
             "zsh" => Some(".zshrc"),
             "fish" => Some(".config/fish/config.fish"),
