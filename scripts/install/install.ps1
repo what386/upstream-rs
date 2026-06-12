@@ -5,10 +5,9 @@
 $ErrorActionPreference = "Stop"
 
 # Colors for output
-$RED = "`e[0;31m"
-$GREEN = "`e[0;32m"
-$YELLOW = "`e[1;33m"
-$NC = "`e[0m" # No Color
+$RED = "Red"
+$GREEN = "Green"
+$YELLOW = "Yellow"
 
 $GITHUB_USER = "what386"
 $GITHUB_REPO = "upstream-rs"
@@ -22,15 +21,19 @@ $INSTALL_COMMANDS = @(
 function Write-ColorOutput {
     param(
         [string]$Message,
-        [string]$Color = $NC,
+        [string]$Color = "",
         [switch]$NoNewline
     )
+
+    $params = @{}
+    if ($Color) {
+        $params["ForegroundColor"] = $Color
+    }
     if ($NoNewline) {
-        Write-Host "${Color}${Message}${NC}" -NoNewline
+        $params["NoNewline"] = $true
     }
-    else {
-        Write-Host "${Color}${Message}${NC}"
-    }
+
+    Write-Host $Message @params
 }
 
 function Detect-Arch {
