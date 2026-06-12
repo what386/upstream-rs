@@ -5,6 +5,8 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 #[cfg(unix)]
+use std::path::PathBuf;
+#[cfg(unix)]
 use std::sync::{Mutex, OnceLock};
 
 /// Process-global lock used to serialize reads/writes to the shared PATH file.
@@ -25,11 +27,17 @@ fn normalize_windows_path(path: &str) -> String {
 
 pub struct ShellManager<'a> {
     paths_file: &'a Path,
+    #[cfg(unix)]
+    paths_nu_file: PathBuf,
 }
 
 impl<'a> ShellManager<'a> {
     pub fn new(paths_file: &'a Path) -> Self {
-        Self { paths_file }
+        Self {
+            paths_file,
+            #[cfg(unix)]
+            paths_nu_file: paths_file.with_extension("nu"),
+        }
     }
 
     /// Adds a package's installation path to PATH
@@ -59,6 +67,19 @@ impl<'a> ShellManager<'a> {
                 content.push_str(&format!("{export_line}\n"));
                 write_atomic(self.paths_file, content.as_bytes())
                     .context("Failed to write paths file")?;
+            }
+
+            let mut nushell_content = fs::read_to_string(&self.paths_nu_file)
+                .unwrap_or_else(|_| "# Upstream managed PATH additions\n".to_string());
+            let nushell_line = format!(
+                r#"$env.PATH = ($env.PATH | prepend "{}")"#,
+                escape_nushell_string(&install_path.to_string_lossy())
+            );
+
+            if !nushell_content.contains(&nushell_line) {
+                nushell_content.push_str(&format!("{nushell_line}\n"));
+                write_atomic(&self.paths_nu_file, nushell_content.as_bytes())
+                    .context("Failed to write Nushell paths file")?;
             }
         }
 
@@ -91,6 +112,19 @@ impl<'a> ShellManager<'a> {
             content = content.replace(&export_line, "");
             write_atomic(self.paths_file, content.as_bytes())
                 .context("Failed to write paths file")?;
+
+            if self.paths_nu_file.exists() {
+                let mut nushell_content = fs::read_to_string(&self.paths_nu_file)
+                    .context("Failed to read Nushell paths file")?;
+                let nushell_line = format!(
+                    r#"$env.PATH = ($env.PATH | prepend "{}")"#,
+                    escape_nushell_string(&install_path.to_string_lossy())
+                );
+                nushell_content = nushell_content.replace(&format!("{nushell_line}\n"), "");
+                nushell_content = nushell_content.replace(&nushell_line, "");
+                write_atomic(&self.paths_nu_file, nushell_content.as_bytes())
+                    .context("Failed to write Nushell paths file")?;
+            }
         }
 
         #[cfg(windows)]
@@ -201,6 +235,11 @@ impl<'a> ShellManager<'a> {
     }
 }
 
+#[cfg(unix)]
+pub(crate) fn escape_nushell_string(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
 #[cfg(test)]
 mod tests {
     #[cfg(unix)]
@@ -232,8 +271,10 @@ mod tests {
         let root = temp_root("add-idempotent");
         let install_path = root.join("tool\"dir$");
         let paths_file = root.join("paths.sh");
+        let paths_nu_file = root.join("paths.nu");
         fs::create_dir_all(&install_path).expect("create install dir");
         fs::write(&paths_file, "#!/usr/bin/env sh\n").expect("create paths file");
+        fs::write(&paths_nu_file, "# Upstream managed PATH additions\n").expect("create paths.nu");
         let manager = ShellManager::new(&paths_file);
 
         manager.add_to_paths(&install_path).expect("first add");
@@ -244,6 +285,11 @@ mod tests {
         assert!(content.contains("\\\""));
         assert!(content.contains("\\$"));
 
+        let nushell_content = fs::read_to_string(&paths_nu_file).expect("read paths.nu");
+        assert_eq!(nushell_content.matches(" | prepend ").count(), 1);
+        assert!(nushell_content.contains("\\\""));
+        assert!(nushell_content.contains("$"));
+
         cleanup(&root).expect("cleanup");
     }
 
@@ -253,8 +299,10 @@ mod tests {
         let root = temp_root("remove");
         let install_path = root.join("pkg/bin");
         let paths_file = root.join("paths.sh");
+        let paths_nu_file = root.join("paths.nu");
         fs::create_dir_all(&install_path).expect("create install dir");
         fs::write(&paths_file, "").expect("create paths file");
+        fs::write(&paths_nu_file, "# Upstream managed PATH additions\n").expect("create paths.nu");
         let manager = ShellManager::new(&paths_file);
 
         manager.add_to_paths(&install_path).expect("add path");
@@ -264,6 +312,9 @@ mod tests {
 
         let content = fs::read_to_string(&paths_file).expect("read paths file");
         assert!(!content.contains("export PATH="));
+
+        let nushell_content = fs::read_to_string(&paths_nu_file).expect("read paths.nu");
+        assert!(!nushell_content.contains("$env.PATH"));
 
         cleanup(&root).expect("cleanup");
     }

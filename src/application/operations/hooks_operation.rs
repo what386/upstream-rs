@@ -1,3 +1,5 @@
+#[cfg(unix)]
+use crate::services::integration::escape_nushell_string;
 use crate::services::{integration::CompletionManager, storage::config_storage::ConfigStorage};
 use crate::utils::static_paths::UpstreamPaths;
 #[cfg(windows)]
@@ -19,6 +21,8 @@ const SOURCE_LINE_BASH: &str =
 #[cfg(unix)]
 const SOURCE_LINE_FISH: &str =
     "test -f $HOME/.upstream/metadata/paths.sh; and source $HOME/.upstream/metadata/paths.sh";
+#[cfg(unix)]
+const SOURCE_LINE_NUSHELL: &str = r#"const upstream_paths_nu = if ("~/.upstream/metadata/paths.nu" | path expand | path exists) { ("~/.upstream/metadata/paths.nu" | path expand) } else { null }; source-env $upstream_paths_nu"#;
 
 pub struct InitCheckReport {
     pub ok: bool,
@@ -245,6 +249,16 @@ fn create_metadata_files(paths: &UpstreamPaths) -> io::Result<()> {
             ),
         )?;
     }
+    if !paths.config.paths_nu_file.exists() {
+        let export_line = format!(
+            r#"$env.PATH = ($env.PATH | prepend "{}")"#,
+            escape_nushell_string(&paths.integration.symlinks_dir.display().to_string())
+        );
+        fs::write(
+            &paths.config.paths_nu_file,
+            format!("# Upstream managed PATH additions\n{}\n", export_line),
+        )?;
+    }
     Ok(())
 }
 
@@ -272,6 +286,14 @@ fn update_shell_profiles(paths: &UpstreamPaths) -> io::Result<()> {
             "fish" => {
                 let fish_config = Path::new(".config").join("fish").join("config.fish");
                 add_line_to_profile(paths, &fish_config.to_string_lossy(), SOURCE_LINE_FISH)?;
+            }
+            "nu" => {
+                let nushell_config = Path::new(".config").join("nushell").join("config.nu");
+                add_line_to_profile(
+                    paths,
+                    &nushell_config.to_string_lossy(),
+                    SOURCE_LINE_NUSHELL,
+                )?;
             }
             _ => {}
         }
@@ -308,6 +330,33 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
         }
     }
 
+    let expected_nushell_line = format!(
+        r#"$env.PATH = ($env.PATH | prepend "{}")"#,
+        escape_nushell_string(&paths.integration.symlinks_dir.display().to_string())
+    );
+
+    if !paths.config.paths_nu_file.exists() {
+        report.ok = false;
+        report.messages.push(format!(
+            "[FAIL] Nushell PATH metadata file missing: {}",
+            paths.config.paths_nu_file.display()
+        ));
+    } else {
+        let content = fs::read_to_string(&paths.config.paths_nu_file)?;
+        if content.contains(&expected_nushell_line) {
+            report.messages.push(format!(
+                "[OK] Nushell PATH metadata file contains symlink export: {}",
+                paths.config.paths_nu_file.display()
+            ));
+        } else {
+            report.ok = false;
+            report.messages.push(format!(
+                "[FAIL] Nushell PATH metadata file missing expected export line: {}",
+                paths.config.paths_nu_file.display()
+            ));
+        }
+    }
+
     let mut profiles_to_check: BTreeSet<(String, String)> = BTreeSet::new();
     for shell_path in get_installed_shells()? {
         let shell_name = Path::new(&shell_path)
@@ -326,6 +375,12 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
                 profiles_to_check.insert((
                     ".config/fish/config.fish".to_string(),
                     SOURCE_LINE_FISH.to_string(),
+                ));
+            }
+            "nu" => {
+                profiles_to_check.insert((
+                    ".config/nushell/config.nu".to_string(),
+                    SOURCE_LINE_NUSHELL.to_string(),
                 ));
             }
             _ => {}
@@ -404,6 +459,7 @@ pub fn cleanup(paths: &UpstreamPaths) -> Result<()> {
             "bash" | "sh" => Some(".bashrc"),
             "zsh" => Some(".zshrc"),
             "fish" => Some(".config/fish/config.fish"),
+            "nu" => Some(".config/nushell/config.nu"),
             _ => None,
         };
         if let Some(profile_rel) = profile {
@@ -416,7 +472,9 @@ pub fn cleanup(paths: &UpstreamPaths) -> Result<()> {
                 .replace(&format!("{}\n", SOURCE_LINE_BASH), "")
                 .replace(SOURCE_LINE_BASH, "")
                 .replace(&format!("{}\n", SOURCE_LINE_FISH), "")
-                .replace(SOURCE_LINE_FISH, "");
+                .replace(SOURCE_LINE_FISH, "")
+                .replace(&format!("{}\n", SOURCE_LINE_NUSHELL), "")
+                .replace(SOURCE_LINE_NUSHELL, "");
             fs::write(&profile_path, content)?;
         }
     }
@@ -526,6 +584,7 @@ mod tests {
                 packages_file: dirs.metadata_dir.join("packages.json"),
                 metadata_file: dirs.metadata_dir.join("metadata.json"),
                 paths_file: dirs.metadata_dir.join("paths.sh"),
+                paths_nu_file: dirs.metadata_dir.join("paths.nu"),
             },
             install: InstallPaths {
                 appimages_dir: dirs.data_dir.join("appimages"),
@@ -552,6 +611,27 @@ mod tests {
             fs::remove_dir_all(path)?;
         }
         Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn create_metadata_files_creates_posix_and_nushell_path_files() {
+        let root = temp_root("metadata-files");
+        let paths = test_paths(&root);
+        fs::create_dir_all(&paths.dirs.metadata_dir).expect("create metadata dir");
+
+        super::create_metadata_files(&paths).expect("create metadata files");
+
+        let posix_content = fs::read_to_string(&paths.config.paths_file).expect("read paths.sh");
+        assert!(posix_content.contains("export PATH="));
+        assert!(posix_content.contains(&paths.integration.symlinks_dir.display().to_string()));
+
+        let nushell_content =
+            fs::read_to_string(&paths.config.paths_nu_file).expect("read paths.nu");
+        assert!(nushell_content.contains("$env.PATH = ($env.PATH | prepend "));
+        assert!(nushell_content.contains(&paths.integration.symlinks_dir.display().to_string()));
+
+        cleanup(&root).expect("cleanup");
     }
 
     #[test]
