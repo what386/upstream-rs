@@ -16,5 +16,5 @@ pub use desktop_manager::DesktopManager;
 pub use icon_manager::IconManager;
 pub use shell_manager::ShellManager;
 #[cfg(unix)]
-pub(crate) use shell_manager::escape_nushell_string;
+pub(crate) use shell_manager::{nushell_paths_file_contains_path, render_nushell_paths_file};
 pub use symlink_manager::SymlinkManager;

@@ -1,5 +1,5 @@
 #[cfg(unix)]
-use crate::services::integration::escape_nushell_string;
+use crate::services::integration::{nushell_paths_file_contains_path, render_nushell_paths_file};
 use crate::services::{integration::CompletionManager, storage::config_storage::ConfigStorage};
 use crate::utils::static_paths::UpstreamPaths;
 #[cfg(windows)]
@@ -250,13 +250,9 @@ fn create_metadata_files(paths: &UpstreamPaths) -> io::Result<()> {
         )?;
     }
     if !paths.config.paths_nu_file.exists() {
-        let export_line = format!(
-            r#"$env.PATH = ($env.PATH | prepend "{}")"#,
-            escape_nushell_string(&paths.integration.symlinks_dir.display().to_string())
-        );
         fs::write(
             &paths.config.paths_nu_file,
-            format!("# Upstream managed PATH additions\n{}\n", export_line),
+            render_nushell_paths_file(&[paths.integration.symlinks_dir.display().to_string()]),
         )?;
     }
     Ok(())
@@ -330,10 +326,7 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
         }
     }
 
-    let expected_nushell_line = format!(
-        r#"$env.PATH = ($env.PATH | prepend "{}")"#,
-        escape_nushell_string(&paths.integration.symlinks_dir.display().to_string())
-    );
+    let expected_nushell_path = paths.integration.symlinks_dir.display().to_string();
 
     if !paths.config.paths_nu_file.exists() {
         report.ok = false;
@@ -343,15 +336,15 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
         ));
     } else {
         let content = fs::read_to_string(&paths.config.paths_nu_file)?;
-        if content.contains(&expected_nushell_line) {
+        if nushell_paths_file_contains_path(&content, &expected_nushell_path) {
             report.messages.push(format!(
-                "[OK] Nushell PATH metadata file contains symlink export: {}",
+                "[OK] Nushell PATH metadata file contains symlink path: {}",
                 paths.config.paths_nu_file.display()
             ));
         } else {
             report.ok = false;
             report.messages.push(format!(
-                "[FAIL] Nushell PATH metadata file missing expected export line: {}",
+                "[FAIL] Nushell PATH metadata file missing expected symlink path: {}",
                 paths.config.paths_nu_file.display()
             ));
         }
@@ -628,7 +621,8 @@ mod tests {
 
         let nushell_content =
             fs::read_to_string(&paths.config.paths_nu_file).expect("read paths.nu");
-        assert!(nushell_content.contains("$env.PATH = ($env.PATH | prepend "));
+        assert!(nushell_content.contains("let upstream_paths = ["));
+        assert!(nushell_content.contains("$env.PATH = ($upstream_paths ++ $env.PATH)"));
         assert!(nushell_content.contains(&paths.integration.symlinks_dir.display().to_string()));
 
         cleanup(&root).expect("cleanup");
