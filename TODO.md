@@ -14,6 +14,10 @@
 - [ ] fix install script coloring on windows
       @created 2026-06-11 23:52
 
-- [ ] nushell support
+
+## Completed
+
+- [x] nushell support
       @created 2026-06-12 16:09
+      @completed 2026-06-12 17:23
 
