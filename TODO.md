@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-06-11
+@modified: 2026-06-12
 
 ## Tasks
 
@@ -13,4 +13,7 @@
 
 - [ ] fix install script coloring on windows
       @created 2026-06-11 23:52
+
+- [ ] nushell support
+      @created 2026-06-12 16:09
 
