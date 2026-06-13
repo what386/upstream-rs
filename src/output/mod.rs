@@ -6,7 +6,7 @@ mod style;
 mod table;
 
 pub use prompt::{assume_yes, confirm_or_cancel, set_assume_yes};
-pub(crate) use status::error_summary_with_limit;
+pub use status::error_summary_with_limit;
 pub use status::{
     Status, error_summary, status_cell, status_label, status_line, status_line_text,
     status_line_text_with_width, status_subject_width, summary_line,

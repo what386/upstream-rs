@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use sigstore::crypto::{CosignVerificationKey, Signature};
 use std::{fs, path::Path};
 
-pub(crate) async fn verify_cosign_signature(
+pub async fn verify_cosign_signature(
     asset_path: &Path,
     signature_contents: &str,
     trusted_keys: &[CosignPublicKey],

@@ -75,7 +75,7 @@ pub fn error_summary(err: &anyhow::Error) -> String {
     error_summary_with_limit(err, ERROR_SUMMARY_MAX_CHARS)
 }
 
-pub(crate) fn error_summary_with_limit(err: &anyhow::Error, max: usize) -> String {
+pub fn error_summary_with_limit(err: &anyhow::Error, max: usize) -> String {
     let mut seen = HashSet::new();
     let mut parts = Vec::new();
     for message in err.chain().map(|cause| cause.to_string()) {
