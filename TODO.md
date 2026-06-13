@@ -17,3 +17,6 @@
 - [ ] feat: rollback with no args now undoes the last operation instead of all packages
       @created 2026-06-13 14:21
 
+- [ ] BREAKING: swap positions of repo and name in install-like commands
+      @created 2026-06-13 14:27
+
