@@ -9,12 +9,9 @@ use crate::models::common::{
 };
 use crate::models::provider::Release;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum InstallType {
-    #[default]
-    #[serde(alias = "release")]
     Release,
-    #[serde(alias = "build")]
     Build,
 }
 
@@ -28,11 +25,8 @@ pub struct Package {
     pub channel: Channel,
     pub provider: Provider,
     pub base_url: Option<String>,
-    #[serde(default)]
     pub install_type: InstallType,
-    #[serde(default)]
     pub build_branch: Option<String>,
-    #[serde(default)]
     pub build_commit: Option<String>,
 
     pub is_pinned: bool,
@@ -172,52 +166,6 @@ mod tests {
 
         a.name = "rg".to_string();
         assert!(!a.is_same_as(&b));
-    }
-
-    #[test]
-    fn deserialize_defaults_install_type_to_release_for_legacy_records() {
-        let legacy = r#"{
-            "name":"tool",
-            "repo_slug":"owner/tool",
-            "filetype":"Binary",
-            "version":{"major":1,"minor":2,"patch":3,"is_prerelease":false},
-            "channel":"Stable",
-            "provider":"Github",
-            "base_url":null,
-            "is_pinned":false,
-            "match_pattern":null,
-            "exclude_pattern":null,
-            "icon_path":null,
-            "install_path":null,
-            "exec_path":null,
-            "last_upgraded":"2026-01-01T00:00:00Z"
-        }"#;
-        let pkg: Package = serde_json::from_str(legacy).expect("deserialize legacy package");
-        assert_eq!(pkg.install_type, InstallType::Release);
-    }
-
-    #[test]
-    fn deserialize_accepts_legacy_lowercase_install_type_values() {
-        let legacy_lowercase = r#"{
-            "name":"tool",
-            "repo_slug":"owner/tool",
-            "filetype":"Binary",
-            "version":{"major":1,"minor":2,"patch":3,"is_prerelease":false},
-            "channel":"Stable",
-            "provider":"Github",
-            "base_url":null,
-            "install_type":"release",
-            "is_pinned":false,
-            "match_pattern":null,
-            "exclude_pattern":null,
-            "icon_path":null,
-            "install_path":null,
-            "exec_path":null,
-            "last_upgraded":"2026-01-01T00:00:00Z"
-        }"#;
-        let pkg: Package =
-            serde_json::from_str(legacy_lowercase).expect("deserialize lowercase install type");
-        assert_eq!(pkg.install_type, InstallType::Release);
     }
 
     #[test]

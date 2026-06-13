@@ -20,13 +20,6 @@ struct PackageStorageFile {
     packages: Vec<Package>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(untagged)]
-enum PackageStorageOnDisk {
-    Versioned(PackageStorageFile),
-    Legacy(Vec<Package>),
-}
-
 impl PackageStorage {
     pub fn new(packages_file: &Path) -> Result<Self> {
         let mut storage = Self {
@@ -53,26 +46,21 @@ impl PackageStorage {
                     return Ok(());
                 }
 
-                let parsed: PackageStorageOnDisk = serde_json::from_str(&json).with_context(|| {
+                let file: PackageStorageFile = serde_json::from_str(&json).with_context(|| {
                     format!(
                         "Failed to parse package storage '{}'. The file may be corrupt; restore from backup or fix JSON syntax",
                         self.packages_file.display()
                     )
                 })?;
-                self.packages = match parsed {
-                    PackageStorageOnDisk::Versioned(file) => {
-                        if file.version != PACKAGE_STORAGE_VERSION {
-                            return Err(anyhow!(
-                                "Unsupported package storage version {} in '{}'. Expected version {}.",
-                                file.version,
-                                self.packages_file.display(),
-                                PACKAGE_STORAGE_VERSION
-                            ));
-                        }
-                        file.packages
-                    }
-                    PackageStorageOnDisk::Legacy(packages) => packages,
-                };
+                if file.version != PACKAGE_STORAGE_VERSION {
+                    return Err(anyhow!(
+                        "Unsupported package storage version {} in '{}'. Expected version {}.",
+                        file.version,
+                        self.packages_file.display(),
+                        PACKAGE_STORAGE_VERSION
+                    ));
+                }
+                self.packages = file.packages;
                 Ok(())
             }
             Err(e) => Err(anyhow!("Warning: Failed to load packages: {}", e)),
@@ -296,22 +284,6 @@ mod tests {
         assert_eq!(decoded.version, PACKAGE_STORAGE_VERSION);
         assert_eq!(decoded.packages.len(), 1);
         assert_eq!(decoded.packages[0].version.major, 2);
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
-    fn legacy_array_format_still_loads() {
-        let path = temp_packages_file("legacy-load");
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("create parent");
-        }
-        let legacy = serde_json::to_string(&vec![test_package("legacy")]).expect("legacy json");
-        fs::write(&path, legacy).expect("write legacy");
-
-        let storage = PackageStorage::new(&path).expect("load legacy");
-        assert_eq!(storage.get_all_packages().len(), 1);
-        assert!(storage.get_package_by_name("legacy").is_some());
 
         cleanup(&path).expect("cleanup");
     }

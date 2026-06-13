@@ -14,9 +14,7 @@ pub struct PackageReference {
     pub channel: Channel,
     pub provider: Provider,
     pub base_url: Option<String>,
-    #[serde(default)]
     pub build_branch: Option<String>,
-    #[serde(default)]
     pub build_commit: Option<String>,
     pub match_pattern: Option<String>,
     pub exclude_pattern: Option<String>,
@@ -118,23 +116,5 @@ mod tests {
         assert_eq!(reference.build_commit.as_deref(), Some("0123456789abcdef"));
         assert_eq!(reference.match_pattern.as_deref(), Some("linux"));
         assert_eq!(reference.exclude_pattern.as_deref(), Some("symbols"));
-    }
-
-    #[test]
-    fn deserializes_without_branch_fields_for_legacy_manifests() {
-        let legacy = r#"{
-            "name":"tool",
-            "repo_slug":"owner/tool",
-            "filetype":"Binary",
-            "channel":"Stable",
-            "provider":"Github",
-            "base_url":null,
-            "match_pattern":null,
-            "exclude_pattern":null
-        }"#;
-        let reference: PackageReference =
-            serde_json::from_str(legacy).expect("deserialize legacy reference");
-        assert!(reference.build_branch.is_none());
-        assert!(reference.build_commit.is_none());
     }
 }

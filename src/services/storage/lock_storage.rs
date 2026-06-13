@@ -348,22 +348,4 @@ mod tests {
 
         let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
     }
-
-    #[test]
-    fn legacy_lock_without_pid_start_token_stays_blocking_for_live_pid() {
-        let lock_path = unique_lock_path("legacy-live");
-        fs::create_dir_all(lock_path.parent().expect("lock parent")).expect("create lock parent");
-        let current_pid = std::process::id();
-        fs::write(
-            &lock_path,
-            format!("pid={current_pid}\noperation=test\nstarted_at_unix=1\n"),
-        )
-        .expect("write legacy lock");
-
-        let outcome =
-            LockStorage::try_acquire_at_internal(&lock_path, "next-op", true).expect("try acquire");
-        assert!(matches!(outcome, super::AcquireOutcome::Waiting));
-
-        let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
-    }
 }
