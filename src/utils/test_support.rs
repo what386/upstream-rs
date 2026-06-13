@@ -18,6 +18,8 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
         user_dir: root.to_path_buf(),
         config_dir: root.join("config"),
         data_dir: root.join("data"),
+        packages_dir: root.join("data/packages"),
+        cache_dir: root.join("data/cache"),
         metadata_dir: root.join("data/metadata"),
     };
 
@@ -30,9 +32,9 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
             paths_nu_file: dirs.metadata_dir.join("paths.nu"),
         },
         install: InstallPaths {
-            appimages_dir: dirs.data_dir.join("appimages"),
-            binaries_dir: dirs.data_dir.join("binaries"),
-            archives_dir: dirs.data_dir.join("archives"),
+            appimages_dir: dirs.packages_dir.join("appimages"),
+            binaries_dir: dirs.packages_dir.join("binaries"),
+            archives_dir: dirs.packages_dir.join("archives"),
             rollback_dir: dirs.data_dir.join("rollback"),
             tmp_dir: dirs.data_dir.join("tmp"),
         },

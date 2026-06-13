@@ -68,12 +68,14 @@ impl<'a> PackageUpgrader<'a> {
         let file_name = install_path.file_name().ok_or_else(|| {
             anyhow::anyhow!("Install path '{}' has no filename", install_path.display())
         })?;
-        let upgrade_tmp_dir = paths.install.tmp_dir.join("upgrade");
-        fs::create_dir_all(&upgrade_tmp_dir).context(format!(
+        fs::create_dir_all(&paths.install.tmp_dir).context(format!(
             "Failed to create upgrade temp directory '{}'",
-            upgrade_tmp_dir.display()
+            paths.install.tmp_dir.display()
         ))?;
-        Ok(upgrade_tmp_dir.join(format!("{}.old", file_name.to_string_lossy())))
+        Ok(paths
+            .install
+            .tmp_dir
+            .join(format!("{}.old", file_name.to_string_lossy())))
     }
 
     fn remove_path_if_exists(path: &Path) -> Result<()> {
@@ -678,11 +680,11 @@ mod tests {
         let root = temp_root("rollback-desktop-failure");
         let paths = test_paths(&root);
         fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
-        fs::create_dir_all(paths.install.tmp_dir.join("upgrade")).expect("create upgrade tmp dir");
+        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
         fs::create_dir_all(&paths.integration.symlinks_dir).expect("create symlinks dir");
 
         let install_path = paths.install.binaries_dir.join("tool");
-        let backup_path = paths.install.tmp_dir.join("upgrade/tool.old");
+        let backup_path = paths.install.tmp_dir.join("tool.old");
         fs::write(&install_path, b"new").expect("write partial new binary");
         fs::write(&backup_path, b"old").expect("write backup binary");
 

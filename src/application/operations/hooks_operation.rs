@@ -198,6 +198,8 @@ fn broadcast_environment_change() {
 fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
     fs::create_dir_all(&paths.dirs.config_dir)?;
     fs::create_dir_all(&paths.dirs.data_dir)?;
+    fs::create_dir_all(&paths.dirs.packages_dir)?;
+    fs::create_dir_all(&paths.dirs.cache_dir)?;
     fs::create_dir_all(&paths.dirs.metadata_dir)?;
     fs::create_dir_all(&paths.install.appimages_dir)?;
     fs::create_dir_all(&paths.install.binaries_dir)?;
@@ -540,6 +542,8 @@ mod tests {
             user_dir: root.to_path_buf(),
             config_dir: root.join("config"),
             data_dir: root.join(".upstream"),
+            packages_dir: root.join(".upstream/packages"),
+            cache_dir: root.join(".upstream/cache"),
             metadata_dir: root.join(".upstream/metadata"),
         };
 
@@ -552,9 +556,9 @@ mod tests {
                 paths_nu_file: dirs.metadata_dir.join("paths.nu"),
             },
             install: InstallPaths {
-                appimages_dir: dirs.data_dir.join("appimages"),
-                binaries_dir: dirs.data_dir.join("binaries"),
-                archives_dir: dirs.data_dir.join("archives"),
+                appimages_dir: dirs.packages_dir.join("appimages"),
+                binaries_dir: dirs.packages_dir.join("binaries"),
+                archives_dir: dirs.packages_dir.join("archives"),
                 rollback_dir: dirs.data_dir.join("rollback"),
                 tmp_dir: dirs.data_dir.join("tmp"),
             },

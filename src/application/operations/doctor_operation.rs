@@ -328,6 +328,8 @@ pub fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
 
     for (label, path) in [
         ("data directory", paths.dirs.data_dir.as_path()),
+        ("packages directory", paths.dirs.packages_dir.as_path()),
+        ("cache directory", paths.dirs.cache_dir.as_path()),
         ("metadata directory", paths.dirs.metadata_dir.as_path()),
         (
             "symlinks directory",
