@@ -1,58 +1,14 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
-use crate::output::{self, Status, TransactionRow};
-use crate::services::packaging::RollbackManager;
-use crate::services::packaging::disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate};
-use crate::services::storage::{
-    metadata_storage::MetadataStorage,
-    package_storage::PackageStorage,
-    rollback_storage::RollbackStorage,
-    transaction_storage::{
-        TransactionKind, TransactionLog, package_failed, package_skipped, package_success,
-        planned_packages,
+use crate::{
+    application::operations::rollback_operation::{
+        RollbackOperation, RollbackPackageOutcome, RollbackPackageStatus, RollbackPreview,
+        RollbackPreviewRow,
     },
+    output::{self, Status, TransactionRow},
 };
-use crate::utils::static_paths::UpstreamPaths;
-
-fn restore_preview_rows(names: &[String], manager: &RollbackManager<'_>) -> Vec<TransactionRow> {
-    names
-        .iter()
-        .filter_map(|name| {
-            let record = manager.rollback_record(name)?;
-            let pkg = &record.package_snapshot;
-            Some(TransactionRow::single_version(
-                format!("{}/{}", pkg.provider, pkg.name),
-                pkg.version.to_string(),
-                manager
-                    .estimate_restore_impact(name)
-                    .map(|impact| impact.net)
-                    .unwrap_or(SignedByteEstimate::exact(0)),
-                ByteEstimate::exact(0),
-            ))
-        })
-        .collect()
-}
-
-fn prune_preview_rows(names: &[String], manager: &RollbackManager<'_>) -> Vec<TransactionRow> {
-    names
-        .iter()
-        .filter_map(|name| {
-            let record = manager.rollback_record(name)?;
-            let pkg = &record.package_snapshot;
-            Some(TransactionRow::single_version(
-                format!("{}/{}", pkg.provider, pkg.name),
-                pkg.version.to_string(),
-                manager
-                    .estimate_prune_impact(name)
-                    .map(|impact| impact.net)
-                    .unwrap_or(SignedByteEstimate::exact(0)),
-                ByteEstimate::exact(0),
-            ))
-        })
-        .collect()
-}
 
 fn restore_phase_label(message: &str) -> &'static str {
     if message.starts_with("Removing current installation for ") {
@@ -70,106 +26,76 @@ fn restore_phase_label(message: &str) -> &'static str {
     }
 }
 
-fn show_restore_preview(rows: &[TransactionRow], impact: &DiskImpact, names: &[String]) {
+fn transaction_rows(rows: &[RollbackPreviewRow]) -> Vec<TransactionRow> {
+    rows.iter().map(TransactionRow::from).collect()
+}
+
+fn show_restore_preview(preview: &RollbackPreview) {
     println!("{}", output::title("Rollback preview"));
-    if rows.is_empty() {
+    if preview.rows.is_empty() {
         println!(
             "{}",
             output::warning("No rollback artifacts found for selected packages.")
         );
     } else {
-        output::print_transaction_table(rows, impact, "Net disk change:");
+        output::print_transaction_table(
+            &transaction_rows(&preview.rows),
+            &preview.impact,
+            "Net disk change:",
+        );
     }
-    for name in names {
-        if !rows
-            .iter()
-            .any(|row| row.package.ends_with(&format!("/{name}")))
-        {
-            output::status_line(Status::Fail, name, "no rollback data found");
-        }
-    }
+    show_missing_names(&preview.missing_names);
 }
 
-fn show_prune_preview(
-    rows: &[TransactionRow],
-    impact: &DiskImpact,
-    names: &[String],
-    dry_run: bool,
-) {
+fn show_prune_preview(preview: &RollbackPreview, dry_run: bool) {
     if dry_run {
         println!("{}", output::title("Rollback prune preview"));
     }
-    if rows.is_empty() {
+    if preview.rows.is_empty() {
         println!("{}", output::warning("No rollback artifacts to prune."));
     } else {
-        output::print_transaction_table(rows, impact, "Net disk change:");
+        output::print_transaction_table(
+            &transaction_rows(&preview.rows),
+            &preview.impact,
+            "Net disk change:",
+        );
     }
+    show_missing_names(&preview.missing_names);
+}
+
+fn show_missing_names(names: &[String]) {
     for name in names {
-        if !rows
-            .iter()
-            .any(|row| row.package.ends_with(&format!("/{name}")))
-        {
-            output::status_line(Status::Fail, name, "no rollback data found");
-        }
+        output::status_line(Status::Fail, name, "no rollback data found");
     }
 }
 
 pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
-    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
-    let rollback_file = RollbackManager::rollback_file_path(&paths);
-    let mut rollback_storage = RollbackStorage::new(&rollback_file)?;
-
-    let mut manager = RollbackManager::new(
-        &paths,
-        &mut package_storage,
-        &mut metadata_storage,
-        &mut rollback_storage,
-    );
+    let mut operation = RollbackOperation::new()?;
 
     if prune {
-        return run_prune(names, dry_run, &paths, &mut manager);
+        return run_prune(names, dry_run, &mut operation);
     }
 
-    if names.is_empty() {
-        return Err(anyhow!(
-            "At least one package name is required unless --prune is provided"
-        ));
-    }
-
-    let preview_rows = restore_preview_rows(&names, &manager);
-    let impact = estimate_restore_impact(&names, &manager);
+    let preview = operation.restore_preview(&names)?;
 
     if dry_run {
-        show_restore_preview(&preview_rows, &impact, &names);
-        for name in &names {
-            let Some(record) = manager.rollback_record(name) else {
-                continue;
-            };
-
-            let target = record
-                .package_snapshot
-                .install_path
-                .as_ref()
-                .map(|p| p.display().to_string())
-                .unwrap_or_else(|| "<missing>".to_string());
+        show_restore_preview(&preview.preview);
+        for target in &preview.targets {
             output::status_line(
                 Status::Plan,
-                name,
-                format!("restore rollback from {} ({:?})", target, record.source),
+                &target.name,
+                format!(
+                    "restore rollback from {} ({:?})",
+                    target.install_path, target.source
+                ),
             );
         }
         output::action_note("resolve only (no restore, no prune, no metadata changes)");
         return Ok(());
     }
 
-    show_restore_preview(&preview_rows, &impact, &names);
-    let restorable_names = names
-        .iter()
-        .filter(|name| manager.rollback_record(name).is_some())
-        .cloned()
-        .collect::<Vec<_>>();
+    show_restore_preview(&preview.preview);
+    let restorable_names = operation.restorable_names(&names);
     if restorable_names.is_empty() {
         println!(
             "{}",
@@ -184,12 +110,6 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
         ),
         false,
     )?;
-    let transaction = TransactionLog::start(
-        &paths,
-        TransactionKind::Rollback,
-        planned_packages(restorable_names.clone()),
-        None,
-    )?;
 
     let pb = ProgressBar::new_spinner();
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -197,69 +117,33 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     pb.enable_steady_tick(Duration::from_millis(120));
     pb.set_message("Restoring rollback");
 
-    let mut restored = 0_u32;
-    let mut failed = 0_u32;
-    let mut completion_lines = Vec::new();
-    let mut completion_packages = Vec::new();
-    let completion_subject_width =
-        output::status_subject_width(restorable_names.iter().map(String::as_str));
-    for name in &restorable_names {
-        let package_name = name.clone();
-        let phase_pb = pb.clone();
-        let mut msg = Some(move |line: &str| {
-            phase_pb.set_message(format!(
-                "Restoring rollback for {package_name}\n {:<28} {}",
-                package_name,
-                restore_phase_label(line)
-            ));
-        });
-        match manager.restore_package(name, &mut msg) {
-            Ok(_) => {
-                completion_packages.push(package_success(name.clone()));
-                completion_lines.push(output::status_line_text_with_width(
-                    Status::Ok,
-                    name,
-                    "restored",
-                    completion_subject_width,
-                ));
-                restored += 1;
-            }
-            Err(err) => {
-                completion_packages.push(package_failed(name.clone(), output::error_summary(&err)));
-                completion_lines.push(output::status_line_text_with_width(
-                    Status::Fail,
-                    name,
-                    output::error_summary(&err),
-                    completion_subject_width,
-                ));
-                failed += 1;
-            }
-        }
-    }
+    let phase_pb = pb.clone();
+    let mut progress = Some(move |package_name: &str, line: &str| {
+        phase_pb.set_message(format!(
+            "Restoring rollback for {package_name}\n {:<28} {}",
+            package_name,
+            restore_phase_label(line)
+        ));
+    });
+    let outcome = operation.restore(&restorable_names, &mut progress)?;
     pb.finish_and_clear();
-    for line in completion_lines {
-        println!("{line}");
-    }
 
-    if failed > 0 {
-        transaction.fail(
-            completion_packages,
-            format!("{failed} rollback restore(s) failed"),
-        )?;
+    print_completion_lines(&outcome.packages);
+
+    if outcome.failed > 0 {
         println!(
             "{}",
             output::warning(format!(
                 "Rollback complete: {} restored, {} failed.",
-                restored, failed
+                outcome.restored, outcome.failed
             ))
         );
     } else {
-        transaction.complete(completion_packages)?;
         println!(
             "{}",
             output::success(format!(
                 "Rollback complete: {} restored, 0 failed.",
-                restored
+                outcome.restored
             ))
         );
     }
@@ -267,46 +151,25 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     Ok(())
 }
 
-fn run_prune(
-    names: Vec<String>,
-    dry_run: bool,
-    paths: &UpstreamPaths,
-    manager: &mut RollbackManager<'_>,
-) -> Result<()> {
-    let target_names = if names.is_empty() {
-        manager.rollback_packages()
-    } else {
-        names
-    };
-    let preview_rows = prune_preview_rows(&target_names, manager);
-    let impact = estimate_prune_impact(&target_names, manager);
+fn run_prune(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperation) -> Result<()> {
+    let preview = operation.prune_preview(names);
 
     if dry_run {
-        show_prune_preview(&preview_rows, &impact, &target_names, true);
+        show_prune_preview(&preview.preview, true);
         output::action_note("resolve only (no prune, no metadata changes)");
         return Ok(());
     }
 
-    if !target_names.is_empty() {
-        show_prune_preview(&preview_rows, &impact, &target_names, false);
+    if !preview.target_names.is_empty() {
+        show_prune_preview(&preview.preview, false);
         output::confirm_or_cancel(
             format!(
                 "Prune rollback artifacts for {} package(s)?",
-                target_names.len()
+                preview.target_names.len()
             ),
             false,
         )?;
     }
-    let mut transaction = if target_names.is_empty() {
-        None
-    } else {
-        Some(TransactionLog::start(
-            paths,
-            TransactionKind::Rollback,
-            planned_packages(target_names.clone()),
-            None,
-        )?)
-    };
 
     let pb = ProgressBar::new_spinner();
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -314,50 +177,25 @@ fn run_prune(
     pb.enable_steady_tick(Duration::from_millis(120));
     pb.set_message("Pruning rollback artifacts");
 
-    let mut pruned = 0_u32;
-    let mut missing = 0_u32;
-    let mut transaction_packages = Vec::new();
-    let total = target_names.len();
-    for (idx, name) in target_names.iter().enumerate() {
-        pb.set_message(format!(
+    let prune_pb = pb.clone();
+    let mut progress = Some(move |name: &str, current: usize, total: usize| {
+        prune_pb.set_message(format!(
             "Pruning rollback artifacts for {:<28} ({}/{})",
-            name,
-            idx + 1,
-            total
+            name, current, total
         ));
-        match manager.prune_package(name) {
-            Ok(true) => {
-                pruned += 1;
-                transaction_packages.push(package_success(name.clone()));
-            }
-            Ok(false) => {
-                missing += 1;
-                transaction_packages.push(package_skipped(name.clone(), "no rollback data found"));
-            }
-            Err(err) => {
-                transaction_packages
-                    .push(package_failed(name.clone(), output::error_summary(&err)));
-                pb.finish_and_clear();
-                if let Some(transaction) = transaction.take() {
-                    transaction.fail(transaction_packages, output::error_summary(&err))?;
-                }
-                return Err(err);
-            }
-        }
-    }
+    });
+    let outcome = operation.prune(&preview.target_names, &mut progress);
     pb.finish_and_clear();
+    let outcome = outcome?;
 
-    if target_names.is_empty() {
+    if preview.target_names.is_empty() {
         println!("{}", output::warning("No rollback artifacts to prune."));
     } else {
-        if let Some(transaction) = transaction {
-            transaction.complete(transaction_packages)?;
-        }
         println!(
             "{}",
             output::success(format!(
                 "Rollback prune complete: {} pruned, {} missing.",
-                pruned, missing
+                outcome.pruned, outcome.missing
             ))
         );
     }
@@ -365,16 +203,33 @@ fn run_prune(
     Ok(())
 }
 
-fn estimate_restore_impact(names: &[String], manager: &RollbackManager<'_>) -> DiskImpact {
-    names
-        .iter()
-        .filter_map(|name| manager.estimate_restore_impact(name))
-        .fold(DiskImpact::empty(), |total, impact| total + impact)
-}
-
-fn estimate_prune_impact(names: &[String], manager: &RollbackManager<'_>) -> DiskImpact {
-    names
-        .iter()
-        .filter_map(|name| manager.estimate_prune_impact(name))
-        .fold(DiskImpact::empty(), |total, impact| total + impact)
+fn print_completion_lines(packages: &[RollbackPackageOutcome]) {
+    let width = output::status_subject_width(packages.iter().map(|package| package.name.as_str()));
+    for package in packages {
+        match &package.status {
+            RollbackPackageStatus::Succeeded => {
+                println!(
+                    "{}",
+                    output::status_line_text_with_width(
+                        Status::Ok,
+                        &package.name,
+                        "restored",
+                        width
+                    )
+                );
+            }
+            RollbackPackageStatus::Failed { error } => {
+                println!(
+                    "{}",
+                    output::status_line_text_with_width(Status::Fail, &package.name, error, width)
+                );
+            }
+            RollbackPackageStatus::Skipped { reason } => {
+                println!(
+                    "{}",
+                    output::status_line_text_with_width(Status::Warn, &package.name, reason, width)
+                );
+            }
+        }
+    }
 }
