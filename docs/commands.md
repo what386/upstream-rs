@@ -153,6 +153,7 @@ Pinning prevents upgrades. Renaming changes the local alias without reinstalling
 upstream list [name] [--json]
 upstream changelog <name> [--from <tag>] [--to <tag>]
 upstream search <query...> [-p <provider>] [--base-url <url>] [--limit <n>]
+upstream find <query...> [-p <provider>] [--limit <n>] [--name <name>] [install options]
 upstream probe <repo-or-url> [-p <provider>] [--channel <channel>] [--limit <n>] [--verbose]
 upstream doctor [names...] [--verbose] [--fix]
 ```
@@ -160,6 +161,7 @@ upstream doctor [names...] [--verbose] [--fix]
 - `list` shows installed package metadata.
 - `changelog` shows release notes for installed packages.
 - `search` searches provider repositories.
+- `find` searches provider repositories, opens an interactive picker, and installs the selected result.
 - `probe` shows releases and candidate assets without installing.
 - `doctor` checks paths, symlinks, hooks, desktop entries, and package metadata.
 
