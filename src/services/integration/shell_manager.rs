@@ -241,7 +241,7 @@ fn escape_nushell_string(value: &str) -> String {
 }
 
 #[cfg(unix)]
-pub(crate) fn render_nushell_paths_file(paths: &[String]) -> String {
+pub fn render_nushell_paths_file(paths: &[String]) -> String {
     let mut content = String::from("# Upstream managed PATH additions\n\nlet upstream_paths = [\n");
     for path in paths {
         content.push_str(&format!("    \"{}\"\n", escape_nushell_string(path)));
@@ -251,7 +251,7 @@ pub(crate) fn render_nushell_paths_file(paths: &[String]) -> String {
 }
 
 #[cfg(unix)]
-pub(crate) fn nushell_paths_file_contains_path(content: &str, path: &str) -> bool {
+pub fn nushell_paths_file_contains_path(content: &str, path: &str) -> bool {
     parse_nushell_paths_file(content)
         .iter()
         .any(|entry| entry == path)

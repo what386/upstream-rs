@@ -1,7 +1,7 @@
 use crate::models::provider::{Asset, Release};
 use std::path::Path;
 
-pub(crate) fn find_signature_assets<'r>(release: &'r Release, asset_name: &str) -> Vec<&'r Asset> {
+pub fn find_signature_assets<'r>(release: &'r Release, asset_name: &str) -> Vec<&'r Asset> {
     let mut out: Vec<&Asset> = Vec::new();
     let mut seen: Vec<String> = Vec::new();
     let mut push_unique = |asset: &'r Asset| {
@@ -56,7 +56,7 @@ pub(crate) fn find_signature_assets<'r>(release: &'r Release, asset_name: &str) 
     out
 }
 
-pub(crate) fn signature_target_name(signature_asset_name: &str) -> Option<&str> {
+pub fn signature_target_name(signature_asset_name: &str) -> Option<&str> {
     let lowered = signature_asset_name.to_ascii_lowercase();
     for suffix in [".cosign.sig", ".minisig", ".sig"] {
         if lowered.ends_with(suffix) {

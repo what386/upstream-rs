@@ -3,7 +3,7 @@ use anyhow::{Result, anyhow};
 use minisign_verify::{PublicKey, Signature};
 use std::{fs, path::Path};
 
-pub(crate) fn verify_minisign_signature(
+pub fn verify_minisign_signature(
     asset_path: &Path,
     signature_contents: &str,
     trusted_keys: &[MinisignPublicKey],

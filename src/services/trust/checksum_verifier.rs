@@ -44,7 +44,7 @@ const COMMON_CHECKSUM_NAMES: &[&str] = &[
     "checksums",
 ];
 
-pub(crate) fn is_checksum_asset_name(name: &str) -> bool {
+pub fn is_checksum_asset_name(name: &str) -> bool {
     let lowered = name.to_ascii_lowercase();
     COMMON_CHECKSUM_NAMES
         .iter()
