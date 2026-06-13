@@ -11,9 +11,6 @@
 - [ ] feat: rollback with no args now undoes the last operation instead of all packages
       @created 2026-06-13 14:21
 
-- [ ] feat: package name is now inferrable for git sources (uses repo name)
-      @created 2026-06-13 14:30
-
 
 ## Completed
 
@@ -23,5 +20,9 @@
 
 - [x] BREAKING: swap positions of repo and name in install-like commands
       @created 2026-06-13 14:27
+      @completed 2026-06-13 14:45
+
+- [x] feat: package name is now inferrable for git sources (uses repo name)
+      @created 2026-06-13 14:30
       @completed 2026-06-13 14:45
 
