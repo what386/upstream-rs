@@ -14,9 +14,6 @@
 - [ ] fix custom domains for gitlab + gitea autodetection in build command
       @created 2026-06-12 23:31
 
-- [ ] breaking: REMOVE support for legacy package file format (high)
-      @created 2026-06-13 01:57
-
 
 ## Completed
 
@@ -31,4 +28,8 @@
 - [x] update shell detection behavior to use /etc/shells
       @created 2026-06-12 18:13
       @completed 2026-06-12 23:27
+
+- [x] breaking: REMOVE support for legacy package file format (high)
+      @created 2026-06-13 01:57
+      @completed 2026-06-13 02:00
 
