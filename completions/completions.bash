@@ -519,7 +519,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__doctor)
-            opts="-y -h --verbose --fix --yes --help [NAMES]..."
+            opts="-y -h --verbose --fix --json --yes --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1353,7 +1353,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__probe)
-            opts="-p -c -y -h --provider --base-url --channel --limit --verbose --yes --help <REPO_SLUG>"
+            opts="-p -c -y -h --provider --base-url --channel --limit --verbose --json --yes --help <REPO_SLUG>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1437,7 +1437,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__search)
-            opts="-p -y -h --provider --base-url --limit --yes --help <QUERY_WORDS>..."
+            opts="-p -y -h --provider --base-url --limit --json --yes --help <QUERY_WORDS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1467,7 +1467,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__upgrade)
-            opts="-y -h --force --check --machine-readable --trust --dry-run --yes --help [NAMES]..."
+            opts="-y -h --force --check --machine-readable --json --trust --dry-run --yes --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

@@ -112,6 +112,7 @@ all\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l force -d 'Force upgrade even if already up to date'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l check -d 'Check for available upgrades without applying them'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l machine-readable -d 'Use script-friendly check output: one line per update, "name oldver newver"'
+complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l json -d 'Print check results as JSON'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -l dry-run -d 'Preview upgrade resolution without downloading or writing files'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand upgrade" -s h -l help -d 'Print help (see more with \'--help\')'
@@ -129,11 +130,13 @@ preview\t''
 nightly\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l limit -d 'Maximum number of releases to display' -r
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l verbose -d 'Include scored candidate assets for each release'
+complete -c upstream -n "__fish_upstream_using_subcommand probe" -l json -d 'Print probe results as JSON'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand search" -s p -l provider -d 'Source provider to search (defaults to github)' -r
 complete -c upstream -n "__fish_upstream_using_subcommand search" -l base-url -d 'Custom base URL for self-hosted providers' -r
 complete -c upstream -n "__fish_upstream_using_subcommand search" -l limit -d 'Maximum number of results to display' -r
+complete -c upstream -n "__fish_upstream_using_subcommand search" -l json -d 'Print search results as JSON'
 complete -c upstream -n "__fish_upstream_using_subcommand search" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand search" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand config; and not __fish_seen_subcommand_from set get list edit reset help" -s y -l yes -d 'Accept confirmation prompts'
@@ -208,6 +211,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand export" -s y -l yes -d
 complete -c upstream -n "__fish_upstream_using_subcommand export" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -l verbose -d 'Print each check result line in addition to summary output'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -l fix -d 'Attempt automatic repairs for detected issues'
+complete -c upstream -n "__fish_upstream_using_subcommand doctor" -l json -d 'Print diagnostic report as JSON'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "install" -d 'Install a package from an upstream release source'
