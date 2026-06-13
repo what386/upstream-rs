@@ -120,6 +120,7 @@ _arguments "${_arguments_options[@]}" : \
 '--force[Force upgrade even if already up to date]' \
 '--check[Check for available upgrades without applying them]' \
 '--machine-readable[Use script-friendly check output\: one line per update, "name oldver newver"]' \
+'(--machine-readable)--json[Print check results as JSON]' \
 '--dry-run[Preview upgrade resolution without downloading or writing files]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
@@ -158,6 +159,7 @@ _arguments "${_arguments_options[@]}" : \
 '--channel=[Channel view to display]:CHANNEL:(stable preview nightly)' \
 '--limit=[Maximum number of releases to display]:LIMIT:_default' \
 '--verbose[Include scored candidate assets for each release]' \
+'--json[Print probe results as JSON]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -171,6 +173,7 @@ _arguments "${_arguments_options[@]}" : \
 '--provider=[Source provider to search (defaults to github)]:PROVIDER:_default' \
 '--base-url=[Custom base URL for self-hosted providers]:BASE_URL:_default' \
 '--limit=[Maximum number of results to display]:LIMIT:_default' \
+'--json[Print search results as JSON]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -474,6 +477,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '--verbose[Print each check result line in addition to summary output]' \
 '--fix[Attempt automatic repairs for detected issues]' \
+'--json[Print diagnostic report as JSON]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
