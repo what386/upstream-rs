@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] upstream find subcommand (interactive search)
-      @created 2026-06-13 14:15
-
 - [ ] feat: upgrade/install history
       @created 2026-06-13 14:20
 
