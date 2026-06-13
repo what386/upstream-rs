@@ -12,6 +12,14 @@ use crate::{
 };
 use std::fmt::Write as _;
 
+pub struct SearchResults {
+    pub query: String,
+    pub provider: Provider,
+    pub base_url: Option<String>,
+    pub limit: u32,
+    pub results: Vec<RepositorySearchResult>,
+}
+
 pub async fn run(
     query_words: Vec<String>,
     provider: Option<Provider>,
@@ -36,25 +44,12 @@ pub async fn run(
         return Ok(());
     }
 
-    let paths = UpstreamPaths::new()?;
-    let config = ConfigStorage::new(&paths.config.config_file)?;
-    let app_config = config.get_config();
-
-    let github_token = app_config.github.api_token.as_deref();
-    let gitlab_token = app_config.gitlab.api_token.as_deref();
-    let gitea_token = app_config.gitea.api_token.as_deref();
-
-    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
-    let effective_provider = provider.unwrap_or(Provider::Github);
-
-    let results = provider_manager
-        .search_repositories(
-            &query,
-            &effective_provider,
-            Some(limit.max(1)),
-            base_url.as_deref(),
-        )
-        .await?;
+    let search = search_repositories(query, provider, base_url, limit).await?;
+    let query = search.query;
+    let effective_provider = search.provider;
+    let base_url = search.base_url;
+    let limit = search.limit;
+    let results = search.results;
 
     if results.is_empty() {
         if json {
@@ -87,6 +82,42 @@ pub async fn run(
     let title = format!("Search: '{}' via {}", query, effective_provider);
     pager::page_text(Some(&title), &format_results(&results))?;
     Ok(())
+}
+
+pub async fn search_repositories(
+    query: String,
+    provider: Option<Provider>,
+    base_url: Option<String>,
+    limit: u32,
+) -> Result<SearchResults> {
+    let paths = UpstreamPaths::new()?;
+    let config = ConfigStorage::new(&paths.config.config_file)?;
+    let app_config = config.get_config();
+
+    let github_token = app_config.github.api_token.as_deref();
+    let gitlab_token = app_config.gitlab.api_token.as_deref();
+    let gitea_token = app_config.gitea.api_token.as_deref();
+
+    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
+    let effective_provider = provider.unwrap_or(Provider::Github);
+    let effective_limit = limit.max(1);
+
+    let results = provider_manager
+        .search_repositories(
+            &query,
+            &effective_provider,
+            Some(effective_limit),
+            base_url.as_deref(),
+        )
+        .await?;
+
+    Ok(SearchResults {
+        query,
+        provider: effective_provider,
+        base_url,
+        limit: effective_limit,
+        results,
+    })
 }
 
 #[derive(Serialize)]
@@ -180,7 +211,7 @@ fn write_row(out: &mut String, row: &RepositorySearchResult, widths: &SearchColu
     .expect("write search row");
 }
 
-fn format_stars(stars: u64) -> String {
+pub(crate) fn format_stars(stars: u64) -> String {
     if stars < 1_000 {
         return stars.to_string();
     }
@@ -199,7 +230,7 @@ fn format_with_suffix(value: u64, divisor: f64, suffix: &str) -> String {
     }
 }
 
-fn format_relative_updated(updated_at: DateTime<Utc>) -> String {
+pub(crate) fn format_relative_updated(updated_at: DateTime<Utc>) -> String {
     format_relative_updated_with_now(updated_at, Utc::now())
 }
 
@@ -238,11 +269,11 @@ fn format_relative_updated_with_now(updated_at: DateTime<Utc>, now: DateTime<Utc
     }
 }
 
-fn default_dash(value: &str) -> &str {
+pub(crate) fn default_dash(value: &str) -> &str {
     if value.trim().is_empty() { "-" } else { value }
 }
 
-fn truncate(value: &str, max: usize) -> String {
+pub(crate) fn truncate(value: &str, max: usize) -> String {
     output::truncate_end(value, max)
 }
 

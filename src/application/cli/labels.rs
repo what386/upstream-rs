@@ -15,6 +15,7 @@ impl fmt::Display for Commands {
             Commands::Changelog { .. } => write!(f, "changelog"),
             Commands::Probe { .. } => write!(f, "probe"),
             Commands::Search { .. } => write!(f, "search"),
+            Commands::Find { .. } => write!(f, "find"),
             Commands::Config { action } => write!(f, "{action}"),
             Commands::Package { action } => write!(f, "{action}"),
             Commands::Hooks { action } => write!(f, "{action}"),

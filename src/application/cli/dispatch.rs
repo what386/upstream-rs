@@ -151,6 +151,36 @@ impl Cli {
                 limit,
                 json,
             } => commands::search::run(query_words, provider, base_url, limit, json).await,
+            Commands::Find {
+                query_words,
+                provider,
+                base_url,
+                limit,
+                name,
+                kind,
+                channel,
+                match_pattern,
+                exclude_pattern,
+                desktop,
+                trust_mode,
+                dry_run,
+            } => {
+                commands::find::run(
+                    query_words,
+                    provider,
+                    base_url,
+                    limit,
+                    name,
+                    kind,
+                    channel,
+                    match_pattern,
+                    exclude_pattern,
+                    desktop,
+                    trust_mode,
+                    dry_run,
+                )
+                .await
+            }
 
             Commands::Config { action } => match action {
                 ConfigAction::Set { keys } => commands::config::run_set(keys),

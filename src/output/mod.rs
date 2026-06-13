@@ -5,7 +5,9 @@ mod status;
 mod style;
 mod table;
 
-pub use prompt::{assume_yes, confirm_or_cancel, set_assume_yes};
+pub use prompt::{
+    assume_yes, confirm_or_cancel, select_from_list, select_from_table, set_assume_yes,
+};
 pub use status::error_summary_with_limit;
 pub use status::{
     Status, error_summary, status_cell, status_label, status_line, status_line_text,

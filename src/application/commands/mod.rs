@@ -3,6 +3,7 @@ pub mod changelog;
 pub mod config;
 pub mod doctor;
 pub mod export;
+pub mod find;
 pub mod hooks;
 pub mod import;
 pub mod install;
