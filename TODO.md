@@ -8,6 +8,9 @@
 - [ ] feat: upgrade/install history
       @created 2026-06-13 14:20
 
+- [ ] feat: build command now caches git repos to take advantage of partial rebuilds
+      @created 2026-06-13 19:41
+
 
 ## Completed
 
