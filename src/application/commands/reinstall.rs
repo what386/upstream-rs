@@ -591,7 +591,7 @@ where
                 .await?;
         }
         InstallType::Build => {
-            let worker = BuildWorker::new(provider_manager);
+            let worker = BuildWorker::new(provider_manager, paths);
             let output = {
                 let mut build_line_callback = Some(|line: &str| {
                     if let Some(callback) = message_callback.as_mut() {

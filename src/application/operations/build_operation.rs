@@ -215,7 +215,7 @@ impl<'a> BuildOperation<'a> {
         )]);
         output::confirm_or_cancel("Proceed with installation?", true)?;
 
-        let worker = BuildWorker::new(self.provider_manager);
+        let worker = BuildWorker::new(self.provider_manager, self.paths);
         let mut build_line_callback =
             Some(|line: &str| output::status_line(output::Status::Plan, "build", line));
         let build_result = worker
