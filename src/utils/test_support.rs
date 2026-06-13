@@ -34,6 +34,7 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
             binaries_dir: dirs.data_dir.join("binaries"),
             archives_dir: dirs.data_dir.join("archives"),
             rollback_dir: dirs.data_dir.join("rollback"),
+            tmp_dir: dirs.data_dir.join("tmp"),
         },
         integration: IntegrationPaths {
             symlinks_dir: dirs.data_dir.join("symlinks"),

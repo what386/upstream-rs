@@ -62,6 +62,7 @@ pub struct InstallPaths {
     pub binaries_dir: PathBuf,
     pub archives_dir: PathBuf,
     pub rollback_dir: PathBuf,
+    pub tmp_dir: PathBuf,
 }
 
 impl InstallPaths {
@@ -71,6 +72,7 @@ impl InstallPaths {
             binaries_dir: dirs.data_dir.join("binaries"),
             archives_dir: dirs.data_dir.join("archives"),
             rollback_dir: dirs.data_dir.join("rollback"),
+            tmp_dir: dirs.data_dir.join("tmp"),
         }
     }
 }
@@ -166,5 +168,6 @@ mod tests {
             paths.install.rollback_dir,
             paths.dirs.data_dir.join("rollback")
         );
+        assert_eq!(paths.install.tmp_dir, paths.dirs.data_dir.join("tmp"));
     }
 }

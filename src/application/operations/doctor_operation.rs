@@ -337,6 +337,7 @@ pub fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
         ("appimages directory", paths.install.appimages_dir.as_path()),
         ("binaries directory", paths.install.binaries_dir.as_path()),
         ("archives directory", paths.install.archives_dir.as_path()),
+        ("tmp directory", paths.install.tmp_dir.as_path()),
     ] {
         if path.exists() {
             report.line(Level::Ok, format!("{} exists", label));
