@@ -17,9 +17,6 @@
 - [ ] feat: rollback artifact compression
       @created 2026-06-13 18:01
 
-- [ ] BREAKING: refactor upstream paths
-      @created 2026-06-13 18:32
-
 
 ## Completed
 
@@ -34,4 +31,8 @@
 - [x] feat: package name is now inferrable for git sources (uses repo name)
       @created 2026-06-13 14:30
       @completed 2026-06-13 14:45
+
+- [x] BREAKING: refactor upstream paths
+      @created 2026-06-13 18:32
+      @completed 2026-06-13 18:33
 
