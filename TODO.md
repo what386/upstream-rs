@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] fix custom domains for gitlab + gitea autodetection
-      @created 2026-06-12 23:31
-
 - [ ] looser gitea detection?
       @created 2026-06-13 03:35
 
@@ -41,4 +38,8 @@
 - [x] harden https scraper (use https://www.gyan.dev/ffmpeg/builds/)
       @created 2026-06-09 17:54
       @completed 2026-06-13 03:31
+
+- [x] fix custom domains for gitlab + gitea autodetection
+      @created 2026-06-12 23:31
+      @completed 2026-06-13 03:35
 
