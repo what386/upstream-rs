@@ -26,7 +26,7 @@ pub enum ImportAs {
     Install binaries, AppImages, and other artifacts with automatic updates, \
     version pinning, and minimal configuration.\n\n\
     EXAMPLES:\n  \
-    upstream install neovim/neovim nvim --desktop\n  \
+    upstream install neovim/neovim --desktop\n  \
     upstream upgrade                # Upgrade all packages\n  \
     upstream list                   # Show installed packages\n  \
     upstream config set github.api_token=ghp_xxx"
@@ -49,7 +49,8 @@ pub enum Commands {
     /// Install a package from an upstream release source
     #[command(long_about = "Install a new package from a download source.\n\n\
         Downloads the specified file type from the latest release (or specified channel) \
-        and registers it under the given name for future updates.\n\n\
+        and registers it under the given name for future updates. If the name is omitted \
+        for a git repository, upstream falls back to the repository name.\n\n\
         EXAMPLES:\n  \
         upstream install BurntSushi/ripgrep rg -k binary\n  \
         upstream install bootandy/dust dust -k archive\n  \
@@ -58,8 +59,8 @@ pub enum Commands {
         /// Repository identifier or URL
         repo_slug: String,
 
-        /// Name to register the application under
-        name: String,
+        /// Name to register the application under (falls back to git repository name when omitted)
+        name: Option<String>,
 
         /// Version tag to install (defaults to latest)
         #[arg(short, long)]
@@ -116,8 +117,8 @@ pub enum Commands {
         /// Repository identifier or URL
         repo_slug: String,
 
-        /// Name to register the application under
-        name: String,
+        /// Name to register the application under (falls back to git repository name when omitted)
+        name: Option<String>,
 
         /// Version tag to build (defaults to latest)
         #[arg(short, long, conflicts_with = "branch")]

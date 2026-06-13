@@ -140,6 +140,8 @@ upstream doctor
 upstream install <repo-or-url> <name>
 ```
 
+For git repositories, upstream can fall back to the repository name when `<name>` is omitted. Direct URLs and scraped download pages may still require `<name>`.
+
 Examples:
 
 ```bash
@@ -159,6 +161,8 @@ upstream install owner/repo app --match linux --exclude debug
 ```bash
 upstream build <repo-or-url> <name>
 ```
+
+For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
 
 Examples:
 
