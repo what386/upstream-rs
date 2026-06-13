@@ -6,6 +6,8 @@ pub struct AppDirs {
     pub user_dir: PathBuf,
     pub config_dir: PathBuf,
     pub data_dir: PathBuf,
+    pub packages_dir: PathBuf,
+    pub cache_dir: PathBuf,
     pub metadata_dir: PathBuf,
 }
 
@@ -24,12 +26,16 @@ impl AppDirs {
             .join("upstream");
 
         let data_dir = user_dir.join(".upstream");
+        let packages_dir = data_dir.join("packages");
+        let cache_dir = data_dir.join("cache");
         let metadata_dir = data_dir.join("metadata");
 
         Ok(Self {
             user_dir,
             config_dir,
             data_dir,
+            packages_dir,
+            cache_dir,
             metadata_dir,
         })
     }
@@ -68,9 +74,9 @@ pub struct InstallPaths {
 impl InstallPaths {
     pub fn new(dirs: &AppDirs) -> Self {
         Self {
-            appimages_dir: dirs.data_dir.join("appimages"),
-            binaries_dir: dirs.data_dir.join("binaries"),
-            archives_dir: dirs.data_dir.join("archives"),
+            appimages_dir: dirs.packages_dir.join("appimages"),
+            binaries_dir: dirs.packages_dir.join("binaries"),
+            archives_dir: dirs.packages_dir.join("archives"),
             rollback_dir: dirs.data_dir.join("rollback"),
             tmp_dir: dirs.data_dir.join("tmp"),
         }
@@ -154,8 +160,13 @@ mod tests {
         );
         assert_eq!(
             paths.install.binaries_dir,
-            paths.dirs.data_dir.join("binaries")
+            paths.dirs.packages_dir.join("binaries")
         );
+        assert_eq!(
+            paths.dirs.packages_dir,
+            paths.dirs.data_dir.join("packages")
+        );
+        assert_eq!(paths.dirs.cache_dir, paths.dirs.data_dir.join("cache"));
         assert_eq!(
             paths.integration.symlinks_dir,
             paths.dirs.data_dir.join("symlinks")
