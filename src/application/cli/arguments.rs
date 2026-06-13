@@ -238,6 +238,7 @@ pub enum Commands {
         upstream upgrade              # Upgrade all\n  \
         upstream upgrade nvim rg      # Upgrade specific packages\n  \
         upstream upgrade --check      # Check for updates\n  \
+        upstream upgrade --check --json # Check for updates as JSON\n  \
         upstream upgrade --check --machine-readable # Script-friendly output\n  \
         upstream upgrade nvim --force # Force reinstall\n  \
         upstream upgrade --trust none")]
@@ -256,6 +257,15 @@ pub enum Commands {
         /// Use script-friendly check output: one line per update, "name oldver newver"
         #[arg(long, default_value_t = false, requires = "check")]
         machine_readable: bool,
+
+        /// Print check results as JSON
+        #[arg(
+            long,
+            default_value_t = false,
+            requires = "check",
+            conflicts_with = "machine_readable"
+        )]
+        json: bool,
 
         /// Trust verification mode for downloaded assets
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
@@ -310,7 +320,8 @@ pub enum Commands {
         EXAMPLES:\n  \
         upstream probe neovim/neovim\n  \
         upstream probe https://ziglang.org/download/ -p scraper --limit 20\n  \
-        upstream probe owner/repo --channel nightly --verbose")]
+        upstream probe owner/repo --channel nightly --verbose\n  \
+        upstream probe owner/repo --json")]
     Probe {
         /// Repository identifier or URL to probe
         repo_slug: String,
@@ -334,6 +345,10 @@ pub enum Commands {
         /// Include scored candidate assets for each release
         #[arg(long, default_value_t = false)]
         verbose: bool,
+
+        /// Print probe results as JSON
+        #[arg(long, default_value_t = false)]
+        json: bool,
     },
 
     /// Search provider repositories by keyword(s)
@@ -343,7 +358,8 @@ pub enum Commands {
         upstream search ripgrep\n  \
         upstream search rip grep --limit 5\n  \
         upstream search my tool -p github\n  \
-        upstream search widget -p gitlab --base-url https://gitlab.example.com")]
+        upstream search widget -p gitlab --base-url https://gitlab.example.com\n  \
+        upstream search ripgrep --json")]
     Search {
         /// Query words (joined with spaces)
         #[arg(required = true, num_args(1..), value_delimiter = ' ')]
@@ -360,6 +376,10 @@ pub enum Commands {
         /// Maximum number of results to display
         #[arg(long, default_value_t = 10)]
         limit: u32,
+
+        /// Print search results as JSON
+        #[arg(long, default_value_t = false)]
+        json: bool,
     },
 
     /// Manage upstream configuration
@@ -452,7 +472,8 @@ pub enum Commands {
         EXAMPLES:\n  \
         upstream doctor\n  \
         upstream doctor --verbose\n  \
-        upstream doctor nvim ripgrep"
+        upstream doctor nvim ripgrep\n  \
+        upstream doctor --json"
     )]
     Doctor {
         /// Package names to check (all installed packages if omitted)
@@ -465,6 +486,10 @@ pub enum Commands {
         /// Attempt automatic repairs for detected issues
         #[arg(long, default_value_t = false)]
         fix: bool,
+
+        /// Print diagnostic report as JSON
+        #[arg(long, default_value_t = false)]
+        json: bool,
     },
 }
 

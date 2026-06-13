@@ -1,5 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 
 use crate::{
     models::{common::enums::Provider, provider::RepositorySearchResult},
@@ -16,9 +17,21 @@ pub async fn run(
     provider: Option<Provider>,
     base_url: Option<String>,
     limit: u32,
+    json: bool,
 ) -> Result<()> {
     let query = query_words.join(" ").trim().to_string();
     if query.is_empty() {
+        if json {
+            let result = json_search_result(
+                &query,
+                &provider.unwrap_or(Provider::Github),
+                None,
+                limit,
+                &[],
+            );
+            println!("{}", serde_json::to_string_pretty(&result)?);
+            return Ok(());
+        }
         println!("{}", output::warning("Search query cannot be empty."));
         return Ok(());
     }
@@ -44,13 +57,81 @@ pub async fn run(
         .await?;
 
     if results.is_empty() {
+        if json {
+            let result = json_search_result(
+                &query,
+                &effective_provider,
+                base_url.as_deref(),
+                limit,
+                &results,
+            );
+            println!("{}", serde_json::to_string_pretty(&result)?);
+            return Ok(());
+        }
         println!("{}", output::warning("No repositories found."));
+        return Ok(());
+    }
+
+    if json {
+        let result = json_search_result(
+            &query,
+            &effective_provider,
+            base_url.as_deref(),
+            limit,
+            &results,
+        );
+        println!("{}", serde_json::to_string_pretty(&result)?);
         return Ok(());
     }
 
     let title = format!("Search: '{}' via {}", query, effective_provider);
     pager::page_text(Some(&title), &format_results(&results))?;
     Ok(())
+}
+
+#[derive(Serialize)]
+struct JsonSearchResult {
+    query: String,
+    provider: String,
+    base_url: Option<String>,
+    limit: u32,
+    results: Vec<JsonRepositorySearchResult>,
+}
+
+#[derive(Serialize)]
+struct JsonRepositorySearchResult {
+    repo_slug: String,
+    display_name: String,
+    description: String,
+    stars: u64,
+    language: String,
+    updated_at: String,
+}
+
+fn json_search_result(
+    query: &str,
+    provider: &Provider,
+    base_url: Option<&str>,
+    limit: u32,
+    results: &[RepositorySearchResult],
+) -> JsonSearchResult {
+    JsonSearchResult {
+        query: query.to_string(),
+        provider: provider.to_string(),
+        base_url: base_url.map(str::to_string),
+        limit,
+        results: results
+            .iter()
+            .map(|result| JsonRepositorySearchResult {
+                repo_slug: result.repo_slug.clone(),
+                display_name: result.display_name.clone(),
+                description: result.description.clone(),
+                stars: result.stars,
+                language: result.language.clone(),
+                updated_at: result.updated_at.to_rfc3339(),
+            })
+            .collect(),
+    }
 }
 
 fn format_results(results: &[RepositorySearchResult]) -> String {
@@ -224,7 +305,8 @@ impl SearchColumnWidths {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_relative_updated_with_now, format_stars, truncate};
+    use super::{format_relative_updated_with_now, format_stars, json_search_result, truncate};
+    use crate::models::{common::enums::Provider, provider::RepositorySearchResult};
     use chrono::{Duration, TimeZone, Utc};
 
     #[test]
@@ -262,5 +344,33 @@ mod tests {
         assert_eq!(t1, t2);
         assert!(t1.ends_with("..."));
         assert_eq!(t1.chars().count(), 32);
+    }
+
+    #[test]
+    fn json_search_result_preserves_repository_fields() {
+        let updated_at = Utc.with_ymd_and_hms(2026, 6, 12, 1, 2, 3).unwrap();
+        let result = json_search_result(
+            "ripgrep",
+            &Provider::Github,
+            None,
+            10,
+            &[RepositorySearchResult {
+                repo_slug: "BurntSushi/ripgrep".to_string(),
+                display_name: "ripgrep".to_string(),
+                description: "search tool".to_string(),
+                stars: 51_000,
+                language: "Rust".to_string(),
+                updated_at,
+            }],
+        );
+        let json = serde_json::to_value(result).expect("serialize search result");
+
+        assert_eq!(json["query"], "ripgrep");
+        assert_eq!(json["provider"], "github");
+        assert_eq!(json["results"][0]["repo_slug"], "BurntSushi/ripgrep");
+        assert_eq!(
+            json["results"][0]["updated_at"],
+            "2026-06-12T01:02:03+00:00"
+        );
     }
 }
