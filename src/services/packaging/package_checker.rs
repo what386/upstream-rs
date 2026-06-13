@@ -58,13 +58,7 @@ impl<'a> PackageChecker<'a> {
             return Ok(None);
         };
 
-        let up_to_date = if package.channel == crate::models::common::enums::Channel::Nightly {
-            latest_release.published_at <= package.last_upgraded
-        } else {
-            !latest_release.version.is_newer_than(&package.version)
-        };
-
-        if up_to_date {
+        if !package.is_update_available(&latest_release) {
             return Ok(None);
         }
 

@@ -2,10 +2,11 @@ use anyhow::{Result, anyhow, bail};
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use std::path::Path;
 
-use crate::models::common::Version;
+use crate::models::common::{Version, enums::Filetype};
 use crate::models::provider::{Asset, Release};
-use crate::providers::http::http_client::{ConditionalDiscoveryResult, HttpClient};
+use crate::providers::http::http_client::{ConditionalDiscoveryResult, HttpAssetInfo, HttpClient};
 use crate::providers::release_provider::ReleaseProvider;
+use crate::utils::filename_parser::parse_filetype;
 
 #[derive(Debug, Clone)]
 pub struct WebScraperAdapter {
@@ -23,6 +24,47 @@ impl WebScraperAdapter {
         let minor = dt.ordinal();
         let patch = dt.num_seconds_from_midnight();
         Version::new(major, minor, patch, false)
+    }
+
+    fn is_unversioned_download_asset(info: &HttpAssetInfo) -> bool {
+        if Self::parse_version_from_filename(&info.name).is_some() {
+            return false;
+        }
+
+        matches!(
+            parse_filetype(&info.name),
+            Filetype::AppImage
+                | Filetype::MacApp
+                | Filetype::MacDmg
+                | Filetype::Archive
+                | Filetype::Compressed
+                | Filetype::WinExe
+        )
+    }
+
+    fn select_infos_for_best_version(
+        infos: &[HttpAssetInfo],
+        best_version: Option<&Version>,
+    ) -> Vec<HttpAssetInfo> {
+        let Some(target_version) = best_version else {
+            return infos.to_vec();
+        };
+
+        let filtered: Vec<_> = infos
+            .iter()
+            .filter(|info| {
+                Self::parse_version_from_filename(&info.name)
+                    .map(|v| v.cmp(target_version).is_eq())
+                    .unwrap_or_else(|| Self::is_unversioned_download_asset(info))
+            })
+            .cloned()
+            .collect();
+
+        if filtered.is_empty() {
+            infos.to_vec()
+        } else {
+            filtered
+        }
     }
 
     pub fn new(client: HttpClient) -> Self {
@@ -83,8 +125,12 @@ impl WebScraperAdapter {
                 let url = info.download_url.clone();
                 if let Ok(probed) = self.client.probe_asset(&url).await {
                     info.size = probed.size;
-                    info.last_modified = probed.last_modified;
-                    info.etag = probed.etag;
+                    if probed.last_modified.is_some() {
+                        info.last_modified = probed.last_modified;
+                    }
+                    if probed.etag.is_some() {
+                        info.etag = probed.etag;
+                    }
                 }
             }
         }
@@ -101,26 +147,13 @@ impl WebScraperAdapter {
             }
         }
 
-        let selected_infos = if let Some(target_version) = &best_version {
-            let filtered: Vec<_> = infos
-                .iter()
-                .filter(|info| {
-                    Self::parse_version_from_filename(&info.name)
-                        .map(|v| v.cmp(target_version).is_eq())
-                        .unwrap_or(false)
-                })
-                .cloned()
-                .collect();
-            if filtered.is_empty() { infos } else { filtered }
-        } else {
-            infos
-        };
+        let selected_infos = Self::select_infos_for_best_version(&infos, best_version.as_ref());
 
         let published_at = selected_infos
             .iter()
             .filter_map(|i| i.last_modified)
             .max()
-            .unwrap_or_else(Utc::now);
+            .unwrap_or_else(|| last_upgraded.unwrap_or_else(Utc::now));
 
         let assets: Vec<Asset> = selected_infos
             .iter()
@@ -210,7 +243,8 @@ impl ReleaseProvider for WebScraperAdapter {
 
 #[cfg(test)]
 mod tests {
-    use super::WebScraperAdapter;
+    use super::{HttpAssetInfo, WebScraperAdapter};
+    use crate::models::common::Version;
     use crate::providers::http::HttpClient;
     use chrono::Utc;
     use std::io::{BufRead, BufReader, Write};
@@ -281,6 +315,43 @@ mod tests {
         assert_eq!(version.patch, 9);
     }
 
+    fn test_asset(name: &str) -> HttpAssetInfo {
+        HttpAssetInfo {
+            download_url: format!("https://example.invalid/{name}"),
+            name: name.to_string(),
+            size: 0,
+            last_modified: None,
+            etag: None,
+        }
+    }
+
+    #[test]
+    fn version_filter_keeps_unversioned_download_assets() {
+        let infos = vec![
+            test_asset("ffmpeg-release-essentials.7z"),
+            test_asset("ffmpeg-release-essentials.zip"),
+            test_asset("ffmpeg-release-github"),
+            test_asset("ffmpeg-release-essentials.7z.ver"),
+            test_asset("ffmpeg-8.0.1-essentials_build.7z"),
+            test_asset("ffmpeg-8.0.1-full_build.7z"),
+            test_asset("ffmpeg-7.1.1-full_build.7z"),
+        ];
+
+        let selected = WebScraperAdapter::select_infos_for_best_version(
+            &infos,
+            Some(&Version::new(8, 0, 1, false)),
+        );
+        let names: Vec<_> = selected.iter().map(|info| info.name.as_str()).collect();
+
+        assert!(names.contains(&"ffmpeg-release-essentials.7z"));
+        assert!(names.contains(&"ffmpeg-release-essentials.zip"));
+        assert!(names.contains(&"ffmpeg-8.0.1-essentials_build.7z"));
+        assert!(names.contains(&"ffmpeg-8.0.1-full_build.7z"));
+        assert!(!names.contains(&"ffmpeg-release-github"));
+        assert!(!names.contains(&"ffmpeg-release-essentials.7z.ver"));
+        assert!(!names.contains(&"ffmpeg-7.1.1-full_build.7z"));
+    }
+
     #[tokio::test]
     async fn get_latest_release_selects_assets_for_latest_detected_version() {
         let html = r#"
@@ -317,6 +388,45 @@ mod tests {
         assert_eq!(release.version.patch, 0);
         assert_eq!(release.assets.len(), 1);
         assert!(release.assets[0].name.contains("1.10.0"));
+    }
+
+    #[tokio::test]
+    async fn get_latest_release_uses_html_last_modified_for_unversioned_links() {
+        let html = r#"
+                <html><body>
+                    <a href="/tool-release.zip">download</a>
+                </body></html>
+            "#
+        .to_string();
+        let html_len = html.len().to_string();
+        let html_for_server = html.clone();
+        let server = spawn_test_server(2, move |method, path| match (method, path) {
+            ("GET", "/") => http_response(
+                "HTTP/1.1 200 OK",
+                &[
+                    ("Connection", "close"),
+                    ("Content-Type", "text/html"),
+                    ("Last-Modified", "Tue, 10 Feb 2026 15:04:05 GMT"),
+                    ("Content-Length", &html_len),
+                ],
+                &html_for_server,
+            ),
+            ("HEAD", "/tool-release.zip") => http_response(
+                "HTTP/1.1 200 OK",
+                &[("Connection", "close"), ("Content-Length", "0")],
+                "",
+            ),
+            _ => panic!("unexpected request {method} {path}"),
+        });
+
+        let adapter = WebScraperAdapter::new(HttpClient::new().expect("http client"));
+        let release = adapter
+            .get_latest_release(&server)
+            .await
+            .expect("latest release");
+
+        assert_eq!(release.version, Version::new(2026, 41, 54245, false));
+        assert_eq!(release.published_at, release.assets[0].created_at);
     }
 
     #[tokio::test]

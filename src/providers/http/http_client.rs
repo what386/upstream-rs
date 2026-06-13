@@ -128,10 +128,14 @@ impl HttpClient {
                 .iter()
                 .filter_map(|attribute| {
                     lower[i..]
-                        .find(&format!("{attribute}="))
+                        .find(attribute)
                         .map(|offset| (*attribute, offset))
                 })
-                .min_by_key(|(_, offset)| *offset)
+                .min_by(|(left_attr, left_offset), (right_attr, right_offset)| {
+                    left_offset
+                        .cmp(right_offset)
+                        .then_with(|| right_attr.len().cmp(&left_attr.len()))
+                })
             else {
                 break;
             };
@@ -142,7 +146,15 @@ impl HttpClient {
                 continue;
             }
 
-            let mut j = i + attribute.len() + 1;
+            let mut j = i + attribute.len();
+            while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+                j += 1;
+            }
+            if j >= bytes.len() || bytes[j] != b'=' {
+                i += 1;
+                continue;
+            }
+            j += 1;
             while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                 j += 1;
             }
@@ -167,6 +179,18 @@ impl HttpClient {
                 continue;
             }
 
+            let start = j;
+            let mut end = start;
+            while end < bytes.len() && !bytes[end].is_ascii_whitespace() && bytes[end] != b'>' {
+                end += 1;
+            }
+            if end <= html.len() && start < end {
+                let href = html[start..end].trim();
+                if !href.is_empty() {
+                    values.push(href.to_string());
+                }
+            }
+
             i = j.saturating_add(1);
         }
 
@@ -188,8 +212,14 @@ impl HttpClient {
     }
 
     /// Convert discovered links into unique, non-checksum HTTP assets.
-    fn extract_assets_from_html(base: &reqwest::Url, html: &str) -> Vec<HttpAssetInfo> {
+    fn extract_assets_from_html(
+        base: &reqwest::Url,
+        html: &str,
+        page_headers: &header::HeaderMap,
+    ) -> Vec<HttpAssetInfo> {
         let hrefs = Self::extract_link_values(html);
+        let page_last_modified = Self::parse_last_modified(page_headers.get(header::LAST_MODIFIED));
+        let page_etag = Self::parse_etag(page_headers.get(header::ETAG));
 
         let mut seen = HashSet::new();
         let mut assets = Vec::new();
@@ -224,8 +254,8 @@ impl HttpClient {
                     download_url: joined_str,
                     name,
                     size: 0,
-                    last_modified: None,
-                    etag: None,
+                    last_modified: page_last_modified,
+                    etag: page_etag.clone(),
                 });
             }
         }
@@ -271,7 +301,7 @@ impl HttpClient {
         let base = reqwest::Url::parse(&final_url)
             .context(format!("Failed to parse URL '{}'", final_url))?;
         let body = response.text().await.context("Failed to read HTML body")?;
-        let assets = Self::extract_assets_from_html(&base, &body);
+        let assets = Self::extract_assets_from_html(&base, &body, &response_headers);
 
         if assets.is_empty() {
             Ok(ConditionalDiscoveryResult::Assets(vec![
@@ -513,11 +543,13 @@ mod tests {
                 </body></html>
             "##;
         let body = html.to_string();
+        let last_modified = "Tue, 10 Feb 2026 15:04:05 GMT".to_string();
         let server = spawn_test_server(1, move |_, _| {
             http_response(
                 "HTTP/1.1 200 OK",
                 &[
                     ("Content-Type", "text/html"),
+                    ("Last-Modified", &last_modified),
                     ("Content-Length", &body.len().to_string()),
                     ("Connection", "close"),
                 ],
@@ -541,6 +573,7 @@ mod tests {
                         .any(|a| a.name.ends_with("tool-v1.2.3-linux.tar.gz"))
                 );
                 assert!(assets.iter().all(|a| !a.name.ends_with(".sha256")));
+                assert!(assets.iter().all(|a| a.last_modified.is_some()));
                 assert!(
                     assets
                         .iter()
@@ -548,6 +581,23 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn extract_link_values_accepts_spaced_and_unquoted_attributes() {
+        let html = r#"
+            <a href = "tool-a.zip">quoted with spaces</a>
+            <a HREF='tool-b.tar.gz'>uppercase single quoted</a>
+            <a href=tool-c.7z>unquoted</a>
+            <button data-download-url = /tool-d.zip>data attr</button>
+        "#;
+
+        let values = HttpClient::extract_link_values(html);
+
+        assert!(values.contains(&"tool-a.zip".to_string()));
+        assert!(values.contains(&"tool-b.tar.gz".to_string()));
+        assert!(values.contains(&"tool-c.7z".to_string()));
+        assert!(values.contains(&"/tool-d.zip".to_string()));
     }
 
     #[tokio::test]

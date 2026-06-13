@@ -38,6 +38,10 @@ impl Version {
         false
     }
 
+    pub fn is_unknown(&self) -> bool {
+        self.major == 0 && self.minor == 0 && self.patch == 0 && !self.is_prerelease
+    }
+
     pub fn parse(s: &str) -> Result<Self> {
         if s.trim().is_empty() {
             bail!("Cannot parse empty version",);
@@ -255,5 +259,12 @@ mod tests {
     fn display_formats_prerelease_suffix() {
         assert_eq!(Version::new(1, 2, 3, false).to_string(), "1.2.3");
         assert_eq!(Version::new(1, 2, 3, true).to_string(), "1.2.3-pre");
+    }
+
+    #[test]
+    fn zero_stable_version_is_unknown_sentinel() {
+        assert!(Version::new(0, 0, 0, false).is_unknown());
+        assert!(!Version::new(0, 0, 0, true).is_unknown());
+        assert!(!Version::new(0, 0, 1, false).is_unknown());
     }
 }
