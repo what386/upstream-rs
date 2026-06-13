@@ -8,6 +8,7 @@ pub mod hooks;
 pub mod import;
 pub mod install;
 pub mod list;
+pub mod migrate;
 pub mod package;
 pub mod probe;
 pub mod reinstall;
