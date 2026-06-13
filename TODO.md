@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-06-12
+@modified: 2026-06-13
 
 ## Tasks
 
@@ -13,6 +13,9 @@
 
 - [ ] fix custom domains for gitlab + gitea autodetection in build command
       @created 2026-06-12 23:31
+
+- [ ] breaking: REMOVE support for legacy package file format (high)
+      @created 2026-06-13 01:57
 
 
 ## Completed
