@@ -26,7 +26,7 @@ pub enum ImportAs {
     Install binaries, AppImages, and other artifacts with automatic updates, \
     version pinning, and minimal configuration.\n\n\
     EXAMPLES:\n  \
-    upstream install nvim neovim/neovim --desktop\n  \
+    upstream install neovim/neovim nvim --desktop\n  \
     upstream upgrade                # Upgrade all packages\n  \
     upstream list                   # Show installed packages\n  \
     upstream config set github.api_token=ghp_xxx"
@@ -51,15 +51,15 @@ pub enum Commands {
         Downloads the specified file type from the latest release (or specified channel) \
         and registers it under the given name for future updates.\n\n\
         EXAMPLES:\n  \
-        upstream install rg BurntSushi/ripgrep -k binary\n  \
-        upstream install dust bootandy/dust -k archive\n  \
-        upstream install rg BurntSushi/ripgrep --trust none")]
+        upstream install BurntSushi/ripgrep rg -k binary\n  \
+        upstream install bootandy/dust dust -k archive\n  \
+        upstream install BurntSushi/ripgrep rg --trust none")]
     Install {
-        /// Name to register the application under
-        name: String,
-
         /// Repository identifier or URL
         repo_slug: String,
+
+        /// Name to register the application under
+        name: String,
 
         /// Version tag to install (defaults to latest)
         #[arg(short, long)]
@@ -108,16 +108,16 @@ pub enum Commands {
         or unsuitable for your system.\n\n\
         Mirrors install-style source resolution, with optional automatic profile detection.\n\n\
         EXAMPLES:\n  \
-        upstream build rg BurntSushi/ripgrep\n  \
-        upstream build rg BurntSushi/ripgrep --branch main\n  \
-        upstream build rg BurntSushi/ripgrep --build-profile rust\n  \
-        upstream build app owner/repo --build-profile dotnet --tag v1.2.3")]
+        upstream build BurntSushi/ripgrep rg\n  \
+        upstream build BurntSushi/ripgrep rg --branch main\n  \
+        upstream build BurntSushi/ripgrep rg --build-profile rust\n  \
+        upstream build owner/repo app --build-profile dotnet --tag v1.2.3")]
     Build {
-        /// Name to register the application under
-        name: String,
-
         /// Repository identifier or URL
         repo_slug: String,
+
+        /// Name to register the application under
+        name: String,
 
         /// Version tag to build (defaults to latest)
         #[arg(short, long, conflicts_with = "branch")]

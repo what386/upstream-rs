@@ -3,7 +3,7 @@
 Use `upstream build` when a project publishes source releases but does not provide a suitable prebuilt artifact for your system.
 
 ```bash
-upstream build <name> <repo-or-url>
+upstream build <repo-or-url> <name>
 ```
 
 ## Supported Profiles
@@ -21,7 +21,7 @@ Upstream can auto-detect or explicitly use these build profiles:
 Force a profile when detection is ambiguous:
 
 ```bash
-upstream build rg BurntSushi/ripgrep --build-profile rust
+upstream build BurntSushi/ripgrep rg --build-profile rust
 ```
 
 ## Tags, Branches, and Channels
@@ -29,13 +29,13 @@ upstream build rg BurntSushi/ripgrep --build-profile rust
 Build a release tag:
 
 ```bash
-upstream build app owner/repo --tag v1.2.3
+upstream build owner/repo app --tag v1.2.3
 ```
 
 Build a branch head:
 
 ```bash
-upstream build app owner/repo --branch main
+upstream build owner/repo app --branch main
 ```
 
 Without `--tag` or `--branch`, Upstream resolves the latest release for the selected channel.
@@ -71,7 +71,7 @@ The built artifact is staged and then installed through the same package install
 Use `--desktop` for GUI apps:
 
 ```bash
-upstream build app owner/repo --desktop
+upstream build owner/repo app --desktop
 ```
 
 If desktop integration fails, Upstream rolls back the partial install.
