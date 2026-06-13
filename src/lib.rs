@@ -1,4 +1,5 @@
 pub mod application;
+pub mod migrate;
 pub mod models;
 pub mod output;
 pub mod providers;

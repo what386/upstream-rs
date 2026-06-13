@@ -21,6 +21,7 @@ impl fmt::Display for Commands {
             Commands::Hooks { action } => write!(f, "{action}"),
             Commands::Import { .. } => write!(f, "import"),
             Commands::Export { .. } => write!(f, "export"),
+            Commands::Migrate => write!(f, "migrate"),
             Commands::Doctor { .. } => write!(f, "doctor"),
         }
     }

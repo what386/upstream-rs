@@ -199,6 +199,7 @@ impl Cli {
             },
 
             Commands::Export { path, full } => commands::export::run_export(path, full).await,
+            Commands::Migrate => commands::migrate::run(),
             Commands::Import {
                 path,
                 skip_failed,

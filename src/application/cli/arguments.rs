@@ -526,6 +526,17 @@ pub enum Commands {
         full: bool,
     },
 
+    /// Migrate local upstream data after breaking changes
+    #[command(
+        long_about = "Migrate existing upstream data to the current application format.\n\n\
+        Use this after upgrading across breaking changes that affect local data, \
+        metadata, package paths, or integration files. The migration is designed to \
+        be run manually when release notes or diagnostics ask for it.\n\n\
+        EXAMPLE:\n  \
+        upstream migrate"
+    )]
+    Migrate,
+
     /// Run diagnostics to detect installation and integration issues
     #[command(
         long_about = "Inspect upstream installation health and package state.\n\n\
@@ -577,7 +588,8 @@ impl Commands {
             | Commands::Upgrade { .. }
             | Commands::Probe { .. }
             | Commands::Import { .. }
-            | Commands::Export { .. } => true,
+            | Commands::Export { .. }
+            | Commands::Migrate => true,
         }
     }
 }
