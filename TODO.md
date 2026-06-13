@@ -14,3 +14,6 @@
 - [ ] BREAKING: swap positions of repo and name in install-like commands
       @created 2026-06-13 14:27
 
+- [ ] feat: upstream find subcommand (interactive search)
+      @created 2026-06-13 14:29
+
