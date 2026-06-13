@@ -17,6 +17,9 @@
 - [ ] feat: json mode for update checks
       @created 2026-06-13 03:14
 
+- [ ] feat: json mode for probe / search
+      @created 2026-06-13 03:29
+
 
 ## Completed
 
