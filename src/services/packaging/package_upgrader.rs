@@ -351,7 +351,7 @@ impl<'a> PackageUpgrader<'a> {
                     head_commit,
                 } => (None, Some(branch.clone()), Some(head_commit.clone())),
             };
-            let worker = BuildWorker::new(self.provider_manager);
+            let worker = BuildWorker::new(self.provider_manager, self.paths);
             let build_result = {
                 let mut build_line_callback = Some(|line: &str| {
                     let line = line.trim();

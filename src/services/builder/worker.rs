@@ -10,14 +10,19 @@ use crate::services::builder::determine::determine_profile;
 use crate::services::builder::downloader::SourceDownloader;
 use crate::services::builder::profiles::handlers;
 use crate::services::builder::{BuildOutput, BuildRequest, scripts};
+use crate::utils::static_paths::UpstreamPaths;
 
 pub struct BuildWorker<'a> {
     provider_manager: &'a ProviderManager,
+    paths: &'a UpstreamPaths,
 }
 
 impl<'a> BuildWorker<'a> {
-    pub fn new(provider_manager: &'a ProviderManager) -> Self {
-        Self { provider_manager }
+    pub fn new(provider_manager: &'a ProviderManager, paths: &'a UpstreamPaths) -> Self {
+        Self {
+            provider_manager,
+            paths,
+        }
     }
 
     pub async fn build<H>(
@@ -29,8 +34,8 @@ impl<'a> BuildWorker<'a> {
     where
         H: FnMut(&str),
     {
-        Self::emit_status(line_callback, "Preparing source download ...");
-        let downloader = SourceDownloader::new(self.provider_manager)?;
+        Self::emit_status(line_callback, "Preparing source checkout ...");
+        let downloader = SourceDownloader::new(self.provider_manager, self.paths)?;
         let source = {
             let mut status_callback = line_callback
                 .as_mut()
