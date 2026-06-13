@@ -167,7 +167,7 @@ pub fn normalize_source_for_provider(
             }
         }
         Provider::Gitlab => {
-            if (host == "gitlab.com" || host == "www.gitlab.com")
+            if is_gitlab_host(&host)
                 && let Some(slug) = gitlab_slug(&segments)
             {
                 return slug;
@@ -222,14 +222,14 @@ fn infer_url_source(original: &str, url: &Url) -> Result<DiscoveredSource> {
         });
     }
 
-    if (host == "gitlab.com" || host == "www.gitlab.com")
+    if is_gitlab_host(&host)
         && let Some(slug) = gitlab_slug(&segments)
     {
         return Ok(DiscoveredSource {
             original: original.to_string(),
             repo_slug: slug,
             provider: Provider::Gitlab,
-            base_url: None,
+            base_url: gitlab_base_url(url, &host),
             kind: SourceKind::ForgeUrl,
         });
     }
@@ -303,6 +303,19 @@ fn gitlab_slug(segments: &[&str]) -> Option<String> {
     }
 
     Some(parts.join("/"))
+}
+
+fn is_gitlab_host(host: &str) -> bool {
+    let normalized = host.strip_prefix("www.").unwrap_or(host);
+    normalized == "gitlab.com" || normalized.starts_with("gitlab.")
+}
+
+fn gitlab_base_url(url: &Url, host: &str) -> Option<String> {
+    if matches!(host, "gitlab.com" | "www.gitlab.com") {
+        None
+    } else {
+        Some(format!("{}://{}", url.scheme(), host))
+    }
 }
 
 fn same_host(a: &Url, b: &Url) -> bool {
@@ -391,6 +404,17 @@ mod tests {
     }
 
     #[test]
+    fn infer_source_normalizes_self_hosted_gitlab_urls() {
+        let source = infer_source("https://gitlab.futo.org/videostreaming/Grayjay.Desktop")
+            .expect("infer source");
+
+        assert_eq!(source.provider, Provider::Gitlab);
+        assert_eq!(source.repo_slug, "videostreaming/Grayjay.Desktop");
+        assert_eq!(source.base_url.as_deref(), Some("https://gitlab.futo.org"));
+        assert_eq!(source.kind, SourceKind::ForgeUrl);
+    }
+
+    #[test]
     fn normalize_source_for_provider_extracts_slug_for_github_urls() {
         let normalized = normalize_source_for_provider(
             "https://github.com/sharkdp/bat",
@@ -398,6 +422,17 @@ mod tests {
             None,
         );
         assert_eq!(normalized, "sharkdp/bat");
+    }
+
+    #[test]
+    fn normalize_source_for_provider_extracts_slug_for_self_hosted_gitlab_urls() {
+        let normalized = normalize_source_for_provider(
+            "https://gitlab.futo.org/videostreaming/Grayjay.Desktop",
+            &Provider::Gitlab,
+            None,
+        );
+
+        assert_eq!(normalized, "videostreaming/Grayjay.Desktop");
     }
 
     #[test]

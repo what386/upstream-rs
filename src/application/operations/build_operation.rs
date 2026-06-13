@@ -6,7 +6,7 @@ use crate::models::{
     upstream::{InstallType, Package},
 };
 use crate::output;
-use crate::providers::discovery::{SourceKind, infer_source};
+use crate::providers::discovery::{SourceKind, infer_source, normalize_source_for_provider};
 use crate::providers::provider_manager::ProviderManager;
 use crate::services::builder::scripts::BuildScriptAction;
 use crate::services::builder::{BuildProfile, BuildRequest, worker::BuildWorker};
@@ -56,11 +56,21 @@ impl<'a> BuildOperation<'a> {
         let (resolved_repo_slug, resolved_provider, resolved_base_url) = if let Some(selected) =
             input.provider.as_ref()
         {
-            (
-                input.repo_slug.clone(),
-                selected.clone(),
-                input.base_url.clone(),
-            )
+            let normalized_source = normalize_source_for_provider(
+                &input.repo_slug,
+                selected,
+                input.base_url.as_deref(),
+            );
+            let inferred_base_url = input.base_url.clone().or_else(|| {
+                infer_source(&input.repo_slug)
+                    .ok()
+                    .filter(|source| {
+                        source.provider == *selected && matches!(source.kind, SourceKind::ForgeUrl)
+                    })
+                    .and_then(|source| source.base_url)
+            });
+
+            (normalized_source, selected.clone(), inferred_base_url)
         } else {
             let mut discovered = infer_source(&input.repo_slug)?;
             if let Some(base) = input.base_url.clone() {
