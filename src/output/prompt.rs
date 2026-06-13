@@ -117,11 +117,11 @@ fn select_from_list_with_term(
 
         match selection_action_for_key(term.read_key()?) {
             SelectionAction::Accept => {
-                clear_rendered_selection(term, rendered_lines)?;
+                term.clear_line()?;
                 return Ok(Some(selected));
             }
             SelectionAction::Cancel => {
-                clear_rendered_selection(term, rendered_lines)?;
+                term.clear_line()?;
                 return Ok(None);
             }
             SelectionAction::Next => selected = (selected + 1) % items.len(),
