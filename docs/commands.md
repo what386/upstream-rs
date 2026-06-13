@@ -13,7 +13,7 @@ Accept confirmation prompts. This is useful for scripts and bootstrap flows.
 ## Install
 
 ```bash
-upstream install [options] <name> <repo-or-url>
+upstream install [options] <repo-or-url> <name>
 ```
 
 Installs a package from a release source and records it for future upgrades.
@@ -36,17 +36,17 @@ Common options:
 Examples:
 
 ```bash
-upstream install rg BurntSushi/ripgrep -k binary
-upstream install dust bootandy/dust -k archive
-upstream install nvim neovim/neovim --tag v0.11.0
-upstream install app owner/repo --desktop
-upstream install tool https://example.com/downloads -p scraper
+upstream install BurntSushi/ripgrep rg -k binary
+upstream install bootandy/dust dust -k archive
+upstream install neovim/neovim nvim --tag v0.11.0
+upstream install owner/repo app --desktop
+upstream install https://example.com/downloads tool -p scraper
 ```
 
 ## Build
 
 ```bash
-upstream build [options] <name> <repo-or-url>
+upstream build [options] <repo-or-url> <name>
 ```
 
 Builds from source and installs the resulting artifact. See [Building from source](build.md).

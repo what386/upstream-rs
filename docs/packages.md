@@ -5,7 +5,7 @@ Packages are tracked by a local alias, source metadata, selected file type, prov
 ## Install
 
 ```bash
-upstream install <name> <repo-or-url>
+upstream install <repo-or-url> <name>
 ```
 
 The install flow:
@@ -26,8 +26,8 @@ Use `--dry-run` to inspect the selected release and asset before download.
 The default file type is `auto`. Upstream scores release assets using filename, OS, architecture, and file-type hints. Use these options when automatic selection needs steering:
 
 ```bash
-upstream install app owner/repo --kind archive
-upstream install app owner/repo --match linux --exclude debug
+upstream install owner/repo app --kind archive
+upstream install owner/repo app --match linux --exclude debug
 ```
 
 `--match-pattern` increases preference for matching assets. `--exclude-pattern` filters out matching assets.
@@ -37,8 +37,8 @@ upstream install app owner/repo --match linux --exclude debug
 Use `--desktop` for GUI applications:
 
 ```bash
-upstream install app owner/repo --desktop
-upstream build app owner/repo --desktop
+upstream install owner/repo app --desktop
+upstream build owner/repo app --desktop
 ```
 
 On Linux, Upstream creates a `.desktop` file under the user applications directory and copies a discovered icon when possible. If desktop integration fails during install or upgrade, Upstream rolls back the partial package install so metadata and files remain consistent.

@@ -69,19 +69,19 @@ upstream hooks init
 Install a package:
 
 ```bash
-upstream install rg BurntSushi/ripgrep
+upstream install BurntSushi/ripgrep rg
 ```
 
 Install a specific asset kind:
 
 ```bash
-upstream install rg BurntSushi/ripgrep -k binary
+upstream install BurntSushi/ripgrep rg -k binary
 ```
 
 Preview an install without changing anything:
 
 ```bash
-upstream install rg BurntSushi/ripgrep --dry-run
+upstream install BurntSushi/ripgrep rg --dry-run
 ```
 
 Search for repositories:
@@ -137,35 +137,35 @@ upstream doctor
 ### Install from a release source
 
 ```bash
-upstream install <name> <repo-or-url>
+upstream install <repo-or-url> <name>
 ```
 
 Examples:
 
 ```bash
-upstream install fd sharkdp/fd
-upstream install nvim neovim/neovim --tag v0.11.0
-upstream install app owner/repo --desktop
+upstream install sharkdp/fd fd
+upstream install neovim/neovim nvim --tag v0.11.0
+upstream install owner/repo app --desktop
 ```
 
 Use `--match` and `--exclude` to guide asset selection:
 
 ```bash
-upstream install app owner/repo --match linux --exclude debug
+upstream install owner/repo app --match linux --exclude debug
 ```
 
 ### Build from source
 
 ```bash
-upstream build <name> <repo-or-url>
+upstream build <repo-or-url> <name>
 ```
 
 Examples:
 
 ```bash
-upstream build rg BurntSushi/ripgrep
-upstream build rg BurntSushi/ripgrep --branch main
-upstream build app owner/repo --build-profile dotnet
+upstream build BurntSushi/ripgrep rg
+upstream build BurntSushi/ripgrep rg --branch main
+upstream build owner/repo app --build-profile dotnet
 ```
 
 Supported build profiles:

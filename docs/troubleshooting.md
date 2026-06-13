@@ -49,15 +49,15 @@ Then reinstall.
 Preview before installing:
 
 ```bash
-upstream install app owner/repo --dry-run
+upstream install owner/repo app --dry-run
 upstream probe owner/repo --verbose
 ```
 
 Guide selection with:
 
 ```bash
-upstream install app owner/repo --kind archive
-upstream install app owner/repo --match x86_64 --exclude debug
+upstream install owner/repo app --kind archive
+upstream install owner/repo app --match x86_64 --exclude debug
 ```
 
 ## Upgrade Problems
@@ -106,7 +106,7 @@ upstream rollback --prune
 Build installs require the language toolchain and project dependencies to already work locally. If auto-detection is ambiguous:
 
 ```bash
-upstream build app owner/repo --build-profile rust
+upstream build owner/repo app --build-profile rust
 ```
 
 If a project needs custom build steps that do not fit the supported profiles, use a prebuilt release asset or add project install/upgrade scripts upstream can review and run.

@@ -22,7 +22,7 @@ upstream import ./packages.json
 Manifest imports add package references only. They do not restore installed files, executable paths, icons, rollback data, or recorded release versions. After importing a manifest, run `upstream install` for the packages you want to materialize on the new machine, using the same local alias and source:
 
 ```bash
-upstream install rg BurntSushi/ripgrep -k binary
+upstream install BurntSushi/ripgrep rg -k binary
 ```
 
 Use a full snapshot when you need to restore installed artifacts and runtime paths exactly.

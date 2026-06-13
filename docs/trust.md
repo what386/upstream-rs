@@ -15,8 +15,8 @@ Upstream can verify downloaded release assets using checksums, signatures, or bo
 Examples:
 
 ```bash
-upstream install rg BurntSushi/ripgrep --trust best-effort
-upstream install tool owner/repo --trust checksum
+upstream install BurntSushi/ripgrep rg --trust best-effort
+upstream install owner/repo tool --trust checksum
 upstream upgrade --trust signature
 upstream reinstall app --trust none
 ```
@@ -47,7 +47,7 @@ Use `--trust signature` when a package is expected to publish a signature asset 
 For automation, prefer explicit trust modes and fail closed for high-value packages:
 
 ```bash
-upstream install critical-tool owner/repo --trust all
+upstream install owner/repo critical-tool --trust all
 ```
 
 ## Probing Before Installing
