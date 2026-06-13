@@ -14,9 +14,6 @@
 - [ ] feat: support to store multiple rollback artifacts
       @created 2026-06-13 18:01
 
-- [ ] feat: rollback artifact compression
-      @created 2026-06-13 18:01
-
 
 ## Completed
 
@@ -35,4 +32,8 @@
 - [x] BREAKING: refactor upstream paths
       @created 2026-06-13 18:32
       @completed 2026-06-13 18:33
+
+- [x] feat: rollback artifact compression
+      @created 2026-06-13 18:01
+      @completed 2026-06-13 18:47
 
