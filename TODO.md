@@ -8,7 +8,7 @@
 - [ ] feat: upgrade/install history
       @created 2026-06-13 14:20
 
-- [ ] feat: rollback with no args now undoes the last operation instead of all packages
+- [ ] feat: rollback with no args now undoes the last operation
       @created 2026-06-13 14:21
 
 - [ ] feat: support to store multiple rollback artifacts
