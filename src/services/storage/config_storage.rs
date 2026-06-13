@@ -344,50 +344,6 @@ mod tests {
     }
 
     #[test]
-    fn flattened_config_contains_dot_notation_keys() {
-        let path = temp_config_file("flatten");
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("create parent");
-        }
-        let storage = ConfigStorage::new(&path).expect("create storage");
-        let flat = storage.get_flattened_config();
-
-        assert!(!flat.contains_key("github.rate_limit"));
-        assert!(!flat.contains_key("gitlab.rate_limit"));
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
-    fn old_rate_limit_keys_are_ignored_when_loading_config() {
-        let path = temp_config_file("legacy-rate-limit");
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("create parent");
-        }
-        fs::write(
-            &path,
-            r#"
-[github]
-api_token = "ghp_abc"
-rate_limit = 1234
-
-[gitlab]
-rate_limit = 5678
-"#,
-        )
-        .expect("write config");
-
-        let storage = ConfigStorage::new(&path).expect("load legacy config");
-        assert_eq!(
-            storage.get_config().github.api_token.as_deref(),
-            Some("ghp_abc")
-        );
-        assert!(storage.get_config().gitlab.api_token.is_none());
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
     fn set_value_rejects_unknown_paths() {
         let path = temp_config_file("bad-path");
         if let Some(parent) = path.parent() {

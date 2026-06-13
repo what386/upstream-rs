@@ -433,7 +433,7 @@ mod tests {
         let manifest_path = root.join("manifest.json");
         fs::write(
                 &manifest_path,
-                r#"{"version":2,"packages":[{"name":"x","repo_slug":"o/r","filetype":"Binary","channel":"Stable","provider":"Github","base_url":null,"match_pattern":null,"exclude_pattern":null}]}"#,
+                r#"{"version":2,"packages":[{"name":"x","repo_slug":"o/r","filetype":"Binary","channel":"Stable","provider":"Github","base_url":null,"build_branch":null,"build_commit":null,"match_pattern":null,"exclude_pattern":null}]}"#,
             )
             .expect("write manifest");
 
