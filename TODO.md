@@ -8,9 +8,6 @@
 - [ ] feat: upgrade/install history
       @created 2026-06-13 14:20
 
-- [ ] feat: rollback with no args now undoes the last operation
-      @created 2026-06-13 14:21
-
 
 ## Completed
 
@@ -37,4 +34,8 @@
 - [x] feat: support to store multiple rollback artifacts
       @created 2026-06-13 18:01
       @completed 2026-06-13 18:47
+
+- [x] feat: rollback with no args now undoes the last operation
+      @created 2026-06-13 14:21
+      @completed 2026-06-13 19:34
 
