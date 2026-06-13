@@ -1,6 +1,23 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-11*
+*Generated on 2026-06-13*
+
+## 1.19.0 — 2026-06-13
+
+### High Priority
+
+- breaking: REMOVE support for legacy package file format `breaking`, `storage`, `cleanup`
+
+### Changes
+
+- nushell support `feature`, `shell`, `nushell`
+- fix install script coloring on windows `bug`, `installer`, `windows`
+- update shell detection behavior to use /etc/shells `feature`, `shell`, `integration`
+- feat: json mode for update checks `feature`, `json`, `upgrade`
+- feat: json mode for probe / search `feature`, `json`, `probe`, `search`
+- harden https scraper `bug`, `scraper`, `http`
+- fix custom domains for gitlab + gitea autodetection `bug`, `discovery`, `gitlab`, `gitea`
+
 
 ## 1.18.4 — 2026-06-11
 
