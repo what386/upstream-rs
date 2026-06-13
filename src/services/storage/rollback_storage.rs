@@ -18,12 +18,31 @@ pub enum RollbackSource {
     Remove,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RollbackArtifactFormat {
+    Raw,
+    Tgz,
+}
+
+impl Default for RollbackArtifactFormat {
+    fn default() -> Self {
+        Self::Raw
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RollbackRecord {
     pub package_snapshot: Package,
     pub artifact_relative_path: PathBuf,
     #[serde(default)]
     pub icon_relative_path: Option<PathBuf>,
+    #[serde(default)]
+    pub artifact_format: RollbackArtifactFormat,
+    #[serde(default)]
+    pub artifact_entry_path: Option<PathBuf>,
+    #[serde(default)]
+    pub icon_entry_path: Option<PathBuf>,
     pub source: RollbackSource,
     pub created_at: DateTime<Utc>,
 }
@@ -31,7 +50,7 @@ pub struct RollbackRecord {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RollbackStorageFile {
     version: u32,
-    records: HashMap<String, RollbackRecord>,
+    records: HashMap<String, Vec<RollbackRecord>>,
 }
 
 impl Default for RollbackStorageFile {
@@ -76,12 +95,14 @@ impl RollbackStorage {
             return Ok(());
         }
 
-        let parsed: RollbackStorageFile = serde_json::from_str(&json).with_context(|| {
-            format!(
-                "Failed to parse rollback storage '{}'",
-                self.rollback_file.display()
-            )
-        })?;
+        let parsed: RollbackStorageFile = serde_json::from_str(&json)
+            .or_else(|_| parse_legacy_storage_file(&json))
+            .with_context(|| {
+                format!(
+                    "Failed to parse rollback storage '{}'",
+                    self.rollback_file.display()
+                )
+            })?;
         if parsed.version != ROLLBACK_STORAGE_VERSION {
             return Err(anyhow!(
                 "Unsupported rollback storage version {} in '{}'. Expected version {}.",
@@ -106,28 +127,92 @@ impl RollbackStorage {
     }
 
     pub fn get_record(&self, package_name: &str) -> Option<&RollbackRecord> {
-        self.file.records.get(package_name)
+        self.file
+            .records
+            .get(package_name)
+            .and_then(|records| records.last())
     }
 
-    pub fn list_records(&self) -> &HashMap<String, RollbackRecord> {
+    pub fn get_records(&self, package_name: &str) -> &[RollbackRecord] {
+        self.file
+            .records
+            .get(package_name)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub fn list_records(&self) -> &HashMap<String, Vec<RollbackRecord>> {
         &self.file.records
     }
 
     pub fn upsert_record(&mut self, package_name: &str, record: RollbackRecord) -> Result<()> {
-        self.file.records.insert(package_name.to_string(), record);
-        self.save()
+        self.push_record(package_name, record, 1).map(|_| ())
+    }
+
+    pub fn push_record(
+        &mut self,
+        package_name: &str,
+        record: RollbackRecord,
+        max_records: usize,
+    ) -> Result<Vec<RollbackRecord>> {
+        let records = self
+            .file
+            .records
+            .entry(package_name.to_string())
+            .or_default();
+        records.push(record);
+        let pruned = if max_records > 0 && records.len() > max_records {
+            let remove_count = records.len() - max_records;
+            records.drain(0..remove_count).collect()
+        } else {
+            Vec::new()
+        };
+        self.save()?;
+        Ok(pruned)
     }
 
     pub fn remove_record(&mut self, package_name: &str) -> Result<Option<RollbackRecord>> {
-        let removed = self.file.records.remove(package_name);
+        let removed = self.file.records.get_mut(package_name).and_then(Vec::pop);
+        if self
+            .file
+            .records
+            .get(package_name)
+            .is_some_and(Vec::is_empty)
+        {
+            self.file.records.remove(package_name);
+        }
+        self.save()?;
+        Ok(removed)
+    }
+
+    pub fn remove_all_records(&mut self, package_name: &str) -> Result<Vec<RollbackRecord>> {
+        let removed = self.file.records.remove(package_name).unwrap_or_default();
         self.save()?;
         Ok(removed)
     }
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct LegacyRollbackStorageFile {
+    version: u32,
+    records: HashMap<String, RollbackRecord>,
+}
+
+fn parse_legacy_storage_file(json: &str) -> serde_json::Result<RollbackStorageFile> {
+    let legacy: LegacyRollbackStorageFile = serde_json::from_str(json)?;
+    Ok(RollbackStorageFile {
+        version: legacy.version,
+        records: legacy
+            .records
+            .into_iter()
+            .map(|(name, record)| (name, vec![record]))
+            .collect(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{RollbackRecord, RollbackSource, RollbackStorage};
+    use super::{RollbackArtifactFormat, RollbackRecord, RollbackSource, RollbackStorage};
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use chrono::Utc;
@@ -158,6 +243,19 @@ mod tests {
         )
     }
 
+    fn test_record(name: &str, source: RollbackSource) -> RollbackRecord {
+        RollbackRecord {
+            package_snapshot: test_package(name),
+            artifact_relative_path: PathBuf::from(format!("{name}/{name}.old")),
+            icon_relative_path: None,
+            artifact_format: RollbackArtifactFormat::Raw,
+            artifact_entry_path: None,
+            icon_entry_path: None,
+            source,
+            created_at: Utc::now(),
+        }
+    }
+
     fn cleanup(path: &Path) -> io::Result<()> {
         if let Some(parent) = path.parent() {
             fs::remove_dir_all(parent)?;
@@ -169,13 +267,8 @@ mod tests {
     fn upsert_and_reload_record_round_trips() {
         let path = temp_rollback_file("roundtrip");
         let mut storage = RollbackStorage::new(&path).expect("create storage");
-        let record = RollbackRecord {
-            package_snapshot: test_package("tool"),
-            artifact_relative_path: PathBuf::from("tool/tool.old"),
-            icon_relative_path: Some(PathBuf::from("tool/icon.png")),
-            source: RollbackSource::Upgrade,
-            created_at: Utc::now(),
-        };
+        let mut record = test_record("tool", RollbackSource::Upgrade);
+        record.icon_relative_path = Some(PathBuf::from("tool/icon.png"));
         storage
             .upsert_record("tool", record.clone())
             .expect("upsert");
@@ -194,21 +287,38 @@ mod tests {
         let path = temp_rollback_file("remove");
         let mut storage = RollbackStorage::new(&path).expect("create storage");
         storage
-            .upsert_record(
-                "tool",
-                RollbackRecord {
-                    package_snapshot: test_package("tool"),
-                    artifact_relative_path: PathBuf::from("tool/tool.old"),
-                    icon_relative_path: None,
-                    source: RollbackSource::Remove,
-                    created_at: Utc::now(),
-                },
-            )
+            .upsert_record("tool", test_record("tool", RollbackSource::Remove))
             .expect("upsert");
 
         let removed = storage.remove_record("tool").expect("remove");
         assert!(removed.is_some());
         assert!(storage.get_record("tool").is_none());
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn push_record_keeps_latest_records_with_limit() {
+        let path = temp_rollback_file("multiple");
+        let mut storage = RollbackStorage::new(&path).expect("create storage");
+        storage
+            .push_record("tool", test_record("tool", RollbackSource::Upgrade), 2)
+            .expect("push first");
+        storage
+            .push_record("tool", test_record("tool", RollbackSource::Remove), 2)
+            .expect("push second");
+        storage
+            .push_record("tool", test_record("tool", RollbackSource::Reinstall), 2)
+            .expect("push third");
+
+        let records = storage.get_records("tool");
+        assert_eq!(records.len(), 2);
+        assert!(matches!(records[0].source, RollbackSource::Remove));
+        assert!(matches!(records[1].source, RollbackSource::Reinstall));
+        assert!(matches!(
+            storage.get_record("tool").expect("latest").source,
+            RollbackSource::Reinstall
+        ));
 
         cleanup(&path).expect("cleanup");
     }
