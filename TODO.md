@@ -11,9 +11,6 @@
 - [ ] feat: rollback with no args now undoes the last operation
       @created 2026-06-13 14:21
 
-- [ ] feat: support to store multiple rollback artifacts
-      @created 2026-06-13 18:01
-
 
 ## Completed
 
@@ -34,6 +31,10 @@
       @completed 2026-06-13 18:33
 
 - [x] feat: rollback artifact compression
+      @created 2026-06-13 18:01
+      @completed 2026-06-13 18:47
+
+- [x] feat: support to store multiple rollback artifacts
       @created 2026-06-13 18:01
       @completed 2026-06-13 18:47
 
