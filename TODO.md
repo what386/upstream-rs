@@ -14,6 +14,9 @@
 - [ ] feat: support to store multiple rollback artifacts
       @created 2026-06-13 18:01
 
+- [ ] feat: rollback artifact compression
+      @created 2026-06-13 18:01
+
 
 ## Completed
 
