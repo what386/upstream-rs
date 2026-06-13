@@ -569,15 +569,8 @@ impl<'a> UpgradeOperation<'a> {
                 .flatten()
         }?;
 
-        if !force {
-            let up_to_date = if package.channel == Channel::Nightly {
-                release.published_at <= package.last_upgraded
-            } else {
-                !release.version.is_newer_than(&package.version)
-            };
-            if up_to_date {
-                return None;
-            }
+        if !force && !package.is_update_available(&release) {
+            return None;
         }
 
         let source_build = package.install_type == crate::models::upstream::InstallType::Build;

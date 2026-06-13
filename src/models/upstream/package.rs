@@ -7,6 +7,7 @@ use crate::models::common::{
     enums::{Channel, Filetype, Provider},
     version::Version,
 };
+use crate::models::provider::Release;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum InstallType {
@@ -87,12 +88,68 @@ impl Package {
             && self.name == other.name
             && self.base_url == other.base_url
     }
+
+    pub fn is_update_available(&self, release: &Release) -> bool {
+        if self.channel == Channel::Nightly {
+            return release.published_at > self.last_upgraded;
+        }
+
+        if release.version.is_unknown() {
+            return release.published_at > self.last_upgraded;
+        }
+
+        release.version.is_newer_than(&self.version)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{InstallType, Package};
-    use crate::models::common::enums::{Channel, Filetype, Provider};
+    use crate::models::{
+        common::{
+            Version,
+            enums::{Channel, Filetype, Provider},
+        },
+        provider::Release,
+    };
+    use chrono::{Duration, TimeZone, Utc};
+
+    fn update_test_package(version: Version, channel: Channel) -> Package {
+        let mut package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Archive,
+            None,
+            None,
+            channel,
+            Provider::Github,
+            None,
+        );
+        package.version = version;
+        package.last_upgraded = Utc
+            .with_ymd_and_hms(2026, 1, 1, 12, 0, 0)
+            .single()
+            .expect("valid timestamp");
+        package
+    }
+
+    fn update_test_release(version: Version, published_offset: Duration) -> Release {
+        let base = Utc
+            .with_ymd_and_hms(2026, 1, 1, 12, 0, 0)
+            .single()
+            .expect("valid timestamp");
+        Release {
+            id: 1,
+            tag: version.to_string(),
+            name: version.to_string(),
+            body: String::new(),
+            is_draft: false,
+            is_prerelease: false,
+            assets: Vec::new(),
+            version,
+            published_at: base + published_offset,
+        }
+    }
 
     #[test]
     fn is_same_as_uses_identity_fields_only() {
@@ -161,5 +218,47 @@ mod tests {
         let pkg: Package =
             serde_json::from_str(legacy_lowercase).expect("deserialize lowercase install type");
         assert_eq!(pkg.install_type, InstallType::Release);
+    }
+
+    #[test]
+    fn stable_release_uses_semver_when_version_is_known() {
+        let package = update_test_package(Version::new(1, 0, 0, false), Channel::Stable);
+
+        assert!(package.is_update_available(&update_test_release(
+            Version::new(1, 0, 1, false),
+            Duration::seconds(-1)
+        )));
+        assert!(!package.is_update_available(&update_test_release(
+            Version::new(1, 0, 0, false),
+            Duration::days(1)
+        )));
+    }
+
+    #[test]
+    fn stable_unknown_release_uses_published_timestamp() {
+        let package = update_test_package(Version::new(0, 0, 0, false), Channel::Stable);
+
+        assert!(package.is_update_available(&update_test_release(
+            Version::new(0, 0, 0, false),
+            Duration::seconds(1)
+        )));
+        assert!(!package.is_update_available(&update_test_release(
+            Version::new(0, 0, 0, false),
+            Duration::seconds(0)
+        )));
+    }
+
+    #[test]
+    fn nightly_release_uses_published_timestamp() {
+        let package = update_test_package(Version::new(9, 9, 9, false), Channel::Nightly);
+
+        assert!(package.is_update_available(&update_test_release(
+            Version::new(1, 0, 0, false),
+            Duration::seconds(1)
+        )));
+        assert!(!package.is_update_available(&update_test_release(
+            Version::new(99, 0, 0, false),
+            Duration::seconds(0)
+        )));
     }
 }

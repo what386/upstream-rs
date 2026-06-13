@@ -2,10 +2,7 @@
 use crate::services::integration::AppImageExtractor;
 use crate::{
     models::{
-        common::{
-            DesktopEntry,
-            enums::{Channel, TrustMode},
-        },
+        common::{DesktopEntry, enums::TrustMode},
         provider::Release,
         upstream::{InstallType, Package},
     },
@@ -233,17 +230,9 @@ impl<'a> PackageUpgrader<'a> {
                 latest_release
             };
 
-            if !force {
-                let up_to_date = if package.channel == Channel::Nightly {
-                    release.published_at <= package.last_upgraded
-                } else {
-                    !release.version.is_newer_than(&package.version)
-                };
-
-                if up_to_date {
-                    message!(message_callback, "'{}' is already up to date", package.name);
-                    return Ok(None);
-                }
+            if !force && !package.is_update_available(&release) {
+                message!(message_callback, "'{}' is already up to date", package.name);
+                return Ok(None);
             }
             Some(ResolvedUpgradeTarget::Release(release))
         };
