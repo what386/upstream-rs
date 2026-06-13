@@ -16,15 +16,21 @@ use crate::{
         builder::scripts::BuildScriptAction,
         builder::{BuildRequest, worker::BuildWorker},
         packaging::{
-            PackageRemover,
+            PackageRemover, PackageTransactionContext,
             disk_impact::{
                 ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate,
                 estimate_path_size, install_impact_from_download,
             },
         },
         storage::{
-            config_storage::ConfigStorage, metadata_storage::MetadataStorage,
-            package_storage::PackageStorage, rollback_storage::RollbackSource,
+            config_storage::ConfigStorage,
+            metadata_storage::MetadataStorage,
+            package_storage::PackageStorage,
+            rollback_storage::RollbackSource,
+            transaction_storage::{
+                TransactionKind, TransactionLog, UndoActionKind, package_failed, package_success,
+                planned_packages, undo,
+            },
         },
         trust::TrustedSignatureKeys,
     },
@@ -99,9 +105,27 @@ pub async fn run(
     let size_rows = rollback_size_rows(rollback_impact);
     output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
     output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()), false)?;
+    let old_versions = names
+        .iter()
+        .map(|name| {
+            (
+                name.clone(),
+                package_storage
+                    .get_package_by_name(name)
+                    .map(|package| package.version.to_string()),
+            )
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let transaction = TransactionLog::start(
+        &paths,
+        TransactionKind::Reinstall,
+        planned_packages(names.clone()),
+        undo(UndoActionKind::RestoreRollback, names.clone()),
+    )?;
 
     let mut reinstalled = 0_u32;
     let mut failed = 0_u32;
+    let mut transaction_packages = Vec::new();
     let pb = ProgressBar::new_spinner();
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
@@ -124,6 +148,11 @@ pub async fn run(
         let package = match package_storage.get_package_by_name(name) {
             Some(pkg) => pkg.clone(),
             None => {
+                transaction_packages.push(reinstall_failed_package(
+                    name,
+                    old_versions.get(name).cloned().flatten(),
+                    "package is not installed",
+                ));
                 completion_lines.push(output::status_line_text_with_width(
                     Status::Fail,
                     name,
@@ -148,6 +177,11 @@ pub async fn run(
         )
         .await
         {
+            transaction_packages.push(reinstall_failed_package(
+                name,
+                old_versions.get(name).cloned().flatten(),
+                output::error_summary(&err),
+            ));
             completion_lines.push(output::status_line_text_with_width(
                 Status::Fail,
                 name,
@@ -158,6 +192,13 @@ pub async fn run(
             continue;
         }
 
+        transaction_packages.push(reinstall_success_package(
+            name,
+            old_versions.get(name).cloned().flatten(),
+            package_storage
+                .get_package_by_name(name)
+                .map(|package| package.version.to_string()),
+        ));
         completion_lines.push(output::status_line_text_with_width(
             Status::Ok,
             name,
@@ -173,16 +214,22 @@ pub async fn run(
 
     if names.len() == 1 {
         if failed == 0 {
+            transaction.complete(transaction_packages)?;
             println!(
                 "{}",
                 output::success("Reinstall complete: 1 reinstalled, 0 failed.")
             );
             return Ok(());
         }
+        transaction.fail(transaction_packages, "Reinstall failed")?;
         return Err(anyhow!("Reinstall failed"));
     }
 
     if failed > 0 {
+        transaction.fail(
+            transaction_packages,
+            format!("{failed} package(s) failed to reinstall"),
+        )?;
         println!(
             "{}",
             output::warning(format!(
@@ -191,6 +238,7 @@ pub async fn run(
             ))
         );
     } else {
+        transaction.complete(transaction_packages)?;
         println!(
             "{}",
             output::success(format!(
@@ -201,6 +249,27 @@ pub async fn run(
     }
 
     Ok(())
+}
+
+fn reinstall_success_package(
+    name: &str,
+    old_version: Option<String>,
+    new_version: Option<String>,
+) -> crate::services::storage::transaction_storage::TransactionPackage {
+    let mut package = package_success(name.to_string());
+    package.old_version = old_version;
+    package.new_version = new_version;
+    package
+}
+
+fn reinstall_failed_package(
+    name: &str,
+    old_version: Option<String>,
+    error: impl Into<String>,
+) -> crate::services::storage::transaction_storage::TransactionPackage {
+    let mut package = package_failed(name.to_string(), error);
+    package.old_version = old_version;
+    package
 }
 
 async fn run_dry_run(
@@ -510,11 +579,12 @@ where
                 trusted_keys.clone(),
             )?;
             install_op
-                .install_single(
+                .install_single_with_context(
                     reinstall_package,
                     &Some(version_tag),
                     &had_icon,
                     trust_mode,
+                    PackageTransactionContext::CoveredByParent,
                     &mut Some(|_: u64, _: u64| {}),
                     message_callback,
                 )
@@ -564,6 +634,7 @@ where
                     &output.artifact_path,
                     output.version,
                     &had_icon,
+                    PackageTransactionContext::CoveredByParent,
                     message_callback,
                 )
                 .await?;

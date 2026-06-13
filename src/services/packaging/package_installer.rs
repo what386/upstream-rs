@@ -1,13 +1,24 @@
+#[cfg(target_os = "linux")]
+use crate::services::integration::AppImageExtractor;
 use crate::{
-    models::common::enums::TrustMode,
+    models::common::{DesktopEntry, enums::TrustMode},
     models::{common::enums::Filetype, provider::Release, upstream::Package},
     providers::provider_manager::ProviderManager,
     services::{
         integration::{
-            CompletionManager, ShellManager, SymlinkManager, compression_handler,
-            permission_handler,
+            CompletionManager, DesktopManager, IconManager, ShellManager, SymlinkManager,
+            compression_handler, permission_handler,
         },
-        packaging::{PackagePhase, PackageProgressEvent, bundle_handler::BundleHandler},
+        packaging::{
+            PackagePhase, PackageProgressEvent, PackageRemover,
+            bundle_handler::BundleHandler,
+            disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
+            transaction_recorder::{PackageTransaction, failed_package, successful_package},
+        },
+        storage::{
+            package_storage::PackageStorage,
+            transaction_storage::{TransactionKind, UndoActionKind},
+        },
         trust::{
             ChecksumVerificationStatus, SignatureScheme, SignatureVerificationStatus,
             TrustVerificationStatus, TrustVerifier, TrustedSignatureKeys,
@@ -53,6 +64,39 @@ pub struct PackageInstaller<'a> {
     extract_cache: PathBuf,
 }
 
+#[derive(Debug, Clone)]
+pub enum PackageTransactionContext {
+    Record {
+        kind: TransactionKind,
+        undo_kind: Option<UndoActionKind>,
+    },
+    CoveredByParent,
+}
+
+impl PackageTransactionContext {
+    pub fn install() -> Self {
+        Self::Record {
+            kind: TransactionKind::Install,
+            undo_kind: Some(UndoActionKind::Remove),
+        }
+    }
+
+    pub fn build() -> Self {
+        Self::Record {
+            kind: TransactionKind::Build,
+            undo_kind: Some(UndoActionKind::Remove),
+        }
+    }
+}
+
+pub struct InstallPreview {
+    pub release_name: String,
+    pub release_tag: String,
+    pub asset_name: String,
+    pub resolved_filetype: Filetype,
+    pub disk_impact: DiskImpact,
+}
+
 impl<'a> PackageInstaller<'a> {
     fn package_cache_key(package_name: &str) -> String {
         let timestamp = SystemTime::now()
@@ -94,6 +138,481 @@ impl<'a> PackageInstaller<'a> {
             download_cache,
             extract_cache,
         })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn install_release_with_progress<F, H, P>(
+        &self,
+        package_storage: &mut PackageStorage,
+        trusted_keys: &TrustedSignatureKeys,
+        package: Package,
+        version: &Option<String>,
+        add_entry: &bool,
+        trust_mode: TrustMode,
+        transaction_context: PackageTransactionContext,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        let package_name = package.name.clone();
+        let transaction = self.start_transaction(transaction_context, package_name.clone())?;
+        let result = self
+            .install_release_inner(
+                package_storage,
+                trusted_keys,
+                package,
+                version,
+                add_entry,
+                trust_mode,
+                download_progress_callback,
+                message_callback,
+                progress_callback,
+            )
+            .await;
+
+        self.finish_transaction(transaction, &package_name, result)
+    }
+
+    pub async fn install_local_artifact<H>(
+        &self,
+        package_storage: &mut PackageStorage,
+        package: Package,
+        artifact_path: &Path,
+        version: crate::models::common::version::Version,
+        add_entry: &bool,
+        transaction_context: PackageTransactionContext,
+        message_callback: &mut Option<H>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+    {
+        let package_name = package.name.clone();
+        let transaction = self.start_transaction(transaction_context, package_name.clone())?;
+        let result = self
+            .install_local_artifact_inner(
+                package_storage,
+                package,
+                artifact_path,
+                version,
+                add_entry,
+                message_callback,
+            )
+            .await;
+
+        self.finish_transaction(transaction, &package_name, result)
+    }
+
+    pub async fn preview_single_install(
+        &self,
+        package: &Package,
+        version: &Option<String>,
+    ) -> Result<InstallPreview> {
+        if package.install_path.is_some() {
+            return Err(anyhow!("Package '{}' is already installed", package.name));
+        }
+
+        let release = if let Some(version_tag) = version {
+            self.provider_manager
+                .get_release_by_tag(
+                    &package.repo_slug,
+                    version_tag,
+                    &package.provider,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .context(format!(
+                    "Failed to fetch release '{}' for '{}'. Verify the version tag exists",
+                    version_tag, package.repo_slug
+                ))?
+        } else {
+            self.provider_manager
+                .get_latest_release(
+                    &package.repo_slug,
+                    &package.provider,
+                    &package.channel,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .context(format!(
+                    "Failed to fetch latest {} release for '{}'",
+                    package.channel, package.repo_slug
+                ))?
+        };
+
+        let best_asset = self
+            .provider_manager
+            .find_recommended_asset(&release, package)
+            .context(format!(
+                "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
+                package.name, package.filetype
+            ))?;
+
+        let resolved_filetype = if package.filetype == Filetype::Auto {
+            best_asset.filetype
+        } else {
+            package.filetype
+        };
+
+        Ok(InstallPreview {
+            release_name: release.name,
+            release_tag: release.tag,
+            asset_name: best_asset.name.clone(),
+            resolved_filetype,
+            disk_impact: install_impact_from_download(asset_size_estimate(best_asset.size)),
+        })
+    }
+
+    fn start_transaction(
+        &self,
+        context: PackageTransactionContext,
+        package_name: String,
+    ) -> Result<Option<PackageTransaction>> {
+        match context {
+            PackageTransactionContext::Record { kind, undo_kind } => Ok(Some(
+                PackageTransaction::start(self.paths, kind, vec![package_name], undo_kind)?,
+            )),
+            PackageTransactionContext::CoveredByParent => Ok(None),
+        }
+    }
+
+    fn finish_transaction(
+        &self,
+        transaction: Option<PackageTransaction>,
+        package_name: &str,
+        result: Result<Package>,
+    ) -> Result<Package> {
+        match (result, transaction) {
+            (Ok(installed_package), Some(transaction)) => {
+                transaction.complete(vec![successful_package(
+                    package_name.to_string(),
+                    None,
+                    Some(installed_package.version.to_string()),
+                )])?;
+                Ok(installed_package)
+            }
+            (Err(err), Some(transaction)) => {
+                let summary = crate::output::error_summary(&err);
+                transaction.fail(
+                    vec![failed_package(
+                        package_name.to_string(),
+                        None,
+                        None,
+                        summary.clone(),
+                    )],
+                    summary,
+                )?;
+                Err(err)
+            }
+            (Ok(installed_package), None) => Ok(installed_package),
+            (Err(err), None) => Err(err),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn install_release_inner<F, H, P>(
+        &self,
+        package_storage: &mut PackageStorage,
+        trusted_keys: &TrustedSignatureKeys,
+        package: Package,
+        version: &Option<String>,
+        add_entry: &bool,
+        trust_mode: TrustMode,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        let package_name = package.name.clone();
+        let mut installed_package = self
+            .perform_install_with_progress(
+                package,
+                version,
+                trust_mode,
+                trusted_keys,
+                download_progress_callback,
+                message_callback,
+                progress_callback,
+            )
+            .await
+            .context(format!(
+                "Failed to perform installation for '{}'",
+                package_name
+            ))?;
+
+        if *add_entry {
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Phase(PackagePhase::CreatingDesktopEntry)
+            );
+
+            if let Err(err) = self
+                .add_desktop_entry(&mut installed_package, message_callback)
+                .await
+            {
+                return self.fail_after_partial_install(
+                    installed_package,
+                    err.context("Failed to create desktop integration"),
+                    message_callback,
+                );
+            }
+        }
+
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::SavingMetadata)
+        );
+        if let Err(err) = package_storage
+            .add_or_update_package(installed_package.clone())
+            .context(format!(
+                "Failed to save package '{}' to storage",
+                installed_package.name
+            ))
+        {
+            return self.fail_after_partial_install(installed_package, err, message_callback);
+        }
+
+        Ok(installed_package)
+    }
+
+    async fn install_local_artifact_inner<H>(
+        &self,
+        package_storage: &mut PackageStorage,
+        package: Package,
+        artifact_path: &Path,
+        version: crate::models::common::version::Version,
+        add_entry: &bool,
+        message_callback: &mut Option<H>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+    {
+        let mut installed_package = self
+            .install_local_artifact_files(package, artifact_path, version, message_callback)
+            .context("Failed to install local artifact")?;
+
+        if *add_entry
+            && let Err(err) = self
+                .add_desktop_entry(&mut installed_package, message_callback)
+                .await
+        {
+            return self.fail_after_partial_install(
+                installed_package,
+                err.context("Failed to create desktop integration"),
+                message_callback,
+            );
+        }
+
+        if let Err(err) = package_storage
+            .add_or_update_package(installed_package.clone())
+            .context(format!(
+                "Failed to save package '{}' to storage",
+                installed_package.name
+            ))
+        {
+            return self.fail_after_partial_install(installed_package, err, message_callback);
+        }
+
+        Ok(installed_package)
+    }
+
+    async fn add_desktop_entry<H>(
+        &self,
+        installed_package: &mut Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        #[cfg(target_os = "linux")]
+        let appimage_extractor =
+            AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
+
+        #[cfg(target_os = "linux")]
+        let icon_manager = IconManager::new(self.paths, &appimage_extractor);
+        #[cfg(not(target_os = "linux"))]
+        let icon_manager = IconManager::new(self.paths);
+
+        #[cfg(target_os = "linux")]
+        let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
+        #[cfg(not(target_os = "linux"))]
+        let desktop_manager = DesktopManager::new(self.paths);
+
+        let install_path = installed_package.install_path.clone().ok_or_else(|| {
+            anyhow!(
+                "Package '{}' has no install path after installation",
+                installed_package.name
+            )
+        })?;
+
+        let icon_path = icon_manager
+            .add_icon(
+                &installed_package.name,
+                &install_path,
+                &installed_package.filetype,
+                message_callback,
+            )
+            .await
+            .context(format!(
+                "Failed to add icon for '{}'",
+                installed_package.name
+            ))?;
+
+        installed_package.icon_path = icon_path;
+
+        let desktop_entry = DesktopEntry::from_package(installed_package);
+
+        desktop_manager
+            .create_entry(
+                &install_path,
+                &installed_package.filetype,
+                desktop_entry,
+                message_callback,
+            )
+            .await
+            .context(format!(
+                "Failed to create desktop entry for '{}'",
+                installed_package.name
+            ))?;
+
+        Ok(())
+    }
+
+    fn fail_after_partial_install<H>(
+        &self,
+        installed_package: Package,
+        err: anyhow::Error,
+        message_callback: &mut Option<H>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+    {
+        match self.cleanup_partial_install(&installed_package, message_callback) {
+            Ok(()) => Err(err.context(format!(
+                "Rolled back partial install for '{}'",
+                installed_package.name
+            ))),
+            Err(cleanup_err) => Err(anyhow!(
+                "{}. Additionally failed to roll back partial install for '{}': {}",
+                err,
+                installed_package.name,
+                cleanup_err
+            )),
+        }
+    }
+
+    fn cleanup_partial_install<H>(
+        &self,
+        installed_package: &Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        if installed_package.install_path.is_none() {
+            return Ok(());
+        }
+
+        PackageRemover::new(self.paths)
+            .remove_package_files(installed_package, message_callback)
+            .context(format!(
+                "Failed to clean up partial install for '{}'",
+                installed_package.name
+            ))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn perform_install_with_progress<F, H, P>(
+        &self,
+        package: Package,
+        version: &Option<String>,
+        trust_mode: TrustMode,
+        trusted_keys: &TrustedSignatureKeys,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        if package.install_path.is_some() {
+            return Err(anyhow!("Package '{}' is already installed", package.name));
+        }
+
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::ResolvingRelease)
+        );
+
+        let release = if let Some(version_tag) = version {
+            message!(
+                message_callback,
+                "Fetching release for version '{}' ...",
+                version_tag
+            );
+            self.provider_manager
+                .get_release_by_tag(
+                    &package.repo_slug,
+                    version_tag,
+                    &package.provider,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .context(format!(
+                    "Failed to fetch release '{}' for '{}'. Verify the version tag exists",
+                    version_tag, package.repo_slug
+                ))?
+        } else {
+            message!(message_callback, "Fetching latest release ...");
+            self.provider_manager
+                .get_latest_release(
+                    &package.repo_slug,
+                    &package.provider,
+                    &package.channel,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .context(format!(
+                    "Failed to fetch latest {} release for '{}'",
+                    package.channel, package.repo_slug
+                ))?
+        };
+
+        let progress_callback = std::cell::RefCell::new(progress_callback.as_mut());
+        let mut bridged_progress = Some(|event: PackageProgressEvent| {
+            if let Some(cb) = progress_callback.borrow_mut().as_deref_mut() {
+                cb(event);
+            }
+        });
+        let mut bridged_download_progress = Some(|downloaded: u64, total: u64| {
+            if let Some(cb) = download_progress_callback.as_mut() {
+                cb(downloaded, total);
+            }
+            if let Some(cb) = progress_callback.borrow_mut().as_deref_mut() {
+                cb(PackageProgressEvent::Download { downloaded, total });
+            }
+        });
+
+        self.install_package_files(
+            package,
+            &release,
+            trust_mode,
+            trusted_keys,
+            &mut bridged_download_progress,
+            message_callback,
+            &mut bridged_progress,
+        )
+        .await
     }
 
     /// Install package files from a release
@@ -354,7 +873,7 @@ impl<'a> PackageInstaller<'a> {
         }
     }
 
-    pub fn install_local_artifact<H>(
+    pub(crate) fn install_local_artifact_files<H>(
         &self,
         mut package: Package,
         artifact_path: &Path,
