@@ -17,6 +17,9 @@
 - [ ] feat: rollback artifact compression
       @created 2026-06-13 18:01
 
+- [ ] BREAKING: refactor upstream paths
+      @created 2026-06-13 18:32
+
 
 ## Completed
 
