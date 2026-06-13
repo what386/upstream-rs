@@ -203,6 +203,45 @@ pub fn normalize_source_for_provider(
     trimmed.to_string()
 }
 
+pub fn infer_package_name(
+    source: &str,
+    provider: Option<&Provider>,
+    base_url: Option<&str>,
+) -> Result<Option<String>> {
+    let source_info = if let Some(provider) = provider {
+        match provider {
+            Provider::Github | Provider::Gitlab | Provider::Gitea => {
+                let repo_slug = normalize_source_for_provider(source, provider, base_url);
+                return Ok(repo_name_from_slug(&repo_slug).map(str::to_string));
+            }
+            Provider::Direct | Provider::WebScraper => return Ok(None),
+        }
+    } else {
+        infer_source(source)?
+    };
+
+    if matches!(
+        source_info.kind,
+        SourceKind::Repository | SourceKind::ForgeUrl
+    ) && matches!(
+        source_info.provider,
+        Provider::Github | Provider::Gitlab | Provider::Gitea
+    ) {
+        return Ok(repo_name_from_slug(&source_info.repo_slug).map(str::to_string));
+    }
+
+    Ok(None)
+}
+
+fn repo_name_from_slug(repo_slug: &str) -> Option<&str> {
+    repo_slug
+        .trim_matches('/')
+        .rsplit('/')
+        .next()
+        .map(|name| name.trim_end_matches(".git"))
+        .filter(|name| !name.is_empty())
+}
+
 fn infer_url_source(original: &str, url: &Url) -> Result<DiscoveredSource> {
     let host = url.host_str().unwrap_or("").to_lowercase();
     let segments: Vec<&str> = url
@@ -443,6 +482,42 @@ mod tests {
         assert_eq!(source.provider, Provider::Gitea);
         assert_eq!(source.repo_slug, "forgejo/forgejo");
         assert_eq!(source.base_url.as_deref(), Some("https://codeberg.org"));
+    }
+
+    #[test]
+    fn infer_package_name_uses_git_repo_basename() {
+        assert_eq!(
+            super::infer_package_name("BurntSushi/ripgrep", None, None).expect("infer name"),
+            Some("ripgrep".to_string())
+        );
+        assert_eq!(
+            super::infer_package_name("https://github.com/sharkdp/bat.git", None, None)
+                .expect("infer name"),
+            Some("bat".to_string())
+        );
+        assert_eq!(
+            super::infer_package_name(
+                "https://gitlab.futo.org/videostreaming/Grayjay.Desktop",
+                None,
+                None,
+            )
+            .expect("infer name"),
+            Some("Grayjay.Desktop".to_string())
+        );
+    }
+
+    #[test]
+    fn infer_package_name_returns_none_for_http_sources() {
+        assert_eq!(
+            super::infer_package_name("https://example.invalid/downloads", None, None)
+                .expect("infer name"),
+            None
+        );
+        assert_eq!(
+            super::infer_package_name("https://example.invalid/tool.tar.gz", None, None)
+                .expect("infer name"),
+            None
+        );
     }
 
     #[test]

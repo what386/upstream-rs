@@ -6,6 +6,8 @@ Use `upstream build` when a project publishes source releases but does not provi
 upstream build <repo-or-url> <name>
 ```
 
+For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
+
 ## Supported Profiles
 
 Upstream can auto-detect or explicitly use these build profiles:

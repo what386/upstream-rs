@@ -17,6 +17,7 @@ upstream install [options] <repo-or-url> <name>
 ```
 
 Installs a package from a release source and records it for future upgrades.
+For git repositories, upstream can fall back to the repository name when `<name>` is omitted. Direct URLs and scraped download pages may still require `<name>`.
 
 Common options:
 
@@ -50,6 +51,7 @@ upstream build [options] <repo-or-url> <name>
 ```
 
 Builds from source and installs the resulting artifact. See [Building from source](build.md).
+For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
 
 Common options:
 

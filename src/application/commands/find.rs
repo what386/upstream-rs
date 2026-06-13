@@ -53,7 +53,7 @@ pub async fn run(
     );
 
     install::run(
-        install_name,
+        Some(install_name),
         result.repo_slug.clone(),
         kind,
         None,

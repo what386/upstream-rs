@@ -11,7 +11,7 @@ use crate::{
     output::{self, Status, TransactionRow},
     providers::{
         discovery::{
-            DiscoveryRequest, DiscoveryResult, SourceKind, infer_source,
+            DiscoveryRequest, DiscoveryResult, SourceKind, infer_package_name, infer_source,
             normalize_source_for_provider,
         },
         provider_manager::ProviderManager,
@@ -63,7 +63,7 @@ fn render_install_progress_row(name: &str, event: PackageProgressEvent) -> Strin
 
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
-    name: String,
+    name: Option<String>,
     repo_slug: String,
     kind: Filetype,
     version: Option<String>,
@@ -88,6 +88,7 @@ pub async fn run(
 
     let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
     let trusted_keys = app_config.trusted_signature_keys();
+    let name = resolve_package_name(name, &repo_slug, provider.as_ref(), base_url.as_deref())?;
 
     let package = build_package(
         &provider_manager,
@@ -210,6 +211,23 @@ pub async fn run(
     }
 
     Ok(())
+}
+
+fn resolve_package_name(
+    name: Option<String>,
+    source: &str,
+    provider: Option<&Provider>,
+    base_url: Option<&str>,
+) -> Result<String> {
+    if let Some(name) = name.filter(|value| !value.trim().is_empty()) {
+        return Ok(name);
+    }
+
+    infer_package_name(source, provider, base_url)?.ok_or_else(|| {
+        anyhow::anyhow!(
+            "Package name is required for this source. Provide a name after the repository or URL."
+        )
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -344,7 +362,10 @@ fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{render_install_progress_message, render_install_progress_row};
+    use super::{
+        render_install_progress_message, render_install_progress_row, resolve_package_name,
+    };
+    use crate::models::common::enums::Provider;
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
 
     #[test]
@@ -384,5 +405,31 @@ mod tests {
             ),
             "Installing pnpm\n pnpm                         Installing package ..."
         );
+    }
+
+    #[test]
+    fn resolve_package_name_infers_git_repo_name_when_omitted() {
+        assert_eq!(
+            resolve_package_name(None, "BurntSushi/ripgrep", None, None).expect("resolve name"),
+            "ripgrep"
+        );
+        assert_eq!(
+            resolve_package_name(
+                None,
+                "https://gitlab.example.com/group/project",
+                Some(&Provider::Gitlab),
+                Some("https://gitlab.example.com"),
+            )
+            .expect("resolve name"),
+            "project"
+        );
+    }
+
+    #[test]
+    fn resolve_package_name_requires_name_for_http_sources() {
+        let err = resolve_package_name(None, "https://example.invalid/downloads", None, None)
+            .expect_err("name should be required");
+
+        assert!(err.to_string().contains("Package name is required"));
     }
 }

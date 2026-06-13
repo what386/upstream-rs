@@ -1,6 +1,6 @@
 # Package Lifecycle
 
-Packages are tracked by a local alias, source metadata, selected file type, provider, channel, and installed paths. The alias is the name you pass as the first argument to `install` or `build`.
+Packages are tracked by a local alias, source metadata, selected file type, provider, channel, and installed paths. The alias is the name you pass after the source to `install` or `build`; for git repositories, upstream can fall back to the repository name when the alias is omitted.
 
 ## Install
 
