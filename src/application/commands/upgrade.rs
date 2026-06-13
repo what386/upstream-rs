@@ -11,6 +11,7 @@ use crate::{
 use anyhow::Result;
 use console::strip_ansi_codes;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use serde::Serialize;
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
@@ -60,6 +61,7 @@ pub async fn run(
     force_option: bool,
     check_option: bool,
     machine_readable: bool,
+    json: bool,
     trust_mode: TrustMode,
     dry_run: bool,
 ) -> Result<()> {
@@ -83,7 +85,7 @@ pub async fn run(
 
     // Handle --check flag
     if check_option {
-        return run_check(package_upgrade, names, machine_readable).await;
+        return run_check(package_upgrade, names, machine_readable, json).await;
     }
     if dry_run {
         return run_dry_run(package_upgrade, names, force_option, trust_mode).await;
@@ -386,12 +388,77 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
     );
 }
 
+#[derive(Serialize)]
+struct JsonUpdateCheckRow {
+    name: String,
+    channel: Option<String>,
+    provider: Option<String>,
+    state: &'static str,
+    current: Option<String>,
+    latest: Option<String>,
+    error: Option<String>,
+}
+
+fn json_check_rows(rows: Vec<UpdateCheckRow>) -> Vec<JsonUpdateCheckRow> {
+    rows.into_iter()
+        .map(|row| {
+            let channel = row.channel.map(|channel| channel.to_string());
+            let provider = row.provider.map(|provider| provider.to_string());
+            match row.status {
+                UpdateCheckStatus::UpdateAvailable { current, latest } => JsonUpdateCheckRow {
+                    name: row.name,
+                    channel,
+                    provider,
+                    state: "update_available",
+                    current: Some(current),
+                    latest: Some(latest),
+                    error: None,
+                },
+                UpdateCheckStatus::UpToDate { current } => JsonUpdateCheckRow {
+                    name: row.name,
+                    channel,
+                    provider,
+                    state: "up_to_date",
+                    current: Some(current),
+                    latest: None,
+                    error: None,
+                },
+                UpdateCheckStatus::Failed { error } => JsonUpdateCheckRow {
+                    name: row.name,
+                    channel,
+                    provider,
+                    state: "failed",
+                    current: None,
+                    latest: None,
+                    error: Some(error),
+                },
+                UpdateCheckStatus::NotInstalled => JsonUpdateCheckRow {
+                    name: row.name,
+                    channel,
+                    provider,
+                    state: "not_installed",
+                    current: None,
+                    latest: None,
+                    error: None,
+                },
+            }
+        })
+        .collect()
+}
+
 async fn run_check(
     package_upgrade: UpgradeOperation<'_>,
     names: Option<Vec<String>>,
     machine_readable: bool,
+    json: bool,
 ) -> Result<()> {
-    if machine_readable {
+    if json {
+        let rows = match names {
+            None => package_upgrade.check_all_detailed().await,
+            Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
+        };
+        println!("{}", serde_json::to_string_pretty(&json_check_rows(rows))?);
+    } else if machine_readable {
         let updates = match names {
             None => package_upgrade.check_all_machine_readable().await,
             Some(name_vec) => {
@@ -556,7 +623,9 @@ async fn run_dry_run(
 
 #[cfg(test)]
 mod tests {
-    use super::{completion_message_key, render_upgrade_progress};
+    use super::{completion_message_key, json_check_rows, render_upgrade_progress};
+    use crate::application::operations::upgrade_operation::{UpdateCheckRow, UpdateCheckStatus};
+    use crate::models::common::enums::{Channel, Provider};
     use std::collections::BTreeMap;
 
     #[test]
@@ -604,5 +673,35 @@ mod tests {
             Some("forge".to_string())
         );
         assert_eq!(completion_message_key("Downloading forge ..."), None);
+    }
+
+    #[test]
+    fn json_check_rows_serializes_nushell_friendly_records() {
+        let rows = json_check_rows(vec![
+            UpdateCheckRow {
+                name: "ripgrep".to_string(),
+                channel: Some(Channel::Stable),
+                provider: Some(Provider::Github),
+                status: UpdateCheckStatus::UpdateAvailable {
+                    current: "15.0.0".to_string(),
+                    latest: "15.1.0".to_string(),
+                },
+            },
+            UpdateCheckRow {
+                name: "missing".to_string(),
+                channel: None,
+                provider: None,
+                status: UpdateCheckStatus::NotInstalled,
+            },
+        ]);
+
+        let json = serde_json::to_value(rows).expect("serialize check rows");
+        assert_eq!(json[0]["state"], "update_available");
+        assert_eq!(json[0]["channel"], "Stable");
+        assert_eq!(json[0]["provider"], "github");
+        assert_eq!(json[0]["current"], "15.0.0");
+        assert_eq!(json[0]["latest"], "15.1.0");
+        assert_eq!(json[1]["state"], "not_installed");
+        assert!(json[1]["current"].is_null());
     }
 }

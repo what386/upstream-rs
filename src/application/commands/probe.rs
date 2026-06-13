@@ -1,6 +1,7 @@
 use anyhow::Result;
 use console::style;
 use indicatif::HumanBytes;
+use serde::Serialize;
 use std::fmt::Write as _;
 
 use crate::{
@@ -22,6 +23,7 @@ pub async fn run(
     channel: Channel,
     limit: u32,
     verbose: bool,
+    json: bool,
 ) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
@@ -79,6 +81,20 @@ pub async fn run(
     releases.sort_by(|a, b| b.version.cmp(&a.version));
 
     if releases.is_empty() {
+        if json {
+            let result = json_probe_result(
+                &repo_slug,
+                &effective_repo_slug,
+                &effective_provider,
+                effective_base_url.as_deref(),
+                &channel,
+                probe_notes,
+                &[],
+                verbose,
+            );
+            println!("{}", serde_json::to_string_pretty(&result)?);
+            return Ok(());
+        }
         println!(
             "{}",
             crate::output::warning(format!("No releases found for channel '{}'.", channel))
@@ -98,12 +114,130 @@ pub async fn run(
     );
 
     let rows = build_probe_rows(&releases, &provider_manager, &probe_package);
+    if json {
+        let result = json_probe_result(
+            &repo_slug,
+            &effective_repo_slug,
+            &effective_provider,
+            effective_base_url.as_deref(),
+            &channel,
+            probe_notes,
+            &rows,
+            verbose,
+        );
+        println!("{}", serde_json::to_string_pretty(&result)?);
+        return Ok(());
+    }
+
     pager::page_text(
         Some("Probe"),
         &format_probe_results(&probe_notes, &rows, verbose),
     )?;
 
     Ok(())
+}
+
+#[derive(Serialize)]
+struct JsonProbeResult {
+    source: JsonProbeSource,
+    channel: String,
+    notes: Vec<String>,
+    releases: Vec<JsonProbeRelease>,
+}
+
+#[derive(Serialize)]
+struct JsonProbeSource {
+    input: String,
+    repo_slug: String,
+    provider: String,
+    base_url: Option<String>,
+}
+
+#[derive(Serialize)]
+struct JsonProbeRelease {
+    id: String,
+    state: &'static str,
+    tag: String,
+    version: String,
+    published: String,
+    assets_count: usize,
+    top_candidate: String,
+    candidates: Option<Vec<JsonAssetCandidate>>,
+    candidate_error: Option<String>,
+}
+
+#[derive(Serialize)]
+struct JsonAssetCandidate {
+    rank: usize,
+    score: i32,
+    id: u64,
+    name: String,
+    download_url: String,
+    size: u64,
+    created_at: String,
+    filetype: String,
+    target_os: Option<String>,
+    target_arch: Option<String>,
+}
+
+fn json_probe_result(
+    input: &str,
+    repo_slug: &str,
+    provider: &Provider,
+    base_url: Option<&str>,
+    channel: &Channel,
+    notes: Vec<String>,
+    rows: &[ProbeRow],
+    include_candidates: bool,
+) -> JsonProbeResult {
+    JsonProbeResult {
+        source: JsonProbeSource {
+            input: input.to_string(),
+            repo_slug: repo_slug.to_string(),
+            provider: provider.to_string(),
+            base_url: base_url.map(str::to_string),
+        },
+        channel: channel.to_string(),
+        notes,
+        releases: rows
+            .iter()
+            .map(|row| JsonProbeRelease {
+                id: row.row_id.clone(),
+                state: row.state.label(),
+                tag: row.tag.clone(),
+                version: row.version.clone(),
+                published: row.published.clone(),
+                assets_count: row.assets_count,
+                top_candidate: row.top_candidate.clone(),
+                candidates: include_candidates.then(|| json_asset_candidates(row)),
+                candidate_error: row.candidate_error.clone(),
+            })
+            .collect(),
+    }
+}
+
+fn json_asset_candidates(row: &ProbeRow) -> Vec<JsonAssetCandidate> {
+    row.candidates
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .enumerate()
+        .map(|(idx, candidate)| {
+            let asset = &candidate.asset;
+            JsonAssetCandidate {
+                rank: idx + 1,
+                score: candidate.score,
+                id: asset.id,
+                name: asset.name.clone(),
+                download_url: asset.download_url.clone(),
+                size: asset.size,
+                created_at: asset.created_at.to_rfc3339(),
+                filetype: asset.filetype.to_string(),
+                target_os: asset.target_os.as_ref().map(|value| format!("{value:?}")),
+                target_arch: asset.target_arch.as_ref().map(|value| format!("{value:?}")),
+            }
+        })
+        .collect()
 }
 
 fn write_candidates(out: &mut String, row: &ProbeRow) {
@@ -393,5 +527,67 @@ impl ProbeColumnWidths {
             + self.assets
             + self.top_candidate
             + 6 // spaces between 7 columns
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{JsonProbeResult, ProbeRow, ReleaseState, json_probe_result};
+    use crate::{
+        models::{
+            common::enums::{Channel, Filetype, Provider},
+            provider::Asset,
+        },
+        providers::asset_selector::AssetCandidate,
+    };
+    use chrono::TimeZone;
+
+    #[test]
+    fn json_probe_result_includes_source_releases_and_candidates() {
+        let created_at = chrono::Utc.with_ymd_and_hms(2026, 6, 12, 1, 2, 3).unwrap();
+        let row = ProbeRow {
+            row_id: "R01".to_string(),
+            state: ReleaseState::Release,
+            tag: "v1.2.3".to_string(),
+            version: "1.2.3".to_string(),
+            published: "2026-06-12 01:02".to_string(),
+            assets_count: 1,
+            top_candidate: "tool.tar.gz (42)".to_string(),
+            candidates: Some(vec![AssetCandidate {
+                asset: Asset {
+                    download_url: "https://example.invalid/tool.tar.gz".to_string(),
+                    id: 7,
+                    name: "tool.tar.gz".to_string(),
+                    size: 1234,
+                    created_at,
+                    filetype: Filetype::Archive,
+                    target_os: None,
+                    target_arch: None,
+                },
+                score: 42,
+            }]),
+            candidate_error: None,
+        };
+
+        let result: JsonProbeResult = json_probe_result(
+            "owner/tool",
+            "owner/tool",
+            &Provider::Github,
+            None,
+            &Channel::Stable,
+            vec!["Probing 'owner/tool' via github".to_string()],
+            &[row],
+            true,
+        );
+        let json = serde_json::to_value(result).expect("serialize probe result");
+
+        assert_eq!(json["source"]["provider"], "github");
+        assert_eq!(json["channel"], "Stable");
+        assert_eq!(json["releases"][0]["state"], "release");
+        assert_eq!(json["releases"][0]["candidates"][0]["rank"], 1);
+        assert_eq!(
+            json["releases"][0]["candidates"][0]["filetype"],
+            "Compressed archive"
+        );
     }
 }

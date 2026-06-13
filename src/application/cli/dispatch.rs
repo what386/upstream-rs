@@ -108,11 +108,20 @@ impl Cli {
                 force,
                 check,
                 machine_readable,
+                json,
                 trust_mode,
                 dry_run,
             } => {
-                commands::upgrade::run(names, force, check, machine_readable, trust_mode, dry_run)
-                    .await
+                commands::upgrade::run(
+                    names,
+                    force,
+                    check,
+                    machine_readable,
+                    json,
+                    trust_mode,
+                    dry_run,
+                )
+                .await
             }
 
             Commands::List { name, json } => commands::list::run(name, json),
@@ -130,13 +139,18 @@ impl Cli {
                 channel,
                 limit,
                 verbose,
-            } => commands::probe::run(repo_slug, provider, base_url, channel, limit, verbose).await,
+                json,
+            } => {
+                commands::probe::run(repo_slug, provider, base_url, channel, limit, verbose, json)
+                    .await
+            }
             Commands::Search {
                 query_words,
                 provider,
                 base_url,
                 limit,
-            } => commands::search::run(query_words, provider, base_url, limit).await,
+                json,
+            } => commands::search::run(query_words, provider, base_url, limit, json).await,
 
             Commands::Config { action } => match action {
                 ConfigAction::Set { keys } => commands::config::run_set(keys),
@@ -171,7 +185,8 @@ impl Cli {
                 names,
                 verbose,
                 fix,
-            } => commands::doctor::run(names, verbose, fix),
+                json,
+            } => commands::doctor::run(names, verbose, fix, json),
         }
     }
 }
