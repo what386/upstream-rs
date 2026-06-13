@@ -1,11 +1,13 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::utils::filesystem::atomic_ops::write_atomic;
+use crate::utils::static_paths::UpstreamPaths;
 
 pub const TRANSACTION_STORAGE_VERSION: u32 = 1;
 
@@ -257,6 +259,99 @@ impl TransactionStorage {
             transaction.error = Some(error);
         })
     }
+}
+
+pub struct TransactionLog {
+    storage: TransactionStorage,
+    id: String,
+}
+
+impl TransactionLog {
+    pub fn start(
+        paths: &UpstreamPaths,
+        kind: TransactionKind,
+        packages: Vec<TransactionPackage>,
+        undo: Option<UndoAction>,
+    ) -> Result<Self> {
+        let transactions_file = paths.dirs.metadata_dir.join("transactions.json");
+        let mut storage = TransactionStorage::new(&transactions_file)?;
+        let id = transaction_id(&kind);
+        storage.append(TransactionRecord::new(id.clone(), kind, packages, undo))?;
+        Ok(Self { storage, id })
+    }
+
+    pub fn complete(mut self, packages: Vec<TransactionPackage>) -> Result<()> {
+        self.storage.update(&self.id, |transaction| {
+            transaction.packages = packages;
+            transaction.status = TransactionStatus::Completed;
+            transaction.error = None;
+        })?;
+        Ok(())
+    }
+
+    pub fn fail(
+        mut self,
+        packages: Vec<TransactionPackage>,
+        error: impl Into<String>,
+    ) -> Result<()> {
+        let error = error.into();
+        self.storage.update(&self.id, |transaction| {
+            transaction.packages = packages;
+            transaction.status = TransactionStatus::Failed;
+            transaction.error = Some(error);
+        })?;
+        Ok(())
+    }
+}
+
+pub fn planned_packages(
+    names: impl IntoIterator<Item = impl Into<String>>,
+) -> Vec<TransactionPackage> {
+    names.into_iter().map(TransactionPackage::planned).collect()
+}
+
+pub fn package_status(
+    name: impl Into<String>,
+    status: TransactionPackageStatus,
+) -> TransactionPackage {
+    TransactionPackage {
+        name: name.into(),
+        status,
+        old_version: None,
+        new_version: None,
+        error: None,
+    }
+}
+
+pub fn package_success(name: impl Into<String>) -> TransactionPackage {
+    package_status(name, TransactionPackageStatus::Succeeded)
+}
+
+pub fn package_failed(name: impl Into<String>, error: impl Into<String>) -> TransactionPackage {
+    let mut package = package_status(name, TransactionPackageStatus::Failed);
+    package.error = Some(error.into());
+    package
+}
+
+pub fn package_skipped(name: impl Into<String>, reason: impl Into<String>) -> TransactionPackage {
+    let mut package = package_status(name, TransactionPackageStatus::Skipped);
+    package.error = Some(reason.into());
+    package
+}
+
+pub fn undo(kind: UndoActionKind, packages: Vec<String>) -> Option<UndoAction> {
+    if packages.is_empty() {
+        return None;
+    }
+    Some(UndoAction { kind, packages })
+}
+
+fn transaction_id(kind: &TransactionKind) -> String {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    format!("{:?}-{}-{}", kind, std::process::id(), nanos).to_lowercase()
 }
 
 #[cfg(test)]
