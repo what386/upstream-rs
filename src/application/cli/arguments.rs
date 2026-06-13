@@ -387,8 +387,8 @@ pub enum Commands {
     #[command(
         long_about = "Search for repositories on a provider, choose a result interactively, \
         and install the selected repository.\n\n\
-        Defaults to GitHub when provider is omitted. The package name defaults to the selected \
-        repository name and can be overridden with --name.\n\n\
+        Defaults to GitHub when provider is omitted. After selection, prompts for the package \
+        name with the selected repository name as the default. Use --name to skip that prompt.\n\n\
         EXAMPLES:\n  \
         upstream find ripgrep\n  \
         upstream find terminal emulator --limit 20\n  \
@@ -412,7 +412,7 @@ pub enum Commands {
         #[arg(long, default_value_t = 10)]
         limit: u32,
 
-        /// Package name to register instead of the selected repository name
+        /// Package name to register without prompting
         #[arg(long)]
         name: Option<String>,
 

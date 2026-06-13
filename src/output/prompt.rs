@@ -45,6 +45,37 @@ pub fn confirm_or_cancel(prompt: impl fmt::Display, default_yes: bool) -> anyhow
     anyhow::bail!("Cancelled")
 }
 
+pub fn prompt_text(prompt: impl fmt::Display, default: Option<&str>) -> anyhow::Result<String> {
+    if !io::stdin().is_terminal() {
+        anyhow::bail!("Text input requires a terminal.");
+    }
+
+    let suffix = default
+        .map(|value| format!(" [{value}] "))
+        .unwrap_or_else(|| ": ".to_string());
+    print!("{prompt}{suffix}");
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    resolve_text_prompt_value(input.trim(), default)
+}
+
+fn resolve_text_prompt_value(input: &str, default: Option<&str>) -> anyhow::Result<String> {
+    if input.is_empty() {
+        if let Some(default) = default {
+            return Ok(default.to_string());
+        }
+    }
+
+    let value = input.trim();
+    if value.is_empty() {
+        anyhow::bail!("Input cannot be empty");
+    }
+
+    Ok(value.to_string())
+}
+
 pub fn select_from_list(
     prompt: impl fmt::Display,
     items: &[String],
@@ -217,7 +248,10 @@ fn selection_action_for_key(key: Key) -> SelectionAction {
 
 #[cfg(test)]
 mod tests {
-    use super::{SelectionAction, selection_action_for_key, selection_top, selection_visible_rows};
+    use super::{
+        SelectionAction, resolve_text_prompt_value, selection_action_for_key, selection_top,
+        selection_visible_rows,
+    };
     use console::Key;
 
     #[test]
@@ -270,5 +304,18 @@ mod tests {
         assert_eq!(selection_top(4, 5, 20), 0);
         assert_eq!(selection_top(5, 5, 20), 1);
         assert_eq!(selection_top(19, 5, 20), 15);
+    }
+
+    #[test]
+    fn text_prompt_uses_default_for_empty_input() {
+        assert_eq!(
+            resolve_text_prompt_value("", Some("ripgrep")).expect("resolve prompt"),
+            "ripgrep"
+        );
+        assert_eq!(
+            resolve_text_prompt_value("rg", Some("ripgrep")).expect("resolve prompt"),
+            "rg"
+        );
+        assert!(resolve_text_prompt_value("", None).is_err());
     }
 }
