@@ -12,7 +12,7 @@ use crate::models::{
 };
 use crate::providers::provider_manager::ProviderManager;
 use crate::services::integration::compression_handler;
-use crate::utils::static_paths::UpstreamPaths;
+use crate::utils::{filesystem::manifest_sync::sync_manifested_tree, static_paths::UpstreamPaths};
 
 pub struct SourceDownload {
     pub workspace_path: PathBuf,
@@ -24,6 +24,7 @@ pub struct SourceDownload {
 pub struct SourceDownloader<'a> {
     provider_manager: &'a ProviderManager,
     cache_dir: PathBuf,
+    source_archive_cache_dir: PathBuf,
     archive_cache_dir: PathBuf,
 }
 
@@ -34,10 +35,15 @@ impl<'a> SourceDownloader<'a> {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         let cache_dir = paths.dirs.cache_dir.join("build");
+        let source_archive_cache_dir = paths.dirs.cache_dir.join("source-archives");
         let archive_cache_dir = std::env::temp_dir().join(format!("upstream-build-{nonce}"));
         std::fs::create_dir_all(&cache_dir).context(format!(
             "Failed to create build cache '{}'",
             cache_dir.display()
+        ))?;
+        std::fs::create_dir_all(&source_archive_cache_dir).context(format!(
+            "Failed to create source archive cache '{}'",
+            source_archive_cache_dir.display()
         ))?;
         std::fs::create_dir_all(&archive_cache_dir).context(format!(
             "Failed to create temporary build archive cache '{}'",
@@ -47,6 +53,7 @@ impl<'a> SourceDownloader<'a> {
         Ok(Self {
             provider_manager,
             cache_dir,
+            source_archive_cache_dir,
             archive_cache_dir,
         })
     }
@@ -134,6 +141,14 @@ impl<'a> SourceDownloader<'a> {
                 .context("Failed to unpack source archive")?;
             Self::emit_status(status_callback, "Resolving source workspace ...");
             let workspace_path = Self::resolve_workspace_root(&extracted_path)?;
+            let cached_workspace = self.cache_archive_workspace(
+                repo_slug,
+                provider,
+                base_url,
+                branch_name,
+                &workspace_path,
+                status_callback,
+            )?;
 
             let release = Release {
                 id: 0,
@@ -148,7 +163,7 @@ impl<'a> SourceDownloader<'a> {
             };
 
             return Ok(SourceDownload {
-                workspace_path,
+                workspace_path: cached_workspace,
                 release,
                 branch: Some(branch_name.to_string()),
                 commit: Some(head_commit),
@@ -236,9 +251,17 @@ impl<'a> SourceDownloader<'a> {
             .context("Failed to unpack source archive")?;
         Self::emit_status(status_callback, "Resolving source workspace ...");
         let workspace_path = Self::resolve_workspace_root(&extracted_path)?;
+        let cached_workspace = self.cache_archive_workspace(
+            repo_slug,
+            provider,
+            base_url,
+            &release.tag,
+            &workspace_path,
+            status_callback,
+        )?;
 
         Ok(SourceDownload {
-            workspace_path,
+            workspace_path: cached_workspace,
             release,
             branch: None,
             commit: None,
@@ -281,6 +304,33 @@ impl<'a> SourceDownloader<'a> {
                 ))
             }
         }
+    }
+
+    fn cache_archive_workspace(
+        &self,
+        repo_slug: &str,
+        provider: &Provider,
+        base_url: Option<&str>,
+        git_ref: &str,
+        workspace_path: &Path,
+        status_callback: &mut Option<&mut dyn FnMut(&str)>,
+    ) -> Result<PathBuf> {
+        let cache_key = source_archive_cache_key(provider, base_url, repo_slug, git_ref);
+        let cache_root = self.source_archive_cache_dir.join(cache_key);
+        let destination = cache_root.join("workspace");
+        let manifest_path = cache_root.join("manifest.json");
+
+        Self::emit_status(
+            status_callback,
+            format!("Syncing source archive cache '{}'", destination.display()),
+        );
+        sync_manifested_tree(workspace_path, &destination, &manifest_path).context(format!(
+            "Failed to sync source archive cache for '{}' at '{}'",
+            repo_slug,
+            destination.display()
+        ))?;
+
+        Ok(destination)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -624,6 +674,18 @@ fn git_cache_key(provider: &Provider, base_url: Option<&str>, repo_slug: &str) -
     sanitize_path_component(&format!("{base}/{repo_slug}"))
 }
 
+fn source_archive_cache_key(
+    provider: &Provider,
+    base_url: Option<&str>,
+    repo_slug: &str,
+    git_ref: &str,
+) -> String {
+    let base = base_url
+        .map(normalize_base_url)
+        .unwrap_or_else(|| provider.to_string());
+    sanitize_path_component(&format!("{base}/{repo_slug}/{git_ref}"))
+}
+
 fn sanitize_path_component(value: &str) -> String {
     value
         .chars()
@@ -686,7 +748,7 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use super::{SourceDownloader, git_cache_key, git_clone_url};
+    use super::{SourceDownloader, git_cache_key, git_clone_url, source_archive_cache_key};
     use crate::models::common::enums::Provider;
 
     fn temp_root(name: &str) -> PathBuf {
@@ -752,6 +814,14 @@ mod tests {
                 "group/repo"
             ),
             "https___gitlab.example.com_group_repo"
+        );
+    }
+
+    #[test]
+    fn source_archive_cache_key_includes_ref() {
+        assert_eq!(
+            source_archive_cache_key(&Provider::Github, None, "owner/repo", "v1.2.3"),
+            "github_owner_repo_v1.2.3"
         );
     }
 
