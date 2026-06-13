@@ -202,6 +202,7 @@ fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
     fs::create_dir_all(&paths.install.appimages_dir)?;
     fs::create_dir_all(&paths.install.binaries_dir)?;
     fs::create_dir_all(&paths.install.archives_dir)?;
+    fs::create_dir_all(&paths.install.tmp_dir)?;
     fs::create_dir_all(&paths.integration.icons_dir)?;
     fs::create_dir_all(&paths.integration.symlinks_dir)?;
     for (_shell, dir) in CompletionManager::new(paths).installed_shell_completion_dirs() {
@@ -555,6 +556,7 @@ mod tests {
                 binaries_dir: dirs.data_dir.join("binaries"),
                 archives_dir: dirs.data_dir.join("archives"),
                 rollback_dir: dirs.data_dir.join("rollback"),
+                tmp_dir: dirs.data_dir.join("tmp"),
             },
             integration: IntegrationPaths {
                 symlinks_dir: dirs.data_dir.join("symlinks"),
