@@ -1,5 +1,5 @@
-use crate::services::trust::{CosignPublicKey, MinisignPublicKey, TrustedSignatureKeys};
 use crate::models::common::enums::CompressionLevel;
+use crate::services::trust::{CosignPublicKey, MinisignPublicKey, TrustedSignatureKeys};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -29,11 +29,20 @@ pub struct CosignKeyConfig {
     pub key: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RollbackConfig {
     pub compression_level: CompressionLevel,
     pub stored_artifacts: u32,
+}
+
+impl Default for RollbackConfig {
+    fn default() -> Self {
+        Self {
+            compression_level: CompressionLevel::None,
+            stored_artifacts: 1,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
