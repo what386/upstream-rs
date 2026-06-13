@@ -90,6 +90,12 @@ Search for repositories:
 upstream search ripgrep
 ```
 
+Search interactively and install a selected result:
+
+```bash
+upstream find ripgrep
+```
+
 Inspect releases before installing:
 
 ```bash
@@ -215,6 +221,7 @@ upstream import ./backup.tar.gz
 | `list`      | Show installed packages              |
 | `changelog` | Show upstream release notes          |
 | `search`    | Search provider repositories         |
+| `find`      | Pick and install a search result     |
 | `probe`     | Inspect releases without installing  |
 | `config`    | Manage configuration                 |
 | `package`   | Pin, unpin, or rename packages       |
