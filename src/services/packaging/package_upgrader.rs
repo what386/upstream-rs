@@ -399,7 +399,7 @@ impl<'a> PackageUpgrader<'a> {
                             message!(message_callback, "{}", line);
                         }
                     });
-                    self.installer.install_local_artifact(
+                    self.installer.install_local_artifact_files(
                         install_pkg,
                         &output.artifact_path,
                         output.version,

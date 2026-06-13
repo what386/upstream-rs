@@ -6,8 +6,13 @@ use crate::output::{self, Status, TransactionRow};
 use crate::services::packaging::RollbackManager;
 use crate::services::packaging::disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate};
 use crate::services::storage::{
-    metadata_storage::MetadataStorage, package_storage::PackageStorage,
+    metadata_storage::MetadataStorage,
+    package_storage::PackageStorage,
     rollback_storage::RollbackStorage,
+    transaction_storage::{
+        TransactionKind, TransactionLog, package_failed, package_skipped, package_success,
+        planned_packages,
+    },
 };
 use crate::utils::static_paths::UpstreamPaths;
 
@@ -124,7 +129,7 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     );
 
     if prune {
-        return run_prune(names, dry_run, &mut manager);
+        return run_prune(names, dry_run, &paths, &mut manager);
     }
 
     if names.is_empty() {
@@ -179,6 +184,12 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
         ),
         false,
     )?;
+    let transaction = TransactionLog::start(
+        &paths,
+        TransactionKind::Rollback,
+        planned_packages(restorable_names.clone()),
+        None,
+    )?;
 
     let pb = ProgressBar::new_spinner();
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -189,6 +200,7 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     let mut restored = 0_u32;
     let mut failed = 0_u32;
     let mut completion_lines = Vec::new();
+    let mut completion_packages = Vec::new();
     let completion_subject_width =
         output::status_subject_width(restorable_names.iter().map(String::as_str));
     for name in &restorable_names {
@@ -203,6 +215,7 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
         });
         match manager.restore_package(name, &mut msg) {
             Ok(_) => {
+                completion_packages.push(package_success(name.clone()));
                 completion_lines.push(output::status_line_text_with_width(
                     Status::Ok,
                     name,
@@ -212,6 +225,7 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
                 restored += 1;
             }
             Err(err) => {
+                completion_packages.push(package_failed(name.clone(), output::error_summary(&err)));
                 completion_lines.push(output::status_line_text_with_width(
                     Status::Fail,
                     name,
@@ -228,6 +242,10 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     }
 
     if failed > 0 {
+        transaction.fail(
+            completion_packages,
+            format!("{failed} rollback restore(s) failed"),
+        )?;
         println!(
             "{}",
             output::warning(format!(
@@ -236,6 +254,7 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
             ))
         );
     } else {
+        transaction.complete(completion_packages)?;
         println!(
             "{}",
             output::success(format!(
@@ -248,7 +267,12 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
     Ok(())
 }
 
-fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_>) -> Result<()> {
+fn run_prune(
+    names: Vec<String>,
+    dry_run: bool,
+    paths: &UpstreamPaths,
+    manager: &mut RollbackManager<'_>,
+) -> Result<()> {
     let target_names = if names.is_empty() {
         manager.rollback_packages()
     } else {
@@ -273,6 +297,16 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
             false,
         )?;
     }
+    let mut transaction = if target_names.is_empty() {
+        None
+    } else {
+        Some(TransactionLog::start(
+            paths,
+            TransactionKind::Rollback,
+            planned_packages(target_names.clone()),
+            None,
+        )?)
+    };
 
     let pb = ProgressBar::new_spinner();
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -282,6 +316,7 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
 
     let mut pruned = 0_u32;
     let mut missing = 0_u32;
+    let mut transaction_packages = Vec::new();
     let total = target_names.len();
     for (idx, name) in target_names.iter().enumerate() {
         pb.set_message(format!(
@@ -290,10 +325,24 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
             idx + 1,
             total
         ));
-        if manager.prune_package(name)? {
-            pruned += 1;
-        } else {
-            missing += 1;
+        match manager.prune_package(name) {
+            Ok(true) => {
+                pruned += 1;
+                transaction_packages.push(package_success(name.clone()));
+            }
+            Ok(false) => {
+                missing += 1;
+                transaction_packages.push(package_skipped(name.clone(), "no rollback data found"));
+            }
+            Err(err) => {
+                transaction_packages
+                    .push(package_failed(name.clone(), output::error_summary(&err)));
+                pb.finish_and_clear();
+                if let Some(transaction) = transaction.take() {
+                    transaction.fail(transaction_packages, output::error_summary(&err))?;
+                }
+                return Err(err);
+            }
         }
     }
     pb.finish_and_clear();
@@ -301,6 +350,9 @@ fn run_prune(names: Vec<String>, dry_run: bool, manager: &mut RollbackManager<'_
     if target_names.is_empty() {
         println!("{}", output::warning("No rollback artifacts to prune."));
     } else {
+        if let Some(transaction) = transaction {
+            transaction.complete(transaction_packages)?;
+        }
         println!(
             "{}",
             output::success(format!(

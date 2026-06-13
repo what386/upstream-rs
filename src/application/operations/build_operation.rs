@@ -10,8 +10,9 @@ use crate::providers::discovery::{SourceKind, infer_source, normalize_source_for
 use crate::providers::provider_manager::ProviderManager;
 use crate::services::builder::scripts::BuildScriptAction;
 use crate::services::builder::{BuildProfile, BuildRequest, worker::BuildWorker};
-use crate::services::packaging::disk_impact::{
-    DiskImpact, asset_size_estimate, install_impact_from_download,
+use crate::services::packaging::{
+    PackageTransactionContext,
+    disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
 };
 use crate::services::storage::package_storage::PackageStorage;
 use crate::services::trust::TrustedSignatureKeys;
@@ -270,6 +271,7 @@ impl<'a> BuildOperation<'a> {
                 &build_result.artifact_path,
                 build_result.version,
                 &input.desktop,
+                PackageTransactionContext::build(),
                 &mut msg,
             )
             .await?;
