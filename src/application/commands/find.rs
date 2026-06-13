@@ -46,7 +46,11 @@ pub async fn run(
     };
 
     let result = &search.results[selected];
-    let install_name = name.unwrap_or_else(|| default_package_name(result));
+    let inferred_name = default_package_name(result);
+    let install_name = match name {
+        Some(name) => name,
+        None => output::prompt_text("Package name", Some(&inferred_name))?,
+    };
     println!(
         "{}",
         output::title(format!("Selected {} as {}", result.repo_slug, install_name))

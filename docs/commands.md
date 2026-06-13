@@ -163,7 +163,7 @@ upstream doctor [names...] [--verbose] [--fix]
 - `list` shows installed package metadata.
 - `changelog` shows release notes for installed packages.
 - `search` searches provider repositories.
-- `find` searches provider repositories, opens an interactive picker, and installs the selected result.
+- `find` searches provider repositories, opens an interactive picker, prompts for the package name with an inferred default, and installs the selected result.
 - `probe` shows releases and candidate assets without installing.
 - `doctor` checks paths, symlinks, hooks, desktop entries, and package metadata.
 
