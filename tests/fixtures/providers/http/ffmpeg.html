@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html>
+
+   <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <link rel="stylesheet" href="../codexffmpeg-gyan-dev.css" type="text/css">
+      <link rel="icon" type="image/png" href="https://www.gyan.dev/favicon.png">
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Inconsolata&family=Lato&family=Oswald:wght@300&family=Roboto+Condensed&display=swap" rel="stylesheet">
+      <title>Builds - CODEX FFMPEG @ gyan.dev</title>
+      <link rel="canonical" href="https://www.gyan.dev/ffmpeg/builds/" />
+   </head>
+
+   <body>
+
+      <header id="banner">
+         <div id="masthead">
+            <div class="site-emboss">gyan.dev</div>
+            <div class="site-title">CODEX FFMPEG</div>
+            <div class="site-emboss invisible">gyan.dev</div>
+         </div>
+         <div id="site-sections-bar">
+            <nav id="site-section-links">
+                <a href="https://www.gyan.dev/ffmpeg/"          >home</a>
+                <a href="https://www.gyan.dev/ffmpeg/builds/"   >builds</a>
+                <a href="https://www.gyan.dev/ffmpeg/resources/">resources</a>
+            </nav>
+         </div>
+      </header>
+
+
+      <div id="content-container">
+         <div id="sidebar">
+            <div id="current-page-navigation">
+               <div id="navigation-header">
+                  <div class="navigation-title">Sections</div>
+               </div>
+               <div id="navigation-links">
+                  <div class="navigation-link" style="margin-top: -1rem;"> <a href="#">&#9650;</a> </div>
+                  <div class="navigation-link"> <a href="#git-master-builds">git master builds</a> </div>
+                  <div class="navigation-link"> <a href="#release-builds">release builds</a> </div>
+                  <div class="navigation-link"> <a href="#tools">tools</a> </div>
+                  <div class="navigation-link"> <a href="#about-these-builds">about these builds</a> </div>
+                  <div class="navigation-link"> <a href="#libraries">libraries</a> </div>
+                  <hr class="nav-divider" />
+                  <div class="navigation-link"> <a href="#discussion">discussion</a> </div>
+                  <div class="navigation-link"> <a href="#notes">notes</a> </div>
+                  <div class="navigation-link"> <a href="#API">API</a> </div>
+                  <div class="navigation-link"> <a href="#changelog">changelog</a> </div>
+               </div>
+            </div>
+            <div class="bmac-link"> <a href="https://www.buymeacoffee.com/gyan"><img src="https://www.gyan.dev/bmc-192.png" alt="Buy me a cuppa (or coffee)"></a> </div>
+         </div>
+         <article id="article-container">
+            <div id="article-body">
+               <div class="article-header">
+                  <div class="article-title">FFmpeg Builds</div>
+                  <div class="article-subtitle">binaries for Windows</div>
+               </div>
+               <div class="article-byline">
+                  <div class="article-author">Gyan Doshi</div>
+                  <span class="article-date">2026-04-16</span> <span class="article-version">v58</span>
+               </div>
+               <div id="article-content">
+                  <div class="notice">
+                     This page hosts packages containing binaries of <strong>ffmpeg</strong>, <strong>ffprobe</strong> and <strong>ffplay</strong>. <br />
+                     Builds require Windows 10 or later but may work on Windows 7/8 if UCRT is installed.
+                     <hr class="notice-divider" />
+                     If you're downloading a package to support features in a program like Krita or Blender,
+                     the <strong>release essentials</strong> build is sufficient. Read more in the section <a href="#about-these-builds">about these builds</a>.
+                     <hr class="notice-divider" />
+                     The following builds are also available through package managers:<br />
+                     <strong>release essentials</strong>: <code class="command-inline"><span>choco</span> install ffmpeg</code> <code class="command-inline"><span>scoop</span> install ffmpeg-essentials</code> <br /> <code class="command-inline"><span>winget</span> install "FFmpeg (Essentials Build)"</code> <br />
+                     <strong>release full</strong>: <code class="command-inline"><span>choco</span> install ffmpeg-full</code> <code class="command-inline"><span>scoop</span> install ffmpeg</code> <code class="command-inline"><span>winget</span> install ffmpeg</code> <br />
+                     <strong>release full shared</strong>: <code class="command-inline"><span>scoop</span> install ffmpeg-shared</code> <code class="command-inline"><span>winget</span> install "FFmpeg (Shared)"</code> <br />
+                     <strong>git master</strong>: <code class="command-inline"><span>scoop</span> install ffmpeg-gyan-nightly</code>
+                     <hr class="notice-divider" />
+                     <span style="margin-right: 3rem;">Last build update: <em id="last-git-build-date" style="font-style: normal;">2026-06-11</em></span>
+                     <span style="margin-left:  3rem;">Next build update: <em id="next-git-build-date" style="font-style: normal;">2026-06-15</em></span>
+                  </div>
+                  <section class="article-section">
+                     <div class="section-title-box">
+                        <div class="section-title" id="git-master-builds">git master builds</div>
+                     </div>
+                     <hr class="section-bookend" />
+                     <div class="section-body">
+                        <div class="link-block">
+                           <div>
+                              latest git master branch build
+                              <pre>  </pre>
+                              version: <span id="git-version">2026-06-10-git-b29bdd3715</span>
+                           </div>
+                           <code class="link">
+                           <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z">ffmpeg-git-essentials.7z</a>
+                           <span class="ancl">
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z.ver" class="ancl">.ver</a>
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z.sha256" class="ancl">.sha256</a>
+                           </span>
+                           <span class="break"> </span>
+                           <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z">ffmpeg-git-full.7z</a>
+                           <span class="ancl">
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z.ver">.ver</a>
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z.sha256">.sha256</a>
+                           </span>
+                           </code>
+                           <div>mirror @ github</div>
+                           <code class="link">
+                           <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-github">https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-github</a>
+                           </code>
+                           <div>source code @ github</div>
+                           <code class="link">
+                           <a href="https://github.com/FFmpeg/FFmpeg/commit/b29bdd3715">https://github.com/FFmpeg/FFmpeg/commit/b29bdd3715</a>
+                           </code>
+                        </div>
+                        <div class="link-block">
+                           <div>
+                              older builds<pre>  </pre>(complete archive @ mirror)
+                           </div>
+                           <code id="old-git-links" class="link">
+
+                           <a href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-06-08-git-6028720d70-essentials_build.7z">ffmpeg-2026-06-08-git-6028720d70-essentials_build.7z</a>
+                           <span class="ancl"><a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-06-08-git-6028720d70-essentials_build.7z.sha256" >.sha256</a></span>
+                           <span class="break"> </span>
+                           <a href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-06-08-git-6028720d70-full_build.7z">ffmpeg-2026-06-08-git-6028720d70-full_build.7z</a>
+                           <span class="ancl"><a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-06-08-git-6028720d70-full_build.7z.sha256">.sha256</a></span>
+
+                           <span class="break"> </span>
+                           <span class="break"> </span>
+
+                           <a href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-05-18-git-b4d11dffbf-essentials_build.7z">ffmpeg-2026-05-18-git-b4d11dffbf-essentials_build.7z</a>
+                           <span class="ancl"><a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-05-18-git-b4d11dffbf-essentials_build.7z.sha256">.sha256</a></span>
+                           <span class="break"> </span>
+                           <a href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-05-18-git-b4d11dffbf-full_build.7z">ffmpeg-2026-05-18-git-b4d11dffbf-full_build.7z</a>
+                           <span class="ancl"><a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-05-18-git-b4d11dffbf-full_build.7z.sha256">.sha256</a></span>
+
+                           <span class="break"> </span>
+                           <span class="break"> </span>
+
+                           <a href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-04-16-git-5abc240a27-essentials_build.7z">ffmpeg-2026-04-16-git-5abc240a27-essentials_build.7z</a>
+                           <span class="ancl"><a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-04-16-git-5abc240a27-essentials_build.7z.sha256">.sha256</a></span>
+                           <span class="break"> </span>
+                           <a href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-04-16-git-5abc240a27-full_build.7z">ffmpeg-2026-04-16-git-5abc240a27-full_build.7z</a>
+                           <span class="ancl"><a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2026-04-16-git-5abc240a27-full_build.7z.sha256">.sha256</a></span>
+
+                           </code>
+                        </div>
+                     </div>
+                     <hr class="section-bookend" />
+                  </section>
+                  <section class="article-section">
+                     <div class="section-title-box">
+                        <div class="section-title" id="release-builds">release builds</div>
+                     </div>
+                     <hr class="section-bookend" />
+                     <div class="section-body">
+                        <div class="link-block">
+                           <div>
+                              latest release
+                              <pre>  </pre>
+                              version: <span id="release-version">8.1.1</span>
+                              <pre>  </pre>
+                              2026-05-04
+                           </div>
+                           <code class="link">
+                           <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z">ffmpeg-release-essentials.7z</a>
+                           <span class="ancl">
+                           <span>32 MB</span>
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z.ver">.ver</a>
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z.sha256">.sha256</a>
+                           </span>
+                           <span class="break"> </span>
+                           <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip">ffmpeg-release-essentials.zip</a>
+                           <span class="ancl">
+                           <span>103 MB</span>
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip.ver">.ver</a>
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip.sha256">.sha256</a>
+                           </span>
+                           <span class="break"> </span>
+                           <span class="break"> </span>
+                           <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z">ffmpeg-release-full.7z</a>
+                           <span class="ancl">
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z.ver">.ver</a>
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z.sha256">.sha256</a>
+                           </span>
+                           <span class="break"> </span>
+                           <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z">ffmpeg-release-full-shared.7z</a>
+                           <span class="ancl">
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z.ver" >.ver</a>
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z.sha256" >.sha256</a>
+                           </span>
+                           </code>
+                        </div>
+                        <div class="link-block">
+                           <div>mirror @ github</div>
+                           <code class="link">
+                           <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-github">https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-github</a>
+                           </code>
+                           <div>source code @ github</div>
+                           <code class="link">
+                           <a href="https://github.com/FFmpeg/FFmpeg/commit/239f2c733d">https://github.com/FFmpeg/FFmpeg/commit/239f2c733d</a>
+                           </code>
+                        </div>
+                        <div class="link-block">
+                           <div>
+                              previous release
+                              <pre>  </pre>
+                              version: <span id="release-version">8.0.1</span><pre>  </pre>(complete archive @ mirror)
+                           </div>
+                           <code id="old-release-links" class="link">
+                           <a href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.0.1-essentials_build.7z">ffmpeg-8.0.1-essentials_build.7z</a>
+                           <span class="ancl">
+                           <span>31 MB</span>
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.0.1-essentials_build.7z.sha256">.sha256</a>
+                           </span>
+                           <span class="break"> </span>
+                           <a href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.0.1-essentials_build.zip">ffmpeg-8.0.1-essentials_build.zip</a>
+                           <span class="ancl">
+                           <span >101 MB</span>
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.0.1-essentials_build.zip.sha256">.sha256</a>
+                           </span>
+                           <span class="break"> </span>
+                           <span class="break"> </span>
+                           <a href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.0.1-full_build.7z">ffmpeg-8.0.1-full_build.7z</a>
+                           <span class="ancl">
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.0.1-full_build.7z.sha256">.sha256</a>
+                           </span>
+                           <span class="break"> </span>
+                           <a href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.0.1-full_build-shared.7z">ffmpeg-8.0.1-full_build-shared.7z</a>
+                           <span class="ancl">
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.0.1-full_build-shared.7z.sha256">.sha256</a>
+                           </span>
+                           </code>
+                        </div>
+                     </div>
+                     <hr class="section-bookend" />
+                  </section>
+                  <section class="article-section">
+                     <div class="section-title-box">
+                        <div class="section-title" id="tools">tools</div>
+                     </div>
+                     <hr class="section-bookend" />
+                     <div class="section-body">
+                        <div class="link-block">
+                           <div>
+                              git master branch
+                              <pre>  </pre>
+                              version: <span id="tools-version">2025-01-01-git-d3aa99a4f4</span>
+                           </div>
+                           <code class="link">
+                           <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-tools.zip">ffmpeg-tools.zip</a>
+                           <span class="ancl">
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-tools.zip.ver">.ver</a>
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-tools.zip.sha256">.sha256</a>
+                           </span>
+                           </code>
+                        </div>
+                        <div class="link-block">
+                           <div>mirror @ github</div>
+                           <code class="link">
+                           <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-tools-github">https://www.gyan.dev/ffmpeg/builds/ffmpeg-tools-github</a>
+                           </code>
+                           <div>source code @ github</div>
+                           <code class="link">
+                           <a href="https://github.com/FFmpeg/FFmpeg/commit/d3aa99a4f4">https://github.com/FFmpeg/FFmpeg/commit/d3aa99a4f4</a>
+                           </code>
+                        </div>
+                        <div class="code-block">
+                           <div>list of tools</div>
+                           <code class="tokenslist">
+                           <span>aviocat</span>
+                           <span>crypto_bench</span>
+                           <span>cws2fws</span>
+                           <span>enum_options</span>
+                           <span>ffescape</span>
+                           <span>ffeval</span>
+                           <span>ffhash</span>
+                           <span>fourcc2pixfmt</span>
+                           <span>graph2dot</span>
+                           <span>ismindex</span>
+                           <span>pktdumper</span>
+                           <span>probetest</span>
+                           <span>qt-faststart</span>
+                           <span>seek_print</span>
+                           <span>sidxindex</span>
+                           <span>venc_data_dump</span>
+                           <span>zmqsend</span>
+                           </code>
+                        </div>
+                     </div>
+                     <hr class="section-bookend" />
+                  </section>
+                  <section class="article-section">
+                     <div class="section-title-box">
+                        <div class="section-title" id="about-these-builds">about these builds</div>
+                     </div>
+                     <hr class="section-bookend" />
+                     <div class="section-body">
+                        <p>FFmpeg is a widely-used cross-platform multimedia framework which can process almost all common and many uncommon media formats.
+                           It has over 1000 internal components to capture, decode, encode, modify, combine, stream media, and it can make use of dozens of
+                           external libraries to provide more capabilities.
+                        </p>
+                        <p>The FFmpeg project offers 3 primary tools in source code form to access this functionality, which are
+                           <strong>ffmpeg</strong> for processing, <strong>ffprobe</strong> for information and <strong>ffplay</strong> for playback.
+                           Binaries of these tools can be built to include only a select set of these components & libraries.
+                           This site offers builds in a couple of variants: the <span class="code-inline">essentials build</span> variant contains commonly used libraries, whereas
+                           the <span class="code-inline">full build</span> variant also contains most of the remainder. See the <a href="#libraries">libraries</a> section for a list.
+                           All variants contain all internal components available for Windows.
+                        </p>
+                        <p>
+                           FFmpeg's source code is maintained using a version control system called <a href="https://en.wikipedia.org/wiki/Git">git</a>.
+                           The <span class="code-inline">git master</span> builds are built from the master branch of the repository, which is where all development occurs whereas
+                           the <span class="code-inline">release</span> builds are built from the latest release branch. These are essentially a snapshot of the master branch at a given
+                           point of time. They are updated with bug and security fixes for a while but no new features.
+                           It is <strong>highly recommended</strong> to choose a git master build; unlike many software, releases are primarily made for the convenience of OS distributors
+                           and package managers and don't signify greater stability or maturity. For a <a href="https://ffmpeg.org/bugreports.html">bug report</a> to be accepted, the issue must
+                           be reproducible using a very recent git master build.
+                        </p>
+                        <p>
+                           All builds are <span class="code-inline">64-bit</span>, <span class="code-inline">static</span> and licensed as <span class="code-inline">GPLv3</span>;
+                           the <span class="code-inline">release full</span> variant is also available as a shared build with development files.
+                           A set of supplementary tools are available in the <a href="#tools">tools</a> section. These are updated infrequently and are licensed as <span class="code-inline">LGPLv3</span>.
+                        </p>
+                        <p>
+                           Use the free <a href="https://www.7-zip.org/">7-zip utility</a> to open <span class="code-inline">.7z</span> files.
+                        </p>
+                     </div>
+                     <hr class="section-bookend" />
+                  </section>
+                  <section class="article-section">
+                     <div class="section-title-box">
+                        <div class="section-title" id="libraries">libraries</div>
+                     </div>
+                     <hr class="section-bookend" />
+                     <div class="section-body">
+                        <div class="code-block">
+                           <div>libraries in essentials build</div>
+                           <code class="tokenslist">
+                           <span>avisynth+</span>
+                           <span>cairo</span>
+                           <span>libaom</span>
+                           <span>libass</span>
+                           <span>libfreetype</span>
+                           <span>libfribidi</span>
+                           <span>libharfbuzz</span>
+                           <span>libgme</span>
+                           <span>libgsm</span>
+                           <span>libmp3lame</span>
+                           <span>libopencore-amrnb</span>
+                           <span>libopencore-amrwb</span>
+                           <span>libopenjpeg</span>
+                           <span>libopenmpt</span>
+                           <span>libopus</span>
+                           <span>librubberband</span>
+                           <span>libspeex</span>
+                           <span>libsrt</span>
+                           <span>libssh</span>
+                           <span>libtheora</span>
+                           <span>libvidstab</span>
+                           <span>libvmaf</span>
+                           <span>libvo-amrwbenc</span>
+                           <span>libvorbis</span>
+                           <span>libvpx</span>
+                           <span>libwebp</span>
+                           <span>libx264</span>
+                           <span>libx265</span>
+                           <span>libxvid</span>
+                           <span>libzimg</span>
+                           <span>libzmq</span>
+                           <span>mediafoundation</span>
+                           <span>openal</span>
+                           <span>sdl2</span>
+                           </code>
+                        </div>
+                        <div class="code-block">
+                           <div>additional libraries in full build</div>
+                           <code class="tokenslist">
+                           <span>chromaprint</span>
+                           <span>frei0r</span>
+                           <span>ladspa</span>
+                           <span>lcms2</span>
+                           <span>libaribb24</span>
+                           <span>libaribcaption</span>
+                           <span>libbluray</span>
+                           <span>libbs2b</span>
+                           <span>libcaca</span>
+                           <span>libcdio</span>
+                           <span>libcodec2</span>
+                           <span>libdav1d</span>
+                           <span>libdavs2</span>
+                           <span>libdvdnav</span>
+                           <span>libdvdread</span>
+                           <span>libflite</span>
+                           <span>libilbc</span>
+                           <span>libjxl</span>
+                           <span>liblc3</span>
+                           <span>liblensfun</span>
+                           <span>libmodplug</span>
+                           <span>libmysofa</span>
+                           <span>liboapv</span>
+                           <span>libplacebo</span>
+                           <span>libqrencode</span>
+                           <span>libquirc</span>
+                           <span>librav1e</span>
+                           <span>librist</span>
+                           <span>libshaderc</span>
+                           <span>libshine</span>
+                           <span>libsnappy</span>
+                           <span>libsoxr</span>
+                           <span>libsvtav1</span>
+                           <span>libsvtjpegxs</span>
+                           <span>libtwolame</span>
+                           <span>libuavs3d</span>
+                           <span>libvvenc</span>
+                           <span>libxavs2</span>
+                           <span>libxevd</span>
+                           <span>libxeve</span>
+                           <span>libzvbi</span>
+                           <span>opencl</span>
+                           <span>vulkan</span>
+                           <span>whisper</span>
+                           </code>
+                        </div>
+                        <div class="code-block">
+                           <div>hardware-support libraries in all builds</div>
+                           <code class="tokenslist">
+                           <span>amf</span>
+                           <span>cuda</span>
+                           <span>cuvid</span>
+                           <span>d3d11va</span>
+                           <span>d3d12va</span>
+                           <span>dxva2</span>
+                           <span>libvpl</span>
+                           <span>nvdec</span>
+                           <span>nvenc</span>
+                           <span>vaapi</span>
+                           </code>
+                        </div>
+                     </div>
+                     <hr class="section-bookend" />
+                  </section>
+               </div>
+            </div>
+            <div id="article-footer">
+               <section class="footer-section">
+                  <div class="section-title-box">
+                     <div class="section-title" id="discussion">discussion</div>
+                  </div>
+                  <hr class="section-bookend" />
+                  <div class="section-body">
+                     <p>Discussions related to these builds or site are hosted at the following platforms:</p>
+                     <p><a href="https://www.reddit.com/r/codexffmpeg/">r/codexffmpeg @ reddit</a></p>
+                     <p><a href="https://github.com/GyanD/codexffmpeg/issues">issues @ github</a></p>
+                     <p><a href="https://forum.videohelp.com/threads/399117-FFmpeg-Windows-builds-at-gyan-dev">thread @ videohelp</a></p>
+                     <br />
+                     <p>Discussions about or issues with ffmpeg usage in general should be directed to one of the following:</p>
+                     <p><a href="https://www.reddit.com/r/ffmpeg/">r/ffmpeg @ reddit</a></p>
+                     <p><a href="https://video.stackexchange.com/">Video Production @ StackExchange</a></p>
+                     <p><a href="https://forum.videohelp.com/forums/11-Video-Conversion">Video Conversion forum @ videohelp</a></p>
+                  </div>
+                  <hr class="section-bookend" />
+               </section>
+               <section class="footer-section">
+                  <div class="section-title-box">
+                     <div class="section-title" id="notes">notes</div>
+                  </div>
+                  <hr class="section-bookend" />
+                  <div class="section-body">
+                     <div class="notes">
+                        <p>Queries can be emailed to <em>builds</em> at this domain or posted at one of the discussion links.</p>
+                        <p>Custom builds for Windows can be provided for a fee. They must not require <span class="code-inline">--enable-nonfree</span> configuration.</p>
+                     </div>
+                  </div>
+                  <hr class="section-bookend" />
+               </section>
+               <section class="footer-section">
+                  <div class="section-title-box">
+                     <div class="section-title" id="API">A P I</div>
+                  </div>
+                  <hr class="section-bookend" />
+                  <div class="section-body">
+                     <div class="footnotes">
+                        <p>Various bits of information are available through single-line UTF-8 text files, such as version and checksum for packages.
+                           Obtain these by fetching the dot-prefixed links next to the download links.
+                        </p>
+                        <p>In addition, the following information is also available via these links:<br />
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/last-build-update">last-build-update</a>,
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/next-build-update">next-build-update</a>,
+                           <a type="text/plain;charset=UTF-8" href="https://www.gyan.dev/ffmpeg/builds/page-version">page-version</a>
+                        </p>
+                     </div>
+                  </div>
+                  <hr class="section-bookend" />
+               </section>
+               <section class="footer-section">
+                  <div class="section-title-box">
+                     <div class="section-title" id="changelog">changelog</div>
+                  </div>
+                  <hr class="section-bookend" />
+                  <div class="section-body table">
+                     <div class="changelog">
+                        <div class="counter">058</div>
+                        <div class="date">2026-04-16</div>
+                        <div class="item">Builds are now compiled using UCRT64 toolchain and packages. Windows 7 usage will require UCRT.</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">057</div>
+                        <div class="date">2025-12-22</div>
+                        <div class="item">added libsvtjpegxs for JPEG-XS decoding and encoding to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">056</div>
+                        <div class="date">2025-10-27</div>
+                        <div class="item">added support for vector graphics in drawvg filter using cairo library to all builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">055</div>
+                        <div class="date">2025-08-21</div>
+                        <div class="item">added support for audio transcription using whisper.cpp to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">054</div>
+                        <div class="date">2025-05-19</div>
+                        <div class="item">added support for APV encoding through OpenAPV to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">053</div>
+                        <div class="date">2025-05-19</div>
+                        <div class="item">added support for audio capture through OpenAL to all builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">052</div>
+                        <div class="date">2025-03-31</div>
+                        <div class="item">CPUs without SSE4.1 are again supported in full builds as libvvenc has fixed their startup code</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">051</div>
+                        <div class="date">2025-01-13</div>
+                        <div class="item">added libdvdread and libdvdnav for demuxing DVDs to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">050</div>
+                        <div class="date">2025-01-02</div>
+                        <div class="item">CPUs without SSE4.1 are no longer supported in full builds. Restored libvvenc in full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">049</div>
+                        <div class="date">2024-12-26</div>
+                        <div class="item">added lcms2 for adding and parsing of ICC profiles to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">048</div>
+                        <div class="date">2024-12-16</div>
+                        <div class="item">removed libvvenc from full builds as it led to crashes on older CPUs due to incompatibility</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">047</div>
+                        <div class="date">2024-09-09</div>
+                        <div class="item">added liblc3 for decoding/encoding of LC3 codec (Bluetooth LE Audio) to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">046</div>
+                        <div class="date">2024-07-01</div>
+                        <div class="item">added libvvenc for H.266/VVC encoding to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">045</div>
+                        <div class="date">2024-06-21</div>
+                        <div class="item">added libquirc and libqrencode for QR codes decoding and encoding respectively to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">044</div>
+                        <div class="date">2024-06-17</div>
+                        <div class="item">release 7.0 and git 2024-05-23-git-ece95dc3dc are the last full builds to support Windows 7 and 8. The rav1e lib can no longer be built for that target</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">043</div>
+                        <div class="date">2024-04-04</div>
+                        <div class="item">added libxevd and libxeve for MPEG-5 EVC decoding and encoding respectively to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">042</div>
+                        <div class="date">2024-03-28</div>
+                        <div class="item">added VAAPI support to all builds. Requires VAAPI <a href="https://devblogs.microsoft.com/directx/video-acceleration-api-va-api-now-available-on-windows/">driver</a> and DirectX 12</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">041</div>
+                        <div class="date">2024-03-28</div>
+                        <div class="item">added d3d12va support to all builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">040</div>
+                        <div class="date">2023-11-11</div>
+                        <div class="item">new package READMEs will now list versions of external libraries</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">039</div>
+                        <div class="date">2023-04-17</div>
+                        <div class="item">added libaribcaption support in full build</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">038</div>
+                        <div class="date">2023-04-03</div>
+                        <div class="item">libopenjpeg decoder removed as ffmpeg has dropped support; native decoder available</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">037</div>
+                        <div class="date">2023-03-30</div>
+                        <div class="item">added libcodec2 support in full build</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">036</div>
+                        <div class="date">2023-03-04</div>
+                        <div class="item">initial release of 6.0 was built with libmfx. Updated with libvpl for QSV AV1 H/W encoding</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">035</div>
+                        <div class="date">2023-02-09</div>
+                        <div class="item">added package manager sources to header notice</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">034</div>
+                        <div class="date">2022-10-13</div>
+                        <div class="item">switched from Media SDK to OneVPL for Intel QSV support</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">033</div>
+                        <div class="date">2022-09-19</div>
+                        <div class="item">added libaribb24 support in full build</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">032</div>
+                        <div class="date">2022-04-25</div>
+                        <div class="item">added libjxl support in full build</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">031</div>
+                        <div class="date">2022-04-04</div>
+                        <div class="item">added lensfun support in full build</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">030</div>
+                        <div class="date">2022-01-24</div>
+                        <div class="item">README.txt now contains full configuration of all elements, internal & external</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">029</div>
+                        <div class="date">2021-12-27</div>
+                        <div class="item">added MediaFoundation support; encoder interfaces available for H.264, HEVC, AAC, AC-3 and MP3.</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">028</div>
+                        <div class="date">2021-11-22</div>
+                        <div class="item">switched from libglslang to libshaderc for SPIR-V compilation</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">027</div>
+                        <div class="date">2021-11-15</div>
+                        <div class="item">added libplacebo for GPU filtering to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">026</div>
+                        <div class="date">2021-11-15</div>
+                        <div class="item">added libuavs3d for AVS3 decoding to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">025</div>
+                        <div class="date">2021-11-15</div>
+                        <div class="item">added libdavs2 and libxavs2 for AVS2 decoding and encoding respectively to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">024</div>
+                        <div class="date">2021-09-16</div>
+                        <div class="item">switched to new design & release cadence</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">023</div>
+                        <div class="date">2021-09-12</div>
+                        <div class="item">release schedule to switch to Monday & Thursday from 2021-09-16</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">022</div>
+                        <div class="date">2021-04-09</div>
+                        <div class="item">release builds to be updated only on new tag; commit date removed for releases</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">021</div>
+                        <div class="date">2021-03-17</div>
+                        <div class="item">added librist to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">020</div>
+                        <div class="date">2021-01-20</div>
+                        <div class="item">added link to BuyMeACoffee</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">019</div>
+                        <div class="date">2021-01-20</div>
+                        <div class="item">clarify avisynth source as fork avisynth+</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">018</div>
+                        <div class="date">2020-11-11</div>
+                        <div class="item">removed trasher from tools package</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">017</div>
+                        <div class="date">2020-11-11</div>
+                        <div class="item">added SHA-256 hashes on this and archives page and through API</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">016</div>
+                        <div class="date">2020-11-08</div>
+                        <div class="item">frei0r plugins removed from builds and released on Github as as a standalone package</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">015</div>
+                        <div class="date">2020-11-02</div>
+                        <div class="item">changed to static links to mirrors on Github</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">014</div>
+                        <div class="date">2020-10-28</div>
+                        <div class="item">added OpenCL support to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">013</div>
+                        <div class="date">2020-10-28</div>
+                        <div class="item">added zmqsend to tools package</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">012</div>
+                        <div class="date">2020-10-25</div>
+                        <div class="item">Github mirror added; also added link to issue tracker under discussions</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">011</div>
+                        <div class="date">2020-10-18</div>
+                        <div class="item">added frei0r plugins to full builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">010</div>
+                        <div class="date">2020-10-14</div>
+                        <div class="item">added web query API</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">009</div>
+                        <div class="date">2020-10-14</div>
+                        <div class="item">added FFmpeg tools</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">008</div>
+                        <div class="date">2020-10-09</div>
+                        <div class="item">added discussion link to Videohelp</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">007</div>
+                        <div class="date">2020-10-04</div>
+                        <div class="item">libwavpack removed as ffmpeg has dropped support</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">006</div>
+                        <div class="date">2020-10-04</div>
+                        <div class="item">version info for release builds now includes date of last commit</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">005</div>
+                        <div class="date">2020-10-04</div>
+                        <div class="item">package compression format switched to 7z; release essentials is also available as ZIP</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">004</div>
+                        <div class="date">2020-09-27</div>
+                        <div class="item">added shared build of release full variant</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">003</div>
+                        <div class="date">2020-09-26</div>
+                        <div class="item">started <a href="https://www.reddit.com/r/codexffmpeg/comments/j09qqt/archive_format/">week-long survey</a> on archive format</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">002</div>
+                        <div class="date">2020-09-19</div>
+                        <div class="item">started <a href="https://www.reddit.com/r/codexffmpeg/comments/ivqdku/type_of_shared_builds_required/">week-long survey</a> on shared builds</div>
+                     </div>
+                     <div class="changelog">
+                        <div class="counter">001</div>
+                        <div class="date">2020-09-16</div>
+                        <div class="item">initial release</div>
+                     </div>
+                  </div>
+                  <hr class="section-bookend" />
+               </section>
+            </div>
+         </article>
+      </div>
+
+
+      <footer id="site-footer">
+         <p>No personal information is solicited or stored by the site author.
+            All content is for educational purposes only. No liability for content in external links.
+            All files are provided as-is with no express or implied warranty.
+            This site makes use of Google Web Fonts. See <a rel="external" href="https://www.google.com/policies/privacy/">Google Privacy Policy</a>.
+            Many thanks to our host <a rel="external" href="https://www.nearlyfreespeech.net/">NearlyFreeSpeech.NET</a>.
+         </p>
+         <p class="copyright">© Gyan Doshi. Licensed under <a rel="license" href="http://creativecommons.org/licenses/by-nc-nd/4.0/">
+            <img alt="Creative Commons License" style="display: inline-block; border-width:0; margin: 0px 10px;" src="https://i.creativecommons.org/l/by-nc-nd/4.0/88x31.png" />
+            </a>
+         </p>
+      </footer>
+
+   </body>
+
+</html>

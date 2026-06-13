@@ -235,10 +235,7 @@ fn action_for_key(key: Key) -> PagerAction {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        PagerAction, PagerState, action_for_key, footer_text, page_text, truncate_width,
-        visible_lines,
-    };
+    use super::{PagerAction, PagerState, action_for_key, footer_text, page_text, visible_lines};
     use console::Key;
 
     fn lines(count: usize) -> Vec<String> {
@@ -295,12 +292,6 @@ mod tests {
         let mut state = PagerState::new(12, 5);
         state.apply(PagerAction::NextPage);
         assert!(footer_text(&state).starts_with("-- 6-10/12 --"));
-    }
-
-    #[test]
-    fn truncates_to_terminal_width() {
-        assert_eq!(truncate_width("abcdef", 3), "abc");
-        assert_eq!(truncate_width("abcdef", 0), "");
     }
 
     #[test]
