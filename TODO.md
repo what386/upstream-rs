@@ -14,6 +14,9 @@
 - [ ] fix custom domains for gitlab + gitea autodetection in build command
       @created 2026-06-12 23:31
 
+- [ ] feat: json mode for update checks
+      @created 2026-06-13 03:14
+
 
 ## Completed
 
