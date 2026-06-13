@@ -1,4 +1,5 @@
 use crate::services::trust::{CosignPublicKey, MinisignPublicKey, TrustedSignatureKeys};
+use crate::models::common::enums::CompressionLevel;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -30,11 +31,19 @@ pub struct CosignKeyConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
+pub struct RollbackConfig {
+    pub compression_level: CompressionLevel,
+    pub stored_artifacts: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct AppConfig {
     pub github: ProviderConfig,
     pub gitlab: ProviderConfig,
     pub gitea: ProviderConfig,
     pub trust: TrustConfig,
+    pub rollback: RollbackConfig,
 }
 
 impl AppConfig {

@@ -108,3 +108,11 @@ impl std::fmt::Display for Provider {
         }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum CompressionLevel {
+    #[default]
+    None,
+    Low,
+    High
+}
