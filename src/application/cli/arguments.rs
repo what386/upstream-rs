@@ -382,6 +382,68 @@ pub enum Commands {
         json: bool,
     },
 
+    /// Search repositories interactively and install a selected result
+    #[command(
+        long_about = "Search for repositories on a provider, choose a result interactively, \
+        and install the selected repository.\n\n\
+        Defaults to GitHub when provider is omitted. The package name defaults to the selected \
+        repository name and can be overridden with --name.\n\n\
+        EXAMPLES:\n  \
+        upstream find ripgrep\n  \
+        upstream find terminal emulator --limit 20\n  \
+        upstream find ripgrep --name rg -k binary\n  \
+        upstream find app -p github --desktop --trust none"
+    )]
+    Find {
+        /// Query words (joined with spaces)
+        #[arg(required = true, num_args(1..), value_delimiter = ' ')]
+        query_words: Vec<String>,
+
+        /// Source provider to search (defaults to github)
+        #[arg(short = 'p', long)]
+        provider: Option<Provider>,
+
+        /// Custom base URL for self-hosted providers
+        #[arg(long, requires = "provider")]
+        base_url: Option<String>,
+
+        /// Maximum number of results to display
+        #[arg(long, default_value_t = 10)]
+        limit: u32,
+
+        /// Package name to register instead of the selected repository name
+        #[arg(long)]
+        name: Option<String>,
+
+        /// File type to install
+        #[arg(short, long, value_enum, default_value_t = Filetype::Auto)]
+        kind: Filetype,
+
+        /// Update channel to track
+        #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
+        channel: Channel,
+
+        /// Match pattern to use as a hint for which asset to prefer
+        #[arg(short = 'm', long, name = "match")]
+        match_pattern: Option<String>,
+
+        /// Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")
+        #[arg(short = 'e', long, name = "exclude")]
+        exclude_pattern: Option<String>,
+
+        /// Whether or not to create a .desktop entry for GUI applications
+        #[arg(short, long, default_value_t = false)]
+        desktop: bool,
+
+        /// Trust verification mode for downloaded assets
+        #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
+        trust_mode: TrustMode,
+
+        /// Preview install resolution without downloading or writing files
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+    },
+
     /// Manage upstream configuration
     #[command(long_about = "View and modify upstream's configuration.\n\n\
         Configuration is stored in TOML format and includes settings like \
@@ -500,6 +562,7 @@ impl Commands {
             Commands::Changelog { .. } => false,
             Commands::Doctor { fix, .. } => *fix,
             Commands::Search { .. } => false,
+            Commands::Find { .. } => true,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
             Commands::Package { .. } => true,
             Commands::Config { action } => {
