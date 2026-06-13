@@ -17,3 +17,6 @@
 - [ ] feat: upstream find subcommand (interactive search)
       @created 2026-06-13 14:29
 
+- [ ] feat: package name is now inferrable for git sources (uses repo name)
+      @created 2026-06-13 14:30
+
