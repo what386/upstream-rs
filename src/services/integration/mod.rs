@@ -11,7 +11,9 @@ mod symlink_manager;
 
 #[cfg(target_os = "linux")]
 pub use appimage_extractor::AppImageExtractor;
-pub use completion_manager::CompletionManager;
+pub use completion_manager::{
+    CompletionCacheMismatch, CompletionCacheMismatchKind, CompletionManager, CompletionShell,
+};
 pub use desktop_manager::DesktopManager;
 pub use icon_manager::IconManager;
 pub use shell_manager::ShellManager;
