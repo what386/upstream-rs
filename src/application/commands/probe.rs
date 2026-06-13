@@ -180,6 +180,7 @@ struct JsonAssetCandidate {
     target_arch: Option<String>,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn json_probe_result(
     input: &str,
     repo_slug: &str,
