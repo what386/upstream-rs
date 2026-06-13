@@ -5,8 +5,11 @@
 
 ## Tasks
 
-- [ ] fix custom domains for gitlab + gitea autodetection in build command
+- [ ] fix custom domains for gitlab + gitea autodetection
       @created 2026-06-12 23:31
+
+- [ ] looser gitea detection?
+      @created 2026-06-13 03:35
 
 
 ## Completed
