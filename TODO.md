@@ -14,3 +14,6 @@
 - [ ] feat: upgrade/install history
       @created 2026-06-13 14:20
 
+- [ ] feat: rollback with no args now undoes the last operation instead of all packages
+      @created 2026-06-13 14:21
+
