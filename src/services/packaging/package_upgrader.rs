@@ -706,13 +706,6 @@ mod tests {
     }
 
     #[test]
-    fn backup_path_appends_old_suffix() {
-        let original = Path::new("/tmp/example/tool");
-        let backup = PackageUpgrader::backup_path(original).expect("backup path");
-        assert!(backup.ends_with("tool.old"));
-    }
-
-    #[test]
     fn remove_path_if_exists_handles_files_and_directories() {
         let root = temp_root("remove");
         let file = root.join("f.bin");

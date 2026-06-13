@@ -306,6 +306,26 @@ mod tests {
         out
     }
 
+    fn fixture_response(body: &'static str) -> String {
+        http_response(
+            "HTTP/1.1 200 OK",
+            &[
+                ("Connection", "close"),
+                ("Content-Type", "text/html"),
+                ("Content-Length", &body.len().to_string()),
+            ],
+            body,
+        )
+    }
+
+    fn asset_names(release: &crate::models::provider::Release) -> Vec<&str> {
+        release
+            .assets
+            .iter()
+            .map(|asset| asset.name.as_str())
+            .collect()
+    }
+
     #[test]
     fn parse_version_from_filename_extracts_semver_triplet() {
         let version = WebScraperAdapter::parse_version_from_filename("tool-v1.4.9-linux.tar.gz")
@@ -388,6 +408,56 @@ mod tests {
         assert_eq!(release.version.patch, 0);
         assert_eq!(release.assets.len(), 1);
         assert!(release.assets[0].name.contains("1.10.0"));
+    }
+
+    #[tokio::test]
+    async fn fixture_ffmpeg_builds_page_keeps_latest_release_downloads() {
+        let html = include_str!("../../../tests/fixtures/providers/http/ffmpeg.html");
+        let server = spawn_test_server(1, move |method, _| {
+            assert_eq!(method, "GET");
+            fixture_response(html)
+        });
+
+        let adapter = WebScraperAdapter::new(HttpClient::new().expect("http client"));
+        let release = adapter
+            .get_latest_release(&server)
+            .await
+            .expect("latest release");
+        let names = asset_names(&release);
+
+        assert_eq!(release.version, Version::new(8, 0, 1, false));
+        assert!(names.contains(&"ffmpeg-release-essentials.7z"));
+        assert!(names.contains(&"ffmpeg-release-essentials.zip"));
+        assert!(names.contains(&"ffmpeg-release-full.7z"));
+        assert!(names.contains(&"ffmpeg-release-full-shared.7z"));
+        assert!(names.contains(&"ffmpeg-8.0.1-essentials_build.7z"));
+        assert!(names.contains(&"ffmpeg-8.0.1-full_build.7z"));
+        assert!(names.iter().all(|name| !name.ends_with(".sha256")));
+        assert!(names.iter().all(|name| !name.ends_with(".ver")));
+        assert!(!names.contains(&"ffmpeg-release-github"));
+    }
+
+    #[tokio::test]
+    async fn fixture_zig_builds_page_selects_current_build_assets() {
+        let html = include_str!("../../../tests/fixtures/providers/http/zig.html");
+        let server = spawn_test_server(1, move |method, _| {
+            assert_eq!(method, "GET");
+            fixture_response(html)
+        });
+
+        let adapter = WebScraperAdapter::new(HttpClient::new().expect("http client"));
+        let release = adapter
+            .get_latest_release(&server)
+            .await
+            .expect("latest release");
+        let names = asset_names(&release);
+
+        assert_eq!(release.version, Version::new(0, 17, 0, false));
+        assert!(names.contains(&"zig-0.17.0-dev.813+2153f8143.tar.xz"));
+        assert!(names.contains(&"zig-bootstrap-0.17.0-dev.813+2153f8143.tar.xz"));
+        assert!(names.contains(&"zig-x86_64-linux-0.17.0-dev.813+2153f8143.tar.xz"));
+        assert!(names.contains(&"zig-x86_64-windows-0.17.0-dev.813+2153f8143.zip"));
+        assert!(names.iter().all(|name| !name.ends_with(".minisig")));
     }
 
     #[tokio::test]

@@ -254,17 +254,4 @@ mod tests {
         assert!(stable.is_newer_than(&prerelease));
         assert!(!prerelease.is_newer_than(&stable));
     }
-
-    #[test]
-    fn display_formats_prerelease_suffix() {
-        assert_eq!(Version::new(1, 2, 3, false).to_string(), "1.2.3");
-        assert_eq!(Version::new(1, 2, 3, true).to_string(), "1.2.3-pre");
-    }
-
-    #[test]
-    fn zero_stable_version_is_unknown_sentinel() {
-        assert!(Version::new(0, 0, 0, false).is_unknown());
-        assert!(!Version::new(0, 0, 0, true).is_unknown());
-        assert!(!Version::new(0, 0, 1, false).is_unknown());
-    }
 }

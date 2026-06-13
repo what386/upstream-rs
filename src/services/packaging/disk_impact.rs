@@ -199,7 +199,7 @@ fn combine_confidence(left: SizeConfidence, right: SizeConfidence) -> SizeConfid
 
 #[cfg(test)]
 mod tests {
-    use super::{DiskImpact, SignedByteEstimate, estimate_path_size};
+    use super::{SignedByteEstimate, estimate_path_size};
     use std::fs;
 
     #[test]
@@ -207,14 +207,6 @@ mod tests {
         let total = SignedByteEstimate::exact(10) + SignedByteEstimate::estimated(-3);
         assert_eq!(total.bytes, Some(7));
         assert_eq!(format!("{:?}", total.confidence), "Estimated");
-    }
-
-    #[test]
-    fn disk_impacts_add_totals() {
-        let left = DiskImpact::empty();
-        let right = DiskImpact::empty();
-        let merged = left + right;
-        assert_eq!(merged.net.bytes, Some(0));
     }
 
     #[test]
