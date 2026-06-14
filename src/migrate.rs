@@ -402,8 +402,8 @@ mod tests {
     fn migrate_moves_package_dirs_and_rewrites_metadata() {
         let root = temp_root("layout");
         let paths = test_support::upstream_paths(&root);
-        let old_binary = paths.dirs.data_dir.join("binaries/tool");
-        let new_binary = paths.dirs.packages_dir.join("binaries/tool");
+        let old_binary = paths.dirs.data_dir.join("binaries").join("tool");
+        let new_binary = paths.dirs.packages_dir.join("binaries").join("tool");
         fs::create_dir_all(old_binary.parent().expect("old binary parent"))
             .expect("create old binary parent");
         fs::write(&old_binary, b"tool").expect("write old binary");
@@ -463,8 +463,20 @@ mod tests {
     fn migrate_rewrites_rollback_package_snapshots() {
         let root = temp_root("rollback");
         let paths = test_support::upstream_paths(&root);
-        let old_archive = paths.dirs.data_dir.join("archives/tool/bin/tool");
-        let new_archive = paths.dirs.packages_dir.join("archives/tool/bin/tool");
+        let old_archive = paths
+            .dirs
+            .data_dir
+            .join("archives")
+            .join("tool")
+            .join("bin")
+            .join("tool");
+        let new_archive = paths
+            .dirs
+            .packages_dir
+            .join("archives")
+            .join("tool")
+            .join("bin")
+            .join("tool");
         fs::create_dir_all(old_archive.parent().expect("old archive parent"))
             .expect("create old archive parent");
         fs::write(&old_archive, b"tool").expect("write old archive executable");
@@ -472,7 +484,7 @@ mod tests {
 
         let package = test_package(
             "tool",
-            paths.dirs.data_dir.join("archives/tool"),
+            paths.dirs.data_dir.join("archives").join("tool"),
             old_archive.clone(),
         );
         let record = RollbackRecord {
@@ -514,7 +526,8 @@ mod tests {
                 paths
                     .dirs
                     .packages_dir
-                    .join("archives/tool")
+                    .join("archives")
+                    .join("tool")
                     .to_str()
                     .expect("utf8 path")
             )
