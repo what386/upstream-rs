@@ -56,8 +56,8 @@ pub enum Commands {
         Direct HTTP sources may still require an explicit name.\n\n\
         EXAMPLES:\n  \
         upstream install BurntSushi/ripgrep rg -k binary\n  \
-        upstream install bootandy/dust # name inferred as ripgrep\n  \
-        upstream install sharkdp/bat rg")]
+        upstream install bootandy/dust       # name inferred as dust\n  \
+        upstream install sharkdp/bat bat")]
     Install {
         /// Repository identifier or URL
         repo_slug: String,
@@ -189,28 +189,21 @@ pub enum Commands {
         dry_run: bool,
     },
 
-    /// Restore or prune stored rollback artifacts
+    /// Manage stored rollback artifacts
     #[command(long_about = "Manage package rollback points.\n\n\
-        Restore previously captured installs, or prune stored rollback artifacts. \
-        When no package names are provided, rollback restores the latest reversible \
-        transaction recorded in upstream's transaction history.\n\n\
+        Use restore without package names to restore the latest reversible transaction \
+        recorded in upstream's transaction history. Use explicit package names to restore \
+        selected packages, list rollback artifacts, or prune stored rollback data.\n\n\
         EXAMPLES:\n  \
-        upstream rollback\n  \
-        upstream rollback rg\n  \
-        upstream rollback rg fd --dry-run\n  \
-        upstream rollback --prune\n  \
-        upstream rollback --prune rg")]
+        upstream rollback restore\n  \
+        upstream rollback restore rg\n  \
+        upstream rollback restore rg fd --dry-run\n  \
+        upstream rollback list\n  \
+        upstream rollback prune\n  \
+        upstream rollback prune rg")]
     Rollback {
-        /// Package names to restore or prune
-        names: Vec<String>,
-
-        /// Prune rollback artifacts instead of restoring
-        #[arg(long, default_value_t = false)]
-        prune: bool,
-
-        /// Preview rollback/prune actions without modifying files or metadata
-        #[arg(long, default_value_t = false)]
-        dry_run: bool,
+        #[command(subcommand)]
+        action: RollbackAction,
     },
 
     /// Reinstall one or more packages (remove then install)
@@ -368,10 +361,10 @@ pub enum Commands {
         EXAMPLES:\n  \
         upstream search\n  \
         upstream search ripgrep\n  \
-        upstream search editor --language Rust --min-stars 100\n  \
+        upstream search editor --language Rust --min-stars 100 --max-stars 50000\n  \
         upstream search rip grep --limit 5\n  \
         upstream search my tool -p github\n  \
-        upstream search widget -p gitlab --base-url https://gitlab.example.com\n  \
+        upstream search cli --topic terminal\n  \
         upstream search ripgrep --json")]
     Search {
         /// Optional query words (joined with spaces)
@@ -433,6 +426,7 @@ pub enum Commands {
         EXAMPLES:\n  \
         upstream find ripgrep\n  \
         upstream find terminal emulator --limit 20\n  \
+        upstream find cli --language Rust --topic cli\n  \
         upstream find ripgrep --name rg -k binary\n  \
         upstream find app -p github --desktop --trust none"
     )]
@@ -452,6 +446,34 @@ pub enum Commands {
         /// Maximum number of results to display
         #[arg(long, default_value_t = 10)]
         limit: u32,
+
+        /// Restrict results to repositories with this primary language
+        #[arg(long)]
+        language: Option<String>,
+
+        /// Restrict results to repositories tagged with this topic
+        #[arg(long)]
+        topic: Option<String>,
+
+        /// Restrict results to repositories with at least this many stars
+        #[arg(long, value_name = "N")]
+        min_stars: Option<u64>,
+
+        /// Restrict results to repositories with at most this many stars
+        #[arg(long, value_name = "N")]
+        max_stars: Option<u64>,
+
+        /// Restrict results to repositories pushed on or after YYYY-MM-DD
+        #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_search_date)]
+        pushed_after: Option<NaiveDate>,
+
+        /// Include forked repositories in provider search results
+        #[arg(long, default_value_t = false)]
+        include_forks: bool,
+
+        /// Include archived repositories in provider search results
+        #[arg(long, default_value_t = false)]
+        include_archived: bool,
 
         /// Package name to register without prompting
         #[arg(long)]
@@ -619,6 +641,50 @@ fn parse_search_date(raw: &str) -> Result<NaiveDate, String> {
         .map_err(|_| format!("expected date in YYYY-MM-DD format, got '{raw}'"))
 }
 
+#[derive(Subcommand)]
+pub enum RollbackAction {
+    /// Restore rollback artifacts
+    #[command(long_about = "Restore stored rollback artifacts.\n\n\
+        Without package names, restores the latest reversible transaction recorded \
+        in upstream's transaction history.\n\n\
+        EXAMPLES:\n  \
+        upstream rollback restore\n  \
+        upstream rollback restore rg\n  \
+        upstream rollback restore rg fd\n  \
+        upstream rollback restore rg --dry-run")]
+    Restore {
+        /// Package names to restore (latest reversible transaction if omitted)
+        #[arg(num_args(0..))]
+        names: Vec<String>,
+
+        /// Preview rollback restore actions without modifying files or metadata
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+    },
+
+    /// Prune stored rollback artifacts
+    #[command(long_about = "Delete stored rollback artifacts.\n\n\
+        Without package names, prunes all stored rollback artifacts.\n\n\
+        EXAMPLES:\n  \
+        upstream rollback prune\n  \
+        upstream rollback prune rg\n  \
+        upstream rollback prune rg fd --dry-run")]
+    Prune {
+        /// Package names to prune (all rollback artifacts if omitted)
+        names: Vec<String>,
+
+        /// Preview rollback prune actions without deleting artifacts or metadata
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+    },
+
+    /// List stored rollback artifacts
+    #[command(long_about = "List packages with stored rollback artifacts.\n\n\
+        EXAMPLE:\n  \
+        upstream rollback list")]
+    List,
+}
+
 impl Commands {
     pub fn requires_lock(&self) -> bool {
         match self {
@@ -627,6 +693,9 @@ impl Commands {
             Commands::Doctor { fix, .. } => *fix,
             Commands::Search { .. } => false,
             Commands::Find { .. } => true,
+            Commands::Rollback {
+                action: RollbackAction::List,
+            } => false,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
             Commands::Package { .. } => true,
             Commands::Config { action } => {
