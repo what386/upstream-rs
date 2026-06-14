@@ -128,17 +128,20 @@ Options:
 ## Rollback
 
 ```bash
-upstream rollback [packages...] [options]
+upstream rollback restore
+upstream rollback restore [packages...] [--dry-run]
+upstream rollback prune [packages...] [--dry-run]
+upstream rollback list
 ```
 
-Restores stored rollback artifacts. Use `--prune` to delete rollback data instead of restoring it.
+Manages stored rollback artifacts. `restore` without package names restores the latest reversible transaction from transaction history. Use `restore <packages...>` for selected packages, `prune` to delete rollback data, and `list` to inspect available artifacts.
 
 Options:
 
 | Option | Meaning |
 | --- | --- |
-| `--prune` | Prune rollback artifacts |
-| `--dry-run` | Preview restore/prune actions |
+| `restore --dry-run` | Preview restore actions |
+| `prune --dry-run` | Preview prune actions |
 
 ## Package Metadata
 
@@ -156,7 +159,7 @@ Pinning prevents upgrades. Renaming changes the local alias without reinstalling
 upstream list [name] [--json]
 upstream changelog <name> [--from <tag>] [--to <tag>]
 upstream search [query...] [-p <provider>] [--base-url <url>] [--limit <n>] [filters]
-upstream find <query...> [-p <provider>] [--limit <n>] [--name <name>] [install options]
+upstream find <query...> [-p <provider>] [--limit <n>] [filters] [--name <name>] [install options]
 upstream probe <repo-or-url> [-p <provider>] [--channel <channel>] [--limit <n>] [--verbose]
 upstream doctor [names...] [--verbose] [--fix]
 ```
@@ -164,7 +167,7 @@ upstream doctor [names...] [--verbose] [--fix]
 - `list` shows installed package metadata.
 - `changelog` shows release notes for installed packages.
 - `search` searches provider repositories for software discovery. Use filters like `--language Rust`, `--topic cli`, `--min-stars 100`, `--max-stars 50000`, `--pushed-after 2026-01-01`, `--include-forks`, and `--include-archived` to narrow results.
-- `find` searches provider repositories, opens an interactive picker, prompts for the package name with an inferred default, and installs the selected result. Use `--name` to skip the prompt.
+- `find` searches provider repositories with the same discovery filters as `search`, opens an interactive picker, prompts for the package name with an inferred default, and installs the selected result. Use `--name` to skip the prompt.
 - `probe` shows releases and candidate assets without installing.
 - `doctor` checks paths, symlinks, hooks, cached completions, desktop entries, and package metadata. `--fix` copies cached completions back into shell completion directories when they drift.
 
