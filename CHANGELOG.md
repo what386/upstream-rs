@@ -7,6 +7,7 @@
 ### Changes
 
 - feat: make rollback have subcommands
+- fix stale wording in helptext
 
 
 ## 2.0.0 — 2026-06-14
