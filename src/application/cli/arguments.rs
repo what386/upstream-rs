@@ -366,6 +366,7 @@ pub enum Commands {
     #[command(long_about = "Search for repositories on a provider.\n\n\
         Defaults to GitHub when provider is omitted.\n\n\
         EXAMPLES:\n  \
+        upstream search\n  \
         upstream search ripgrep\n  \
         upstream search editor --language Rust --min-stars 100\n  \
         upstream search rip grep --limit 5\n  \
@@ -373,8 +374,8 @@ pub enum Commands {
         upstream search widget -p gitlab --base-url https://gitlab.example.com\n  \
         upstream search ripgrep --json")]
     Search {
-        /// Query words (joined with spaces)
-        #[arg(required = true, num_args(1..), value_delimiter = ' ')]
+        /// Optional query words (joined with spaces)
+        #[arg(num_args(0..), value_delimiter = ' ')]
         query_words: Vec<String>,
 
         /// Source provider to search (defaults to github)
