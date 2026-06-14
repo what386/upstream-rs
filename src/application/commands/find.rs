@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::NaiveDate;
 use std::fmt::Write as _;
 
 use crate::{
@@ -16,6 +17,13 @@ pub async fn run(
     provider: Option<Provider>,
     base_url: Option<String>,
     limit: u32,
+    language: Option<String>,
+    topic: Option<String>,
+    min_stars: Option<u64>,
+    max_stars: Option<u64>,
+    pushed_after: Option<NaiveDate>,
+    include_forks: bool,
+    include_archived: bool,
     name: Option<String>,
     kind: Filetype,
     channel: Channel,
@@ -36,7 +44,15 @@ pub async fn run(
         provider,
         base_url,
         limit,
-        RepositorySearchFilters::default(),
+        RepositorySearchFilters::new(
+            language,
+            topic,
+            min_stars,
+            max_stars,
+            pushed_after,
+            include_forks,
+            include_archived,
+        ),
     )
     .await?;
     if search.results.is_empty() {
