@@ -8,3 +8,6 @@
 - [ ] consider migrating to SQLite
       @created 2026-06-14 17:40
 
+- [ ] feat: make rollback have subcommands
+      @created 2026-06-14 17:49
+
