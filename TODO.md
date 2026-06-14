@@ -1,15 +1,12 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-06-13
+@modified: 2026-06-14
 
 ## Tasks
 
 - [ ] feat: upgrade/install history
       @created 2026-06-13 14:20
-
-- [ ] feat: build command now caches git repos to take advantage of partial rebuilds
-      @created 2026-06-13 19:41
 
 
 ## Completed
@@ -41,4 +38,8 @@
 - [x] feat: rollback with no args now undoes the last operation
       @created 2026-06-13 14:21
       @completed 2026-06-13 19:34
+
+- [x] feat: build command now caches git repos to take advantage of partial rebuilds
+      @created 2026-06-13 19:41
+      @completed 2026-06-14 04:28
 
