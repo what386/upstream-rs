@@ -37,11 +37,13 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('changelog', 'changelog', [CompletionResultType]::ParameterValue, 'Show upstream release notes for an installed package')
             [CompletionResult]::new('probe', 'probe', [CompletionResultType]::ParameterValue, 'Inspect releases visible from a provider without installing')
             [CompletionResult]::new('search', 'search', [CompletionResultType]::ParameterValue, 'Search provider repositories by keyword(s)')
+            [CompletionResult]::new('find', 'find', [CompletionResultType]::ParameterValue, 'Search repositories interactively and install a selected result')
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific behavior')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import trusted keys, package metadata manifests, or full snapshots')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
+            [CompletionResult]::new('migrate', 'migrate', [CompletionResultType]::ParameterValue, 'Migrate local upstream data after breaking changes')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
@@ -168,7 +170,38 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--provider', '--provider', [CompletionResultType]::ParameterName, 'Source provider to search (defaults to github)')
             [CompletionResult]::new('--base-url', '--base-url', [CompletionResultType]::ParameterName, 'Custom base URL for self-hosted providers')
             [CompletionResult]::new('--limit', '--limit', [CompletionResultType]::ParameterName, 'Maximum number of results to display')
+            [CompletionResult]::new('--language', '--language', [CompletionResultType]::ParameterName, 'Restrict results to repositories with this primary language')
+            [CompletionResult]::new('--topic', '--topic', [CompletionResultType]::ParameterName, 'Restrict results to repositories tagged with this topic')
+            [CompletionResult]::new('--min-stars', '--min-stars', [CompletionResultType]::ParameterName, 'Restrict results to repositories with at least this many stars')
+            [CompletionResult]::new('--max-stars', '--max-stars', [CompletionResultType]::ParameterName, 'Restrict results to repositories with at most this many stars')
+            [CompletionResult]::new('--pushed-after', '--pushed-after', [CompletionResultType]::ParameterName, 'Restrict results to repositories pushed on or after YYYY-MM-DD')
+            [CompletionResult]::new('--include-forks', '--include-forks', [CompletionResultType]::ParameterName, 'Include forked repositories in provider search results')
+            [CompletionResult]::new('--include-archived', '--include-archived', [CompletionResultType]::ParameterName, 'Include archived repositories in provider search results')
             [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Print search results as JSON')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;find' {
+            [CompletionResult]::new('-p', '-p', [CompletionResultType]::ParameterName, 'Source provider to search (defaults to github)')
+            [CompletionResult]::new('--provider', '--provider', [CompletionResultType]::ParameterName, 'Source provider to search (defaults to github)')
+            [CompletionResult]::new('--base-url', '--base-url', [CompletionResultType]::ParameterName, 'Custom base URL for self-hosted providers')
+            [CompletionResult]::new('--limit', '--limit', [CompletionResultType]::ParameterName, 'Maximum number of results to display')
+            [CompletionResult]::new('--name', '--name', [CompletionResultType]::ParameterName, 'Package name to register without prompting')
+            [CompletionResult]::new('-k', '-k', [CompletionResultType]::ParameterName, 'File type to install')
+            [CompletionResult]::new('--kind', '--kind', [CompletionResultType]::ParameterName, 'File type to install')
+            [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Update channel to track')
+            [CompletionResult]::new('--channel', '--channel', [CompletionResultType]::ParameterName, 'Update channel to track')
+            [CompletionResult]::new('-m', '-m', [CompletionResultType]::ParameterName, 'Match pattern to use as a hint for which asset to prefer')
+            [CompletionResult]::new('--match-pattern', '--match-pattern', [CompletionResultType]::ParameterName, 'Match pattern to use as a hint for which asset to prefer')
+            [CompletionResult]::new('-e', '-e', [CompletionResultType]::ParameterName, 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")')
+            [CompletionResult]::new('--exclude-pattern', '--exclude-pattern', [CompletionResultType]::ParameterName, 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")')
+            [CompletionResult]::new('--trust', '--trust', [CompletionResultType]::ParameterName, 'Trust verification mode for downloaded assets')
+            [CompletionResult]::new('-d', '-d', [CompletionResultType]::ParameterName, 'Whether or not to create a .desktop entry for GUI applications')
+            [CompletionResult]::new('--desktop', '--desktop', [CompletionResultType]::ParameterName, 'Whether or not to create a .desktop entry for GUI applications')
+            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview install resolution without downloading or writing files')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
@@ -382,6 +415,13 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
         }
+        'upstream;migrate' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
         'upstream;doctor' {
             [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Print each check result line in addition to summary output')
             [CompletionResult]::new('--fix', '--fix', [CompletionResultType]::ParameterName, 'Attempt automatic repairs for detected issues')
@@ -403,11 +443,13 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('changelog', 'changelog', [CompletionResultType]::ParameterValue, 'Show upstream release notes for an installed package')
             [CompletionResult]::new('probe', 'probe', [CompletionResultType]::ParameterValue, 'Inspect releases visible from a provider without installing')
             [CompletionResult]::new('search', 'search', [CompletionResultType]::ParameterValue, 'Search provider repositories by keyword(s)')
+            [CompletionResult]::new('find', 'find', [CompletionResultType]::ParameterValue, 'Search repositories interactively and install a selected result')
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific behavior')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import trusted keys, package metadata manifests, or full snapshots')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
+            [CompletionResult]::new('migrate', 'migrate', [CompletionResultType]::ParameterValue, 'Migrate local upstream data after breaking changes')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
@@ -440,6 +482,9 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;search' {
+            break
+        }
+        'upstream;help;find' {
             break
         }
         'upstream;help;config' {
@@ -503,6 +548,9 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;export' {
+            break
+        }
+        'upstream;help;migrate' {
             break
         }
         'upstream;help;doctor' {

@@ -37,11 +37,13 @@ complete -c upstream -n "__fish_upstream_needs_command" -f -a "list" -d 'List in
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "changelog" -d 'Show upstream release notes for an installed package'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "probe" -d 'Inspect releases visible from a provider without installing'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "search" -d 'Search provider repositories by keyword(s)'
+complete -c upstream -n "__fish_upstream_needs_command" -f -a "find" -d 'Search repositories interactively and install a selected result'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "config" -d 'Manage upstream configuration'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "package" -d 'Manage package-specific behavior'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "hooks" -d 'Manage shell integration hooks and local upstream data'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "import" -d 'Import trusted keys, package metadata manifests, or full snapshots'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "export" -d 'Export packages to a manifest or full snapshot'
+complete -c upstream -n "__fish_upstream_needs_command" -f -a "migrate" -d 'Migrate local upstream data after breaking changes'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "doctor" -d 'Run diagnostics to detect installation and integration issues'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s t -l tag -d 'Version tag to install (defaults to latest)' -r
@@ -136,9 +138,43 @@ complete -c upstream -n "__fish_upstream_using_subcommand probe" -s h -l help -d
 complete -c upstream -n "__fish_upstream_using_subcommand search" -s p -l provider -d 'Source provider to search (defaults to github)' -r
 complete -c upstream -n "__fish_upstream_using_subcommand search" -l base-url -d 'Custom base URL for self-hosted providers' -r
 complete -c upstream -n "__fish_upstream_using_subcommand search" -l limit -d 'Maximum number of results to display' -r
+complete -c upstream -n "__fish_upstream_using_subcommand search" -l language -d 'Restrict results to repositories with this primary language' -r
+complete -c upstream -n "__fish_upstream_using_subcommand search" -l topic -d 'Restrict results to repositories tagged with this topic' -r
+complete -c upstream -n "__fish_upstream_using_subcommand search" -l min-stars -d 'Restrict results to repositories with at least this many stars' -r
+complete -c upstream -n "__fish_upstream_using_subcommand search" -l max-stars -d 'Restrict results to repositories with at most this many stars' -r
+complete -c upstream -n "__fish_upstream_using_subcommand search" -l pushed-after -d 'Restrict results to repositories pushed on or after YYYY-MM-DD' -r
+complete -c upstream -n "__fish_upstream_using_subcommand search" -l include-forks -d 'Include forked repositories in provider search results'
+complete -c upstream -n "__fish_upstream_using_subcommand search" -l include-archived -d 'Include archived repositories in provider search results'
 complete -c upstream -n "__fish_upstream_using_subcommand search" -l json -d 'Print search results as JSON'
 complete -c upstream -n "__fish_upstream_using_subcommand search" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand search" -s h -l help -d 'Print help (see more with \'--help\')'
+complete -c upstream -n "__fish_upstream_using_subcommand find" -s p -l provider -d 'Source provider to search (defaults to github)' -r
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l base-url -d 'Custom base URL for self-hosted providers' -r
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l limit -d 'Maximum number of results to display' -r
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l name -d 'Package name to register without prompting' -r
+complete -c upstream -n "__fish_upstream_using_subcommand find" -s k -l kind -d 'File type to install' -r -f -a "app-image\t''
+mac-app\t''
+mac-dmg\t''
+archive\t''
+compressed\t''
+binary\t''
+win-exe\t''
+checksum\t''
+auto\t''"
+complete -c upstream -n "__fish_upstream_using_subcommand find" -s c -l channel -d 'Update channel to track' -r -f -a "stable\t''
+preview\t''
+nightly\t''"
+complete -c upstream -n "__fish_upstream_using_subcommand find" -s m -l match-pattern -d 'Match pattern to use as a hint for which asset to prefer' -r
+complete -c upstream -n "__fish_upstream_using_subcommand find" -s e -l exclude-pattern -d 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")' -r
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l trust -d 'Trust verification mode for downloaded assets' -r -f -a "none\t''
+best-effort\t''
+checksum\t''
+signature\t''
+all\t''"
+complete -c upstream -n "__fish_upstream_using_subcommand find" -s d -l desktop -d 'Whether or not to create a .desktop entry for GUI applications'
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l dry-run -d 'Preview install resolution without downloading or writing files'
+complete -c upstream -n "__fish_upstream_using_subcommand find" -s y -l yes -d 'Accept confirmation prompts'
+complete -c upstream -n "__fish_upstream_using_subcommand find" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand config; and not __fish_seen_subcommand_from set get list edit reset help" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand config; and not __fish_seen_subcommand_from set get list edit reset help" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand config; and not __fish_seen_subcommand_from set get list edit reset help" -f -a "set" -d 'Set configuration values'
@@ -209,28 +245,32 @@ complete -c upstream -n "__fish_upstream_using_subcommand import" -s h -l help -
 complete -c upstream -n "__fish_upstream_using_subcommand export" -l full -d 'Export a full snapshot of the upstream directory instead of a manifest'
 complete -c upstream -n "__fish_upstream_using_subcommand export" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand export" -s h -l help -d 'Print help (see more with \'--help\')'
+complete -c upstream -n "__fish_upstream_using_subcommand migrate" -s y -l yes -d 'Accept confirmation prompts'
+complete -c upstream -n "__fish_upstream_using_subcommand migrate" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -l verbose -d 'Print each check result line in addition to summary output'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -l fix -d 'Attempt automatic repairs for detected issues'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -l json -d 'Print diagnostic report as JSON'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand doctor" -s h -l help -d 'Print help (see more with \'--help\')'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "install" -d 'Install a package from an upstream release source'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "build" -d 'Build and install from source for release tags without artifacts'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "remove" -d 'Remove one or more installed packages'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "rollback" -d 'Restore or prune stored rollback artifacts'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "reinstall" -d 'Reinstall one or more packages (remove then install)'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "upgrade" -d 'Upgrade installed packages to their latest versions'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "list" -d 'List installed packages and their metadata'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "changelog" -d 'Show upstream release notes for an installed package'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "probe" -d 'Inspect releases visible from a provider without installing'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "search" -d 'Search provider repositories by keyword(s)'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "config" -d 'Manage upstream configuration'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "package" -d 'Manage package-specific behavior'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "hooks" -d 'Manage shell integration hooks and local upstream data'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "import" -d 'Import trusted keys, package metadata manifests, or full snapshots'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "export" -d 'Export packages to a manifest or full snapshot'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "doctor" -d 'Run diagnostics to detect installation and integration issues'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "install" -d 'Install a package from an upstream release source'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "build" -d 'Build and install from source for release tags without artifacts'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "remove" -d 'Remove one or more installed packages'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "rollback" -d 'Restore or prune stored rollback artifacts'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "reinstall" -d 'Reinstall one or more packages (remove then install)'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "upgrade" -d 'Upgrade installed packages to their latest versions'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "list" -d 'List installed packages and their metadata'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "changelog" -d 'Show upstream release notes for an installed package'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "probe" -d 'Inspect releases visible from a provider without installing'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "search" -d 'Search provider repositories by keyword(s)'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "find" -d 'Search repositories interactively and install a selected result'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "config" -d 'Manage upstream configuration'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "package" -d 'Manage package-specific behavior'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "hooks" -d 'Manage shell integration hooks and local upstream data'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "import" -d 'Import trusted keys, package metadata manifests, or full snapshots'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "export" -d 'Export packages to a manifest or full snapshot'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "migrate" -d 'Migrate local upstream data after breaking changes'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "doctor" -d 'Run diagnostics to detect installation and integration issues'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from config" -f -a "set" -d 'Set configuration values'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from config" -f -a "get" -d 'Get configuration values'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from config" -f -a "list" -d 'List all configuration keys'

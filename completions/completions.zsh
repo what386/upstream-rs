@@ -53,8 +53,8 @@ _arguments "${_arguments_options[@]}" : \
 '--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':name -- Name to register the application under:_default' \
 ':repo_slug -- Repository identifier or URL:_default' \
+'::name -- Name to register the application under (falls back to git repository name when omitted):_default' \
 && ret=0
 ;;
 (build)
@@ -75,8 +75,8 @@ _arguments "${_arguments_options[@]}" : \
 '--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':name -- Name to register the application under:_default' \
 ':repo_slug -- Repository identifier or URL:_default' \
+'::name -- Name to register the application under (falls back to git repository name when omitted):_default' \
 && ret=0
 ;;
 (remove)
@@ -173,7 +173,40 @@ _arguments "${_arguments_options[@]}" : \
 '--provider=[Source provider to search (defaults to github)]:PROVIDER:_default' \
 '--base-url=[Custom base URL for self-hosted providers]:BASE_URL:_default' \
 '--limit=[Maximum number of results to display]:LIMIT:_default' \
+'--language=[Restrict results to repositories with this primary language]:LANGUAGE:_default' \
+'--topic=[Restrict results to repositories tagged with this topic]:TOPIC:_default' \
+'--min-stars=[Restrict results to repositories with at least this many stars]:N:_default' \
+'--max-stars=[Restrict results to repositories with at most this many stars]:N:_default' \
+'--pushed-after=[Restrict results to repositories pushed on or after YYYY-MM-DD]:YYYY-MM-DD:_default' \
+'--include-forks[Include forked repositories in provider search results]' \
+'--include-archived[Include archived repositories in provider search results]' \
 '--json[Print search results as JSON]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'*::query_words -- Optional query words (joined with spaces):_default' \
+&& ret=0
+;;
+(find)
+_arguments "${_arguments_options[@]}" : \
+'-p+[Source provider to search (defaults to github)]:PROVIDER:_default' \
+'--provider=[Source provider to search (defaults to github)]:PROVIDER:_default' \
+'--base-url=[Custom base URL for self-hosted providers]:BASE_URL:_default' \
+'--limit=[Maximum number of results to display]:LIMIT:_default' \
+'--name=[Package name to register without prompting]:NAME:_default' \
+'-k+[File type to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'--kind=[File type to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'-c+[Update channel to track]:CHANNEL:(stable preview nightly)' \
+'--channel=[Update channel to track]:CHANNEL:(stable preview nightly)' \
+'-m+[Match pattern to use as a hint for which asset to prefer]:match:_default' \
+'--match-pattern=[Match pattern to use as a hint for which asset to prefer]:match:_default' \
+'-e+[Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")]:exclude:_default' \
+'--exclude-pattern=[Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")]:exclude:_default' \
+'--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
+'-d[Whether or not to create a .desktop entry for GUI applications]' \
+'--desktop[Whether or not to create a .desktop entry for GUI applications]' \
+'--dry-run[Preview install resolution without downloading or writing files]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -473,6 +506,14 @@ _arguments "${_arguments_options[@]}" : \
 ':path -- Output path for the manifest or snapshot archive:_files' \
 && ret=0
 ;;
+(migrate)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
 (doctor)
 _arguments "${_arguments_options[@]}" : \
 '--verbose[Print each check result line in addition to summary output]' \
@@ -534,6 +575,10 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (search)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(find)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -641,6 +686,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(migrate)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (doctor)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -671,11 +720,13 @@ _upstream_commands() {
 'changelog:Show upstream release notes for an installed package' \
 'probe:Inspect releases visible from a provider without installing' \
 'search:Search provider repositories by keyword(s)' \
+'find:Search repositories interactively and install a selected result' \
 'config:Manage upstream configuration' \
 'package:Manage package-specific behavior' \
 'hooks:Manage shell integration hooks and local upstream data' \
 'import:Import trusted keys, package metadata manifests, or full snapshots' \
 'export:Export packages to a manifest or full snapshot' \
+'migrate:Migrate local upstream data after breaking changes' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -780,6 +831,11 @@ _upstream__subcmd__export_commands() {
     local commands; commands=()
     _describe -t commands 'upstream export commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__find_commands] )) ||
+_upstream__subcmd__find_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream find commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__help_commands] )) ||
 _upstream__subcmd__help_commands() {
     local commands; commands=(
@@ -793,11 +849,13 @@ _upstream__subcmd__help_commands() {
 'changelog:Show upstream release notes for an installed package' \
 'probe:Inspect releases visible from a provider without installing' \
 'search:Search provider repositories by keyword(s)' \
+'find:Search repositories interactively and install a selected result' \
 'config:Manage upstream configuration' \
 'package:Manage package-specific behavior' \
 'hooks:Manage shell integration hooks and local upstream data' \
 'import:Import trusted keys, package metadata manifests, or full snapshots' \
 'export:Export packages to a manifest or full snapshot' \
+'migrate:Migrate local upstream data after breaking changes' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -859,6 +917,11 @@ _upstream__subcmd__help__subcmd__export_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help export commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__help__subcmd__find_commands] )) ||
+_upstream__subcmd__help__subcmd__find_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help find commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__help__subcmd__help_commands] )) ||
 _upstream__subcmd__help__subcmd__help_commands() {
     local commands; commands=()
@@ -908,6 +971,11 @@ _upstream__subcmd__help__subcmd__install_commands() {
 _upstream__subcmd__help__subcmd__list_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help list commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__migrate_commands] )) ||
+_upstream__subcmd__help__subcmd__migrate_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help migrate commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__package_commands] )) ||
 _upstream__subcmd__help__subcmd__package_commands() {
@@ -1044,6 +1112,11 @@ _upstream__subcmd__install_commands() {
 _upstream__subcmd__list_commands() {
     local commands; commands=()
     _describe -t commands 'upstream list commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__migrate_commands] )) ||
+_upstream__subcmd__migrate_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream migrate commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__package_commands] )) ||
 _upstream__subcmd__package_commands() {
