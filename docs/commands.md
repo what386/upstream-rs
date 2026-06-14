@@ -155,7 +155,7 @@ Pinning prevents upgrades. Renaming changes the local alias without reinstalling
 ```bash
 upstream list [name] [--json]
 upstream changelog <name> [--from <tag>] [--to <tag>]
-upstream search <query...> [-p <provider>] [--base-url <url>] [--limit <n>]
+upstream search <query...> [-p <provider>] [--base-url <url>] [--limit <n>] [filters]
 upstream find <query...> [-p <provider>] [--limit <n>] [--name <name>] [install options]
 upstream probe <repo-or-url> [-p <provider>] [--channel <channel>] [--limit <n>] [--verbose]
 upstream doctor [names...] [--verbose] [--fix]
@@ -163,7 +163,7 @@ upstream doctor [names...] [--verbose] [--fix]
 
 - `list` shows installed package metadata.
 - `changelog` shows release notes for installed packages.
-- `search` searches provider repositories.
+- `search` searches provider repositories for software discovery. Use filters like `--language Rust`, `--topic cli`, `--min-stars 100`, `--pushed-after 2026-01-01`, `--include-forks`, and `--include-archived` to narrow results.
 - `find` searches provider repositories, opens an interactive picker, prompts for the package name with an inferred default, and installs the selected result. Use `--name` to skip the prompt.
 - `probe` shows releases and candidate assets without installing.
 - `doctor` checks paths, symlinks, hooks, cached completions, desktop entries, and package metadata. `--fix` copies cached completions back into shell completion directories when they drift.
