@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] feat: upgrade/install history
-      @created 2026-06-13 14:20
-
 
 ## Completed
 
@@ -41,5 +38,9 @@
 
 - [x] feat: build command now caches git repos to take advantage of partial rebuilds
       @created 2026-06-13 19:41
+      @completed 2026-06-14 04:28
+
+- [x] feat: upgrade/install history
+      @created 2026-06-13 14:20
       @completed 2026-06-14 04:28
 
