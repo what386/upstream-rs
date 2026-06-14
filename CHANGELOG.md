@@ -1,6 +1,21 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-13*
+*Generated on 2026-06-14*
+
+## 2.0.0 — 2026-06-14
+
+### Changes
+
+- feat: upstream find subcommand (interactive search)
+- BREAKING: swap positions of repo and name in install-like commands
+- feat: package name is now inferrable for git sources (uses repo name)
+- BREAKING: refactor upstream paths
+- feat: rollback artifact compression
+- feat: support to store multiple rollback artifacts
+- feat: rollback with no args now undoes the last operation
+- feat: build command now caches git repos to take advantage of partial rebuilds
+- feat: upgrade/install history
+
 
 ## 1.19.0 — 2026-06-13
 
