@@ -62,16 +62,32 @@ Upstream stores data in user-owned locations:
 | `$XDG_CONFIG_HOME/upstream/config.toml` | Main configuration file |
 | `$HOME/.upstream/metadata/packages.json` | Installed package metadata |
 | `$HOME/.upstream/metadata/metadata.json` | Sidecar metadata such as pin reasons |
+| `$HOME/.upstream/metadata/transactions.json` | Mutating package transaction history |
 | `$HOME/.upstream/metadata/paths.sh` | POSIX/fish PATH export managed by hooks |
 | `$HOME/.upstream/metadata/paths.nu` | Nushell PATH export managed by hooks |
-| `$HOME/.upstream/binaries/` | Installed binary artifacts |
-| `$HOME/.upstream/appimages/` | Installed AppImage artifacts |
-| `$HOME/.upstream/archives/` | Extracted archive installs |
+| `$HOME/.upstream/packages/binaries/` | Installed binary artifacts |
+| `$HOME/.upstream/packages/appimages/` | Installed AppImage artifacts |
+| `$HOME/.upstream/packages/archives/` | Extracted archive installs |
+| `$HOME/.upstream/cache/` | Reusable package cache data |
+| `$HOME/.upstream/cache/build/` | Cached git workspaces for source builds |
+| `$HOME/.upstream/cache/source-archives/` | Cached source archive workspaces |
+| `$HOME/.upstream/cache/completions/` | Cached package completion scripts |
+| `$HOME/.upstream/tmp/` | Temporary staging for package operations |
 | `$HOME/.upstream/symlinks/` | Runtime command links |
 | `$HOME/.upstream/icons/` | Stored desktop icons |
 | `$HOME/.upstream/rollback/` | Rollback artifacts |
 
-Desktop entries are written to `$HOME/.local/share/applications` on Linux. Shell completions are installed into shell-specific user completion directories when supported.
+Desktop entries are written to `$HOME/.local/share/applications` on Linux. Shell completions are cached under `$HOME/.upstream/cache/completions/<package>/` and copied into shell-specific user completion directories when supported.
+
+## Migration
+
+After upgrading across breaking layout changes, run:
+
+```bash
+upstream migrate
+```
+
+`doctor` detects common legacy layouts and recommends `migrate` when local data appears to use an older format.
 
 ## Updating Upstream Itself
 

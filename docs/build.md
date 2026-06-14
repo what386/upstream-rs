@@ -6,7 +6,7 @@ Use `upstream build` when a project publishes source releases but does not provi
 upstream build <repo-or-url> <name>
 ```
 
-For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
+The canonical form is `<repo-or-url> <name>`. For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
 
 ## Supported Profiles
 
@@ -41,6 +41,24 @@ upstream build owner/repo app --branch main
 ```
 
 Without `--tag` or `--branch`, Upstream resolves the latest release for the selected channel.
+
+## Build Cache
+
+Git source builds use cached workspaces under:
+
+```text
+$HOME/.upstream/cache/build/
+```
+
+When upgrading or rebuilding a git source package, Upstream fetches the cached repository, checks out the requested branch or release tag, pulls changes when appropriate, and rebuilds in place. This lets project build systems reuse existing build artifacts when they support incremental rebuilds.
+
+If a source is only available as an archive, Upstream falls back to a cached source-archive workspace under:
+
+```text
+$HOME/.upstream/cache/source-archives/
+```
+
+Archive cache refreshes update source-controlled files while preserving unowned build output where possible.
 
 ## Build Scripts
 

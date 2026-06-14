@@ -17,7 +17,7 @@ upstream install [options] <repo-or-url> <name>
 ```
 
 Installs a package from a release source and records it for future upgrades.
-For git repositories, upstream can fall back to the repository name when `<name>` is omitted. Direct URLs and scraped download pages may still require `<name>`.
+The canonical form is `<repo-or-url> <name>`. For git repositories, upstream can fall back to the repository name when `<name>` is omitted. Direct URLs and scraped download pages may still require `<name>`.
 
 Common options:
 
@@ -38,6 +38,7 @@ Examples:
 
 ```bash
 upstream install BurntSushi/ripgrep rg -k binary
+upstream install BurntSushi/ripgrep
 upstream install bootandy/dust dust -k archive
 upstream install neovim/neovim nvim --tag v0.11.0
 upstream install owner/repo app --desktop
@@ -51,7 +52,7 @@ upstream build [options] <repo-or-url> <name>
 ```
 
 Builds from source and installs the resulting artifact. See [Building from source](build.md).
-For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
+The canonical form is `<repo-or-url> <name>`. For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
 
 Common options:
 
@@ -163,9 +164,17 @@ upstream doctor [names...] [--verbose] [--fix]
 - `list` shows installed package metadata.
 - `changelog` shows release notes for installed packages.
 - `search` searches provider repositories.
-- `find` searches provider repositories, opens an interactive picker, prompts for the package name with an inferred default, and installs the selected result.
+- `find` searches provider repositories, opens an interactive picker, prompts for the package name with an inferred default, and installs the selected result. Use `--name` to skip the prompt.
 - `probe` shows releases and candidate assets without installing.
-- `doctor` checks paths, symlinks, hooks, desktop entries, and package metadata.
+- `doctor` checks paths, symlinks, hooks, cached completions, desktop entries, and package metadata. `--fix` copies cached completions back into shell completion directories when they drift.
+
+## Migration
+
+```bash
+upstream migrate
+```
+
+Migrates local data after breaking layout or metadata changes. Run it when release notes or `doctor` recommend it.
 
 ## Configuration, Import, and Export
 
