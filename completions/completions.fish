@@ -30,7 +30,7 @@ complete -c upstream -n "__fish_upstream_needs_command" -s V -l version -d 'Prin
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "install" -d 'Install a package from an upstream release source'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "build" -d 'Build and install from source for release tags without artifacts'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "remove" -d 'Remove one or more installed packages'
-complete -c upstream -n "__fish_upstream_needs_command" -f -a "rollback" -d 'Restore or prune stored rollback artifacts'
+complete -c upstream -n "__fish_upstream_needs_command" -f -a "rollback" -d 'Manage stored rollback artifacts'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "reinstall" -d 'Reinstall one or more packages (remove then install)'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "upgrade" -d 'Upgrade installed packages to their latest versions'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "list" -d 'List installed packages and their metadata'
@@ -93,10 +93,24 @@ complete -c upstream -n "__fish_upstream_using_subcommand remove" -l force -d 'I
 complete -c upstream -n "__fish_upstream_using_subcommand remove" -l dry-run -d 'Preview removal actions without deleting files or metadata'
 complete -c upstream -n "__fish_upstream_using_subcommand remove" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand remove" -s h -l help -d 'Print help (see more with \'--help\')'
-complete -c upstream -n "__fish_upstream_using_subcommand rollback" -l prune -d 'Prune rollback artifacts instead of restoring'
-complete -c upstream -n "__fish_upstream_using_subcommand rollback" -l dry-run -d 'Preview rollback/prune actions without modifying files or metadata'
-complete -c upstream -n "__fish_upstream_using_subcommand rollback" -s y -l yes -d 'Accept confirmation prompts'
-complete -c upstream -n "__fish_upstream_using_subcommand rollback" -s h -l help -d 'Print help (see more with \'--help\')'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and not __fish_seen_subcommand_from restore prune list help" -s y -l yes -d 'Accept confirmation prompts'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and not __fish_seen_subcommand_from restore prune list help" -s h -l help -d 'Print help (see more with \'--help\')'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and not __fish_seen_subcommand_from restore prune list help" -f -a "restore" -d 'Restore rollback artifacts'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and not __fish_seen_subcommand_from restore prune list help" -f -a "prune" -d 'Prune stored rollback artifacts'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and not __fish_seen_subcommand_from restore prune list help" -f -a "list" -d 'List stored rollback artifacts'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and not __fish_seen_subcommand_from restore prune list help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from restore" -l dry-run -d 'Preview rollback restore actions without modifying files or metadata'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from restore" -s y -l yes -d 'Accept confirmation prompts'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from restore" -s h -l help -d 'Print help (see more with \'--help\')'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from prune" -l dry-run -d 'Preview rollback prune actions without deleting artifacts or metadata'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from prune" -s y -l yes -d 'Accept confirmation prompts'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from prune" -s h -l help -d 'Print help (see more with \'--help\')'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from list" -s y -l yes -d 'Accept confirmation prompts'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from list" -s h -l help -d 'Print help (see more with \'--help\')'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from help" -f -a "restore" -d 'Restore rollback artifacts'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from help" -f -a "prune" -d 'Prune stored rollback artifacts'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from help" -f -a "list" -d 'List stored rollback artifacts'
+complete -c upstream -n "__fish_upstream_using_subcommand rollback; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c upstream -n "__fish_upstream_using_subcommand reinstall" -l trust -d 'Trust verification mode for release-asset reinstalls' -r -f -a "none\t''
 best-effort\t''
 checksum\t''
@@ -151,6 +165,11 @@ complete -c upstream -n "__fish_upstream_using_subcommand search" -s h -l help -
 complete -c upstream -n "__fish_upstream_using_subcommand find" -s p -l provider -d 'Source provider to search (defaults to github)' -r
 complete -c upstream -n "__fish_upstream_using_subcommand find" -l base-url -d 'Custom base URL for self-hosted providers' -r
 complete -c upstream -n "__fish_upstream_using_subcommand find" -l limit -d 'Maximum number of results to display' -r
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l language -d 'Restrict results to repositories with this primary language' -r
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l topic -d 'Restrict results to repositories tagged with this topic' -r
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l min-stars -d 'Restrict results to repositories with at least this many stars' -r
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l max-stars -d 'Restrict results to repositories with at most this many stars' -r
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l pushed-after -d 'Restrict results to repositories pushed on or after YYYY-MM-DD' -r
 complete -c upstream -n "__fish_upstream_using_subcommand find" -l name -d 'Package name to register without prompting' -r
 complete -c upstream -n "__fish_upstream_using_subcommand find" -s k -l kind -d 'File type to install' -r -f -a "app-image\t''
 mac-app\t''
@@ -171,6 +190,8 @@ best-effort\t''
 checksum\t''
 signature\t''
 all\t''"
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l include-forks -d 'Include forked repositories in provider search results'
+complete -c upstream -n "__fish_upstream_using_subcommand find" -l include-archived -d 'Include archived repositories in provider search results'
 complete -c upstream -n "__fish_upstream_using_subcommand find" -s d -l desktop -d 'Whether or not to create a .desktop entry for GUI applications'
 complete -c upstream -n "__fish_upstream_using_subcommand find" -l dry-run -d 'Preview install resolution without downloading or writing files'
 complete -c upstream -n "__fish_upstream_using_subcommand find" -s y -l yes -d 'Accept confirmation prompts'
@@ -255,7 +276,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand doctor" -s h -l help -
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "install" -d 'Install a package from an upstream release source'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "build" -d 'Build and install from source for release tags without artifacts'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "remove" -d 'Remove one or more installed packages'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "rollback" -d 'Restore or prune stored rollback artifacts'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "rollback" -d 'Manage stored rollback artifacts'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "reinstall" -d 'Reinstall one or more packages (remove then install)'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "upgrade" -d 'Upgrade installed packages to their latest versions'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "list" -d 'List installed packages and their metadata'
@@ -271,6 +292,9 @@ complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_s
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "migrate" -d 'Migrate local upstream data after breaking changes'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "doctor" -d 'Run diagnostics to detect installation and integration issues'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from rollback" -f -a "restore" -d 'Restore rollback artifacts'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from rollback" -f -a "prune" -d 'Prune stored rollback artifacts'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from rollback" -f -a "list" -d 'List stored rollback artifacts'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from config" -f -a "set" -d 'Set configuration values'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from config" -f -a "get" -d 'Get configuration values'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from config" -f -a "list" -d 'List all configuration keys'

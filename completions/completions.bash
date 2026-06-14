@@ -202,6 +202,15 @@ _upstream() {
             upstream__subcmd__help__subcmd__package,unpin)
                 cmd="upstream__subcmd__help__subcmd__package__subcmd__unpin"
                 ;;
+            upstream__subcmd__help__subcmd__rollback,list)
+                cmd="upstream__subcmd__help__subcmd__rollback__subcmd__list"
+                ;;
+            upstream__subcmd__help__subcmd__rollback,prune)
+                cmd="upstream__subcmd__help__subcmd__rollback__subcmd__prune"
+                ;;
+            upstream__subcmd__help__subcmd__rollback,restore)
+                cmd="upstream__subcmd__help__subcmd__rollback__subcmd__restore"
+                ;;
             upstream__subcmd__hooks,check)
                 cmd="upstream__subcmd__hooks__subcmd__check"
                 ;;
@@ -255,6 +264,30 @@ _upstream() {
                 ;;
             upstream__subcmd__package__subcmd__help,unpin)
                 cmd="upstream__subcmd__package__subcmd__help__subcmd__unpin"
+                ;;
+            upstream__subcmd__rollback,help)
+                cmd="upstream__subcmd__rollback__subcmd__help"
+                ;;
+            upstream__subcmd__rollback,list)
+                cmd="upstream__subcmd__rollback__subcmd__list"
+                ;;
+            upstream__subcmd__rollback,prune)
+                cmd="upstream__subcmd__rollback__subcmd__prune"
+                ;;
+            upstream__subcmd__rollback,restore)
+                cmd="upstream__subcmd__rollback__subcmd__restore"
+                ;;
+            upstream__subcmd__rollback__subcmd__help,help)
+                cmd="upstream__subcmd__rollback__subcmd__help__subcmd__help"
+                ;;
+            upstream__subcmd__rollback__subcmd__help,list)
+                cmd="upstream__subcmd__rollback__subcmd__help__subcmd__list"
+                ;;
+            upstream__subcmd__rollback__subcmd__help,prune)
+                cmd="upstream__subcmd__rollback__subcmd__help__subcmd__prune"
+                ;;
+            upstream__subcmd__rollback__subcmd__help,restore)
+                cmd="upstream__subcmd__rollback__subcmd__help__subcmd__restore"
                 ;;
             *)
                 ;;
@@ -559,7 +592,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__find)
-            opts="-p -k -c -m -e -d -y -h --provider --base-url --limit --name --kind --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --help <QUERY_WORDS>..."
+            opts="-p -k -c -m -e -d -y -h --provider --base-url --limit --language --topic --min-stars --max-stars --pushed-after --include-forks --include-archived --name --kind --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --help <QUERY_WORDS>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -578,6 +611,26 @@ _upstream() {
                     return 0
                     ;;
                 --limit)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --language)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --topic)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --min-stars)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --max-stars)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --pushed-after)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -1035,8 +1088,50 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__rollback)
-            opts=""
+            opts="restore prune list"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__rollback__subcmd__list)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__rollback__subcmd__prune)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__rollback__subcmd__restore)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -1547,8 +1642,120 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__rollback)
-            opts="-y -h --prune --dry-run --yes --help [NAMES]..."
+            opts="-y -h --yes --help restore prune list help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__rollback__subcmd__help)
+            opts="restore prune list help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__rollback__subcmd__help__subcmd__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__rollback__subcmd__help__subcmd__list)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__rollback__subcmd__help__subcmd__prune)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__rollback__subcmd__help__subcmd__restore)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__rollback__subcmd__list)
+            opts="-y -h --yes --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__rollback__subcmd__prune)
+            opts="-y -h --dry-run --yes --help [NAMES]..."
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__rollback__subcmd__restore)
+            opts="-y -h --dry-run --yes --help [NAMES]..."
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
