@@ -75,18 +75,17 @@ pub fn run(action: RollbackAction) -> Result<()> {
     let mut operation = RollbackOperation::new()?;
 
     match action {
-        RollbackAction::Restore { names, dry_run } => {
-            run_restore(resolve_restore_names(names, &operation)?, dry_run, &mut operation)
-        }
+        RollbackAction::Restore { names, dry_run } => run_restore(
+            resolve_restore_names(names, &operation)?,
+            dry_run,
+            &mut operation,
+        ),
         RollbackAction::Prune { names, dry_run } => run_prune(names, dry_run, &mut operation),
         RollbackAction::List => run_list(&mut operation),
     }
 }
 
-fn resolve_restore_names(
-    names: Vec<String>,
-    operation: &RollbackOperation,
-) -> Result<Vec<String>> {
+fn resolve_restore_names(names: Vec<String>, operation: &RollbackOperation) -> Result<Vec<String>> {
     if !names.is_empty() {
         return Ok(names);
     }
