@@ -11,10 +11,3 @@
 - [ ] fix stale wording in helptext
       @created 2026-06-14 17:49
 
-
-## Completed
-
-- [x] feat: make rollback have subcommands
-      @created 2026-06-14 17:49
-      @completed 2026-06-14 18:03
-
