@@ -3,11 +3,13 @@ use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
+    application::cli::arguments::RollbackAction,
     application::operations::rollback_operation::{
-        RollbackOperation, RollbackPackageOutcome, RollbackPackageStatus, RollbackPreview,
-        RollbackPreviewRow,
+        RollbackListRow, RollbackOperation, RollbackPackageOutcome, RollbackPackageStatus,
+        RollbackPreview, RollbackPreviewRow,
     },
     output::{self, Status, TransactionRow},
+    services::storage::rollback_storage::RollbackSource,
 };
 
 fn restore_phase_label(message: &str) -> &'static str {
@@ -69,11 +71,39 @@ fn show_missing_names(names: &[String]) {
     }
 }
 
-pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
+pub fn run(action: RollbackAction) -> Result<()> {
     let mut operation = RollbackOperation::new()?;
 
-    if prune {
-        return run_prune(names, dry_run, &mut operation);
+    match action {
+        RollbackAction::Restore { names, dry_run } => {
+            run_restore(resolve_restore_names(names, &operation)?, dry_run, &mut operation)
+        }
+        RollbackAction::Prune { names, dry_run } => run_prune(names, dry_run, &mut operation),
+        RollbackAction::List => run_list(&mut operation),
+    }
+}
+
+fn resolve_restore_names(
+    names: Vec<String>,
+    operation: &RollbackOperation,
+) -> Result<Vec<String>> {
+    if !names.is_empty() {
+        return Ok(names);
+    }
+
+    let Some(names) = operation.latest_restore_names()? else {
+        println!(
+            "{}",
+            output::warning("No reversible transaction found in rollback history.")
+        );
+        return Ok(Vec::new());
+    };
+    Ok(names)
+}
+
+fn run_restore(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperation) -> Result<()> {
+    if names.is_empty() {
+        return Ok(());
     }
 
     let preview = operation.restore_preview(&names)?;
@@ -148,6 +178,18 @@ pub fn run(names: Vec<String>, prune: bool, dry_run: bool) -> Result<()> {
         );
     }
 
+    Ok(())
+}
+
+fn run_list(operation: &mut RollbackOperation) -> Result<()> {
+    let rows = operation.list_rows();
+    if rows.is_empty() {
+        println!("{}", output::warning("No rollback artifacts found."));
+        return Ok(());
+    }
+
+    println!("{}", output::title("Rollback artifacts"));
+    print_list_rows(&rows);
     Ok(())
 }
 
@@ -231,5 +273,48 @@ fn print_completion_lines(packages: &[RollbackPackageOutcome]) {
                 );
             }
         }
+    }
+}
+
+fn print_list_rows(rows: &[RollbackListRow]) {
+    let name_width = rows
+        .iter()
+        .map(|row| row.name.chars().count())
+        .max()
+        .unwrap_or(4)
+        .max("Name".len())
+        .min(28);
+    let version_width = rows
+        .iter()
+        .map(|row| row.version.chars().count())
+        .max()
+        .unwrap_or(7)
+        .max("Version".len())
+        .min(18);
+    let source_width = "reinstall".len().max("Source".len());
+    let path_width = 72;
+    let table_width = name_width + version_width + source_width + path_width + 3;
+
+    println!(
+        "{:<name_width$} {:<version_width$} {:<source_width$} Install path",
+        "Name", "Version", "Source",
+    );
+    println!("{}", output::divider(table_width));
+    for row in rows {
+        println!(
+            "{:<name_width$} {:<version_width$} {:<source_width$} {}",
+            output::truncate_end(&row.name, name_width),
+            output::truncate_end(&row.version, version_width),
+            rollback_source_label(&row.source),
+            output::truncate_end(&row.install_path, path_width),
+        );
+    }
+}
+
+fn rollback_source_label(source: &RollbackSource) -> &'static str {
+    match source {
+        RollbackSource::Upgrade => "upgrade",
+        RollbackSource::Reinstall => "reinstall",
+        RollbackSource::Remove => "remove",
     }
 }
