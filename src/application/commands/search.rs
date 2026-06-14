@@ -47,22 +47,6 @@ pub async fn run(
         include_forks,
         include_archived,
     );
-    if query.is_empty() {
-        if json {
-            let result = json_search_result(
-                &query,
-                &provider.unwrap_or(Provider::Github),
-                None,
-                limit,
-                &filters,
-                &[],
-            );
-            println!("{}", serde_json::to_string_pretty(&result)?);
-            return Ok(());
-        }
-        println!("{}", output::warning("Search query cannot be empty."));
-        return Ok(());
-    }
 
     let search = search_repositories(query, provider, base_url, limit, filters).await?;
     let query = search.query;
@@ -102,7 +86,11 @@ pub async fn run(
         return Ok(());
     }
 
-    let title = format!("Search: '{}' via {}", query, effective_provider);
+    let title = if query.is_empty() {
+        format!("Search via {}", effective_provider)
+    } else {
+        format!("Search: '{}' via {}", query, effective_provider)
+    };
     pager::page_text(Some(&title), &format_results(&results))?;
     Ok(())
 }

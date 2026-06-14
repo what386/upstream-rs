@@ -206,11 +206,15 @@ impl GithubClient {
             parts.push("archived:false".to_string());
         }
 
-        parts
+        let parts = parts
             .into_iter()
             .filter(|part| !part.is_empty())
-            .collect::<Vec<_>>()
-            .join(" ")
+            .collect::<Vec<_>>();
+        if parts.is_empty() {
+            return "stars:>=0".to_string();
+        }
+
+        parts.join(" ")
     }
 
     fn format_search_qualifier_value(value: &str) -> String {
@@ -322,6 +326,16 @@ mod tests {
         assert_eq!(
             GithubClient::build_repository_search_query("editor", &filters),
             "editor language:\"Common Lisp\" archived:false"
+        );
+    }
+
+    #[test]
+    fn build_repository_search_query_falls_back_when_query_and_filters_are_empty() {
+        let filters = RepositorySearchFilters::new(None, None, None, None, false, true);
+
+        assert_eq!(
+            GithubClient::build_repository_search_query("", &filters),
+            "stars:>=0"
         );
     }
 }
