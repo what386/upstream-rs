@@ -2,6 +2,13 @@
 
 *Generated on 2026-06-14*
 
+## 2.1.0 — 2026-06-14
+
+### Changes
+
+- feat: make rollback have subcommands
+
+
 ## 2.0.0 — 2026-06-14
 
 ### Changes
