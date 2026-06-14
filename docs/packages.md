@@ -8,6 +8,8 @@ Packages are tracked by a local alias, source metadata, selected file type, prov
 upstream install <repo-or-url> <name>
 ```
 
+The canonical form is `<repo-or-url> <name>`. For git repositories, Upstream can infer `<name>` from the repository name when it is omitted. Direct HTTP sources may still require an explicit name.
+
 The install flow:
 
 1. Resolve the source and provider.
@@ -15,7 +17,7 @@ The install flow:
 3. Select the best matching asset for OS, architecture, file type, and match/exclude hints.
 4. Download and optionally verify the asset.
 5. Install the artifact into a managed directory.
-6. Create runtime links and completion files when available.
+6. Cache completion files and copy them into shell completion directories when available.
 7. Optionally create desktop integration with `--desktop`.
 8. Save package metadata.
 
@@ -59,6 +61,7 @@ upstream upgrade --dry-run
 ```
 
 Pinned packages are skipped. Build-installed packages are rebuilt from source when upgraded.
+Git source builds reuse cached workspaces under `$HOME/.upstream/cache/build/` when possible.
 
 ## Remove
 
@@ -81,10 +84,18 @@ Reinstall removes the current package, then reinstalls from stored metadata. Rel
 
 ## Rollback
 
-Removal, reinstall, and upgrade flows can capture rollback artifacts. Restore them with:
+Removal, reinstall, and upgrade flows can capture rollback artifacts. Mutating package operations are also recorded in `$HOME/.upstream/metadata/transactions.json` so rollback can restore the latest reversible transaction when no package names are provided.
+
+Restore a specific package with:
 
 ```bash
 upstream rollback <name>
+```
+
+Restore the latest reversible transaction with:
+
+```bash
+upstream rollback
 ```
 
 Preview or prune rollback data:

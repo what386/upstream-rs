@@ -24,9 +24,10 @@ pub enum ImportAs {
     long_about = "Upstream is a lightweight package manager that installs and manages \
     applications from most software sources that do not have their own package manager.\n\n\
     Install binaries, AppImages, and other artifacts with automatic updates, \
-    version pinning, and minimal configuration.\n\n\
+    version pinning, rollback support, and minimal configuration.\n\n\
     EXAMPLES:\n  \
-    upstream install neovim/neovim --desktop\n  \
+    upstream install neovim/neovim nvim --desktop\n  \
+    upstream install BurntSushi/ripgrep        # name inferred as ripgrep\n  \
     upstream upgrade                # Upgrade all packages\n  \
     upstream list                   # Show installed packages\n  \
     upstream config set github.api_token=ghp_xxx"
@@ -50,11 +51,12 @@ pub enum Commands {
     #[command(long_about = "Install a new package from a download source.\n\n\
         Downloads the specified file type from the latest release (or specified channel) \
         and registers it under the given name for future updates. If the name is omitted \
-        for a git repository, upstream falls back to the repository name.\n\n\
+        for a git repository, upstream falls back to the repository name. \
+        Direct HTTP sources may still require an explicit name.\n\n\
         EXAMPLES:\n  \
         upstream install BurntSushi/ripgrep rg -k binary\n  \
-        upstream install bootandy/dust dust -k archive\n  \
-        upstream install BurntSushi/ripgrep rg --trust none")]
+        upstream install bootandy/dust # name inferred as ripgrep\n  \
+        upstream install sharkdp/bat rg")]
     Install {
         /// Repository identifier or URL
         repo_slug: String,
@@ -107,9 +109,13 @@ pub enum Commands {
     #[command(long_about = "Build and install a package from source.\n\n\
         Use this command when release tags exist but prebuilt artifacts are missing \
         or unsuitable for your system.\n\n\
-        Mirrors install-style source resolution, with optional automatic profile detection.\n\n\
+        Mirrors install-style source resolution, with optional automatic profile detection. \
+        Git workspaces are cached under upstream's cache directory so upgrades can reuse \
+        prior build outputs when the project build system supports incremental rebuilds. \
+        If the name is omitted for a git repository, upstream falls back to the repository name.\n\n\
         EXAMPLES:\n  \
         upstream build BurntSushi/ripgrep rg\n  \
+        upstream build BurntSushi/ripgrep       # name inferred as ripgrep\n  \
         upstream build BurntSushi/ripgrep rg --branch main\n  \
         upstream build BurntSushi/ripgrep rg --build-profile rust\n  \
         upstream build owner/repo app --build-profile dotnet --tag v1.2.3")]
@@ -184,8 +190,11 @@ pub enum Commands {
 
     /// Restore or prune stored rollback artifacts
     #[command(long_about = "Manage package rollback points.\n\n\
-        Restore previously captured installs, or prune stored rollback artifacts.\n\n\
+        Restore previously captured installs, or prune stored rollback artifacts. \
+        When no package names are provided, rollback restores the latest reversible \
+        transaction recorded in upstream's transaction history.\n\n\
         EXAMPLES:\n  \
+        upstream rollback\n  \
         upstream rollback rg\n  \
         upstream rollback rg fd --dry-run\n  \
         upstream rollback --prune\n  \
@@ -388,7 +397,8 @@ pub enum Commands {
         long_about = "Search for repositories on a provider, choose a result interactively, \
         and install the selected repository.\n\n\
         Defaults to GitHub when provider is omitted. After selection, prompts for the package \
-        name with the selected repository name as the default. Use --name to skip that prompt.\n\n\
+        name with the selected repository name as the default; submitting an empty name uses \
+        that inferred default. Use --name to skip the prompt.\n\n\
         EXAMPLES:\n  \
         upstream find ripgrep\n  \
         upstream find terminal emulator --limit 20\n  \
@@ -531,7 +541,9 @@ pub enum Commands {
         long_about = "Migrate existing upstream data to the current application format.\n\n\
         Use this after upgrading across breaking changes that affect local data, \
         metadata, package paths, or integration files. The migration is designed to \
-        be run manually when release notes or diagnostics ask for it.\n\n\
+        be run manually when release notes or diagnostics ask for it. The current \
+        migration moves legacy package directories into the packages layout and rewrites \
+        affected metadata paths.\n\n\
         EXAMPLE:\n  \
         upstream migrate"
     )]
@@ -540,12 +552,16 @@ pub enum Commands {
     /// Run diagnostics to detect installation and integration issues
     #[command(
         long_about = "Inspect upstream installation health and package state.\n\n\
-        Checks package paths, symlinks, shell PATH integration, and desktop/icon files. \
+        Checks package paths, symlinks, shell PATH integration, cached completions, \
+        desktop/icon files, and metadata. \
         Reports a compact summary by default and includes actionable hints. \
-        Use --verbose to print each individual check result.\n\n\
+        Use --verbose to print each individual check result. Use --fix to repair \
+        supported issues such as PATH hooks, missing symlinks, executable bits, \
+        executable metadata, and cached completion drift.\n\n\
         EXAMPLES:\n  \
         upstream doctor\n  \
         upstream doctor --verbose\n  \
+        upstream doctor --fix\n  \
         upstream doctor nvim ripgrep\n  \
         upstream doctor --json"
     )]

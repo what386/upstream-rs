@@ -8,7 +8,17 @@ upstream doctor --verbose
 upstream doctor --fix
 ```
 
-`doctor` checks installed package paths, symlinks, shell hooks, desktop entries, icons, and metadata. Use `--verbose` when you need individual check lines.
+`doctor` checks installed package paths, symlinks, shell hooks, cached completions, desktop entries, icons, and metadata. Use `--verbose` when you need individual check lines. Use `--fix` to repair supported issues such as PATH hooks, missing symlinks, executable bits, executable metadata, and cached completion drift.
+
+## Migration
+
+If `doctor` reports that local data looks like an older layout, run:
+
+```bash
+upstream migrate
+```
+
+Migration creates missing current-layout directories, moves legacy package artifacts into `$HOME/.upstream/packages/`, and rewrites affected metadata paths.
 
 ## Shell Hooks
 
@@ -43,6 +53,22 @@ upstream remove <name> --force
 ```
 
 Then reinstall.
+
+## Stale or Missing Shell Completions
+
+Package completions are cached under:
+
+```text
+$HOME/.upstream/cache/completions/<package>/
+```
+
+If shell completion files are missing or differ from the cached copies, run:
+
+```bash
+upstream doctor --fix
+```
+
+`doctor --fix` copies cached completions back into the supported shell completion directories.
 
 ## Bad Asset Selection
 
@@ -110,3 +136,5 @@ upstream build owner/repo app --build-profile rust
 ```
 
 If a project needs custom build steps that do not fit the supported profiles, use a prebuilt release asset or add project install/upgrade scripts upstream can review and run.
+
+Git source builds use cached workspaces under `$HOME/.upstream/cache/build/`. If a cached build workspace appears corrupted, remove that package's build cache and rebuild or reinstall the package.

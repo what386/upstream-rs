@@ -96,6 +96,8 @@ Search interactively and install a selected result:
 upstream find ripgrep
 ```
 
+`find` prompts for the package name after selection and defaults to the selected repository name.
+
 Inspect releases before installing:
 
 ```bash
@@ -140,12 +142,13 @@ upstream doctor
 upstream install <repo-or-url> <name>
 ```
 
-For git repositories, upstream can fall back to the repository name when `<name>` is omitted. Direct URLs and scraped download pages may still require `<name>`.
+The canonical form is `<repo-or-url> <name>`. For git repositories, upstream can fall back to the repository name when `<name>` is omitted. Direct URLs and scraped download pages may still require `<name>`.
 
 Examples:
 
 ```bash
 upstream install sharkdp/fd fd
+upstream install BurntSushi/ripgrep
 upstream install neovim/neovim nvim --tag v0.11.0
 upstream install owner/repo app --desktop
 ```
@@ -162,15 +165,18 @@ upstream install owner/repo app --match linux --exclude debug
 upstream build <repo-or-url> <name>
 ```
 
-For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
+The canonical form is `<repo-or-url> <name>`. For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
 
 Examples:
 
 ```bash
 upstream build BurntSushi/ripgrep rg
+upstream build BurntSushi/ripgrep
 upstream build BurntSushi/ripgrep rg --branch main
 upstream build owner/repo app --build-profile dotnet
 ```
+
+Git source builds use cached workspaces under `.upstream/cache/build/` so rebuilds and upgrades can reuse build output when the project build system supports it.
 
 Supported build profiles:
 
@@ -196,11 +202,14 @@ upstream upgrade --check --machine-readable
 ```bash
 upstream remove rg
 upstream reinstall rg
+upstream rollback
 upstream rollback rg
 upstream package pin nvim
 upstream package unpin nvim
 upstream package rename nvim neovim
 ```
+
+`rollback` with no package names restores the latest reversible transaction. After upgrading across breaking local data changes, run `upstream migrate` when release notes or `doctor` recommend it.
 
 ### Import and export
 
