@@ -34,11 +34,13 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand changelog 'Show upstream release notes for an installed package'
             cand probe 'Inspect releases visible from a provider without installing'
             cand search 'Search provider repositories by keyword(s)'
+            cand find 'Search repositories interactively and install a selected result'
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific behavior'
             cand hooks 'Manage shell integration hooks and local upstream data'
             cand import 'Import trusted keys, package metadata manifests, or full snapshots'
             cand export 'Export packages to a manifest or full snapshot'
+            cand migrate 'Migrate local upstream data after breaking changes'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
@@ -155,7 +157,37 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --provider 'Source provider to search (defaults to github)'
             cand --base-url 'Custom base URL for self-hosted providers'
             cand --limit 'Maximum number of results to display'
+            cand --language 'Restrict results to repositories with this primary language'
+            cand --topic 'Restrict results to repositories tagged with this topic'
+            cand --min-stars 'Restrict results to repositories with at least this many stars'
+            cand --max-stars 'Restrict results to repositories with at most this many stars'
+            cand --pushed-after 'Restrict results to repositories pushed on or after YYYY-MM-DD'
+            cand --include-forks 'Include forked repositories in provider search results'
+            cand --include-archived 'Include archived repositories in provider search results'
             cand --json 'Print search results as JSON'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;find'= {
+            cand -p 'Source provider to search (defaults to github)'
+            cand --provider 'Source provider to search (defaults to github)'
+            cand --base-url 'Custom base URL for self-hosted providers'
+            cand --limit 'Maximum number of results to display'
+            cand --name 'Package name to register without prompting'
+            cand -k 'File type to install'
+            cand --kind 'File type to install'
+            cand -c 'Update channel to track'
+            cand --channel 'Update channel to track'
+            cand -m 'Match pattern to use as a hint for which asset to prefer'
+            cand --match-pattern 'Match pattern to use as a hint for which asset to prefer'
+            cand -e 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")'
+            cand --exclude-pattern 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")'
+            cand --trust 'Trust verification mode for downloaded assets'
+            cand -d 'Whether or not to create a .desktop entry for GUI applications'
+            cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
+            cand --dry-run 'Preview install resolution without downloading or writing files'
             cand -y 'Accept confirmation prompts'
             cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
@@ -333,6 +365,12 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
+        &'upstream;migrate'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
         &'upstream;doctor'= {
             cand --verbose 'Print each check result line in addition to summary output'
             cand --fix 'Attempt automatic repairs for detected issues'
@@ -353,11 +391,13 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand changelog 'Show upstream release notes for an installed package'
             cand probe 'Inspect releases visible from a provider without installing'
             cand search 'Search provider repositories by keyword(s)'
+            cand find 'Search repositories interactively and install a selected result'
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific behavior'
             cand hooks 'Manage shell integration hooks and local upstream data'
             cand import 'Import trusted keys, package metadata manifests, or full snapshots'
             cand export 'Export packages to a manifest or full snapshot'
+            cand migrate 'Migrate local upstream data after breaking changes'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
@@ -380,6 +420,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;probe'= {
         }
         &'upstream;help;search'= {
+        }
+        &'upstream;help;find'= {
         }
         &'upstream;help;config'= {
             cand set 'Set configuration values'
@@ -426,6 +468,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;import'= {
         }
         &'upstream;help;export'= {
+        }
+        &'upstream;help;migrate'= {
         }
         &'upstream;help;doctor'= {
         }

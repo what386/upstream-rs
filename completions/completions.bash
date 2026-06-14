@@ -31,6 +31,9 @@ _upstream() {
             upstream,export)
                 cmd="upstream__subcmd__export"
                 ;;
+            upstream,find)
+                cmd="upstream__subcmd__find"
+                ;;
             upstream,help)
                 cmd="upstream__subcmd__help"
                 ;;
@@ -45,6 +48,9 @@ _upstream() {
                 ;;
             upstream,list)
                 cmd="upstream__subcmd__list"
+                ;;
+            upstream,migrate)
+                cmd="upstream__subcmd__migrate"
                 ;;
             upstream,package)
                 cmd="upstream__subcmd__package"
@@ -118,6 +124,9 @@ _upstream() {
             upstream__subcmd__help,export)
                 cmd="upstream__subcmd__help__subcmd__export"
                 ;;
+            upstream__subcmd__help,find)
+                cmd="upstream__subcmd__help__subcmd__find"
+                ;;
             upstream__subcmd__help,help)
                 cmd="upstream__subcmd__help__subcmd__help"
                 ;;
@@ -132,6 +141,9 @@ _upstream() {
                 ;;
             upstream__subcmd__help,list)
                 cmd="upstream__subcmd__help__subcmd__list"
+                ;;
+            upstream__subcmd__help,migrate)
+                cmd="upstream__subcmd__help__subcmd__migrate"
                 ;;
             upstream__subcmd__help,package)
                 cmd="upstream__subcmd__help__subcmd__package"
@@ -251,7 +263,7 @@ _upstream() {
 
     case "${cmd}" in
         upstream)
-            opts="-y -h -V --yes --help --version install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help"
+            opts="-y -h -V --yes --help --version install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -265,7 +277,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__build)
-            opts="-t -p -c -d -y -h --tag --branch --provider --base-url --channel --desktop --build-profile --dry-run --yes --help <NAME> <REPO_SLUG>"
+            opts="-t -p -c -d -y -h --tag --branch --provider --base-url --channel --desktop --build-profile --dry-run --yes --help <REPO_SLUG> [NAME]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -546,8 +558,78 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        upstream__subcmd__find)
+            opts="-p -k -c -m -e -d -y -h --provider --base-url --limit --name --kind --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --help <QUERY_WORDS>..."
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --provider)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -p)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --base-url)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --limit)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --name)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --kind)
+                    COMPREPLY=($(compgen -W "app-image mac-app mac-dmg archive compressed binary win-exe checksum auto" -- "${cur}"))
+                    return 0
+                    ;;
+                -k)
+                    COMPREPLY=($(compgen -W "app-image mac-app mac-dmg archive compressed binary win-exe checksum auto" -- "${cur}"))
+                    return 0
+                    ;;
+                --channel)
+                    COMPREPLY=($(compgen -W "stable preview nightly" -- "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -W "stable preview nightly" -- "${cur}"))
+                    return 0
+                    ;;
+                --match-pattern)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --exclude-pattern)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -e)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --trust)
+                    COMPREPLY=($(compgen -W "none best-effort checksum signature all" -- "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         upstream__subcmd__help)
-            opts="install build remove rollback reinstall upgrade list changelog probe search config package hooks import export doctor help"
+            opts="install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -700,6 +782,20 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        upstream__subcmd__help__subcmd__find)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         upstream__subcmd__help__subcmd__help)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
@@ -813,6 +909,20 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__list)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__migrate)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1139,7 +1249,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__install)
-            opts="-t -k -p -c -m -e -d -y -h --tag --kind --provider --base-url --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --help <NAME> <REPO_SLUG>"
+            opts="-t -k -p -c -m -e -d -y -h --tag --kind --provider --base-url --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --help <REPO_SLUG> [NAME]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1210,6 +1320,20 @@ _upstream() {
             ;;
         upstream__subcmd__list)
             opts="-y -h --json --yes --help [NAME]"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__migrate)
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1437,7 +1561,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__search)
-            opts="-p -y -h --provider --base-url --limit --json --yes --help <QUERY_WORDS>..."
+            opts="-p -y -h --provider --base-url --limit --language --topic --min-stars --max-stars --pushed-after --include-forks --include-archived --json --yes --help [QUERY_WORDS]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1456,6 +1580,26 @@ _upstream() {
                     return 0
                     ;;
                 --limit)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --language)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --topic)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --min-stars)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --max-stars)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --pushed-after)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
