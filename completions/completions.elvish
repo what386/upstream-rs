@@ -27,7 +27,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand install 'Install a package from an upstream release source'
             cand build 'Build and install from source for release tags without artifacts'
             cand remove 'Remove one or more installed packages'
-            cand rollback 'Restore or prune stored rollback artifacts'
+            cand rollback 'Manage stored rollback artifacts'
             cand reinstall 'Reinstall one or more packages (remove then install)'
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
@@ -95,12 +95,48 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;rollback'= {
-            cand --prune 'Prune rollback artifacts instead of restoring'
-            cand --dry-run 'Preview rollback/prune actions without modifying files or metadata'
             cand -y 'Accept confirmation prompts'
             cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
+            cand restore 'Restore rollback artifacts'
+            cand prune 'Prune stored rollback artifacts'
+            cand list 'List stored rollback artifacts'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;rollback;restore'= {
+            cand --dry-run 'Preview rollback restore actions without modifying files or metadata'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;rollback;prune'= {
+            cand --dry-run 'Preview rollback prune actions without deleting artifacts or metadata'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;rollback;list'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;rollback;help'= {
+            cand restore 'Restore rollback artifacts'
+            cand prune 'Prune stored rollback artifacts'
+            cand list 'List stored rollback artifacts'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;rollback;help;restore'= {
+        }
+        &'upstream;rollback;help;prune'= {
+        }
+        &'upstream;rollback;help;list'= {
+        }
+        &'upstream;rollback;help;help'= {
         }
         &'upstream;reinstall'= {
             cand --trust 'Trust verification mode for release-asset reinstalls'
@@ -175,6 +211,11 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --provider 'Source provider to search (defaults to github)'
             cand --base-url 'Custom base URL for self-hosted providers'
             cand --limit 'Maximum number of results to display'
+            cand --language 'Restrict results to repositories with this primary language'
+            cand --topic 'Restrict results to repositories tagged with this topic'
+            cand --min-stars 'Restrict results to repositories with at least this many stars'
+            cand --max-stars 'Restrict results to repositories with at most this many stars'
+            cand --pushed-after 'Restrict results to repositories pushed on or after YYYY-MM-DD'
             cand --name 'Package name to register without prompting'
             cand -k 'File type to install'
             cand --kind 'File type to install'
@@ -185,6 +226,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand -e 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")'
             cand --exclude-pattern 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")'
             cand --trust 'Trust verification mode for downloaded assets'
+            cand --include-forks 'Include forked repositories in provider search results'
+            cand --include-archived 'Include archived repositories in provider search results'
             cand -d 'Whether or not to create a .desktop entry for GUI applications'
             cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
             cand --dry-run 'Preview install resolution without downloading or writing files'
@@ -384,7 +427,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand install 'Install a package from an upstream release source'
             cand build 'Build and install from source for release tags without artifacts'
             cand remove 'Remove one or more installed packages'
-            cand rollback 'Restore or prune stored rollback artifacts'
+            cand rollback 'Manage stored rollback artifacts'
             cand reinstall 'Reinstall one or more packages (remove then install)'
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
@@ -408,6 +451,15 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;remove'= {
         }
         &'upstream;help;rollback'= {
+            cand restore 'Restore rollback artifacts'
+            cand prune 'Prune stored rollback artifacts'
+            cand list 'List stored rollback artifacts'
+        }
+        &'upstream;help;rollback;restore'= {
+        }
+        &'upstream;help;rollback;prune'= {
+        }
+        &'upstream;help;rollback;list'= {
         }
         &'upstream;help;reinstall'= {
         }

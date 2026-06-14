@@ -30,7 +30,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a package from an upstream release source')
             [CompletionResult]::new('build', 'build', [CompletionResultType]::ParameterValue, 'Build and install from source for release tags without artifacts')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove one or more installed packages')
-            [CompletionResult]::new('rollback', 'rollback', [CompletionResultType]::ParameterValue, 'Restore or prune stored rollback artifacts')
+            [CompletionResult]::new('rollback', 'rollback', [CompletionResultType]::ParameterValue, 'Manage stored rollback artifacts')
             [CompletionResult]::new('reinstall', 'reinstall', [CompletionResultType]::ParameterValue, 'Reinstall one or more packages (remove then install)')
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Upgrade installed packages to their latest versions')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages and their metadata')
@@ -102,12 +102,56 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;rollback' {
-            [CompletionResult]::new('--prune', '--prune', [CompletionResultType]::ParameterName, 'Prune rollback artifacts instead of restoring')
-            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview rollback/prune actions without modifying files or metadata')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Restore rollback artifacts')
+            [CompletionResult]::new('prune', 'prune', [CompletionResultType]::ParameterValue, 'Prune stored rollback artifacts')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List stored rollback artifacts')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;rollback;restore' {
+            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview rollback restore actions without modifying files or metadata')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;rollback;prune' {
+            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview rollback prune actions without deleting artifacts or metadata')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;rollback;list' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;rollback;help' {
+            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Restore rollback artifacts')
+            [CompletionResult]::new('prune', 'prune', [CompletionResultType]::ParameterValue, 'Prune stored rollback artifacts')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List stored rollback artifacts')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;rollback;help;restore' {
+            break
+        }
+        'upstream;rollback;help;prune' {
+            break
+        }
+        'upstream;rollback;help;list' {
+            break
+        }
+        'upstream;rollback;help;help' {
             break
         }
         'upstream;reinstall' {
@@ -189,6 +233,11 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--provider', '--provider', [CompletionResultType]::ParameterName, 'Source provider to search (defaults to github)')
             [CompletionResult]::new('--base-url', '--base-url', [CompletionResultType]::ParameterName, 'Custom base URL for self-hosted providers')
             [CompletionResult]::new('--limit', '--limit', [CompletionResultType]::ParameterName, 'Maximum number of results to display')
+            [CompletionResult]::new('--language', '--language', [CompletionResultType]::ParameterName, 'Restrict results to repositories with this primary language')
+            [CompletionResult]::new('--topic', '--topic', [CompletionResultType]::ParameterName, 'Restrict results to repositories tagged with this topic')
+            [CompletionResult]::new('--min-stars', '--min-stars', [CompletionResultType]::ParameterName, 'Restrict results to repositories with at least this many stars')
+            [CompletionResult]::new('--max-stars', '--max-stars', [CompletionResultType]::ParameterName, 'Restrict results to repositories with at most this many stars')
+            [CompletionResult]::new('--pushed-after', '--pushed-after', [CompletionResultType]::ParameterName, 'Restrict results to repositories pushed on or after YYYY-MM-DD')
             [CompletionResult]::new('--name', '--name', [CompletionResultType]::ParameterName, 'Package name to register without prompting')
             [CompletionResult]::new('-k', '-k', [CompletionResultType]::ParameterName, 'File type to install')
             [CompletionResult]::new('--kind', '--kind', [CompletionResultType]::ParameterName, 'File type to install')
@@ -199,6 +248,8 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('-e', '-e', [CompletionResultType]::ParameterName, 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")')
             [CompletionResult]::new('--exclude-pattern', '--exclude-pattern', [CompletionResultType]::ParameterName, 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")')
             [CompletionResult]::new('--trust', '--trust', [CompletionResultType]::ParameterName, 'Trust verification mode for downloaded assets')
+            [CompletionResult]::new('--include-forks', '--include-forks', [CompletionResultType]::ParameterName, 'Include forked repositories in provider search results')
+            [CompletionResult]::new('--include-archived', '--include-archived', [CompletionResultType]::ParameterName, 'Include archived repositories in provider search results')
             [CompletionResult]::new('-d', '-d', [CompletionResultType]::ParameterName, 'Whether or not to create a .desktop entry for GUI applications')
             [CompletionResult]::new('--desktop', '--desktop', [CompletionResultType]::ParameterName, 'Whether or not to create a .desktop entry for GUI applications')
             [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview install resolution without downloading or writing files')
@@ -436,7 +487,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a package from an upstream release source')
             [CompletionResult]::new('build', 'build', [CompletionResultType]::ParameterValue, 'Build and install from source for release tags without artifacts')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove one or more installed packages')
-            [CompletionResult]::new('rollback', 'rollback', [CompletionResultType]::ParameterValue, 'Restore or prune stored rollback artifacts')
+            [CompletionResult]::new('rollback', 'rollback', [CompletionResultType]::ParameterValue, 'Manage stored rollback artifacts')
             [CompletionResult]::new('reinstall', 'reinstall', [CompletionResultType]::ParameterValue, 'Reinstall one or more packages (remove then install)')
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Upgrade installed packages to their latest versions')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages and their metadata')
@@ -464,6 +515,18 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;rollback' {
+            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Restore rollback artifacts')
+            [CompletionResult]::new('prune', 'prune', [CompletionResultType]::ParameterValue, 'Prune stored rollback artifacts')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List stored rollback artifacts')
+            break
+        }
+        'upstream;help;rollback;restore' {
+            break
+        }
+        'upstream;help;rollback;prune' {
+            break
+        }
+        'upstream;help;rollback;list' {
             break
         }
         'upstream;help;reinstall' {
