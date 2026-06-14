@@ -382,7 +382,7 @@ impl From<&RollbackPreviewRow> for output::TransactionRow {
         output::TransactionRow::single_version(
             row.package.clone(),
             row.version.clone(),
-            row.net_change.clone(),
+            row.net_change,
             ByteEstimate::exact(0),
         )
     }

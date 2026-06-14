@@ -18,17 +18,12 @@ pub enum RollbackSource {
     Remove,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RollbackArtifactFormat {
+    #[default]
     Raw,
     Tgz,
-}
-
-impl Default for RollbackArtifactFormat {
-    fn default() -> Self {
-        Self::Raw
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

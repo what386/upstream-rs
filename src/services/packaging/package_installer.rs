@@ -178,6 +178,7 @@ impl<'a> PackageInstaller<'a> {
         self.finish_transaction(transaction, &package_name, result)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn install_local_artifact<H>(
         &self,
         package_storage: &mut PackageStorage,

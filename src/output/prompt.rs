@@ -62,10 +62,10 @@ pub fn prompt_text(prompt: impl fmt::Display, default: Option<&str>) -> anyhow::
 }
 
 fn resolve_text_prompt_value(input: &str, default: Option<&str>) -> anyhow::Result<String> {
-    if input.is_empty() {
-        if let Some(default) = default {
-            return Ok(default.to_string());
-        }
+    if input.is_empty()
+        && let Some(default) = default
+    {
+        return Ok(default.to_string());
     }
 
     let value = input.trim();

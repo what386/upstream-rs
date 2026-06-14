@@ -303,20 +303,19 @@ impl<'a> RollbackManager<'a> {
         if let (Some(icon_source), Some(icon_target)) = (
             icon_source.as_ref(),
             record.package_snapshot.icon_path.as_ref(),
-        ) {
-            if icon_source.exists() {
-                if let Some(parent) = icon_target.parent() {
-                    fs::create_dir_all(parent).context(format!(
-                        "Failed to create icon parent '{}'",
-                        parent.display()
-                    ))?;
-                }
-                fs::copy(&icon_source, icon_target).context(format!(
-                    "Failed to restore icon from '{}' to '{}'",
-                    icon_source.display(),
-                    icon_target.display()
+        ) && icon_source.exists()
+        {
+            if let Some(parent) = icon_target.parent() {
+                fs::create_dir_all(parent).context(format!(
+                    "Failed to create icon parent '{}'",
+                    parent.display()
                 ))?;
             }
+            fs::copy(icon_source, icon_target).context(format!(
+                "Failed to restore icon from '{}' to '{}'",
+                icon_source.display(),
+                icon_target.display()
+            ))?;
         }
 
         self.package_storage
