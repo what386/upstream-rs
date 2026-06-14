@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    path::{Component, Path, PathBuf},
+    path::{Component, Path},
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -270,7 +270,7 @@ fn sync_symlink(destination: &Path, target: &str) -> Result<()> {
     }
 
     if let Ok(existing) = fs::read_link(destination)
-        && existing == PathBuf::from(target)
+        && existing == Path::new(target)
     {
         return Ok(());
     }
@@ -282,7 +282,7 @@ fn sync_symlink(destination: &Path, target: &str) -> Result<()> {
 
 #[cfg(not(unix))]
 fn sync_symlink(destination: &Path, target: &str) -> Result<()> {
-    let target_path = PathBuf::from(target);
+    let target_path = std::path::PathBuf::from(target);
     if target_path.is_file() {
         copy_file_if_changed(&target_path, destination)
     } else {
