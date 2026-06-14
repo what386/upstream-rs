@@ -6,7 +6,7 @@ use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
-use crate::models::provider::{Asset, Release, RepositorySearchResult};
+use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
 
 #[async_trait(?Send)]
 pub trait ReleaseProvider {
@@ -29,6 +29,7 @@ pub trait ReleaseProvider {
         &self,
         _query: &str,
         _limit: Option<u32>,
+        _filters: &RepositorySearchFilters,
     ) -> Result<Vec<RepositorySearchResult>> {
         Err(anyhow!(
             "Repository search is not supported for this provider"
@@ -81,8 +82,9 @@ where
         &self,
         query: &str,
         limit: Option<u32>,
+        filters: &RepositorySearchFilters,
     ) -> Result<Vec<RepositorySearchResult>> {
-        (*self).search_repositories(query, limit).await
+        (*self).search_repositories(query, limit, filters).await
     }
 
     async fn get_latest_release_if_modified_since(

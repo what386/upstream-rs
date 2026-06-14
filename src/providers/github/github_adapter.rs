@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use std::path::Path;
 
 use crate::models::common::Version;
-use crate::models::provider::{Asset, Release, RepositorySearchResult};
+use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
 use crate::providers::release_provider::ReleaseProvider;
 
 use super::github_client::GithubClient;
@@ -64,8 +64,12 @@ impl GithubAdapter {
         &self,
         query: &str,
         limit: Option<u32>,
+        filters: &RepositorySearchFilters,
     ) -> Result<Vec<RepositorySearchResult>> {
-        let dto = self.client.search_repositories(query, limit).await?;
+        let dto = self
+            .client
+            .search_repositories(query, limit, filters)
+            .await?;
         Ok(dto
             .items
             .into_iter()
@@ -148,8 +152,9 @@ impl ReleaseProvider for GithubAdapter {
         &self,
         query: &str,
         limit: Option<u32>,
+        filters: &RepositorySearchFilters,
     ) -> Result<Vec<RepositorySearchResult>> {
-        GithubAdapter::search_repositories(self, query, limit).await
+        GithubAdapter::search_repositories(self, query, limit, filters).await
     }
 
     async fn download_asset(

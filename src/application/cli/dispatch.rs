@@ -149,8 +149,29 @@ impl Cli {
                 provider,
                 base_url,
                 limit,
+                language,
+                topic,
+                min_stars,
+                pushed_after,
+                include_forks,
+                include_archived,
                 json,
-            } => commands::search::run(query_words, provider, base_url, limit, json).await,
+            } => {
+                commands::search::run(
+                    query_words,
+                    provider,
+                    base_url,
+                    limit,
+                    language,
+                    topic,
+                    min_stars,
+                    pushed_after,
+                    include_forks,
+                    include_archived,
+                    json,
+                )
+                .await
+            }
             Commands::Find {
                 query_words,
                 provider,

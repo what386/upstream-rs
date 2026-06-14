@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use crate::models::common::enums::{Channel, Provider};
-use crate::models::provider::{Asset, Release, RepositorySearchResult};
+use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
 use crate::models::upstream::Package;
 use crate::providers::asset_selector::{AssetCandidate, AssetSelector};
 use crate::providers::gitea::{GiteaAdapter, GiteaClient};
@@ -241,10 +241,11 @@ impl ProviderManager {
         query: &str,
         provider: &Provider,
         limit: Option<u32>,
+        filters: &RepositorySearchFilters,
         base_url: Option<&str>,
     ) -> Result<Vec<RepositorySearchResult>> {
         let resolved = self.resolve_provider(provider, base_url)?;
-        resolved.search_repositories(query, limit).await
+        resolved.search_repositories(query, limit, filters).await
     }
 
     pub async fn get_branch_head_sha(
@@ -310,7 +311,7 @@ impl ProviderManager {
 mod tests {
     use super::ProviderManager;
     use crate::models::common::{Version, enums::Provider};
-    use crate::models::provider::Release;
+    use crate::models::provider::{Release, RepositorySearchFilters};
     use chrono::Utc;
 
     fn make_release(prerelease: bool, tag: &str) -> Release {
@@ -346,7 +347,13 @@ mod tests {
     async fn search_repositories_is_unsupported_for_non_github_providers() {
         let manager = ProviderManager::new(None, None, None).expect("provider manager");
         let err = manager
-            .search_repositories("ripgrep", &Provider::Gitlab, Some(5), None)
+            .search_repositories(
+                "ripgrep",
+                &Provider::Gitlab,
+                Some(5),
+                &RepositorySearchFilters::default(),
+                None,
+            )
             .await
             .expect_err("gitlab search should be unsupported");
 

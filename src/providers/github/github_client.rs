@@ -3,7 +3,7 @@ use reqwest::{Client, header};
 use serde::Deserialize;
 use std::path::Path;
 
-use crate::providers::download_handler;
+use crate::{models::provider::RepositorySearchFilters, providers::download_handler};
 
 use super::github_dtos::{GithubReleaseDto, GithubRepositorySearchResponseDto};
 #[derive(Debug, Deserialize)]
@@ -162,22 +162,72 @@ impl GithubClient {
         &self,
         query: &str,
         limit: Option<u32>,
+        filters: &RepositorySearchFilters,
     ) -> Result<GithubRepositorySearchResponseDto> {
         let per_page = limit.unwrap_or(10).clamp(1, 100);
+        let search_query = Self::build_repository_search_query(query, filters);
         let mut url = reqwest::Url::parse("https://api.github.com/search/repositories")
             .context("Failed to build GitHub search URL")?;
         url.query_pairs_mut()
-            .append_pair("q", query)
+            .append_pair("q", &search_query)
             .append_pair("per_page", &per_page.to_string());
 
-        self.get_json(url.as_str())
-            .await
-            .context(format!("Failed to search repositories for '{}'", query))
+        self.get_json(url.as_str()).await.context(format!(
+            "Failed to search repositories for '{}'",
+            search_query
+        ))
+    }
+
+    fn build_repository_search_query(query: &str, filters: &RepositorySearchFilters) -> String {
+        let mut parts = vec![query.trim().to_string()];
+
+        if let Some(language) = &filters.language {
+            parts.push(format!(
+                "language:{}",
+                Self::format_search_qualifier_value(language)
+            ));
+        }
+        if let Some(topic) = &filters.topic {
+            parts.push(format!(
+                "topic:{}",
+                Self::format_search_qualifier_value(topic)
+            ));
+        }
+        if let Some(min_stars) = filters.min_stars {
+            parts.push(format!("stars:>={min_stars}"));
+        }
+        if let Some(pushed_after) = filters.pushed_after {
+            parts.push(format!("pushed:>={pushed_after}"));
+        }
+        if filters.include_forks {
+            parts.push("fork:true".to_string());
+        }
+        if !filters.include_archived {
+            parts.push("archived:false".to_string());
+        }
+
+        parts
+            .into_iter()
+            .filter(|part| !part.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    fn format_search_qualifier_value(value: &str) -> String {
+        if value.chars().any(char::is_whitespace) {
+            format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
+        } else {
+            value.to_string()
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use chrono::NaiveDate;
+
+    use crate::models::provider::RepositorySearchFilters;
+    use crate::providers::github::GithubClient;
     use crate::providers::github::github_dtos::{
         GithubReleaseDto, GithubRepositorySearchResponseDto,
     };
@@ -239,5 +289,39 @@ mod tests {
         assert_eq!(parsed.items[0].description, "");
         assert_eq!(parsed.items[0].language, "");
         assert_eq!(parsed.items[0].updated_at, "");
+    }
+
+    #[test]
+    fn build_repository_search_query_adds_discovery_filters() {
+        let filters = RepositorySearchFilters::new(
+            Some("Rust".to_string()),
+            Some("cli".to_string()),
+            Some(100),
+            Some(NaiveDate::from_ymd_opt(2026, 1, 2).unwrap()),
+            true,
+            false,
+        );
+
+        assert_eq!(
+            GithubClient::build_repository_search_query("fast search", &filters),
+            "fast search language:Rust topic:cli stars:>=100 pushed:>=2026-01-02 fork:true archived:false"
+        );
+    }
+
+    #[test]
+    fn build_repository_search_query_quotes_multi_word_qualifier_values() {
+        let filters = RepositorySearchFilters::new(
+            Some("Common Lisp".to_string()),
+            None,
+            None,
+            None,
+            false,
+            false,
+        );
+
+        assert_eq!(
+            GithubClient::build_repository_search_query("editor", &filters),
+            "editor language:\"Common Lisp\" archived:false"
+        );
     }
 }

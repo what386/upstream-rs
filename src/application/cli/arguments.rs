@@ -1,4 +1,5 @@
 use crate::models::common::enums::{Channel, Filetype, Provider, TrustMode};
+use chrono::NaiveDate;
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -366,6 +367,7 @@ pub enum Commands {
         Defaults to GitHub when provider is omitted.\n\n\
         EXAMPLES:\n  \
         upstream search ripgrep\n  \
+        upstream search editor --language Rust --min-stars 100\n  \
         upstream search rip grep --limit 5\n  \
         upstream search my tool -p github\n  \
         upstream search widget -p gitlab --base-url https://gitlab.example.com\n  \
@@ -386,6 +388,30 @@ pub enum Commands {
         /// Maximum number of results to display
         #[arg(long, default_value_t = 10)]
         limit: u32,
+
+        /// Restrict results to repositories with this primary language
+        #[arg(long)]
+        language: Option<String>,
+
+        /// Restrict results to repositories tagged with this topic
+        #[arg(long)]
+        topic: Option<String>,
+
+        /// Restrict results to repositories with at least this many stars
+        #[arg(long, value_name = "N")]
+        min_stars: Option<u64>,
+
+        /// Restrict results to repositories pushed on or after YYYY-MM-DD
+        #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_search_date)]
+        pushed_after: Option<NaiveDate>,
+
+        /// Include forked repositories in provider search results
+        #[arg(long, default_value_t = false)]
+        include_forks: bool,
+
+        /// Include archived repositories in provider search results
+        #[arg(long, default_value_t = false)]
+        include_archived: bool,
 
         /// Print search results as JSON
         #[arg(long, default_value_t = false)]
@@ -581,6 +607,11 @@ pub enum Commands {
         #[arg(long, default_value_t = false)]
         json: bool,
     },
+}
+
+fn parse_search_date(raw: &str) -> Result<NaiveDate, String> {
+    NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+        .map_err(|_| format!("expected date in YYYY-MM-DD format, got '{raw}'"))
 }
 
 impl Commands {

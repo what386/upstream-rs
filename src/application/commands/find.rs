@@ -5,7 +5,7 @@ use crate::{
     application::commands::{install, search},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
-        provider::RepositorySearchResult,
+        provider::{RepositorySearchFilters, RepositorySearchResult},
     },
     output,
 };
@@ -31,7 +31,14 @@ pub async fn run(
         return Ok(());
     }
 
-    let search = search::search_repositories(query, provider, base_url, limit).await?;
+    let search = search::search_repositories(
+        query,
+        provider,
+        base_url,
+        limit,
+        RepositorySearchFilters::default(),
+    )
+    .await?;
     if search.results.is_empty() {
         println!("{}", output::warning("No repositories found."));
         return Ok(());

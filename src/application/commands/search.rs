@@ -1,9 +1,12 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 
 use crate::{
-    models::{common::enums::Provider, provider::RepositorySearchResult},
+    models::{
+        common::enums::Provider,
+        provider::{RepositorySearchFilters, RepositorySearchResult},
+    },
     output,
     output::pager,
     providers::provider_manager::ProviderManager,
@@ -17,17 +20,33 @@ pub struct SearchResults {
     pub provider: Provider,
     pub base_url: Option<String>,
     pub limit: u32,
+    pub filters: RepositorySearchFilters,
     pub results: Vec<RepositorySearchResult>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     query_words: Vec<String>,
     provider: Option<Provider>,
     base_url: Option<String>,
     limit: u32,
+    language: Option<String>,
+    topic: Option<String>,
+    min_stars: Option<u64>,
+    pushed_after: Option<NaiveDate>,
+    include_forks: bool,
+    include_archived: bool,
     json: bool,
 ) -> Result<()> {
     let query = query_words.join(" ").trim().to_string();
+    let filters = RepositorySearchFilters::new(
+        language,
+        topic,
+        min_stars,
+        pushed_after,
+        include_forks,
+        include_archived,
+    );
     if query.is_empty() {
         if json {
             let result = json_search_result(
@@ -35,6 +54,7 @@ pub async fn run(
                 &provider.unwrap_or(Provider::Github),
                 None,
                 limit,
+                &filters,
                 &[],
             );
             println!("{}", serde_json::to_string_pretty(&result)?);
@@ -44,11 +64,12 @@ pub async fn run(
         return Ok(());
     }
 
-    let search = search_repositories(query, provider, base_url, limit).await?;
+    let search = search_repositories(query, provider, base_url, limit, filters).await?;
     let query = search.query;
     let effective_provider = search.provider;
     let base_url = search.base_url;
     let limit = search.limit;
+    let filters = search.filters;
     let results = search.results;
 
     if results.is_empty() {
@@ -58,6 +79,7 @@ pub async fn run(
                 &effective_provider,
                 base_url.as_deref(),
                 limit,
+                &filters,
                 &results,
             );
             println!("{}", serde_json::to_string_pretty(&result)?);
@@ -73,6 +95,7 @@ pub async fn run(
             &effective_provider,
             base_url.as_deref(),
             limit,
+            &filters,
             &results,
         );
         println!("{}", serde_json::to_string_pretty(&result)?);
@@ -89,6 +112,7 @@ pub async fn search_repositories(
     provider: Option<Provider>,
     base_url: Option<String>,
     limit: u32,
+    filters: RepositorySearchFilters,
 ) -> Result<SearchResults> {
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
@@ -107,6 +131,7 @@ pub async fn search_repositories(
             &query,
             &effective_provider,
             Some(effective_limit),
+            &filters,
             base_url.as_deref(),
         )
         .await?;
@@ -116,6 +141,7 @@ pub async fn search_repositories(
         provider: effective_provider,
         base_url,
         limit: effective_limit,
+        filters,
         results,
     })
 }
@@ -126,6 +152,7 @@ struct JsonSearchResult {
     provider: String,
     base_url: Option<String>,
     limit: u32,
+    filters: RepositorySearchFilters,
     results: Vec<JsonRepositorySearchResult>,
 }
 
@@ -144,6 +171,7 @@ fn json_search_result(
     provider: &Provider,
     base_url: Option<&str>,
     limit: u32,
+    filters: &RepositorySearchFilters,
     results: &[RepositorySearchResult],
 ) -> JsonSearchResult {
     JsonSearchResult {
@@ -151,6 +179,7 @@ fn json_search_result(
         provider: provider.to_string(),
         base_url: base_url.map(str::to_string),
         limit,
+        filters: filters.clone(),
         results: results
             .iter()
             .map(|result| JsonRepositorySearchResult {
@@ -337,7 +366,10 @@ impl SearchColumnWidths {
 #[cfg(test)]
 mod tests {
     use super::{format_relative_updated_with_now, format_stars, json_search_result, truncate};
-    use crate::models::{common::enums::Provider, provider::RepositorySearchResult};
+    use crate::models::{
+        common::enums::Provider,
+        provider::{RepositorySearchFilters, RepositorySearchResult},
+    };
     use chrono::{Duration, TimeZone, Utc};
 
     #[test]
@@ -385,6 +417,14 @@ mod tests {
             &Provider::Github,
             None,
             10,
+            &RepositorySearchFilters::new(
+                Some("Rust".to_string()),
+                Some("cli".to_string()),
+                Some(100),
+                None,
+                false,
+                false,
+            ),
             &[RepositorySearchResult {
                 repo_slug: "BurntSushi/ripgrep".to_string(),
                 display_name: "ripgrep".to_string(),
@@ -403,5 +443,9 @@ mod tests {
             json["results"][0]["updated_at"],
             "2026-06-12T01:02:03+00:00"
         );
+        assert_eq!(json["filters"]["language"], "Rust");
+        assert_eq!(json["filters"]["topic"], "cli");
+        assert_eq!(json["filters"]["min_stars"], 100);
+        assert_eq!(json["filters"]["include_archived"], false);
     }
 }
