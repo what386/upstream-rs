@@ -33,6 +33,7 @@ pub async fn run(
     language: Option<String>,
     topic: Option<String>,
     min_stars: Option<u64>,
+    max_stars: Option<u64>,
     pushed_after: Option<NaiveDate>,
     include_forks: bool,
     include_archived: bool,
@@ -43,6 +44,7 @@ pub async fn run(
         language,
         topic,
         min_stars,
+        max_stars,
         pushed_after,
         include_forks,
         include_archived,
@@ -409,6 +411,7 @@ mod tests {
                 Some("Rust".to_string()),
                 Some("cli".to_string()),
                 Some(100),
+                Some(100_000),
                 None,
                 false,
                 false,
@@ -434,6 +437,7 @@ mod tests {
         assert_eq!(json["filters"]["language"], "Rust");
         assert_eq!(json["filters"]["topic"], "cli");
         assert_eq!(json["filters"]["min_stars"], 100);
+        assert_eq!(json["filters"]["max_stars"], 100_000);
         assert_eq!(json["filters"]["include_archived"], false);
     }
 }

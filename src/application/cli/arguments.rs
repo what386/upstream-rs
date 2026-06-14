@@ -402,6 +402,10 @@ pub enum Commands {
         #[arg(long, value_name = "N")]
         min_stars: Option<u64>,
 
+        /// Restrict results to repositories with at most this many stars
+        #[arg(long, value_name = "N")]
+        max_stars: Option<u64>,
+
         /// Restrict results to repositories pushed on or after YYYY-MM-DD
         #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_search_date)]
         pushed_after: Option<NaiveDate>,
