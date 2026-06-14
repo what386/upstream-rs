@@ -196,6 +196,9 @@ impl GithubClient {
         if let Some(min_stars) = filters.min_stars {
             parts.push(format!("stars:>={min_stars}"));
         }
+        if let Some(max_stars) = filters.max_stars {
+            parts.push(format!("stars:<={max_stars}"));
+        }
         if let Some(pushed_after) = filters.pushed_after {
             parts.push(format!("pushed:>={pushed_after}"));
         }
@@ -301,6 +304,7 @@ mod tests {
             Some("Rust".to_string()),
             Some("cli".to_string()),
             Some(100),
+            Some(50_000),
             Some(NaiveDate::from_ymd_opt(2026, 1, 2).unwrap()),
             true,
             false,
@@ -308,7 +312,7 @@ mod tests {
 
         assert_eq!(
             GithubClient::build_repository_search_query("fast search", &filters),
-            "fast search language:Rust topic:cli stars:>=100 pushed:>=2026-01-02 fork:true archived:false"
+            "fast search language:Rust topic:cli stars:>=100 stars:<=50000 pushed:>=2026-01-02 fork:true archived:false"
         );
     }
 
@@ -316,6 +320,7 @@ mod tests {
     fn build_repository_search_query_quotes_multi_word_qualifier_values() {
         let filters = RepositorySearchFilters::new(
             Some("Common Lisp".to_string()),
+            None,
             None,
             None,
             None,
@@ -331,7 +336,7 @@ mod tests {
 
     #[test]
     fn build_repository_search_query_falls_back_when_query_and_filters_are_empty() {
-        let filters = RepositorySearchFilters::new(None, None, None, None, false, true);
+        let filters = RepositorySearchFilters::new(None, None, None, None, None, false, true);
 
         assert_eq!(
             GithubClient::build_repository_search_query("", &filters),

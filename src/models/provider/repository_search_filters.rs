@@ -10,6 +10,8 @@ pub struct RepositorySearchFilters {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_stars: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_stars: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pushed_after: Option<NaiveDate>,
     pub include_forks: bool,
     pub include_archived: bool,
@@ -20,6 +22,7 @@ impl RepositorySearchFilters {
         language: Option<String>,
         topic: Option<String>,
         min_stars: Option<u64>,
+        max_stars: Option<u64>,
         pushed_after: Option<NaiveDate>,
         include_forks: bool,
         include_archived: bool,
@@ -28,6 +31,7 @@ impl RepositorySearchFilters {
             language: normalize_filter_value(language),
             topic: normalize_filter_value(topic),
             min_stars,
+            max_stars,
             pushed_after,
             include_forks,
             include_archived,
