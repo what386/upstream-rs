@@ -163,7 +163,7 @@ upstream doctor [names...] [--verbose] [--fix]
 
 - `list` shows installed package metadata.
 - `changelog` shows release notes for installed packages.
-- `search` searches provider repositories for software discovery. Use filters like `--language Rust`, `--topic cli`, `--min-stars 100`, `--pushed-after 2026-01-01`, `--include-forks`, and `--include-archived` to narrow results.
+- `search` searches provider repositories for software discovery. Use filters like `--language Rust`, `--topic cli`, `--min-stars 100`, `--max-stars 50000`, `--pushed-after 2026-01-01`, `--include-forks`, and `--include-archived` to narrow results.
 - `find` searches provider repositories, opens an interactive picker, prompts for the package name with an inferred default, and installs the selected result. Use `--name` to skip the prompt.
 - `probe` shows releases and candidate assets without installing.
 - `doctor` checks paths, symlinks, hooks, cached completions, desktop entries, and package metadata. `--fix` copies cached completions back into shell completion directories when they drift.
