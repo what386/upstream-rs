@@ -11,3 +11,6 @@
 - [ ] feat: make rollback have subcommands
       @created 2026-06-14 17:49
 
+- [ ] fix stale wording in helptext
+      @created 2026-06-14 17:49
+
