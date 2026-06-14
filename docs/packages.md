@@ -84,26 +84,27 @@ Reinstall removes the current package, then reinstalls from stored metadata. Rel
 
 ## Rollback
 
-Removal, reinstall, and upgrade flows can capture rollback artifacts. Mutating package operations are also recorded in `$HOME/.upstream/metadata/transactions.json` so rollback can restore the latest reversible transaction when no package names are provided.
+Removal, reinstall, and upgrade flows can capture rollback artifacts. Mutating package operations are also recorded in `$HOME/.upstream/metadata/transactions.json` so `rollback restore` can restore the latest reversible transaction.
 
 Restore a specific package with:
 
 ```bash
-upstream rollback <name>
+upstream rollback restore <name>
 ```
 
 Restore the latest reversible transaction with:
 
 ```bash
-upstream rollback
+upstream rollback restore
 ```
 
 Preview or prune rollback data:
 
 ```bash
-upstream rollback <name> --dry-run
-upstream rollback --prune
-upstream rollback --prune <name>
+upstream rollback restore <name> --dry-run
+upstream rollback list
+upstream rollback prune
+upstream rollback prune <name>
 ```
 
 ## Pinning and Renaming

@@ -112,19 +112,19 @@ upstream package unpin <name>
 If an upgrade or removal captured rollback data, restore it with:
 
 ```bash
-upstream rollback <name>
+upstream rollback restore <name>
 ```
 
 Preview first:
 
 ```bash
-upstream rollback <name> --dry-run
+upstream rollback restore <name> --dry-run
 ```
 
 Remove old rollback artifacts:
 
 ```bash
-upstream rollback --prune
+upstream rollback prune
 ```
 
 ## Build Failures
