@@ -87,7 +87,7 @@ upstream install BurntSushi/ripgrep rg --dry-run
 Search for repositories:
 
 ```bash
-upstream search ripgrep
+upstream search ripgrep --language Rust
 ```
 
 Search interactively and install a selected result:
