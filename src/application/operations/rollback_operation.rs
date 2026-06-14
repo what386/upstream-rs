@@ -12,8 +12,8 @@ use crate::{
             package_storage::PackageStorage,
             rollback_storage::{RollbackSource, RollbackStorage},
             transaction_storage::{
-                TransactionKind, TransactionLog, package_failed, package_skipped, package_success,
-                planned_packages,
+                TransactionKind, TransactionLog, TransactionStorage, UndoActionKind,
+                package_failed, package_skipped, package_success, planned_packages,
             },
         },
     },
@@ -53,6 +53,13 @@ pub struct RollbackRestorePreview {
 pub struct RollbackPrunePreview {
     pub target_names: Vec<String>,
     pub preview: RollbackPreview,
+}
+
+pub struct RollbackListRow {
+    pub name: String,
+    pub version: String,
+    pub source: RollbackSource,
+    pub install_path: String,
 }
 
 pub enum RollbackPackageStatus {
@@ -130,6 +137,40 @@ impl RollbackOperation {
             .collect();
 
         Ok(RollbackRestorePreview { preview, targets })
+    }
+
+    pub fn latest_restore_names(&self) -> Result<Option<Vec<String>>> {
+        let transactions_file = self.paths.dirs.metadata_dir.join("transactions.json");
+        let storage = TransactionStorage::new(&transactions_file)?;
+        Ok(storage.all().iter().rev().find_map(|transaction| {
+            if !transaction.is_reversible() {
+                return None;
+            }
+            let undo = transaction.undo.as_ref()?;
+            (undo.kind == UndoActionKind::RestoreRollback).then(|| undo.packages.clone())
+        }))
+    }
+
+    pub fn list_rows(&mut self) -> Vec<RollbackListRow> {
+        let manager = self.manager();
+        manager
+            .rollback_packages()
+            .into_iter()
+            .filter_map(|name| {
+                let record = manager.rollback_record(&name)?;
+                let package = &record.package_snapshot;
+                Some(RollbackListRow {
+                    name,
+                    version: package.version.to_string(),
+                    source: record.source.clone(),
+                    install_path: package
+                        .install_path
+                        .as_ref()
+                        .map(|path| path.display().to_string())
+                        .unwrap_or_else(|| "-".to_string()),
+                })
+            })
+            .collect()
     }
 
     pub fn restorable_names(&mut self, names: &[String]) -> Vec<String> {
