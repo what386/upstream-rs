@@ -155,7 +155,7 @@ Pinning prevents upgrades. Renaming changes the local alias without reinstalling
 ```bash
 upstream list [name] [--json]
 upstream changelog <name> [--from <tag>] [--to <tag>]
-upstream search <query...> [-p <provider>] [--base-url <url>] [--limit <n>] [filters]
+upstream search [query...] [-p <provider>] [--base-url <url>] [--limit <n>] [filters]
 upstream find <query...> [-p <provider>] [--limit <n>] [--name <name>] [install options]
 upstream probe <repo-or-url> [-p <provider>] [--channel <channel>] [--limit <n>] [--verbose]
 upstream doctor [names...] [--verbose] [--fix]
