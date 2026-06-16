@@ -15,7 +15,7 @@ $BINARY_NAME = "upstream"
 
 $INSTALL_COMMANDS = @(
     @("hooks", "init"),
-    @("--yes", "install", "upstream", "what386/upstream-rs", "-k", "win-exe")
+    @("--yes", "install", "what386/upstream-rs", "upstream", "-k", "win-exe")
 )
 
 function Write-ColorOutput {

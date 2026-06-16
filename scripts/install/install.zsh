@@ -14,7 +14,7 @@ OS="apple-darwin"
 
 INSTALL_COMMANDS=(
   "hooks init"
-  "--yes install upstream what386/upstream-rs -k binary"
+  "--yes install what386/upstream-rs upstream -k binary"
 )
 
 detect_arch() {
