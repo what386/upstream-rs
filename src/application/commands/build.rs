@@ -32,7 +32,12 @@ pub async fn run(
     let gitea_token = app_config.gitea.api_token.as_deref();
     let trusted_keys = app_config.trusted_signature_keys();
 
-    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
+    let provider_manager = ProviderManager::new_with_download_config(
+        github_token,
+        gitlab_token,
+        gitea_token,
+        app_config.download,
+    )?;
     let name = resolve_package_name(name, &repo_slug, provider.as_ref(), base_url.as_deref())?;
     let mut operation = BuildOperation::new(
         &provider_manager,

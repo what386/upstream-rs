@@ -33,7 +33,12 @@ pub async fn run(
     let gitlab_token = app_config.gitlab.api_token.as_deref();
     let gitea_token = app_config.gitea.api_token.as_deref();
 
-    let provider_manager = ProviderManager::new(github_token, gitlab_token, gitea_token)?;
+    let provider_manager = ProviderManager::new_with_download_config(
+        github_token,
+        gitlab_token,
+        gitea_token,
+        app_config.download,
+    )?;
 
     let mut probe_notes = Vec::new();
     let (effective_repo_slug, effective_provider, effective_base_url, mut releases) =

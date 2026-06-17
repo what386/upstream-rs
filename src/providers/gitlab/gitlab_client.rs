@@ -3,7 +3,7 @@ use reqwest::{Client, header};
 use serde::Deserialize;
 use std::path::Path;
 
-use crate::providers::download_handler;
+use crate::{models::upstream::DownloadConfig, providers::download_handler};
 
 use super::gitlab_dtos::GitlabReleaseDto;
 #[derive(Debug, Deserialize)]
@@ -20,10 +20,19 @@ struct GitlabBranchDto {
 pub struct GitlabClient {
     client: Client,
     base_url: String,
+    download_config: DownloadConfig,
 }
 
 impl GitlabClient {
     pub fn new(token: Option<&str>, base_url: Option<&str>) -> Result<Self> {
+        Self::new_with_download_config(token, base_url, DownloadConfig::default())
+    }
+
+    pub fn new_with_download_config(
+        token: Option<&str>,
+        base_url: Option<&str>,
+        download_config: DownloadConfig,
+    ) -> Result<Self> {
         let mut base = base_url.unwrap_or("https://gitlab.com").to_string();
 
         if !base.starts_with("http://") && !base.starts_with("https://") {
@@ -54,6 +63,7 @@ impl GitlabClient {
         Ok(Self {
             client,
             base_url: base,
+            download_config,
         })
     }
 
@@ -86,7 +96,14 @@ impl GitlabClient {
     where
         F: FnMut(u64, u64),
     {
-        download_handler::download_file(&self.client, url, destination, progress).await
+        download_handler::download_file_with_config(
+            &self.client,
+            url,
+            destination,
+            progress,
+            self.download_config,
+        )
+        .await
     }
 
     fn encode_project_path(project_path: &str) -> String {

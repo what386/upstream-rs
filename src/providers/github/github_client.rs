@@ -3,7 +3,10 @@ use reqwest::{Client, header};
 use serde::Deserialize;
 use std::path::Path;
 
-use crate::{models::provider::RepositorySearchFilters, providers::download_handler};
+use crate::{
+    models::{provider::RepositorySearchFilters, upstream::DownloadConfig},
+    providers::download_handler,
+};
 
 use super::github_dtos::{GithubReleaseDto, GithubRepositorySearchResponseDto};
 #[derive(Debug, Deserialize)]
@@ -14,10 +17,18 @@ struct GithubCommitDto {
 #[derive(Debug, Clone)]
 pub struct GithubClient {
     client: Client,
+    download_config: DownloadConfig,
 }
 
 impl GithubClient {
     pub fn new(token: Option<&str>) -> Result<Self> {
+        Self::new_with_download_config(token, DownloadConfig::default())
+    }
+
+    pub fn new_with_download_config(
+        token: Option<&str>,
+        download_config: DownloadConfig,
+    ) -> Result<Self> {
         let mut headers = header::HeaderMap::new();
 
         let user_agent = format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
@@ -41,7 +52,10 @@ impl GithubClient {
             .build()
             .context("Failed to build HTTP client")?;
 
-        Ok(Self { client })
+        Ok(Self {
+            client,
+            download_config,
+        })
     }
 
     async fn get_json<T: for<'de> Deserialize<'de>>(&self, url: &str) -> Result<T> {
@@ -73,7 +87,14 @@ impl GithubClient {
     where
         F: FnMut(u64, u64),
     {
-        download_handler::download_file(&self.client, url, destination, progress).await
+        download_handler::download_file_with_config(
+            &self.client,
+            url,
+            destination,
+            progress,
+            self.download_config,
+        )
+        .await
     }
 
     pub async fn get_release_by_tag(
