@@ -579,7 +579,7 @@ async fn move_temp_file(temp_path: &Path, destination: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{download_file_with_options, worker_count_for_size};
+    use super::{download_file_with_options};
     use crate::models::upstream::DownloadConfig;
     use reqwest::Client;
     use std::collections::HashMap;
@@ -590,8 +590,6 @@ mod tests {
     use std::thread;
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
-
-    const MB: u64 = 1024 * 1024;
 
     struct TestRequest {
         method: String,

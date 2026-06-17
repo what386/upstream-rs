@@ -1,7 +1,9 @@
 use std::env;
 #[cfg(unix)]
 use std::fs;
-use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use std::path::Path;
+use std::path::PathBuf;
 
 const SUPPORTED_SHELLS: &[&str] = &["bash", "sh", "zsh", "fish", "nu"];
 
@@ -81,6 +83,7 @@ fn shell_commands_from_paths<'a>(shell_paths: impl IntoIterator<Item = &'a str>)
     shells
 }
 
+#[cfg(unix)]
 fn push_unique(shells: &mut Vec<String>, shell: String) {
     if !shells.contains(&shell) {
         shells.push(shell);
