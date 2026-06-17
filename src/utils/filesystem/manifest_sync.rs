@@ -293,6 +293,7 @@ fn sync_symlink(destination: &Path, target: &str) -> Result<()> {
     }
 }
 
+#[cfg(unix)]
 fn remove_existing_path(path: &Path) -> Result<()> {
     let Ok(metadata) = fs::symlink_metadata(path) else {
         return Ok(());
