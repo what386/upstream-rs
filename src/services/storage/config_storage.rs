@@ -311,6 +311,10 @@ mod tests {
         assert!(!path.exists());
         assert!(storage.get_config().github.api_token.is_none());
         assert!(storage.get_config().gitlab.api_token.is_none());
+        assert_eq!(storage.get_config().download.low_threshold_mb, 16);
+        assert_eq!(storage.get_config().download.high_threshold_mb, 64);
+        assert_eq!(storage.get_config().download.low_threads, 2);
+        assert_eq!(storage.get_config().download.high_threads, 4);
 
         cleanup(&path).expect("cleanup");
     }
@@ -329,6 +333,12 @@ mod tests {
         storage
             .try_set_value("gitlab.api_token", "\"abc\"")
             .expect("set string literal");
+        storage
+            .try_set_value("download.low_threshold_mb", "8")
+            .expect("set low threshold");
+        storage
+            .try_set_value("download.high_threads", "6")
+            .expect("set high threads");
 
         let github_token: Option<String> = storage
             .try_get_value("github.api_token")
@@ -336,9 +346,17 @@ mod tests {
         let token: Option<String> = storage
             .try_get_value("gitlab.api_token")
             .expect("read token");
+        let low_threshold: u64 = storage
+            .try_get_value("download.low_threshold_mb")
+            .expect("read low threshold");
+        let high_threads: usize = storage
+            .try_get_value("download.high_threads")
+            .expect("read high threads");
 
         assert_eq!(github_token.as_deref(), Some("ghp_abc"));
         assert_eq!(token.as_deref(), Some("abc"));
+        assert_eq!(low_threshold, 8);
+        assert_eq!(high_threads, 6);
 
         cleanup(&path).expect("cleanup");
     }

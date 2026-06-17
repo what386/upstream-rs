@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use crate::models::common::enums::{Channel, Provider};
 use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
-use crate::models::upstream::Package;
+use crate::models::upstream::{DownloadConfig, Package};
 use crate::providers::asset_selector::{AssetCandidate, AssetSelector};
 use crate::providers::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::github::{GithubAdapter, GithubClient};
@@ -18,6 +18,7 @@ pub struct ProviderManager {
     github_token: Option<String>,
     gitlab_token: Option<String>,
     gitea_token: Option<String>,
+    download_config: DownloadConfig,
 
     github: OnceLock<GithubAdapter>,
     gitlab: OnceLock<GitlabAdapter>,
@@ -34,10 +35,25 @@ impl ProviderManager {
         gitlab_token: Option<&str>,
         gitea_token: Option<&str>,
     ) -> Result<Self> {
+        Self::new_with_download_config(
+            github_token,
+            gitlab_token,
+            gitea_token,
+            DownloadConfig::default(),
+        )
+    }
+
+    pub fn new_with_download_config(
+        github_token: Option<&str>,
+        gitlab_token: Option<&str>,
+        gitea_token: Option<&str>,
+        download_config: DownloadConfig,
+    ) -> Result<Self> {
         Ok(Self {
             github_token: github_token.map(str::to_string),
             gitlab_token: gitlab_token.map(str::to_string),
             gitea_token: gitea_token.map(str::to_string),
+            download_config,
             github: OnceLock::new(),
             gitlab: OnceLock::new(),
             gitea: OnceLock::new(),
@@ -54,7 +70,11 @@ impl ProviderManager {
             return Ok(adapter);
         }
 
-        let adapter = GithubClient::new(self.github_token.as_deref()).map(GithubAdapter::new)?;
+        let adapter = GithubClient::new_with_download_config(
+            self.github_token.as_deref(),
+            self.download_config,
+        )
+        .map(GithubAdapter::new)?;
         Ok(self.github.get_or_init(|| adapter))
     }
 
@@ -63,8 +83,12 @@ impl ProviderManager {
             return Ok(adapter);
         }
 
-        let adapter =
-            GitlabClient::new(self.gitlab_token.as_deref(), None).map(GitlabAdapter::new)?;
+        let adapter = GitlabClient::new_with_download_config(
+            self.gitlab_token.as_deref(),
+            None,
+            self.download_config,
+        )
+        .map(GitlabAdapter::new)?;
         Ok(self.gitlab.get_or_init(|| adapter))
     }
 
@@ -73,7 +97,12 @@ impl ProviderManager {
             return Ok(adapter);
         }
 
-        let adapter = GiteaClient::new(self.gitea_token.as_deref(), None).map(GiteaAdapter::new)?;
+        let adapter = GiteaClient::new_with_download_config(
+            self.gitea_token.as_deref(),
+            None,
+            self.download_config,
+        )
+        .map(GiteaAdapter::new)?;
         Ok(self.gitea.get_or_init(|| adapter))
     }
 
@@ -82,7 +111,8 @@ impl ProviderManager {
             return Ok(adapter);
         }
 
-        let adapter = HttpClient::new().map(WebScraperAdapter::new)?;
+        let adapter = HttpClient::new_with_download_config(self.download_config)
+            .map(WebScraperAdapter::new)?;
         Ok(self.http.get_or_init(|| adapter))
     }
 
@@ -91,7 +121,8 @@ impl ProviderManager {
             return Ok(adapter);
         }
 
-        let adapter = HttpClient::new().map(DirectAdapter::new)?;
+        let adapter =
+            HttpClient::new_with_download_config(self.download_config).map(DirectAdapter::new)?;
         Ok(self.direct.get_or_init(|| adapter))
     }
 
@@ -104,9 +135,10 @@ impl ProviderManager {
             Provider::Github => Ok(Box::new(self.github_adapter()?)),
             Provider::Gitlab => {
                 if let Some(base) = base_url {
-                    let adapter = GitlabAdapter::new(GitlabClient::new(
+                    let adapter = GitlabAdapter::new(GitlabClient::new_with_download_config(
                         self.gitlab_token.as_deref(),
                         Some(base),
+                        self.download_config,
                     )?);
                     Ok(Box::new(adapter))
                 } else {
@@ -115,9 +147,10 @@ impl ProviderManager {
             }
             Provider::Gitea => {
                 if let Some(base) = base_url {
-                    let adapter = GiteaAdapter::new(GiteaClient::new(
+                    let adapter = GiteaAdapter::new(GiteaClient::new_with_download_config(
                         self.gitea_token.as_deref(),
                         Some(base),
+                        self.download_config,
                     )?);
                     Ok(Box::new(adapter))
                 } else {

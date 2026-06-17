@@ -3,7 +3,7 @@ use reqwest::{Client, header};
 use serde::Deserialize;
 use std::path::Path;
 
-use crate::providers::download_handler;
+use crate::{models::upstream::DownloadConfig, providers::download_handler};
 
 use super::gitea_dtos::GiteaReleaseDto;
 #[derive(Debug, Deserialize)]
@@ -23,10 +23,19 @@ struct GiteaBranchDto {
 pub struct GiteaClient {
     client: Client,
     base_url: String,
+    download_config: DownloadConfig,
 }
 
 impl GiteaClient {
     pub fn new(token: Option<&str>, base_url: Option<&str>) -> Result<Self> {
+        Self::new_with_download_config(token, base_url, DownloadConfig::default())
+    }
+
+    pub fn new_with_download_config(
+        token: Option<&str>,
+        base_url: Option<&str>,
+        download_config: DownloadConfig,
+    ) -> Result<Self> {
         let mut base = base_url.unwrap_or("https://gitea.com").to_string();
 
         if !base.starts_with("http://") && !base.starts_with("https://") {
@@ -59,6 +68,7 @@ impl GiteaClient {
         Ok(Self {
             client,
             base_url: base,
+            download_config,
         })
     }
 
@@ -91,7 +101,14 @@ impl GiteaClient {
     where
         F: FnMut(u64, u64),
     {
-        download_handler::download_file(&self.client, url, destination, progress).await
+        download_handler::download_file_with_config(
+            &self.client,
+            url,
+            destination,
+            progress,
+            self.download_config,
+        )
+        .await
     }
 
     pub async fn get_release_by_tag(&self, owner_repo: &str, tag: &str) -> Result<GiteaReleaseDto> {

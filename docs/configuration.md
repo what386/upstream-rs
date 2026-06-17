@@ -40,6 +40,28 @@ gitea.api_token
 
 Tokens are used for API requests to the corresponding provider. They are useful for private repositories, self-hosted instances, or avoiding anonymous rate limits.
 
+## Download Concurrency
+
+Large downloads can use multiple HTTP range requests when the server supports `Accept-Ranges: bytes`.
+
+Default download concurrency keys:
+
+```text
+download.low_threshold_mb = 16
+download.high_threshold_mb = 64
+download.low_threads = 2
+download.high_threads = 4
+```
+
+With the defaults, downloads under 16 MiB use one stream, downloads from 16 MiB up to 64 MiB use two streams, and downloads at or above 64 MiB use four streams.
+
+Examples:
+
+```bash
+upstream config set download.low_threshold_mb=32
+upstream config set download.high_threshold_mb=128 download.high_threads=6
+```
+
 ## Trust Keys
 
 Trusted signature keys are stored under:

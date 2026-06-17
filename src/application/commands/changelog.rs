@@ -22,10 +22,11 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
         .ok_or_else(|| anyhow!("Package '{}' is not installed", name))?;
 
     let app_config = config.get_config();
-    let provider_manager = ProviderManager::new(
+    let provider_manager = ProviderManager::new_with_download_config(
         app_config.github.api_token.as_deref(),
         app_config.gitlab.api_token.as_deref(),
         app_config.gitea.api_token.as_deref(),
+        app_config.download,
     )?;
 
     let from_version = match from_tag.as_deref() {

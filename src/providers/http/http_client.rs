@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use crate::models::common::enums::Filetype;
+use crate::models::upstream::DownloadConfig;
 use crate::providers::download_handler;
 use crate::utils::filename_parser::parse_filetype;
 
@@ -32,6 +33,7 @@ pub enum ConditionalDiscoveryResult {
 #[derive(Debug, Clone)]
 pub struct HttpClient {
     client: Client,
+    download_config: DownloadConfig,
 }
 
 impl HttpClient {
@@ -81,6 +83,10 @@ impl HttpClient {
     }
 
     pub fn new() -> Result<Self> {
+        Self::new_with_download_config(DownloadConfig::default())
+    }
+
+    pub fn new_with_download_config(download_config: DownloadConfig) -> Result<Self> {
         let mut headers = header::HeaderMap::new();
 
         let user_agent = format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
@@ -95,7 +101,10 @@ impl HttpClient {
             .build()
             .context("Failed to build HTTP client")?;
 
-        Ok(Self { client })
+        Ok(Self {
+            client,
+            download_config,
+        })
     }
 
     /// Normalize provider inputs so bare hosts/slugs become HTTPS URLs.
@@ -423,7 +432,14 @@ impl HttpClient {
     where
         F: FnMut(u64, u64),
     {
-        download_handler::download_file(&self.client, url, destination, progress).await
+        download_handler::download_file_with_config(
+            &self.client,
+            url,
+            destination,
+            progress,
+            self.download_config,
+        )
+        .await
     }
 }
 
