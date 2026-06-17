@@ -1,10 +1,13 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-06-14
+@modified: 2026-06-17
 
 ## Tasks
 
 - [ ] consider migrating to SQLite
       @created 2026-06-14 17:40
+
+- [ ] feat: multi-worker downloads for large files
+      @created 2026-06-17 16:49
 
