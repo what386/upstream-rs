@@ -5,6 +5,9 @@
 
 ## Tasks
 
+- [ ] feat: progress bars for downloads
+      @created 2026-06-17 17:24
+
 
 ## Completed
 
