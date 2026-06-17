@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] consider migrating to SQLite
-      @created 2026-06-14 17:40
-
 
 ## Completed
 
