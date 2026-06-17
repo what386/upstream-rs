@@ -11,3 +11,6 @@
 - [ ] feat: multi-worker downloads for large files
       @created 2026-06-17 16:49
 
+- [ ] remove unused functions/constants
+      @created 2026-06-17 17:15
+
