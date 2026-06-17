@@ -12,20 +12,29 @@ use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
-const DEFAULT_PARALLEL_DOWNLOADS: usize = 4;
-const MIN_PARALLEL_DOWNLOAD_SIZE: u64 = 64 * 1024 * 1024;
+
+const LOW_PARALLEL_DOWNLOADS: usize = 2;
+const HIGH_PARALLEL_DOWNLOADS: usize = 4;
+
+const MB: u64 = 1024 * 1024;
+const LOW_PARALLEL_DOWNLOAD_SIZE: u64 = 16 * MB;
+const HIGH_PARALLEL_DOWNLOAD_SIZE: u64 = 64 * MB;
 
 #[derive(Debug, Clone, Copy)]
 struct ParallelDownloadOptions {
-    max_workers: usize,
-    min_size: u64,
+    low_threshold: u64,
+    high_threshold: u64,
+    low_workers: usize,
+    high_workers: usize,
 }
 
 impl Default for ParallelDownloadOptions {
     fn default() -> Self {
         Self {
-            max_workers: DEFAULT_PARALLEL_DOWNLOADS,
-            min_size: MIN_PARALLEL_DOWNLOAD_SIZE,
+            low_threshold: LOW_PARALLEL_DOWNLOAD_SIZE,
+            high_threshold: HIGH_PARALLEL_DOWNLOAD_SIZE,
+            low_workers: LOW_PARALLEL_DOWNLOADS,
+            high_workers: HIGH_PARALLEL_DOWNLOADS,
         }
     }
 }
@@ -100,14 +109,15 @@ where
 
     let total_bytes = response.content_length().unwrap_or(0);
 
-    if should_download_in_parallel(&response, total_bytes, options) {
+    let worker_count = parallel_worker_count(&response, total_bytes, options);
+    if worker_count > 1 {
         match download_parallel(
             client,
             url,
             destination,
             response,
             total_bytes,
-            options,
+            worker_count,
             progress,
         )
         .await
@@ -123,19 +133,34 @@ where
     write_single_response(response, destination, total_bytes, progress).await
 }
 
-fn should_download_in_parallel(
+fn parallel_worker_count(
     response: &Response,
     total_bytes: u64,
     options: ParallelDownloadOptions,
-) -> bool {
-    options.max_workers > 1
-        && total_bytes >= options.min_size
-        && response
-            .headers()
-            .get(header::ACCEPT_RANGES)
-            .and_then(|value| value.to_str().ok())
-            .map(|value| value.eq_ignore_ascii_case("bytes"))
-            .unwrap_or(false)
+) -> usize {
+    let supports_ranges = response
+        .headers()
+        .get(header::ACCEPT_RANGES)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.eq_ignore_ascii_case("bytes"))
+        .unwrap_or(false);
+
+    if supports_ranges {
+        worker_count_for_size(total_bytes, options)
+    } else {
+        1
+    }
+}
+
+fn worker_count_for_size(total_bytes: u64, options: ParallelDownloadOptions) -> usize {
+    if total_bytes >= options.high_threshold {
+        options.high_workers
+    } else if total_bytes >= options.low_threshold {
+        options.low_workers
+    } else {
+        1
+    }
+    .max(1)
 }
 
 async fn download_single_request<F>(
@@ -210,13 +235,13 @@ async fn download_parallel<F>(
     destination: &Path,
     initial_response: Response,
     total_bytes: u64,
-    options: ParallelDownloadOptions,
+    worker_count: usize,
     progress: &mut Option<F>,
 ) -> Result<()>
 where
     F: FnMut(u64, u64),
 {
-    let ranges = split_ranges(total_bytes, options.max_workers);
+    let ranges = split_ranges(total_bytes, worker_count);
     if ranges.len() <= 1 {
         return write_single_response(initial_response, destination, total_bytes, progress).await;
     }
@@ -566,7 +591,7 @@ async fn move_temp_file(temp_path: &Path, destination: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ParallelDownloadOptions, download_file_with_options};
+    use super::{ParallelDownloadOptions, download_file_with_options, worker_count_for_size};
     use reqwest::Client;
     use std::collections::HashMap;
     use std::io::{BufRead, BufReader, Write};
@@ -725,8 +750,10 @@ mod tests {
             &output,
             &mut cb,
             ParallelDownloadOptions {
-                max_workers: 4,
-                min_size: 1,
+                low_threshold: 1,
+                high_threshold: 2048,
+                low_workers: 2,
+                high_workers: 4,
             },
         )
         .await
@@ -782,8 +809,10 @@ mod tests {
             &output,
             &mut cb,
             ParallelDownloadOptions {
-                max_workers: 4,
-                min_size: 1,
+                low_threshold: 1,
+                high_threshold: 2048,
+                low_workers: 2,
+                high_workers: 4,
             },
         )
         .await
@@ -799,5 +828,20 @@ mod tests {
         );
 
         cleanup_file(&output).expect("cleanup output file");
+    }
+
+    #[test]
+    fn worker_count_for_size_uses_low_and_high_thresholds() {
+        let options = ParallelDownloadOptions {
+            low_threshold: 16,
+            high_threshold: 32,
+            low_workers: 2,
+            high_workers: 4,
+        };
+
+        assert_eq!(worker_count_for_size(15, options), 1);
+        assert_eq!(worker_count_for_size(16, options), 2);
+        assert_eq!(worker_count_for_size(31, options), 2);
+        assert_eq!(worker_count_for_size(32, options), 4);
     }
 }
