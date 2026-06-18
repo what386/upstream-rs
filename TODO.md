@@ -11,3 +11,6 @@
 - [ ] feat: enter with no input for confirm is now a yes
       @created 2026-06-18 16:25
 
+- [ ] feat: upgrade confirm option to press `c` in prompt to see changelog from installed to latest
+      @created 2026-06-18 16:26
+
