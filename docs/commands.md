@@ -75,6 +75,8 @@ upstream upgrade [packages...] [options]
 
 Upgrades all packages when no names are provided, or only the named packages otherwise.
 
+At the confirmation prompt, enter `c` to view release notes from the installed version to the planned upgrade target before deciding.
+
 Options:
 
 | Option | Meaning |

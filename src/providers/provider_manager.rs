@@ -2,7 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use crate::models::common::enums::{Channel, Provider};
+use crate::models::common::{
+    Version,
+    enums::{Channel, Provider},
+};
 use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
 use crate::models::upstream::{DownloadConfig, Package};
 use crate::providers::asset_selector::{AssetCandidate, AssetSelector};
@@ -256,6 +259,20 @@ impl ProviderManager {
     ) -> Result<Vec<Release>> {
         let resolved = self.resolve_provider(provider, base_url)?;
         resolved.get_releases(slug, per_page, max_total).await
+    }
+
+    pub async fn get_releases_newer_than(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        from_version: &Version,
+        per_page: Option<u32>,
+        base_url: Option<&str>,
+    ) -> Result<Vec<Release>> {
+        let resolved = self.resolve_provider(provider, base_url)?;
+        resolved
+            .get_releases_newer_than(slug, from_version, per_page)
+            .await
     }
 
     pub async fn get_release_by_tag(

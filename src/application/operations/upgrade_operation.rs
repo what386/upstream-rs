@@ -97,6 +97,7 @@ pub struct UpdateCheckRow {
 
 #[derive(Clone)]
 pub struct UpgradePreviewRow {
+    pub package: crate::models::upstream::Package,
     pub name: String,
     pub source: String,
     pub old_version: String,
@@ -535,6 +536,7 @@ impl<'a> UpgradeOperation<'a> {
             }
 
             return Some(UpgradePreviewRow {
+                package: package.clone(),
                 name: package.name.clone(),
                 source: preview_package_source(&package),
                 old_version: build_ref_version(
@@ -575,6 +577,7 @@ impl<'a> UpgradeOperation<'a> {
 
         let source_build = package.install_type == crate::models::upstream::InstallType::Build;
         Some(UpgradePreviewRow {
+            package: package.clone(),
             name: package.name.clone(),
             source: preview_package_source(&package),
             old_version: package.version.to_string(),

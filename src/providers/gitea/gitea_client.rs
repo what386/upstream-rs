@@ -142,14 +142,11 @@ impl GiteaClient {
         let mut releases = Vec::new();
 
         loop {
-            let url = format!(
-                "{}/api/v1/repos/{}/releases?page={}&limit={}",
-                self.base_url, owner_repo, page, per_page
-            );
-            let batch: Vec<GiteaReleaseDto> = self
-                .get_json(&url)
+            let batch = self
+                .get_releases_page(owner_repo, per_page, page)
                 .await
                 .context(format!("Failed to get releases page {}", page))?;
+            let partial_page = batch.len() < per_page as usize;
 
             if batch.is_empty() {
                 break;
@@ -164,7 +161,7 @@ impl GiteaClient {
                 break;
             }
 
-            if releases.len() % per_page as usize != 0 {
+            if partial_page {
                 break;
             }
 
@@ -172,6 +169,21 @@ impl GiteaClient {
         }
 
         Ok(releases)
+    }
+
+    pub async fn get_releases_page(
+        &self,
+        owner_repo: &str,
+        per_page: u32,
+        page: u32,
+    ) -> Result<Vec<GiteaReleaseDto>> {
+        let url = format!(
+            "{}/api/v1/repos/{}/releases?page={}&limit={}",
+            self.base_url, owner_repo, page, per_page
+        );
+        self.get_json(&url)
+            .await
+            .context(format!("Failed to get releases page {}", page))
     }
 
     pub async fn get_branch_head_sha(&self, owner_repo: &str, branch: &str) -> Result<String> {
