@@ -21,7 +21,7 @@ pub fn run_hooks_check() -> Result<()> {
     let report = check(&paths)?;
     println!("{}", output::title("Hooks check"));
     for line in &report.messages {
-        output::action_note(line);
+        println!("  {line}");
     }
 
     if report.ok {

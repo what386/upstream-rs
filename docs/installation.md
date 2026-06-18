@@ -60,6 +60,7 @@ Upstream stores data in user-owned locations:
 | Path | Purpose |
 | --- | --- |
 | `$XDG_CONFIG_HOME/upstream/config.toml` | Main configuration file |
+| `$HOME/.upstream/migration.json` | Root layout manifest used by init, doctor, and migration |
 | `$HOME/.upstream/metadata/packages.json` | Installed package metadata |
 | `$HOME/.upstream/metadata/metadata.json` | Sidecar metadata such as pin reasons |
 | `$HOME/.upstream/metadata/transactions.json` | Mutating package transaction history |

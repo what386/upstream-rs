@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::upstream::Package;
 use crate::services::integration::SymlinkManager;
+use crate::services::storage::manifest_storage::{CURRENT_LAYOUT_VERSION, ManifestStorage};
 use crate::services::storage::rollback_storage::RollbackRecord;
 use crate::utils::filesystem::{atomic_ops::write_atomic, safe_move};
 use crate::utils::static_paths::UpstreamPaths;
@@ -51,6 +52,13 @@ struct LegacyRollbackStorageFile {
 
 pub fn run(paths: &UpstreamPaths) -> Result<MigrationReport> {
     let rewrites = package_path_rewrites(paths);
+    let legacy_layout_detected = legacy_package_dirs_exist(&rewrites);
+    let mut manifest_storage =
+        ManifestStorage::new(&ManifestStorage::path_for_root(&paths.dirs.data_dir))?;
+    let previous_layout_version = manifest_storage
+        .manifest()
+        .map(|manifest| manifest.layout_version)
+        .or_else(|| legacy_layout_detected.then_some(1));
     let mut report = MigrationReport::default();
 
     create_required_dirs(paths, &mut report)?;
@@ -58,6 +66,7 @@ pub fn run(paths: &UpstreamPaths) -> Result<MigrationReport> {
     let packages = migrate_package_metadata(paths, &rewrites, &mut report)?;
     migrate_rollback_metadata(paths, &rewrites, &mut report)?;
     refresh_symlinks(paths, &packages, &mut report)?;
+    manifest_storage.record_migration_from(previous_layout_version, CURRENT_LAYOUT_VERSION)?;
 
     Ok(report)
 }
@@ -101,6 +110,10 @@ fn package_path_rewrites(paths: &UpstreamPaths) -> Vec<PathRewrite> {
             new: paths.install.archives_dir.clone(),
         },
     ]
+}
+
+fn legacy_package_dirs_exist(rewrites: &[PathRewrite]) -> bool {
+    rewrites.iter().any(|rewrite| rewrite.old.exists())
 }
 
 fn move_legacy_package_dirs(rewrites: &[PathRewrite], report: &mut MigrationReport) -> Result<()> {
@@ -365,6 +378,9 @@ mod tests {
     use super::run;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
+    use crate::services::storage::manifest_storage::{
+        CURRENT_LAYOUT_VERSION, MANIFEST_STORAGE_VERSION, ManifestStorage,
+    };
     use crate::services::storage::rollback_storage::{
         RollbackArtifactFormat, RollbackRecord, RollbackSource,
     };
@@ -448,6 +464,23 @@ mod tests {
         assert_eq!(
             migrated["packages"][0]["exec_path"].as_str(),
             Some(new_binary.to_str().expect("utf8 path"))
+        );
+        let migration_manifest: serde_json::Value = serde_json::from_slice(
+            &fs::read(ManifestStorage::path_for_root(&paths.dirs.data_dir))
+                .expect("read migration manifest"),
+        )
+        .expect("parse migration manifest");
+        assert_eq!(
+            migration_manifest["manifest_version"].as_u64(),
+            Some(MANIFEST_STORAGE_VERSION as u64)
+        );
+        assert_eq!(
+            migration_manifest["layout_version"].as_u64(),
+            Some(CURRENT_LAYOUT_VERSION as u64)
+        );
+        assert_eq!(
+            migration_manifest["previous_layout_version"].as_u64(),
+            Some(1)
         );
 
         #[cfg(unix)]

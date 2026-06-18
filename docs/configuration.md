@@ -85,11 +85,13 @@ Manual edits are possible through `upstream config edit`, but imports handle par
 Installed package metadata is separate from configuration:
 
 ```text
+$HOME/.upstream/migration.json
 $HOME/.upstream/metadata/packages.json
 $HOME/.upstream/metadata/metadata.json
 $HOME/.upstream/metadata/transactions.json
 ```
 
+- `migration.json` records the root data layout version and migration metadata.
 - `packages.json` tracks installed package source, version, file type, install paths, and provider metadata.
 - `metadata.json` stores sidecar package data such as pin reasons.
 - `transactions.json` records mutating package operations for context-aware rollback.
