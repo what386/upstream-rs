@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-14*
+*Generated on 2026-06-18*
+
+## 2.2.0 — 2026-06-18
+
+### Changes
+
+- feat: multi-worker downloads for large files
+- remove unused functions/constants
+
 
 ## 2.1.0 — 2026-06-14
 
