@@ -6,8 +6,12 @@
 
 ### Changes
 
-- feat: multi-worker downloads for large files
-- remove unused functions/constants
+- feat: upgrade confirm option to press `c` in prompt to see changelog from installed to latest `upgrade`, `changelog`, `ux`
+- feat: latest and current special case tags for changelog subcommand `changelog`, `cli`
+- feat: parallel ranged downloads for large assets `downloads`, `performance`
+- feat: computed changelog release pagination stops at installed version `changelog`, `providers`, `performance`
+- feat: configurable parallel download worker thresholds `downloads`, `config`, `performance`
+- docs: document changelog endpoint keywords and download thresholds `docs`, `changelog`, `downloads`
 
 
 ## 2.1.0 — 2026-06-14
