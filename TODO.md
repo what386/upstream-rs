@@ -11,3 +11,6 @@
 - [ ] feat: upgrade confirm option to press `c` in prompt to see changelog from installed to latest
       @created 2026-06-18 16:26
 
+- [ ] feat: latest and current special case tags for changelog subcommand
+      @created 2026-06-18 18:03
+
