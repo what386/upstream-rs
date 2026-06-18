@@ -237,7 +237,8 @@ pub enum Commands {
     /// Upgrade installed packages to their latest versions
     #[command(long_about = "Check for and install updates to packages.\n\n\
         Without arguments, upgrades all packages. Specify package names to upgrade \
-        only those packages. Use --check to preview available updates.\n\n\
+        only those packages. Use --check to preview available updates. At the \
+        confirmation prompt, enter c to view release notes before deciding.\n\n\
         EXAMPLES:\n  \
         upstream upgrade              # Upgrade all\n  \
         upstream upgrade nvim rg      # Upgrade specific packages\n  \

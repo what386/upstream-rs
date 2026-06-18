@@ -62,6 +62,50 @@ impl GitlabAdapter {
             .collect())
     }
 
+    pub async fn get_releases_newer_than(
+        &self,
+        project_path: &str,
+        from_version: &Version,
+        per_page: Option<u32>,
+    ) -> Result<Vec<Release>> {
+        let per_page = per_page.unwrap_or(20).min(100);
+        let mut page = 1;
+        let mut releases = Vec::new();
+
+        loop {
+            let batch = self
+                .client
+                .get_releases_page(project_path, per_page, page)
+                .await?;
+            if batch.is_empty() {
+                break;
+            }
+
+            let partial_page = batch.len() < per_page as usize;
+            let mut reached_from_version = false;
+            for dto in batch {
+                let parsed_version = Version::from_tag(&dto.tag_name).ok();
+                let release = self.convert_release(dto);
+                if parsed_version
+                    .as_ref()
+                    .is_some_and(|version| version <= from_version)
+                {
+                    reached_from_version = true;
+                    continue;
+                }
+                releases.push(release);
+            }
+
+            if reached_from_version || partial_page {
+                break;
+            }
+
+            page += 1;
+        }
+
+        Ok(releases)
+    }
+
     pub async fn get_branch_head_sha(&self, project_path: &str, branch: &str) -> Result<String> {
         self.client.get_branch_head_sha(project_path, branch).await
     }
@@ -137,6 +181,15 @@ impl ReleaseProvider for GitlabAdapter {
         max_total: Option<u32>,
     ) -> Result<Vec<Release>> {
         GitlabAdapter::get_releases(self, slug, per_page, max_total).await
+    }
+
+    async fn get_releases_newer_than(
+        &self,
+        slug: &str,
+        from_version: &Version,
+        per_page: Option<u32>,
+    ) -> Result<Vec<Release>> {
+        GitlabAdapter::get_releases_newer_than(self, slug, from_version, per_page).await
     }
 
     async fn get_release_by_tag(&self, slug: &str, tag: &str) -> Result<Release> {

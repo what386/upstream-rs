@@ -1,4 +1,5 @@
 use crate::{
+    application::commands::changelog::changelog_text_for_package,
     application::operations::upgrade_operation::{
         UpdateCheckRow, UpdateCheckStatus, UpgradeOperation, UpgradePreviewEvent,
     },
@@ -21,6 +22,7 @@ use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use serde::Serialize;
 use std::{
     collections::BTreeMap,
+    io::{self, IsTerminal, Write},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -199,7 +201,7 @@ pub async fn run(
             );
         }
     }
-    output::confirm_or_cancel("Proceed with installation?", true)?;
+    confirm_or_show_changelog(&provider_manager, &preview_rows).await?;
     let tx_names = preview_rows
         .iter()
         .map(|row| row.name.clone())
@@ -324,6 +326,101 @@ pub async fn run(
         );
     }
 
+    Ok(())
+}
+
+enum UpgradePromptAction {
+    Proceed,
+    Changelog,
+}
+
+fn upgrade_prompt_action_from_input(input: &str) -> Result<UpgradePromptAction> {
+    match input.trim().to_ascii_lowercase().as_str() {
+        "" | "y" | "yes" => Ok(UpgradePromptAction::Proceed),
+        "c" | "changelog" => Ok(UpgradePromptAction::Changelog),
+        _ => anyhow::bail!("Cancelled"),
+    }
+}
+
+fn prompt_upgrade_action() -> Result<UpgradePromptAction> {
+    if output::assume_yes() {
+        return Ok(UpgradePromptAction::Proceed);
+    }
+
+    if !io::stdin().is_terminal() {
+        anyhow::bail!(
+            "Confirmation required for non-interactive input. Re-run with --yes to continue."
+        );
+    }
+
+    print!("Proceed with installation? [Y/n/c] ");
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    upgrade_prompt_action_from_input(&input)
+}
+
+async fn confirm_or_show_changelog(
+    provider_manager: &ProviderManager,
+    preview_rows: &[crate::application::operations::upgrade_operation::UpgradePreviewRow],
+) -> Result<()> {
+    loop {
+        match prompt_upgrade_action()? {
+            UpgradePromptAction::Proceed => return Ok(()),
+            UpgradePromptAction::Changelog => {
+                show_upgrade_changelog(provider_manager, preview_rows).await?;
+            }
+        }
+    }
+}
+
+async fn show_upgrade_changelog(
+    provider_manager: &ProviderManager,
+    preview_rows: &[crate::application::operations::upgrade_operation::UpgradePreviewRow],
+) -> Result<()> {
+    let mut sections = Vec::new();
+
+    for row in preview_rows {
+        let crate::services::packaging::ResolvedUpgradeTarget::Release(release) = &row.target
+        else {
+            continue;
+        };
+        output::action_note(format!("fetching changelog for {}", row.name));
+        match changelog_text_for_package(
+            provider_manager,
+            &row.package,
+            &row.package.version,
+            release,
+            false,
+        )
+        .await
+        {
+            Ok(Some(text)) => {
+                sections.push(format!("# {}\n\n{}", row.name, text));
+            }
+            Ok(None) => {}
+            Err(error) => {
+                println!(
+                    "{}",
+                    output::warning(format!(
+                        "Failed to fetch changelog for {}: {error}",
+                        row.name
+                    ))
+                );
+            }
+        }
+    }
+
+    if sections.is_empty() {
+        println!(
+            "{}",
+            output::warning("No release changelog is available for the planned upgrade(s).")
+        );
+        return Ok(());
+    }
+
+    output::pager::page_text(Some("Upgrade changelog"), &sections.join("\n"))?;
     Ok(())
 }
 
@@ -720,7 +817,10 @@ async fn run_dry_run(
 
 #[cfg(test)]
 mod tests {
-    use super::{completion_message_key, json_check_rows, render_upgrade_progress};
+    use super::{
+        UpgradePromptAction, completion_message_key, json_check_rows, render_upgrade_progress,
+        upgrade_prompt_action_from_input,
+    };
     use crate::application::operations::upgrade_operation::{UpdateCheckRow, UpdateCheckStatus};
     use crate::models::common::enums::{Channel, Provider};
     use std::collections::BTreeMap;
@@ -757,6 +857,23 @@ mod tests {
         completed.clear();
         active.clear();
         assert_eq!(render_upgrade_progress(&completed, &active), "");
+    }
+
+    #[test]
+    fn upgrade_prompt_accepts_changelog_option() {
+        assert!(matches!(
+            upgrade_prompt_action_from_input("c").expect("changelog"),
+            UpgradePromptAction::Changelog
+        ));
+        assert!(matches!(
+            upgrade_prompt_action_from_input("changelog").expect("changelog"),
+            UpgradePromptAction::Changelog
+        ));
+        assert!(matches!(
+            upgrade_prompt_action_from_input("").expect("default yes"),
+            UpgradePromptAction::Proceed
+        ));
+        assert!(upgrade_prompt_action_from_input("n").is_err());
     }
 
     #[test]

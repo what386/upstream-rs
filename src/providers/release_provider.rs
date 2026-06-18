@@ -6,7 +6,10 @@ use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
-use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
+use crate::models::{
+    common::Version,
+    provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult},
+};
 
 #[async_trait(?Send)]
 pub trait ReleaseProvider {
@@ -18,6 +21,19 @@ pub trait ReleaseProvider {
         per_page: Option<u32>,
         max_total: Option<u32>,
     ) -> Result<Vec<Release>>;
+
+    async fn get_releases_newer_than(
+        &self,
+        slug: &str,
+        from_version: &Version,
+        per_page: Option<u32>,
+    ) -> Result<Vec<Release>> {
+        let releases = self.get_releases(slug, per_page, None).await?;
+        Ok(releases
+            .into_iter()
+            .filter(|release| release.version > *from_version)
+            .collect())
+    }
 
     async fn get_release_by_tag(&self, slug: &str, tag: &str) -> Result<Release>;
 
@@ -68,6 +84,17 @@ where
         max_total: Option<u32>,
     ) -> Result<Vec<Release>> {
         (*self).get_releases(slug, per_page, max_total).await
+    }
+
+    async fn get_releases_newer_than(
+        &self,
+        slug: &str,
+        from_version: &Version,
+        per_page: Option<u32>,
+    ) -> Result<Vec<Release>> {
+        (*self)
+            .get_releases_newer_than(slug, from_version, per_page)
+            .await
     }
 
     async fn get_release_by_tag(&self, slug: &str, tag: &str) -> Result<Release> {

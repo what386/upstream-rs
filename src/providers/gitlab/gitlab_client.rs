@@ -132,19 +132,15 @@ impl GitlabClient {
         max_total: Option<u32>,
     ) -> Result<Vec<GitlabReleaseDto>> {
         let per_page = per_page.unwrap_or(20).min(100);
-        let encoded_path = Self::encode_project_path(project_path);
         let mut page = 1;
         let mut releases = Vec::new();
 
         loop {
-            let url = format!(
-                "{}/api/v4/projects/{}/releases?per_page={}&page={}",
-                self.base_url, encoded_path, per_page, page
-            );
-            let batch: Vec<GitlabReleaseDto> = self
-                .get_json(&url)
+            let batch = self
+                .get_releases_page(project_path, per_page, page)
                 .await
                 .context(format!("Failed to get releases page {}", page))?;
+            let partial_page = batch.len() < per_page as usize;
 
             if batch.is_empty() {
                 break;
@@ -159,7 +155,7 @@ impl GitlabClient {
                 break;
             }
 
-            if releases.len() % per_page as usize != 0 {
+            if partial_page {
                 break;
             }
 
@@ -167,6 +163,22 @@ impl GitlabClient {
         }
 
         Ok(releases)
+    }
+
+    pub async fn get_releases_page(
+        &self,
+        project_path: &str,
+        per_page: u32,
+        page: u32,
+    ) -> Result<Vec<GitlabReleaseDto>> {
+        let encoded_path = Self::encode_project_path(project_path);
+        let url = format!(
+            "{}/api/v4/projects/{}/releases?per_page={}&page={}",
+            self.base_url, encoded_path, per_page, page
+        );
+        self.get_json(&url)
+            .await
+            .context(format!("Failed to get releases page {}", page))
     }
 
     pub async fn get_branch_head_sha(&self, project_path: &str, branch: &str) -> Result<String> {

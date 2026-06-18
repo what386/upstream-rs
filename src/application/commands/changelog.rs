@@ -81,26 +81,15 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
             })?,
     };
 
-    let releases = provider_manager
-        .get_releases(
-            &package.repo_slug,
-            &package.provider,
-            None,
-            None,
-            package.base_url.as_deref(),
-        )
-        .await
-        .with_context(|| format!("Failed to fetch releases for '{}'", package.repo_slug))?;
-
-    let releases = select_changelog_releases(
-        releases,
+    let Some(changelog) = changelog_text_for_package(
+        &provider_manager,
         package,
         &from_version,
         &to_release,
         to_tag.is_some(),
-    );
-
-    if releases.is_empty() {
+    )
+    .await?
+    else {
         println!(
             "{}",
             output::warning(format!(
@@ -109,6 +98,50 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
             ))
         );
         return Ok(());
+    };
+
+    pager::page_text(Some(&format!("Changelog: {}", package.name)), &changelog)?;
+
+    Ok(())
+}
+
+pub(crate) async fn changelog_text_for_package(
+    provider_manager: &ProviderManager,
+    package: &Package,
+    from_version: &Version,
+    to_release: &Release,
+    explicit_to: bool,
+) -> Result<Option<String>> {
+    let releases = provider_manager
+        .get_releases_newer_than(
+            &package.repo_slug,
+            &package.provider,
+            from_version,
+            None,
+            package.base_url.as_deref(),
+        )
+        .await
+        .with_context(|| format!("Failed to fetch releases for '{}'", package.repo_slug))?;
+
+    let releases =
+        select_changelog_releases(releases, package, from_version, to_release, explicit_to);
+
+    Ok(changelog_text_from_releases(
+        package,
+        from_version,
+        to_release,
+        &releases,
+    ))
+}
+
+pub(crate) fn changelog_text_from_releases(
+    package: &Package,
+    from_version: &Version,
+    to_release: &Release,
+    releases: &[Release],
+) -> Option<String> {
+    if releases.is_empty() {
+        return None;
     }
 
     let mut changelog = String::new();
@@ -122,7 +155,7 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
     ));
     changelog.push_str(&format!("  Channel:      {}\n\n", package.channel));
 
-    for release in &releases {
+    for release in releases {
         changelog.push_str(&format!("## {}\n", release_heading(release)));
         changelog.push_str(&format!(
             "tag {} - published {}\n\n",
@@ -138,9 +171,7 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
         changelog.push('\n');
     }
 
-    pager::page_text(Some(&format!("Changelog: {}", package.name)), &changelog)?;
-
-    Ok(())
+    Some(changelog)
 }
 
 fn select_changelog_releases(
