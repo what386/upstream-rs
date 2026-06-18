@@ -8,9 +8,6 @@
 - [ ] feat: progress bars for downloads #downloads #progress
       @created 2026-06-17 17:24
 
-- [ ] docs: document changelog endpoint keywords and download thresholds #docs #changelog #downloads
-      @created 2026-06-18 18:06
-
 
 ## Completed
 
@@ -33,4 +30,8 @@
 - [x] feat: configurable parallel download worker thresholds #downloads #config #performance
       @created 2026-06-18 18:06
       @completed 2026-06-18 18:11
+
+- [x] docs: document changelog endpoint keywords and download thresholds #docs #changelog #downloads
+      @created 2026-06-18 18:06
+      @completed 2026-06-18 18:13
 
