@@ -5,30 +5,3 @@
 
 ## Tasks
 
-
-## Completed
-
-- [x] feat: upgrade confirm option to press `c` in prompt to see changelog from installed to latest #upgrade #changelog #ux
-      @created 2026-06-18 16:26
-      @completed 2026-06-18 18:11
-
-- [x] feat: latest and current special case tags for changelog subcommand #changelog #cli
-      @created 2026-06-18 18:03
-      @completed 2026-06-18 18:11
-
-- [x] feat: parallel ranged downloads for large assets #downloads #performance
-      @created 2026-06-18 18:06
-      @completed 2026-06-18 18:11
-
-- [x] feat: computed changelog release pagination stops at installed version #changelog #providers #performance
-      @created 2026-06-18 18:06
-      @completed 2026-06-18 18:11
-
-- [x] feat: configurable parallel download worker thresholds #downloads #config #performance
-      @created 2026-06-18 18:06
-      @completed 2026-06-18 18:11
-
-- [x] docs: document changelog endpoint keywords and download thresholds #docs #changelog #downloads
-      @created 2026-06-18 18:06
-      @completed 2026-06-18 18:13
-
