@@ -78,7 +78,7 @@ impl InstallPaths {
             binaries_dir: dirs.packages_dir.join("binaries"),
             archives_dir: dirs.packages_dir.join("archives"),
             rollback_dir: dirs.data_dir.join("rollback"),
-            tmp_dir: dirs.data_dir.join("tmp"),
+            tmp_dir: dirs.data_dir.join("temp"),
         }
     }
 }
@@ -179,6 +179,6 @@ mod tests {
             paths.install.rollback_dir,
             paths.dirs.data_dir.join("rollback")
         );
-        assert_eq!(paths.install.tmp_dir, paths.dirs.data_dir.join("tmp"));
+        assert_eq!(paths.install.tmp_dir, paths.dirs.data_dir.join("temp"));
     }
 }
