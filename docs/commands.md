@@ -159,7 +159,7 @@ Pinning prevents upgrades. Renaming changes the local alias without reinstalling
 
 ```bash
 upstream list [name] [--json]
-upstream changelog <name> [--from <tag>] [--to <tag>]
+upstream changelog <name> [--from <tag|current|latest>] [--to <tag|current|latest>]
 upstream search [query...] [-p <provider>] [--base-url <url>] [--limit <n>] [filters]
 upstream find <query...> [-p <provider>] [--limit <n>] [filters] [--name <name>] [install options]
 upstream probe <repo-or-url> [-p <provider>] [--channel <channel>] [--limit <n>] [--verbose]
@@ -167,7 +167,7 @@ upstream doctor [names...] [--verbose] [--fix]
 ```
 
 - `list` shows installed package metadata.
-- `changelog` shows release notes for installed packages.
+- `changelog` shows release notes for installed packages. `--from` and `--to` accept release tags plus `current` for the installed version and `latest` for the tracked latest release.
 - `search` searches provider repositories for software discovery. Use filters like `--language Rust`, `--topic cli`, `--min-stars 100`, `--max-stars 50000`, `--pushed-after 2026-01-01`, `--include-forks`, and `--include-archived` to narrow results.
 - `find` searches provider repositories with the same discovery filters as `search`, opens an interactive picker, prompts for the package name with an inferred default, and installs the selected result. Use `--name` to skip the prompt.
 - `probe` shows releases and candidate assets without installing.

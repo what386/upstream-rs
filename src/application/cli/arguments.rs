@@ -301,9 +301,11 @@ pub enum Commands {
     #[command(long_about = "Show release notes for an installed package.\n\n\
         By default, prints release bodies newer than the installed version up to \
         the latest release for the package's tracked channel. Use --from and --to \
-        to override the range endpoints by release tag.\n\n\
+        to override the range endpoints by release tag, or use current/latest for \
+        the installed or tracked latest release.\n\n\
         EXAMPLES:\n  \
         upstream changelog nvim\n  \
+        upstream changelog nvim --from current --to latest\n  \
         upstream changelog nvim --from v0.10.0\n  \
         upstream changelog nvim --from v0.10.0 --to v0.11.0")]
     Changelog {
