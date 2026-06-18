@@ -30,6 +30,26 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
     )?;
 
     let from_version = match from_tag.as_deref() {
+        Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Current) => {
+            package.version.clone()
+        }
+        Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Latest) => {
+            provider_manager
+                .get_latest_release(
+                    &package.repo_slug,
+                    &package.provider,
+                    &package.channel,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to fetch latest {} release for '{}'",
+                        package.channel, package.repo_slug
+                    )
+                })?
+                .version
+        }
         Some(tag) => {
             provider_manager
                 .get_release_by_tag(
@@ -51,6 +71,23 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
     };
 
     let to_release = match to_tag.as_deref() {
+        Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Current) => {
+            current_package_release(package)
+        }
+        Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Latest) => provider_manager
+            .get_latest_release(
+                &package.repo_slug,
+                &package.provider,
+                &package.channel,
+                package.base_url.as_deref(),
+            )
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to fetch latest {} release for '{}'",
+                    package.channel, package.repo_slug
+                )
+            })?,
         Some(tag) => provider_manager
             .get_release_by_tag(
                 &package.repo_slug,
@@ -86,7 +123,7 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
         package,
         &from_version,
         &to_release,
-        to_tag.is_some(),
+        explicit_to_endpoint(to_tag.as_deref()),
     )
     .await?
     else {
@@ -103,6 +140,37 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
     pager::page_text(Some(&format!("Changelog: {}", package.name)), &changelog)?;
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChangelogEndpoint {
+    Current,
+    Latest,
+}
+
+fn is_changelog_endpoint(raw: &str, endpoint: ChangelogEndpoint) -> bool {
+    match endpoint {
+        ChangelogEndpoint::Current => raw.eq_ignore_ascii_case("current"),
+        ChangelogEndpoint::Latest => raw.eq_ignore_ascii_case("latest"),
+    }
+}
+
+fn explicit_to_endpoint(raw: Option<&str>) -> bool {
+    raw.is_some_and(|tag| !is_changelog_endpoint(tag, ChangelogEndpoint::Latest))
+}
+
+fn current_package_release(package: &Package) -> Release {
+    Release {
+        id: 0,
+        tag: package.version.to_string(),
+        name: format!("current ({})", package.version),
+        body: String::new(),
+        is_draft: false,
+        is_prerelease: package.version.is_prerelease,
+        assets: Vec::new(),
+        version: package.version.clone(),
+        published_at: package.last_upgraded,
+    }
 }
 
 pub(crate) async fn changelog_text_for_package(
@@ -222,7 +290,10 @@ fn release_heading(release: &Release) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::select_changelog_releases;
+    use super::{
+        ChangelogEndpoint, current_package_release, explicit_to_endpoint, is_changelog_endpoint,
+        select_changelog_releases,
+    };
     use crate::models::{
         common::{
             enums::{Channel, Filetype, Provider},
@@ -316,5 +387,32 @@ mod tests {
             select_changelog_releases(vec![to.clone()], &package, &package.version, &to, true);
 
         assert_eq!(selected[0].tag, "v1.1.0-rc1");
+    }
+
+    #[test]
+    fn changelog_endpoint_keywords_are_case_insensitive() {
+        assert!(is_changelog_endpoint("current", ChangelogEndpoint::Current));
+        assert!(is_changelog_endpoint("CURRENT", ChangelogEndpoint::Current));
+        assert!(is_changelog_endpoint("latest", ChangelogEndpoint::Latest));
+        assert!(is_changelog_endpoint("Latest", ChangelogEndpoint::Latest));
+        assert!(!is_changelog_endpoint("v1.2.3", ChangelogEndpoint::Latest));
+    }
+
+    #[test]
+    fn latest_to_endpoint_keeps_default_channel_filtering() {
+        assert!(!explicit_to_endpoint(None));
+        assert!(!explicit_to_endpoint(Some("latest")));
+        assert!(explicit_to_endpoint(Some("current")));
+        assert!(explicit_to_endpoint(Some("v1.2.3")));
+    }
+
+    #[test]
+    fn current_package_release_uses_installed_version_as_endpoint() {
+        let package = package(Channel::Stable);
+        let release = current_package_release(&package);
+
+        assert_eq!(release.version, package.version);
+        assert_eq!(release.tag, package.version.to_string());
+        assert_eq!(release.published_at, package.last_upgraded);
     }
 }
