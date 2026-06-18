@@ -1,14 +1,19 @@
 #[cfg(unix)]
 use crate::services::integration::{nushell_paths_file_contains_path, render_nushell_paths_file};
-use crate::services::{integration::CompletionManager, storage::config_storage::ConfigStorage};
+use crate::services::{
+    integration::CompletionManager,
+    storage::{config_storage::ConfigStorage, manifest_storage::ManifestStorage},
+};
 #[cfg(unix)]
 use crate::utils::platform::shells::installed_shell_commands;
 use crate::utils::static_paths::UpstreamPaths;
+use crate::{output, output::Status};
 #[cfg(windows)]
 use anyhow::Context;
 use anyhow::Result;
 #[cfg(unix)]
 use std::collections::BTreeSet;
+use std::fmt;
 use std::fs;
 use std::io;
 #[cfg(unix)]
@@ -31,6 +36,19 @@ pub struct InitCheckReport {
     pub messages: Vec<String>,
 }
 
+fn check_ok(report: &mut InitCheckReport, detail: impl fmt::Display) {
+    report
+        .messages
+        .push(format!("{} {}", output::status_cell(Status::Ok), detail));
+}
+
+fn check_fail(report: &mut InitCheckReport, detail: impl fmt::Display) {
+    report.ok = false;
+    report
+        .messages
+        .push(format!("{} {}", output::status_cell(Status::Fail), detail));
+}
+
 #[cfg(windows)]
 fn normalize_windows_path(path: &str) -> String {
     let mut normalized = path.replace('/', "\\").trim().to_ascii_lowercase();
@@ -42,6 +60,7 @@ fn normalize_windows_path(path: &str) -> String {
 
 pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
     create_package_dirs(paths)?;
+    create_manifest_file(paths)?;
     create_metadata_files(paths)?;
     create_default_config_file(paths)?;
 
@@ -52,6 +71,10 @@ pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
     update_shell_profiles(paths)?;
 
     Ok(())
+}
+
+fn create_manifest_file(paths: &UpstreamPaths) -> Result<()> {
+    ManifestStorage::new(&ManifestStorage::path_for_root(&paths.dirs.data_dir))?.ensure_current()
 }
 
 pub fn purge_data(paths: &UpstreamPaths) -> Result<()> {
@@ -77,49 +100,61 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
         ("archives directory", &paths.install.archives_dir),
     ] {
         if path.exists() {
-            report
-                .messages
-                .push(format!("[OK] {} exists: {}", label, path.display()));
+            check_ok(&mut report, format!("{} exists: {}", label, path.display()));
         } else {
-            report.ok = false;
-            report
-                .messages
-                .push(format!("[FAIL] {} missing: {}", label, path.display()));
+            check_fail(
+                &mut report,
+                format!("{} missing: {}", label, path.display()),
+            );
         }
     }
 
     let completion_manager = CompletionManager::new(paths);
     let completion_dirs = completion_manager.installed_shell_completion_dirs();
     if completion_dirs.is_empty() {
-        report
-            .messages
-            .push("[OK] no supported shells detected for completion installation".to_string());
+        check_ok(
+            &mut report,
+            "no supported shells detected for completion installation",
+        );
     }
     for (shell, path) in completion_dirs {
         let label = format!("{shell} completions directory");
         if path.exists() {
-            report
-                .messages
-                .push(format!("[OK] {} exists: {}", label, path.display()));
+            check_ok(&mut report, format!("{} exists: {}", label, path.display()));
         } else {
-            report.ok = false;
-            report
-                .messages
-                .push(format!("[FAIL] {} missing: {}", label, path.display()));
+            check_fail(
+                &mut report,
+                format!("{} missing: {}", label, path.display()),
+            );
         }
     }
 
     if paths.config.config_file.exists() {
-        report.messages.push(format!(
-            "[OK] config file exists: {}",
-            paths.config.config_file.display()
-        ));
+        check_ok(
+            &mut report,
+            format!("config file exists: {}", paths.config.config_file.display()),
+        );
     } else {
-        report.ok = false;
-        report.messages.push(format!(
-            "[FAIL] config file missing: {}",
-            paths.config.config_file.display()
-        ));
+        check_fail(
+            &mut report,
+            format!(
+                "config file missing: {}",
+                paths.config.config_file.display()
+            ),
+        );
+    }
+
+    let manifest_file = ManifestStorage::path_for_root(&paths.dirs.data_dir);
+    if manifest_file.exists() {
+        check_ok(
+            &mut report,
+            format!("manifest file exists: {}", manifest_file.display()),
+        );
+    } else {
+        check_fail(
+            &mut report,
+            format!("manifest file missing: {}", manifest_file.display()),
+        );
     }
 
     #[cfg(unix)]
@@ -289,48 +324,62 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
     );
 
     if !paths.config.paths_file.exists() {
-        report.ok = false;
-        report.messages.push(format!(
-            "[FAIL] PATH metadata file missing: {}",
-            paths.config.paths_file.display()
-        ));
+        check_fail(
+            report,
+            format!(
+                "PATH metadata file missing: {}",
+                paths.config.paths_file.display()
+            ),
+        );
     } else {
         let content = fs::read_to_string(&paths.config.paths_file)?;
         if content.contains(&expected_line) {
-            report.messages.push(format!(
-                "[OK] PATH metadata file contains symlink export: {}",
-                paths.config.paths_file.display()
-            ));
+            check_ok(
+                report,
+                format!(
+                    "PATH metadata file contains symlink export: {}",
+                    paths.config.paths_file.display()
+                ),
+            );
         } else {
-            report.ok = false;
-            report.messages.push(format!(
-                "[FAIL] PATH metadata file missing expected export line: {}",
-                paths.config.paths_file.display()
-            ));
+            check_fail(
+                report,
+                format!(
+                    "PATH metadata file missing expected export line: {}",
+                    paths.config.paths_file.display()
+                ),
+            );
         }
     }
 
     let expected_nushell_path = paths.integration.symlinks_dir.display().to_string();
 
     if !paths.config.paths_nu_file.exists() {
-        report.ok = false;
-        report.messages.push(format!(
-            "[FAIL] Nushell PATH metadata file missing: {}",
-            paths.config.paths_nu_file.display()
-        ));
+        check_fail(
+            report,
+            format!(
+                "Nushell PATH metadata file missing: {}",
+                paths.config.paths_nu_file.display()
+            ),
+        );
     } else {
         let content = fs::read_to_string(&paths.config.paths_nu_file)?;
         if nushell_paths_file_contains_path(&content, &expected_nushell_path) {
-            report.messages.push(format!(
-                "[OK] Nushell PATH metadata file contains symlink path: {}",
-                paths.config.paths_nu_file.display()
-            ));
+            check_ok(
+                report,
+                format!(
+                    "Nushell PATH metadata file contains symlink path: {}",
+                    paths.config.paths_nu_file.display()
+                ),
+            );
         } else {
-            report.ok = false;
-            report.messages.push(format!(
-                "[FAIL] Nushell PATH metadata file missing expected symlink path: {}",
-                paths.config.paths_nu_file.display()
-            ));
+            check_fail(
+                report,
+                format!(
+                    "Nushell PATH metadata file missing expected symlink path: {}",
+                    paths.config.paths_nu_file.display()
+                ),
+            );
         }
     }
 
@@ -362,26 +411,30 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
     for (profile_rel, expected_line) in profiles_to_check {
         let profile_path = paths.dirs.user_dir.join(&profile_rel);
         if !profile_path.exists() {
-            report.ok = false;
-            report.messages.push(format!(
-                "[FAIL] Shell profile missing: {}",
-                profile_path.display()
-            ));
+            check_fail(
+                report,
+                format!("Shell profile missing: {}", profile_path.display()),
+            );
             continue;
         }
 
         let content = fs::read_to_string(&profile_path)?;
         if content.contains(&expected_line) {
-            report.messages.push(format!(
-                "[OK] Shell profile contains upstream hook: {}",
-                profile_path.display()
-            ));
+            check_ok(
+                report,
+                format!(
+                    "Shell profile contains upstream hook: {}",
+                    profile_path.display()
+                ),
+            );
         } else {
-            report.ok = false;
-            report.messages.push(format!(
-                "[FAIL] Shell profile missing upstream hook: {}",
-                profile_path.display()
-            ));
+            check_fail(
+                report,
+                format!(
+                    "Shell profile missing upstream hook: {}",
+                    profile_path.display()
+                ),
+            );
         }
     }
 
@@ -506,14 +559,9 @@ fn check_windows_integration(paths: &UpstreamPaths, report: &mut InitCheckReport
         .any(|p| normalize_windows_path(p) == symlinks_norm);
 
     if in_path {
-        report
-            .messages
-            .push("[OK] Windows PATH contains upstream symlinks directory".to_string());
+        check_ok(report, "Windows PATH contains upstream symlinks directory");
     } else {
-        report.ok = false;
-        report
-            .messages
-            .push("[FAIL] Windows PATH missing upstream symlinks directory".to_string());
+        check_fail(report, "Windows PATH missing upstream symlinks directory");
     }
 
     Ok(())
@@ -522,6 +570,7 @@ fn check_windows_integration(paths: &UpstreamPaths, report: &mut InitCheckReport
 #[cfg(test)]
 mod tests {
     use super::purge_data;
+    use crate::services::storage::manifest_storage::{CURRENT_LAYOUT_VERSION, MANIFEST_FILE_NAME};
     use crate::utils::static_paths::{
         AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, UpstreamPaths,
     };
@@ -581,6 +630,58 @@ mod tests {
             fs::remove_dir_all(path)?;
         }
         Ok(())
+    }
+
+    #[test]
+    fn create_manifest_file_writes_current_layout_manifest() {
+        let root = temp_root("manifest-file");
+        let paths = test_paths(&root);
+
+        super::create_manifest_file(&paths).expect("create manifest file");
+
+        let manifest_path = paths.dirs.data_dir.join(MANIFEST_FILE_NAME);
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&manifest_path).expect("read manifest"))
+                .expect("parse manifest");
+        assert_eq!(
+            manifest["layout_version"].as_u64(),
+            Some(CURRENT_LAYOUT_VERSION as u64)
+        );
+        assert_eq!(
+            manifest["platform"]["os"].as_str(),
+            Some(std::env::consts::OS)
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn check_reports_manifest_file_status() {
+        let root = temp_root("manifest-check");
+        let paths = test_paths(&root);
+
+        let missing_report = super::check(&paths).expect("check missing manifest");
+        assert!(
+            missing_report
+                .messages
+                .iter()
+                .map(|message| console::strip_ansi_codes(message).to_string())
+                .any(|message| message.contains("[fail]")
+                    && message.contains("manifest file missing"))
+        );
+
+        fs::create_dir_all(&paths.dirs.data_dir).expect("create data dir");
+        super::create_manifest_file(&paths).expect("create manifest");
+        let present_report = super::check(&paths).expect("check present manifest");
+        assert!(
+            present_report
+                .messages
+                .iter()
+                .map(|message| console::strip_ansi_codes(message).to_string())
+                .any(|message| message.contains("[ok]") && message.contains("manifest file exists"))
+        );
+
+        cleanup(&root).expect("cleanup");
     }
 
     #[cfg(unix)]
