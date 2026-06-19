@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly RED="\033[0;31m"
+readonly GREEN="\033[0;32m"
+readonly BLUE="\033[0;34m"
+readonly NC="\033[0m"
+
+if [[ "$(git branch --show-current)" != "dev" ]]; then
+    echo -e "${RED}Not on dev branch${NC}"
+    exit 1
+fi
+
+echo -e "${BLUE}Pushing dev to remotes...${NC}"
+
+git push github dev
+git push gitea dev
+
+echo -e "${BLUE}Merging dev into main...${NC}"
+
+git checkout main
+git merge dev -m "Merge dev into main"
+
+echo -e "${BLUE}Pushing main to remotes...${NC}"
+
+git push github main
+git push gitea main
+
+echo -e "${GREEN}Promoted dev to main.${NC}"
