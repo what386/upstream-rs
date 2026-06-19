@@ -241,6 +241,10 @@ mod tests {
         assert!(!path.exists());
         assert!(storage.get_config().github.api_token.is_none());
         assert!(storage.get_config().gitlab.api_token.is_none());
+        assert_eq!(
+            storage.get_config().version,
+            crate::models::upstream::app_config::CONFIG_STORAGE_VERSION
+        );
         assert_eq!(storage.get_config().download.low_threshold_mb, 16);
         assert_eq!(storage.get_config().download.high_threshold_mb, 64);
         assert_eq!(storage.get_config().download.low_threads, 2);
@@ -302,6 +306,38 @@ mod tests {
             .try_set_value("github.missing.field", "1")
             .expect_err("must reject unknown path");
         assert!(err.to_string().contains("Key path not found"));
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn load_rejects_legacy_unversioned_config() {
+        let path = temp_config_file("legacy-unversioned");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        fs::write(&path, "[github]\napi_token = \"ghp_abc\"\n").expect("write config");
+
+        let err = ConfigStorage::new(&path).expect_err("legacy config should be rejected");
+        assert!(err.to_string().contains("Missing version"));
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn load_rejects_legacy_trust_config() {
+        let path = temp_config_file("legacy-trust");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        fs::write(
+            &path,
+            "version = 2\n\n[trust]\nminisign_public_keys = []\ncosign_public_keys = []\n",
+        )
+        .expect("write config");
+
+        let err = ConfigStorage::new(&path).expect_err("trust config should be rejected");
+        assert!(err.to_string().contains("unknown field `trust`"));
 
         cleanup(&path).expect("cleanup");
     }
