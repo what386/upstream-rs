@@ -517,7 +517,7 @@ pub enum Commands {
         API tokens, default providers, and installation preferences.\n\n\
         EXAMPLES:\n  \
         upstream config set github.api_token=ghp_xxx\n  \
-        upstream config get trust\n  \
+        upstream config get download.high_threads\n  \
         upstream config list\n  \
         upstream config edit")]
     Config {
@@ -773,7 +773,7 @@ pub enum ConfigAction {
     #[command(long_about = "Retrieve one or more configuration values.\n\n\
         Use dot notation to access nested keys.\n\n\
         EXAMPLES:\n  \
-        upstream config get trust\n  \
+        upstream config get download.high_threads\n  \
         upstream config get github.api_token gitlab.api_token")]
     Get {
         /// Configuration keys to retrieve (format: key.path)
