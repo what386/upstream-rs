@@ -1,6 +1,6 @@
 [package]
 name = "upstream-rs"
-version = "2.2.1"
+version = "2.3.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
