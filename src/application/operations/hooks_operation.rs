@@ -677,6 +677,29 @@ mod tests {
     }
 
     #[test]
+    fn create_trust_file_writes_empty_trust_storage() {
+        let root = temp_root("trust-file");
+        let paths = test_paths(&root);
+
+        super::create_trust_file(&paths).expect("create trust file");
+
+        let trust: serde_json::Value =
+            serde_json::from_slice(&fs::read(&paths.config.trust_file).expect("read trust file"))
+                .expect("parse trust file");
+        assert_eq!(trust["version"].as_u64(), Some(1));
+        assert_eq!(
+            trust["minisign_public_keys"].as_array().map(Vec::len),
+            Some(0)
+        );
+        assert_eq!(
+            trust["cosign_public_keys"].as_array().map(Vec::len),
+            Some(0)
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
     fn check_reports_manifest_file_status() {
         let root = temp_root("manifest-check");
         let paths = test_paths(&root);
@@ -700,6 +723,36 @@ mod tests {
                 .iter()
                 .map(|message| console::strip_ansi_codes(message).to_string())
                 .any(|message| message.contains("[ok]") && message.contains("manifest file exists"))
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn check_reports_trust_file_status() {
+        let root = temp_root("trust-check");
+        let paths = test_paths(&root);
+
+        let missing_report = super::check(&paths).expect("check missing trust");
+        assert!(
+            missing_report
+                .messages
+                .iter()
+                .map(|message| console::strip_ansi_codes(message).to_string())
+                .any(|message| message.contains("[fail]")
+                    && message.contains("trust metadata file missing"))
+        );
+
+        fs::create_dir_all(&paths.dirs.metadata_dir).expect("create metadata dir");
+        super::create_trust_file(&paths).expect("create trust");
+        let present_report = super::check(&paths).expect("check present trust");
+        assert!(
+            present_report
+                .messages
+                .iter()
+                .map(|message| console::strip_ansi_codes(message).to_string())
+                .any(|message| message.contains("[ok]")
+                    && message.contains("trust metadata file exists"))
         );
 
         cleanup(&root).expect("cleanup");

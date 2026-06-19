@@ -658,4 +658,46 @@ mod tests {
 
         cleanup(&root).expect("cleanup");
     }
+
+    #[test]
+    fn migrate_moves_legacy_config_trust_keys_to_trust_storage() {
+        let root = temp_root("trust-config");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(&paths.dirs.config_dir).expect("create config");
+        fs::write(
+            &paths.config.config_file,
+            r#"
+[github]
+api_token = "ghp_abc"
+
+[trust]
+minisign_public_keys = [{ id = "mini", key = "RWabc" }]
+cosign_public_keys = [{ id = "cosign", key = "-----BEGIN PUBLIC KEY-----\nkey\n-----END PUBLIC KEY-----" }]
+"#,
+        )
+        .expect("write legacy config");
+
+        let report = run(&paths).expect("migrate");
+
+        assert_eq!(report.migrated_trusted_keys, 2);
+        let migrated_config =
+            fs::read_to_string(&paths.config.config_file).expect("read migrated config");
+        assert!(migrated_config.contains("version = 2"));
+        assert!(!migrated_config.contains("[trust]"));
+
+        let trust_json: serde_json::Value = serde_json::from_slice(
+            &fs::read(&paths.config.trust_file).expect("read trust storage"),
+        )
+        .expect("parse trust storage");
+        assert_eq!(
+            trust_json["minisign_public_keys"][0]["id"].as_str(),
+            Some("mini")
+        );
+        assert_eq!(
+            trust_json["cosign_public_keys"][0]["id"].as_str(),
+            Some("cosign")
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
 }
