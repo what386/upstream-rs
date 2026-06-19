@@ -9,6 +9,10 @@ use crate::models::upstream::AppConfig;
 use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 
+const ALLOWED_TOP_LEVEL_KEYS: &[&str] = &[
+    "version", "github", "gitlab", "gitea", "download", "rollback",
+];
+
 #[derive(Debug)]
 pub struct ConfigStorage {
     config: AppConfig,
@@ -55,6 +59,18 @@ impl ConfigStorage {
                 self.config_file.display(),
                 CONFIG_STORAGE_VERSION
             ));
+        }
+
+        if let Some(table) = value.as_table() {
+            for key in table.keys() {
+                if !ALLOWED_TOP_LEVEL_KEYS.contains(&key.as_str()) {
+                    return Err(anyhow!(
+                        "Unsupported config key '{}' in '{}'; run `upstream migrate` if this is a legacy config.",
+                        key,
+                        self.config_file.display()
+                    ));
+                }
+            }
         }
 
         self.config = value
@@ -340,7 +356,7 @@ mod tests {
         .expect("write config");
 
         let err = ConfigStorage::new(&path).expect_err("trust config should be rejected");
-        assert!(err.to_string().contains("unknown field `trust`"));
+        assert!(err.to_string().contains("Unsupported config key 'trust'"));
 
         cleanup(&path).expect("cleanup");
     }
