@@ -28,6 +28,29 @@ upstream config reset
 upstream config set github.api_token=... gitlab.api_token=...
 ```
 
+Values are parsed as TOML literals when possible. Use normal strings for simple values, or quote strings explicitly when needed:
+
+```bash
+upstream config set github.api_token=ghp_xxx
+upstream config set rollback.compression_level=high rollback.stored_artifacts=2
+```
+
+## Config Keys
+
+| Key | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| `github.api_token` | string | unset | GitHub API token |
+| `gitlab.api_token` | string | unset | GitLab API token |
+| `gitea.api_token` | string | unset | Gitea API token |
+| `download.low_threshold_mb` | integer | `16` | Minimum asset size for low parallel download worker count |
+| `download.high_threshold_mb` | integer | `64` | Minimum asset size for high parallel download worker count |
+| `download.low_threads` | integer | `2` | Parallel workers used at or above the low threshold |
+| `download.high_threads` | integer | `4` | Parallel workers used at or above the high threshold |
+| `rollback.compression_level` | `none`, `low`, `high` | `high` | Compression level for rollback artifacts |
+| `rollback.stored_artifacts` | integer | `1` | Number of rollback artifacts to keep per package |
+| `trust.minisign_public_keys` | array | `[]` | Trusted minisign public keys |
+| `trust.cosign_public_keys` | array | `[]` | Trusted cosign public keys |
+
 ## Provider Tokens
 
 Supported provider token keys:
@@ -62,6 +85,24 @@ upstream config set download.low_threshold_mb=32
 upstream config set download.high_threshold_mb=128 download.high_threads=6
 ```
 
+## Rollback
+
+Rollback behavior is controlled by:
+
+```text
+rollback.compression_level = high
+rollback.stored_artifacts = 1
+```
+
+`rollback.compression_level` accepts `none`, `low`, or `high`. `rollback.stored_artifacts` controls how many rollback artifacts are retained for each package.
+
+Examples:
+
+```bash
+upstream config set rollback.compression_level=low
+upstream config set rollback.stored_artifacts=3
+```
+
 ## Trust Keys
 
 Trusted signature keys are stored under:
@@ -79,6 +120,13 @@ upstream import ./cosign.pub --as keys
 ```
 
 Manual edits are possible through `upstream config edit`, but imports handle parsing and deduplication.
+
+Manual TOML shape:
+
+```toml
+trust.minisign_public_keys = [{ key = "RW...", id = "optional-name" }]
+trust.cosign_public_keys = [{ key = "-----BEGIN PUBLIC KEY-----...", id = "optional-name" }]
+```
 
 ## Package Metadata
 
