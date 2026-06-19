@@ -715,6 +715,7 @@ mod tests {
     use super::RollbackManager;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
+    use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
     use crate::services::storage::rollback_storage::{RollbackArtifactFormat, RollbackSource};
     use crate::services::storage::{
         metadata_storage::MetadataStorage, package_storage::PackageStorage,
@@ -740,7 +741,7 @@ mod tests {
         fs::write(
             &paths.config.config_file,
             format!(
-                "[rollback]\ncompression_level = \"{compression_level}\"\nstored_artifacts = {stored_artifacts}\n"
+                "version = {CONFIG_STORAGE_VERSION}\n\n[rollback]\ncompression_level = \"{compression_level}\"\nstored_artifacts = {stored_artifacts}\n"
             ),
         )
         .expect("write rollback config");
