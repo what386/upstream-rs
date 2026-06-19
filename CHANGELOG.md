@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-18*
+*Generated on 2026-06-19*
+
+## 2.2.1 — 2026-06-19
+
+### Changes
+
+- feat: migration manifest storage (does nothing for now) `migration`, `storage`
+- fix: hooks check colors render properly `hooks`, `output`
+
 
 ## 2.2.0 — 2026-06-18
 
