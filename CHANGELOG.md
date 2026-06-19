@@ -2,6 +2,15 @@
 
 *Generated on 2026-06-19*
 
+## 2.3.0 — 2026-06-19
+
+### Changes
+
+- BREAKING: move trusted keys out of config and into metadata/trust.json
+- feat: migration manifest storage (does nothing for now) `migration`, `storage`
+- fix: hooks check colors render properly `hooks`, `output`
+
+
 ## 2.2.0 — 2026-06-18
 
 ### Changes
