@@ -66,7 +66,10 @@ impl TrustStorage {
                     return Ok(());
                 }
                 let file: TrustStorageFile = serde_json::from_str(&json).with_context(|| {
-                    format!("Failed to parse trust storage '{}'", self.trust_file.display())
+                    format!(
+                        "Failed to parse trust storage '{}'",
+                        self.trust_file.display()
+                    )
                 })?;
                 if file.version != TRUST_STORAGE_VERSION {
                     return Err(anyhow!(
@@ -272,7 +275,10 @@ mod tests {
         let value: serde_json::Value =
             serde_json::from_slice(&fs::read(&path).expect("read trust file"))
                 .expect("parse trust file");
-        assert_eq!(value["version"].as_u64(), Some(TRUST_STORAGE_VERSION as u64));
+        assert_eq!(
+            value["version"].as_u64(),
+            Some(TRUST_STORAGE_VERSION as u64)
+        );
         assert_eq!(
             value["minisign_public_keys"].as_array().map(Vec::len),
             Some(0)
@@ -295,7 +301,10 @@ mod tests {
         .expect("write trust file");
 
         let err = TrustStorage::new(&path).expect_err("unsupported version");
-        assert!(err.to_string().contains("Unsupported trust storage version"));
+        assert!(
+            err.to_string()
+                .contains("Unsupported trust storage version")
+        );
         cleanup(&path).expect("cleanup");
     }
 }

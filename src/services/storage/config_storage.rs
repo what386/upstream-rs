@@ -5,10 +5,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use toml;
 
-use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
 use crate::models::upstream::AppConfig;
+use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 
+#[derive(Debug)]
 pub struct ConfigStorage {
     config: AppConfig,
     config_file: PathBuf,
@@ -56,7 +57,9 @@ impl ConfigStorage {
             ));
         }
 
-        self.config = value.try_into().context("Tried to parse an invalid config")?;
+        self.config = value
+            .try_into()
+            .context("Tried to parse an invalid config")?;
         Ok(())
     }
 

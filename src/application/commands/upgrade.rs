@@ -9,11 +9,11 @@ use crate::{
     services::storage::{
         config_storage::ConfigStorage,
         package_storage::PackageStorage,
-        trust_storage::TrustStorage,
         transaction_storage::{
             TransactionKind, TransactionLog, UndoActionKind, package_failed, package_success,
             planned_packages, undo,
         },
+        trust_storage::TrustStorage,
     },
     utils::static_paths::UpstreamPaths,
 };

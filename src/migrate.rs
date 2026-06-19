@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 
-use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
 use crate::models::upstream::Package;
+use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
 use crate::services::integration::SymlinkManager;
 use crate::services::storage::manifest_storage::{CURRENT_LAYOUT_VERSION, ManifestStorage};
 use crate::services::storage::rollback_storage::RollbackRecord;
