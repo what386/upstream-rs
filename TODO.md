@@ -15,3 +15,7 @@
       @created 2026-06-19 04:44
       @completed 2026-06-19 04:54
 
+- [x] feat: migration manifest storage (does nothing for now) `migration`, #storage
+      @created 2026-06-19 04:56
+      @completed 2026-06-19 04:56
+

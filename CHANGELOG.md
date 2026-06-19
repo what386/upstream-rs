@@ -6,7 +6,6 @@
 
 ### Changes
 
-- feat: migration manifest storage (does nothing for now) `migration`, `storage`
 - fix: hooks check colors render properly `hooks`, `output`
 
 
