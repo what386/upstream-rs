@@ -19,3 +19,7 @@
       @created 2026-06-19 04:56
       @completed 2026-06-19 04:56
 
+- [x] fix: hooks check colors render properly `hooks`, #output
+      @created 2026-06-19 04:56
+      @completed 2026-06-19 04:56
+

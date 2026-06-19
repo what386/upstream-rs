@@ -2,13 +2,6 @@
 
 *Generated on 2026-06-19*
 
-## 2.2.1 — 2026-06-19
-
-### Changes
-
-- fix: hooks check colors render properly `hooks`, `output`
-
-
 ## 2.2.0 — 2026-06-18
 
 ### Changes
