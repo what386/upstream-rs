@@ -1,6 +1,7 @@
 use crate::models::common::enums::CompressionLevel;
-use crate::services::trust::{CosignPublicKey, MinisignPublicKey, TrustedSignatureKeys};
 use serde::{Deserialize, Serialize};
+
+pub const CONFIG_STORAGE_VERSION: u32 = 2;
 
 const MB: u64 = 1024 * 1024;
 
@@ -13,27 +14,6 @@ const HIGH_PARALLEL_DOWNLOADS: usize = 4;
 #[serde(default)]
 pub struct ProviderConfig {
     pub api_token: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(default)]
-pub struct MinisignKeyConfig {
-    pub id: Option<String>,
-    pub key: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(default)]
-pub struct TrustConfig {
-    pub minisign_public_keys: Vec<MinisignKeyConfig>,
-    pub cosign_public_keys: Vec<CosignKeyConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(default)]
-pub struct CosignKeyConfig {
-    pub id: Option<String>,
-    pub key: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,42 +62,26 @@ impl DownloadConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct AppConfig {
+    pub version: u32,
     pub github: ProviderConfig,
     pub gitlab: ProviderConfig,
     pub gitea: ProviderConfig,
     pub download: DownloadConfig,
-    pub trust: TrustConfig,
     pub rollback: RollbackConfig,
 }
 
-impl AppConfig {
-    pub fn trusted_signature_keys(&self) -> TrustedSignatureKeys {
-        let minisign_public_keys = self
-            .trust
-            .minisign_public_keys
-            .iter()
-            .map(|k| MinisignPublicKey {
-                id: k.id.clone(),
-                key: k.key.clone(),
-            })
-            .collect();
-
-        let cosign_public_keys = self
-            .trust
-            .cosign_public_keys
-            .iter()
-            .map(|k| CosignPublicKey {
-                id: k.id.clone(),
-                key: k.key.clone(),
-            })
-            .collect();
-
-        TrustedSignatureKeys {
-            minisign_public_keys,
-            cosign_public_keys,
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            version: CONFIG_STORAGE_VERSION,
+            github: ProviderConfig::default(),
+            gitlab: ProviderConfig::default(),
+            gitea: ProviderConfig::default(),
+            download: DownloadConfig::default(),
+            rollback: RollbackConfig::default(),
         }
     }
 }

@@ -5,3 +5,4 @@ pub mod metadata_storage;
 pub mod package_storage;
 pub mod rollback_storage;
 pub mod transaction_storage;
+pub mod trust_storage;

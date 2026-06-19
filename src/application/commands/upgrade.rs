@@ -9,6 +9,7 @@ use crate::{
     services::storage::{
         config_storage::ConfigStorage,
         package_storage::PackageStorage,
+        trust_storage::TrustStorage,
         transaction_storage::{
             TransactionKind, TransactionLog, UndoActionKind, package_failed, package_success,
             planned_packages, undo,
@@ -90,13 +91,14 @@ pub async fn run(
 ) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
+    let trust_storage = TrustStorage::new(&paths.config.trust_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let app_config = config.get_config();
     let github_token = app_config.github.api_token.as_deref();
     let gitlab_token = app_config.gitlab.api_token.as_deref();
     let gitea_token = app_config.gitea.api_token.as_deref();
 
-    let trusted_keys = app_config.trusted_signature_keys();
+    let trusted_keys = trust_storage.trusted_signature_keys();
 
     let provider_manager = ProviderManager::new_with_download_config(
         github_token,

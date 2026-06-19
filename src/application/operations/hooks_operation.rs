@@ -2,7 +2,10 @@
 use crate::services::integration::{nushell_paths_file_contains_path, render_nushell_paths_file};
 use crate::services::{
     integration::CompletionManager,
-    storage::{config_storage::ConfigStorage, manifest_storage::ManifestStorage},
+    storage::{
+        config_storage::ConfigStorage, manifest_storage::ManifestStorage,
+        trust_storage::TrustStorage,
+    },
 };
 #[cfg(unix)]
 use crate::utils::platform::shells::installed_shell_commands;
@@ -61,6 +64,7 @@ fn normalize_windows_path(path: &str) -> String {
 pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
     create_package_dirs(paths)?;
     create_manifest_file(paths)?;
+    create_trust_file(paths)?;
     create_metadata_files(paths)?;
     create_default_config_file(paths)?;
 
@@ -75,6 +79,10 @@ pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
 
 fn create_manifest_file(paths: &UpstreamPaths) -> Result<()> {
     ManifestStorage::new(&ManifestStorage::path_for_root(&paths.dirs.data_dir))?.ensure_current()
+}
+
+fn create_trust_file(paths: &UpstreamPaths) -> Result<()> {
+    TrustStorage::new(&paths.config.trust_file)?.ensure_exists()
 }
 
 pub fn purge_data(paths: &UpstreamPaths) -> Result<()> {
@@ -154,6 +162,18 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
         check_fail(
             &mut report,
             format!("manifest file missing: {}", manifest_file.display()),
+        );
+    }
+
+    if paths.config.trust_file.exists() {
+        check_ok(
+            &mut report,
+            format!("trust metadata file exists: {}", paths.config.trust_file.display()),
+        );
+    } else {
+        check_fail(
+            &mut report,
+            format!("trust metadata file missing: {}", paths.config.trust_file.display()),
         );
     }
 
@@ -601,6 +621,7 @@ mod tests {
                 config_file: dirs.config_dir.join("config.toml"),
                 packages_file: dirs.metadata_dir.join("packages.json"),
                 metadata_file: dirs.metadata_dir.join("metadata.json"),
+                trust_file: dirs.metadata_dir.join("trust.json"),
                 paths_file: dirs.metadata_dir.join("paths.sh"),
                 paths_nu_file: dirs.metadata_dir.join("paths.nu"),
             },
