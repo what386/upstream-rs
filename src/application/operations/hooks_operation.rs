@@ -168,12 +168,18 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
     if paths.config.trust_file.exists() {
         check_ok(
             &mut report,
-            format!("trust metadata file exists: {}", paths.config.trust_file.display()),
+            format!(
+                "trust metadata file exists: {}",
+                paths.config.trust_file.display()
+            ),
         );
     } else {
         check_fail(
             &mut report,
-            format!("trust metadata file missing: {}", paths.config.trust_file.display()),
+            format!(
+                "trust metadata file missing: {}",
+                paths.config.trust_file.display()
+            ),
         );
     }
 

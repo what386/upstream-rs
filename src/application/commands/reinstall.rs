@@ -27,11 +27,11 @@ use crate::{
             metadata_storage::MetadataStorage,
             package_storage::PackageStorage,
             rollback_storage::RollbackSource,
-            trust_storage::TrustStorage,
             transaction_storage::{
                 TransactionKind, TransactionLog, UndoActionKind, package_failed, package_success,
                 planned_packages, undo,
             },
+            trust_storage::TrustStorage,
         },
         trust::TrustedSignatureKeys,
     },
