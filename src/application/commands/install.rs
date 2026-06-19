@@ -18,7 +18,10 @@ use crate::{
     },
     services::{
         packaging::{PackagePhase, PackageProgressEvent},
-        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+        storage::{
+            config_storage::ConfigStorage, package_storage::PackageStorage,
+            trust_storage::TrustStorage,
+        },
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -79,6 +82,7 @@ pub async fn run(
     let paths = UpstreamPaths::new()?;
 
     let config = ConfigStorage::new(&paths.config.config_file)?;
+    let trust_storage = TrustStorage::new(&paths.config.trust_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let app_config = config.get_config();
 
@@ -92,7 +96,7 @@ pub async fn run(
         gitea_token,
         app_config.download,
     )?;
-    let trusted_keys = app_config.trusted_signature_keys();
+    let trusted_keys = trust_storage.trusted_signature_keys();
     let name = resolve_package_name(name, &repo_slug, provider.as_ref(), base_url.as_deref())?;
 
     let package = build_package(

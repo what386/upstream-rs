@@ -5,24 +5,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use toml;
 
-use crate::models::upstream::{AppConfig, CosignKeyConfig, MinisignKeyConfig};
-use crate::services::trust::{CosignPublicKey, MinisignPublicKey};
+use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
+use crate::models::upstream::AppConfig;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 
 pub struct ConfigStorage {
     config: AppConfig,
     config_file: PathBuf,
-}
-
-pub struct KeyMergeSummary {
-    pub imported: usize,
-    pub deduped: usize,
-    pub total: usize,
-}
-
-pub struct SignatureKeyMergeSummary {
-    pub minisign: KeyMergeSummary,
-    pub cosign: KeyMergeSummary,
 }
 
 impl ConfigStorage {
@@ -46,7 +35,28 @@ impl ConfigStorage {
         let toml_str =
             fs::read_to_string(&self.config_file).context("Failed to load config file")?;
 
-        self.config = toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
+        let value: toml::Value =
+            toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
+        let version = value
+            .get("version")
+            .and_then(toml::Value::as_integer)
+            .ok_or_else(|| {
+                anyhow!(
+                    "Unsupported config storage version in '{}'. Missing version {}; run `upstream migrate`.",
+                    self.config_file.display(),
+                    CONFIG_STORAGE_VERSION
+                )
+            })?;
+        if version != i64::from(CONFIG_STORAGE_VERSION) {
+            return Err(anyhow!(
+                "Unsupported config storage version {} in '{}'. Expected version {}.",
+                version,
+                self.config_file.display(),
+                CONFIG_STORAGE_VERSION
+            ));
+        }
+
+        self.config = value.try_into().context("Tried to parse an invalid config")?;
         Ok(())
     }
 
@@ -69,86 +79,6 @@ impl ConfigStorage {
 
     pub fn get_config(&self) -> &AppConfig {
         &self.config
-    }
-
-    pub fn merge_trusted_minisign_keys(
-        &mut self,
-        keys: &[MinisignPublicKey],
-    ) -> Result<KeyMergeSummary> {
-        let mut imported = 0_usize;
-        let mut deduped = 0_usize;
-        let total;
-
-        {
-            let existing = &mut self.config.trust.minisign_public_keys;
-            for key in keys {
-                let normalized = key.key.trim();
-                if normalized.is_empty() {
-                    continue;
-                }
-                let duplicate = existing
-                    .iter()
-                    .any(|k| k.key.trim().eq_ignore_ascii_case(normalized));
-                if duplicate {
-                    deduped += 1;
-                    continue;
-                }
-
-                existing.push(MinisignKeyConfig {
-                    id: key.id.clone(),
-                    key: normalized.to_string(),
-                });
-                imported += 1;
-            }
-            total = existing.len();
-        }
-
-        self.save_config()?;
-
-        Ok(KeyMergeSummary {
-            imported,
-            deduped,
-            total,
-        })
-    }
-
-    pub fn merge_trusted_cosign_keys(
-        &mut self,
-        keys: &[CosignPublicKey],
-    ) -> Result<KeyMergeSummary> {
-        let mut imported = 0_usize;
-        let mut deduped = 0_usize;
-        let total;
-
-        {
-            let existing = &mut self.config.trust.cosign_public_keys;
-            for key in keys {
-                let normalized = key.key.trim();
-                if normalized.is_empty() {
-                    continue;
-                }
-                let duplicate = existing.iter().any(|k| k.key.trim() == normalized);
-                if duplicate {
-                    deduped += 1;
-                    continue;
-                }
-
-                existing.push(CosignKeyConfig {
-                    id: key.id.clone(),
-                    key: normalized.to_string(),
-                });
-                imported += 1;
-            }
-            total = existing.len();
-        }
-
-        self.save_config()?;
-
-        Ok(KeyMergeSummary {
-            imported,
-            deduped,
-            total,
-        })
     }
 
     /// Sets a configuration value at the given key path (e.g., "github.api_token").

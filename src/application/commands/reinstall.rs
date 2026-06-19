@@ -27,6 +27,7 @@ use crate::{
             metadata_storage::MetadataStorage,
             package_storage::PackageStorage,
             rollback_storage::RollbackSource,
+            trust_storage::TrustStorage,
             transaction_storage::{
                 TransactionKind, TransactionLog, UndoActionKind, package_failed, package_success,
                 planned_packages, undo,
@@ -78,6 +79,7 @@ pub async fn run(
 
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
+    let trust_storage = TrustStorage::new(&paths.config.trust_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
     let app_config = config.get_config();
@@ -91,7 +93,7 @@ pub async fn run(
         gitea_token,
         app_config.download,
     )?;
-    let trusted_keys = app_config.trusted_signature_keys();
+    let trusted_keys = trust_storage.trusted_signature_keys();
 
     if dry_run {
         return run_dry_run(

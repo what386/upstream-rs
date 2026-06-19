@@ -6,10 +6,13 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 
+use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
 use crate::models::upstream::Package;
 use crate::services::integration::SymlinkManager;
 use crate::services::storage::manifest_storage::{CURRENT_LAYOUT_VERSION, ManifestStorage};
 use crate::services::storage::rollback_storage::RollbackRecord;
+use crate::services::storage::trust_storage::TrustStorage;
+use crate::services::trust::{CosignPublicKey, MinisignPublicKey};
 use crate::utils::filesystem::{atomic_ops::write_atomic, safe_move};
 use crate::utils::static_paths::UpstreamPaths;
 
@@ -22,6 +25,8 @@ pub struct MigrationReport {
     pub moved_entries: usize,
     pub updated_packages: usize,
     pub updated_rollback_records: usize,
+    pub migrated_trusted_keys: usize,
+    pub deduped_trusted_keys: usize,
     pub refreshed_symlinks: usize,
     pub skipped_symlinks: usize,
 }
@@ -50,6 +55,13 @@ struct LegacyRollbackStorageFile {
     records: HashMap<String, RollbackRecord>,
 }
 
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
+struct LegacyTrustConfig {
+    minisign_public_keys: Vec<MinisignPublicKey>,
+    cosign_public_keys: Vec<CosignPublicKey>,
+}
+
 pub fn run(paths: &UpstreamPaths) -> Result<MigrationReport> {
     let rewrites = package_path_rewrites(paths);
     let legacy_layout_detected = legacy_package_dirs_exist(&rewrites);
@@ -65,10 +77,84 @@ pub fn run(paths: &UpstreamPaths) -> Result<MigrationReport> {
     move_legacy_package_dirs(&rewrites, &mut report)?;
     let packages = migrate_package_metadata(paths, &rewrites, &mut report)?;
     migrate_rollback_metadata(paths, &rewrites, &mut report)?;
+    migrate_trust_config(paths, &mut report)?;
     refresh_symlinks(paths, &packages, &mut report)?;
     manifest_storage.record_migration_from(previous_layout_version, CURRENT_LAYOUT_VERSION)?;
 
     Ok(report)
+}
+
+fn migrate_trust_config(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
+    let mut trust_storage = TrustStorage::new(&paths.config.trust_file)?;
+
+    if !paths.config.config_file.exists() {
+        trust_storage.ensure_exists()?;
+        return Ok(());
+    }
+
+    let raw_config = fs::read_to_string(&paths.config.config_file).with_context(|| {
+        format!(
+            "Failed to read config '{}'",
+            paths.config.config_file.display()
+        )
+    })?;
+    if raw_config.trim().is_empty() {
+        trust_storage.ensure_exists()?;
+        return Ok(());
+    }
+
+    let mut config_value: toml::Value = toml::from_str(&raw_config).with_context(|| {
+        format!(
+            "Failed to parse config '{}'",
+            paths.config.config_file.display()
+        )
+    })?;
+    let config_table = config_value.as_table_mut().ok_or_else(|| {
+        anyhow!(
+            "Config '{}' must be a TOML table",
+            paths.config.config_file.display()
+        )
+    })?;
+
+    let mut changed_config = false;
+    if let Some(trust_value) = config_table.remove("trust") {
+        let legacy_trust: LegacyTrustConfig = trust_value
+            .try_into()
+            .context("Failed to parse legacy config trust keys")?;
+        let summary = trust_storage.merge_trusted_keys(
+            &legacy_trust.minisign_public_keys,
+            &legacy_trust.cosign_public_keys,
+        )?;
+        report.migrated_trusted_keys += summary.minisign.imported + summary.cosign.imported;
+        report.deduped_trusted_keys += summary.minisign.deduped + summary.cosign.deduped;
+        changed_config = true;
+    } else {
+        trust_storage.ensure_exists()?;
+    }
+
+    let version = config_table
+        .get("version")
+        .and_then(toml::Value::as_integer);
+    if version != Some(i64::from(CONFIG_STORAGE_VERSION)) {
+        config_table.insert(
+            "version".to_string(),
+            toml::Value::Integer(i64::from(CONFIG_STORAGE_VERSION)),
+        );
+        changed_config = true;
+    }
+
+    if changed_config {
+        let rendered =
+            toml::to_string_pretty(&config_value).context("Failed to serialize migrated config")?;
+        write_atomic(&paths.config.config_file, rendered.as_bytes()).with_context(|| {
+            format!(
+                "Failed to write migrated config '{}'",
+                paths.config.config_file.display()
+            )
+        })?;
+    }
+
+    Ok(())
 }
 
 fn create_required_dirs(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {

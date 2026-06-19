@@ -5,13 +5,13 @@ mod orchestrator;
 
 pub use orchestrator::SignatureVerifier;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MinisignPublicKey {
     pub id: Option<String>,
     pub key: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CosignPublicKey {
     pub id: Option<String>,
     pub key: String,
@@ -40,3 +40,4 @@ pub enum SignatureVerificationStatus {
     InvalidSignature,
     NoTrustedKeyMatched,
 }
+use serde::{Deserialize, Serialize};

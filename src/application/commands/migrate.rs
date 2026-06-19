@@ -29,6 +29,14 @@ pub fn run() -> Result<()> {
     );
     output::status_line(
         output::Status::Ok,
+        "trust",
+        format!(
+            "imported {}, deduped {}",
+            report.migrated_trusted_keys, report.deduped_trusted_keys
+        ),
+    );
+    output::status_line(
+        output::Status::Ok,
         "symlinks",
         format!(
             "refreshed {}, skipped {}",

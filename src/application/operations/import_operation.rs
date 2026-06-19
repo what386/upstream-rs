@@ -2,7 +2,7 @@ use crate::{
     models::upstream::PackageReference,
     services::{
         packaging::{OperationPhase, OperationProgressEvent},
-        storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
+        storage::{package_storage::PackageStorage, trust_storage::TrustStorage},
         trust::{CosignPublicKey, MinisignPublicKey},
     },
     utils::static_paths::UpstreamPaths,
@@ -206,19 +206,18 @@ impl<'a> ImportOperation<'a> {
                 "--skip-failed has no effect for key imports",
             );
         }
-        let mut config_storage = ConfigStorage::new(&self.paths.config.config_file)?;
-        let minisign_summary = config_storage.merge_trusted_minisign_keys(&minisign_keys)?;
-        let cosign_summary = config_storage.merge_trusted_cosign_keys(&cosign_keys)?;
+        let mut trust_storage = TrustStorage::new(&self.paths.config.trust_file)?;
+        let summary = trust_storage.merge_trusted_keys(&minisign_keys, &cosign_keys)?;
         emit_detail(
             progress_callback,
             format!(
                 "Key import complete: minisign {} imported, {} deduped, {} total; cosign {} imported, {} deduped, {} total",
-                minisign_summary.imported,
-                minisign_summary.deduped,
-                minisign_summary.total,
-                cosign_summary.imported,
-                cosign_summary.deduped,
-                cosign_summary.total
+                summary.minisign.imported,
+                summary.minisign.deduped,
+                summary.minisign.total,
+                summary.cosign.imported,
+                summary.cosign.deduped,
+                summary.cosign.total
             ),
         );
         Ok(())
