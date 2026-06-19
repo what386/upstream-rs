@@ -36,7 +36,7 @@ upstream import ./minisign.pub --as keys
 upstream import ./cosign.pub --as keys
 ```
 
-Imported keys are merged into the config and deduplicated.
+Imported keys are merged into `$HOME/.upstream/metadata/trust.json` and deduplicated.
 
 Use `--trust signature` when a package is expected to publish a signature asset matching the selected download.
 

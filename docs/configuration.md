@@ -39,6 +39,7 @@ upstream config set rollback.compression_level=high rollback.stored_artifacts=2
 
 | Key | Type | Default | Purpose |
 | --- | --- | --- | --- |
+| `version` | integer | `2` | Config file schema version |
 | `github.api_token` | string | unset | GitHub API token |
 | `gitlab.api_token` | string | unset | GitLab API token |
 | `gitea.api_token` | string | unset | Gitea API token |
@@ -48,8 +49,6 @@ upstream config set rollback.compression_level=high rollback.stored_artifacts=2
 | `download.high_threads` | integer | `4` | Parallel workers used at or above the high threshold |
 | `rollback.compression_level` | `none`, `low`, `high` | `high` | Compression level for rollback artifacts |
 | `rollback.stored_artifacts` | integer | `1` | Number of rollback artifacts to keep per package |
-| `trust.minisign_public_keys` | array | `[]` | Trusted minisign public keys |
-| `trust.cosign_public_keys` | array | `[]` | Trusted cosign public keys |
 
 ## Provider Tokens
 
@@ -105,11 +104,10 @@ upstream config set rollback.stored_artifacts=3
 
 ## Trust Keys
 
-Trusted signature keys are stored under:
+Trusted signature keys are stored outside `config.toml` at:
 
 ```text
-trust.minisign_public_keys
-trust.cosign_public_keys
+$HOME/.upstream/metadata/trust.json
 ```
 
 Prefer importing key files with:
@@ -119,13 +117,16 @@ upstream import ./minisign.pub --as keys
 upstream import ./cosign.pub --as keys
 ```
 
-Manual edits are possible through `upstream config edit`, but imports handle parsing and deduplication.
+Manual edits are possible, but imports handle parsing and deduplication.
 
-Manual TOML shape:
+Storage shape:
 
-```toml
-trust.minisign_public_keys = [{ key = "RW...", id = "optional-name" }]
-trust.cosign_public_keys = [{ key = "-----BEGIN PUBLIC KEY-----...", id = "optional-name" }]
+```json
+{
+  "version": 1,
+  "minisign_public_keys": [{ "key": "RW...", "id": "optional-name" }],
+  "cosign_public_keys": [{ "key": "-----BEGIN PUBLIC KEY-----...", "id": "optional-name" }]
+}
 ```
 
 ## Package Metadata
@@ -136,12 +137,14 @@ Installed package metadata is separate from configuration:
 $HOME/.upstream/migration.json
 $HOME/.upstream/metadata/packages.json
 $HOME/.upstream/metadata/metadata.json
+$HOME/.upstream/metadata/trust.json
 $HOME/.upstream/metadata/transactions.json
 ```
 
 - `migration.json` records the root data layout version and migration metadata.
 - `packages.json` tracks installed package source, version, file type, install paths, and provider metadata.
 - `metadata.json` stores sidecar package data such as pin reasons.
+- `trust.json` stores trusted minisign and cosign public keys.
 - `transactions.json` records mutating package operations for context-aware rollback.
 
 Do not hand-edit these files unless you are repairing a known issue. Use `package rename`, `package pin`, `package unpin`, `remove`, `reinstall`, and `rollback` where possible.

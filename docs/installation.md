@@ -63,6 +63,7 @@ Upstream stores data in user-owned locations:
 | `$HOME/.upstream/migration.json` | Root layout manifest used by init, doctor, and migration |
 | `$HOME/.upstream/metadata/packages.json` | Installed package metadata |
 | `$HOME/.upstream/metadata/metadata.json` | Sidecar metadata such as pin reasons |
+| `$HOME/.upstream/metadata/trust.json` | Trusted minisign and cosign public keys |
 | `$HOME/.upstream/metadata/transactions.json` | Mutating package transaction history |
 | `$HOME/.upstream/metadata/paths.sh` | POSIX/fish PATH export managed by hooks |
 | `$HOME/.upstream/metadata/paths.nu` | Nushell PATH export managed by hooks |
