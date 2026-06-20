@@ -11,8 +11,7 @@ use crate::{
         InstallOperation, PackageTransactionContext, SelectedAssetInstallRequest,
     },
     application::operations::probe_operation::{
-        ProbeAssetChoice, ProbeOperation, ProbeReleaseSelector, ProbeRequest, ProbeResult,
-        ProbeRow, ReleaseState,
+        ProbeAssetChoice, ProbeOperation, ProbeRequest, ProbeResult, ProbeRow, ReleaseState,
     },
     models::common::enums::{Channel, Provider, TrustMode},
     output::{self, Status, TransactionRow, pager},
@@ -40,15 +39,14 @@ pub async fn run(
 ) -> Result<()> {
     let context = CommandContext::new()?;
     let probe_operation = ProbeOperation::new(&context.provider_manager);
-    let (release_selector, release_limit) = ProbeReleaseSelector::from_cli_options(tag, limit)?;
     let probe_result = probe_operation
         .probe(ProbeRequest {
             input: repo_slug.clone(),
             provider,
             base_url,
             channel,
-            limit: release_limit,
-            release_selector,
+            limit,
+            tag,
             include_incompatible,
         })
         .await?;

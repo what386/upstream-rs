@@ -330,7 +330,7 @@ pub enum Commands {
         upstream probe https://ziglang.org/download/ -p scraper --limit 20\n  \
         upstream probe owner/repo tool --desktop\n  \
         upstream probe owner/repo --include-incompatible\n  \
-        upstream probe owner/repo --tag all\n  \
+        upstream probe owner/repo --limit 20\n  \
         upstream probe owner/repo --tag v1.2.3\n  \
         upstream probe owner/repo --channel nightly --verbose\n  \
         upstream probe owner/repo --dry-run\n  \
@@ -355,12 +355,12 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
         channel: Channel,
 
-        /// Maximum number of releases to display; implies --tag all when --tag is omitted (default: 10)
+        /// Number of releases to inspect instead of only the latest release
         #[arg(long)]
         limit: Option<u32>,
 
-        /// Release tag to inspect, or 'all' to inspect fetched releases (defaults to latest)
-        #[arg(long, value_name = "TAG|all")]
+        /// Release tag to inspect (defaults to latest when --limit is omitted)
+        #[arg(long, value_name = "TAG")]
         tag: Option<String>,
 
         /// Include scored candidate assets for each release
