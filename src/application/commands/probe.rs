@@ -30,6 +30,7 @@ pub async fn run(
     channel: Channel,
     limit: u32,
     verbose: bool,
+    include_incompatible: bool,
     json: bool,
     create_entry: bool,
     trust_mode: TrustMode,
@@ -44,6 +45,7 @@ pub async fn run(
             base_url,
             channel,
             limit,
+            include_incompatible,
         })
         .await?;
 
@@ -78,13 +80,15 @@ pub async fn run(
     }
 
     if probe_result.choices.is_empty() {
-        println!(
-            "{}",
-            output::warning(format!(
-                "No assets found for channel '{}'.",
+        let message = if include_incompatible {
+            format!("No assets found for channel '{}'.", probe_result.channel)
+        } else {
+            format!(
+                "No compatible assets found for channel '{}'. Use --include-incompatible to show all release assets.",
                 probe_result.channel
-            ))
-        );
+            )
+        };
+        println!("{}", output::warning(message));
         return Ok(());
     }
 
@@ -847,13 +851,13 @@ mod tests {
     }
 
     #[test]
-    fn probe_asset_choices_include_all_release_assets() {
+    fn probe_asset_choices_default_to_compatible_assets() {
         let provider_manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
         let package = Package::with_defaults(
             String::new(),
             "owner/tool".to_string(),
-            Filetype::Auto,
+            Filetype::Archive,
             None,
             None,
             Channel::Stable,
@@ -869,16 +873,16 @@ mod tests {
             is_prerelease: false,
             assets: vec![
                 Asset::new(
-                    "https://example.invalid/tool-linux-x86_64.tar.gz".to_string(),
+                    "https://example.invalid/tool.tar.gz".to_string(),
                     1,
-                    "tool-linux-x86_64.tar.gz".to_string(),
+                    "tool.tar.gz".to_string(),
                     1234,
                     Utc::now(),
                 ),
                 Asset::new(
-                    "https://example.invalid/tool-debug-symbols.zip".to_string(),
+                    "https://example.invalid/tool".to_string(),
                     2,
-                    "tool-debug-symbols.zip".to_string(),
+                    "tool".to_string(),
                     5678,
                     Utc::now(),
                 ),
@@ -887,11 +891,61 @@ mod tests {
             published_at: Utc::now(),
         }];
 
-        let choices = build_probe_asset_choices(&releases, &provider_manager, &package);
+        let choices = build_probe_asset_choices(&releases, &provider_manager, &package, false);
+        let table = ProbeAssetChoiceTable::from_choices(&choices);
+
+        assert_eq!(choices.len(), 1);
+        assert_eq!(choices[0].asset.name, "tool.tar.gz");
+        assert!(table.rows[0].contains("tool.tar.gz"));
+        assert!(!choices.iter().any(|choice| choice.asset.name == "tool"));
+    }
+
+    #[test]
+    fn probe_asset_choices_can_include_incompatible_assets() {
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+        let package = Package::with_defaults(
+            String::new(),
+            "owner/tool".to_string(),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        let releases = vec![Release {
+            id: 1,
+            tag: "v1.2.3".to_string(),
+            name: "v1.2.3".to_string(),
+            body: String::new(),
+            is_draft: false,
+            is_prerelease: false,
+            assets: vec![
+                Asset::new(
+                    "https://example.invalid/tool.tar.gz".to_string(),
+                    1,
+                    "tool.tar.gz".to_string(),
+                    1234,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool".to_string(),
+                    2,
+                    "tool".to_string(),
+                    5678,
+                    Utc::now(),
+                ),
+            ],
+            version: Version::new(1, 2, 3, false),
+            published_at: Utc::now(),
+        }];
+
+        let choices = build_probe_asset_choices(&releases, &provider_manager, &package, true);
         let table = ProbeAssetChoiceTable::from_choices(&choices);
 
         assert_eq!(choices.len(), 2);
-        assert!(table.rows[0].contains("tool-linux-x86_64.tar.gz"));
-        assert!(table.rows[1].contains("tool-debug-symbols.zip"));
+        assert!(table.rows[0].contains("tool.tar.gz"));
+        assert!(table.rows[1].contains("tool"));
     }
 }
