@@ -190,7 +190,7 @@ impl<'a> ImportOperation<'a> {
     }
 
     fn import_keys<P>(
-        &mut self,
+        &self,
         minisign_keys: Vec<MinisignPublicKey>,
         cosign_keys: Vec<CosignPublicKey>,
         skip_failed: bool,

@@ -240,7 +240,8 @@ mod tests {
 
     #[test]
     fn convert_release_maps_assets_and_version() {
-        let adapter = GithubAdapter::new(GithubClient::new(None).expect("github client"));
+        let adapter =
+            GithubAdapter::new(GithubClient::new(None, Default::default()).expect("github client"));
         let dto = GithubReleaseDto {
             id: 12,
             tag_name: "v2.3.4".to_string(),

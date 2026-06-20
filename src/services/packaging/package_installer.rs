@@ -17,11 +17,6 @@ use crate::{
             PackagePhase, PackageProgressEvent, PackageRemover,
             bundle_handler::BundleHandler,
             disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
-            transaction_recorder::{PackageTransaction, failed_package, successful_package},
-        },
-        storage::{
-            package_storage::PackageStorage,
-            transaction_storage::{TransactionKind, UndoActionKind},
         },
         trust::{
             ChecksumVerificationStatus, SignatureScheme, SignatureVerificationStatus,
@@ -66,31 +61,6 @@ pub struct PackageInstaller<'a> {
     paths: &'a UpstreamPaths,
     download_cache: PathBuf,
     extract_cache: PathBuf,
-}
-
-#[derive(Debug, Clone)]
-pub enum PackageTransactionContext {
-    Record {
-        kind: TransactionKind,
-        undo_kind: Option<UndoActionKind>,
-    },
-    CoveredByParent,
-}
-
-impl PackageTransactionContext {
-    pub fn install() -> Self {
-        Self::Record {
-            kind: TransactionKind::Install,
-            undo_kind: Some(UndoActionKind::Remove),
-        }
-    }
-
-    pub fn build() -> Self {
-        Self::Record {
-            kind: TransactionKind::Build,
-            undo_kind: Some(UndoActionKind::Remove),
-        }
-    }
 }
 
 pub struct InstallPreview {
@@ -145,268 +115,8 @@ impl<'a> PackageInstaller<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn install_release_with_progress<F, H, P>(
+    pub async fn install_release<F, H, P>(
         &self,
-        package_storage: &mut PackageStorage,
-        trusted_keys: &TrustedSignatureKeys,
-        package: Package,
-        version: &Option<String>,
-        add_entry: &bool,
-        trust_mode: TrustMode,
-        transaction_context: PackageTransactionContext,
-        download_progress_callback: &mut Option<F>,
-        message_callback: &mut Option<H>,
-        progress_callback: &mut Option<P>,
-    ) -> Result<Package>
-    where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
-        P: FnMut(PackageProgressEvent),
-    {
-        let package_name = package.name.clone();
-        let transaction = self.start_transaction(transaction_context, package_name.clone())?;
-        let result = self
-            .install_release(
-                package_storage,
-                trusted_keys,
-                package,
-                version,
-                add_entry,
-                trust_mode,
-                download_progress_callback,
-                message_callback,
-                progress_callback,
-            )
-            .await;
-
-        self.finish_transaction(transaction, &package_name, result)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub async fn install_selected_asset_with_progress<F, H, P>(
-        &self,
-        package_storage: &mut PackageStorage,
-        trusted_keys: &TrustedSignatureKeys,
-        package: Package,
-        release: &Release,
-        asset: &Asset,
-        add_entry: &bool,
-        trust_mode: TrustMode,
-        transaction_context: PackageTransactionContext,
-        download_progress_callback: &mut Option<F>,
-        message_callback: &mut Option<H>,
-        progress_callback: &mut Option<P>,
-    ) -> Result<Package>
-    where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
-        P: FnMut(PackageProgressEvent),
-    {
-        if package.install_path.is_some() {
-            return Err(anyhow!("Package '{}' is already installed", package.name));
-        }
-
-        let package_name = package.name.clone();
-        let transaction = self.start_transaction(transaction_context, package_name.clone())?;
-        let result = {
-            let installed_package = {
-                let progress_callback = std::cell::RefCell::new(progress_callback.as_mut());
-                let mut bridged_progress = Some(|event: PackageProgressEvent| {
-                    if let Some(cb) = progress_callback.borrow_mut().as_deref_mut() {
-                        cb(event);
-                    }
-                });
-                let mut bridged_download_progress = Some(|downloaded: u64, total: u64| {
-                    if let Some(cb) = download_progress_callback.as_mut() {
-                        cb(downloaded, total);
-                    }
-                    if let Some(cb) = progress_callback.borrow_mut().as_deref_mut() {
-                        cb(PackageProgressEvent::Download { downloaded, total });
-                    }
-                });
-
-                self.install_package_asset_files(
-                    package,
-                    release,
-                    asset,
-                    trust_mode,
-                    trusted_keys,
-                    &mut bridged_download_progress,
-                    message_callback,
-                    &mut bridged_progress,
-                )
-                .await
-            }
-            .context(format!(
-                "Failed to perform installation for '{}'",
-                package_name
-            ));
-
-            match installed_package {
-                Ok(installed_package) => {
-                    self.finish_installed_package(
-                        package_storage,
-                        installed_package,
-                        add_entry,
-                        message_callback,
-                        progress_callback,
-                    )
-                    .await
-                }
-                Err(err) => Err(err),
-            }
-        };
-
-        self.finish_transaction(transaction, &package_name, result)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub async fn install_local_artifact<H>(
-        &self,
-        package_storage: &mut PackageStorage,
-        package: Package,
-        artifact_path: &Path,
-        version: crate::models::common::version::Version,
-        add_entry: &bool,
-        transaction_context: PackageTransactionContext,
-        message_callback: &mut Option<H>,
-    ) -> Result<Package>
-    where
-        H: FnMut(&str),
-    {
-        let package_name = package.name.clone();
-        let transaction = self.start_transaction(transaction_context, package_name.clone())?;
-        let result = match self
-            .install_local_artifact_files(package, artifact_path, version, message_callback)
-            .context("Failed to install local artifact")
-        {
-            Ok(installed_package) => {
-                let mut no_progress: Option<fn(PackageProgressEvent)> = None;
-                self.finish_installed_package(
-                    package_storage,
-                    installed_package,
-                    add_entry,
-                    message_callback,
-                    &mut no_progress,
-                )
-                .await
-            }
-            Err(err) => Err(err),
-        };
-
-        self.finish_transaction(transaction, &package_name, result)
-    }
-
-    pub async fn preview_single_install(
-        &self,
-        package: &Package,
-        version: &Option<String>,
-    ) -> Result<InstallPreview> {
-        if package.install_path.is_some() {
-            return Err(anyhow!("Package '{}' is already installed", package.name));
-        }
-
-        let release = if let Some(version_tag) = version {
-            self.provider_manager
-                .get_release_by_tag(
-                    &package.repo_slug,
-                    version_tag,
-                    &package.provider,
-                    package.base_url.as_deref(),
-                )
-                .await
-                .context(format!(
-                    "Failed to fetch release '{}' for '{}'. Verify the version tag exists",
-                    version_tag, package.repo_slug
-                ))?
-        } else {
-            self.provider_manager
-                .get_latest_release(
-                    &package.repo_slug,
-                    &package.provider,
-                    &package.channel,
-                    package.base_url.as_deref(),
-                )
-                .await
-                .context(format!(
-                    "Failed to fetch latest {} release for '{}'",
-                    package.channel, package.repo_slug
-                ))?
-        };
-
-        let best_asset = self
-            .provider_manager
-            .find_recommended_asset(&release, package)
-            .context(format!(
-                "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
-                package.name, package.filetype
-            ))?;
-
-        let resolved_filetype = if package.filetype == Filetype::Auto {
-            best_asset.filetype
-        } else {
-            package.filetype
-        };
-
-        Ok(InstallPreview {
-            release_name: release.name,
-            release_tag: release.tag,
-            asset_name: best_asset.name.clone(),
-            resolved_filetype,
-            disk_impact: install_impact_from_download(asset_size_estimate(best_asset.size)),
-        })
-    }
-
-    fn start_transaction(
-        &self,
-        context: PackageTransactionContext,
-        package_name: String,
-    ) -> Result<Option<PackageTransaction>> {
-        match context {
-            PackageTransactionContext::Record { kind, undo_kind } => Ok(Some(
-                PackageTransaction::start(self.paths, kind, vec![package_name], undo_kind)?,
-            )),
-            PackageTransactionContext::CoveredByParent => Ok(None),
-        }
-    }
-
-    fn finish_transaction(
-        &self,
-        transaction: Option<PackageTransaction>,
-        package_name: &str,
-        result: Result<Package>,
-    ) -> Result<Package> {
-        match (result, transaction) {
-            (Ok(installed_package), Some(transaction)) => {
-                transaction.complete(vec![successful_package(
-                    package_name.to_string(),
-                    None,
-                    Some(installed_package.version.to_string()),
-                )])?;
-                Ok(installed_package)
-            }
-            (Err(err), Some(transaction)) => {
-                let summary = crate::output::error_summary(&err);
-                transaction.fail(
-                    vec![failed_package(
-                        package_name.to_string(),
-                        None,
-                        None,
-                        summary.clone(),
-                    )],
-                    summary,
-                )?;
-                Err(err)
-            }
-            (Ok(installed_package), None) => Ok(installed_package),
-            (Err(err), None) => Err(err),
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn install_release<F, H, P>(
-        &self,
-        package_storage: &mut PackageStorage,
         trusted_keys: &TrustedSignatureKeys,
         package: Package,
         version: &Option<String>,
@@ -421,11 +131,11 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        let package_name = package.name.clone();
         if package.install_path.is_some() {
             return Err(anyhow!("Package '{}' is already installed", package.name));
         }
 
-        let package_name = package.name.clone();
         progress!(
             progress_callback,
             PackageProgressEvent::Phase(PackagePhase::ResolvingRelease)
@@ -498,7 +208,6 @@ impl<'a> PackageInstaller<'a> {
         ))?;
 
         self.finish_installed_package(
-            package_storage,
             installed_package,
             add_entry,
             message_callback,
@@ -507,9 +216,159 @@ impl<'a> PackageInstaller<'a> {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub async fn install_selected_asset<F, H, P>(
+        &self,
+        trusted_keys: &TrustedSignatureKeys,
+        package: Package,
+        release: &Release,
+        asset: &Asset,
+        add_entry: &bool,
+        trust_mode: TrustMode,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        if package.install_path.is_some() {
+            return Err(anyhow!("Package '{}' is already installed", package.name));
+        }
+
+        let package_name = package.name.clone();
+        let installed_package = {
+            let progress_callback = std::cell::RefCell::new(progress_callback.as_mut());
+            let mut bridged_progress = Some(|event: PackageProgressEvent| {
+                if let Some(cb) = progress_callback.borrow_mut().as_deref_mut() {
+                    cb(event);
+                }
+            });
+            let mut bridged_download_progress = Some(|downloaded: u64, total: u64| {
+                if let Some(cb) = download_progress_callback.as_mut() {
+                    cb(downloaded, total);
+                }
+                if let Some(cb) = progress_callback.borrow_mut().as_deref_mut() {
+                    cb(PackageProgressEvent::Download { downloaded, total });
+                }
+            });
+
+            self.install_package_asset_files(
+                package,
+                release,
+                asset,
+                trust_mode,
+                trusted_keys,
+                &mut bridged_download_progress,
+                message_callback,
+                &mut bridged_progress,
+            )
+            .await
+        }
+        .context(format!(
+            "Failed to perform installation for '{}'",
+            package_name
+        ))?;
+
+        self.finish_installed_package(
+            installed_package,
+            add_entry,
+            message_callback,
+            progress_callback,
+        )
+        .await
+    }
+
+    pub async fn install_local_artifact<H, P>(
+        &self,
+        package: Package,
+        artifact_path: &Path,
+        version: crate::models::common::version::Version,
+        add_entry: &bool,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        let installed_package = self
+            .install_local_artifact_files(package, artifact_path, version, message_callback)
+            .context("Failed to install local artifact")?;
+
+        self.finish_installed_package(
+            installed_package,
+            add_entry,
+            message_callback,
+            progress_callback,
+        )
+        .await
+    }
+
+    pub async fn preview_single_install(
+        &self,
+        package: &Package,
+        version: &Option<String>,
+    ) -> Result<InstallPreview> {
+        if package.install_path.is_some() {
+            return Err(anyhow!("Package '{}' is already installed", package.name));
+        }
+
+        let release = if let Some(version_tag) = version {
+            self.provider_manager
+                .get_release_by_tag(
+                    &package.repo_slug,
+                    version_tag,
+                    &package.provider,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .context(format!(
+                    "Failed to fetch release '{}' for '{}'. Verify the version tag exists",
+                    version_tag, package.repo_slug
+                ))?
+        } else {
+            self.provider_manager
+                .get_latest_release(
+                    &package.repo_slug,
+                    &package.provider,
+                    &package.channel,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .context(format!(
+                    "Failed to fetch latest {} release for '{}'",
+                    package.channel, package.repo_slug
+                ))?
+        };
+
+        let best_asset = self
+            .provider_manager
+            .find_recommended_asset(&release, package)
+            .context(format!(
+                "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
+                package.name, package.filetype
+            ))?;
+
+        let resolved_filetype = if package.filetype == Filetype::Auto {
+            best_asset.filetype
+        } else {
+            package.filetype
+        };
+
+        Ok(InstallPreview {
+            release_name: release.name,
+            release_tag: release.tag,
+            asset_name: best_asset.name.clone(),
+            resolved_filetype,
+            disk_impact: install_impact_from_download(asset_size_estimate(best_asset.size)),
+        })
+    }
+
     async fn finish_installed_package<H, P>(
         &self,
-        package_storage: &mut PackageStorage,
         mut installed_package: Package,
         add_entry: &bool,
         message_callback: &mut Option<H>,
@@ -535,20 +394,6 @@ impl<'a> PackageInstaller<'a> {
                     message_callback,
                 );
             }
-        }
-
-        progress!(
-            progress_callback,
-            PackageProgressEvent::Phase(PackagePhase::SavingMetadata)
-        );
-        if let Err(err) = package_storage
-            .add_or_update_package(installed_package.clone())
-            .context(format!(
-                "Failed to save package '{}' to storage",
-                installed_package.name
-            ))
-        {
-            return self.fail_after_partial_install(installed_package, err, message_callback);
         }
 
         Ok(installed_package)
@@ -639,7 +484,7 @@ impl<'a> PackageInstaller<'a> {
         }
     }
 
-    fn cleanup_partial_install<H>(
+    pub fn cleanup_partial_install<H>(
         &self,
         installed_package: &Package,
         message_callback: &mut Option<H>,

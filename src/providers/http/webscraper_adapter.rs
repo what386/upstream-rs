@@ -397,7 +397,8 @@ mod tests {
             )
         });
 
-        let adapter = WebScraperAdapter::new(HttpClient::new().expect("http client"));
+        let adapter =
+            WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
         let release = adapter
             .get_latest_release(&server)
             .await
@@ -418,7 +419,8 @@ mod tests {
             fixture_response(html)
         });
 
-        let adapter = WebScraperAdapter::new(HttpClient::new().expect("http client"));
+        let adapter =
+            WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
         let release = adapter
             .get_latest_release(&server)
             .await
@@ -445,7 +447,8 @@ mod tests {
             fixture_response(html)
         });
 
-        let adapter = WebScraperAdapter::new(HttpClient::new().expect("http client"));
+        let adapter =
+            WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
         let release = adapter
             .get_latest_release(&server)
             .await
@@ -489,7 +492,8 @@ mod tests {
             _ => panic!("unexpected request {method} {path}"),
         });
 
-        let adapter = WebScraperAdapter::new(HttpClient::new().expect("http client"));
+        let adapter =
+            WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
         let release = adapter
             .get_latest_release(&server)
             .await
@@ -505,7 +509,8 @@ mod tests {
             assert_eq!(method, "GET");
             http_response("HTTP/1.1 304 Not Modified", &[("Connection", "close")], "")
         });
-        let adapter = WebScraperAdapter::new(HttpClient::new().expect("http client"));
+        let adapter =
+            WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
         let release = adapter
             .get_latest_release_if_modified_since(&server, Some(Utc::now()))
             .await

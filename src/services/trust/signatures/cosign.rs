@@ -23,12 +23,9 @@ pub async fn verify_cosign_signature(
     let mut saw_parse_error = false;
 
     for key in trusted_keys {
-        let verification_key = match CosignVerificationKey::try_from_pem(key.key.as_bytes()) {
-            Ok(key) => key,
-            Err(_) => {
-                saw_parse_error = true;
-                continue;
-            }
+        let Ok(verification_key) = CosignVerificationKey::try_from_pem(key.key.as_bytes()) else {
+            saw_parse_error = true;
+            continue;
         };
         saw_valid_key = true;
 

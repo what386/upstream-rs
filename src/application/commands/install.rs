@@ -3,7 +3,9 @@ use indicatif::{HumanBytes, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
-    application::operations::install_operation::InstallOperation,
+    application::operations::install_operation::{
+        InstallOperation, PackageTransactionContext, ReleaseInstallRequest,
+    },
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::Package,
@@ -90,12 +92,8 @@ pub async fn run(
     let gitlab_token = app_config.gitlab.api_token.as_deref();
     let gitea_token = app_config.gitea.api_token.as_deref();
 
-    let provider_manager = ProviderManager::new_with_download_config(
-        github_token,
-        gitlab_token,
-        gitea_token,
-        app_config.download,
-    )?;
+    let provider_manager =
+        ProviderManager::new(github_token, gitlab_token, gitea_token, app_config.download)?;
     let trusted_keys = trust_storage.trusted_signature_keys();
     let name = resolve_package_name(name, &repo_slug, provider.as_ref(), base_url.as_deref())?;
 
@@ -112,15 +110,15 @@ pub async fn run(
     )
     .await?;
 
-    let mut package_installer = InstallOperation::new(
+    let mut install_operation = InstallOperation::new(
         &provider_manager,
         &mut package_storage,
         &paths,
         trusted_keys,
     )?;
 
-    let preview = package_installer
-        .preview_single_install(&package, &version)
+    let preview = install_operation
+        .preview_release_install(&package, &version)
         .await?;
 
     if dry_run {
@@ -178,12 +176,15 @@ pub async fn run(
     let mut no_download_progress: Option<fn(u64, u64)> = None;
     let mut ignored_messages = Some(|_: &str| {});
 
-    let install_result = package_installer
-        .install_single_with_progress(
-            package,
-            &version,
-            &create_entry,
-            trust_mode,
+    let install_result = install_operation
+        .install_release(
+            ReleaseInstallRequest {
+                package,
+                version,
+                add_entry: create_entry,
+                trust_mode,
+                transaction_context: PackageTransactionContext::install(),
+            },
             &mut no_download_progress,
             &mut ignored_messages,
             &mut progress_callback,
@@ -193,7 +194,7 @@ pub async fn run(
     pb.finish_and_clear();
 
     match install_result {
-        Ok(()) => {
+        Ok(_) => {
             println!(
                 "{}",
                 output::status_line_text(

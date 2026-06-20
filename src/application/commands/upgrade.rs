@@ -100,12 +100,8 @@ pub async fn run(
 
     let trusted_keys = trust_storage.trusted_signature_keys();
 
-    let provider_manager = ProviderManager::new_with_download_config(
-        github_token,
-        gitlab_token,
-        gitea_token,
-        app_config.download,
-    )?;
+    let provider_manager =
+        ProviderManager::new(github_token, gitlab_token, gitea_token, app_config.download)?;
     let mut package_upgrade = UpgradeOperation::new(
         &provider_manager,
         &mut package_storage,

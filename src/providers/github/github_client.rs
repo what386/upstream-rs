@@ -21,14 +21,7 @@ pub struct GithubClient {
 }
 
 impl GithubClient {
-    pub fn new(token: Option<&str>) -> Result<Self> {
-        Self::new_with_download_config(token, DownloadConfig::default())
-    }
-
-    pub fn new_with_download_config(
-        token: Option<&str>,
-        download_config: DownloadConfig,
-    ) -> Result<Self> {
+    pub fn new(token: Option<&str>, download_config: DownloadConfig) -> Result<Self> {
         let mut headers = header::HeaderMap::new();
 
         let user_agent = format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
@@ -87,7 +80,7 @@ impl GithubClient {
     where
         F: FnMut(u64, u64),
     {
-        download_handler::download_file_with_config(
+        download_handler::download_file(
             &self.client,
             url,
             destination,

@@ -9,7 +9,7 @@ pub mod rollback_manager;
 pub mod transaction_recorder;
 
 pub use package_checker::PackageChecker;
-pub use package_installer::{InstallPreview, PackageInstaller, PackageTransactionContext};
+pub use package_installer::{InstallPreview, PackageInstaller};
 pub use package_remover::PackageRemover;
 pub use package_upgrader::{PackageUpgrader, ResolvedUpgradeTarget};
 pub use progress::{OperationPhase, OperationProgressEvent, PackagePhase, PackageProgressEvent};

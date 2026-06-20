@@ -99,12 +99,11 @@ impl<'a> ChecksumVerifier<'a> {
             .ok_or_else(|| anyhow!("Invalid asset filename"))?;
 
         // Try to download the checksum file
-        let checksum_path = match self
+        let Some(checksum_path) = self
             .try_download_checksum(release, asset_filename, provider, dl_progress)
             .await?
-        {
-            Some(path) => path,
-            None => return Ok(ChecksumVerificationResult::Missing), // No checksum available, that's ok
+        else {
+            return Ok(ChecksumVerificationResult::Missing);
         };
 
         // Read and parse the checksum file
@@ -370,7 +369,7 @@ impl<'a> ChecksumVerifier<'a> {
     fn parse_hash_order_entry(label: &str) -> Option<HashAlgo> {
         let normalized: String = label
             .chars()
-            .filter(|ch| ch.is_ascii_alphanumeric())
+            .filter(char::is_ascii_alphanumeric)
             .map(|ch| ch.to_ascii_lowercase())
             .collect();
 
@@ -722,7 +721,8 @@ mod tests {
         let asset_path = root.join("tool.tar.gz");
         fs::write(&asset_path, b"payload").expect("write asset");
 
-        let manager = ProviderManager::new(None, None, None).expect("provider manager");
+        let manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
         let verifier = ChecksumVerifier::new(&manager, &root);
         let mut progress: Option<fn(u64, u64)> = None;
 

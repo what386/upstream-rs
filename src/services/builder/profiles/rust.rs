@@ -33,14 +33,12 @@ impl RustProfile {
 
     fn has_multiple_declared_bins(project_dir: &Path) -> bool {
         let cargo_toml_path = project_dir.join("Cargo.toml");
-        let cargo_toml = match fs::read_to_string(&cargo_toml_path) {
-            Ok(contents) => contents,
-            Err(_) => return false,
+        let Ok(cargo_toml) = fs::read_to_string(&cargo_toml_path) else {
+            return false;
         };
 
-        let parsed = match toml::Value::from_str(&cargo_toml) {
-            Ok(value) => value,
-            Err(_) => return false,
+        let Ok(parsed) = toml::Value::from_str(&cargo_toml) else {
+            return false;
         };
 
         parsed

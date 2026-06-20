@@ -7,7 +7,9 @@ use std::fmt::Write as _;
 use std::time::Duration;
 
 use crate::{
-    application::operations::install_operation::InstallOperation,
+    application::operations::install_operation::{
+        InstallOperation, PackageTransactionContext, SelectedAssetInstallRequest,
+    },
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         provider::{Asset, Release},
@@ -53,12 +55,8 @@ pub async fn run(
     let gitlab_token = app_config.gitlab.api_token.as_deref();
     let gitea_token = app_config.gitea.api_token.as_deref();
 
-    let provider_manager = ProviderManager::new_with_download_config(
-        github_token,
-        gitlab_token,
-        gitea_token,
-        app_config.download,
-    )?;
+    let provider_manager =
+        ProviderManager::new(github_token, gitlab_token, gitea_token, app_config.download)?;
 
     let mut probe_notes = Vec::new();
     let (effective_repo_slug, effective_provider, effective_base_url, mut releases) =
@@ -259,7 +257,7 @@ pub async fn run(
     let trust_storage = TrustStorage::new(&paths.config.trust_file)?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
     let trusted_keys = trust_storage.trusted_signature_keys();
-    let mut package_installer = InstallOperation::new(
+    let mut install_operation = InstallOperation::new(
         &provider_manager,
         &mut package_storage,
         &paths,
@@ -289,13 +287,16 @@ pub async fn run(
 
     let mut no_download_progress: Option<fn(u64, u64)> = None;
     let mut ignored_messages = Some(|_: &str| {});
-    let install_result = package_installer
-        .install_selected_asset_with_progress(
-            package,
-            &selected_release,
-            &selected_asset,
-            &create_entry,
-            trust_mode,
+    let install_result = install_operation
+        .install_selected_asset(
+            SelectedAssetInstallRequest {
+                package,
+                release: &selected_release,
+                asset: &selected_asset,
+                add_entry: create_entry,
+                trust_mode,
+                transaction_context: PackageTransactionContext::install(),
+            },
             &mut no_download_progress,
             &mut ignored_messages,
             &mut progress_callback,
@@ -305,7 +306,7 @@ pub async fn run(
     pb.finish_and_clear();
 
     match install_result {
-        Ok(()) => {
+        Ok(_) => {
             println!(
                 "{}",
                 output::status_line_text(
@@ -1071,7 +1072,8 @@ mod tests {
 
     #[test]
     fn probe_asset_choices_include_all_release_assets() {
-        let provider_manager = ProviderManager::new(None, None, None).expect("provider manager");
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
         let package = Package::with_defaults(
             String::new(),
             "owner/tool".to_string(),

@@ -203,7 +203,7 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
     });
 
     if names.len() > 1 {
-        let bulk_result = package_remover.remove_bulk_with_progress(
+        let bulk_result = package_remover.remove_bulk(
             &names,
             &purge,
             &force,
@@ -255,10 +255,11 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
             );
         }
     } else {
-        match package_remover.remove_single_with_progress(
+        match package_remover.remove_single(
             &names[0],
             &purge,
             &force,
+            crate::services::storage::rollback_storage::RollbackSource::Remove,
             &mut message_callback,
             &mut progress_callback,
         ) {

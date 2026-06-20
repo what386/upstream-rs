@@ -201,7 +201,9 @@ mod tests {
 
     #[test]
     fn convert_release_maps_core_fields() {
-        let adapter = GiteaAdapter::new(GiteaClient::new(None, None).expect("gitea client"));
+        let adapter = GiteaAdapter::new(
+            GiteaClient::new(None, None, Default::default()).expect("gitea client"),
+        );
         let dto = GiteaReleaseDto {
             id: 7,
             tag_name: "v3.1.4".to_string(),

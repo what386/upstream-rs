@@ -1,36 +1,83 @@
-use anyhow::{Context, Result};
-use console::style;
-use std::time::{Duration, Instant};
+use std::path::Path;
+
+use anyhow::{Context, Result, anyhow};
 
 use crate::{
-    models::common::enums::TrustMode,
-    models::provider::{Asset, Release},
-    models::upstream::Package,
+    models::{
+        common::{enums::TrustMode, version::Version},
+        provider::{Asset, Release},
+        upstream::Package,
+    },
     providers::provider_manager::ProviderManager,
     services::{
         packaging::{
-            InstallPreview, PackageInstaller, PackageProgressEvent, PackageTransactionContext,
+            InstallPreview, PackageInstaller, PackagePhase, PackageProgressEvent,
+            transaction_recorder::{PackageTransaction, failed_package, successful_package},
         },
-        storage::package_storage::PackageStorage,
+        storage::{
+            package_storage::PackageStorage,
+            transaction_storage::{TransactionKind, UndoActionKind},
+        },
         trust::TrustedSignatureKeys,
     },
     utils::static_paths::UpstreamPaths,
 };
 
-const INSTALL_PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
+#[derive(Debug, Clone)]
+pub enum PackageTransactionContext {
+    Record {
+        kind: TransactionKind,
+        undo_kind: Option<UndoActionKind>,
+    },
+    CoveredByParent,
+}
 
-macro_rules! message {
-    ($cb:expr, $($arg:tt)*) => {{
-        if let Some(cb) = $cb.as_mut() {
-            cb(&format!($($arg)*));
+impl PackageTransactionContext {
+    pub fn install() -> Self {
+        Self::Record {
+            kind: TransactionKind::Install,
+            undo_kind: Some(UndoActionKind::Remove),
         }
-    }};
+    }
+
+    pub fn build() -> Self {
+        Self::Record {
+            kind: TransactionKind::Build,
+            undo_kind: Some(UndoActionKind::Remove),
+        }
+    }
+}
+
+pub struct ReleaseInstallRequest {
+    pub package: Package,
+    pub version: Option<String>,
+    pub add_entry: bool,
+    pub trust_mode: TrustMode,
+    pub transaction_context: PackageTransactionContext,
+}
+
+pub struct SelectedAssetInstallRequest<'a> {
+    pub package: Package,
+    pub release: &'a Release,
+    pub asset: &'a Asset,
+    pub add_entry: bool,
+    pub trust_mode: TrustMode,
+    pub transaction_context: PackageTransactionContext,
+}
+
+pub struct LocalArtifactInstallRequest<'a> {
+    pub package: Package,
+    pub artifact_path: &'a Path,
+    pub version: Version,
+    pub add_entry: bool,
+    pub transaction_context: PackageTransactionContext,
 }
 
 pub struct InstallOperation<'a> {
     installer: PackageInstaller<'a>,
     package_storage: &'a mut PackageStorage,
     trusted_keys: TrustedSignatureKeys,
+    paths: &'a UpstreamPaths,
 }
 
 impl<'a> InstallOperation<'a> {
@@ -44,243 +91,11 @@ impl<'a> InstallOperation<'a> {
             installer: PackageInstaller::new(provider_manager, paths)?,
             package_storage,
             trusted_keys,
+            paths,
         })
     }
 
-    pub async fn install_bulk<F, G, H>(
-        &mut self,
-        packages: Vec<Package>,
-        trust_mode: TrustMode,
-        download_progress_callback: &mut Option<F>,
-        overall_progress_callback: &mut Option<G>,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        F: FnMut(u64, u64),
-        G: FnMut(u32, u32),
-        H: FnMut(&str),
-    {
-        let total = packages.len() as u32;
-        let mut completed = 0;
-        let mut failures = 0;
-
-        for package in packages {
-            let package_name = package.name.clone();
-            message!(message_callback, "Installing '{}' ...", package_name);
-
-            let use_icon = &package.icon_path.is_some();
-            let mut last_progress: Option<(u64, u64)> = None;
-            let mut last_emit: Option<Instant> = None;
-            let mut throttled_download_progress = download_progress_callback.as_mut().map(|cb| {
-                |downloaded: u64, total: u64| {
-                    last_progress = Some((downloaded, total));
-                    let should_emit = last_emit
-                        .map(|t| t.elapsed() >= INSTALL_PROGRESS_UPDATE_INTERVAL)
-                        .unwrap_or(true);
-                    if should_emit {
-                        cb(downloaded, total);
-                        last_emit = Some(Instant::now());
-                    }
-                }
-            });
-
-            match self
-                .install_single(
-                    package,
-                    &None,
-                    use_icon,
-                    trust_mode,
-                    &mut throttled_download_progress,
-                    message_callback,
-                )
-                .await
-                .context(format!("Failed to install package '{}'", package_name))
-            {
-                Ok(_) => {
-                    message!(message_callback, "{}", style("Package installed").green());
-                }
-                Err(e) => {
-                    message!(message_callback, "{} {}", style("Install failed:").red(), e);
-                    failures += 1;
-                }
-            }
-
-            if let (Some((downloaded, total)), Some(cb)) =
-                (last_progress, download_progress_callback.as_mut())
-            {
-                cb(downloaded, total);
-            }
-
-            completed += 1;
-            if let Some(cb) = overall_progress_callback.as_mut() {
-                cb(completed, total);
-            }
-        }
-
-        if failures > 0 {
-            message!(
-                message_callback,
-                "{} package(s) failed to install",
-                failures
-            );
-        }
-
-        Ok(())
-    }
-
-    pub async fn install_single<F, H>(
-        &mut self,
-        package: Package,
-        version: &Option<String>,
-        add_entry: &bool,
-        trust_mode: TrustMode,
-        download_progress_callback: &mut Option<F>,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
-    {
-        let mut no_progress: Option<fn(PackageProgressEvent)> = None;
-        self.install_single_with_progress(
-            package,
-            version,
-            add_entry,
-            trust_mode,
-            download_progress_callback,
-            message_callback,
-            &mut no_progress,
-        )
-        .await
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub async fn install_single_with_context<F, H>(
-        &mut self,
-        package: Package,
-        version: &Option<String>,
-        add_entry: &bool,
-        trust_mode: TrustMode,
-        transaction_context: PackageTransactionContext,
-        download_progress_callback: &mut Option<F>,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
-    {
-        let mut no_progress: Option<fn(PackageProgressEvent)> = None;
-        self.installer
-            .install_release_with_progress(
-                self.package_storage,
-                &self.trusted_keys,
-                package,
-                version,
-                add_entry,
-                trust_mode,
-                transaction_context,
-                download_progress_callback,
-                message_callback,
-                &mut no_progress,
-            )
-            .await
-            .map(|_| ())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub async fn install_single_with_progress<F, H, P>(
-        &mut self,
-        package: Package,
-        version: &Option<String>,
-        add_entry: &bool,
-        trust_mode: TrustMode,
-        download_progress_callback: &mut Option<F>,
-        message_callback: &mut Option<H>,
-        progress_callback: &mut Option<P>,
-    ) -> Result<()>
-    where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
-        P: FnMut(PackageProgressEvent),
-    {
-        self.installer
-            .install_release_with_progress(
-                self.package_storage,
-                &self.trusted_keys,
-                package,
-                version,
-                add_entry,
-                trust_mode,
-                PackageTransactionContext::install(),
-                download_progress_callback,
-                message_callback,
-                progress_callback,
-            )
-            .await
-            .map(|_| ())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub async fn install_selected_asset_with_progress<F, H, P>(
-        &mut self,
-        package: Package,
-        release: &Release,
-        asset: &Asset,
-        add_entry: &bool,
-        trust_mode: TrustMode,
-        download_progress_callback: &mut Option<F>,
-        message_callback: &mut Option<H>,
-        progress_callback: &mut Option<P>,
-    ) -> Result<()>
-    where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
-        P: FnMut(PackageProgressEvent),
-    {
-        self.installer
-            .install_selected_asset_with_progress(
-                self.package_storage,
-                &self.trusted_keys,
-                package,
-                release,
-                asset,
-                add_entry,
-                trust_mode,
-                PackageTransactionContext::install(),
-                download_progress_callback,
-                message_callback,
-                progress_callback,
-            )
-            .await
-            .map(|_| ())
-    }
-
-    pub async fn install_local_artifact<H>(
-        &mut self,
-        package: Package,
-        artifact_path: &std::path::Path,
-        version: crate::models::common::version::Version,
-        add_entry: &bool,
-        transaction_context: PackageTransactionContext,
-        message_callback: &mut Option<H>,
-    ) -> Result<Package>
-    where
-        H: FnMut(&str),
-    {
-        self.installer
-            .install_local_artifact(
-                self.package_storage,
-                package,
-                artifact_path,
-                version,
-                add_entry,
-                transaction_context,
-                message_callback,
-            )
-            .await
-    }
-
-    pub async fn preview_single_install(
+    pub async fn preview_release_install(
         &self,
         package: &Package,
         version: &Option<String>,
@@ -288,5 +103,219 @@ impl<'a> InstallOperation<'a> {
         self.installer
             .preview_single_install(package, version)
             .await
+    }
+
+    pub async fn install_release<F, H, P>(
+        &mut self,
+        request: ReleaseInstallRequest,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        let package_name = request.package.name.clone();
+        let transaction =
+            self.start_transaction(request.transaction_context, package_name.clone())?;
+
+        let result = match self
+            .installer
+            .install_release(
+                &self.trusted_keys,
+                request.package,
+                &request.version,
+                &request.add_entry,
+                request.trust_mode,
+                download_progress_callback,
+                message_callback,
+                progress_callback,
+            )
+            .await
+        {
+            Ok(installed_package) => {
+                self.save_installed_package(installed_package, message_callback, progress_callback)
+            }
+            Err(err) => Err(err),
+        };
+
+        self.finish_transaction(transaction, &package_name, result)
+    }
+
+    pub async fn install_selected_asset<F, H, P>(
+        &mut self,
+        request: SelectedAssetInstallRequest<'_>,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        let package_name = request.package.name.clone();
+        let transaction =
+            self.start_transaction(request.transaction_context, package_name.clone())?;
+
+        let result = match self
+            .installer
+            .install_selected_asset(
+                &self.trusted_keys,
+                request.package,
+                request.release,
+                request.asset,
+                &request.add_entry,
+                request.trust_mode,
+                download_progress_callback,
+                message_callback,
+                progress_callback,
+            )
+            .await
+        {
+            Ok(installed_package) => {
+                self.save_installed_package(installed_package, message_callback, progress_callback)
+            }
+            Err(err) => Err(err),
+        };
+
+        self.finish_transaction(transaction, &package_name, result)
+    }
+
+    pub async fn install_local_artifact<H, P>(
+        &mut self,
+        request: LocalArtifactInstallRequest<'_>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        let package_name = request.package.name.clone();
+        let transaction =
+            self.start_transaction(request.transaction_context, package_name.clone())?;
+
+        let result = match self
+            .installer
+            .install_local_artifact(
+                request.package,
+                request.artifact_path,
+                request.version,
+                &request.add_entry,
+                message_callback,
+                progress_callback,
+            )
+            .await
+        {
+            Ok(installed_package) => {
+                self.save_installed_package(installed_package, message_callback, progress_callback)
+            }
+            Err(err) => Err(err),
+        };
+
+        self.finish_transaction(transaction, &package_name, result)
+    }
+
+    fn start_transaction(
+        &self,
+        context: PackageTransactionContext,
+        package_name: String,
+    ) -> Result<Option<PackageTransaction>> {
+        match context {
+            PackageTransactionContext::Record { kind, undo_kind } => Ok(Some(
+                PackageTransaction::start(self.paths, kind, vec![package_name], undo_kind)?,
+            )),
+            PackageTransactionContext::CoveredByParent => Ok(None),
+        }
+    }
+
+    fn finish_transaction(
+        &self,
+        transaction: Option<PackageTransaction>,
+        package_name: &str,
+        result: Result<Package>,
+    ) -> Result<Package> {
+        match (result, transaction) {
+            (Ok(installed_package), Some(transaction)) => {
+                transaction.complete(vec![successful_package(
+                    package_name.to_string(),
+                    None,
+                    Some(installed_package.version.to_string()),
+                )])?;
+                Ok(installed_package)
+            }
+            (Err(err), Some(transaction)) => {
+                let summary = crate::output::error_summary(&err);
+                transaction.fail(
+                    vec![failed_package(
+                        package_name.to_string(),
+                        None,
+                        None,
+                        summary.clone(),
+                    )],
+                    summary,
+                )?;
+                Err(err)
+            }
+            (Ok(installed_package), None) => Ok(installed_package),
+            (Err(err), None) => Err(err),
+        }
+    }
+
+    fn save_installed_package<H, P>(
+        &mut self,
+        installed_package: Package,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        if let Some(cb) = progress_callback.as_mut() {
+            cb(PackageProgressEvent::Phase(PackagePhase::SavingMetadata));
+        }
+
+        if let Err(err) = self
+            .package_storage
+            .add_or_update_package(installed_package.clone())
+            .context(format!(
+                "Failed to save package '{}' to storage",
+                installed_package.name
+            ))
+        {
+            return self.fail_after_metadata_error(installed_package, err, message_callback);
+        }
+
+        Ok(installed_package)
+    }
+
+    fn fail_after_metadata_error<H>(
+        &self,
+        installed_package: Package,
+        err: anyhow::Error,
+        message_callback: &mut Option<H>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+    {
+        match self
+            .installer
+            .cleanup_partial_install(&installed_package, message_callback)
+        {
+            Ok(()) => Err(err.context(format!(
+                "Rolled back partial install for '{}'",
+                installed_package.name
+            ))),
+            Err(cleanup_err) => Err(anyhow!(
+                "{}. Additionally failed to roll back partial install for '{}': {}",
+                err,
+                installed_package.name,
+                cleanup_err
+            )),
+        }
     }
 }

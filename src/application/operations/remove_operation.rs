@@ -46,30 +46,7 @@ impl<'a> RemoveOperation<'a> {
         }
     }
 
-    pub fn remove_bulk<H, G>(
-        &mut self,
-        package_names: &Vec<String>,
-        purge_option: &bool,
-        force_option: &bool,
-        message_callback: &mut Option<H>,
-        overall_progress_callback: &mut Option<G>,
-    ) -> Result<(u32, u32)>
-    where
-        H: FnMut(&str),
-        G: FnMut(u32, u32),
-    {
-        let mut no_progress: Option<fn(&str, PackageProgressEvent)> = None;
-        self.remove_bulk_with_progress(
-            package_names,
-            purge_option,
-            force_option,
-            message_callback,
-            overall_progress_callback,
-            &mut no_progress,
-        )
-    }
-
-    pub fn remove_bulk_with_progress<H, G, P>(
+    pub fn remove_bulk<H, G, P>(
         &mut self,
         package_names: &Vec<String>,
         purge_option: &bool,
@@ -97,10 +74,11 @@ impl<'a> RemoveOperation<'a> {
             );
 
             match self
-                .remove_single_with_progress(
+                .remove_single(
                     package_name,
                     purge_option,
                     force_option,
+                    RollbackSource::Remove,
                     message_callback,
                     progress_callback,
                 )
@@ -303,49 +281,7 @@ impl<'a> RemoveOperation<'a> {
         Ok(())
     }
 
-    pub fn remove_single<H>(
-        &mut self,
-        package_name: &str,
-        purge_option: &bool,
-        force_option: &bool,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
-        let mut no_progress: Option<fn(&str, PackageProgressEvent)> = None;
-        self.remove_single_with_progress(
-            package_name,
-            purge_option,
-            force_option,
-            message_callback,
-            &mut no_progress,
-        )
-    }
-
-    pub fn remove_single_with_progress<H, P>(
-        &mut self,
-        package_name: &str,
-        purge_option: &bool,
-        force_option: &bool,
-        message_callback: &mut Option<H>,
-        progress_callback: &mut Option<P>,
-    ) -> Result<()>
-    where
-        H: FnMut(&str),
-        P: FnMut(&str, PackageProgressEvent),
-    {
-        self.remove_single_with_source(
-            package_name,
-            purge_option,
-            force_option,
-            RollbackSource::Remove,
-            message_callback,
-            progress_callback,
-        )
-    }
-
-    pub fn remove_single_with_source<H, P>(
+    pub fn remove_single<H, P>(
         &mut self,
         package_name: &str,
         purge_option: &bool,
@@ -488,6 +424,8 @@ impl<'a> RemoveOperation<'a> {
 #[cfg(test)]
 mod tests {
     use super::RemoveOperation;
+    use crate::services::packaging::PackageProgressEvent;
+    use crate::services::storage::rollback_storage::RollbackSource;
     use crate::services::storage::{
         metadata_storage::MetadataStorage, package_storage::PackageStorage,
     };
@@ -518,9 +456,17 @@ mod tests {
             MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
         let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
         let mut msg = Some(|_: &str| {});
+        let mut remove_progress: Option<fn(&str, PackageProgressEvent)> = None;
 
         let err = op
-            .remove_single("missing", &false, &false, &mut msg)
+            .remove_single(
+                "missing",
+                &false,
+                &false,
+                RollbackSource::Remove,
+                &mut msg,
+                &mut remove_progress,
+            )
             .expect_err("missing package");
         assert!(err.to_string().contains("is not installed"));
 
@@ -542,10 +488,18 @@ mod tests {
         let mut progress = Some(|done: u32, total: u32| {
             progress_calls.push((done, total));
         });
+        let mut remove_progress: Option<fn(&str, PackageProgressEvent)> = None;
         let names = vec!["a".to_string(), "b".to_string()];
 
         let (removed, failed) = op
-            .remove_bulk(&names, &false, &false, &mut msg, &mut progress)
+            .remove_bulk(
+                &names,
+                &false,
+                &false,
+                &mut msg,
+                &mut progress,
+                &mut remove_progress,
+            )
             .expect("bulk remove");
         assert_eq!((removed, failed), (0, 2));
         assert_eq!(progress_calls.last().copied(), Some((2, 2)));

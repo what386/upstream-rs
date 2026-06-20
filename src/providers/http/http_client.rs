@@ -82,11 +82,7 @@ impl HttpClient {
         valid_start && valid_end
     }
 
-    pub fn new() -> Result<Self> {
-        Self::new_with_download_config(DownloadConfig::default())
-    }
-
-    pub fn new_with_download_config(download_config: DownloadConfig) -> Result<Self> {
+    pub fn new(download_config: DownloadConfig) -> Result<Self> {
         let mut headers = header::HeaderMap::new();
 
         let user_agent = format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
@@ -432,7 +428,7 @@ impl HttpClient {
     where
         F: FnMut(u64, u64),
     {
-        download_handler::download_file_with_config(
+        download_handler::download_file(
             &self.client,
             url,
             destination,
@@ -572,7 +568,7 @@ mod tests {
                 &body,
             )
         });
-        let client = HttpClient::new().expect("client");
+        let client = HttpClient::new(Default::default()).expect("client");
 
         let result = client
             .discover_assets_if_modified_since(&server, None)
@@ -622,7 +618,7 @@ mod tests {
             assert_eq!(method, "HEAD");
             http_response("HTTP/1.1 304 Not Modified", &[("Connection", "close")], "")
         });
-        let client = HttpClient::new().expect("client");
+        let client = HttpClient::new(Default::default()).expect("client");
 
         let result = client
             .probe_asset_if_modified_since(&server, Some(Utc::now()))
@@ -657,7 +653,7 @@ mod tests {
                 "",
             ),
         });
-        let client = HttpClient::new().expect("client");
+        let client = HttpClient::new(Default::default()).expect("client");
 
         let result = client
             .probe_asset_if_modified_since(&format!("{server}/tool-v2.3.4.tar.gz"), None)
@@ -692,7 +688,7 @@ mod tests {
                 &body_for_server,
             )
         });
-        let client = HttpClient::new().expect("client");
+        let client = HttpClient::new(Default::default()).expect("client");
         let output = temp_file_path("download");
         let mut progress = Vec::new();
         let mut cb = Some(|downloaded: u64, total: u64| {

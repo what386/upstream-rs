@@ -12,9 +12,8 @@ pub fn verify_minisign_signature(
         return Ok(SignatureVerificationStatus::NoTrustedKeyMatched);
     }
 
-    let signature = match Signature::decode(signature_contents) {
-        Ok(sig) => sig,
-        Err(_) => return Ok(SignatureVerificationStatus::InvalidSignature),
+    let Ok(signature) = Signature::decode(signature_contents) else {
+        return Ok(SignatureVerificationStatus::InvalidSignature);
     };
 
     let file_bytes = fs::read(asset_path).map_err(|e| {
@@ -26,9 +25,8 @@ pub fn verify_minisign_signature(
     })?;
 
     for key in trusted_keys {
-        let public_key = match PublicKey::from_base64(&key.key) {
-            Ok(k) => k,
-            Err(_) => continue,
+        let Ok(public_key) = PublicKey::from_base64(&key.key) else {
+            continue;
         };
 
         if public_key.verify(&file_bytes, &signature, false).is_ok() {
