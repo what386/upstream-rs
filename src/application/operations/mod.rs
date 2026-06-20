@@ -6,6 +6,7 @@ pub mod hooks_operation;
 pub mod import_operation;
 pub mod install_operation;
 pub mod metadata_operation;
+pub mod probe_operation;
 pub mod remove_operation;
 pub mod rollback_operation;
 pub mod upgrade_operation;
