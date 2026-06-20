@@ -23,6 +23,7 @@ pub struct ProbeRequest {
     pub base_url: Option<String>,
     pub channel: Channel,
     pub limit: u32,
+    pub include_incompatible: bool,
 }
 
 pub struct ProbeResult {
@@ -118,7 +119,12 @@ impl<'a> ProbeOperation<'a> {
             base_url.clone(),
         );
         let rows = build_probe_rows(&releases, self.provider_manager, &probe_package);
-        let choices = build_probe_asset_choices(&releases, self.provider_manager, &probe_package);
+        let choices = build_probe_asset_choices(
+            &releases,
+            self.provider_manager,
+            &probe_package,
+            request.include_incompatible,
+        );
 
         Ok(ProbeResult {
             input: request.input,
@@ -181,28 +187,38 @@ pub fn build_probe_asset_choices(
     releases: &[Release],
     provider_manager: &ProviderManager,
     probe_package: &Package,
+    include_incompatible: bool,
 ) -> Vec<ProbeAssetChoice> {
     let mut choices = Vec::new();
 
     for (release_index, release) in releases.iter().enumerate() {
-        let score_by_asset_id: HashMap<u64, i32> = provider_manager
+        let candidates = provider_manager
             .get_candidate_assets(release, probe_package)
-            .map(|candidates| {
-                candidates
-                    .into_iter()
-                    .map(|candidate| (candidate.asset.id, candidate.score))
-                    .collect()
-            })
             .unwrap_or_default();
 
-        for asset in &release.assets {
-            choices.push(ProbeAssetChoice {
+        if include_incompatible {
+            let score_by_asset_id: HashMap<u64, i32> = candidates
+                .into_iter()
+                .map(|candidate| (candidate.asset.id, candidate.score))
+                .collect();
+
+            for asset in &release.assets {
+                choices.push(ProbeAssetChoice {
+                    release_index,
+                    release_tag: release.tag.clone(),
+                    release_state: release_state(release.is_draft, release.is_prerelease),
+                    asset: asset.clone(),
+                    score: score_by_asset_id.get(&asset.id).copied(),
+                });
+            }
+        } else {
+            choices.extend(candidates.into_iter().map(|candidate| ProbeAssetChoice {
                 release_index,
                 release_tag: release.tag.clone(),
                 release_state: release_state(release.is_draft, release.is_prerelease),
-                asset: asset.clone(),
-                score: score_by_asset_id.get(&asset.id).copied(),
-            });
+                asset: candidate.asset,
+                score: Some(candidate.score),
+            }));
         }
     }
 

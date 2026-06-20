@@ -137,14 +137,25 @@ impl Cli {
                 channel,
                 limit,
                 verbose,
+                include_incompatible,
                 json,
                 desktop,
                 trust_mode,
                 dry_run,
             } => {
                 commands::probe::run(
-                    repo_slug, name, provider, base_url, channel, limit, verbose, json, desktop,
-                    trust_mode, dry_run,
+                    repo_slug,
+                    name,
+                    provider,
+                    base_url,
+                    channel,
+                    limit,
+                    verbose,
+                    include_incompatible,
+                    json,
+                    desktop,
+                    trust_mode,
+                    dry_run,
                 )
                 .await
             }
