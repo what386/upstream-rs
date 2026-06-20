@@ -84,8 +84,16 @@ fn format_package_details(package: &Package) -> String {
     let base_url = package.base_url.as_deref().unwrap_or("-");
     let build_branch = package.build_branch.as_deref().unwrap_or("-");
     let build_commit = package.build_commit.as_deref().unwrap_or("-");
-    let match_pattern = package.match_pattern.as_deref().unwrap_or("-");
-    let exclude_pattern = package.exclude_pattern.as_deref().unwrap_or("-");
+    let match_pattern = if package.match_pattern.is_empty() {
+        "-".to_string()
+    } else {
+        package.match_pattern.to_string()
+    };
+    let exclude_pattern = if package.exclude_pattern.is_empty() {
+        "-".to_string()
+    } else {
+        package.exclude_pattern.to_string()
+    };
 
     format!(
         "Package        : {}\n\

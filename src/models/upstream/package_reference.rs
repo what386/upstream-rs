@@ -2,6 +2,7 @@ use crate::models::{
     common::enums::{Channel, Filetype, Provider},
     upstream::Package,
 };
+use crate::providers::pattern_matcher::PatternTable;
 use serde::{Deserialize, Serialize};
 
 /// The bare minimum needed to install a package. Essentially the args to
@@ -16,8 +17,10 @@ pub struct PackageReference {
     pub base_url: Option<String>,
     pub build_branch: Option<String>,
     pub build_commit: Option<String>,
-    pub match_pattern: Option<String>,
-    pub exclude_pattern: Option<String>,
+    #[serde(default)]
+    pub match_pattern: PatternTable,
+    #[serde(default)]
+    pub exclude_pattern: PatternTable,
 }
 
 impl PackageReference {
@@ -26,14 +29,16 @@ impl PackageReference {
             self.name,
             self.repo_slug,
             self.filetype,
-            self.match_pattern,
-            self.exclude_pattern,
+            None,
+            None,
             self.channel,
             self.provider,
             self.base_url,
         );
         package.build_branch = self.build_branch;
         package.build_commit = self.build_commit;
+        package.match_pattern = self.match_pattern;
+        package.exclude_pattern = self.exclude_pattern;
         package
     }
 
@@ -58,6 +63,7 @@ mod tests {
     use super::PackageReference;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
+    use crate::providers::pattern_matcher::PatternTable;
 
     fn reference() -> PackageReference {
         PackageReference {
@@ -69,8 +75,8 @@ mod tests {
             base_url: Some("https://api.github.com".to_string()),
             build_branch: Some("main".to_string()),
             build_commit: Some("abcdef123456".to_string()),
-            match_pattern: Some("x86_64".to_string()),
-            exclude_pattern: Some("debug".to_string()),
+            match_pattern: PatternTable::from_patterns(["x86_64"]),
+            exclude_pattern: PatternTable::from_patterns(["debug"]),
         }
     }
 
@@ -114,7 +120,7 @@ mod tests {
         assert_eq!(reference.provider, Provider::Github);
         assert_eq!(reference.build_branch.as_deref(), Some("dev"));
         assert_eq!(reference.build_commit.as_deref(), Some("0123456789abcdef"));
-        assert_eq!(reference.match_pattern.as_deref(), Some("linux"));
-        assert_eq!(reference.exclude_pattern.as_deref(), Some("symbols"));
+        assert_eq!(reference.match_pattern.to_string(), "linux");
+        assert_eq!(reference.exclude_pattern.to_string(), "symbols");
     }
 }

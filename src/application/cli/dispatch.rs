@@ -130,15 +130,22 @@ impl Cli {
 
             Commands::Probe {
                 repo_slug,
+                name,
                 provider,
                 base_url,
                 channel,
                 limit,
                 verbose,
                 json,
+                desktop,
+                trust_mode,
+                dry_run,
             } => {
-                commands::probe::run(repo_slug, provider, base_url, channel, limit, verbose, json)
-                    .await
+                commands::probe::run(
+                    repo_slug, name, provider, base_url, channel, limit, verbose, json, desktop,
+                    trust_mode, dry_run,
+                )
+                .await
             }
             Commands::Search {
                 query_words,

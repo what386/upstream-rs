@@ -1,29 +1,49 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use console::style;
-use indicatif::HumanBytes;
+use indicatif::{HumanBytes, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::fmt::Write as _;
+use std::time::Duration;
 
 use crate::{
+    application::operations::install_operation::InstallOperation,
     models::{
-        common::enums::{Channel, Filetype, Provider},
+        common::enums::{Channel, Filetype, Provider, TrustMode},
+        provider::{Asset, Release},
         upstream::Package,
     },
-    output::pager,
-    providers::discovery::DiscoveryRequest,
+    output::{self, Status, TransactionRow, pager},
+    providers::discovery::{DiscoveryRequest, infer_package_name},
     providers::{asset_selector::AssetCandidate, provider_manager::ProviderManager},
-    services::storage::config_storage::ConfigStorage,
+    services::{
+        packaging::{
+            PackagePhase, PackageProgressEvent,
+            disk_impact::{asset_size_estimate, install_impact_from_download},
+        },
+        storage::{
+            config_storage::ConfigStorage, package_storage::PackageStorage,
+            trust_storage::TrustStorage,
+        },
+    },
     utils::static_paths::UpstreamPaths,
 };
 
+const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
+
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     repo_slug: String,
+    name: Option<String>,
     provider: Option<Provider>,
     base_url: Option<String>,
     channel: Channel,
     limit: u32,
     verbose: bool,
     json: bool,
+    create_entry: bool,
+    trust_mode: TrustMode,
+    dry_run: bool,
 ) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let config = ConfigStorage::new(&paths.config.config_file)?;
@@ -134,12 +154,457 @@ pub async fn run(
         return Ok(());
     }
 
-    pager::page_text(
-        Some("Probe"),
-        &format_probe_results(&probe_notes, &rows, verbose),
+    if dry_run {
+        pager::page_text(
+            Some("Probe"),
+            &format_probe_results(&probe_notes, &rows, verbose),
+        )?;
+        return Ok(());
+    }
+
+    let choices = build_probe_asset_choices(&releases, &provider_manager, &probe_package);
+    if choices.is_empty() {
+        println!(
+            "{}",
+            output::warning(format!("No assets found for channel '{}'.", channel))
+        );
+        return Ok(());
+    }
+
+    let table = ProbeAssetChoiceTable::from_choices(&choices);
+    let prompt = format!(
+        "Probe: '{}' as '{}' via {}",
+        repo_slug, effective_repo_slug, effective_provider
+    );
+    let Some(selected) = output::select_from_table(prompt, &table.headers, &table.rows)? else {
+        println!("{}", output::warning("Cancelled"));
+        return Ok(());
+    };
+
+    let selected_choice = &choices[selected];
+    let selected_release = releases
+        .get(selected_choice.release_index)
+        .cloned()
+        .ok_or_else(|| anyhow!("Selected release no longer exists"))?;
+    let selected_asset = selected_choice.asset.clone();
+
+    let install_name = resolve_probe_package_name(
+        name,
+        &effective_repo_slug,
+        &effective_provider,
+        effective_base_url.as_deref(),
+    )?;
+    let selector = crate::providers::asset_selector::AssetSelector::new();
+    let generated = selector.generate_patterns_for_asset(
+        &selected_asset,
+        &selected_release.assets,
+        &install_name,
+    );
+
+    let package = Package::with_defaults(
+        install_name.clone(),
+        effective_repo_slug,
+        selected_asset.filetype,
+        Some(generated.match_pattern.to_string()),
+        Some(generated.exclude_pattern.to_string()),
+        channel,
+        effective_provider,
+        effective_base_url,
+    );
+
+    let preview_impact = install_impact_from_download(asset_size_estimate(selected_asset.size));
+    println!("{}", output::title("Install preview"));
+    output::kv("Package", &package.name);
+    output::kv(
+        "Source",
+        format!("{} ({})", package.repo_slug, package.provider),
+    );
+    output::kv(
+        "Release",
+        format!("{} ({})", selected_release.name, selected_release.tag),
+    );
+    output::kv(
+        "Asset",
+        format!("{} ({:?})", selected_asset.name, selected_asset.filetype),
+    );
+    output::kv(
+        "Match",
+        if package.match_pattern.is_empty() {
+            "-".to_string()
+        } else {
+            package.match_pattern.to_string()
+        },
+    );
+    output::kv(
+        "Exclude",
+        if package.exclude_pattern.is_empty() {
+            "-".to_string()
+        } else {
+            package.exclude_pattern.to_string()
+        },
+    );
+    output::kv("Trust", trust_mode);
+    output::kv("Desktop", if create_entry { "yes" } else { "no" });
+    output::print_disk_impact(&preview_impact, true);
+
+    let transaction_rows = vec![TransactionRow::single_version(
+        format!("{}/{}", package.provider, package.name),
+        &selected_release.tag,
+        preview_impact.net,
+        preview_impact.download,
+    )];
+    output::print_transaction_table(&transaction_rows, &preview_impact, "Net disk change:");
+    output::confirm_or_cancel("Proceed with installation?", true)?;
+
+    let trust_storage = TrustStorage::new(&paths.config.trust_file)?;
+    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
+    let trusted_keys = trust_storage.trusted_signature_keys();
+    let mut package_installer = InstallOperation::new(
+        &provider_manager,
+        &mut package_storage,
+        &paths,
+        trusted_keys,
     )?;
 
+    let pb = ProgressBar::new_spinner();
+    pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
+    pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
+    pb.enable_steady_tick(Duration::from_millis(120));
+    pb.set_message(format!("Installing {}", package.name));
+
+    let progress_name = package.name.clone();
+    let install_name = package.name.clone();
+    let install_version = selected_release.tag.clone();
+    let progress_pb = pb.clone();
+    let mut last_emit = None;
+    let mut progress_callback = Some(move |event: PackageProgressEvent| {
+        let should_emit = last_emit
+            .map(|elapsed: std::time::Instant| elapsed.elapsed() >= PROGRESS_UPDATE_INTERVAL)
+            .unwrap_or(true);
+        if should_emit || !matches!(event, PackageProgressEvent::Download { .. }) {
+            progress_pb.set_message(render_probe_install_progress_message(&progress_name, event));
+            last_emit = Some(std::time::Instant::now());
+        }
+    });
+
+    let mut no_download_progress: Option<fn(u64, u64)> = None;
+    let mut ignored_messages = Some(|_: &str| {});
+    let install_result = package_installer
+        .install_selected_asset_with_progress(
+            package,
+            &selected_release,
+            &selected_asset,
+            &create_entry,
+            trust_mode,
+            &mut no_download_progress,
+            &mut ignored_messages,
+            &mut progress_callback,
+        )
+        .await;
+
+    pb.finish_and_clear();
+
+    match install_result {
+        Ok(()) => {
+            println!(
+                "{}",
+                output::status_line_text(
+                    Status::Ok,
+                    &install_name,
+                    format!("installed {install_version}")
+                )
+            );
+            println!(
+                "{}",
+                output::success("Install complete: 1 installed, 0 failed.")
+            );
+        }
+        Err(err) => {
+            println!(
+                "{}",
+                output::status_line_text(Status::Fail, &install_name, output::error_summary(&err))
+            );
+            println!(
+                "{}",
+                output::warning("Install complete: 0 installed, 1 failed.")
+            );
+        }
+    }
+
     Ok(())
+}
+
+fn resolve_probe_package_name(
+    name: Option<String>,
+    source: &str,
+    provider: &Provider,
+    base_url: Option<&str>,
+) -> Result<String> {
+    if let Some(name) = name.filter(|value| !value.trim().is_empty()) {
+        return Ok(name);
+    }
+
+    let default = infer_package_name(source, Some(provider), base_url)?;
+    output::prompt_text("Package name", default.as_deref())
+}
+
+fn render_probe_install_progress_message(name: &str, event: PackageProgressEvent) -> String {
+    format!(
+        "Installing {name}\n{}",
+        render_probe_install_progress_row(name, event)
+    )
+}
+
+fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) -> String {
+    match event {
+        PackageProgressEvent::Phase(phase) => {
+            format!(" {:<28} {}", name, phase.label())
+        }
+        PackageProgressEvent::Download { downloaded, total } => {
+            let transfer = if total > 0 {
+                format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
+            } else if downloaded > 0 {
+                format!("{}", HumanBytes(downloaded))
+            } else {
+                "-".to_string()
+            };
+            format!(
+                " {:<28} {:<28} {}",
+                name,
+                PackagePhase::DownloadingPackage.label(),
+                transfer
+            )
+        }
+        PackageProgressEvent::Warning(message) => {
+            format!(" {:<28} {}", name, message)
+        }
+    }
+}
+
+fn build_probe_asset_choices(
+    releases: &[Release],
+    provider_manager: &ProviderManager,
+    probe_package: &Package,
+) -> Vec<ProbeAssetChoice> {
+    let mut choices = Vec::new();
+
+    for (release_index, release) in releases.iter().enumerate() {
+        let score_by_asset_id: HashMap<u64, i32> = provider_manager
+            .get_candidate_assets(release, probe_package)
+            .map(|candidates| {
+                candidates
+                    .into_iter()
+                    .map(|candidate| (candidate.asset.id, candidate.score))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        for asset in &release.assets {
+            choices.push(ProbeAssetChoice {
+                release_index,
+                release_tag: release.tag.clone(),
+                release_state: release_state(release.is_draft, release.is_prerelease),
+                asset: asset.clone(),
+                score: score_by_asset_id.get(&asset.id).copied(),
+            });
+        }
+    }
+
+    choices
+}
+
+#[derive(Debug, Clone)]
+struct ProbeAssetChoice {
+    release_index: usize,
+    release_tag: String,
+    release_state: ReleaseState,
+    asset: Asset,
+    score: Option<i32>,
+}
+
+struct ProbeAssetChoiceTable {
+    headers: Vec<String>,
+    rows: Vec<String>,
+}
+
+impl ProbeAssetChoiceTable {
+    fn from_choices(choices: &[ProbeAssetChoice]) -> Self {
+        let widths = ProbeAssetChoiceWidths::from_choices(choices);
+        let header = format!(
+            "  {:<rel$} {:<state$} {:<name$} {:<kind$} {:>size$} {:<os$} {:<arch$} {:>score$}",
+            "Release",
+            "State",
+            "Asset",
+            "Kind",
+            "Size",
+            "OS",
+            "Arch",
+            "Score",
+            rel = widths.release,
+            state = widths.state,
+            name = widths.asset,
+            kind = widths.kind,
+            size = widths.size,
+            os = widths.os,
+            arch = widths.arch,
+            score = widths.score,
+        );
+        let divider = format!("  {}", output::divider(widths.table_width()));
+        let rows = choices
+            .iter()
+            .map(|choice| format_probe_asset_choice(choice, &widths))
+            .collect();
+
+        Self {
+            headers: vec![header, divider],
+            rows,
+        }
+    }
+}
+
+fn format_probe_asset_choice(choice: &ProbeAssetChoice, widths: &ProbeAssetChoiceWidths) -> String {
+    let asset = &choice.asset;
+    format!(
+        "{:<rel$} {:<state$} {:<name$} {:<kind$} {:>size$} {:<os$} {:<arch$} {:>score$}",
+        truncate(&choice.release_tag, widths.release),
+        choice.release_state.label(),
+        truncate(&asset.name, widths.asset),
+        truncate(&format!("{:?}", asset.filetype), widths.kind),
+        HumanBytes(asset.size),
+        asset
+            .target_os
+            .as_ref()
+            .map(|value| format!("{value:?}"))
+            .unwrap_or_else(|| "-".to_string()),
+        asset
+            .target_arch
+            .as_ref()
+            .map(|value| format!("{value:?}"))
+            .unwrap_or_else(|| "-".to_string()),
+        choice
+            .score
+            .map(|score| score.to_string())
+            .unwrap_or_else(|| "-".to_string()),
+        rel = widths.release,
+        state = widths.state,
+        name = widths.asset,
+        kind = widths.kind,
+        size = widths.size,
+        os = widths.os,
+        arch = widths.arch,
+        score = widths.score,
+    )
+}
+
+struct ProbeAssetChoiceWidths {
+    release: usize,
+    state: usize,
+    asset: usize,
+    kind: usize,
+    size: usize,
+    os: usize,
+    arch: usize,
+    score: usize,
+}
+
+impl ProbeAssetChoiceWidths {
+    fn from_choices(choices: &[ProbeAssetChoice]) -> Self {
+        let release = choices
+            .iter()
+            .map(|choice| choice.release_tag.chars().count())
+            .max()
+            .unwrap_or(7)
+            .max("Release".len())
+            .min(28);
+        let state = choices
+            .iter()
+            .map(|choice| choice.release_state.label().chars().count())
+            .max()
+            .unwrap_or(5)
+            .max("State".len());
+        let asset = choices
+            .iter()
+            .map(|choice| choice.asset.name.chars().count())
+            .max()
+            .unwrap_or(5)
+            .max("Asset".len())
+            .min(56);
+        let kind = choices
+            .iter()
+            .map(|choice| format!("{:?}", choice.asset.filetype).chars().count())
+            .max()
+            .unwrap_or(4)
+            .max("Kind".len())
+            .min(20);
+        let size = choices
+            .iter()
+            .map(|choice| HumanBytes(choice.asset.size).to_string().chars().count())
+            .max()
+            .unwrap_or(4)
+            .max("Size".len());
+        let os = choices
+            .iter()
+            .map(|choice| {
+                choice
+                    .asset
+                    .target_os
+                    .as_ref()
+                    .map(|value| format!("{value:?}").chars().count())
+                    .unwrap_or(1)
+            })
+            .max()
+            .unwrap_or(2)
+            .max("OS".len())
+            .min(10);
+        let arch = choices
+            .iter()
+            .map(|choice| {
+                choice
+                    .asset
+                    .target_arch
+                    .as_ref()
+                    .map(|value| format!("{value:?}").chars().count())
+                    .unwrap_or(1)
+            })
+            .max()
+            .unwrap_or(4)
+            .max("Arch".len())
+            .min(12);
+        let score = choices
+            .iter()
+            .map(|choice| {
+                choice
+                    .score
+                    .map(|score| score.to_string().chars().count())
+                    .unwrap_or(1)
+            })
+            .max()
+            .unwrap_or(5)
+            .max("Score".len());
+
+        Self {
+            release,
+            state,
+            asset,
+            kind,
+            size,
+            os,
+            arch,
+            score,
+        }
+    }
+
+    fn table_width(&self) -> usize {
+        self.release
+            + self.state
+            + self.asset
+            + self.kind
+            + self.size
+            + self.os
+            + self.arch
+            + self.score
+            + 7
+    }
 }
 
 #[derive(Serialize)]
@@ -538,15 +1003,22 @@ impl ProbeColumnWidths {
 
 #[cfg(test)]
 mod tests {
-    use super::{JsonProbeResult, ProbeRow, ReleaseState, json_probe_result};
+    use super::{
+        JsonProbeResult, ProbeAssetChoiceTable, ProbeRow, ReleaseState, build_probe_asset_choices,
+        json_probe_result,
+    };
     use crate::{
         models::{
-            common::enums::{Channel, Filetype, Provider},
-            provider::Asset,
+            common::{
+                Version,
+                enums::{Channel, Filetype, Provider},
+            },
+            provider::{Asset, Release},
+            upstream::Package,
         },
-        providers::asset_selector::AssetCandidate,
+        providers::{asset_selector::AssetCandidate, provider_manager::ProviderManager},
     };
-    use chrono::TimeZone;
+    use chrono::{TimeZone, Utc};
 
     #[test]
     fn json_probe_result_includes_source_releases_and_candidates() {
@@ -595,5 +1067,53 @@ mod tests {
             json["releases"][0]["candidates"][0]["filetype"],
             "Compressed archive"
         );
+    }
+
+    #[test]
+    fn probe_asset_choices_include_all_release_assets() {
+        let provider_manager = ProviderManager::new(None, None, None).expect("provider manager");
+        let package = Package::with_defaults(
+            String::new(),
+            "owner/tool".to_string(),
+            Filetype::Auto,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        let releases = vec![Release {
+            id: 1,
+            tag: "v1.2.3".to_string(),
+            name: "v1.2.3".to_string(),
+            body: String::new(),
+            is_draft: false,
+            is_prerelease: false,
+            assets: vec![
+                Asset::new(
+                    "https://example.invalid/tool-linux-x86_64.tar.gz".to_string(),
+                    1,
+                    "tool-linux-x86_64.tar.gz".to_string(),
+                    1234,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-debug-symbols.zip".to_string(),
+                    2,
+                    "tool-debug-symbols.zip".to_string(),
+                    5678,
+                    Utc::now(),
+                ),
+            ],
+            version: Version::new(1, 2, 3, false),
+            published_at: Utc::now(),
+        }];
+
+        let choices = build_probe_asset_choices(&releases, &provider_manager, &package);
+        let table = ProbeAssetChoiceTable::from_choices(&choices);
+
+        assert_eq!(choices.len(), 2);
+        assert!(table.rows[0].contains("tool-linux-x86_64.tar.gz"));
+        assert!(table.rows[1].contains("tool-debug-symbols.zip"));
     }
 }
