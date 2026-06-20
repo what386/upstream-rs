@@ -321,17 +321,25 @@ pub enum Commands {
         to_tag: Option<String>,
     },
 
-    /// Inspect releases visible from a provider without installing
-    #[command(long_about = "Probe a repository/source and show parsed releases.\n\n\
-        Useful for validating what upstream can see before installation.\n\n\
+    /// Probe a repository/source, choose an asset, and install it
+    #[command(
+        long_about = "Probe a repository/source, choose a release asset interactively, \
+        and install it. Use --dry-run to show parsed releases without installing.\n\n\
         EXAMPLES:\n  \
         upstream probe neovim/neovim\n  \
         upstream probe https://ziglang.org/download/ -p scraper --limit 20\n  \
+        upstream probe owner/repo --name tool --desktop\n  \
         upstream probe owner/repo --channel nightly --verbose\n  \
-        upstream probe owner/repo --json")]
+        upstream probe owner/repo --dry-run\n  \
+        upstream probe owner/repo --json"
+    )]
     Probe {
         /// Repository identifier or URL to probe
         repo_slug: String,
+
+        /// Package name to register without prompting
+        #[arg(long)]
+        name: Option<String>,
 
         /// Source provider (defaults to github, or scraper for URLs)
         #[arg(short = 'p', long)]
@@ -353,9 +361,21 @@ pub enum Commands {
         #[arg(long, default_value_t = false)]
         verbose: bool,
 
-        /// Print probe results as JSON
+        /// Print dry-run probe results as JSON
         #[arg(long, default_value_t = false)]
         json: bool,
+
+        /// Whether or not to create a .desktop entry for GUI applications
+        #[arg(short, long, default_value_t = false)]
+        desktop: bool,
+
+        /// Trust verification mode for downloaded assets
+        #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
+        trust_mode: TrustMode,
+
+        /// Show parsed releases without selecting, downloading, or installing
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
 
     /// Search provider repositories by keyword(s)

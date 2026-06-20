@@ -8,6 +8,7 @@ use crate::models::common::{
     version::Version,
 };
 use crate::models::provider::Release;
+use crate::providers::pattern_matcher::PatternTable;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum InstallType {
@@ -30,8 +31,10 @@ pub struct Package {
     pub build_commit: Option<String>,
 
     pub is_pinned: bool,
-    pub match_pattern: Option<String>,
-    pub exclude_pattern: Option<String>,
+    #[serde(default)]
+    pub match_pattern: PatternTable,
+    #[serde(default)]
+    pub exclude_pattern: PatternTable,
     pub icon_path: Option<PathBuf>,
     pub install_path: Option<PathBuf>,
     pub exec_path: Option<PathBuf>,
@@ -65,8 +68,8 @@ impl Package {
             build_commit: None,
 
             is_pinned: false,
-            match_pattern,
-            exclude_pattern,
+            match_pattern: PatternTable::from_cli_arg(match_pattern),
+            exclude_pattern: PatternTable::from_cli_arg(exclude_pattern),
             icon_path: None,
             install_path: None,
             exec_path: None,
@@ -106,6 +109,7 @@ mod tests {
         },
         provider::Release,
     };
+    use crate::providers::pattern_matcher::PatternTable;
     use chrono::{Duration, TimeZone, Utc};
 
     fn update_test_package(version: Version, channel: Channel) -> Package {
@@ -161,7 +165,7 @@ mod tests {
         b.version.major = 99;
         b.is_pinned = true;
         b.install_type = InstallType::Build;
-        b.match_pattern = Some("x86_64".to_string());
+        b.match_pattern = PatternTable::from_patterns(["x86_64"]);
         assert!(a.is_same_as(&b));
 
         a.name = "rg".to_string();

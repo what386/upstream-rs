@@ -98,10 +98,17 @@ upstream find ripgrep
 
 `find` prompts for the package name after selection and defaults to the selected repository name.
 
-Inspect releases before installing:
+Probe releases, choose an asset, and install it:
 
 ```bash
 upstream probe BurntSushi/ripgrep
+```
+
+Inspect parsed releases without installing:
+
+```bash
+upstream probe BurntSushi/ripgrep --dry-run
+upstream probe BurntSushi/ripgrep --json
 ```
 
 Upgrade installed packages:
@@ -157,6 +164,7 @@ Use `--match` and `--exclude` to guide asset selection:
 
 ```bash
 upstream install owner/repo app --match linux --exclude debug
+upstream install owner/repo app --match linux,x86_64 --exclude debug,symbols
 ```
 
 ### Build from source
@@ -236,7 +244,7 @@ upstream import ./backup.tar.gz
 | `changelog` | Show upstream release notes          |
 | `search`    | Search provider repositories         |
 | `find`      | Pick and install a search result     |
-| `probe`     | Inspect releases without installing  |
+| `probe`     | Pick and install a release asset     |
 | `config`    | Manage configuration                 |
 | `package`   | Pin, unpin, or rename packages       |
 | `hooks`     | Manage shell integration             |

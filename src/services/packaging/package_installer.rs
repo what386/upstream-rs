@@ -2,7 +2,11 @@
 use crate::services::integration::AppImageExtractor;
 use crate::{
     models::common::{DesktopEntry, enums::TrustMode},
-    models::{common::enums::Filetype, provider::Release, upstream::Package},
+    models::{
+        common::enums::Filetype,
+        provider::{Asset, Release},
+        upstream::Package,
+    },
     providers::provider_manager::ProviderManager,
     services::{
         integration::{
@@ -179,6 +183,46 @@ impl<'a> PackageInstaller<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    pub async fn install_selected_asset_with_progress<F, H, P>(
+        &self,
+        package_storage: &mut PackageStorage,
+        trusted_keys: &TrustedSignatureKeys,
+        package: Package,
+        release: &Release,
+        asset: &Asset,
+        add_entry: &bool,
+        trust_mode: TrustMode,
+        transaction_context: PackageTransactionContext,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        let package_name = package.name.clone();
+        let transaction = self.start_transaction(transaction_context, package_name.clone())?;
+        let result = self
+            .install_selected_asset_inner(
+                package_storage,
+                trusted_keys,
+                package,
+                release,
+                asset,
+                add_entry,
+                trust_mode,
+                download_progress_callback,
+                message_callback,
+                progress_callback,
+            )
+            .await;
+
+        self.finish_transaction(transaction, &package_name, result)
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub async fn install_local_artifact<H>(
         &self,
         package_storage: &mut PackageStorage,
@@ -337,6 +381,78 @@ impl<'a> PackageInstaller<'a> {
             .perform_install_with_progress(
                 package,
                 version,
+                trust_mode,
+                trusted_keys,
+                download_progress_callback,
+                message_callback,
+                progress_callback,
+            )
+            .await
+            .context(format!(
+                "Failed to perform installation for '{}'",
+                package_name
+            ))?;
+
+        if *add_entry {
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Phase(PackagePhase::CreatingDesktopEntry)
+            );
+
+            if let Err(err) = self
+                .add_desktop_entry(&mut installed_package, message_callback)
+                .await
+            {
+                return self.fail_after_partial_install(
+                    installed_package,
+                    err.context("Failed to create desktop integration"),
+                    message_callback,
+                );
+            }
+        }
+
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::SavingMetadata)
+        );
+        if let Err(err) = package_storage
+            .add_or_update_package(installed_package.clone())
+            .context(format!(
+                "Failed to save package '{}' to storage",
+                installed_package.name
+            ))
+        {
+            return self.fail_after_partial_install(installed_package, err, message_callback);
+        }
+
+        Ok(installed_package)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn install_selected_asset_inner<F, H, P>(
+        &self,
+        package_storage: &mut PackageStorage,
+        trusted_keys: &TrustedSignatureKeys,
+        package: Package,
+        release: &Release,
+        asset: &Asset,
+        add_entry: &bool,
+        trust_mode: TrustMode,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        let package_name = package.name.clone();
+        let mut installed_package = self
+            .install_package_asset_files(
+                package,
+                release,
+                asset,
                 trust_mode,
                 trusted_keys,
                 download_progress_callback,
@@ -621,8 +737,48 @@ impl<'a> PackageInstaller<'a> {
     #[allow(clippy::too_many_arguments)]
     pub async fn install_package_files<F, H, P>(
         &self,
+        package: Package,
+        release: &Release,
+        trust_mode: TrustMode,
+        trusted_keys: &TrustedSignatureKeys,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        message!(message_callback, "Selecting asset from '{}'", release.name);
+
+        let best_asset = self
+            .provider_manager
+            .find_recommended_asset(release, &package)
+            .context(format!(
+                "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
+                package.name, package.filetype
+            ))?;
+
+        self.install_package_asset_files(
+            package,
+            release,
+            &best_asset,
+            trust_mode,
+            trusted_keys,
+            download_progress_callback,
+            message_callback,
+            progress_callback,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn install_package_asset_files<F, H, P>(
+        &self,
         mut package: Package,
         release: &Release,
+        asset: &Asset,
         trust_mode: TrustMode,
         trusted_keys: &TrustedSignatureKeys,
         download_progress_callback: &mut Option<F>,
@@ -646,23 +802,13 @@ impl<'a> PackageInstaller<'a> {
             package_extract_cache.display()
         ))?;
 
-        message!(message_callback, "Selecting asset from '{}'", release.name);
-
-        let best_asset = self
-            .provider_manager
-            .find_recommended_asset(release, &package)
-            .context(format!(
-                "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
-                package.name, package.filetype
-            ))?;
-
         if package.filetype == Filetype::Auto {
             message!(
                 message_callback,
                 "Resolved filetype to '{}'",
-                &best_asset.filetype
+                &asset.filetype
             );
-            package.filetype = best_asset.filetype;
+            package.filetype = asset.filetype;
         }
 
         progress!(
@@ -673,13 +819,13 @@ impl<'a> PackageInstaller<'a> {
         let download_path = self
             .provider_manager
             .download_asset(
-                &best_asset,
+                asset,
                 &package.provider,
                 &package_download_cache,
                 download_progress_callback,
             )
             .await
-            .context(format!("Failed to download asset '{}'", best_asset.name))?;
+            .context(format!("Failed to download asset '{}'", asset.name))?;
 
         let trust_verifier = TrustVerifier::new(
             self.provider_manager,
@@ -1065,8 +1211,11 @@ impl<'a> PackageInstaller<'a> {
                 }
 
                 let lower = name.to_ascii_lowercase();
-                if let Some(pattern) = package.exclude_pattern.as_deref()
-                    && lower.contains(&pattern.to_ascii_lowercase())
+                if package
+                    .exclude_pattern
+                    .as_slice()
+                    .iter()
+                    .any(|pattern| lower.contains(pattern))
                 {
                     return None;
                 }
@@ -1077,7 +1226,7 @@ impl<'a> PackageInstaller<'a> {
                     &name,
                     &target_os,
                     arch_score,
-                    package.match_pattern.as_deref(),
+                    &package.match_pattern,
                 );
 
                 Some((score, name, entry.path()))
@@ -1112,7 +1261,7 @@ impl<'a> PackageInstaller<'a> {
         name: &str,
         target_os: &OSKind,
         arch_score: i32,
-        match_pattern: Option<&str>,
+        match_pattern: &crate::providers::pattern_matcher::PatternTable,
     ) -> i32 {
         let lower = name.to_ascii_lowercase();
         let mut score = arch_score;
@@ -1121,10 +1270,8 @@ impl<'a> PackageInstaller<'a> {
             score += Self::linux_abi_score(&lower);
         }
 
-        if let Some(pattern) = match_pattern
-            && lower.contains(&pattern.to_ascii_lowercase())
-        {
-            score += 100;
+        if !match_pattern.is_empty() {
+            score += (match_pattern.match_ratio(&lower) * 100.0).round() as i32;
         }
 
         score

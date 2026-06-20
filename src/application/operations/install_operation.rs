@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 
 use crate::{
     models::common::enums::TrustMode,
+    models::provider::{Asset, Release},
     models::upstream::Package,
     providers::provider_manager::ProviderManager,
     services::{
@@ -209,6 +210,41 @@ impl<'a> InstallOperation<'a> {
             progress_callback,
         )
         .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn install_selected_asset_with_progress<F, H, P>(
+        &mut self,
+        package: Package,
+        release: &Release,
+        asset: &Asset,
+        add_entry: &bool,
+        trust_mode: TrustMode,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<()>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        self.installer
+            .install_selected_asset_with_progress(
+                self.package_storage,
+                &self.trusted_keys,
+                package,
+                release,
+                asset,
+                add_entry,
+                trust_mode,
+                PackageTransactionContext::install(),
+                download_progress_callback,
+                message_callback,
+                progress_callback,
+            )
+            .await
+            .map(|_| ())
     }
 
     #[allow(clippy::too_many_arguments)]
