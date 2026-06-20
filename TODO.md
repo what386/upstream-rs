@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] consider asset checksumming for file corruption
-      @created 2026-06-19 04:31
-
 
 ## Completed
 
