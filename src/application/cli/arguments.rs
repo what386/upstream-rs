@@ -328,7 +328,7 @@ pub enum Commands {
         EXAMPLES:\n  \
         upstream probe neovim/neovim\n  \
         upstream probe https://ziglang.org/download/ -p scraper --limit 20\n  \
-        upstream probe owner/repo --name tool --desktop\n  \
+        upstream probe owner/repo tool --desktop\n  \
         upstream probe owner/repo --channel nightly --verbose\n  \
         upstream probe owner/repo --dry-run\n  \
         upstream probe owner/repo --json"
@@ -337,8 +337,7 @@ pub enum Commands {
         /// Repository identifier or URL to probe
         repo_slug: String,
 
-        /// Package name to register without prompting
-        #[arg(long)]
+        /// Name to register the application under (prompts with inferred default when omitted)
         name: Option<String>,
 
         /// Source provider (defaults to github, or scraper for URLs)
