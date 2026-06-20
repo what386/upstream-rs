@@ -29,8 +29,8 @@ pub async fn run(
     provider: Option<Provider>,
     base_url: Option<String>,
     channel: Channel,
-    limit: u32,
-    tag: String,
+    limit: Option<u32>,
+    tag: Option<String>,
     verbose: bool,
     include_incompatible: bool,
     json: bool,
@@ -40,14 +40,15 @@ pub async fn run(
 ) -> Result<()> {
     let context = CommandContext::new()?;
     let probe_operation = ProbeOperation::new(&context.provider_manager);
+    let (release_selector, release_limit) = ProbeReleaseSelector::from_cli_options(tag, limit)?;
     let probe_result = probe_operation
         .probe(ProbeRequest {
             input: repo_slug.clone(),
             provider,
             base_url,
             channel,
-            limit,
-            release_selector: ProbeReleaseSelector::from_cli_value(&tag)?,
+            limit: release_limit,
+            release_selector,
             include_incompatible,
         })
         .await?;

@@ -355,13 +355,13 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
         channel: Channel,
 
-        /// Maximum number of releases to display
-        #[arg(long, default_value_t = 10)]
-        limit: u32,
+        /// Maximum number of releases to display; implies --tag all when --tag is omitted (default: 10)
+        #[arg(long)]
+        limit: Option<u32>,
 
-        /// Release tag to inspect, or 'all' to inspect all fetched releases
-        #[arg(long, default_value = "latest", value_name = "TAG|all")]
-        tag: String,
+        /// Release tag to inspect, or 'all' to inspect fetched releases (defaults to latest)
+        #[arg(long, value_name = "TAG|all")]
+        tag: Option<String>,
 
         /// Include scored candidate assets for each release
         #[arg(long, default_value_t = false)]

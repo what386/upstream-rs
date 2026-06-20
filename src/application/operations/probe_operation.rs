@@ -17,6 +17,8 @@ use crate::{
     },
 };
 
+const DEFAULT_PROBE_RELEASE_LIMIT: u32 = 10;
+
 pub struct ProbeRequest {
     pub input: String,
     pub provider: Option<Provider>,
@@ -202,10 +204,33 @@ pub enum ProbeReleaseSelector {
 }
 
 impl ProbeReleaseSelector {
-    pub fn from_cli_value(value: &str) -> Result<Self> {
+    pub fn from_cli_options(tag: Option<String>, limit: Option<u32>) -> Result<(Self, u32)> {
+        let Some(tag) = tag else {
+            return Ok((
+                if limit.is_some() {
+                    Self::All
+                } else {
+                    Self::Latest
+                },
+                limit.unwrap_or(DEFAULT_PROBE_RELEASE_LIMIT),
+            ));
+        };
+
+        let selector = Self::from_cli_value(&tag)?;
+        if limit.is_some() && !matches!(selector, Self::All) {
+            return Err(anyhow!(
+                "--limit only applies when probing all releases; use --tag all --limit {}",
+                limit.unwrap_or(DEFAULT_PROBE_RELEASE_LIMIT)
+            ));
+        }
+
+        Ok((selector, limit.unwrap_or(DEFAULT_PROBE_RELEASE_LIMIT)))
+    }
+
+    fn from_cli_value(value: &str) -> Result<Self> {
         let trimmed = value.trim();
         if trimmed.is_empty() {
-            return Err(anyhow!("Probe tag filter cannot be empty"));
+            return Err(anyhow!("Probe release selector cannot be empty"));
         }
 
         if trimmed.eq_ignore_ascii_case("latest") {
