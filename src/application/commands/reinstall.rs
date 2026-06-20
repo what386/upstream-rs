@@ -3,6 +3,7 @@ use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
+    application::context::CommandContext,
     application::operations::{
         install_operation::{
             InstallOperation, LocalArtifactInstallRequest, PackageTransactionContext,
@@ -27,7 +28,6 @@ use crate::{
             },
         },
         storage::{
-            config_storage::ConfigStorage,
             metadata_storage::MetadataStorage,
             package_storage::PackageStorage,
             rollback_storage::RollbackSource,
@@ -35,7 +35,6 @@ use crate::{
                 TransactionKind, TransactionLog, UndoActionKind, package_failed, package_success,
                 planned_packages, undo,
             },
-            trust_storage::TrustStorage,
         },
         trust::TrustedSignatureKeys,
     },
@@ -81,34 +80,31 @@ pub async fn run(
         return Err(anyhow!("At least one package name is required"));
     }
 
-    let paths = UpstreamPaths::new()?;
-    let config = ConfigStorage::new(&paths.config.config_file)?;
-    let trust_storage = TrustStorage::new(&paths.config.trust_file)?;
-    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
-    let app_config = config.get_config();
-
-    let github_token = app_config.github.api_token.as_deref();
-    let gitlab_token = app_config.gitlab.api_token.as_deref();
-    let gitea_token = app_config.gitea.api_token.as_deref();
-    let provider_manager =
-        ProviderManager::new(github_token, gitlab_token, gitea_token, app_config.download)?;
-    let trusted_keys = trust_storage.trusted_signature_keys();
+    let context = CommandContext::new()?;
+    let mut package_storage = context.package_storage()?;
+    let mut metadata_storage = MetadataStorage::new(&context.paths.config.metadata_file)?;
+    let trusted_keys = context.trusted_keys()?;
 
     if dry_run {
         return run_dry_run(
             names,
             trust_mode,
             &package_storage,
-            &provider_manager,
-            &paths,
+            &context.provider_manager,
+            &context.paths,
         )
         .await;
     }
 
-    let impact =
-        estimate_reinstall_impact(&names, &package_storage, &provider_manager, &paths).await;
-    let rollback_impact = estimate_reinstall_rollback_impact(&names, &package_storage, &paths);
+    let impact = estimate_reinstall_impact(
+        &names,
+        &package_storage,
+        &context.provider_manager,
+        &context.paths,
+    )
+    .await;
+    let rollback_impact =
+        estimate_reinstall_rollback_impact(&names, &package_storage, &context.paths);
     let size_rows = rollback_size_rows(rollback_impact);
     output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
     output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()), false)?;
@@ -124,7 +120,7 @@ pub async fn run(
         })
         .collect::<std::collections::BTreeMap<_, _>>();
     let transaction = TransactionLog::start(
-        &paths,
+        &context.paths,
         TransactionKind::Reinstall,
         planned_packages(names.clone()),
         undo(UndoActionKind::RestoreRollback, names.clone()),
@@ -172,10 +168,10 @@ pub async fn run(
         };
 
         if let Err(err) = reinstall_one(
-            &provider_manager,
+            &context.provider_manager,
             &mut package_storage,
             &mut metadata_storage,
-            &paths,
+            &context.paths,
             package,
             trust_mode,
             force,

@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow};
 
 use crate::{
+    application::context::CommandContext,
     models::{
         common::{enums::Channel, version::Version},
         provider::Release,
@@ -9,32 +10,22 @@ use crate::{
     output,
     output::pager,
     providers::provider_manager::ProviderManager,
-    services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
-    utils::static_paths::UpstreamPaths,
 };
 
 pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
-    let config = ConfigStorage::new(&paths.config.config_file)?;
-    let package_storage = PackageStorage::new(&paths.config.packages_file)?;
+    let context = CommandContext::new()?;
+    let package_storage = context.package_storage()?;
     let package = package_storage
         .get_package_by_name(&name)
         .ok_or_else(|| anyhow!("Package '{}' is not installed", name))?;
-
-    let app_config = config.get_config();
-    let provider_manager = ProviderManager::new(
-        app_config.github.api_token.as_deref(),
-        app_config.gitlab.api_token.as_deref(),
-        app_config.gitea.api_token.as_deref(),
-        app_config.download,
-    )?;
 
     let from_version = match from_tag.as_deref() {
         Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Current) => {
             package.version.clone()
         }
         Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Latest) => {
-            provider_manager
+            context
+                .provider_manager
                 .get_latest_release(
                     &package.repo_slug,
                     &package.provider,
@@ -51,7 +42,8 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
                 .version
         }
         Some(tag) => {
-            provider_manager
+            context
+                .provider_manager
                 .get_release_by_tag(
                     &package.repo_slug,
                     tag,
@@ -74,7 +66,8 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
         Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Current) => {
             current_package_release(package)
         }
-        Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Latest) => provider_manager
+        Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Latest) => context
+            .provider_manager
             .get_latest_release(
                 &package.repo_slug,
                 &package.provider,
@@ -88,7 +81,8 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
                     package.channel, package.repo_slug
                 )
             })?,
-        Some(tag) => provider_manager
+        Some(tag) => context
+            .provider_manager
             .get_release_by_tag(
                 &package.repo_slug,
                 tag,
@@ -102,7 +96,8 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
                     tag, package.repo_slug
                 )
             })?,
-        None => provider_manager
+        None => context
+            .provider_manager
             .get_latest_release(
                 &package.repo_slug,
                 &package.provider,
@@ -119,7 +114,7 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
     };
 
     let Some(changelog) = changelog_text_for_package(
-        &provider_manager,
+        &context.provider_manager,
         package,
         &from_version,
         &to_release,
