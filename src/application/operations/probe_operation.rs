@@ -17,15 +17,13 @@ use crate::{
     },
 };
 
-const DEFAULT_PROBE_RELEASE_LIMIT: u32 = 10;
-
 pub struct ProbeRequest {
     pub input: String,
     pub provider: Option<Provider>,
     pub base_url: Option<String>,
     pub channel: Channel,
-    pub limit: u32,
-    pub release_selector: ProbeReleaseSelector,
+    pub limit: Option<u32>,
+    pub tag: Option<String>,
     pub include_incompatible: bool,
 }
 
@@ -163,85 +161,32 @@ impl<'a> ProbeOperation<'a> {
         base_url: Option<&str>,
         request: &ProbeRequest,
     ) -> Result<Vec<Release>> {
-        match &request.release_selector {
-            ProbeReleaseSelector::Latest => {
-                let release = self
-                    .provider_manager
-                    .get_latest_release(repo_slug, provider, &request.channel, base_url)
-                    .await?;
-                Ok(vec![release])
+        if let Some(tag) = request.tag.as_deref().map(str::trim) {
+            if tag.is_empty() {
+                return Err(anyhow!("Probe tag cannot be empty"));
             }
-            ProbeReleaseSelector::All => {
-                let releases = self
-                    .provider_manager
-                    .get_releases(
-                        repo_slug,
-                        provider,
-                        Some(request.limit),
-                        Some(request.limit),
-                        base_url,
-                    )
-                    .await?;
-                Ok(filter_by_channel(releases, &request.channel))
-            }
-            ProbeReleaseSelector::Tag(tag) => {
-                let release = self
-                    .provider_manager
-                    .get_release_by_tag(repo_slug, tag, provider, base_url)
-                    .await
-                    .map_err(|err| anyhow!("Failed to fetch release tag '{}': {}", tag, err))?;
-                Ok(vec![release])
-            }
-        }
-    }
-}
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ProbeReleaseSelector {
-    Latest,
-    All,
-    Tag(String),
-}
-
-impl ProbeReleaseSelector {
-    pub fn from_cli_options(tag: Option<String>, limit: Option<u32>) -> Result<(Self, u32)> {
-        let Some(tag) = tag else {
-            return Ok((
-                if limit.is_some() {
-                    Self::All
-                } else {
-                    Self::Latest
-                },
-                limit.unwrap_or(DEFAULT_PROBE_RELEASE_LIMIT),
-            ));
-        };
-
-        let selector = Self::from_cli_value(&tag)?;
-        if limit.is_some() && !matches!(selector, Self::All) {
-            return Err(anyhow!(
-                "--limit only applies when probing all releases; use --tag all --limit {}",
-                limit.unwrap_or(DEFAULT_PROBE_RELEASE_LIMIT)
-            ));
+            let release = self
+                .provider_manager
+                .get_release_by_tag(repo_slug, tag, provider, base_url)
+                .await
+                .map_err(|err| anyhow!("Failed to fetch release tag '{}': {}", tag, err))?;
+            return Ok(vec![release]);
         }
 
-        Ok((selector, limit.unwrap_or(DEFAULT_PROBE_RELEASE_LIMIT)))
-    }
-
-    fn from_cli_value(value: &str) -> Result<Self> {
-        let trimmed = value.trim();
-        if trimmed.is_empty() {
-            return Err(anyhow!("Probe release selector cannot be empty"));
+        if let Some(limit) = request.limit {
+            let releases = self
+                .provider_manager
+                .get_releases(repo_slug, provider, Some(limit), Some(limit), base_url)
+                .await?;
+            return Ok(filter_by_channel(releases, &request.channel));
         }
 
-        if trimmed.eq_ignore_ascii_case("latest") {
-            return Ok(Self::Latest);
-        }
-
-        if trimmed.eq_ignore_ascii_case("all") {
-            return Ok(Self::All);
-        }
-
-        Ok(Self::Tag(trimmed.to_string()))
+        let release = self
+            .provider_manager
+            .get_latest_release(repo_slug, provider, &request.channel, base_url)
+            .await?;
+        Ok(vec![release])
     }
 }
 
