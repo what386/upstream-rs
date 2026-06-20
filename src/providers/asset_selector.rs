@@ -5,6 +5,9 @@ use anyhow::{Result, anyhow};
 use crate::models::common::enums::Filetype;
 use crate::models::provider::{Asset, Release};
 use crate::models::upstream::Package;
+use crate::providers::pattern_matcher::{
+    GeneratedAssetPatterns, generate_patterns_for_asset, pattern_match_ratio,
+};
 use crate::utils::platform::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
 
 #[derive(Debug, Clone)]
@@ -194,19 +197,24 @@ impl AssetSelector {
             score -= 20;
         }
 
-        if let Some(pattern) = &package.match_pattern
-            && name.contains(pattern)
-        {
-            score += 100;
+        if !package.match_pattern.is_empty() {
+            score += (pattern_match_ratio(&name, &package.match_pattern) * 100.0).round() as i32;
         }
 
-        if let Some(antipattern) = &package.exclude_pattern
-            && name.contains(antipattern)
-        {
-            score -= 100;
+        if !package.exclude_pattern.is_empty() {
+            score -= (pattern_match_ratio(&name, &package.exclude_pattern) * 100.0).round() as i32;
         }
 
         score
+    }
+
+    pub fn generate_patterns_for_asset(
+        &self,
+        selected: &Asset,
+        release_assets: &[Asset],
+        package_name: &str,
+    ) -> GeneratedAssetPatterns {
+        generate_patterns_for_asset(selected, release_assets, package_name)
     }
 }
 
