@@ -14,7 +14,8 @@ impl Cli {
         let command = self.command;
         let paths = UpstreamPaths::new()?;
         let _lock = if command.requires_lock() {
-            Some(LockStorage::acquire(&paths, &command)?)
+            let operation = command.to_string();
+            Some(LockStorage::acquire(&paths, &operation)?)
         } else {
             None
         };

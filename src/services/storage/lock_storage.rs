@@ -7,7 +7,6 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use crate::application::cli::arguments::Commands;
 use crate::utils::platform::process_id;
 use crate::utils::static_paths::UpstreamPaths;
 
@@ -32,10 +31,9 @@ enum AcquireOutcome {
 }
 
 impl LockStorage {
-    pub fn acquire(paths: &UpstreamPaths, command: &Commands) -> Result<Self> {
+    pub fn acquire(paths: &UpstreamPaths, operation: &str) -> Result<Self> {
         let lock_path = paths.dirs.metadata_dir.join("lock");
-        let operation = command.to_string();
-        Self::acquire_at(&lock_path, &operation)
+        Self::acquire_at(&lock_path, operation)
     }
 
     fn acquire_at(lock_path: &Path, operation: &str) -> Result<Self> {
