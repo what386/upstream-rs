@@ -170,17 +170,21 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
     {
         let mut no_progress: Option<fn(PackageProgressEvent)> = None;
-        self.install_release_with_context(
-            package,
-            version,
-            add_entry,
-            trust_mode,
-            transaction_context,
-            download_progress_callback,
-            message_callback,
-            &mut no_progress,
-        )
-        .await
+        self.installer
+            .install_release_with_progress(
+                self.package_storage,
+                &self.trusted_keys,
+                package,
+                version,
+                add_entry,
+                trust_mode,
+                transaction_context,
+                download_progress_callback,
+                message_callback,
+                &mut no_progress,
+            )
+            .await
+            .map(|_| ())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -199,17 +203,21 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
-        self.install_release_with_context(
-            package,
-            version,
-            add_entry,
-            trust_mode,
-            PackageTransactionContext::install(),
-            download_progress_callback,
-            message_callback,
-            progress_callback,
-        )
-        .await
+        self.installer
+            .install_release_with_progress(
+                self.package_storage,
+                &self.trusted_keys,
+                package,
+                version,
+                add_entry,
+                trust_mode,
+                PackageTransactionContext::install(),
+                download_progress_callback,
+                message_callback,
+                progress_callback,
+            )
+            .await
+            .map(|_| ())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -239,40 +247,6 @@ impl<'a> InstallOperation<'a> {
                 add_entry,
                 trust_mode,
                 PackageTransactionContext::install(),
-                download_progress_callback,
-                message_callback,
-                progress_callback,
-            )
-            .await
-            .map(|_| ())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn install_release_with_context<F, H, P>(
-        &mut self,
-        package: Package,
-        version: &Option<String>,
-        add_entry: &bool,
-        trust_mode: TrustMode,
-        transaction_context: PackageTransactionContext,
-        download_progress_callback: &mut Option<F>,
-        message_callback: &mut Option<H>,
-        progress_callback: &mut Option<P>,
-    ) -> Result<()>
-    where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
-        P: FnMut(PackageProgressEvent),
-    {
-        self.installer
-            .install_release_with_progress(
-                self.package_storage,
-                &self.trusted_keys,
-                package,
-                version,
-                add_entry,
-                trust_mode,
-                transaction_context,
                 download_progress_callback,
                 message_callback,
                 progress_callback,
