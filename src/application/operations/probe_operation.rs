@@ -9,7 +9,7 @@ use crate::{
     },
     providers::{
         asset_selector::{AssetCandidate, AssetSelector},
-        discovery::DiscoveryRequest,
+        discovery::infer_source,
         provider_manager::ProviderManager,
     },
     services::packaging::disk_impact::{
@@ -23,6 +23,7 @@ pub struct ProbeRequest {
     pub base_url: Option<String>,
     pub channel: Channel,
     pub limit: u32,
+    pub release_selector: ProbeReleaseSelector,
     pub include_incompatible: bool,
 }
 
@@ -57,55 +58,26 @@ impl<'a> ProbeOperation<'a> {
 
     pub async fn probe(&self, request: ProbeRequest) -> Result<ProbeResult> {
         let mut notes = Vec::new();
-        let (repo_slug, provider, base_url, mut releases) = if let Some(provider) = request.provider
-        {
+        let (repo_slug, provider, base_url) = if let Some(provider) = request.provider.clone() {
             notes.push(format!("Probing '{}' via {}", request.input, provider));
-
-            let releases = self
-                .provider_manager
-                .get_releases(
-                    &request.input,
-                    &provider,
-                    Some(request.limit),
-                    Some(request.limit),
-                    request.base_url.as_deref(),
-                )
-                .await?;
-            (
-                request.input.clone(),
-                provider,
-                request.base_url.clone(),
-                releases,
-            )
+            (request.input.clone(), provider, request.base_url.clone())
         } else {
-            let discovery = self
-                .provider_manager
-                .discover_source(DiscoveryRequest {
-                    source: request.input.clone(),
-                    channel: request.channel.clone(),
-                    package_name: String::new(),
-                    filetype: Filetype::Auto,
-                    match_pattern: None,
-                    exclude_pattern: None,
-                    base_url_override: request.base_url.clone(),
-                    limit: request.limit,
-                })
-                .await?;
+            let mut discovery = infer_source(&request.input)?;
+            if let Some(base_url) = request.base_url.as_deref() {
+                discovery.base_url = Some(base_url.to_string());
+            }
 
             notes.push(format!(
                 "Probing '{}' as '{}' via {}",
-                request.input, discovery.source.repo_slug, discovery.source.provider
+                request.input, discovery.repo_slug, discovery.provider
             ));
 
-            (
-                discovery.source.repo_slug,
-                discovery.source.provider,
-                discovery.source.base_url,
-                discovery.releases,
-            )
+            (discovery.repo_slug, discovery.provider, discovery.base_url)
         };
 
-        releases = filter_by_channel(releases, &request.channel);
+        let mut releases = self
+            .fetch_releases(&repo_slug, &provider, base_url.as_deref(), &request)
+            .await?;
         releases.sort_by(|a, b| b.version.cmp(&a.version));
 
         let probe_package = Package::with_defaults(
@@ -180,6 +152,71 @@ impl<'a> ProbeOperation<'a> {
             asset: selected_asset,
             disk_impact,
         })
+    }
+
+    async fn fetch_releases(
+        &self,
+        repo_slug: &str,
+        provider: &Provider,
+        base_url: Option<&str>,
+        request: &ProbeRequest,
+    ) -> Result<Vec<Release>> {
+        match &request.release_selector {
+            ProbeReleaseSelector::Latest => {
+                let release = self
+                    .provider_manager
+                    .get_latest_release(repo_slug, provider, &request.channel, base_url)
+                    .await?;
+                Ok(vec![release])
+            }
+            ProbeReleaseSelector::All => {
+                let releases = self
+                    .provider_manager
+                    .get_releases(
+                        repo_slug,
+                        provider,
+                        Some(request.limit),
+                        Some(request.limit),
+                        base_url,
+                    )
+                    .await?;
+                Ok(filter_by_channel(releases, &request.channel))
+            }
+            ProbeReleaseSelector::Tag(tag) => {
+                let release = self
+                    .provider_manager
+                    .get_release_by_tag(repo_slug, tag, provider, base_url)
+                    .await
+                    .map_err(|err| anyhow!("Failed to fetch release tag '{}': {}", tag, err))?;
+                Ok(vec![release])
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProbeReleaseSelector {
+    Latest,
+    All,
+    Tag(String),
+}
+
+impl ProbeReleaseSelector {
+    pub fn from_cli_value(value: &str) -> Result<Self> {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return Err(anyhow!("Probe tag filter cannot be empty"));
+        }
+
+        if trimmed.eq_ignore_ascii_case("latest") {
+            return Ok(Self::Latest);
+        }
+
+        if trimmed.eq_ignore_ascii_case("all") {
+            return Ok(Self::All);
+        }
+
+        Ok(Self::Tag(trimmed.to_string()))
     }
 }
 

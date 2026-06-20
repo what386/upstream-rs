@@ -11,7 +11,8 @@ use crate::{
         InstallOperation, PackageTransactionContext, SelectedAssetInstallRequest,
     },
     application::operations::probe_operation::{
-        ProbeAssetChoice, ProbeOperation, ProbeRequest, ProbeResult, ProbeRow, ReleaseState,
+        ProbeAssetChoice, ProbeOperation, ProbeReleaseSelector, ProbeRequest, ProbeResult,
+        ProbeRow, ReleaseState,
     },
     models::common::enums::{Channel, Provider, TrustMode},
     output::{self, Status, TransactionRow, pager},
@@ -29,6 +30,7 @@ pub async fn run(
     base_url: Option<String>,
     channel: Channel,
     limit: u32,
+    tag: String,
     verbose: bool,
     include_incompatible: bool,
     json: bool,
@@ -45,6 +47,7 @@ pub async fn run(
             base_url,
             channel,
             limit,
+            release_selector: ProbeReleaseSelector::from_cli_value(&tag)?,
             include_incompatible,
         })
         .await?;
