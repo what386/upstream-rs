@@ -233,7 +233,9 @@ mod tests {
 
     #[test]
     fn convert_release_combines_links_and_sources_into_assets() {
-        let adapter = GitlabAdapter::new(GitlabClient::new(None, None).expect("gitlab client"));
+        let adapter = GitlabAdapter::new(
+            GitlabClient::new(None, None, Default::default()).expect("gitlab client"),
+        );
         let dto = GitlabReleaseDto {
             tag_name: "v1.9.0".to_string(),
             name: "v1.9.0".to_string(),

@@ -872,7 +872,7 @@ impl<'a> UpgradeOperation<'a> {
                 });
 
                 let result = upgrader
-                    .upgrade_resolved_with_progress(
+                    .upgrade_resolved(
                         &package,
                         row.target,
                         trust_mode,

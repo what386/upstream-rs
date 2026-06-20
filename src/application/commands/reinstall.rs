@@ -4,7 +4,11 @@ use std::time::Duration;
 
 use crate::{
     application::operations::{
-        install_operation::InstallOperation, remove_operation::RemoveOperation,
+        install_operation::{
+            InstallOperation, LocalArtifactInstallRequest, PackageTransactionContext,
+            ReleaseInstallRequest,
+        },
+        remove_operation::RemoveOperation,
     },
     models::{
         common::enums::TrustMode,
@@ -16,7 +20,7 @@ use crate::{
         builder::scripts::BuildScriptAction,
         builder::{BuildRequest, worker::BuildWorker},
         packaging::{
-            PackageRemover, PackageTransactionContext,
+            PackageProgressEvent, PackageRemover,
             disk_impact::{
                 ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate,
                 estimate_path_size, install_impact_from_download,
@@ -87,19 +91,15 @@ pub async fn run(
     let github_token = app_config.github.api_token.as_deref();
     let gitlab_token = app_config.gitlab.api_token.as_deref();
     let gitea_token = app_config.gitea.api_token.as_deref();
-    let provider_manager = ProviderManager::new_with_download_config(
-        github_token,
-        gitlab_token,
-        gitea_token,
-        app_config.download,
-    )?;
+    let provider_manager =
+        ProviderManager::new(github_token, gitlab_token, gitea_token, app_config.download)?;
     let trusted_keys = trust_storage.trusted_signature_keys();
 
     if dry_run {
         return run_dry_run(
             names,
             trust_mode,
-            &mut package_storage,
+            &package_storage,
             &provider_manager,
             &paths,
         )
@@ -282,7 +282,7 @@ fn reinstall_failed_package(
 async fn run_dry_run(
     names: Vec<String>,
     trust_mode: TrustMode,
-    package_storage: &mut PackageStorage,
+    package_storage: &PackageStorage,
     provider_manager: &ProviderManager,
     paths: &UpstreamPaths,
 ) -> Result<()> {
@@ -566,9 +566,8 @@ where
     reinstall_package.icon_path = None;
 
     let mut remove_op = RemoveOperation::new(package_storage, metadata_storage, paths);
-    let mut no_remove_progress =
-        Some(|_: &str, _: crate::services::packaging::PackageProgressEvent| {});
-    remove_op.remove_single_with_source(
+    let mut no_remove_progress = Some(|_: &str, _: PackageProgressEvent| {});
+    remove_op.remove_single(
         &package.name,
         &false,
         &force,
@@ -579,21 +578,25 @@ where
 
     match package.install_type {
         InstallType::Release => {
-            let mut install_op = InstallOperation::new(
+            let mut install_operation = InstallOperation::new(
                 provider_manager,
                 package_storage,
                 paths,
                 trusted_keys.clone(),
             )?;
-            install_op
-                .install_single_with_context(
-                    reinstall_package,
-                    &Some(version_tag),
-                    &had_icon,
-                    trust_mode,
-                    PackageTransactionContext::CoveredByParent,
+            let mut no_progress: Option<fn(PackageProgressEvent)> = None;
+            install_operation
+                .install_release(
+                    ReleaseInstallRequest {
+                        package: reinstall_package,
+                        version: Some(version_tag),
+                        add_entry: had_icon,
+                        trust_mode,
+                        transaction_context: PackageTransactionContext::CoveredByParent,
+                    },
                     &mut Some(|_: u64, _: u64| {}),
                     message_callback,
+                    &mut no_progress,
                 )
                 .await?;
         }
@@ -629,20 +632,24 @@ where
             reinstall_package.build_branch = output.branch.clone();
             reinstall_package.build_commit = output.commit.clone();
 
-            let mut install_op = InstallOperation::new(
+            let mut install_operation = InstallOperation::new(
                 provider_manager,
                 package_storage,
                 paths,
                 trusted_keys.clone(),
             )?;
-            install_op
+            let mut no_progress: Option<fn(PackageProgressEvent)> = None;
+            install_operation
                 .install_local_artifact(
-                    reinstall_package,
-                    &output.artifact_path,
-                    output.version,
-                    &had_icon,
-                    PackageTransactionContext::CoveredByParent,
+                    LocalArtifactInstallRequest {
+                        package: reinstall_package,
+                        artifact_path: &output.artifact_path,
+                        version: output.version,
+                        add_entry: had_icon,
+                        transaction_context: PackageTransactionContext::CoveredByParent,
+                    },
                     message_callback,
+                    &mut no_progress,
                 )
                 .await?;
         }

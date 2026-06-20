@@ -53,25 +53,24 @@ impl Version {
             bail!("Invalid version format",);
         }
 
-        let major = match parts[0].parse::<u32>() {
-            Ok(v) => v,
-            Err(_) => bail!("Invalid major"),
+        let Ok(major) = parts[0].parse::<u32>() else {
+            bail!("Invalid major");
         };
 
         let minor = if parts.len() > 1 {
-            match parts[1].parse::<u32>() {
-                Ok(v) => v,
-                Err(_) => bail!("Invalid minor"),
-            }
+            let Ok(value) = parts[1].parse::<u32>() else {
+                bail!("Invalid minor");
+            };
+            value
         } else {
             0
         };
 
         let patch = if parts.len() > 2 {
-            match parts[2].parse::<u32>() {
-                Ok(v) => v,
-                Err(_) => bail!("Invalid patch"),
-            }
+            let Ok(value) = parts[2].parse::<u32>() else {
+                bail!("Invalid patch");
+            };
+            value
         } else {
             0
         };

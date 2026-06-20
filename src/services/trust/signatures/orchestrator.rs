@@ -447,8 +447,13 @@ mod tests {
         let asset_path = root.join("tool.tar.gz");
         fs::write(&asset_path, b"payload").expect("write asset");
 
-        let manager =
-            crate::providers::provider_manager::ProviderManager::new(None, None, None).expect("pm");
+        let manager = crate::providers::provider_manager::ProviderManager::new(
+            None,
+            None,
+            None,
+            Default::default(),
+        )
+        .expect("pm");
         let verifier = SignatureVerifier::new(&manager, &root);
         let mut progress: Option<fn(u64, u64)> = None;
         let mut messages = Some(|_: &str| {});

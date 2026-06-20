@@ -229,9 +229,8 @@ mod tests {
             fs::create_dir_all(parent).expect("create parent");
         }
         fs::write(&path, "{not-json").expect("write invalid json");
-        let err = match PackageStorage::new(&path) {
-            Ok(_) => panic!("invalid json should fail"),
-            Err(err) => err,
+        let Err(err) = PackageStorage::new(&path) else {
+            panic!("invalid json should fail");
         };
         assert!(err.to_string().contains("Failed to parse package storage"));
 
@@ -296,9 +295,8 @@ mod tests {
         }
         fs::write(&path, r#"{"version":2,"packages":[]}"#).expect("write versioned json");
 
-        let err = match PackageStorage::new(&path) {
-            Ok(_) => panic!("unsupported version should fail"),
-            Err(err) => err,
+        let Err(err) = PackageStorage::new(&path) else {
+            panic!("unsupported version should fail");
         };
         assert!(
             err.to_string()

@@ -218,6 +218,7 @@ impl<'a> PackageUpgrader<'a> {
                 );
                 return Ok(None);
             }
+            let mut no_progress: Option<fn(PackageProgressEvent)> = None;
             return self
                 .upgrade_resolved(
                     package,
@@ -228,6 +229,7 @@ impl<'a> PackageUpgrader<'a> {
                     trust_mode,
                     download_progress,
                     message_callback,
+                    &mut no_progress,
                 )
                 .await
                 .map(Some);
@@ -237,31 +239,8 @@ impl<'a> PackageUpgrader<'a> {
             return Ok(None);
         };
 
-        self.upgrade_resolved(
-            package,
-            target,
-            trust_mode,
-            download_progress,
-            message_callback,
-        )
-        .await
-        .map(Some)
-    }
-
-    pub async fn upgrade_resolved<F, H>(
-        &self,
-        package: &Package,
-        target: ResolvedUpgradeTarget,
-        trust_mode: TrustMode,
-        download_progress: &mut Option<F>,
-        message_callback: &mut Option<H>,
-    ) -> Result<Package>
-    where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
-    {
         let mut no_progress: Option<fn(PackageProgressEvent)> = None;
-        self.upgrade_resolved_with_progress(
+        self.upgrade_resolved(
             package,
             target,
             trust_mode,
@@ -270,9 +249,10 @@ impl<'a> PackageUpgrader<'a> {
             &mut no_progress,
         )
         .await
+        .map(Some)
     }
 
-    pub async fn upgrade_resolved_with_progress<F, H, P>(
+    pub async fn upgrade_resolved<F, H, P>(
         &self,
         package: &Package,
         target: ResolvedUpgradeTarget,
@@ -690,7 +670,8 @@ mod tests {
 
         let previous = test_package("tool", install_path.clone());
         let partial = test_package("tool", install_path.clone());
-        let provider_manager = ProviderManager::new(None, None, None).expect("provider manager");
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
         let installer = PackageInstaller::new(&provider_manager, &paths).expect("installer");
         let remover = PackageRemover::new(&paths);
         let upgrader = PackageUpgrader::new(

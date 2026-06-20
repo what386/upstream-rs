@@ -236,7 +236,7 @@ mod tests {
                 "",
             )
         });
-        let adapter = DirectAdapter::new(HttpClient::new().expect("http client"));
+        let adapter = DirectAdapter::new(HttpClient::new(Default::default()).expect("http client"));
         let release = adapter
             .get_latest_release(&format!("{server}/tool-v2.3.4.tar.gz"))
             .await
@@ -255,7 +255,7 @@ mod tests {
             assert_eq!(method, "HEAD");
             http_response("HTTP/1.1 304 Not Modified", &[("Connection", "close")], "")
         });
-        let adapter = DirectAdapter::new(HttpClient::new().expect("http client"));
+        let adapter = DirectAdapter::new(HttpClient::new(Default::default()).expect("http client"));
 
         let release = adapter
             .get_latest_release_if_modified_since(&server, Some(Utc::now()))

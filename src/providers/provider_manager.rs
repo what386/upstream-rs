@@ -37,19 +37,6 @@ impl ProviderManager {
         github_token: Option<&str>,
         gitlab_token: Option<&str>,
         gitea_token: Option<&str>,
-    ) -> Result<Self> {
-        Self::new_with_download_config(
-            github_token,
-            gitlab_token,
-            gitea_token,
-            DownloadConfig::default(),
-        )
-    }
-
-    pub fn new_with_download_config(
-        github_token: Option<&str>,
-        gitlab_token: Option<&str>,
-        gitea_token: Option<&str>,
         download_config: DownloadConfig,
     ) -> Result<Self> {
         Ok(Self {
@@ -73,11 +60,8 @@ impl ProviderManager {
             return Ok(adapter);
         }
 
-        let adapter = GithubClient::new_with_download_config(
-            self.github_token.as_deref(),
-            self.download_config,
-        )
-        .map(GithubAdapter::new)?;
+        let adapter = GithubClient::new(self.github_token.as_deref(), self.download_config)
+            .map(GithubAdapter::new)?;
         Ok(self.github.get_or_init(|| adapter))
     }
 
@@ -86,12 +70,8 @@ impl ProviderManager {
             return Ok(adapter);
         }
 
-        let adapter = GitlabClient::new_with_download_config(
-            self.gitlab_token.as_deref(),
-            None,
-            self.download_config,
-        )
-        .map(GitlabAdapter::new)?;
+        let adapter = GitlabClient::new(self.gitlab_token.as_deref(), None, self.download_config)
+            .map(GitlabAdapter::new)?;
         Ok(self.gitlab.get_or_init(|| adapter))
     }
 
@@ -100,12 +80,8 @@ impl ProviderManager {
             return Ok(adapter);
         }
 
-        let adapter = GiteaClient::new_with_download_config(
-            self.gitea_token.as_deref(),
-            None,
-            self.download_config,
-        )
-        .map(GiteaAdapter::new)?;
+        let adapter = GiteaClient::new(self.gitea_token.as_deref(), None, self.download_config)
+            .map(GiteaAdapter::new)?;
         Ok(self.gitea.get_or_init(|| adapter))
     }
 
@@ -114,8 +90,7 @@ impl ProviderManager {
             return Ok(adapter);
         }
 
-        let adapter = HttpClient::new_with_download_config(self.download_config)
-            .map(WebScraperAdapter::new)?;
+        let adapter = HttpClient::new(self.download_config).map(WebScraperAdapter::new)?;
         Ok(self.http.get_or_init(|| adapter))
     }
 
@@ -124,8 +99,7 @@ impl ProviderManager {
             return Ok(adapter);
         }
 
-        let adapter =
-            HttpClient::new_with_download_config(self.download_config).map(DirectAdapter::new)?;
+        let adapter = HttpClient::new(self.download_config).map(DirectAdapter::new)?;
         Ok(self.direct.get_or_init(|| adapter))
     }
 
@@ -138,7 +112,7 @@ impl ProviderManager {
             Provider::Github => Ok(Box::new(self.github_adapter()?)),
             Provider::Gitlab => {
                 if let Some(base) = base_url {
-                    let adapter = GitlabAdapter::new(GitlabClient::new_with_download_config(
+                    let adapter = GitlabAdapter::new(GitlabClient::new(
                         self.gitlab_token.as_deref(),
                         Some(base),
                         self.download_config,
@@ -150,7 +124,7 @@ impl ProviderManager {
             }
             Provider::Gitea => {
                 if let Some(base) = base_url {
-                    let adapter = GiteaAdapter::new(GiteaClient::new_with_download_config(
+                    let adapter = GiteaAdapter::new(GiteaClient::new(
                         self.gitea_token.as_deref(),
                         Some(base),
                         self.download_config,
@@ -395,7 +369,8 @@ mod tests {
 
     #[tokio::test]
     async fn search_repositories_is_unsupported_for_non_github_providers() {
-        let manager = ProviderManager::new(None, None, None).expect("provider manager");
+        let manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
         let err = manager
             .search_repositories(
                 "ripgrep",

@@ -1,6 +1,8 @@
 use anyhow::{Context, Result, anyhow, bail};
 
-use crate::application::operations::install_operation::InstallOperation;
+use crate::application::operations::install_operation::{
+    InstallOperation, LocalArtifactInstallRequest, PackageTransactionContext,
+};
 use crate::models::{
     common::enums::{Channel, Filetype, Provider},
     upstream::{InstallType, Package},
@@ -11,7 +13,7 @@ use crate::providers::provider_manager::ProviderManager;
 use crate::services::builder::scripts::BuildScriptAction;
 use crate::services::builder::{BuildProfile, BuildRequest, worker::BuildWorker};
 use crate::services::packaging::{
-    PackageTransactionContext,
+    PackageProgressEvent,
     disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
 };
 use crate::services::storage::package_storage::PackageStorage;
@@ -22,7 +24,6 @@ pub struct BuildOperation<'a> {
     provider_manager: &'a ProviderManager,
     package_storage: &'a mut PackageStorage,
     paths: &'a UpstreamPaths,
-    trusted_keys: TrustedSignatureKeys,
 }
 
 pub struct BuildCommandInput {
@@ -43,13 +44,11 @@ impl<'a> BuildOperation<'a> {
         provider_manager: &'a ProviderManager,
         package_storage: &'a mut PackageStorage,
         paths: &'a UpstreamPaths,
-        trusted_keys: TrustedSignatureKeys,
     ) -> Self {
         Self {
             provider_manager,
             package_storage,
             paths,
-            trusted_keys,
         }
     }
 
@@ -262,17 +261,21 @@ impl<'a> BuildOperation<'a> {
             self.provider_manager,
             self.package_storage,
             self.paths,
-            self.trusted_keys.clone(),
+            TrustedSignatureKeys::default(),
         )?;
         let mut msg = Some(|_: &str| {});
+        let mut no_progress: Option<fn(PackageProgressEvent)> = None;
         let installed = install_operation
             .install_local_artifact(
-                package,
-                &build_result.artifact_path,
-                build_result.version,
-                &input.desktop,
-                PackageTransactionContext::build(),
+                LocalArtifactInstallRequest {
+                    package,
+                    artifact_path: &build_result.artifact_path,
+                    version: build_result.version,
+                    add_entry: input.desktop,
+                    transaction_context: PackageTransactionContext::build(),
+                },
                 &mut msg,
+                &mut no_progress,
             )
             .await?;
 

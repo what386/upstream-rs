@@ -112,12 +112,8 @@ pub async fn search_repositories(
     let gitlab_token = app_config.gitlab.api_token.as_deref();
     let gitea_token = app_config.gitea.api_token.as_deref();
 
-    let provider_manager = ProviderManager::new_with_download_config(
-        github_token,
-        gitlab_token,
-        gitea_token,
-        app_config.download,
-    )?;
+    let provider_manager =
+        ProviderManager::new(github_token, gitlab_token, gitea_token, app_config.download)?;
     let effective_provider = provider.unwrap_or(Provider::Github);
     let effective_limit = limit.max(1);
 

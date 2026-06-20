@@ -27,11 +27,7 @@ pub struct GiteaClient {
 }
 
 impl GiteaClient {
-    pub fn new(token: Option<&str>, base_url: Option<&str>) -> Result<Self> {
-        Self::new_with_download_config(token, base_url, DownloadConfig::default())
-    }
-
-    pub fn new_with_download_config(
+    pub fn new(
         token: Option<&str>,
         base_url: Option<&str>,
         download_config: DownloadConfig,
@@ -101,7 +97,7 @@ impl GiteaClient {
     where
         F: FnMut(u64, u64),
     {
-        download_handler::download_file_with_config(
+        download_handler::download_file(
             &self.client,
             url,
             destination,
@@ -210,7 +206,8 @@ mod tests {
 
     #[test]
     fn new_normalizes_base_url_without_scheme() {
-        let client = GiteaClient::new(None, Some("gitea.example.com")).expect("client");
+        let client =
+            GiteaClient::new(None, Some("gitea.example.com"), Default::default()).expect("client");
         assert_eq!(client.base_url, "https://gitea.example.com");
     }
 

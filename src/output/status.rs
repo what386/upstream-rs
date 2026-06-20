@@ -78,7 +78,7 @@ pub fn error_summary(err: &anyhow::Error) -> String {
 pub fn error_summary_with_limit(err: &anyhow::Error, max: usize) -> String {
     let mut seen = HashSet::new();
     let mut parts = Vec::new();
-    for message in err.chain().map(|cause| cause.to_string()) {
+    for message in err.chain().map(std::string::ToString::to_string) {
         if seen.insert(message.clone()) {
             parts.push(message);
         }

@@ -106,7 +106,7 @@ fn collect_entries(
         .with_context(|| format!("Failed to read source directory '{}'", current.display()))?
         .collect::<std::result::Result<Vec<_>, _>>()
         .with_context(|| format!("Failed to read source directory '{}'", current.display()))?;
-    children.sort_by_key(|entry| entry.path());
+    children.sort_by_key(std::fs::DirEntry::path);
 
     for child in children {
         let path = child.path();

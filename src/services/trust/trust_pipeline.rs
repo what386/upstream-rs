@@ -214,7 +214,8 @@ mod tests {
     use std::path::Path;
 
     fn with_verifier(mode: TrustMode, assert: impl FnOnce(TrustVerifier<'_>)) {
-        let provider_manager = ProviderManager::new(None, None, None).expect("provider manager");
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
         let trusted_keys = TrustedSignatureKeys::default();
         assert(TrustVerifier::new(
             &provider_manager,

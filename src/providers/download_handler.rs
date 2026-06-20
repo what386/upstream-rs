@@ -48,38 +48,6 @@ pub async fn download_file<F>(
     url: &str,
     destination: &Path,
     progress: &mut Option<F>,
-) -> Result<()>
-where
-    F: FnMut(u64, u64),
-{
-    download_file_with_options(
-        client,
-        url,
-        destination,
-        progress,
-        DownloadConfig::default(),
-    )
-    .await
-}
-
-pub async fn download_file_with_config<F>(
-    client: &Client,
-    url: &str,
-    destination: &Path,
-    progress: &mut Option<F>,
-    download_config: DownloadConfig,
-) -> Result<()>
-where
-    F: FnMut(u64, u64),
-{
-    download_file_with_options(client, url, destination, progress, download_config).await
-}
-
-async fn download_file_with_options<F>(
-    client: &Client,
-    url: &str,
-    destination: &Path,
-    progress: &mut Option<F>,
     download_config: DownloadConfig,
 ) -> Result<()>
 where
@@ -579,7 +547,7 @@ async fn move_temp_file(temp_path: &Path, destination: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::download_file_with_options;
+    use super::download_file;
     use crate::models::upstream::DownloadConfig;
     use reqwest::Client;
     use std::collections::HashMap;
@@ -733,7 +701,7 @@ mod tests {
             progress.push((downloaded, total));
         });
 
-        download_file_with_options(
+        download_file(
             &client,
             &server,
             &output,
@@ -792,7 +760,7 @@ mod tests {
             progress.push((downloaded, total));
         });
 
-        download_file_with_options(
+        download_file(
             &client,
             &server,
             &output,
