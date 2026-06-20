@@ -329,6 +329,7 @@ pub enum Commands {
         upstream probe neovim/neovim\n  \
         upstream probe https://ziglang.org/download/ -p scraper --limit 20\n  \
         upstream probe owner/repo tool --desktop\n  \
+        upstream probe owner/repo --include-incompatible\n  \
         upstream probe owner/repo --channel nightly --verbose\n  \
         upstream probe owner/repo --dry-run\n  \
         upstream probe owner/repo --json"
@@ -359,6 +360,10 @@ pub enum Commands {
         /// Include scored candidate assets for each release
         #[arg(long, default_value_t = false)]
         verbose: bool,
+
+        /// Include assets that do not match the current OS/architecture or resolved install file type
+        #[arg(long, default_value_t = false)]
+        include_incompatible: bool,
 
         /// Print dry-run probe results as JSON
         #[arg(long, default_value_t = false)]
