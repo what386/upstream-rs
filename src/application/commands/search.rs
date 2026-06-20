@@ -3,15 +3,13 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 
 use crate::{
+    application::context::CommandContext,
     models::{
         common::enums::Provider,
         provider::{RepositorySearchFilters, RepositorySearchResult},
     },
     output,
     output::pager,
-    providers::provider_manager::ProviderManager,
-    services::storage::config_storage::ConfigStorage,
-    utils::static_paths::UpstreamPaths,
 };
 use std::fmt::Write as _;
 
@@ -104,20 +102,12 @@ pub async fn search_repositories(
     limit: u32,
     filters: RepositorySearchFilters,
 ) -> Result<SearchResults> {
-    let paths = UpstreamPaths::new()?;
-    let config = ConfigStorage::new(&paths.config.config_file)?;
-    let app_config = config.get_config();
-
-    let github_token = app_config.github.api_token.as_deref();
-    let gitlab_token = app_config.gitlab.api_token.as_deref();
-    let gitea_token = app_config.gitea.api_token.as_deref();
-
-    let provider_manager =
-        ProviderManager::new(github_token, gitlab_token, gitea_token, app_config.download)?;
+    let context = CommandContext::new()?;
     let effective_provider = provider.unwrap_or(Provider::Github);
     let effective_limit = limit.max(1);
 
-    let results = provider_manager
+    let results = context
+        .provider_manager
         .search_repositories(
             &query,
             &effective_provider,

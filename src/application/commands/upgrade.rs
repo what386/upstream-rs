@@ -1,21 +1,16 @@
 use crate::{
     application::commands::changelog::changelog_text_for_package,
+    application::context::CommandContext,
     application::operations::upgrade_operation::{
         UpdateCheckRow, UpdateCheckStatus, UpgradeOperation, UpgradePreviewEvent,
     },
     models::common::enums::TrustMode,
     output::{self, SizeImpactRow, Status, TransactionRow, TransactionTableLayout},
     providers::provider_manager::ProviderManager,
-    services::storage::{
-        config_storage::ConfigStorage,
-        package_storage::PackageStorage,
-        transaction_storage::{
-            TransactionKind, TransactionLog, UndoActionKind, package_failed, package_success,
-            planned_packages, undo,
-        },
-        trust_storage::TrustStorage,
+    services::storage::transaction_storage::{
+        TransactionKind, TransactionLog, UndoActionKind, package_failed, package_success,
+        planned_packages, undo,
     },
-    utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
 use console::strip_ansi_codes;
@@ -89,23 +84,13 @@ pub async fn run(
     trust_mode: TrustMode,
     dry_run: bool,
 ) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
-    let config = ConfigStorage::new(&paths.config.config_file)?;
-    let trust_storage = TrustStorage::new(&paths.config.trust_file)?;
-    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let app_config = config.get_config();
-    let github_token = app_config.github.api_token.as_deref();
-    let gitlab_token = app_config.gitlab.api_token.as_deref();
-    let gitea_token = app_config.gitea.api_token.as_deref();
-
-    let trusted_keys = trust_storage.trusted_signature_keys();
-
-    let provider_manager =
-        ProviderManager::new(github_token, gitlab_token, gitea_token, app_config.download)?;
+    let context = CommandContext::new()?;
+    let trusted_keys = context.trusted_keys()?;
+    let mut package_storage = context.package_storage()?;
     let mut package_upgrade = UpgradeOperation::new(
-        &provider_manager,
+        &context.provider_manager,
         &mut package_storage,
-        &paths,
+        &context.paths,
         trusted_keys,
     )?;
 
@@ -199,13 +184,13 @@ pub async fn run(
             );
         }
     }
-    confirm_or_show_changelog(&provider_manager, &preview_rows).await?;
+    confirm_or_show_changelog(&context.provider_manager, &preview_rows).await?;
     let tx_names = preview_rows
         .iter()
         .map(|row| row.name.clone())
         .collect::<Vec<_>>();
     let transaction = TransactionLog::start(
-        &paths,
+        &context.paths,
         TransactionKind::Upgrade,
         planned_packages(tx_names.clone()),
         undo(UndoActionKind::RestoreRollback, tx_names.clone()),

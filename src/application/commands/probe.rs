@@ -1,34 +1,22 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use console::style;
 use indicatif::{HumanBytes, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use serde::Serialize;
-use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::time::Duration;
 
 use crate::{
+    application::context::CommandContext,
     application::operations::install_operation::{
         InstallOperation, PackageTransactionContext, SelectedAssetInstallRequest,
     },
-    models::{
-        common::enums::{Channel, Filetype, Provider, TrustMode},
-        provider::{Asset, Release},
-        upstream::Package,
+    application::operations::probe_operation::{
+        ProbeAssetChoice, ProbeOperation, ProbeRequest, ProbeResult, ProbeRow, ReleaseState,
     },
+    models::common::enums::{Channel, Provider, TrustMode},
     output::{self, Status, TransactionRow, pager},
-    providers::discovery::{DiscoveryRequest, infer_package_name},
-    providers::{asset_selector::AssetCandidate, provider_manager::ProviderManager},
-    services::{
-        packaging::{
-            PackagePhase, PackageProgressEvent,
-            disk_impact::{asset_size_estimate, install_impact_from_download},
-        },
-        storage::{
-            config_storage::ConfigStorage, package_storage::PackageStorage,
-            trust_storage::TrustStorage,
-        },
-    },
-    utils::static_paths::UpstreamPaths,
+    providers::discovery::infer_package_name,
+    services::packaging::{PackagePhase, PackageProgressEvent},
 };
 
 const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
@@ -47,107 +35,36 @@ pub async fn run(
     trust_mode: TrustMode,
     dry_run: bool,
 ) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
-    let config = ConfigStorage::new(&paths.config.config_file)?;
-    let app_config = config.get_config();
+    let context = CommandContext::new()?;
+    let probe_operation = ProbeOperation::new(&context.provider_manager);
+    let probe_result = probe_operation
+        .probe(ProbeRequest {
+            input: repo_slug.clone(),
+            provider,
+            base_url,
+            channel,
+            limit,
+        })
+        .await?;
 
-    let github_token = app_config.github.api_token.as_deref();
-    let gitlab_token = app_config.gitlab.api_token.as_deref();
-    let gitea_token = app_config.gitea.api_token.as_deref();
-
-    let provider_manager =
-        ProviderManager::new(github_token, gitlab_token, gitea_token, app_config.download)?;
-
-    let mut probe_notes = Vec::new();
-    let (effective_repo_slug, effective_provider, effective_base_url, mut releases) =
-        if let Some(provider) = provider {
-            probe_notes.push(format!("Probing '{}' via {}", repo_slug, provider));
-
-            let releases = provider_manager
-                .get_releases(
-                    &repo_slug,
-                    &provider,
-                    Some(limit),
-                    Some(limit),
-                    base_url.as_deref(),
-                )
-                .await?;
-            (repo_slug.clone(), provider, base_url.clone(), releases)
-        } else {
-            let discovery = provider_manager
-                .discover_source(DiscoveryRequest {
-                    source: repo_slug.clone(),
-                    channel: channel.clone(),
-                    package_name: String::new(),
-                    filetype: Filetype::Auto,
-                    match_pattern: None,
-                    exclude_pattern: None,
-                    base_url_override: base_url.clone(),
-                    limit,
-                })
-                .await?;
-
-            probe_notes.push(format!(
-                "Probing '{}' as '{}' via {}",
-                repo_slug, discovery.source.repo_slug, discovery.source.provider
-            ));
-
-            (
-                discovery.source.repo_slug,
-                discovery.source.provider,
-                discovery.source.base_url,
-                discovery.releases,
-            )
-        };
-
-    releases = filter_by_channel(releases, &channel);
-    releases.sort_by(|a, b| b.version.cmp(&a.version));
-
-    if releases.is_empty() {
+    if probe_result.releases.is_empty() {
         if json {
-            let result = json_probe_result(
-                &repo_slug,
-                &effective_repo_slug,
-                &effective_provider,
-                effective_base_url.as_deref(),
-                &channel,
-                probe_notes,
-                &[],
-                verbose,
-            );
+            let result = json_probe_result(&probe_result, &[], verbose);
             println!("{}", serde_json::to_string_pretty(&result)?);
             return Ok(());
         }
         println!(
             "{}",
-            crate::output::warning(format!("No releases found for channel '{}'.", channel))
+            crate::output::warning(format!(
+                "No releases found for channel '{}'.",
+                probe_result.channel
+            ))
         );
         return Ok(());
     }
 
-    let probe_package = Package::with_defaults(
-        String::new(),
-        effective_repo_slug.clone(),
-        Filetype::Auto,
-        None,
-        None,
-        channel.clone(),
-        effective_provider.clone(),
-        effective_base_url.clone(),
-    );
-
-    let rows = build_probe_rows(&releases, &provider_manager, &probe_package);
     if json {
-        let result = json_probe_result(
-            &repo_slug,
-            &effective_repo_slug,
-            &effective_provider,
-            effective_base_url.as_deref(),
-            &channel,
-            probe_notes,
-            &rows,
-            verbose,
-        );
+        let result = json_probe_result(&probe_result, &probe_result.rows, verbose);
         println!("{}", serde_json::to_string_pretty(&result)?);
         return Ok(());
     }
@@ -155,112 +72,97 @@ pub async fn run(
     if dry_run {
         pager::page_text(
             Some("Probe"),
-            &format_probe_results(&probe_notes, &rows, verbose),
+            &format_probe_results(&probe_result.notes, &probe_result.rows, verbose),
         )?;
         return Ok(());
     }
 
-    let choices = build_probe_asset_choices(&releases, &provider_manager, &probe_package);
-    if choices.is_empty() {
+    if probe_result.choices.is_empty() {
         println!(
             "{}",
-            output::warning(format!("No assets found for channel '{}'.", channel))
+            output::warning(format!(
+                "No assets found for channel '{}'.",
+                probe_result.channel
+            ))
         );
         return Ok(());
     }
 
-    let table = ProbeAssetChoiceTable::from_choices(&choices);
+    let table = ProbeAssetChoiceTable::from_choices(&probe_result.choices);
     let prompt = format!(
         "Probe: '{}' as '{}' via {}",
-        repo_slug, effective_repo_slug, effective_provider
+        repo_slug, probe_result.repo_slug, probe_result.provider
     );
     let Some(selected) = output::select_from_table(prompt, &table.headers, &table.rows)? else {
         println!("{}", output::warning("Cancelled"));
         return Ok(());
     };
 
-    let selected_choice = &choices[selected];
-    let selected_release = releases
-        .get(selected_choice.release_index)
-        .cloned()
-        .ok_or_else(|| anyhow!("Selected release no longer exists"))?;
-    let selected_asset = selected_choice.asset.clone();
-
     let install_name = resolve_probe_package_name(
         name,
-        &effective_repo_slug,
-        &effective_provider,
-        effective_base_url.as_deref(),
+        &probe_result.repo_slug,
+        &probe_result.provider,
+        probe_result.base_url.as_deref(),
     )?;
-    let selector = crate::providers::asset_selector::AssetSelector::new();
-    let generated = selector.generate_patterns_for_asset(
-        &selected_asset,
-        &selected_release.assets,
-        &install_name,
-    );
+    let selection =
+        probe_operation.prepare_install_selection(&probe_result, selected, install_name)?;
 
-    let package = Package::with_defaults(
-        install_name.clone(),
-        effective_repo_slug,
-        selected_asset.filetype,
-        Some(generated.match_pattern.to_string()),
-        Some(generated.exclude_pattern.to_string()),
-        channel,
-        effective_provider,
-        effective_base_url,
-    );
-
-    let preview_impact = install_impact_from_download(asset_size_estimate(selected_asset.size));
     println!("{}", output::title("Install preview"));
-    output::kv("Package", &package.name);
+    output::kv("Package", &selection.package.name);
     output::kv(
         "Source",
-        format!("{} ({})", package.repo_slug, package.provider),
+        format!(
+            "{} ({})",
+            selection.package.repo_slug, selection.package.provider
+        ),
     );
     output::kv(
         "Release",
-        format!("{} ({})", selected_release.name, selected_release.tag),
+        format!("{} ({})", selection.release.name, selection.release.tag),
     );
     output::kv(
         "Asset",
-        format!("{} ({:?})", selected_asset.name, selected_asset.filetype),
+        format!("{} ({:?})", selection.asset.name, selection.asset.filetype),
     );
     output::kv(
         "Match",
-        if package.match_pattern.is_empty() {
+        if selection.package.match_pattern.is_empty() {
             "-".to_string()
         } else {
-            package.match_pattern.to_string()
+            selection.package.match_pattern.to_string()
         },
     );
     output::kv(
         "Exclude",
-        if package.exclude_pattern.is_empty() {
+        if selection.package.exclude_pattern.is_empty() {
             "-".to_string()
         } else {
-            package.exclude_pattern.to_string()
+            selection.package.exclude_pattern.to_string()
         },
     );
     output::kv("Trust", trust_mode);
     output::kv("Desktop", if create_entry { "yes" } else { "no" });
-    output::print_disk_impact(&preview_impact, true);
+    output::print_disk_impact(&selection.disk_impact, true);
 
     let transaction_rows = vec![TransactionRow::single_version(
-        format!("{}/{}", package.provider, package.name),
-        &selected_release.tag,
-        preview_impact.net,
-        preview_impact.download,
+        format!("{}/{}", selection.package.provider, selection.package.name),
+        &selection.release.tag,
+        selection.disk_impact.net,
+        selection.disk_impact.download,
     )];
-    output::print_transaction_table(&transaction_rows, &preview_impact, "Net disk change:");
+    output::print_transaction_table(
+        &transaction_rows,
+        &selection.disk_impact,
+        "Net disk change:",
+    );
     output::confirm_or_cancel("Proceed with installation?", true)?;
 
-    let trust_storage = TrustStorage::new(&paths.config.trust_file)?;
-    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let trusted_keys = trust_storage.trusted_signature_keys();
+    let mut package_storage = context.package_storage()?;
+    let trusted_keys = context.trusted_keys()?;
     let mut install_operation = InstallOperation::new(
-        &provider_manager,
+        &context.provider_manager,
         &mut package_storage,
-        &paths,
+        &context.paths,
         trusted_keys,
     )?;
 
@@ -268,11 +170,11 @@ pub async fn run(
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
     pb.enable_steady_tick(Duration::from_millis(120));
-    pb.set_message(format!("Installing {}", package.name));
+    pb.set_message(format!("Installing {}", selection.package.name));
 
-    let progress_name = package.name.clone();
-    let install_name = package.name.clone();
-    let install_version = selected_release.tag.clone();
+    let progress_name = selection.package.name.clone();
+    let install_name = selection.package.name.clone();
+    let install_version = selection.release.tag.clone();
     let progress_pb = pb.clone();
     let mut last_emit = None;
     let mut progress_callback = Some(move |event: PackageProgressEvent| {
@@ -290,9 +192,9 @@ pub async fn run(
     let install_result = install_operation
         .install_selected_asset(
             SelectedAssetInstallRequest {
-                package,
-                release: &selected_release,
-                asset: &selected_asset,
+                package: selection.package,
+                release: &selection.release,
+                asset: &selection.asset,
                 add_entry: create_entry,
                 trust_mode,
                 transaction_context: PackageTransactionContext::install(),
@@ -380,47 +282,6 @@ fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) ->
             format!(" {:<28} {}", name, message)
         }
     }
-}
-
-fn build_probe_asset_choices(
-    releases: &[Release],
-    provider_manager: &ProviderManager,
-    probe_package: &Package,
-) -> Vec<ProbeAssetChoice> {
-    let mut choices = Vec::new();
-
-    for (release_index, release) in releases.iter().enumerate() {
-        let score_by_asset_id: HashMap<u64, i32> = provider_manager
-            .get_candidate_assets(release, probe_package)
-            .map(|candidates| {
-                candidates
-                    .into_iter()
-                    .map(|candidate| (candidate.asset.id, candidate.score))
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        for asset in &release.assets {
-            choices.push(ProbeAssetChoice {
-                release_index,
-                release_tag: release.tag.clone(),
-                release_state: release_state(release.is_draft, release.is_prerelease),
-                asset: asset.clone(),
-                score: score_by_asset_id.get(&asset.id).copied(),
-            });
-        }
-    }
-
-    choices
-}
-
-#[derive(Debug, Clone)]
-struct ProbeAssetChoice {
-    release_index: usize,
-    release_tag: String,
-    release_state: ReleaseState,
-    asset: Asset,
-    score: Option<i32>,
 }
 
 struct ProbeAssetChoiceTable {
@@ -651,26 +512,20 @@ struct JsonAssetCandidate {
     target_arch: Option<String>,
 }
 
-#[allow(clippy::too_many_arguments)]
 fn json_probe_result(
-    input: &str,
-    repo_slug: &str,
-    provider: &Provider,
-    base_url: Option<&str>,
-    channel: &Channel,
-    notes: Vec<String>,
+    probe_result: &ProbeResult,
     rows: &[ProbeRow],
     include_candidates: bool,
 ) -> JsonProbeResult {
     JsonProbeResult {
         source: JsonProbeSource {
-            input: input.to_string(),
-            repo_slug: repo_slug.to_string(),
-            provider: provider.to_string(),
-            base_url: base_url.map(str::to_string),
+            input: probe_result.input.clone(),
+            repo_slug: probe_result.repo_slug.clone(),
+            provider: probe_result.provider.to_string(),
+            base_url: probe_result.base_url.clone(),
         },
-        channel: channel.to_string(),
-        notes,
+        channel: probe_result.channel.to_string(),
+        notes: probe_result.notes.clone(),
         releases: rows
             .iter()
             .map(|row| JsonProbeRelease {
@@ -805,52 +660,6 @@ fn format_probe_results(notes: &[String], rows: &[ProbeRow], verbose: bool) -> S
     out
 }
 
-fn build_probe_rows(
-    releases: &[crate::models::provider::Release],
-    provider_manager: &ProviderManager,
-    probe_package: &Package,
-) -> Vec<ProbeRow> {
-    releases
-        .iter()
-        .enumerate()
-        .map(|(idx, release)| {
-            let candidates_result = provider_manager.get_candidate_assets(release, probe_package);
-
-            let (top_candidate, candidates, candidate_error) = match candidates_result {
-                Ok(list) => {
-                    let top = list
-                        .first()
-                        .map(|c| format!("{} ({})", c.asset.name, c.score))
-                        .unwrap_or_else(|| "-".to_string());
-                    (top, Some(list), None)
-                }
-                Err(err) => ("n/a".to_string(), None, Some(err.to_string())),
-            };
-
-            ProbeRow {
-                row_id: format!("R{:02}", idx + 1),
-                state: release_state(release.is_draft, release.is_prerelease),
-                tag: release.tag.clone(),
-                version: release.version.to_string(),
-                published: release.published_at.format("%Y-%m-%d %H:%M").to_string(),
-                assets_count: release.assets.len(),
-                top_candidate,
-                candidates,
-                candidate_error,
-            }
-        })
-        .collect()
-}
-
-fn release_state(is_draft: bool, is_prerelease: bool) -> ReleaseState {
-    match (is_draft, is_prerelease) {
-        (false, false) => ReleaseState::Release,
-        (false, true) => ReleaseState::Preview,
-        (true, false) => ReleaseState::Draft,
-        (true, true) => ReleaseState::DraftPre,
-    }
-}
-
 fn format_state_cell(state: &ReleaseState, width: usize) -> String {
     let padded = format!("{:<width$}", state.label(), width = width);
     match state {
@@ -859,20 +668,6 @@ fn format_state_cell(state: &ReleaseState, width: usize) -> String {
         ReleaseState::Draft => style(padded).blue().to_string(),
         ReleaseState::DraftPre => style(padded).magenta().to_string(),
     }
-}
-
-fn filter_by_channel(
-    mut releases: Vec<crate::models::provider::Release>,
-    channel: &Channel,
-) -> Vec<crate::models::provider::Release> {
-    match channel {
-        Channel::Stable => {
-            releases.retain(|r| !r.is_prerelease && !ProviderManager::is_nightly_release(&r.tag))
-        }
-        Channel::Preview => releases.retain(ProviderManager::is_preview_release),
-        Channel::Nightly => releases.retain(|r| ProviderManager::is_nightly_release(&r.tag)),
-    }
-    releases
 }
 
 fn truncate(value: &str, max: usize) -> String {
@@ -887,38 +682,6 @@ fn truncate(value: &str, max: usize) -> String {
     }
     out.push_str("...");
     out
-}
-
-#[derive(Debug, Clone)]
-struct ProbeRow {
-    row_id: String,
-    state: ReleaseState,
-    tag: String,
-    version: String,
-    published: String,
-    assets_count: usize,
-    top_candidate: String,
-    candidates: Option<Vec<AssetCandidate>>,
-    candidate_error: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-enum ReleaseState {
-    Release,
-    Preview,
-    Draft,
-    DraftPre,
-}
-
-impl ReleaseState {
-    fn label(&self) -> &'static str {
-        match self {
-            ReleaseState::Release => "release",
-            ReleaseState::Preview => "preview",
-            ReleaseState::Draft => "draft",
-            ReleaseState::DraftPre => "draft+pre",
-        }
-    }
 }
 
 struct ProbeColumnWidths {
@@ -1004,11 +767,11 @@ impl ProbeColumnWidths {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        JsonProbeResult, ProbeAssetChoiceTable, ProbeRow, ReleaseState, build_probe_asset_choices,
-        json_probe_result,
-    };
+    use super::{JsonProbeResult, ProbeAssetChoiceTable, json_probe_result};
     use crate::{
+        application::operations::probe_operation::{
+            ProbeResult, ProbeRow, ReleaseState, build_probe_asset_choices,
+        },
         models::{
             common::{
                 Version,
@@ -1047,17 +810,30 @@ mod tests {
             }]),
             candidate_error: None,
         };
-
-        let result: JsonProbeResult = json_probe_result(
-            "owner/tool",
-            "owner/tool",
-            &Provider::Github,
+        let probe_package = Package::with_defaults(
+            String::new(),
+            "owner/tool".to_string(),
+            Filetype::Auto,
             None,
-            &Channel::Stable,
-            vec!["Probing 'owner/tool' via github".to_string()],
-            &[row],
-            true,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
         );
+        let probe_result = ProbeResult {
+            input: "owner/tool".to_string(),
+            repo_slug: "owner/tool".to_string(),
+            provider: Provider::Github,
+            base_url: None,
+            channel: Channel::Stable,
+            notes: vec!["Probing 'owner/tool' via github".to_string()],
+            releases: Vec::new(),
+            probe_package,
+            rows: Vec::new(),
+            choices: Vec::new(),
+        };
+
+        let result: JsonProbeResult = json_probe_result(&probe_result, &[row], true);
         let json = serde_json::to_value(result).expect("serialize probe result");
 
         assert_eq!(json["source"]["provider"], "github");
