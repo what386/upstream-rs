@@ -321,6 +321,25 @@ pub enum Commands {
         to_tag: Option<String>,
     },
 
+    /// Search cached package documentation
+    #[command(long_about = "Search cached package documentation.\n\n\
+        This command is currently a UI placeholder for the planned README-backed \
+        documentation search flow. It resolves an installed package, shows the \
+        intended source/cache/query metadata, and renders placeholder section \
+        matches in the pager.\n\n\
+        EXAMPLES:\n  \
+        upstream docs rg usage\n  \
+        upstream docs ripgrep configuration file\n  \
+        upstream docs bat themes syntax")]
+    Docs {
+        /// Installed package name
+        name: String,
+
+        /// Search keywords (joined with spaces)
+        #[arg(required = true, num_args(1..), value_delimiter = ' ')]
+        keywords: Vec<String>,
+    },
+
     /// Probe a repository/source, choose an asset, and install it
     #[command(
         long_about = "Probe a repository/source, choose a release asset interactively, \
@@ -728,6 +747,7 @@ impl Commands {
         match self {
             Commands::List { .. } => false,
             Commands::Changelog { .. } => false,
+            Commands::Docs { .. } => false,
             Commands::Doctor { fix, .. } => *fix,
             Commands::Search { .. } => false,
             Commands::Find { .. } => true,

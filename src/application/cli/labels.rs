@@ -15,6 +15,7 @@ impl fmt::Display for Commands {
             Commands::Upgrade { .. } => write!(f, "upgrade"),
             Commands::List { .. } => write!(f, "list"),
             Commands::Changelog { .. } => write!(f, "changelog"),
+            Commands::Docs { .. } => write!(f, "docs"),
             Commands::Probe { .. } => write!(f, "probe"),
             Commands::Search { .. } => write!(f, "search"),
             Commands::Find { .. } => write!(f, "find"),

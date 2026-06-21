@@ -260,6 +260,7 @@ upstream import ./backup.tar.gz
 | `rollback`  | Manage rollback artifacts            |
 | `list`      | Show installed packages              |
 | `changelog` | Show upstream release notes          |
+| `docs`      | Search package documentation         |
 | `search`    | Search provider repositories         |
 | `find`      | Pick and install a search result     |
 | `probe`     | Pick and install a release asset     |
