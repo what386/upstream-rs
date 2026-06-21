@@ -14,14 +14,7 @@ use crate::{
         PackageProgressEvent,
         disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate},
     },
-    services::storage::{
-        metadata_storage::MetadataStorage,
-        package_storage::PackageStorage,
-        transaction_storage::{
-            TransactionKind, TransactionLog, UndoActionKind, package_failed, package_success,
-            planned_packages, undo,
-        },
-    },
+    services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
 
@@ -51,20 +44,6 @@ fn completion_message_key(message: &str) -> Option<String> {
     rest.split_whitespace().next().map(str::to_string)
 }
 
-fn completion_message_result(message: &str) -> Option<(String, bool)> {
-    let cleaned = strip_ansi_codes(message);
-    let trimmed = cleaned.trim_start();
-    let (rest, succeeded) = if let Some(rest) = trimmed.strip_prefix("[ok]") {
-        (rest, true)
-    } else if let Some(rest) = trimmed.strip_prefix("[fail]") {
-        (rest, false)
-    } else {
-        return None;
-    };
-    let name = rest.split_whitespace().next()?.to_string();
-    Some((name, succeeded))
-}
-
 fn render_remove_progress_row(name: &str, event: PackageProgressEvent) -> String {
     let status = match event {
         PackageProgressEvent::Phase(phase) => phase.label().to_string(),
@@ -91,17 +70,6 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
     if names.is_empty() {
         return Err(anyhow::anyhow!("At least one package name is required"));
     }
-    let old_versions = names
-        .iter()
-        .map(|name| {
-            (
-                name.clone(),
-                package_storage
-                    .get_package_by_name(name)
-                    .map(|package| package.version.to_string()),
-            )
-        })
-        .collect::<BTreeMap<_, _>>();
 
     let mut package_remover =
         RemoveOperation::new(&mut package_storage, &mut metadata_storage, &paths);
@@ -131,16 +99,6 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
         &size_rows,
     );
     output::confirm_or_cancel("Proceed with removal?", true)?;
-    let transaction = TransactionLog::start(
-        &paths,
-        TransactionKind::Remove,
-        planned_packages(names.clone()),
-        if purge {
-            None
-        } else {
-            undo(UndoActionKind::RestoreRollback, names.clone())
-        },
-    )?;
 
     let overall_pb = ProgressBar::new(names.len() as u64);
     overall_pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
@@ -215,10 +173,6 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
         Ok(result) => result,
         Err(err) => {
             overall_pb.finish_and_clear();
-            transaction.fail(
-                remove_transaction_packages(&names, &old_versions, 0),
-                err.to_string(),
-            )?;
             return Err(err);
         }
     };
@@ -230,13 +184,7 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
     for row in &completion_rows {
         println!("{row}");
     }
-    let transaction_packages =
-        remove_transaction_packages_from_completion_rows(&names, &old_versions, &completion_rows);
     if failed > 0 {
-        transaction.fail(
-            transaction_packages,
-            format!("{failed} package(s) failed to be removed"),
-        )?;
         println!(
             "{}",
             output::warning(format!(
@@ -245,7 +193,6 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
             ))
         );
     } else {
-        transaction.complete(transaction_packages)?;
         println!(
             "{}",
             output::success(format!("Removal complete: {} removed, 0 failed.", removed))
@@ -253,66 +200,6 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
     }
 
     Ok(())
-}
-
-fn remove_success_package(
-    name: &str,
-    old_version: Option<String>,
-) -> crate::services::storage::transaction_storage::TransactionPackage {
-    let mut package = package_success(name.to_string());
-    package.old_version = old_version;
-    package
-}
-
-fn remove_failed_package(
-    name: &str,
-    old_version: Option<String>,
-    error: impl Into<String>,
-) -> crate::services::storage::transaction_storage::TransactionPackage {
-    let mut package = package_failed(name.to_string(), error);
-    package.old_version = old_version;
-    package
-}
-
-fn remove_transaction_packages(
-    names: &[String],
-    old_versions: &BTreeMap<String, Option<String>>,
-    succeeded_count: usize,
-) -> Vec<crate::services::storage::transaction_storage::TransactionPackage> {
-    names
-        .iter()
-        .enumerate()
-        .map(|(idx, name)| {
-            let old_version = old_versions.get(name).cloned().flatten();
-            if idx < succeeded_count {
-                remove_success_package(name, old_version)
-            } else {
-                remove_failed_package(name, old_version, "removal failed")
-            }
-        })
-        .collect()
-}
-
-fn remove_transaction_packages_from_completion_rows(
-    names: &[String],
-    old_versions: &BTreeMap<String, Option<String>>,
-    rows: &[String],
-) -> Vec<crate::services::storage::transaction_storage::TransactionPackage> {
-    let statuses = rows
-        .iter()
-        .filter_map(|row| completion_message_result(row))
-        .collect::<BTreeMap<_, _>>();
-    names
-        .iter()
-        .map(|name| {
-            let old_version = old_versions.get(name).cloned().flatten();
-            match statuses.get(name).copied() {
-                Some(true) => remove_success_package(name, old_version),
-                Some(false) => remove_failed_package(name, old_version, "removal failed"),
-                None => remove_failed_package(name, old_version, "removal result unavailable"),
-            }
-        })
-        .collect()
 }
 
 fn run_dry_run(

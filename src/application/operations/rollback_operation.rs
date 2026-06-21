@@ -11,10 +11,6 @@ use crate::{
             metadata_storage::MetadataStorage,
             package_storage::PackageStorage,
             rollback_storage::{RollbackSource, RollbackStorage},
-            transaction_storage::{
-                TransactionKind, TransactionLog, TransactionStorage, UndoActionKind,
-                package_failed, package_skipped, package_success, planned_packages,
-            },
         },
     },
     utils::static_paths::UpstreamPaths,
@@ -139,18 +135,6 @@ impl RollbackOperation {
         Ok(RollbackRestorePreview { preview, targets })
     }
 
-    pub fn latest_restore_names(&self) -> Result<Option<Vec<String>>> {
-        let transactions_file = self.paths.dirs.metadata_dir.join("transactions.json");
-        let storage = TransactionStorage::new(&transactions_file)?;
-        Ok(storage.all().iter().rev().find_map(|transaction| {
-            if !transaction.is_reversible() {
-                return None;
-            }
-            let undo = transaction.undo.as_ref()?;
-            (undo.kind == UndoActionKind::RestoreRollback).then(|| undo.packages.clone())
-        }))
-    }
-
     pub fn list_rows(&mut self) -> Vec<RollbackListRow> {
         let manager = self.manager();
         manager
@@ -191,17 +175,10 @@ impl RollbackOperation {
         H: FnMut(&str, &str),
     {
         let restorable_names = self.restorable_names(names);
-        let transaction = TransactionLog::start(
-            &self.paths,
-            TransactionKind::Rollback,
-            planned_packages(restorable_names.clone()),
-            None,
-        )?;
 
         let mut restored = 0_u32;
         let mut failed = 0_u32;
         let mut packages = Vec::new();
-        let mut transaction_packages = Vec::new();
         {
             let mut manager = self.manager();
             for name in &restorable_names {
@@ -218,7 +195,6 @@ impl RollbackOperation {
                             name: name.clone(),
                             status: RollbackPackageStatus::Succeeded,
                         });
-                        transaction_packages.push(package_success(name.clone()));
                         restored += 1;
                     }
                     Err(err) => {
@@ -229,20 +205,10 @@ impl RollbackOperation {
                                 error: summary.clone(),
                             },
                         });
-                        transaction_packages.push(package_failed(name.clone(), summary));
                         failed += 1;
                     }
                 }
             }
-        }
-
-        if failed > 0 {
-            transaction.fail(
-                transaction_packages,
-                format!("{failed} rollback restore(s) failed"),
-            )?;
-        } else {
-            transaction.complete(transaction_packages)?;
         }
 
         Ok(RollbackRestoreOutcome {
@@ -275,21 +241,9 @@ impl RollbackOperation {
     where
         H: FnMut(&str, usize, usize),
     {
-        let mut transaction = if target_names.is_empty() {
-            None
-        } else {
-            Some(TransactionLog::start(
-                &self.paths,
-                TransactionKind::Rollback,
-                planned_packages(target_names.to_vec()),
-                None,
-            )?)
-        };
-
         let mut pruned = 0_u32;
         let mut missing = 0_u32;
         let mut packages = Vec::new();
-        let mut transaction_packages = Vec::new();
         let total = target_names.len();
         {
             let mut manager = self.manager();
@@ -305,7 +259,6 @@ impl RollbackOperation {
                             name: name.clone(),
                             status: RollbackPackageStatus::Succeeded,
                         });
-                        transaction_packages.push(package_success(name.clone()));
                     }
                     Ok(false) => {
                         missing += 1;
@@ -316,7 +269,6 @@ impl RollbackOperation {
                                 reason: reason.clone(),
                             },
                         });
-                        transaction_packages.push(package_skipped(name.clone(), reason));
                     }
                     Err(err) => {
                         let summary = output::error_summary(&err);
@@ -326,18 +278,10 @@ impl RollbackOperation {
                                 error: summary.clone(),
                             },
                         });
-                        transaction_packages.push(package_failed(name.clone(), summary.clone()));
-                        if let Some(transaction) = transaction.take() {
-                            transaction.fail(transaction_packages, summary)?;
-                        }
                         return Err(err);
                     }
                 }
             }
-        }
-
-        if let Some(transaction) = transaction {
-            transaction.complete(transaction_packages)?;
         }
 
         Ok(RollbackPruneOutcome {

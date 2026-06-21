@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, anyhow, bail};
 
 use crate::application::operations::install_operation::{
-    InstallOperation, LocalArtifactInstallRequest, PackageTransactionContext,
+    InstallOperation, LocalArtifactInstallRequest,
 };
 use crate::models::{
     common::enums::{Channel, Filetype, Provider},
@@ -269,7 +269,6 @@ impl<'a> BuildOperation<'a> {
                     artifact_path: &build_result.artifact_path,
                     version: build_result.version,
                     add_entry: input.desktop,
-                    transaction_context: PackageTransactionContext::build(),
                 },
                 &mut msg,
                 &mut no_progress,

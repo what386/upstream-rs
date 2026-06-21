@@ -7,9 +7,7 @@ use std::time::Duration;
 
 use crate::{
     application::context::CommandContext,
-    application::operations::install_operation::{
-        InstallOperation, PackageTransactionContext, SelectedAssetInstallRequest,
-    },
+    application::operations::install_operation::{InstallOperation, SelectedAssetInstallRequest},
     application::operations::probe_operation::{
         ProbeAssetChoice, ProbeOperation, ProbeRequest, ProbeResult, ProbeRow, ReleaseState,
     },
@@ -205,7 +203,6 @@ pub async fn run(
                 asset: &selection.asset,
                 add_entry: create_entry,
                 trust_mode,
-                transaction_context: PackageTransactionContext::install(),
             },
             &mut no_download_progress,
             &mut ignored_messages,

@@ -191,19 +191,31 @@ pub enum Commands {
 
     /// Manage stored rollback artifacts
     #[command(long_about = "Manage package rollback points.\n\n\
-        Use restore without package names to restore the latest reversible transaction \
-        recorded in upstream's transaction history. Use explicit package names to restore \
-        selected packages, list rollback artifacts, or prune stored rollback data.\n\n\
+        Provide package names to restore their latest rollback artifacts. Use --list to inspect \
+        available rollback artifacts, or --prune with package names or 'all' to delete stored \
+        rollback data.\n\n\
         EXAMPLES:\n  \
-        upstream rollback restore\n  \
-        upstream rollback restore rg\n  \
-        upstream rollback restore rg fd --dry-run\n  \
-        upstream rollback list\n  \
-        upstream rollback prune\n  \
-        upstream rollback prune rg")]
+        upstream rollback rg\n  \
+        upstream rollback rg fd --dry-run\n  \
+        upstream rollback --list\n  \
+        upstream rollback --prune rg\n  \
+        upstream rollback --prune all")]
     Rollback {
-        #[command(subcommand)]
-        action: RollbackAction,
+        /// Package names to restore
+        #[arg(num_args(0..), value_name = "NAMES")]
+        names: Vec<String>,
+
+        /// List stored rollback artifacts
+        #[arg(long, default_value_t = false)]
+        list: bool,
+
+        /// Prune stored rollback artifacts for package names or all packages
+        #[arg(long, num_args(1..), value_name = "NAMES|all")]
+        prune: Vec<String>,
+
+        /// Preview rollback restore or prune actions without modifying files or metadata
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
 
     /// Reinstall one or more packages (remove then install)
@@ -715,50 +727,6 @@ fn parse_search_date(raw: &str) -> Result<NaiveDate, String> {
         .map_err(|_| format!("expected date in YYYY-MM-DD format, got '{raw}'"))
 }
 
-#[derive(Subcommand)]
-pub enum RollbackAction {
-    /// Restore rollback artifacts
-    #[command(long_about = "Restore stored rollback artifacts.\n\n\
-        Without package names, restores the latest reversible transaction recorded \
-        in upstream's transaction history.\n\n\
-        EXAMPLES:\n  \
-        upstream rollback restore\n  \
-        upstream rollback restore rg\n  \
-        upstream rollback restore rg fd\n  \
-        upstream rollback restore rg --dry-run")]
-    Restore {
-        /// Package names to restore (latest reversible transaction if omitted)
-        #[arg(num_args(0..))]
-        names: Vec<String>,
-
-        /// Preview rollback restore actions without modifying files or metadata
-        #[arg(long, default_value_t = false)]
-        dry_run: bool,
-    },
-
-    /// Prune stored rollback artifacts
-    #[command(long_about = "Delete stored rollback artifacts.\n\n\
-        Without package names, prunes all stored rollback artifacts.\n\n\
-        EXAMPLES:\n  \
-        upstream rollback prune\n  \
-        upstream rollback prune rg\n  \
-        upstream rollback prune rg fd --dry-run")]
-    Prune {
-        /// Package names to prune (all rollback artifacts if omitted)
-        names: Vec<String>,
-
-        /// Preview rollback prune actions without deleting artifacts or metadata
-        #[arg(long, default_value_t = false)]
-        dry_run: bool,
-    },
-
-    /// List stored rollback artifacts
-    #[command(long_about = "List packages with stored rollback artifacts.\n\n\
-        EXAMPLE:\n  \
-        upstream rollback list")]
-    List,
-}
-
 #[cfg(test)]
 mod tests {
     use super::{Cli, Commands};
@@ -820,9 +788,7 @@ impl Commands {
             Commands::Doctor { fix, .. } => *fix,
             Commands::Search { .. } => false,
             Commands::Find { .. } => true,
-            Commands::Rollback {
-                action: RollbackAction::List,
-            } => false,
+            Commands::Rollback { list: true, .. } => false,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
             Commands::Package { .. } => true,
             Commands::Config { action } => {

@@ -6,7 +6,6 @@ pub mod package_remover;
 pub mod package_upgrader;
 pub mod progress;
 pub mod rollback_manager;
-pub mod transaction_recorder;
 
 pub use package_checker::PackageChecker;
 pub use package_installer::{InstallPreview, PackageInstaller};

@@ -1,9 +1,8 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
-    application::cli::arguments::RollbackAction,
     application::operations::rollback_operation::{
         RollbackListRow, RollbackOperation, RollbackPackageOutcome, RollbackPackageStatus,
         RollbackPreview, RollbackPreviewRow,
@@ -71,33 +70,50 @@ fn show_missing_names(names: &[String]) {
     }
 }
 
-pub fn run(action: RollbackAction) -> Result<()> {
+pub fn run(names: Vec<String>, list: bool, prune: Vec<String>, dry_run: bool) -> Result<()> {
     let mut operation = RollbackOperation::new()?;
 
-    match action {
-        RollbackAction::Restore { names, dry_run } => run_restore(
-            resolve_restore_names(names, &operation)?,
-            dry_run,
-            &mut operation,
-        ),
-        RollbackAction::Prune { names, dry_run } => run_prune(names, dry_run, &mut operation),
-        RollbackAction::List => run_list(&mut operation),
+    match rollback_mode(names, list, prune)? {
+        RollbackMode::List => run_list(&mut operation),
+        RollbackMode::Restore(names) => run_restore(names, dry_run, &mut operation),
+        RollbackMode::Prune(names) => run_prune(names, dry_run, &mut operation),
     }
 }
 
-fn resolve_restore_names(names: Vec<String>, operation: &RollbackOperation) -> Result<Vec<String>> {
-    if !names.is_empty() {
-        return Ok(names);
+enum RollbackMode {
+    List,
+    Restore(Vec<String>),
+    Prune(Vec<String>),
+}
+
+fn rollback_mode(names: Vec<String>, list: bool, prune: Vec<String>) -> Result<RollbackMode> {
+    if list {
+        if !names.is_empty() || !prune.is_empty() {
+            bail!("--list cannot be combined with package names or --prune");
+        }
+        return Ok(RollbackMode::List);
     }
 
-    let Some(names) = operation.latest_restore_names()? else {
-        println!(
-            "{}",
-            output::warning("No reversible transaction found in rollback history.")
+    if !prune.is_empty() {
+        if !names.is_empty() {
+            bail!("--prune cannot be combined with rollback package names");
+        }
+        if prune.iter().any(|name| name.eq_ignore_ascii_case("all")) {
+            if prune.len() != 1 {
+                bail!("--prune all cannot be combined with package names");
+            }
+            return Ok(RollbackMode::Prune(Vec::new()));
+        }
+        return Ok(RollbackMode::Prune(prune));
+    }
+
+    if names.is_empty() {
+        bail!(
+            "Package name required. Run 'upstream rollback --list' to see available rollback artifacts."
         );
-        return Ok(Vec::new());
-    };
-    Ok(names)
+    }
+
+    Ok(RollbackMode::Restore(names))
 }
 
 fn run_restore(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperation) -> Result<()> {
