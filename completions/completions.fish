@@ -146,13 +146,22 @@ preview\t''
 nightly\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l limit -d 'Number of releases to inspect instead of only the latest release' -r
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l tag -d 'Release tag to inspect (defaults to latest when --limit is omitted)' -r
+complete -c upstream -n "__fish_upstream_using_subcommand probe" -s k -l kind -d 'File type to show and install' -r -f -a "app-image\t''
+mac-app\t''
+mac-dmg\t''
+archive\t''
+compressed\t''
+binary\t''
+win-exe\t''
+checksum\t''
+auto\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l trust -d 'Trust verification mode for downloaded assets' -r -f -a "none\t''
 best-effort\t''
 checksum\t''
 signature\t''
 all\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l verbose -d 'Include scored candidate assets for each release'
-complete -c upstream -n "__fish_upstream_using_subcommand probe" -l include-incompatible -d 'Include assets that do not match the current OS/architecture or resolved install file type'
+complete -c upstream -n "__fish_upstream_using_subcommand probe" -l include-incompatible -d 'Include assets that do not match the current OS/architecture or selected file type'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l json -d 'Print dry-run probe results as JSON'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s d -l desktop -d 'Whether or not to create a .desktop entry for GUI applications'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l dry-run -d 'Show parsed releases without selecting, downloading, or installing'

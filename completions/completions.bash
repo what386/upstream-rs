@@ -1572,7 +1572,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__probe)
-            opts="-p -c -d -y -h --provider --base-url --channel --limit --tag --verbose --include-incompatible --json --desktop --trust --dry-run --yes --help <REPO_SLUG> [NAME]"
+            opts="-p -c -k -d -y -h --provider --base-url --channel --limit --tag --kind --verbose --include-incompatible --json --desktop --trust --dry-run --yes --help <REPO_SLUG> [NAME]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1604,6 +1604,14 @@ _upstream() {
                     ;;
                 --tag)
                     COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --kind)
+                    COMPREPLY=($(compgen -W "app-image mac-app mac-dmg archive compressed binary win-exe checksum auto" -- "${cur}"))
+                    return 0
+                    ;;
+                -k)
+                    COMPREPLY=($(compgen -W "app-image mac-app mac-dmg archive compressed binary win-exe checksum auto" -- "${cur}"))
                     return 0
                     ;;
                 --trust)
