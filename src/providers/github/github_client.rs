@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::{
     models::{provider::RepositorySearchFilters, upstream::DownloadConfig},
-    providers::download_handler,
+    providers::{download_handler, http_status},
 };
 
 use super::github_dtos::{GithubReleaseDto, GithubRepositorySearchResponseDto};
@@ -59,9 +59,7 @@ impl GithubClient {
             .await
             .context(format!("Failed to send request to {}", url))?;
 
-        response
-            .error_for_status_ref()
-            .context(format!("GitHub API returned error for {}", url))?;
+        http_status::error_for_status(&response, "GitHub API", url)?;
 
         let data = response
             .json::<T>()

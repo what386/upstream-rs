@@ -50,10 +50,7 @@ impl<'a> PackageChecker<'a> {
             .provider_manager
             .check_for_updates(package)
             .await
-            .context(format!(
-                "Failed to fetch latest release for '{}'",
-                package.name
-            ))?
+            .context(format!("fetch latest release for '{}'", package.name))?
         else {
             return Ok(None);
         };

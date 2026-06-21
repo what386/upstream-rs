@@ -13,6 +13,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
 use crate::models::upstream::DownloadConfig;
+use crate::providers::http_status;
 
 #[derive(Debug, Clone, Copy)]
 struct ByteRange {
@@ -59,9 +60,7 @@ where
         .await
         .context(format!("Failed to download from {}", url))?;
 
-    response
-        .error_for_status_ref()
-        .context("Download request failed")?;
+    http_status::error_for_status(&response, "Download server", url)?;
 
     let total_bytes = response.content_length().unwrap_or(0);
 
@@ -134,9 +133,7 @@ where
         .await
         .context(format!("Failed to download from {}", url))?;
 
-    response
-        .error_for_status_ref()
-        .context("Download request failed")?;
+    http_status::error_for_status(&response, "Download server", url)?;
 
     let total_bytes = response.content_length().unwrap_or(0);
     write_single_response(response, destination, total_bytes, progress).await
@@ -380,6 +377,14 @@ async fn download_range(
         .context(format!("Failed to download range from {}", url))?;
 
     if response.status() != StatusCode::PARTIAL_CONTENT {
+        if let Some(message) = http_status::rate_limit_message(
+            response.status(),
+            response.headers(),
+            "Download server",
+            &url,
+        ) {
+            bail!("{message}");
+        }
         return Err(RangeUnsupported {
             status: response.status(),
         }

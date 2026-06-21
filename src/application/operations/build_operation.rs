@@ -162,10 +162,7 @@ impl<'a> BuildOperation<'a> {
                             resolved_base_url.as_deref(),
                         )
                         .await
-                        .context(format!(
-                            "Failed to fetch latest release for '{}'",
-                            resolved_repo_slug
-                        ))?
+                        .context(format!("fetch latest release for '{}'", resolved_repo_slug))?
                 };
                 println!("{}", output::title("Build preview"));
                 output::kv("Package", &input.name);
