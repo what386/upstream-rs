@@ -1,17 +1,36 @@
 use std::fmt::Write as _;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 
 use crate::{
     application::context::CommandContext,
+    models::upstream::Package,
     output,
     output::pager,
     routines::docs::{self, DocsSearchResult, DocsSectionMatch, ProjectReadmeSource},
 };
 
-pub async fn run(name: String, keywords: Vec<String>, offline: bool) -> Result<()> {
+pub async fn run(
+    name: Option<String>,
+    keywords: Vec<String>,
+    offline: bool,
+    fetch: Option<Vec<String>>,
+) -> Result<()> {
     let context = CommandContext::new()?;
     let package_storage = context.package_storage()?;
+    if let Some(fetch_names) = fetch {
+        return run_fetch_readmes(
+            &context,
+            package_storage.get_all_packages(),
+            name,
+            keywords,
+            offline,
+            fetch_names,
+        )
+        .await;
+    }
+
+    let name = name.ok_or_else(|| anyhow!("Package name is required unless --fetch is used"))?;
     let package = package_storage
         .get_package_by_name(&name)
         .ok_or_else(|| anyhow!("Package '{}' is not installed", name))?;
@@ -59,6 +78,107 @@ pub async fn run(name: String, keywords: Vec<String>, offline: bool) -> Result<(
     let text = format_selected_section(&result, &result.sections[selected], &renderer);
     pager::page_text(None, &text)?;
     Ok(())
+}
+
+async fn run_fetch_readmes(
+    context: &CommandContext,
+    packages: &[Package],
+    leading_name: Option<String>,
+    keywords: Vec<String>,
+    offline: bool,
+    fetch_names: Vec<String>,
+) -> Result<()> {
+    if offline {
+        bail!("--offline cannot be used with --fetch");
+    }
+
+    let targets = resolve_fetch_targets(packages, leading_name, keywords, fetch_names)?;
+    if targets.is_empty() {
+        println!("{}", output::warning("No installed packages to refresh."));
+        return Ok(());
+    }
+
+    println!("{}", output::title("Refreshing README docs"));
+    let width = output::status_subject_width(targets.iter().map(|package| package.name.as_str()));
+    let mut failures = 0usize;
+
+    for package in &targets {
+        match docs::refetch_project_readme(
+            &context.provider_manager,
+            &context.paths.dirs.cache_dir,
+            package,
+        )
+        .await
+        {
+            Ok(_) => println!(
+                "{}",
+                output::status_line_text_with_width(
+                    output::Status::Ok,
+                    &package.name,
+                    "cached README.md",
+                    width,
+                )
+            ),
+            Err(err) => {
+                failures += 1;
+                println!(
+                    "{}",
+                    output::status_line_text_with_width(
+                        output::Status::Fail,
+                        &package.name,
+                        output::error_summary(&err),
+                        width,
+                    )
+                );
+            }
+        }
+    }
+
+    if failures > 0 {
+        bail!("Failed to refresh {failures}/{} README docs", targets.len());
+    }
+
+    Ok(())
+}
+
+fn resolve_fetch_targets(
+    packages: &[Package],
+    leading_name: Option<String>,
+    keywords: Vec<String>,
+    fetch_names: Vec<String>,
+) -> Result<Vec<Package>> {
+    if !fetch_names.is_empty() {
+        if leading_name.is_some() || !keywords.is_empty() {
+            bail!("When using --fetch with package names, pass names after --fetch");
+        }
+
+        return packages_for_names(packages, &fetch_names);
+    }
+
+    if !keywords.is_empty() {
+        bail!("docs --fetch does not accept search keywords");
+    }
+
+    if let Some(name) = leading_name {
+        return packages_for_names(packages, &[name]);
+    }
+
+    let mut targets = packages.to_vec();
+    targets.sort_by(|left, right| left.name.cmp(&right.name));
+    Ok(targets)
+}
+
+fn packages_for_names(packages: &[Package], names: &[String]) -> Result<Vec<Package>> {
+    names
+        .iter()
+        .map(|name| {
+            packages
+                .iter()
+                .find(|package| package.name == *name)
+                .cloned()
+                .ok_or_else(|| anyhow!("Package '{}' is not installed", name))
+        })
+        .collect()
 }
 
 struct DocsChoiceTable {
@@ -187,8 +307,12 @@ fn query_label(query: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
-    use super::{DocsChoiceTable, format_selected_section, query_label};
+    use super::{DocsChoiceTable, format_selected_section, query_label, resolve_fetch_targets};
     use crate::{
+        models::{
+            common::enums::{Channel, Filetype, Provider},
+            upstream::Package,
+        },
         output::MarkdownRenderer,
         routines::docs::{DocsSearchResult, DocsSectionMatch},
     };
@@ -206,6 +330,19 @@ mod tests {
                 ordinal: 1,
             }],
         }
+    }
+
+    fn package(name: &str) -> Package {
+        Package::with_defaults(
+            name.to_string(),
+            format!("owner/{name}"),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        )
     }
 
     #[test]
@@ -255,5 +392,68 @@ mod tests {
         assert_eq!(query_label(""), "(none)");
         assert_eq!(query_label("   "), "(none)");
         assert_eq!(query_label("usage"), "usage");
+    }
+
+    #[test]
+    fn fetch_targets_all_packages_when_names_are_omitted() {
+        let packages = vec![package("zoxide"), package("bat")];
+
+        let targets =
+            resolve_fetch_targets(&packages, None, Vec::new(), Vec::new()).expect("targets");
+
+        assert_eq!(
+            targets
+                .iter()
+                .map(|package| package.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["bat", "zoxide"]
+        );
+    }
+
+    #[test]
+    fn fetch_targets_support_single_leading_package_name() {
+        let packages = vec![package("rg"), package("bat")];
+
+        let targets =
+            resolve_fetch_targets(&packages, Some("rg".to_string()), Vec::new(), Vec::new())
+                .expect("targets");
+
+        assert_eq!(targets[0].name, "rg");
+    }
+
+    #[test]
+    fn fetch_targets_support_names_after_fetch_flag() {
+        let packages = vec![package("rg"), package("bat"), package("fd")];
+
+        let targets = resolve_fetch_targets(
+            &packages,
+            None,
+            Vec::new(),
+            vec!["bat".to_string(), "fd".to_string()],
+        )
+        .expect("targets");
+
+        assert_eq!(
+            targets
+                .iter()
+                .map(|package| package.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["bat", "fd"]
+        );
+    }
+
+    #[test]
+    fn fetch_targets_reject_search_keywords() {
+        let packages = vec![package("rg")];
+
+        let err = resolve_fetch_targets(
+            &packages,
+            Some("rg".to_string()),
+            vec!["usage".to_string()],
+            Vec::new(),
+        )
+        .expect_err("keywords rejected");
+
+        assert!(err.to_string().contains("search keywords"));
     }
 }

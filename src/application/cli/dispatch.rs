@@ -132,8 +132,9 @@ impl Cli {
             Commands::Docs {
                 name,
                 offline,
+                fetch,
                 keywords,
-            } => commands::docs::run(name, keywords, offline).await,
+            } => commands::docs::run(name, keywords, offline, fetch).await,
 
             Commands::Probe {
                 repo_slug,

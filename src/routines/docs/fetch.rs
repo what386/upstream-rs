@@ -85,6 +85,30 @@ pub async fn fetch_project_readme(
     }
 }
 
+pub async fn refetch_project_readme(
+    provider_manager: &ProviderManager,
+    cache_dir: &Path,
+    package: &Package,
+) -> Result<ProjectReadme> {
+    let contents = provider_manager
+        .get_project_readme(
+            &package.repo_slug,
+            &package.provider,
+            package.base_url.as_deref(),
+        )
+        .await
+        .with_context(|| format!("Failed to fetch README for '{}'", package.name))?;
+
+    let cache_path = cache_path_for_package(cache_dir, package);
+    write_cached_readme(&cache_path, &contents)?;
+
+    Ok(ProjectReadme {
+        document_name: "README.md".to_string(),
+        contents,
+        source: ProjectReadmeSource::Remote,
+    })
+}
+
 fn cache_path_for_package(cache_dir: &Path, package: &Package) -> PathBuf {
     cache_dir
         .join("docs")
