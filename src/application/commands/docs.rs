@@ -6,10 +6,10 @@ use crate::{
     application::context::CommandContext,
     output,
     output::pager,
-    routines::docs::{self, DocsSearchResult, DocsSectionMatch},
+    routines::docs::{self, DocsSearchResult, DocsSectionMatch, ProjectReadmeSource},
 };
 
-pub async fn run(name: String, keywords: Vec<String>) -> Result<()> {
+pub async fn run(name: String, keywords: Vec<String>, offline: bool) -> Result<()> {
     let context = CommandContext::new()?;
     let package_storage = context.package_storage()?;
     let package = package_storage
@@ -17,7 +17,21 @@ pub async fn run(name: String, keywords: Vec<String>) -> Result<()> {
         .ok_or_else(|| anyhow!("Package '{}' is not installed", name))?;
 
     let query = keywords.join(" ").trim().to_string();
-    let result = docs::run(&context.provider_manager, package, &query).await?;
+    let result = docs::run(
+        &context.provider_manager,
+        &context.paths,
+        package,
+        &query,
+        offline,
+    )
+    .await?;
+    if matches!(result.readme_source, ProjectReadmeSource::CachedFallback) {
+        println!(
+            "{}",
+            output::warning("README fetch failed; using cached README.md")
+        );
+    }
+    let result = result.search;
     if result.sections.is_empty() {
         println!("{}", output::warning("No README sections found."));
         return Ok(());
