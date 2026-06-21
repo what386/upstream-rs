@@ -132,6 +132,8 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
         return Ok(());
     };
 
+    let renderer = output::MarkdownRenderer::for_terminal();
+    let changelog = renderer.render(&changelog);
     pager::page_text(Some(&format!("Changelog: {}", package.name)), &changelog)?;
 
     Ok(())

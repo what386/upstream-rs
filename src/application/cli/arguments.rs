@@ -302,7 +302,8 @@ pub enum Commands {
         By default, prints release bodies newer than the installed version up to \
         the latest release for the package's tracked channel. Use --from and --to \
         to override the range endpoints by release tag, or use current/latest for \
-        the installed or tracked latest release.\n\n\
+        the installed or tracked latest release. If glow is installed, changelog \
+        Markdown is rendered with glow's terminal styling.\n\n\
         EXAMPLES:\n  \
         upstream changelog nvim\n  \
         upstream changelog nvim --from current --to latest\n  \
