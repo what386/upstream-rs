@@ -330,20 +330,28 @@ pub enum Commands {
         in README order. If fetching fails and a cached README exists, \
         upstream falls back to the cached copy. Use --offline to skip fetching and \
         search only cached documentation. If glow is installed, Markdown previews \
-        and selected sections are rendered with glow's terminal styling.\n\n\
+        and selected sections are rendered with glow's terminal styling. Use \
+        --fetch [names...] to refresh cached READMEs without opening the picker; \
+        omitting names refreshes all installed packages.\n\n\
         EXAMPLES:\n  \
         upstream docs rg\n  \
         upstream docs rg usage\n  \
         upstream docs rg --offline usage\n  \
+        upstream docs --fetch\n  \
+        upstream docs --fetch rg bat\n  \
         upstream docs ripgrep configuration file\n  \
         upstream docs bat themes syntax")]
     Docs {
         /// Installed package name
-        name: String,
+        name: Option<String>,
 
         /// Use only the cached README and skip network fetching
-        #[arg(long, default_value_t = false)]
+        #[arg(long, default_value_t = false, conflicts_with = "fetch")]
         offline: bool,
+
+        /// Refresh cached README docs for named packages, or all packages when no names are provided
+        #[arg(long, num_args = 0.., value_name = "NAME")]
+        fetch: Option<Vec<String>>,
 
         /// Optional search keywords (joined with spaces)
         #[arg(num_args(0..), value_delimiter = ' ')]
@@ -762,11 +770,44 @@ mod tests {
 
         match cli.command {
             Commands::Docs { name, keywords, .. } => {
-                assert_eq!(name, "rg");
+                assert_eq!(name.as_deref(), Some("rg"));
                 assert!(keywords.is_empty());
             }
             _ => panic!("expected docs command"),
         }
+    }
+
+    #[test]
+    fn docs_fetch_accepts_no_package_names() {
+        let cli = Cli::parse_from(["upstream", "docs", "--fetch"]);
+
+        match cli.command {
+            Commands::Docs { name, fetch, .. } => {
+                assert!(name.is_none());
+                assert_eq!(fetch, Some(Vec::new()));
+            }
+            _ => panic!("expected docs command"),
+        }
+    }
+
+    #[test]
+    fn docs_fetch_accepts_package_names() {
+        let cli = Cli::parse_from(["upstream", "docs", "--fetch", "rg", "bat"]);
+
+        match cli.command {
+            Commands::Docs { name, fetch, .. } => {
+                assert!(name.is_none());
+                assert_eq!(fetch, Some(vec!["rg".to_string(), "bat".to_string()]));
+            }
+            _ => panic!("expected docs command"),
+        }
+    }
+
+    #[test]
+    fn docs_fetch_conflicts_with_offline() {
+        let result = Cli::try_parse_from(["upstream", "docs", "--fetch", "--offline"]);
+
+        assert!(result.is_err());
     }
 }
 
