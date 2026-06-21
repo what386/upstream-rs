@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{migrate, output, utils::static_paths::UpstreamPaths};
+use crate::{output, routines::migrate, utils::static_paths::UpstreamPaths};
 
 pub fn run() -> Result<()> {
     let paths = UpstreamPaths::new()?;
