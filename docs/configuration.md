@@ -62,6 +62,41 @@ gitea.api_token
 
 Tokens are used for API requests to the corresponding provider. They are useful for private repositories, self-hosted instances, or avoiding anonymous rate limits.
 
+Set tokens with `config set`:
+
+```bash
+upstream config set github.api_token=github_pat_xxx
+upstream config set gitlab.api_token=glpat_xxx
+upstream config set gitea.api_token=token_xxx
+```
+
+After configuring tokens, run:
+
+```bash
+upstream doctor
+```
+
+`doctor` validates configured provider tokens and reports invalid, rate-limited, or unreachable token checks.
+
+### GitHub token setup
+
+In the GitHub web UI, open your profile menu and go to:
+
+```text
+Settings > Developer settings > Personal access tokens
+```
+
+For public GitHub releases, use the smallest token that works:
+
+- Fine-grained personal access token: choose public repository access and leave additional permissions unset.
+- Personal access token (classic): a token with `read:project` works for upstream's GitHub API calls.
+
+Store the copied token with:
+
+```bash
+upstream config set github.api_token=github_pat_xxx
+```
+
 ## Download Concurrency
 
 Large downloads can use multiple HTTP range requests when the server supports `Accept-Ranges: bytes`.
