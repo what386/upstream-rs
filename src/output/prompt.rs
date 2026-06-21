@@ -136,13 +136,15 @@ fn select_from_list_with_term(
     previews: Option<&[String]>,
 ) -> anyhow::Result<Option<usize>> {
     let mut selected = 0;
+    let mut top = 0;
     let mut rendered_lines = 0;
 
     loop {
         if rendered_lines > 0 {
             clear_rendered_selection(term, rendered_lines)?;
         }
-        rendered_lines = render_selection(term, prompt, headers, items, selected, previews)?;
+        rendered_lines =
+            render_selection(term, prompt, headers, items, selected, &mut top, previews)?;
 
         match selection_action_for_key(term.read_key()?) {
             SelectionAction::Accept => {
@@ -172,6 +174,7 @@ fn render_selection(
     headers: &[String],
     items: &[String],
     selected: usize,
+    top: &mut usize,
     previews: Option<&[String]>,
 ) -> anyhow::Result<usize> {
     let (rows, cols) = term.size();
@@ -189,7 +192,7 @@ fn render_selection(
     let preview_block_rows = preview_block_rows(preview_content_rows);
     let fixed_rows = prompt_lines.len() + 1 + headers.len() + preview_block_rows;
     let visible_rows = selection_visible_rows(term_rows, fixed_rows, items.len());
-    let top = selection_top(selected, visible_rows, items.len());
+    *top = selection_top(selected, *top, visible_rows, items.len());
     let bottom = top.saturating_add(visible_rows).min(items.len());
     let mut rendered = 0;
 
@@ -208,8 +211,8 @@ fn render_selection(
         rendered += 1;
     }
 
-    for (index, item) in items.iter().enumerate().take(bottom).skip(top) {
-        let marker = selection_marker(index, selected, top, bottom, items.len());
+    for (index, item) in items.iter().enumerate().take(bottom).skip(*top) {
+        let marker = selection_marker(index, selected, *top, bottom, items.len());
         let line = truncate_width(&format!("{marker} {item}"), cols);
         if index == selected {
             term.write_line(&style(line).reverse().to_string())?;
@@ -240,7 +243,7 @@ fn render_selection(
     let footer = truncate_width(
         &format!(
             "-- {}-{}/{} -- Enter:select  j/k or arrows:move  q/Esc:cancel",
-            top + 1,
+            *top + 1,
             bottom,
             items.len()
         ),
@@ -316,7 +319,12 @@ fn selection_visible_rows(term_rows: usize, fixed_rows: usize, item_count: usize
     term_rows.saturating_sub(fixed_rows).max(1).min(item_count)
 }
 
-fn selection_top(selected: usize, visible_rows: usize, item_count: usize) -> usize {
+fn selection_top(
+    selected: usize,
+    current_top: usize,
+    visible_rows: usize,
+    item_count: usize,
+) -> usize {
     if item_count <= visible_rows {
         return 0;
     }
@@ -326,12 +334,20 @@ fn selection_top(selected: usize, visible_rows: usize, item_count: usize) -> usi
         return selected.min(last_top);
     }
 
-    let bottom_margin_start = visible_rows.saturating_sub(SELECTION_SCROLL_MARGIN + 1);
-    if selected < bottom_margin_start {
-        return 0;
+    let current_top = current_top.min(last_top);
+    let top_margin_end = current_top + SELECTION_SCROLL_MARGIN;
+    if selected < top_margin_end {
+        return selected.saturating_sub(SELECTION_SCROLL_MARGIN);
     }
 
-    selected.saturating_sub(bottom_margin_start).min(last_top)
+    let bottom_margin_start = current_top + visible_rows - SELECTION_SCROLL_MARGIN - 1;
+    if selected > bottom_margin_start {
+        return selected
+            .saturating_sub(visible_rows - SELECTION_SCROLL_MARGIN - 1)
+            .min(last_top);
+    }
+
+    current_top
 }
 
 fn selection_marker(
@@ -475,21 +491,38 @@ mod tests {
     }
 
     #[test]
-    fn selection_top_tracks_selected_item() {
-        assert_eq!(selection_top(0, 5, 20), 0);
-        assert_eq!(selection_top(3, 5, 20), 0);
-        assert_eq!(selection_top(4, 5, 20), 1);
-        assert_eq!(selection_top(5, 5, 20), 2);
-        assert_eq!(selection_top(18, 5, 20), 15);
-        assert_eq!(selection_top(19, 5, 20), 15);
+    fn selection_top_sticks_to_bottom_margin_when_moving_down() {
+        let mut top = 0;
+        let visible_rows = 5;
+        let item_count = 20;
+
+        for selected in 0..=5 {
+            top = selection_top(selected, top, visible_rows, item_count);
+        }
+
+        assert_eq!(top, 2);
+        assert_eq!(5 - top, 3);
     }
 
     #[test]
-    fn selection_top_keeps_margin_until_scroll_boundaries() {
-        assert_eq!(selection_top(2, 3, 10), 1);
-        assert_eq!(selection_top(8, 3, 10), 7);
-        assert_eq!(selection_top(9, 3, 10), 7);
-        assert_eq!(selection_top(3, 2, 10), 3);
+    fn selection_top_sticks_to_top_margin_when_moving_up() {
+        let visible_rows = 5;
+        let item_count = 20;
+        let mut top = item_count - visible_rows;
+
+        for selected in (14..=19).rev() {
+            top = selection_top(selected, top, visible_rows, item_count);
+        }
+
+        assert_eq!(top, 13);
+        assert_eq!(14 - top, 1);
+    }
+
+    #[test]
+    fn selection_top_reaches_scroll_boundaries() {
+        assert_eq!(selection_top(0, 5, 5, 20), 0);
+        assert_eq!(selection_top(19, 14, 5, 20), 15);
+        assert_eq!(selection_top(3, 0, 2, 10), 3);
     }
 
     #[test]
