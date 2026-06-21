@@ -1,16 +1,22 @@
 use anyhow::Result;
-use std::collections::HashSet;
+use reqwest::StatusCode;
+use std::collections::{BTreeSet, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 #[cfg(unix)]
 use crate::services::integration::{ShellManager, nushell_paths_file_contains_path};
 use crate::{
+    models::{
+        common::enums::Provider,
+        upstream::{AppConfig, Package},
+    },
+    providers::{gitea::GiteaClient, github::GithubClient, gitlab::GitlabClient, http_status},
     services::integration::{
         CompletionCacheMismatch, CompletionCacheMismatchKind, CompletionManager, SymlinkManager,
         permission_handler,
     },
-    services::storage::package_storage::PackageStorage,
+    services::storage::{config_storage::ConfigStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
 
@@ -40,6 +46,14 @@ const HOOKS_INIT_DIR_HINT: &str =
     "Run `upstream hooks init` to create missing upstream directories and metadata files.";
 const MIGRATE_DIR_HINT: &str =
     "Run `upstream migrate` to update local data for the current upstream layout.";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum TokenValidation {
+    Valid,
+    Invalid(String),
+    RateLimited(String),
+    Unknown(String),
+}
 
 fn required_directory_checks(paths: &UpstreamPaths) -> Vec<(&'static str, &Path)> {
     vec![
@@ -358,6 +372,183 @@ fn check_completion_cache_drift(
     }
 }
 
+fn configured_provider_targets<'a>(
+    packages: impl IntoIterator<Item = &'a Package>,
+    provider: Provider,
+) -> Vec<Option<String>> {
+    let mut targets = BTreeSet::new();
+    for package in packages {
+        if package.provider == provider {
+            targets.insert(package.base_url.clone());
+        }
+    }
+
+    if targets.is_empty() {
+        return vec![None];
+    }
+
+    targets.into_iter().collect()
+}
+
+fn target_label(provider: &str, base_url: Option<&str>) -> String {
+    match base_url {
+        Some(base) => format!("{provider} API token for {base}"),
+        None => format!("{provider} API token"),
+    }
+}
+
+fn record_token_validation(report: &mut DoctorReport, label: String, validation: TokenValidation) {
+    match validation {
+        TokenValidation::Valid => {
+            report.line(Level::Ok, format!("{label} works"));
+        }
+        TokenValidation::Invalid(message) => {
+            report.line(Level::Fail, format!("{label} is invalid: {message}"));
+        }
+        TokenValidation::RateLimited(message) => {
+            report.line(
+                Level::Warn,
+                format!("{label} could not be verified: {message}"),
+            );
+        }
+        TokenValidation::Unknown(message) => {
+            report.line(
+                Level::Warn,
+                format!("{label} could not be verified: {message}"),
+            );
+        }
+    }
+}
+
+fn token_validation_from_response(
+    response: &reqwest::Response,
+    service: &str,
+    url: &str,
+) -> TokenValidation {
+    let status = response.status();
+    if status.is_success() {
+        return TokenValidation::Valid;
+    }
+
+    if let Some(message) = http_status::rate_limit_message(status, response.headers(), service, url)
+    {
+        return TokenValidation::RateLimited(message);
+    }
+
+    if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
+        return TokenValidation::Invalid(format!("{service} rejected the token ({status})"));
+    }
+
+    TokenValidation::Unknown(format!("{service} returned {status}"))
+}
+
+async fn validate_github_token(token: &str) -> TokenValidation {
+    let client = match GithubClient::new(Some(token), Default::default()) {
+        Ok(client) => client,
+        Err(err) => return TokenValidation::Unknown(format!("{err}")),
+    };
+    match client.check_token().await {
+        Ok(response) => {
+            token_validation_from_response(&response, "GitHub API", "https://api.github.com/user")
+        }
+        Err(err) => TokenValidation::Unknown(format!("GitHub API request failed: {err}")),
+    }
+}
+
+async fn validate_gitlab_token(token: &str, base_url: Option<&str>) -> TokenValidation {
+    let client = match GitlabClient::new(Some(token), base_url, Default::default()) {
+        Ok(client) => client,
+        Err(err) => return TokenValidation::Unknown(format!("{err}")),
+    };
+    match client.check_token().await {
+        Ok(response) => {
+            let url = response.url().to_string();
+            token_validation_from_response(&response, "GitLab API", &url)
+        }
+        Err(err) => TokenValidation::Unknown(format!("GitLab API request failed: {err}")),
+    }
+}
+
+async fn validate_gitea_token(token: &str, base_url: Option<&str>) -> TokenValidation {
+    let client = match GiteaClient::new(Some(token), base_url, Default::default()) {
+        Ok(client) => client,
+        Err(err) => return TokenValidation::Unknown(format!("{err}")),
+    };
+    match client.check_token().await {
+        Ok(response) => {
+            let url = response.url().to_string();
+            token_validation_from_response(&response, "Gitea API", &url)
+        }
+        Err(err) => TokenValidation::Unknown(format!("Gitea API request failed: {err}")),
+    }
+}
+
+async fn check_configured_api_tokens(
+    config: &AppConfig,
+    packages: &[Package],
+    report: &mut DoctorReport,
+) {
+    let mut configured = 0_u32;
+
+    match config.github.api_token.as_deref().map(str::trim) {
+        Some("") => {
+            configured += 1;
+            report.line(Level::Fail, "GitHub API token is configured but empty");
+        }
+        Some(token) => {
+            configured += 1;
+            record_token_validation(
+                report,
+                target_label("GitHub", None),
+                validate_github_token(token).await,
+            );
+        }
+        None => {}
+    }
+
+    for base_url in configured_provider_targets(packages, Provider::Gitlab) {
+        match config.gitlab.api_token.as_deref().map(str::trim) {
+            Some("") => {
+                configured += 1;
+                report.line(Level::Fail, "GitLab API token is configured but empty");
+                break;
+            }
+            Some(token) => {
+                configured += 1;
+                record_token_validation(
+                    report,
+                    target_label("GitLab", base_url.as_deref()),
+                    validate_gitlab_token(token, base_url.as_deref()).await,
+                );
+            }
+            None => break,
+        }
+    }
+
+    for base_url in configured_provider_targets(packages, Provider::Gitea) {
+        match config.gitea.api_token.as_deref().map(str::trim) {
+            Some("") => {
+                configured += 1;
+                report.line(Level::Fail, "Gitea API token is configured but empty");
+                break;
+            }
+            Some(token) => {
+                configured += 1;
+                record_token_validation(
+                    report,
+                    target_label("Gitea", base_url.as_deref()),
+                    validate_gitea_token(token, base_url.as_deref()).await,
+                );
+            }
+            None => break,
+        }
+    }
+
+    if configured == 0 {
+        report.line(Level::Ok, "No provider API tokens configured");
+    }
+}
+
 #[cfg(unix)]
 fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
     if !paths.config.paths_file.exists() {
@@ -450,7 +641,7 @@ fn check_paths_file(_paths: &UpstreamPaths, report: &mut DoctorReport) {
     report.line(Level::Ok, "PATH integration check skipped on this platform");
 }
 
-pub fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
+pub async fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
     let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
 
@@ -499,8 +690,18 @@ pub fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
         }
     }
 
-    if paths.config.config_file.exists() {
-        report.line(Level::Ok, "Config file exists");
+    let app_config = if paths.config.config_file.exists() {
+        match ConfigStorage::new(&paths.config.config_file) {
+            Ok(storage) => {
+                report.line(Level::Ok, "Config file exists");
+                Some(storage.get_config().clone())
+            }
+            Err(err) => {
+                report.line(Level::Fail, format!("Config file is invalid: {err}"));
+                report.hint(MIGRATE_DIR_HINT);
+                None
+            }
+        }
     } else {
         report.line(
             Level::Warn,
@@ -510,7 +711,8 @@ pub fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
             ),
         );
         report.hint("Run `upstream hooks init` to generate the default config file.");
-    }
+        None
+    };
 
     if paths.config.packages_file.exists() {
         report.line(Level::Ok, "Package metadata file exists");
@@ -609,6 +811,10 @@ pub fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
                 names.len()
             ),
         );
+    }
+
+    if let Some(config) = &app_config {
+        check_configured_api_tokens(config, &all_packages, &mut report).await;
     }
 
     let mut changed_packages = false;
@@ -924,12 +1130,17 @@ pub fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
 #[cfg(test)]
 mod tests {
     use super::{
-        DoctorReport, HOOKS_INIT_DIR_HINT, MIGRATE_DIR_HINT, completion_cache_mismatch_message,
-        expected_link_path, find_orphan_install_entries, find_stale_symlink_names,
-        looks_like_legacy_layout,
+        DoctorReport, HOOKS_INIT_DIR_HINT, MIGRATE_DIR_HINT, TokenValidation,
+        completion_cache_mismatch_message, configured_provider_targets, expected_link_path,
+        find_orphan_install_entries, find_stale_symlink_names, looks_like_legacy_layout,
+        record_token_validation, target_label,
     };
     #[cfg(unix)]
     use super::{LinkStatus, inspect_unix_link};
+    use crate::models::{
+        common::enums::{Channel, Filetype, Provider},
+        upstream::Package,
+    };
     use crate::services::integration::{
         CompletionCacheMismatch, CompletionCacheMismatchKind, CompletionShell,
     };
@@ -949,6 +1160,89 @@ mod tests {
 
     fn cleanup(path: &Path) -> io::Result<()> {
         fs::remove_dir_all(path)
+    }
+
+    fn package_for_provider(name: &str, provider: Provider, base_url: Option<&str>) -> Package {
+        Package::with_defaults(
+            name.to_string(),
+            format!("owner/{name}"),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            provider,
+            base_url.map(str::to_string),
+        )
+    }
+
+    #[test]
+    fn configured_provider_targets_uses_package_base_urls() {
+        let packages = vec![
+            package_for_provider("gitlab-default", Provider::Gitlab, None),
+            package_for_provider(
+                "gitlab-self-hosted",
+                Provider::Gitlab,
+                Some("git.example.com"),
+            ),
+            package_for_provider("github", Provider::Github, None),
+        ];
+
+        let targets = configured_provider_targets(&packages, Provider::Gitlab);
+
+        assert_eq!(targets, vec![None, Some("git.example.com".to_string())]);
+    }
+
+    #[test]
+    fn configured_provider_targets_defaults_when_provider_has_no_packages() {
+        let packages = vec![package_for_provider("github", Provider::Github, None)];
+
+        assert_eq!(
+            configured_provider_targets(&packages, Provider::Gitea),
+            vec![None]
+        );
+    }
+
+    #[test]
+    fn token_validation_outcomes_update_report_levels() {
+        let mut report = DoctorReport::new();
+
+        record_token_validation(
+            &mut report,
+            target_label("GitHub", None),
+            TokenValidation::Valid,
+        );
+        record_token_validation(
+            &mut report,
+            target_label("GitLab", Some("git.example.com")),
+            TokenValidation::Invalid("GitLab API rejected the token (401 Unauthorized)".into()),
+        );
+        record_token_validation(
+            &mut report,
+            target_label("Gitea", None),
+            TokenValidation::RateLimited("Gitea API rate limit hit".into()),
+        );
+
+        assert_eq!(report.ok, 1);
+        assert_eq!(report.fail, 1);
+        assert_eq!(report.warn, 1);
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.message == "GitHub API token works")
+        );
+        assert!(
+            report
+                .failures
+                .iter()
+                .any(|failure| failure.contains("GitLab API token for git.example.com is invalid"))
+        );
+        assert!(
+            report
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("Gitea API token could not be verified"))
+        );
     }
 
     #[test]

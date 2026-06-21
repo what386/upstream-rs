@@ -108,6 +108,15 @@ impl GiteaClient {
         .await
     }
 
+    pub async fn check_token(&self) -> Result<reqwest::Response> {
+        let url = format!("{}/api/v1/user", self.base_url);
+        self.client
+            .get(&url)
+            .send()
+            .await
+            .context(format!("Failed to send request to {}", url))
+    }
+
     pub async fn get_release_by_tag(&self, owner_repo: &str, tag: &str) -> Result<GiteaReleaseDto> {
         let url = format!(
             "{}/api/v1/repos/{}/releases/tags/{}",

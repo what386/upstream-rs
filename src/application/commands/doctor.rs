@@ -56,9 +56,9 @@ fn print_hints(report: &DoctorReport) {
     }
 }
 
-pub fn run(names: Vec<String>, verbose: bool, fix: bool, json: bool) -> Result<()> {
+pub async fn run(names: Vec<String>, verbose: bool, fix: bool, json: bool) -> Result<()> {
     if json {
-        let report = doctor_operation::run(names, fix)?;
+        let report = doctor_operation::run(names, fix).await?;
         println!(
             "{}",
             serde_json::to_string_pretty(&json_doctor_report(&report))?
@@ -74,7 +74,7 @@ pub fn run(names: Vec<String>, verbose: bool, fix: bool, json: bool) -> Result<(
 
     println!("{}", style("Running upstream doctor...").cyan());
 
-    let report = doctor_operation::run(names, fix)?;
+    let report = doctor_operation::run(names, fix).await?;
     if verbose {
         print_verbose_findings(&report);
     }

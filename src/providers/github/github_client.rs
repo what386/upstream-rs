@@ -88,6 +88,15 @@ impl GithubClient {
         .await
     }
 
+    pub async fn check_token(&self) -> Result<reqwest::Response> {
+        let url = "https://api.github.com/user";
+        self.client
+            .get(url)
+            .send()
+            .await
+            .context(format!("Failed to send request to {}", url))
+    }
+
     pub async fn get_release_by_tag(
         &self,
         owner_repo: &str,
