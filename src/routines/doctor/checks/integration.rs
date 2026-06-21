@@ -1,5 +1,3 @@
-use std::fs;
-
 #[cfg(unix)]
 use crate::services::integration::{ShellManager, nushell_paths_file_contains_path};
 use crate::{
@@ -8,6 +6,8 @@ use crate::{
     },
     utils::static_paths::UpstreamPaths,
 };
+#[cfg(unix)]
+use std::fs;
 
 use super::super::{DoctorReport, Level};
 
