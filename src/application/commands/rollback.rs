@@ -212,18 +212,19 @@ fn run_prune(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperatio
         )?;
     }
 
-    let pb = ProgressBar::new_spinner();
+    let pb = ProgressBar::new(preview.target_names.len() as u64);
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
-    pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
+    pb.set_style(ProgressStyle::with_template(
+        "{spinner:.green} Pruned {pos}/{len} rollback package(s){msg}",
+    )?);
+    pb.set_position(0);
     pb.enable_steady_tick(Duration::from_millis(120));
-    pb.set_message("Pruning rollback artifacts");
 
     let prune_pb = pb.clone();
     let mut progress = Some(move |name: &str, current: usize, total: usize| {
-        prune_pb.set_message(format!(
-            "Pruning rollback artifacts for {:<28} ({}/{})",
-            name, current, total
-        ));
+        prune_pb.set_length(total as u64);
+        prune_pb.set_position(current as u64);
+        prune_pb.set_message(format!("\n {:<28} Pruning rollback artifacts ...", name));
     });
     let outcome = operation.prune(&preview.target_names, &mut progress);
     pb.finish_and_clear();
