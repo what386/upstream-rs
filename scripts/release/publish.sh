@@ -27,11 +27,10 @@ git tag "${version}"
 
 echo -e "${BLUE}Publishing release on GitHub...${NC}"
 git push github "${version}"
-
 echo -e "${GREEN}Published on GitHub${NC}"
+
 echo -e "${BLUE}Publishing on crates.io...${NC}"
-
 cargo publish
-
 echo -e "${GREEN}Published on crates.io${NC}"
+
 echo -e "${GREEN}${version} published successfully.${NC}"
