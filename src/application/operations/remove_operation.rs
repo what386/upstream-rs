@@ -2,8 +2,8 @@ use crate::{
     output::{self, Status},
     services::packaging::disk_impact::{DiskImpact, SignedByteEstimate, estimate_path_size},
     services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover, RollbackManager},
+    services::storage::package_storage::PackageStorage,
     services::storage::rollback_storage::RollbackSource,
-    services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
@@ -27,21 +27,15 @@ macro_rules! progress {
 pub struct RemoveOperation<'a> {
     remover: PackageRemover<'a>,
     package_storage: &'a mut PackageStorage,
-    metadata_storage: &'a mut MetadataStorage,
     paths: &'a UpstreamPaths,
 }
 
 impl<'a> RemoveOperation<'a> {
-    pub fn new(
-        package_storage: &'a mut PackageStorage,
-        metadata_storage: &'a mut MetadataStorage,
-        paths: &'a UpstreamPaths,
-    ) -> Self {
+    pub fn new(package_storage: &'a mut PackageStorage, paths: &'a UpstreamPaths) -> Self {
         let remover = PackageRemover::new(paths);
         Self {
             remover,
             package_storage,
-            metadata_storage,
             paths,
         }
     }
@@ -314,12 +308,8 @@ impl<'a> RemoveOperation<'a> {
             let rollback_file = RollbackManager::rollback_file_path(self.paths);
             let mut rollback_storage =
                 crate::services::storage::rollback_storage::RollbackStorage::new(&rollback_file)?;
-            let mut rollback_manager = RollbackManager::new(
-                self.paths,
-                self.package_storage,
-                self.metadata_storage,
-                &mut rollback_storage,
-            );
+            let mut rollback_manager =
+                RollbackManager::new(self.paths, self.package_storage, &mut rollback_storage);
             if let Err(err) =
                 rollback_manager.capture_from_installed(&package, rollback_source, message_callback)
             {
@@ -386,12 +376,6 @@ impl<'a> RemoveOperation<'a> {
                 "Failed to remove '{}' from package storage",
                 package_name
             ))?;
-        self.metadata_storage
-            .remove_package(package_name)
-            .context(format!(
-                "Failed to remove '{}' from sidecar metadata",
-                package_name
-            ))?;
 
         if *purge_option {
             progress!(
@@ -429,10 +413,8 @@ impl<'a> RemoveOperation<'a> {
 mod tests {
     use super::RemoveOperation;
     use crate::services::packaging::PackageProgressEvent;
+    use crate::services::storage::package_storage::PackageStorage;
     use crate::services::storage::rollback_storage::RollbackSource;
-    use crate::services::storage::{
-        metadata_storage::MetadataStorage, package_storage::PackageStorage,
-    };
     use crate::utils::test_support;
     use std::path::Path;
     use std::{fs, io};
@@ -456,9 +438,7 @@ mod tests {
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let mut metadata_storage =
-            MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
-        let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
+        let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
         let mut remove_progress: Option<fn(&str, PackageProgressEvent)> = None;
 
@@ -484,9 +464,7 @@ mod tests {
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let mut metadata_storage =
-            MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
-        let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
+        let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
         let mut progress_calls = Vec::new();
         let mut progress = Some(|done: u32, total: u32| {
@@ -519,9 +497,7 @@ mod tests {
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let mut metadata_storage =
-            MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
-        let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
+        let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
 
         let err = op
@@ -539,9 +515,7 @@ mod tests {
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
-        let mut metadata_storage =
-            MetadataStorage::new(&paths.config.metadata_file).expect("metadata");
-        let mut op = RemoveOperation::new(&mut storage, &mut metadata_storage, &paths);
+        let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
 
         let names = vec!["a".to_string(), "b".to_string()];

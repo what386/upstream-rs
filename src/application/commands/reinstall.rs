@@ -23,10 +23,7 @@ use crate::{
                 estimate_path_size, install_impact_from_download,
             },
         },
-        storage::{
-            metadata_storage::MetadataStorage, package_storage::PackageStorage,
-            rollback_storage::RollbackSource,
-        },
+        storage::{package_storage::PackageStorage, rollback_storage::RollbackSource},
         trust::TrustedSignatureKeys,
     },
     utils::static_paths::UpstreamPaths,
@@ -73,7 +70,6 @@ pub async fn run(
 
     let context = CommandContext::new()?;
     let mut package_storage = context.package_storage()?;
-    let mut metadata_storage = MetadataStorage::new(&context.paths.config.metadata_file)?;
     let trusted_keys = context.trusted_keys()?;
 
     if dry_run {
@@ -138,7 +134,6 @@ pub async fn run(
         if let Err(err) = reinstall_one(
             &context.provider_manager,
             &mut package_storage,
-            &mut metadata_storage,
             &context.paths,
             package,
             trust_mode,
@@ -471,7 +466,6 @@ fn rollback_size_rows(rollback_impact: SignedByteEstimate) -> Vec<SizeImpactRow>
 async fn reinstall_one<H>(
     provider_manager: &ProviderManager,
     package_storage: &mut PackageStorage,
-    metadata_storage: &mut MetadataStorage,
     paths: &UpstreamPaths,
     package: Package,
     trust_mode: TrustMode,
@@ -489,7 +483,7 @@ where
     reinstall_package.exec_path = None;
     reinstall_package.icon_path = None;
 
-    let mut remove_op = RemoveOperation::new(package_storage, metadata_storage, paths);
+    let mut remove_op = RemoveOperation::new(package_storage, paths);
     let mut no_remove_progress = Some(|_: &str, _: PackageProgressEvent| {});
     remove_op.remove_single(
         &package.name,

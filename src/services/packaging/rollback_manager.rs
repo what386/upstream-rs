@@ -16,7 +16,6 @@ use crate::services::packaging::disk_impact::{
 };
 use crate::services::storage::{
     config_storage::ConfigStorage,
-    metadata_storage::MetadataStorage,
     package_storage::PackageStorage,
     rollback_storage::{RollbackArtifactFormat, RollbackRecord, RollbackSource, RollbackStorage},
 };
@@ -34,7 +33,6 @@ macro_rules! message {
 pub struct RollbackManager<'a> {
     paths: &'a UpstreamPaths,
     package_storage: &'a mut PackageStorage,
-    metadata_storage: &'a mut MetadataStorage,
     rollback_storage: &'a mut RollbackStorage,
 }
 
@@ -61,13 +59,11 @@ impl<'a> RollbackManager<'a> {
     pub fn new(
         paths: &'a UpstreamPaths,
         package_storage: &'a mut PackageStorage,
-        metadata_storage: &'a mut MetadataStorage,
         rollback_storage: &'a mut RollbackStorage,
     ) -> Self {
         Self {
             paths,
             package_storage,
-            metadata_storage,
             rollback_storage,
         }
     }
@@ -255,7 +251,6 @@ impl<'a> RollbackManager<'a> {
             let remover = PackageRemover::new(self.paths);
             remover.remove_package_files(&current, message_callback)?;
             self.package_storage.remove_package_by_name(package_name)?;
-            self.metadata_storage.remove_package(package_name)?;
         }
 
         let target_install_path = record
@@ -718,8 +713,7 @@ mod tests {
     use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
     use crate::services::storage::rollback_storage::{RollbackArtifactFormat, RollbackSource};
     use crate::services::storage::{
-        metadata_storage::MetadataStorage, package_storage::PackageStorage,
-        rollback_storage::RollbackStorage,
+        package_storage::PackageStorage, rollback_storage::RollbackStorage,
     };
     use crate::utils::test_support;
     use std::fs;
@@ -770,8 +764,6 @@ mod tests {
         let paths = test_support::upstream_paths(&root);
         let mut package_storage =
             PackageStorage::new(&paths.config.packages_file).expect("package storage");
-        let mut metadata_storage =
-            MetadataStorage::new(&paths.config.metadata_file).expect("metadata storage");
         let rollback_file = RollbackManager::rollback_file_path(&paths);
         let mut rollback_storage = RollbackStorage::new(&rollback_file).expect("rollback storage");
         let package = test_package(&root, "tool");
@@ -780,12 +772,8 @@ mod tests {
             .expect("create install parent");
 
         {
-            let mut manager = RollbackManager::new(
-                &paths,
-                &mut package_storage,
-                &mut metadata_storage,
-                &mut rollback_storage,
-            );
+            let mut manager =
+                RollbackManager::new(&paths, &mut package_storage, &mut rollback_storage);
             for contents in ["one", "two", "three"] {
                 fs::write(install_path, contents).expect("write install artifact");
                 manager
@@ -828,8 +816,6 @@ mod tests {
         let paths = test_support::upstream_paths(&root);
         let mut package_storage =
             PackageStorage::new(&paths.config.packages_file).expect("package storage");
-        let mut metadata_storage =
-            MetadataStorage::new(&paths.config.metadata_file).expect("metadata storage");
         let rollback_file = RollbackManager::rollback_file_path(&paths);
         let mut rollback_storage = RollbackStorage::new(&rollback_file).expect("rollback storage");
         let package = test_package(&root, "tool");
@@ -839,12 +825,8 @@ mod tests {
         fs::write(&install_path, "before-upgrade").expect("write install artifact");
 
         {
-            let mut manager = RollbackManager::new(
-                &paths,
-                &mut package_storage,
-                &mut metadata_storage,
-                &mut rollback_storage,
-            );
+            let mut manager =
+                RollbackManager::new(&paths, &mut package_storage, &mut rollback_storage);
             manager
                 .capture_from_installed(&package, RollbackSource::Upgrade, &mut None::<fn(&str)>)
                 .expect("capture rollback");

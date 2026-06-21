@@ -14,7 +14,7 @@ use crate::{
         PackageProgressEvent,
         disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate},
     },
-    services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
+    services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -65,14 +65,12 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
     let paths = UpstreamPaths::new()?;
 
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
 
     if names.is_empty() {
         return Err(anyhow::anyhow!("At least one package name is required"));
     }
 
-    let mut package_remover =
-        RemoveOperation::new(&mut package_storage, &mut metadata_storage, &paths);
+    let mut package_remover = RemoveOperation::new(&mut package_storage, &paths);
 
     if dry_run {
         return run_dry_run(names, purge, &mut package_remover);

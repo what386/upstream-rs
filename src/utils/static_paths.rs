@@ -45,7 +45,6 @@ impl AppDirs {
 pub struct ConfigPaths {
     pub config_file: PathBuf,
     pub packages_file: PathBuf,
-    pub metadata_file: PathBuf,
     pub trust_file: PathBuf,
     pub paths_file: PathBuf,
     pub paths_nu_file: PathBuf,
@@ -56,7 +55,6 @@ impl ConfigPaths {
         Self {
             config_file: dirs.config_dir.join("config.toml"),
             packages_file: dirs.metadata_dir.join("packages.json"),
-            metadata_file: dirs.metadata_dir.join("metadata.json"),
             trust_file: dirs.metadata_dir.join("trust.json"),
             paths_file: dirs.metadata_dir.join("paths.sh"),
             paths_nu_file: dirs.metadata_dir.join("paths.nu"),
@@ -151,10 +149,6 @@ mod tests {
         assert_eq!(
             paths.config.packages_file,
             paths.dirs.metadata_dir.join("packages.json")
-        );
-        assert_eq!(
-            paths.config.metadata_file,
-            paths.dirs.metadata_dir.join("metadata.json")
         );
         assert_eq!(
             paths.config.trust_file,
