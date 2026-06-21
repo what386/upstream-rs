@@ -1,6 +1,15 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-19*
+*Generated on 2026-06-21*
+
+## 2.4.0 — 2026-06-21
+
+### High Priority
+
+- Implement interactive probe asset selection and install flow `probe`, `installer`
+- Persist probe-generated match and exclude patterns for selected assets `probe`, `patterns`
+- Move provider asset matching into table-based pattern matcher `providers`, `patterns`
+
 
 ## 2.3.0 — 2026-06-19
 
