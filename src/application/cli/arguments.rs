@@ -335,6 +335,10 @@ pub enum Commands {
         /// Installed package name
         name: String,
 
+        /// Use only the cached README and skip network fetching
+        #[arg(long, default_value_t = false)]
+        offline: bool,
+
         /// Search keywords (joined with spaces)
         #[arg(required = true, num_args(1..), value_delimiter = ' ')]
         keywords: Vec<String>,
