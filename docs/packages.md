@@ -104,7 +104,7 @@ upstream rollback --prune <name>
 ## Pinning and Renaming
 
 ```bash
-upstream package pin <name> [reason]
+upstream package pin <name>
 upstream package unpin <name>
 upstream package rename <old-name> <new-name>
 ```
