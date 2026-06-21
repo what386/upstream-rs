@@ -187,10 +187,7 @@ impl<'a> SourceDownloader<'a> {
             self.provider_manager
                 .get_latest_release(repo_slug, provider, channel, base_url)
                 .await
-                .context(format!(
-                    "Failed to fetch latest release for '{}'",
-                    repo_slug
-                ))?
+                .context(format!("fetch latest release for '{}'", repo_slug))?
         };
 
         let primary_archive =
@@ -409,10 +406,7 @@ impl<'a> SourceDownloader<'a> {
             self.provider_manager
                 .get_latest_release(repo_slug, provider, channel, base_url)
                 .await
-                .context(format!(
-                    "Failed to fetch latest release for '{}'",
-                    repo_slug
-                ))?
+                .context(format!("fetch latest release for '{}'", repo_slug))?
         };
 
         self.checkout_tag(&checkout, &release.tag, status_callback)?;

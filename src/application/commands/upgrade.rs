@@ -462,6 +462,57 @@ fn truncate_cell(value: &str, max: usize) -> String {
     output::truncate_end(value, max)
 }
 
+#[derive(Debug, Clone, Copy)]
+struct CheckTableLayout {
+    name: usize,
+    channel: usize,
+    source: usize,
+}
+
+impl CheckTableLayout {
+    fn from_rows(rows: &[&UpdateCheckRow]) -> Self {
+        let name = rows
+            .iter()
+            .map(|row| row.name.chars().count())
+            .max()
+            .unwrap_or("Name".len())
+            .clamp("Name".len(), 18);
+        let channel = rows
+            .iter()
+            .map(|row| {
+                row.channel
+                    .as_ref()
+                    .map(|c| c.to_string().to_lowercase().chars().count())
+                    .unwrap_or(1)
+            })
+            .max()
+            .unwrap_or("Channel".len())
+            .clamp("Channel".len(), 7);
+        let source = rows
+            .iter()
+            .map(|row| {
+                row.provider
+                    .as_ref()
+                    .map(|provider| provider.to_string().chars().count())
+                    .unwrap_or(1)
+            })
+            .max()
+            .unwrap_or("Source".len())
+            .clamp("Source".len(), 7);
+
+        Self {
+            name,
+            channel,
+            source,
+        }
+    }
+
+    fn all_rows(rows: &[UpdateCheckRow]) -> Self {
+        let display_rows = rows.iter().collect::<Vec<_>>();
+        Self::from_rows(&display_rows)
+    }
+}
+
 fn render_check_table(rows: &[UpdateCheckRow]) {
     if rows.is_empty() {
         println!("No installed packages to check.");
@@ -500,52 +551,61 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
     println!("{}", output::title("Checking for updates"));
 
     if !display_rows.is_empty() {
+        let layout = CheckTableLayout::from_rows(&display_rows);
         println!();
         println!(
             "{}",
             output::section(format!(
-                "{:<8} {:<28} {:<10} {:<10} Version",
-                "State", "Name", "Channel", "Source"
+                "{:<8} {:<name$} {:<channel$} {:<source$} Version",
+                "State",
+                "Name",
+                "Channel",
+                "Source",
+                name = layout.name,
+                channel = layout.channel,
+                source = layout.source,
             ))
         );
-    }
 
-    for row in &display_rows {
-        let (status, version) = match &row.status {
-            UpdateCheckStatus::UpdateAvailable { current, latest } => (
-                output::status_cell(Status::Plan).to_string(),
-                format!("{current} -> {latest}"),
-            ),
-            UpdateCheckStatus::Failed { error } => (
-                output::status_cell(Status::Fail).to_string(),
-                truncate_cell(error, 32),
-            ),
-            UpdateCheckStatus::NotInstalled => (
-                output::status_cell(Status::Fail).to_string(),
-                "not installed".to_string(),
-            ),
-            UpdateCheckStatus::UpToDate { .. } => continue,
-        };
+        for row in &display_rows {
+            let (status, version) = match &row.status {
+                UpdateCheckStatus::UpdateAvailable { current, latest } => (
+                    output::status_cell(Status::Plan).to_string(),
+                    format!("{current} -> {latest}"),
+                ),
+                UpdateCheckStatus::Failed { error } => {
+                    (output::status_cell(Status::Fail).to_string(), error.clone())
+                }
+                UpdateCheckStatus::NotInstalled => (
+                    output::status_cell(Status::Fail).to_string(),
+                    "not installed".to_string(),
+                ),
+                UpdateCheckStatus::UpToDate { .. } => continue,
+            };
 
-        let branch = row
-            .channel
-            .as_ref()
-            .map(|c| c.to_string().to_lowercase())
-            .unwrap_or_else(|| "-".to_string());
-        let remote = row
-            .provider
-            .as_ref()
-            .map(std::string::ToString::to_string)
-            .unwrap_or_else(|| "-".to_string());
+            let branch = row
+                .channel
+                .as_ref()
+                .map(|c| c.to_string().to_lowercase())
+                .unwrap_or_else(|| "-".to_string());
+            let remote = row
+                .provider
+                .as_ref()
+                .map(std::string::ToString::to_string)
+                .unwrap_or_else(|| "-".to_string());
 
-        println!(
-            "{} {:<28} {:<10} {:<10} {}",
-            status,
-            truncate_cell(&row.name, 28),
-            truncate_cell(&branch, 10),
-            truncate_cell(&remote, 10),
-            version
-        );
+            println!(
+                "{} {:<name$} {:<channel$} {:<source$} {}",
+                status,
+                truncate_cell(&row.name, layout.name),
+                truncate_cell(&branch, layout.channel),
+                truncate_cell(&remote, layout.source),
+                version,
+                name = layout.name,
+                channel = layout.channel,
+                source = layout.source,
+            );
+        }
     }
 
     let status = if failed > 0 || not_installed > 0 {
@@ -699,11 +759,18 @@ async fn run_dry_run(
         return Ok(());
     }
 
+    let layout = CheckTableLayout::all_rows(&rows);
     println!(
         "{}",
         output::section(format!(
-            "{:<8} {:<28} {:<10} {:<10} Plan",
-            "State", "Name", "Channel", "Source"
+            "{:<8} {:<name$} {:<channel$} {:<source$} Plan",
+            "State",
+            "Name",
+            "Channel",
+            "Source",
+            name = layout.name,
+            channel = layout.channel,
+            source = layout.source,
         ))
     );
 
@@ -733,24 +800,30 @@ async fn run_dry_run(
                     format!("would upgrade {current} -> {latest}")
                 };
                 println!(
-                    "{} {:<28} {:<10} {:<10} {}",
+                    "{} {:<name$} {:<channel$} {:<source$} {}",
                     output::status_cell(Status::Plan),
-                    truncate_cell(&row.name, 28),
-                    truncate_cell(&branch, 10),
-                    truncate_cell(&remote, 10),
-                    plan
+                    truncate_cell(&row.name, layout.name),
+                    truncate_cell(&branch, layout.channel),
+                    truncate_cell(&remote, layout.source),
+                    plan,
+                    name = layout.name,
+                    channel = layout.channel,
+                    source = layout.source,
                 );
             }
             UpdateCheckStatus::UpToDate { current } => {
                 if force_option {
                     would_upgrade += 1;
                     println!(
-                        "{} {:<28} {:<10} {:<10} force-upgrade {}",
+                        "{} {:<name$} {:<channel$} {:<source$} force-upgrade {}",
                         output::status_cell(Status::Plan),
-                        truncate_cell(&row.name, 28),
-                        truncate_cell(&branch, 10),
-                        truncate_cell(&remote, 10),
-                        current
+                        truncate_cell(&row.name, layout.name),
+                        truncate_cell(&branch, layout.channel),
+                        truncate_cell(&remote, layout.source),
+                        current,
+                        name = layout.name,
+                        channel = layout.channel,
+                        source = layout.source,
                     );
                 } else {
                     up_to_date += 1;
@@ -760,22 +833,28 @@ async fn run_dry_run(
             UpdateCheckStatus::Failed { error } => {
                 failed += 1;
                 println!(
-                    "{} {:<28} {:<10} {:<10} failed to resolve: {}",
+                    "{} {:<name$} {:<channel$} {:<source$} failed: {}",
                     output::status_cell(Status::Fail),
-                    truncate_cell(&row.name, 28),
-                    truncate_cell(&branch, 10),
-                    truncate_cell(&remote, 10),
-                    truncate_cell(&error, 48)
+                    truncate_cell(&row.name, layout.name),
+                    truncate_cell(&branch, layout.channel),
+                    truncate_cell(&remote, layout.source),
+                    error,
+                    name = layout.name,
+                    channel = layout.channel,
+                    source = layout.source,
                 );
             }
             UpdateCheckStatus::NotInstalled => {
                 not_installed += 1;
                 println!(
-                    "{} {:<28} {:<10} {:<10} not installed",
+                    "{} {:<name$} {:<channel$} {:<source$} not installed",
                     output::status_cell(Status::Fail),
-                    truncate_cell(&row.name, 28),
-                    truncate_cell(&branch, 10),
-                    truncate_cell(&remote, 10)
+                    truncate_cell(&row.name, layout.name),
+                    truncate_cell(&branch, layout.channel),
+                    truncate_cell(&remote, layout.source),
+                    name = layout.name,
+                    channel = layout.channel,
+                    source = layout.source,
                 );
             }
         }
@@ -801,8 +880,8 @@ async fn run_dry_run(
 #[cfg(test)]
 mod tests {
     use super::{
-        UpgradePromptAction, completion_message_key, json_check_rows, render_upgrade_progress,
-        upgrade_prompt_action_from_input,
+        CheckTableLayout, UpgradePromptAction, completion_message_key, json_check_rows,
+        render_upgrade_progress, upgrade_prompt_action_from_input,
     };
     use crate::application::operations::upgrade_operation::{UpdateCheckRow, UpdateCheckStatus};
     use crate::models::common::enums::{Channel, Provider};
@@ -870,6 +949,42 @@ mod tests {
             Some("forge".to_string())
         );
         assert_eq!(completion_message_key("Downloading forge ..."), None);
+    }
+
+    #[test]
+    fn check_table_layout_uses_compact_dynamic_columns() {
+        let rows = vec![UpdateCheckRow {
+            name: "ripgrep".to_string(),
+            channel: Some(Channel::Stable),
+            provider: Some(Provider::Github),
+            status: UpdateCheckStatus::Failed {
+                error: "rate limited".to_string(),
+            },
+        }];
+
+        let layout = CheckTableLayout::all_rows(&rows);
+
+        assert_eq!(layout.name, "ripgrep".len());
+        assert_eq!(layout.channel, "Channel".len());
+        assert_eq!(layout.source, "Source".len());
+    }
+
+    #[test]
+    fn check_table_layout_caps_long_names() {
+        let rows = vec![UpdateCheckRow {
+            name: "a-very-long-package-name".to_string(),
+            channel: Some(Channel::Nightly),
+            provider: Some(Provider::WebScraper),
+            status: UpdateCheckStatus::Failed {
+                error: "rate limited".to_string(),
+            },
+        }];
+
+        let layout = CheckTableLayout::all_rows(&rows);
+
+        assert_eq!(layout.name, 18);
+        assert_eq!(layout.channel, "Channel".len());
+        assert_eq!(layout.source, 7);
     }
 
     #[test]

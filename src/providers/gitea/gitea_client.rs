@@ -3,7 +3,10 @@ use reqwest::{Client, header};
 use serde::Deserialize;
 use std::path::Path;
 
-use crate::{models::upstream::DownloadConfig, providers::download_handler};
+use crate::{
+    models::upstream::DownloadConfig,
+    providers::{download_handler, http_status},
+};
 
 use super::gitea_dtos::GiteaReleaseDto;
 #[derive(Debug, Deserialize)]
@@ -76,9 +79,7 @@ impl GiteaClient {
             .await
             .context(format!("Failed to send request to {}", url))?;
 
-        response
-            .error_for_status_ref()
-            .context(format!("Gitea API returned error for {}", url))?;
+        http_status::error_for_status(&response, "Gitea API", url)?;
 
         let data = response
             .json::<T>()

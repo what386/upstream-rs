@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::models::common::enums::Filetype;
 use crate::models::upstream::DownloadConfig;
-use crate::providers::download_handler;
+use crate::providers::{download_handler, http_status};
 use crate::utils::filename_parser::parse_filetype;
 
 #[derive(Debug, Clone)]
@@ -284,9 +284,7 @@ impl HttpClient {
             return Ok(ConditionalDiscoveryResult::NotModified);
         }
 
-        response
-            .error_for_status_ref()
-            .context(format!("HTTP server returned error for {}", url))?;
+        http_status::error_for_status(&response, "HTTP server", &url)?;
 
         let final_url = response.url().to_string();
         let content_type = response
@@ -379,15 +377,21 @@ impl HttpClient {
                     return Ok(ConditionalProbeResult::NotModified);
                 }
 
-                get_resp
-                    .error_for_status_ref()
-                    .context(format!("HTTP server returned error for {}", url))?;
+                http_status::error_for_status(&get_resp, "HTTP server", &url)?;
                 let last_modified =
                     Self::parse_last_modified(get_resp.headers().get(header::LAST_MODIFIED));
                 let etag = Self::parse_etag(get_resp.headers().get(header::ETAG));
                 (get_resp.content_length().unwrap_or(0), last_modified, etag)
             }
             Ok(resp) => {
+                if let Some(message) = http_status::rate_limit_message(
+                    resp.status(),
+                    resp.headers(),
+                    "HTTP server",
+                    &url,
+                ) {
+                    bail!("{message}");
+                }
                 bail!("HTTP server returned {} for {}", resp.status(), url);
             }
             Err(_) => {
@@ -400,9 +404,7 @@ impl HttpClient {
                     return Ok(ConditionalProbeResult::NotModified);
                 }
 
-                get_resp
-                    .error_for_status_ref()
-                    .context(format!("HTTP server returned error for {}", url))?;
+                http_status::error_for_status(&get_resp, "HTTP server", &url)?;
                 let last_modified =
                     Self::parse_last_modified(get_resp.headers().get(header::LAST_MODIFIED));
                 let etag = Self::parse_etag(get_resp.headers().get(header::ETAG));
