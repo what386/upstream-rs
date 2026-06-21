@@ -10,50 +10,18 @@ use crate::{
     },
     providers::provider_manager::ProviderManager,
     services::{
-        packaging::{
-            InstallPreview, PackageInstaller, PackagePhase, PackageProgressEvent,
-            transaction_recorder::{PackageTransaction, failed_package, successful_package},
-        },
-        storage::{
-            package_storage::PackageStorage,
-            transaction_storage::{TransactionKind, UndoActionKind},
-        },
+        packaging::{InstallPreview, PackageInstaller, PackagePhase, PackageProgressEvent},
+        storage::package_storage::PackageStorage,
         trust::TrustedSignatureKeys,
     },
     utils::static_paths::UpstreamPaths,
 };
-
-#[derive(Debug, Clone)]
-pub enum PackageTransactionContext {
-    Record {
-        kind: TransactionKind,
-        undo_kind: Option<UndoActionKind>,
-    },
-    CoveredByParent,
-}
-
-impl PackageTransactionContext {
-    pub fn install() -> Self {
-        Self::Record {
-            kind: TransactionKind::Install,
-            undo_kind: Some(UndoActionKind::Remove),
-        }
-    }
-
-    pub fn build() -> Self {
-        Self::Record {
-            kind: TransactionKind::Build,
-            undo_kind: Some(UndoActionKind::Remove),
-        }
-    }
-}
 
 pub struct ReleaseInstallRequest {
     pub package: Package,
     pub version: Option<String>,
     pub add_entry: bool,
     pub trust_mode: TrustMode,
-    pub transaction_context: PackageTransactionContext,
 }
 
 pub struct SelectedAssetInstallRequest<'a> {
@@ -62,7 +30,6 @@ pub struct SelectedAssetInstallRequest<'a> {
     pub asset: &'a Asset,
     pub add_entry: bool,
     pub trust_mode: TrustMode,
-    pub transaction_context: PackageTransactionContext,
 }
 
 pub struct LocalArtifactInstallRequest<'a> {
@@ -70,14 +37,12 @@ pub struct LocalArtifactInstallRequest<'a> {
     pub artifact_path: &'a Path,
     pub version: Version,
     pub add_entry: bool,
-    pub transaction_context: PackageTransactionContext,
 }
 
 pub struct InstallOperation<'a> {
     installer: PackageInstaller<'a>,
     package_storage: &'a mut PackageStorage,
     trusted_keys: TrustedSignatureKeys,
-    paths: &'a UpstreamPaths,
 }
 
 impl<'a> InstallOperation<'a> {
@@ -91,7 +56,6 @@ impl<'a> InstallOperation<'a> {
             installer: PackageInstaller::new(provider_manager, paths)?,
             package_storage,
             trusted_keys,
-            paths,
         })
     }
 
@@ -117,11 +81,7 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
-        let package_name = request.package.name.clone();
-        let transaction =
-            self.start_transaction(request.transaction_context, package_name.clone())?;
-
-        let result = match self
+        match self
             .installer
             .install_release(
                 &self.trusted_keys,
@@ -139,9 +99,7 @@ impl<'a> InstallOperation<'a> {
                 self.save_installed_package(installed_package, message_callback, progress_callback)
             }
             Err(err) => Err(err),
-        };
-
-        self.finish_transaction(transaction, &package_name, result)
+        }
     }
 
     pub async fn install_selected_asset<F, H, P>(
@@ -156,11 +114,7 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
-        let package_name = request.package.name.clone();
-        let transaction =
-            self.start_transaction(request.transaction_context, package_name.clone())?;
-
-        let result = match self
+        match self
             .installer
             .install_selected_asset(
                 &self.trusted_keys,
@@ -179,9 +133,7 @@ impl<'a> InstallOperation<'a> {
                 self.save_installed_package(installed_package, message_callback, progress_callback)
             }
             Err(err) => Err(err),
-        };
-
-        self.finish_transaction(transaction, &package_name, result)
+        }
     }
 
     pub async fn install_local_artifact<H, P>(
@@ -194,11 +146,7 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
-        let package_name = request.package.name.clone();
-        let transaction =
-            self.start_transaction(request.transaction_context, package_name.clone())?;
-
-        let result = match self
+        match self
             .installer
             .install_local_artifact(
                 request.package,
@@ -214,54 +162,6 @@ impl<'a> InstallOperation<'a> {
                 self.save_installed_package(installed_package, message_callback, progress_callback)
             }
             Err(err) => Err(err),
-        };
-
-        self.finish_transaction(transaction, &package_name, result)
-    }
-
-    fn start_transaction(
-        &self,
-        context: PackageTransactionContext,
-        package_name: String,
-    ) -> Result<Option<PackageTransaction>> {
-        match context {
-            PackageTransactionContext::Record { kind, undo_kind } => Ok(Some(
-                PackageTransaction::start(self.paths, kind, vec![package_name], undo_kind)?,
-            )),
-            PackageTransactionContext::CoveredByParent => Ok(None),
-        }
-    }
-
-    fn finish_transaction(
-        &self,
-        transaction: Option<PackageTransaction>,
-        package_name: &str,
-        result: Result<Package>,
-    ) -> Result<Package> {
-        match (result, transaction) {
-            (Ok(installed_package), Some(transaction)) => {
-                transaction.complete(vec![successful_package(
-                    package_name.to_string(),
-                    None,
-                    Some(installed_package.version.to_string()),
-                )])?;
-                Ok(installed_package)
-            }
-            (Err(err), Some(transaction)) => {
-                let summary = crate::output::error_summary(&err);
-                transaction.fail(
-                    vec![failed_package(
-                        package_name.to_string(),
-                        None,
-                        None,
-                        summary.clone(),
-                    )],
-                    summary,
-                )?;
-                Err(err)
-            }
-            (Ok(installed_package), None) => Ok(installed_package),
-            (Err(err), None) => Err(err),
         }
     }
 

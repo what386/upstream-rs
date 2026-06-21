@@ -7,10 +7,6 @@ use crate::{
     models::common::enums::TrustMode,
     output::{self, SizeImpactRow, Status, TransactionRow, TransactionTableLayout},
     providers::provider_manager::ProviderManager,
-    services::storage::transaction_storage::{
-        TransactionKind, TransactionLog, UndoActionKind, package_failed, package_success,
-        planned_packages, undo,
-    },
 };
 use anyhow::Result;
 use console::strip_ansi_codes;
@@ -59,20 +55,6 @@ fn completion_message_key(message: &str) -> Option<String> {
         .or_else(|| cleaned.trim_start().strip_prefix("[fail]"))?
         .trim_start();
     rest.split_whitespace().next().map(str::to_string)
-}
-
-fn completion_message_result(message: &str) -> Option<(String, bool)> {
-    let cleaned = strip_ansi_codes(message);
-    let trimmed = cleaned.trim_start();
-    let (rest, succeeded) = if let Some(rest) = trimmed.strip_prefix("[ok]") {
-        (rest, true)
-    } else if let Some(rest) = trimmed.strip_prefix("[fail]") {
-        (rest, false)
-    } else {
-        return None;
-    };
-    let name = rest.split_whitespace().next()?.to_string();
-    Some((name, succeeded))
 }
 
 pub async fn run(
@@ -185,16 +167,6 @@ pub async fn run(
         }
     }
     confirm_or_show_changelog(&context.provider_manager, &preview_rows).await?;
-    let tx_names = preview_rows
-        .iter()
-        .map(|row| row.name.clone())
-        .collect::<Vec<_>>();
-    let transaction = TransactionLog::start(
-        &context.paths,
-        TransactionKind::Upgrade,
-        planned_packages(tx_names.clone()),
-        undo(UndoActionKind::RestoreRollback, tx_names.clone()),
-    )?;
 
     let overall_pb = ProgressBar::new(preview_rows.len() as u64);
     overall_pb.set_style(ProgressStyle::with_template(
@@ -268,10 +240,6 @@ pub async fn run(
         Ok(result) => result,
         Err(err) => {
             overall_pb.finish_and_clear();
-            transaction.fail(
-                upgrade_transaction_packages(&preview_rows, 0),
-                err.to_string(),
-            )?;
             return Err(err);
         }
     };
@@ -284,13 +252,7 @@ pub async fn run(
     for row in &completion_rows {
         println!("{row}");
     }
-    let transaction_packages =
-        upgrade_transaction_packages_from_completion_rows(&preview_rows, &completion_rows);
     if failed > 0 {
-        transaction.fail(
-            transaction_packages,
-            format!("{failed} package(s) failed to upgrade"),
-        )?;
         println!(
             "{}",
             output::warning(format!(
@@ -299,7 +261,6 @@ pub async fn run(
             ))
         );
     } else {
-        transaction.complete(transaction_packages)?;
         println!(
             "{}",
             output::success(format!(
@@ -405,47 +366,6 @@ async fn show_upgrade_changelog(
 
     output::pager::page_text(Some("Upgrade changelog"), &sections.join("\n"))?;
     Ok(())
-}
-
-fn upgrade_transaction_packages(
-    rows: &[crate::application::operations::upgrade_operation::UpgradePreviewRow],
-    succeeded_count: usize,
-) -> Vec<crate::services::storage::transaction_storage::TransactionPackage> {
-    rows.iter()
-        .enumerate()
-        .map(|(idx, row)| {
-            let mut package = if idx < succeeded_count {
-                package_success(row.name.clone())
-            } else {
-                package_failed(row.name.clone(), "upgrade failed")
-            };
-            package.old_version = Some(row.old_version.clone());
-            package.new_version = Some(row.new_version.clone());
-            package
-        })
-        .collect()
-}
-
-fn upgrade_transaction_packages_from_completion_rows(
-    rows: &[crate::application::operations::upgrade_operation::UpgradePreviewRow],
-    completion_rows: &[String],
-) -> Vec<crate::services::storage::transaction_storage::TransactionPackage> {
-    let statuses = completion_rows
-        .iter()
-        .filter_map(|row| completion_message_result(row))
-        .collect::<BTreeMap<_, _>>();
-    rows.iter()
-        .map(|row| {
-            let mut package = match statuses.get(&row.name).copied() {
-                Some(true) => package_success(row.name.clone()),
-                Some(false) => package_failed(row.name.clone(), "upgrade failed"),
-                None => package_failed(row.name.clone(), "upgrade result unavailable"),
-            };
-            package.old_version = Some(row.old_version.clone());
-            package.new_version = Some(row.new_version.clone());
-            package
-        })
-        .collect()
 }
 
 fn rollback_size_rows(

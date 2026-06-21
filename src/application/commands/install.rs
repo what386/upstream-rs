@@ -4,9 +4,7 @@ use std::time::Duration;
 
 use crate::{
     application::context::CommandContext,
-    application::operations::install_operation::{
-        InstallOperation, PackageTransactionContext, ReleaseInstallRequest,
-    },
+    application::operations::install_operation::{InstallOperation, ReleaseInstallRequest},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::Package,
@@ -166,7 +164,6 @@ pub async fn run(
                 version,
                 add_entry: create_entry,
                 trust_mode,
-                transaction_context: PackageTransactionContext::install(),
             },
             &mut no_download_progress,
             &mut ignored_messages,
