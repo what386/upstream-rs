@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] feat: onboarding for setting up api keys
-      @created 2026-06-21 04:17
-
 
 ## Completed
 
@@ -26,4 +23,8 @@
 - [x] feat: doctor now checks if api token is working
       @created 2026-06-21 04:04
       @completed 2026-06-21 04:27
+
+- [x] docs: steps for setting up api keys
+      @created 2026-06-21 04:17
+      @completed 2026-06-21 05:22
 
