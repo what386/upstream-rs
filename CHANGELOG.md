@@ -2,20 +2,6 @@
 
 *Generated on 2026-06-21*
 
-## 2.5.0 — 2026-06-21
-
-### Changes
-
-- Clarify provider rate-limit errors `cli`, `errors`
-- Compact upgrade check error output `cli`, `output`
-- Fix single-package remove spinner text `cli`, `remove`
-- feat: doctor now checks if api token is working
-- docs: steps for setting up api keys
-- feat: rollback prune now has a total progress callback
-- feat: `docs` subcommand to parse READMEs for users
-- feat: run README markdown output through glow when available
-
-
 ## 2.4.1 — 2026-06-21
 
 ### Changes
