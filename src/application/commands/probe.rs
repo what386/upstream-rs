@@ -13,7 +13,7 @@ use crate::{
     application::operations::probe_operation::{
         ProbeAssetChoice, ProbeOperation, ProbeRequest, ProbeResult, ProbeRow, ReleaseState,
     },
-    models::common::enums::{Channel, Provider, TrustMode},
+    models::common::enums::{Channel, Filetype, Provider, TrustMode},
     output::{self, Status, TransactionRow, pager},
     providers::discovery::infer_package_name,
     services::packaging::{PackagePhase, PackageProgressEvent},
@@ -30,6 +30,7 @@ pub async fn run(
     channel: Channel,
     limit: Option<u32>,
     tag: Option<String>,
+    kind: Filetype,
     verbose: bool,
     include_incompatible: bool,
     json: bool,
@@ -47,6 +48,7 @@ pub async fn run(
             channel,
             limit,
             tag,
+            filetype: kind,
             include_incompatible,
         })
         .await?;
@@ -853,7 +855,7 @@ mod tests {
     }
 
     #[test]
-    fn probe_asset_choices_default_to_compatible_assets() {
+    fn probe_asset_choices_keep_explicit_filetype_filter() {
         let provider_manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
         let package = Package::with_defaults(
@@ -900,6 +902,61 @@ mod tests {
         assert_eq!(choices[0].asset.name, "tool.tar.gz");
         assert!(table.rows[0].contains("tool.tar.gz"));
         assert!(!choices.iter().any(|choice| choice.asset.name == "tool"));
+    }
+
+    #[test]
+    fn probe_asset_choices_include_all_installable_filetypes_for_auto() {
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+        let package = Package::with_defaults(
+            String::new(),
+            "owner/tool".to_string(),
+            Filetype::Auto,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        let releases = vec![Release {
+            id: 1,
+            tag: "v1.2.3".to_string(),
+            name: "v1.2.3".to_string(),
+            body: String::new(),
+            is_draft: false,
+            is_prerelease: false,
+            assets: vec![
+                Asset::new(
+                    "https://example.invalid/tool.tar.gz".to_string(),
+                    1,
+                    "tool.tar.gz".to_string(),
+                    1234,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool".to_string(),
+                    2,
+                    "tool".to_string(),
+                    5678,
+                    Utc::now(),
+                ),
+            ],
+            version: Version::new(1, 2, 3, false),
+            published_at: Utc::now(),
+        }];
+
+        let choices = build_probe_asset_choices(&releases, &provider_manager, &package, false);
+        let table = ProbeAssetChoiceTable::from_choices(&choices);
+
+        assert_eq!(choices.len(), 2);
+        assert!(
+            choices
+                .iter()
+                .any(|choice| choice.asset.name == "tool.tar.gz")
+        );
+        assert!(choices.iter().any(|choice| choice.asset.name == "tool"));
+        assert!(table.rows.iter().any(|row| row.contains("tool.tar.gz")));
+        assert!(table.rows.iter().any(|row| row.contains("tool")));
     }
 
     #[test]

@@ -24,6 +24,7 @@ pub struct ProbeRequest {
     pub channel: Channel,
     pub limit: Option<u32>,
     pub tag: Option<String>,
+    pub filetype: Filetype,
     pub include_incompatible: bool,
 }
 
@@ -83,7 +84,7 @@ impl<'a> ProbeOperation<'a> {
         let probe_package = Package::with_defaults(
             String::new(),
             repo_slug.clone(),
-            Filetype::Auto,
+            request.filetype,
             None,
             None,
             request.channel.clone(),
@@ -199,9 +200,7 @@ pub fn build_probe_asset_choices(
     let mut choices = Vec::new();
 
     for (release_index, release) in releases.iter().enumerate() {
-        let candidates = provider_manager
-            .get_candidate_assets(release, probe_package)
-            .unwrap_or_default();
+        let candidates = provider_manager.get_installable_candidate_assets(release, probe_package);
 
         if include_incompatible {
             let score_by_asset_id: HashMap<u64, i32> = candidates
@@ -241,18 +240,12 @@ pub fn build_probe_rows(
         .iter()
         .enumerate()
         .map(|(idx, release)| {
-            let candidates_result = provider_manager.get_candidate_assets(release, probe_package);
-
-            let (top_candidate, candidates, candidate_error) = match candidates_result {
-                Ok(list) => {
-                    let top = list
-                        .first()
-                        .map(|c| format!("{} ({})", c.asset.name, c.score))
-                        .unwrap_or_else(|| "-".to_string());
-                    (top, Some(list), None)
-                }
-                Err(err) => ("n/a".to_string(), None, Some(err.to_string())),
-            };
+            let candidates =
+                provider_manager.get_installable_candidate_assets(release, probe_package);
+            let top_candidate = candidates
+                .first()
+                .map(|c| format!("{} ({})", c.asset.name, c.score))
+                .unwrap_or_else(|| "-".to_string());
 
             ProbeRow {
                 row_id: format!("R{:02}", idx + 1),
@@ -262,8 +255,8 @@ pub fn build_probe_rows(
                 published: release.published_at.format("%Y-%m-%d %H:%M").to_string(),
                 assets_count: release.assets.len(),
                 top_candidate,
-                candidates,
-                candidate_error,
+                candidates: Some(candidates),
+                candidate_error: None,
             }
         })
         .collect()
