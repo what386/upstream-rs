@@ -14,3 +14,6 @@
 - [ ] BREAKING: rollback is now names-only. transactions are no longer recorded. CLI shape reverted.
       @created 2026-06-21 23:08
 
+- [ ] BREAKING: remove 'metadata' storage and pin reason
+      @created 2026-06-21 23:10
+
