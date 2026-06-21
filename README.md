@@ -141,6 +141,22 @@ Run diagnostics:
 upstream doctor
 ```
 
+## API Tokens
+
+Provider API tokens are optional, but they help avoid anonymous rate limits and are required for private repositories.
+
+Set a GitHub token with:
+
+```bash
+upstream config set github.api_token=github_pat_xxx
+```
+
+For GitHub, open your profile menu, then go to **Settings > Developer settings > Personal access tokens**.
+A fine-grained personal access token with public repository access and no additional permissions is enough for public releases.
+A classic personal access token also works; `read:project` is sufficient for this use case.
+
+Run `upstream doctor` after configuring tokens to verify that they work.
+
 ## Common Workflows
 
 ### Install from a release source
