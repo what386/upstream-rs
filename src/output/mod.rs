@@ -1,10 +1,12 @@
 pub mod pager;
 
+mod markdown;
 mod prompt;
 mod status;
 mod style;
 mod table;
 
+pub use markdown::MarkdownRenderer;
 pub use prompt::{
     assume_yes, confirm_or_cancel, prompt_text, select_from_list, select_from_table,
     select_from_table_with_preview, set_assume_yes,
