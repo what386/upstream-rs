@@ -2,6 +2,13 @@
 
 *Generated on 2026-06-21*
 
+## 2.4.1 — 2026-06-21
+
+### Changes
+
+- Fix probe auto filetype discovery to show all compatible installable asset kinds `probe`, `filetype`, `bug`
+
+
 ## 2.4.0 — 2026-06-21
 
 ### High Priority
