@@ -5,7 +5,7 @@ use crate::application::context::CommandContext;
 use crate::application::operations::build_operation::{BuildCommandInput, BuildOperation};
 use crate::models::common::enums::{Channel, Provider};
 use crate::providers::discovery::infer_package_name;
-use crate::services::builder::BuildProfile;
+use crate::routines::builder::BuildProfile;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
