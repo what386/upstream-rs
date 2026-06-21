@@ -7,7 +7,7 @@ use crate::{
         upstream::{InstallType, Package},
     },
     providers::provider_manager::ProviderManager,
-    services::builder::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
+    routines::builder::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         integration::{DesktopManager, IconManager},
         packaging::RollbackManager,

@@ -17,9 +17,8 @@ use crate::{
     },
     output::{self, SizeImpactRow, Status},
     providers::provider_manager::ProviderManager,
+    routines::builder::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
-        builder::scripts::BuildScriptAction,
-        builder::{BuildRequest, worker::BuildWorker},
         packaging::{
             PackageProgressEvent, PackageRemover,
             disk_impact::{
