@@ -2,20 +2,19 @@ use crate::{
     application::operations::metadata_operation::MetadataManager,
     output::{self, Status},
     services::integration::SymlinkManager,
-    services::storage::{metadata_storage::MetadataStorage, package_storage::PackageStorage},
+    services::storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
 
-pub fn run_pin(name: String, reason: Option<String>) -> Result<()> {
+pub fn run_pin(name: String) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
-    let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
+    let mut package_manager = MetadataManager::new(&mut package_storage);
 
     println!("{}", output::title("Package pin"));
 
-    package_manager.pin_package(&name, reason)?;
+    package_manager.pin_package(&name)?;
     output::status_line(Status::Ok, &name, "pinned");
 
     Ok(())
@@ -24,8 +23,7 @@ pub fn run_pin(name: String, reason: Option<String>) -> Result<()> {
 pub fn run_unpin(name: String) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
-    let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
+    let mut package_manager = MetadataManager::new(&mut package_storage);
 
     println!("{}", output::title("Package unpin"));
 
@@ -43,8 +41,7 @@ pub fn run_rename(old_name: String, new_name: String) -> Result<()> {
         .cloned()
         .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", old_name))?;
 
-    let mut metadata_storage = MetadataStorage::new(&paths.config.metadata_file)?;
-    let mut package_manager = MetadataManager::new(&mut package_storage, &mut metadata_storage);
+    let mut package_manager = MetadataManager::new(&mut package_storage);
     println!("{}", output::title("Package rename"));
 
     let renamed = package_manager.rename_package(&old_name, &new_name)?;

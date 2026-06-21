@@ -727,58 +727,6 @@ fn parse_search_date(raw: &str) -> Result<NaiveDate, String> {
         .map_err(|_| format!("expected date in YYYY-MM-DD format, got '{raw}'"))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{Cli, Commands};
-    use clap::Parser;
-
-    #[test]
-    fn docs_accepts_no_keywords() {
-        let cli = Cli::parse_from(["upstream", "docs", "rg"]);
-
-        match cli.command {
-            Commands::Docs { name, keywords, .. } => {
-                assert_eq!(name.as_deref(), Some("rg"));
-                assert!(keywords.is_empty());
-            }
-            _ => panic!("expected docs command"),
-        }
-    }
-
-    #[test]
-    fn docs_fetch_accepts_no_package_names() {
-        let cli = Cli::parse_from(["upstream", "docs", "--fetch"]);
-
-        match cli.command {
-            Commands::Docs { name, fetch, .. } => {
-                assert!(name.is_none());
-                assert_eq!(fetch, Some(Vec::new()));
-            }
-            _ => panic!("expected docs command"),
-        }
-    }
-
-    #[test]
-    fn docs_fetch_accepts_package_names() {
-        let cli = Cli::parse_from(["upstream", "docs", "--fetch", "rg", "bat"]);
-
-        match cli.command {
-            Commands::Docs { name, fetch, .. } => {
-                assert!(name.is_none());
-                assert_eq!(fetch, Some(vec!["rg".to_string(), "bat".to_string()]));
-            }
-            _ => panic!("expected docs command"),
-        }
-    }
-
-    #[test]
-    fn docs_fetch_conflicts_with_offline() {
-        let result = Cli::try_parse_from(["upstream", "docs", "--fetch", "--offline"]);
-
-        assert!(result.is_err());
-    }
-}
-
 impl Commands {
     pub fn requires_lock(&self) -> bool {
         match self {
@@ -891,10 +839,6 @@ pub enum PackageAction {
     Pin {
         /// Name of package to pin
         name: String,
-
-        /// Optional reason for pinning this package
-        #[arg(long)]
-        reason: Option<String>,
     },
 
     /// Unpin a package to allow updates

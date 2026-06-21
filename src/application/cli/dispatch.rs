@@ -259,7 +259,7 @@ impl Cli {
             },
 
             Commands::Package { action } => match action {
-                PackageAction::Pin { name, reason } => commands::package::run_pin(name, reason),
+                PackageAction::Pin { name } => commands::package::run_pin(name),
                 PackageAction::Unpin { name } => commands::package::run_unpin(name),
                 PackageAction::Rename { old_name, new_name } => {
                     commands::package::run_rename(old_name, new_name)
