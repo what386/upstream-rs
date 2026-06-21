@@ -130,20 +130,20 @@ Options:
 ## Rollback
 
 ```bash
-upstream rollback restore
-upstream rollback restore [packages...] [--dry-run]
-upstream rollback prune [packages...] [--dry-run]
-upstream rollback list
+upstream rollback <packages...> [--dry-run]
+upstream rollback --prune <packages...|all> [--dry-run]
+upstream rollback --list
 ```
 
-Manages stored rollback artifacts. `restore` without package names restores the latest reversible transaction from transaction history. Use `restore <packages...>` for selected packages, `prune` to delete rollback data, and `list` to inspect available artifacts.
+Manages stored rollback artifacts. Provide package names to restore their latest rollback artifacts. Use `--prune <packages...|all>` to delete rollback data, and `--list` to inspect available artifacts.
 
 Options:
 
 | Option | Meaning |
 | --- | --- |
-| `restore --dry-run` | Preview restore actions |
-| `prune --dry-run` | Preview prune actions |
+| `--dry-run` | Preview restore or prune actions |
+| `--list` | List stored rollback artifacts |
+| `--prune <packages...|all>` | Delete rollback artifacts |
 
 ## Package Metadata
 

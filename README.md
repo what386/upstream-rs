@@ -228,15 +228,15 @@ upstream upgrade --check --machine-readable
 ```bash
 upstream remove rg
 upstream reinstall rg
-upstream rollback restore
-upstream rollback restore rg
-upstream rollback list
+upstream rollback rg
+upstream rollback --list
+upstream rollback --prune rg
 upstream package pin nvim
 upstream package unpin nvim
 upstream package rename nvim neovim
 ```
 
-`rollback restore` without package names restores the latest reversible transaction. After upgrading across breaking local data changes, run `upstream migrate` when release notes or `doctor` recommend it.
+Rollback is package-name-specific. After upgrading across breaking local data changes, run `upstream migrate` when release notes or `doctor` recommend it.
 
 ### Import and export
 
