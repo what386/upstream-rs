@@ -13,7 +13,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
 use crate::models::upstream::DownloadConfig;
-use crate::providers::http_status;
+use crate::providers::http::http_status;
 
 #[derive(Debug, Clone, Copy)]
 struct ByteRange {
