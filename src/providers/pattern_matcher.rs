@@ -293,13 +293,20 @@ fn asset_platform_tokens(asset: &Asset) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::{PatternTable, generate_patterns_for_asset, pattern_match_ratio};
+    #[cfg(target_os = "linux")]
     use crate::models::common::Version;
+    #[cfg(target_os = "linux")]
     use crate::models::common::enums::{Channel, Filetype, Provider};
-    use crate::models::provider::{Asset, Release};
+    use crate::models::provider::Asset;
+    #[cfg(target_os = "linux")]
+    use crate::models::provider::Release;
+    #[cfg(target_os = "linux")]
     use crate::models::upstream::Package;
+    #[cfg(target_os = "linux")]
     use crate::providers::asset_selector::AssetSelector;
     use chrono::Utc;
 
+    #[cfg(target_os = "linux")]
     fn make_release(assets: Vec<Asset>, prerelease: bool, tag: &str) -> Release {
         Release {
             id: 1,
