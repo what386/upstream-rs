@@ -8,6 +8,9 @@
 - [ ] feat: `docs` subcommand to parse READMEs for users
       @created 2026-06-21 05:23
 
+- [ ] feat: consider bulk installs with `upstream install --package REPO=NAME --package REPO=NAME`
+      @created 2026-06-21 15:25
+
 
 ## Completed
 
