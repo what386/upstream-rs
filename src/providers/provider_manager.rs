@@ -290,6 +290,16 @@ impl ProviderManager {
         resolved.get_branch_head_sha(slug, branch).await
     }
 
+    pub async fn get_project_readme(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        base_url: Option<&str>,
+    ) -> Result<String> {
+        let resolved = self.resolve_provider(provider, base_url)?;
+        resolved.get_project_readme(slug).await
+    }
+
     pub async fn download_asset<F>(
         &self,
         asset: &Asset,
@@ -394,6 +404,21 @@ mod tests {
         assert!(
             err.to_string()
                 .contains("Repository search is not supported"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn project_readme_is_unsupported_for_direct_provider() {
+        let manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+        let err = manager
+            .get_project_readme("https://example.invalid/tool", &Provider::Direct, None)
+            .await
+            .expect_err("direct provider should not support project READMEs");
+
+        assert!(
+            err.to_string().contains("Project README is not supported"),
             "unexpected error: {err}"
         );
     }

@@ -41,6 +41,10 @@ pub trait ReleaseProvider {
         Err(anyhow!("Branch builds are not supported for this provider"))
     }
 
+    async fn get_project_readme(&self, _slug: &str) -> Result<String> {
+        Err(anyhow!("Project README is not supported for this provider"))
+    }
+
     async fn search_repositories(
         &self,
         _query: &str,
@@ -103,6 +107,10 @@ where
 
     async fn get_branch_head_sha(&self, slug: &str, branch: &str) -> Result<String> {
         (*self).get_branch_head_sha(slug, branch).await
+    }
+
+    async fn get_project_readme(&self, slug: &str) -> Result<String> {
+        (*self).get_project_readme(slug).await
     }
 
     async fn search_repositories(

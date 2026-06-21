@@ -129,7 +129,7 @@ impl Cli {
                 to_tag,
             } => commands::changelog::run(name, from_tag, to_tag).await,
 
-            Commands::Docs { name, keywords } => commands::docs::run(name, keywords),
+            Commands::Docs { name, keywords } => commands::docs::run(name, keywords).await,
 
             Commands::Probe {
                 repo_slug,

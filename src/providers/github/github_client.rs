@@ -69,6 +69,23 @@ impl GithubClient {
         Ok(data)
     }
 
+    async fn get_text_with_accept(&self, url: &str, accept: &'static str) -> Result<String> {
+        let response = self
+            .client
+            .get(url)
+            .header(header::ACCEPT, accept)
+            .send()
+            .await
+            .context(format!("Failed to send request to {}", url))?;
+
+        http_status::error_for_status(&response, "GitHub API", url)?;
+
+        response
+            .text()
+            .await
+            .context("Failed to read text response")
+    }
+
     pub async fn download_file<F>(
         &self,
         url: &str,
@@ -188,6 +205,13 @@ impl GithubClient {
             owner_repo, branch
         ))?;
         Ok(dto.sha)
+    }
+
+    pub async fn get_project_readme(&self, owner_repo: &str) -> Result<String> {
+        let url = format!("https://api.github.com/repos/{}/readme", owner_repo);
+        self.get_text_with_accept(&url, "application/vnd.github.raw")
+            .await
+            .context(format!("Failed to get README for {}", owner_repo))
     }
 
     pub async fn search_repositories(

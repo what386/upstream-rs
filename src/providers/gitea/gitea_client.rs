@@ -22,6 +22,12 @@ struct GiteaBranchDto {
     commit: GiteaCommitRefDto,
 }
 
+#[derive(Debug, Deserialize)]
+struct GiteaRepositoryDto {
+    #[serde(default)]
+    default_branch: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct GiteaClient {
     client: Client,
@@ -87,6 +93,22 @@ impl GiteaClient {
             .context("Failed to parse JSON response")?;
 
         Ok(data)
+    }
+
+    async fn get_text(&self, url: &str) -> Result<String> {
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .context(format!("Failed to send request to {}", url))?;
+
+        http_status::error_for_status(&response, "Gitea", url)?;
+
+        response
+            .text()
+            .await
+            .context("Failed to read text response")
     }
 
     pub async fn download_file<F>(
@@ -206,6 +228,28 @@ impl GiteaClient {
             return Ok(dto.commit.id);
         }
         Ok(dto.commit.sha)
+    }
+
+    pub async fn get_project_readme(&self, owner_repo: &str) -> Result<String> {
+        let repo_url = format!("{}/api/v1/repos/{}", self.base_url, owner_repo);
+        let repo: GiteaRepositoryDto = self.get_json(&repo_url).await.context(format!(
+            "Failed to get repository metadata for {}",
+            owner_repo
+        ))?;
+        let branch = if repo.default_branch.trim().is_empty() {
+            "main"
+        } else {
+            repo.default_branch.trim()
+        };
+        let encoded_branch = branch.replace('/', "%2F");
+        let url = format!(
+            "{}/{}/raw/branch/{}/README.md",
+            self.base_url, owner_repo, encoded_branch
+        );
+
+        self.get_text(&url)
+            .await
+            .context(format!("Failed to get README for {}", owner_repo))
     }
 }
 

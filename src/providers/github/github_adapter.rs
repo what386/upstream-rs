@@ -101,6 +101,10 @@ impl GithubAdapter {
         self.client.get_branch_head_sha(slug, branch).await
     }
 
+    pub async fn get_project_readme(&self, slug: &str) -> Result<String> {
+        self.client.get_project_readme(slug).await
+    }
+
     pub async fn search_repositories(
         &self,
         query: &str,
@@ -196,6 +200,10 @@ impl ReleaseProvider for GithubAdapter {
 
     async fn get_branch_head_sha(&self, slug: &str, branch: &str) -> Result<String> {
         GithubAdapter::get_branch_head_sha(self, slug, branch).await
+    }
+
+    async fn get_project_readme(&self, slug: &str) -> Result<String> {
+        GithubAdapter::get_project_readme(self, slug).await
     }
 
     async fn search_repositories(
