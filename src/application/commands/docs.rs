@@ -43,7 +43,9 @@ pub async fn run(name: String, keywords: Vec<String>, offline: bool) -> Result<(
     let Some(selected) = output::select_from_table_with_preview(
         format!(
             "package: {}  doc: {}\nqueries: {query}",
-            result.package_name, result.document_name
+            result.package_name,
+            result.document_name,
+            query = query_label(&result.query)
         ),
         &choices.headers,
         &choices.rows,
@@ -141,7 +143,7 @@ fn format_selected_section(
         result.package_name, result.document_name
     )
     .expect("write docs package");
-    writeln!(out, "queries: {}", result.query).expect("write docs query");
+    writeln!(out, "queries: {}", query_label(&result.query)).expect("write docs query");
     writeln!(out).expect("write docs spacer");
     writeln!(
         out,
@@ -175,9 +177,17 @@ fn format_section_markdown(section: &DocsSectionMatch) -> String {
     out
 }
 
+fn query_label(query: &str) -> &str {
+    if query.trim().is_empty() {
+        "(none)"
+    } else {
+        query
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{DocsChoiceTable, format_selected_section};
+    use super::{DocsChoiceTable, format_selected_section, query_label};
     use crate::{
         output::MarkdownRenderer,
         routines::docs::{DocsSearchResult, DocsSectionMatch},
@@ -216,6 +226,17 @@ mod tests {
     }
 
     #[test]
+    fn selected_section_output_labels_empty_query() {
+        let mut result = result();
+        result.query.clear();
+        let renderer = MarkdownRenderer::plain();
+
+        let output = format_selected_section(&result, &result.sections[0], &renderer);
+
+        assert!(output.contains("queries: (none)"));
+    }
+
+    #[test]
     fn docs_choice_table_pairs_rows_with_previews() {
         let result = result();
         let renderer = MarkdownRenderer::plain();
@@ -227,5 +248,12 @@ mod tests {
         assert!(table.headers[0].contains("Section"));
         assert!(table.rows[0].contains("Usage"));
         assert!(table.previews[0].contains("Basic usage notes."));
+    }
+
+    #[test]
+    fn query_label_uses_none_for_empty_query() {
+        assert_eq!(query_label(""), "(none)");
+        assert_eq!(query_label("   "), "(none)");
+        assert_eq!(query_label("usage"), "usage");
     }
 }

@@ -121,6 +121,31 @@ Set the config file.
     }
 
     #[test]
+    fn empty_query_returns_sections_in_document_order() {
+        let readme = "\
+# Tool
+
+## Installation
+Download the binary.
+
+## Usage
+Run the binary.
+";
+
+        let result = search_readme("tool", "README.md", "", readme);
+
+        assert_eq!(
+            result
+                .sections
+                .iter()
+                .map(|section| section.heading.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Tool", "Installation", "Usage"]
+        );
+        assert!(result.sections.iter().all(|section| section.score == 0.0));
+    }
+
+    #[test]
     fn searches_this_projects_readme_sections() {
         let result = search_readme(
             "upstream",

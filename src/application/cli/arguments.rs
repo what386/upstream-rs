@@ -326,11 +326,13 @@ pub enum Commands {
     #[command(long_about = "Search package README documentation.\n\n\
         Fetches the installed package's upstream README, caches it for offline use, \
         parses Markdown sections, and opens ranked keyword matches in an interactive \
-        picker with a live preview. If fetching fails and a cached README exists, \
+        picker with a live preview. If no keywords are provided, sections are shown \
+        in README order. If fetching fails and a cached README exists, \
         upstream falls back to the cached copy. Use --offline to skip fetching and \
         search only cached documentation. If glow is installed, Markdown previews \
         and selected sections are rendered with glow's terminal styling.\n\n\
         EXAMPLES:\n  \
+        upstream docs rg\n  \
         upstream docs rg usage\n  \
         upstream docs rg --offline usage\n  \
         upstream docs ripgrep configuration file\n  \
@@ -343,11 +345,10 @@ pub enum Commands {
         #[arg(long, default_value_t = false)]
         offline: bool,
 
-        /// Search keywords (joined with spaces)
-        #[arg(required = true, num_args(1..), value_delimiter = ' ')]
+        /// Optional search keywords (joined with spaces)
+        #[arg(num_args(0..), value_delimiter = ' ')]
         keywords: Vec<String>,
     },
-
     /// Probe a repository/source, choose an asset, and install it
     #[command(
         long_about = "Probe a repository/source, choose a release asset interactively, \
@@ -748,6 +749,25 @@ pub enum RollbackAction {
         EXAMPLE:\n  \
         upstream rollback list")]
     List,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Cli, Commands};
+    use clap::Parser;
+
+    #[test]
+    fn docs_accepts_no_keywords() {
+        let cli = Cli::parse_from(["upstream", "docs", "rg"]);
+
+        match cli.command {
+            Commands::Docs { name, keywords, .. } => {
+                assert_eq!(name, "rg");
+                assert!(keywords.is_empty());
+            }
+            _ => panic!("expected docs command"),
+        }
+    }
 }
 
 impl Commands {
