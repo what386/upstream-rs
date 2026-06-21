@@ -675,19 +675,6 @@ pub enum Commands {
         full: bool,
     },
 
-    /// Migrate local upstream data after breaking changes
-    #[command(
-        long_about = "Migrate existing upstream data to the current application format.\n\n\
-        Use this after upgrading across breaking changes that affect local data, \
-        metadata, package paths, or integration files. The migration is designed to \
-        be run manually when release notes or diagnostics ask for it. The current \
-        migration moves legacy package directories into the packages layout and rewrites \
-        affected metadata paths.\n\n\
-        EXAMPLE:\n  \
-        upstream migrate"
-    )]
-    Migrate,
-
     /// Run diagnostics to detect installation and integration issues
     #[command(
         long_about = "Inspect upstream installation health and package state.\n\n\
@@ -696,11 +683,14 @@ pub enum Commands {
         Reports a compact summary by default and includes actionable hints. \
         Use --verbose to print each individual check result. Use --fix to repair \
         supported issues such as PATH hooks, missing symlinks, executable bits, \
-        executable metadata, and cached completion drift.\n\n\
+        executable metadata, and cached completion drift. Use --migrate after \
+        upgrading across breaking local data changes when diagnostics or release notes \
+        ask for a data migration.\n\n\
         EXAMPLES:\n  \
         upstream doctor\n  \
         upstream doctor --verbose\n  \
         upstream doctor --fix\n  \
+        upstream doctor --migrate\n  \
         upstream doctor nvim ripgrep\n  \
         upstream doctor --json"
     )]
@@ -715,6 +705,14 @@ pub enum Commands {
         /// Attempt automatic repairs for detected issues
         #[arg(long, default_value_t = false)]
         fix: bool,
+
+        /// Migrate local upstream data after breaking layout or metadata changes
+        #[arg(
+            long,
+            default_value_t = false,
+            conflicts_with_all = ["names", "verbose", "fix", "json"]
+        )]
+        migrate: bool,
 
         /// Print diagnostic report as JSON
         #[arg(long, default_value_t = false)]
@@ -733,7 +731,7 @@ impl Commands {
             Commands::List { .. } => false,
             Commands::Changelog { .. } => false,
             Commands::Docs { .. } => false,
-            Commands::Doctor { fix, .. } => *fix,
+            Commands::Doctor { fix, migrate, .. } => *fix || *migrate,
             Commands::Search { .. } => false,
             Commands::Find { .. } => true,
             Commands::Rollback { list: true, .. } => false,
@@ -750,8 +748,7 @@ impl Commands {
             | Commands::Upgrade { .. }
             | Commands::Probe { .. }
             | Commands::Import { .. }
-            | Commands::Export { .. }
-            | Commands::Migrate => true,
+            | Commands::Export { .. } => true,
         }
     }
 }

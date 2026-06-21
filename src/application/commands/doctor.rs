@@ -5,6 +5,8 @@ use serde::Serialize;
 use crate::{
     output::{self, Status},
     routines::doctor::{self, DoctorReport, Level},
+    routines::migrate::{self, MigrationReport},
+    utils::static_paths::UpstreamPaths,
 };
 
 fn status_for_level(level: Level) -> Status {
@@ -56,7 +58,65 @@ fn print_hints(report: &DoctorReport) {
     }
 }
 
-pub async fn run(names: Vec<String>, verbose: bool, fix: bool, json: bool) -> Result<()> {
+fn print_migration_report(report: &MigrationReport) {
+    println!("{}", output::title("Migration"));
+    output::status_line(
+        output::Status::Ok,
+        "directories",
+        format!("created {}", report.created_dirs),
+    );
+    output::status_line(
+        output::Status::Ok,
+        "packages",
+        format!("moved {}", report.moved_entries),
+    );
+    output::status_line(
+        output::Status::Ok,
+        "metadata",
+        format!("updated {}", report.updated_packages),
+    );
+    output::status_line(
+        output::Status::Ok,
+        "rollback",
+        format!("updated {}", report.updated_rollback_records),
+    );
+    output::status_line(
+        output::Status::Ok,
+        "trust",
+        format!(
+            "imported {}, deduped {}",
+            report.migrated_trusted_keys, report.deduped_trusted_keys
+        ),
+    );
+    output::status_line(
+        output::Status::Ok,
+        "symlinks",
+        format!(
+            "refreshed {}, skipped {}",
+            report.refreshed_symlinks, report.skipped_symlinks
+        ),
+    );
+    println!("{}", output::success("Migration complete."));
+}
+
+fn run_migration() -> Result<()> {
+    let paths = UpstreamPaths::new()?;
+    let report = migrate::run(&paths)?;
+    print_migration_report(&report);
+    Ok(())
+}
+
+pub async fn run(
+    names: Vec<String>,
+    verbose: bool,
+    fix: bool,
+    migrate: bool,
+    json: bool,
+) -> Result<()> {
+    if migrate {
+        return run_migration();
+    }
+
     if json {
         let report = doctor::run(names, fix).await?;
         println!(
