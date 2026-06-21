@@ -2,7 +2,12 @@ use std::fmt::Write as _;
 
 use anyhow::{Result, anyhow};
 
-use crate::{application::context::CommandContext, output, output::pager};
+use crate::{
+    application::context::CommandContext,
+    output,
+    output::pager,
+    routines::docs::{self, DocsSearchResult, DocsSectionMatch},
+};
 
 pub fn run(name: String, keywords: Vec<String>) -> Result<()> {
     let context = CommandContext::new()?;
@@ -12,8 +17,13 @@ pub fn run(name: String, keywords: Vec<String>) -> Result<()> {
         .ok_or_else(|| anyhow!("Package '{}' is not installed", name))?;
 
     let query = keywords.join(" ").trim().to_string();
-    let sections = placeholder_sections(&query);
-    let choices = DocsChoiceTable::from_sections(&package.name, &query, &sections);
+    let result = docs::run(&package.name, &query)?;
+    if result.sections.is_empty() {
+        println!("{}", output::warning("No README sections found."));
+        return Ok(());
+    }
+
+    let choices = DocsChoiceTable::from_result(&result);
 
     let Some(selected) = output::select_from_table_with_preview(
         format!(
@@ -29,54 +39,9 @@ pub fn run(name: String, keywords: Vec<String>) -> Result<()> {
         return Ok(());
     };
 
-    let text = format_selected_section(&package.name, &query, &sections[selected]);
+    let text = format_selected_section(&result, &result.sections[selected]);
     pager::page_text(None, &text)?;
     Ok(())
-}
-
-fn placeholder_sections(query: &str) -> Vec<PlaceholderSection> {
-    let query = query.to_ascii_lowercase();
-    let mut sections = vec![
-        PlaceholderSection::new("Usage", "Basic command forms and common invocations.", 0.72),
-        PlaceholderSection::new("Examples", "Worked examples from the package README.", 0.66),
-        PlaceholderSection::new(
-            "Configuration",
-            "Configuration files, flags, and environment variables.",
-            0.58,
-        ),
-        PlaceholderSection::new(
-            "Installation",
-            "Install notes and platform-specific requirements.",
-            0.51,
-        ),
-        PlaceholderSection::new(
-            "Frequently Asked Questions",
-            "Troubleshooting and common project caveats.",
-            0.44,
-        ),
-    ];
-
-    for section in &mut sections {
-        let haystack = format!(
-            "{} {}",
-            section.heading.to_ascii_lowercase(),
-            section.summary.to_ascii_lowercase()
-        );
-        let hits = query
-            .split_whitespace()
-            .filter(|keyword| haystack.contains(keyword))
-            .count();
-        section.score = (section.score + hits as f32 * 0.12).min(0.98);
-    }
-
-    sections.sort_by(|left, right| {
-        right
-            .score
-            .partial_cmp(&left.score)
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| left.heading.cmp(right.heading))
-    });
-    sections
 }
 
 struct DocsChoiceTable {
@@ -86,14 +51,22 @@ struct DocsChoiceTable {
 }
 
 impl DocsChoiceTable {
-    fn from_sections(_package_name: &str, _query: &str, sections: &[PlaceholderSection]) -> Self {
+    fn from_result(result: &DocsSearchResult) -> Self {
         let headers = vec![format!("{:<7} Section", "Score"), output::divider(48)];
 
-        let rows = sections
+        let rows = result
+            .sections
             .iter()
-            .map(|section| format!("{:<7} {}", format!("{:.2}", section.score), section.heading))
+            .map(|section| {
+                format!(
+                    "{:<7} {}",
+                    format!("{:.2}", section.score),
+                    section_heading_label(section)
+                )
+            })
             .collect();
-        let previews = sections
+        let previews = result
+            .sections
             .iter()
             .map(|section| format_section_preview(section))
             .collect();
@@ -106,22 +79,49 @@ impl DocsChoiceTable {
     }
 }
 
-fn format_section_preview(section: &PlaceholderSection) -> String {
+fn section_heading_label(section: &DocsSectionMatch) -> String {
     format!(
-        "## {}\n\n{}\n\nThis is placeholder content for the planned cached README section search.",
-        section.heading, section.summary
+        "{}{}",
+        "  ".repeat(section.level.saturating_sub(1)),
+        section.heading
     )
 }
 
-fn format_selected_section(
-    package_name: &str,
-    query: &str,
-    section: &PlaceholderSection,
-) -> String {
+fn format_section_preview(section: &DocsSectionMatch) -> String {
+    let body = preview_body(&section.body);
+    format!(
+        "{} {}\n\n{}",
+        "#".repeat(section.level.clamp(1, 6)),
+        section.heading,
+        body
+    )
+}
+
+fn preview_body(body: &str) -> String {
+    let preview = body
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .take(8)
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    if preview.is_empty() {
+        "(no section content)".to_string()
+    } else {
+        preview
+    }
+}
+
+fn format_selected_section(result: &DocsSearchResult, section: &DocsSectionMatch) -> String {
     let mut out = String::new();
 
-    writeln!(out, "package: {package_name}  doc: README.md").expect("write docs package");
-    writeln!(out, "queries: {query}").expect("write docs query");
+    writeln!(
+        out,
+        "package: {}  doc: {}",
+        result.package_name, result.document_name
+    )
+    .expect("write docs package");
+    writeln!(out, "queries: {}", result.query).expect("write docs query");
     writeln!(out).expect("write docs spacer");
     writeln!(
         out,
@@ -130,50 +130,44 @@ fn format_selected_section(
     )
     .expect("write docs selected section");
     writeln!(out).expect("write docs spacer");
-    writeln!(out, "{}", format_section_preview(section)).expect("write docs preview");
-    writeln!(out).expect("write docs spacer");
     writeln!(
         out,
-        "The real backend will fetch/cache README.md, split markdown sections, score matches, and open the selected section here."
+        "{} {}",
+        "#".repeat(section.level.clamp(1, 6)),
+        section.heading
     )
-    .expect("write docs placeholder backend");
+    .expect("write docs heading");
+    writeln!(out).expect("write docs spacer");
+    writeln!(out, "{}", section.body).expect("write docs body");
 
     out
 }
 
-#[derive(Debug, Clone)]
-struct PlaceholderSection {
-    heading: &'static str,
-    summary: &'static str,
-    score: f32,
-}
-
-impl PlaceholderSection {
-    fn new(heading: &'static str, summary: &'static str, score: f32) -> Self {
-        Self {
-            heading,
-            summary,
-            score,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{DocsChoiceTable, format_selected_section, placeholder_sections};
+    use super::{DocsChoiceTable, format_selected_section};
+    use crate::routines::docs::{DocsSearchResult, DocsSectionMatch};
 
-    #[test]
-    fn placeholder_sections_prioritize_matching_headings() {
-        let sections = placeholder_sections("configuration file");
-
-        assert_eq!(sections[0].heading, "Configuration");
+    fn result() -> DocsSearchResult {
+        DocsSearchResult {
+            package_name: "rg".to_string(),
+            document_name: "README.md".to_string(),
+            query: "usage".to_string(),
+            sections: vec![DocsSectionMatch {
+                level: 2,
+                heading: "Usage".to_string(),
+                body: "Basic usage notes.".to_string(),
+                score: 0.94,
+                ordinal: 1,
+            }],
+        }
     }
 
     #[test]
-    fn placeholder_output_keeps_header_compact() {
-        let sections = placeholder_sections("usage");
+    fn selected_section_output_keeps_header_compact() {
+        let result = result();
 
-        let output = format_selected_section("rg", "usage", &sections[0]);
+        let output = format_selected_section(&result, &result.sections[0]);
 
         assert!(output.contains("package: rg  doc: README.md"));
         assert!(output.contains("queries: usage"));
@@ -182,19 +176,19 @@ mod tests {
         assert!(!output.contains("Source:"));
         assert!(!output.contains("Cache:"));
         assert!(!output.contains("Status:"));
-        assert!(output.contains("placeholder content"));
+        assert!(output.contains("Basic usage notes."));
     }
 
     #[test]
     fn docs_choice_table_pairs_rows_with_previews() {
-        let sections = placeholder_sections("usage");
-        let table = DocsChoiceTable::from_sections("rg", "usage", &sections);
+        let result = result();
+        let table = DocsChoiceTable::from_result(&result);
 
-        assert_eq!(table.rows.len(), sections.len());
-        assert_eq!(table.previews.len(), sections.len());
+        assert_eq!(table.rows.len(), result.sections.len());
+        assert_eq!(table.previews.len(), result.sections.len());
         assert!(table.headers[0].contains("Score"));
         assert!(table.headers[0].contains("Section"));
-        assert!(table.rows[0].contains(sections[0].heading));
-        assert!(table.previews[0].contains(sections[0].summary));
+        assert!(table.rows[0].contains("Usage"));
+        assert!(table.previews[0].contains("Basic usage notes."));
     }
 }
