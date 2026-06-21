@@ -80,6 +80,32 @@ impl AssetSelector {
         Ok(candidates)
     }
 
+    pub fn get_installable_candidate_assets(
+        &self,
+        release: &Release,
+        package: &Package,
+    ) -> Vec<AssetCandidate> {
+        let target_filetypes = if package.filetype == Filetype::Auto {
+            Self::get_priority_for_os()
+        } else {
+            vec![package.filetype]
+        };
+
+        let mut candidates: Vec<AssetCandidate> = release
+            .assets
+            .iter()
+            .filter(|a| self.is_potentially_compatible(a))
+            .filter(|a| target_filetypes.contains(&a.filetype))
+            .map(|asset| AssetCandidate {
+                asset: asset.clone(),
+                score: self.score_asset(asset, package),
+            })
+            .collect();
+
+        candidates.sort_by_key(|b| std::cmp::Reverse(b.score));
+        candidates
+    }
+
     fn get_priority_for_os() -> Vec<Filetype> {
         #[cfg(target_os = "linux")]
         return vec![
@@ -418,6 +444,46 @@ mod tests {
         assert_eq!(candidates.len(), 2);
         assert_eq!(candidates[0].asset.name, "tool-static.tar.bz2");
         assert!(candidates[0].score > candidates[1].score);
+    }
+
+    #[test]
+    fn get_installable_candidate_assets_keeps_all_supported_auto_filetypes() {
+        let selector = AssetSelector::new();
+        let package = make_package(Filetype::Auto);
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/tool.tar.gz".to_string(),
+                    1,
+                    "tool.tar.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.gz".to_string(),
+                    2,
+                    "tool.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.sha256".to_string(),
+                    3,
+                    "tool.sha256".to_string(),
+                    1_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let candidates = selector.get_installable_candidate_assets(&release, &package);
+
+        assert_eq!(candidates.len(), 2);
+        assert!(candidates.iter().any(|c| c.asset.name == "tool.tar.gz"));
+        assert!(candidates.iter().any(|c| c.asset.name == "tool.gz"));
+        assert!(!candidates.iter().any(|c| c.asset.name == "tool.sha256"));
     }
 
     #[test]

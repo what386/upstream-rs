@@ -329,6 +329,15 @@ impl ProviderManager {
     ) -> Result<Vec<AssetCandidate>> {
         self.asset_selector.get_candidate_assets(release, package)
     }
+
+    pub fn get_installable_candidate_assets(
+        &self,
+        release: &Release,
+        package: &Package,
+    ) -> Vec<AssetCandidate> {
+        self.asset_selector
+            .get_installable_candidate_assets(release, package)
+    }
 }
 
 #[cfg(test)]

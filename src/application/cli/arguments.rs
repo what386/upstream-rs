@@ -332,6 +332,7 @@ pub enum Commands {
         upstream probe owner/repo --include-incompatible\n  \
         upstream probe owner/repo --limit 20\n  \
         upstream probe owner/repo --tag v1.2.3\n  \
+        upstream probe owner/repo -k archive\n  \
         upstream probe owner/repo --channel nightly --verbose\n  \
         upstream probe owner/repo --dry-run\n  \
         upstream probe owner/repo --json"
@@ -363,11 +364,15 @@ pub enum Commands {
         #[arg(long, value_name = "TAG")]
         tag: Option<String>,
 
+        /// File type to show and install
+        #[arg(short, long, value_enum, default_value_t = Filetype::Auto)]
+        kind: Filetype,
+
         /// Include scored candidate assets for each release
         #[arg(long, default_value_t = false)]
         verbose: bool,
 
-        /// Include assets that do not match the current OS/architecture or resolved install file type
+        /// Include assets that do not match the current OS/architecture or selected file type
         #[arg(long, default_value_t = false)]
         include_incompatible: bool,
 
