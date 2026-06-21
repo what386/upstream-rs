@@ -226,14 +226,21 @@ _arguments "${_arguments_options[@]}" : \
 '--base-url=[Custom base URL for self-hosted providers]:BASE_URL:_default' \
 '-c+[Channel view to display]:CHANNEL:(stable preview nightly)' \
 '--channel=[Channel view to display]:CHANNEL:(stable preview nightly)' \
-'--limit=[Maximum number of releases to display]:LIMIT:_default' \
+'--limit=[Number of releases to inspect instead of only the latest release]:LIMIT:_default' \
+'--tag=[Release tag to inspect (defaults to latest when --limit is omitted)]:TAG:_default' \
+'--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
 '--verbose[Include scored candidate assets for each release]' \
-'--json[Print probe results as JSON]' \
+'--include-incompatible[Include assets that do not match the current OS/architecture or resolved install file type]' \
+'--json[Print dry-run probe results as JSON]' \
+'-d[Whether or not to create a .desktop entry for GUI applications]' \
+'--desktop[Whether or not to create a .desktop entry for GUI applications]' \
+'--dry-run[Show parsed releases without selecting, downloading, or installing]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':repo_slug -- Repository identifier or URL to probe:_default' \
+'::name -- Name to register the application under (prompts with inferred default when omitted):_default' \
 && ret=0
 ;;
 (search)
@@ -818,7 +825,7 @@ _upstream_commands() {
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
 'changelog:Show upstream release notes for an installed package' \
-'probe:Inspect releases visible from a provider without installing' \
+'probe:Probe a repository/source, choose an asset, and install it' \
 'search:Search provider repositories by keyword(s)' \
 'find:Search repositories interactively and install a selected result' \
 'config:Manage upstream configuration' \
@@ -947,7 +954,7 @@ _upstream__subcmd__help_commands() {
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
 'changelog:Show upstream release notes for an installed package' \
-'probe:Inspect releases visible from a provider without installing' \
+'probe:Probe a repository/source, choose an asset, and install it' \
 'search:Search provider repositories by keyword(s)' \
 'find:Search repositories interactively and install a selected result' \
 'config:Manage upstream configuration' \

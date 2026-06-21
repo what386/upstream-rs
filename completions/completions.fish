@@ -35,7 +35,7 @@ complete -c upstream -n "__fish_upstream_needs_command" -f -a "reinstall" -d 'Re
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "upgrade" -d 'Upgrade installed packages to their latest versions'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "list" -d 'List installed packages and their metadata'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "changelog" -d 'Show upstream release notes for an installed package'
-complete -c upstream -n "__fish_upstream_needs_command" -f -a "probe" -d 'Inspect releases visible from a provider without installing'
+complete -c upstream -n "__fish_upstream_needs_command" -f -a "probe" -d 'Probe a repository/source, choose an asset, and install it'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "search" -d 'Search provider repositories by keyword(s)'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "find" -d 'Search repositories interactively and install a selected result'
 complete -c upstream -n "__fish_upstream_needs_command" -f -a "config" -d 'Manage upstream configuration'
@@ -144,9 +144,18 @@ complete -c upstream -n "__fish_upstream_using_subcommand probe" -l base-url -d 
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s c -l channel -d 'Channel view to display' -r -f -a "stable\t''
 preview\t''
 nightly\t''"
-complete -c upstream -n "__fish_upstream_using_subcommand probe" -l limit -d 'Maximum number of releases to display' -r
+complete -c upstream -n "__fish_upstream_using_subcommand probe" -l limit -d 'Number of releases to inspect instead of only the latest release' -r
+complete -c upstream -n "__fish_upstream_using_subcommand probe" -l tag -d 'Release tag to inspect (defaults to latest when --limit is omitted)' -r
+complete -c upstream -n "__fish_upstream_using_subcommand probe" -l trust -d 'Trust verification mode for downloaded assets' -r -f -a "none\t''
+best-effort\t''
+checksum\t''
+signature\t''
+all\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l verbose -d 'Include scored candidate assets for each release'
-complete -c upstream -n "__fish_upstream_using_subcommand probe" -l json -d 'Print probe results as JSON'
+complete -c upstream -n "__fish_upstream_using_subcommand probe" -l include-incompatible -d 'Include assets that do not match the current OS/architecture or resolved install file type'
+complete -c upstream -n "__fish_upstream_using_subcommand probe" -l json -d 'Print dry-run probe results as JSON'
+complete -c upstream -n "__fish_upstream_using_subcommand probe" -s d -l desktop -d 'Whether or not to create a .desktop entry for GUI applications'
+complete -c upstream -n "__fish_upstream_using_subcommand probe" -l dry-run -d 'Show parsed releases without selecting, downloading, or installing'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s y -l yes -d 'Accept confirmation prompts'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand search" -s p -l provider -d 'Source provider to search (defaults to github)' -r
@@ -281,7 +290,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_s
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "upgrade" -d 'Upgrade installed packages to their latest versions'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "list" -d 'List installed packages and their metadata'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "changelog" -d 'Show upstream release notes for an installed package'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "probe" -d 'Inspect releases visible from a provider without installing'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "probe" -d 'Probe a repository/source, choose an asset, and install it'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "search" -d 'Search provider repositories by keyword(s)'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "find" -d 'Search repositories interactively and install a selected result'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and not __fish_seen_subcommand_from install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help" -f -a "config" -d 'Manage upstream configuration'
