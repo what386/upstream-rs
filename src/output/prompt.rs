@@ -3,6 +3,8 @@ use std::fmt;
 use std::io::{self, IsTerminal, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+const SELECTION_SCROLL_MARGIN: usize = 1;
+
 static ASSUME_YES: AtomicBool = AtomicBool::new(false);
 
 pub fn set_assume_yes(value: bool) {
@@ -177,11 +179,12 @@ fn render_selection(
     let cols = cols as usize;
     let prompt_lines = prompt_lines(prompt);
     let preview_lines = selected_preview_lines(previews, selected);
+    let preview_line_count = max_preview_line_count(previews);
     let preview_content_rows = preview_content_rows(
         term_rows,
         prompt_lines.len(),
         headers.len(),
-        preview_lines.len(),
+        preview_line_count,
     );
     let preview_block_rows = preview_block_rows(preview_content_rows);
     let fixed_rows = prompt_lines.len() + 1 + headers.len() + preview_block_rows;
@@ -206,7 +209,7 @@ fn render_selection(
     }
 
     for (index, item) in items.iter().enumerate().take(bottom).skip(top) {
-        let marker = if index == selected { ">" } else { " " };
+        let marker = selection_marker(index, selected, top, bottom, items.len());
         let line = truncate_width(&format!("{marker} {item}"), cols);
         if index == selected {
             term.write_line(&style(line).reverse().to_string())?;
@@ -223,7 +226,12 @@ fn render_selection(
         rendered += 1;
         term.write_line(&truncate_width(&"-".repeat(cols.min(72)), cols))?;
         rendered += 1;
-        for line in preview_lines.iter().take(preview_content_rows) {
+        for line in preview_lines
+            .iter()
+            .map(String::as_str)
+            .chain(std::iter::repeat(""))
+            .take(preview_content_rows)
+        {
             term.write_line(&truncate_width(line, cols))?;
             rendered += 1;
         }
@@ -251,6 +259,18 @@ fn selected_preview_lines(previews: Option<&[String]>, selected: usize) -> Vec<S
         .unwrap_or_default()
 }
 
+fn max_preview_line_count(previews: Option<&[String]>) -> usize {
+    previews
+        .map(|values| {
+            values
+                .iter()
+                .map(|preview| preview.lines().count())
+                .max()
+                .unwrap_or(0)
+        })
+        .unwrap_or(0)
+}
+
 fn prompt_lines(prompt: &str) -> Vec<String> {
     let lines = prompt.lines().map(ToString::to_string).collect::<Vec<_>>();
     if lines.is_empty() {
@@ -276,7 +296,12 @@ fn preview_content_rows(
         return 0;
     }
 
-    preview_line_count.min(available_after_one_item - 3).min(8)
+    let target_preview_rows = term_rows.saturating_sub(prompt_rows + header_rows) / 2;
+    let max_preview_rows = target_preview_rows.clamp(4, 18);
+
+    preview_line_count
+        .min(available_after_one_item - 3)
+        .min(max_preview_rows)
 }
 
 fn preview_block_rows(content_rows: usize) -> usize {
@@ -292,14 +317,39 @@ fn selection_visible_rows(term_rows: usize, fixed_rows: usize, item_count: usize
 }
 
 fn selection_top(selected: usize, visible_rows: usize, item_count: usize) -> usize {
-    if item_count <= visible_rows || selected < visible_rows {
+    if item_count <= visible_rows {
         return 0;
     }
 
-    selected
-        .saturating_add(1)
-        .saturating_sub(visible_rows)
-        .min(item_count.saturating_sub(visible_rows))
+    let last_top = item_count.saturating_sub(visible_rows);
+    if visible_rows <= SELECTION_SCROLL_MARGIN * 2 {
+        return selected.min(last_top);
+    }
+
+    let bottom_margin_start = visible_rows.saturating_sub(SELECTION_SCROLL_MARGIN + 1);
+    if selected < bottom_margin_start {
+        return 0;
+    }
+
+    selected.saturating_sub(bottom_margin_start).min(last_top)
+}
+
+fn selection_marker(
+    index: usize,
+    selected: usize,
+    top: usize,
+    bottom: usize,
+    item_count: usize,
+) -> &'static str {
+    if index == selected {
+        ">"
+    } else if index == top && top > 0 {
+        "^"
+    } else if index + 1 == bottom && bottom < item_count {
+        "v"
+    } else {
+        " "
+    }
 }
 
 fn clear_rendered_selection(term: &Term, rendered_lines: usize) -> anyhow::Result<()> {
@@ -340,8 +390,9 @@ fn selection_action_for_key(key: Key) -> SelectionAction {
 #[cfg(test)]
 mod tests {
     use super::{
-        SelectionAction, preview_content_rows, prompt_lines, resolve_text_prompt_value,
-        selection_action_for_key, selection_top, selection_visible_rows,
+        SelectionAction, max_preview_line_count, preview_content_rows, prompt_lines,
+        resolve_text_prompt_value, selection_action_for_key, selection_marker, selection_top,
+        selection_visible_rows,
     };
     use console::Key;
 
@@ -391,11 +442,30 @@ mod tests {
 
     #[test]
     fn preview_rows_leave_room_for_selection() {
-        assert_eq!(preview_content_rows(24, 1, 2, 20), 8);
+        assert_eq!(preview_content_rows(24, 1, 2, 20), 10);
         assert_eq!(preview_content_rows(12, 1, 2, 20), 4);
         assert_eq!(preview_content_rows(9, 1, 2, 20), 0);
         assert_eq!(preview_content_rows(12, 2, 2, 20), 3);
         assert_eq!(selection_visible_rows(12, 2 + 2 + 7, 20), 1);
+    }
+
+    #[test]
+    fn preview_rows_grow_on_taller_terminals() {
+        assert_eq!(preview_content_rows(40, 2, 2, 30), 18);
+        assert_eq!(preview_content_rows(80, 2, 2, 100), 18);
+        assert_eq!(preview_content_rows(40, 2, 2, 6), 6);
+    }
+
+    #[test]
+    fn preview_height_uses_largest_preview_for_stable_layout() {
+        let previews = vec![
+            "short".to_string(),
+            "one\ntwo\nthree\nfour\nfive".to_string(),
+            String::new(),
+        ];
+
+        assert_eq!(max_preview_line_count(Some(&previews)), 5);
+        assert_eq!(max_preview_line_count(None), 0);
     }
 
     #[test]
@@ -407,9 +477,28 @@ mod tests {
     #[test]
     fn selection_top_tracks_selected_item() {
         assert_eq!(selection_top(0, 5, 20), 0);
-        assert_eq!(selection_top(4, 5, 20), 0);
-        assert_eq!(selection_top(5, 5, 20), 1);
+        assert_eq!(selection_top(3, 5, 20), 0);
+        assert_eq!(selection_top(4, 5, 20), 1);
+        assert_eq!(selection_top(5, 5, 20), 2);
+        assert_eq!(selection_top(18, 5, 20), 15);
         assert_eq!(selection_top(19, 5, 20), 15);
+    }
+
+    #[test]
+    fn selection_top_keeps_margin_until_scroll_boundaries() {
+        assert_eq!(selection_top(2, 3, 10), 1);
+        assert_eq!(selection_top(8, 3, 10), 7);
+        assert_eq!(selection_top(9, 3, 10), 7);
+        assert_eq!(selection_top(3, 2, 10), 3);
+    }
+
+    #[test]
+    fn selection_marker_shows_scroll_indicators_at_visible_edges() {
+        assert_eq!(selection_marker(3, 4, 3, 8, 10), "^");
+        assert_eq!(selection_marker(7, 4, 3, 8, 10), "v");
+        assert_eq!(selection_marker(4, 4, 3, 8, 10), ">");
+        assert_eq!(selection_marker(0, 1, 0, 5, 10), " ");
+        assert_eq!(selection_marker(9, 8, 5, 10, 10), " ");
     }
 
     #[test]
