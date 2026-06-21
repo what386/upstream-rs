@@ -327,7 +327,8 @@ pub enum Commands {
         parses Markdown sections, and opens ranked keyword matches in an interactive \
         picker with a live preview. If fetching fails and a cached README exists, \
         upstream falls back to the cached copy. Use --offline to skip fetching and \
-        search only cached documentation.\n\n\
+        search only cached documentation. If glow is installed, Markdown previews \
+        and selected sections are rendered with glow's terminal styling.\n\n\
         EXAMPLES:\n  \
         upstream docs rg usage\n  \
         upstream docs rg --offline usage\n  \

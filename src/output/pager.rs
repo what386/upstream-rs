@@ -3,6 +3,8 @@ use std::io::{self, Write};
 use anyhow::Result;
 use console::{Key, Term, style};
 
+use super::style::truncate_visible;
+
 const MIN_VISIBLE_ROWS: usize = 1;
 const FOOTER_ROWS: usize = 1;
 
@@ -213,11 +215,7 @@ fn footer_text(state: &PagerState) -> String {
 }
 
 fn truncate_width(value: &str, cols: usize) -> String {
-    if cols == 0 {
-        return String::new();
-    }
-
-    value.chars().take(cols).collect()
+    truncate_visible(value, cols)
 }
 
 fn action_for_key(key: Key) -> PagerAction {
