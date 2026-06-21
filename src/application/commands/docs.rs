@@ -1,6 +1,9 @@
 use std::fmt::Write as _;
+use std::{collections::BTreeMap, time::Duration};
 
 use anyhow::{Result, anyhow, bail};
+use futures_util::{FutureExt, StreamExt, future::LocalBoxFuture, stream::FuturesUnordered};
+use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{
     application::context::CommandContext,
@@ -9,6 +12,9 @@ use crate::{
     output::pager,
     routines::docs::{self, DocsSearchResult, DocsSectionMatch, ProjectReadmeSource},
 };
+
+const DOCS_FETCH_CONCURRENCY: usize = 8;
+const UNSUPPORTED_README_ERROR: &str = "Project README is not supported";
 
 pub async fn run(
     name: Option<String>,
@@ -100,45 +106,141 @@ async fn run_fetch_readmes(
 
     println!("{}", output::title("Refreshing README docs"));
     let width = output::status_subject_width(targets.iter().map(|package| package.name.as_str()));
+    let overall_pb = ProgressBar::new(targets.len() as u64);
+    overall_pb.set_style(ProgressStyle::with_template(
+        "{spinner:.green} Fetched {pos}/{len} READMEs{msg}",
+    )?);
+    overall_pb.enable_steady_tick(Duration::from_millis(120));
+
+    let mut active_rows = BTreeMap::new();
+    let mut completed_rows = BTreeMap::new();
+    let mut completion_rows = Vec::new();
+    let mut package_iter = targets.into_iter();
+    let mut pending: FuturesUnordered<LocalBoxFuture<'_, (Package, Result<()>)>> =
+        FuturesUnordered::new();
     let mut failures = 0usize;
 
-    for package in &targets {
-        match docs::refetch_project_readme(
-            &context.provider_manager,
-            &context.paths.dirs.cache_dir,
-            package,
-        )
-        .await
-        {
-            Ok(_) => println!(
-                "{}",
-                output::status_line_text_with_width(
-                    output::Status::Ok,
-                    &package.name,
-                    "cached README.md",
-                    width,
-                )
-            ),
-            Err(err) => {
-                failures += 1;
-                println!(
-                    "{}",
-                    output::status_line_text_with_width(
-                        output::Status::Fail,
-                        &package.name,
-                        output::error_summary(&err),
-                        width,
-                    )
-                );
-            }
+    for _ in 0..DOCS_FETCH_CONCURRENCY {
+        let Some(package) = package_iter.next() else {
+            break;
+        };
+        active_rows.insert(
+            package.name.clone(),
+            render_docs_fetch_progress_row(&package.name),
+        );
+        overall_pb.set_message(render_docs_fetch_progress(&completed_rows, &active_rows));
+        pending.push(fetch_readme_task(context, package));
+    }
+
+    while let Some((package, result)) = pending.next().await {
+        active_rows.remove(&package.name);
+        overall_pb.inc(1);
+
+        let (row, failed) = render_docs_fetch_result_row(&package.name, result, width);
+        if failed {
+            failures += 1;
         }
+        completed_rows.insert(package.name.clone(), row.clone());
+        completion_rows.push(row);
+
+        if let Some(next_package) = package_iter.next() {
+            active_rows.insert(
+                next_package.name.clone(),
+                render_docs_fetch_progress_row(&next_package.name),
+            );
+            pending.push(fetch_readme_task(context, next_package));
+        }
+
+        overall_pb.set_message(render_docs_fetch_progress(&completed_rows, &active_rows));
+    }
+
+    overall_pb.finish_and_clear();
+    for row in &completion_rows {
+        println!("{row}");
     }
 
     if failures > 0 {
-        bail!("Failed to refresh {failures}/{} README docs", targets.len());
+        bail!(
+            "Failed to refresh {failures}/{} README docs",
+            completion_rows.len()
+        );
     }
 
     Ok(())
+}
+
+fn fetch_readme_task<'a>(
+    context: &'a CommandContext,
+    package: Package,
+) -> LocalBoxFuture<'a, (Package, Result<()>)> {
+    async move {
+        let result = docs::refetch_project_readme(
+            &context.provider_manager,
+            &context.paths.dirs.cache_dir,
+            &package,
+        )
+        .await
+        .map(|_| ());
+        (package, result)
+    }
+    .boxed_local()
+}
+
+fn render_docs_fetch_progress(
+    completed_rows: &BTreeMap<String, String>,
+    active_rows: &BTreeMap<String, String>,
+) -> String {
+    if completed_rows.is_empty() && active_rows.is_empty() {
+        return String::new();
+    }
+
+    let rows = completed_rows
+        .values()
+        .chain(active_rows.values())
+        .cloned()
+        .collect::<Vec<_>>();
+    format!("\n{}", rows.join("\n"))
+}
+
+fn render_docs_fetch_progress_row(name: &str) -> String {
+    format!(" {:<28} fetching README.md", name)
+}
+
+fn render_docs_fetch_result_row(name: &str, result: Result<()>, width: usize) -> (String, bool) {
+    match result {
+        Ok(()) => (
+            output::status_line_text_with_width(
+                output::Status::Ok,
+                name,
+                "cached README.md",
+                width,
+            ),
+            false,
+        ),
+        Err(err) if is_unsupported_project_readme_error(&err) => (
+            output::status_line_text_with_width(
+                output::Status::Warn,
+                name,
+                "README not supported",
+                width,
+            ),
+            false,
+        ),
+        Err(err) => (
+            output::status_line_text_with_width(
+                output::Status::Fail,
+                name,
+                output::error_summary(&err),
+                width,
+            ),
+            true,
+        ),
+    }
+}
+
+fn is_unsupported_project_readme_error(err: &anyhow::Error) -> bool {
+    err.chain()
+        .any(|cause| cause.to_string().contains(UNSUPPORTED_README_ERROR))
 }
 
 fn resolve_fetch_targets(
@@ -455,5 +557,48 @@ mod tests {
         .expect_err("keywords rejected");
 
         assert!(err.to_string().contains("search keywords"));
+    }
+
+    #[test]
+    fn docs_fetch_progress_renders_completed_and_active_rows() {
+        let mut completed_rows = std::collections::BTreeMap::new();
+        let mut active_rows = std::collections::BTreeMap::new();
+        completed_rows.insert("bat".to_string(), "[ok] bat cached README.md".to_string());
+        active_rows.insert(
+            "rg".to_string(),
+            super::render_docs_fetch_progress_row("rg"),
+        );
+
+        let output = super::render_docs_fetch_progress(&completed_rows, &active_rows);
+
+        assert!(output.starts_with('\n'));
+        assert!(output.contains("[ok] bat cached README.md"));
+        assert!(output.contains("rg"));
+        assert!(output.contains("fetching README.md"));
+    }
+
+    #[test]
+    fn docs_fetch_result_warns_for_unsupported_readmes() {
+        let (row, failed) = super::render_docs_fetch_result_row(
+            "direct",
+            Err(anyhow::anyhow!(
+                "Project README is not supported for this provider"
+            )),
+            10,
+        );
+
+        assert!(!failed);
+        assert!(console::strip_ansi_codes(&row).contains("[warn]"));
+        assert!(row.contains("README not supported"));
+    }
+
+    #[test]
+    fn docs_fetch_result_fails_for_fetch_errors() {
+        let (row, failed) =
+            super::render_docs_fetch_result_row("rg", Err(anyhow::anyhow!("rate limited")), 10);
+
+        assert!(failed);
+        assert!(console::strip_ansi_codes(&row).contains("[fail]"));
+        assert!(row.contains("rate limited"));
     }
 }
