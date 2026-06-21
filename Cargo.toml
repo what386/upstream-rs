@@ -48,6 +48,7 @@ base64 = "0.22.1"
 p256 = { version = "0.13.2", features = ["ecdsa", "pem", "pkcs8"] }
 sigstore = { version = "0.14.0", default-features = false, features = ["cosign", "rustls-tls"] }
 async-trait = "0.1.89"
+rusqlite = { version = "0.40.1", features = ["bundled"] }
 
 [dev-dependencies]
 sevenz-rust2 = { version = "0.21.0", default-features = false, features = ["util", "compress", "bzip2", "ppmd"] }
