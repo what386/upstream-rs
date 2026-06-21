@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] feat: doctor now checks if api token is working
-      @created 2026-06-21 04:04
-
 - [ ] feat: onboarding for setting up api keys
       @created 2026-06-21 04:17
 
@@ -25,4 +22,8 @@
 - [x] Fix single-package remove spinner text #cli #remove
       @created 2026-06-21 04:16
       @completed 2026-06-21 04:17
+
+- [x] feat: doctor now checks if api token is working
+      @created 2026-06-21 04:04
+      @completed 2026-06-21 04:27
 

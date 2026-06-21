@@ -273,7 +273,7 @@ impl Cli {
                 verbose,
                 fix,
                 json,
-            } => commands::doctor::run(names, verbose, fix, json),
+            } => commands::doctor::run(names, verbose, fix, json).await,
         }
     }
 }

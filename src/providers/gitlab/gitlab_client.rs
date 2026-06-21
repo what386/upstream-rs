@@ -103,6 +103,15 @@ impl GitlabClient {
         .await
     }
 
+    pub async fn check_token(&self) -> Result<reqwest::Response> {
+        let url = format!("{}/api/v4/user", self.base_url);
+        self.client
+            .get(&url)
+            .send()
+            .await
+            .context(format!("Failed to send request to {}", url))
+    }
+
     fn encode_project_path(project_path: &str) -> String {
         project_path.replace('/', "%2F")
     }
