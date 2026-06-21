@@ -171,14 +171,12 @@ Installed package metadata is separate from configuration:
 ```text
 $HOME/.upstream/migration.json
 $HOME/.upstream/metadata/packages.json
-$HOME/.upstream/metadata/metadata.json
 $HOME/.upstream/metadata/trust.json
 $HOME/.upstream/metadata/rollback.json
 ```
 
 - `migration.json` records the root data layout version and migration metadata.
 - `packages.json` tracks installed package source, version, file type, install paths, and provider metadata.
-- `metadata.json` stores sidecar package data such as pin reasons.
 - `trust.json` stores trusted minisign and cosign public keys.
 - `rollback.json` records rollback artifact metadata.
 

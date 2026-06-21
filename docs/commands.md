@@ -148,7 +148,7 @@ Options:
 ## Package Metadata
 
 ```bash
-upstream package pin <name> [reason]
+upstream package pin <name>
 upstream package unpin <name>
 upstream package rename <old-name> <new-name>
 ```
