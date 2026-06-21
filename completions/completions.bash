@@ -1572,7 +1572,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__probe)
-            opts="-p -c -y -h --provider --base-url --channel --limit --verbose --json --yes --help <REPO_SLUG>"
+            opts="-p -c -d -y -h --provider --base-url --channel --limit --tag --verbose --include-incompatible --json --desktop --trust --dry-run --yes --help <REPO_SLUG> [NAME]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1600,6 +1600,14 @@ _upstream() {
                     ;;
                 --limit)
                     COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --tag)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --trust)
+                    COMPREPLY=($(compgen -W "none best-effort checksum signature all" -- "${cur}"))
                     return 0
                     ;;
                 *)
