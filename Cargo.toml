@@ -24,6 +24,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+rusqlite = { version = "0.40.1", features = ["bundled"] }
 sevenz-rust2 = { version = "0.21.0", default-features = false, features = ["util", "bzip2", "ppmd"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "io-util", "process", "sync", "time"] }
 futures-util = "0.3"
