@@ -11,9 +11,6 @@
 - [ ] internal: merge packages.json and metadata.json into one packages.db SQL file
       @created 2026-06-21 16:31
 
-- [ ] feat: run README markdown output through glow when available
-      @created 2026-06-21 17:25
-
 
 ## Completed
 
@@ -44,4 +41,8 @@
 - [x] feat: `docs` subcommand to parse READMEs for users
       @created 2026-06-21 05:23
       @completed 2026-06-21 16:47
+
+- [x] feat: run README markdown output through glow when available
+      @created 2026-06-21 17:25
+      @completed 2026-06-21 17:36
 
