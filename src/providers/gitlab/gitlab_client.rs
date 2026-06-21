@@ -19,6 +19,11 @@ struct GitlabBranchDto {
     commit: GitlabCommitRefDto,
 }
 
+#[derive(Debug, Deserialize)]
+struct GitlabProjectDto {
+    default_branch: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct GitlabClient {
     client: Client,
@@ -82,6 +87,22 @@ impl GitlabClient {
             .context("Failed to parse JSON response")?;
 
         Ok(data)
+    }
+
+    async fn get_text(&self, url: &str) -> Result<String> {
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .context(format!("Failed to send request to {}", url))?;
+
+        http_status::error_for_status(&response, "GitLab API", url)?;
+
+        response
+            .text()
+            .await
+            .context("Failed to read text response")
     }
 
     pub async fn download_file<F>(
@@ -199,6 +220,28 @@ impl GitlabClient {
             project_path, branch
         ))?;
         Ok(dto.commit.id)
+    }
+
+    pub async fn get_project_readme(&self, project_path: &str) -> Result<String> {
+        let encoded_path = Self::encode_project_path(project_path);
+        let project_url = format!("{}/api/v4/projects/{}", self.base_url, encoded_path);
+        let project: GitlabProjectDto = self.get_json(&project_url).await.context(format!(
+            "Failed to get project metadata for {}",
+            project_path
+        ))?;
+        let branch = project
+            .default_branch
+            .as_deref()
+            .filter(|branch| !branch.trim().is_empty())
+            .unwrap_or("main");
+        let encoded_branch = Self::encode_project_path(branch);
+        let url = format!(
+            "{}/api/v4/projects/{}/repository/files/README.md/raw?ref={}",
+            self.base_url, encoded_path, encoded_branch
+        );
+        self.get_text(&url)
+            .await
+            .context(format!("Failed to get README for {}", project_path))
     }
 }
 

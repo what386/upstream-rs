@@ -1,3 +1,4 @@
+mod fetch;
 mod markdown;
 mod orchestrator;
 mod search;

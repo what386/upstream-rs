@@ -1,14 +1,20 @@
 use anyhow::Result;
 
+use crate::{models::upstream::Package, providers::provider_manager::ProviderManager};
+
+use super::fetch::fetch_project_readme;
 use super::search::{DocsSearchResult, search_readme};
 
-const EMBEDDED_README: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md"));
-
-pub fn run(package_name: &str, query: &str) -> Result<DocsSearchResult> {
+pub async fn run(
+    provider_manager: &ProviderManager,
+    package: &Package,
+    query: &str,
+) -> Result<DocsSearchResult> {
+    let readme = fetch_project_readme(provider_manager, package).await?;
     Ok(search_readme(
-        package_name,
-        "README.md",
+        &package.name,
+        &readme.document_name,
         query,
-        EMBEDDED_README,
+        &readme.contents,
     ))
 }

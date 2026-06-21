@@ -110,6 +110,10 @@ impl GitlabAdapter {
         self.client.get_branch_head_sha(project_path, branch).await
     }
 
+    pub async fn get_project_readme(&self, project_path: &str) -> Result<String> {
+        self.client.get_project_readme(project_path).await
+    }
+
     fn convert_release(&self, dto: GitlabReleaseDto) -> Release {
         let mut assets = Vec::new();
         let mut asset_id: u64 = 0;
@@ -198,6 +202,10 @@ impl ReleaseProvider for GitlabAdapter {
 
     async fn get_branch_head_sha(&self, slug: &str, branch: &str) -> Result<String> {
         GitlabAdapter::get_branch_head_sha(self, slug, branch).await
+    }
+
+    async fn get_project_readme(&self, slug: &str) -> Result<String> {
+        GitlabAdapter::get_project_readme(self, slug).await
     }
 
     async fn download_asset(

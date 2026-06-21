@@ -101,6 +101,10 @@ impl GiteaAdapter {
         self.client.get_branch_head_sha(slug, branch).await
     }
 
+    pub async fn get_project_readme(&self, slug: &str) -> Result<String> {
+        self.client.get_project_readme(slug).await
+    }
+
     fn convert_asset(dto: GiteaAssetDto) -> Asset {
         let created_at = Self::parse_timestamp(&dto.created_at);
         Asset::new(
@@ -168,6 +172,10 @@ impl ReleaseProvider for GiteaAdapter {
 
     async fn get_branch_head_sha(&self, slug: &str, branch: &str) -> Result<String> {
         GiteaAdapter::get_branch_head_sha(self, slug, branch).await
+    }
+
+    async fn get_project_readme(&self, slug: &str) -> Result<String> {
+        GiteaAdapter::get_project_readme(self, slug).await
     }
 
     async fn download_asset(
