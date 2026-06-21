@@ -11,9 +11,6 @@
 - [ ] internal: move packages.json into a SQL db
       @created 2026-06-21 16:31
 
-- [ ] BREAKING: make migrate a flag in doctor instead of its own first class subcommand
-      @created 2026-06-21 23:44
-
 
 ## Completed
 
@@ -24,4 +21,8 @@
 - [x] BREAKING: remove 'metadata' storage and pin reason
       @created 2026-06-21 23:10
       @completed 2026-06-21 23:22
+
+- [x] BREAKING: make migrate a flag in doctor instead of its own first class subcommand
+      @created 2026-06-21 23:44
+      @completed 2026-06-21 23:44
 
