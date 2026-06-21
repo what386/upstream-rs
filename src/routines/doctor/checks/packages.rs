@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(unix)]
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -449,15 +450,21 @@ pub(in crate::routines::doctor) fn check_installed_packages(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
     use std::fs;
+    #[cfg(unix)]
     use std::io;
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
+    #[cfg(unix)]
+    use std::path::PathBuf;
+    #[cfg(unix)]
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::expected_link_path;
     #[cfg(unix)]
     use super::{LinkStatus, inspect_unix_link};
 
+    #[cfg(unix)]
     fn temp_root(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -466,6 +473,7 @@ mod tests {
         std::env::temp_dir().join(format!("upstream-doctor-test-{name}-{nanos}"))
     }
 
+    #[cfg(unix)]
     fn cleanup(path: &Path) -> io::Result<()> {
         fs::remove_dir_all(path)
     }
