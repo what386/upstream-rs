@@ -35,6 +35,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Upgrade installed packages to their latest versions')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages and their metadata')
             [CompletionResult]::new('changelog', 'changelog', [CompletionResultType]::ParameterValue, 'Show upstream release notes for an installed package')
+            [CompletionResult]::new('docs', 'docs', [CompletionResultType]::ParameterValue, 'Search package README documentation')
             [CompletionResult]::new('probe', 'probe', [CompletionResultType]::ParameterValue, 'Probe a repository/source, choose an asset, and install it')
             [CompletionResult]::new('search', 'search', [CompletionResultType]::ParameterValue, 'Search provider repositories by keyword(s)')
             [CompletionResult]::new('find', 'find', [CompletionResultType]::ParameterValue, 'Search repositories interactively and install a selected result')
@@ -188,6 +189,15 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         'upstream;changelog' {
             [CompletionResult]::new('--from', '--from', [CompletionResultType]::ParameterName, 'Override the starting release tag')
             [CompletionResult]::new('--to', '--to', [CompletionResultType]::ParameterName, 'Override the ending release tag')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;docs' {
+            [CompletionResult]::new('--fetch', '--fetch', [CompletionResultType]::ParameterName, 'Refresh cached README docs for named packages, or all packages when no names are provided')
+            [CompletionResult]::new('--offline', '--offline', [CompletionResultType]::ParameterName, 'Use only the cached README and skip network fetching')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
@@ -500,6 +510,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Upgrade installed packages to their latest versions')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages and their metadata')
             [CompletionResult]::new('changelog', 'changelog', [CompletionResultType]::ParameterValue, 'Show upstream release notes for an installed package')
+            [CompletionResult]::new('docs', 'docs', [CompletionResultType]::ParameterValue, 'Search package README documentation')
             [CompletionResult]::new('probe', 'probe', [CompletionResultType]::ParameterValue, 'Probe a repository/source, choose an asset, and install it')
             [CompletionResult]::new('search', 'search', [CompletionResultType]::ParameterValue, 'Search provider repositories by keyword(s)')
             [CompletionResult]::new('find', 'find', [CompletionResultType]::ParameterValue, 'Search repositories interactively and install a selected result')
@@ -547,6 +558,9 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;changelog' {
+            break
+        }
+        'upstream;help;docs' {
             break
         }
         'upstream;help;probe' {

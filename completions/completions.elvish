@@ -32,6 +32,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
             cand changelog 'Show upstream release notes for an installed package'
+            cand docs 'Search package README documentation'
             cand probe 'Probe a repository/source, choose an asset, and install it'
             cand search 'Search provider repositories by keyword(s)'
             cand find 'Search repositories interactively and install a selected result'
@@ -169,6 +170,14 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;changelog'= {
             cand --from 'Override the starting release tag'
             cand --to 'Override the ending release tag'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;docs'= {
+            cand --fetch 'Refresh cached README docs for named packages, or all packages when no names are provided'
+            cand --offline 'Use only the cached README and skip network fetching'
             cand -y 'Accept confirmation prompts'
             cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
@@ -440,6 +449,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand upgrade 'Upgrade installed packages to their latest versions'
             cand list 'List installed packages and their metadata'
             cand changelog 'Show upstream release notes for an installed package'
+            cand docs 'Search package README documentation'
             cand probe 'Probe a repository/source, choose an asset, and install it'
             cand search 'Search provider repositories by keyword(s)'
             cand find 'Search repositories interactively and install a selected result'
@@ -476,6 +486,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;list'= {
         }
         &'upstream;help;changelog'= {
+        }
+        &'upstream;help;docs'= {
         }
         &'upstream;help;probe'= {
         }

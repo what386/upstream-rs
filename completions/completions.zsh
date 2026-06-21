@@ -219,6 +219,18 @@ _arguments "${_arguments_options[@]}" : \
 ':name -- Installed package name:_default' \
 && ret=0
 ;;
+(docs)
+_arguments "${_arguments_options[@]}" : \
+'*--fetch=[Refresh cached README docs for named packages, or all packages when no names are provided]::NAME:_default' \
+'(--fetch)--offline[Use only the cached README and skip network fetching]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'::name -- Installed package name:_default' \
+'*::keywords -- Optional search keywords (joined with spaces):_default' \
+&& ret=0
+;;
 (probe)
 _arguments "${_arguments_options[@]}" : \
 '-p+[Source provider (defaults to github, or scraper for URLs)]:PROVIDER:_default' \
@@ -679,6 +691,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(docs)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (probe)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -827,6 +843,7 @@ _upstream_commands() {
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
 'changelog:Show upstream release notes for an installed package' \
+'docs:Search package README documentation' \
 'probe:Probe a repository/source, choose an asset, and install it' \
 'search:Search provider repositories by keyword(s)' \
 'find:Search repositories interactively and install a selected result' \
@@ -930,6 +947,11 @@ _upstream__subcmd__config__subcmd__set_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config set commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__docs_commands] )) ||
+_upstream__subcmd__docs_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream docs commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__doctor_commands] )) ||
 _upstream__subcmd__doctor_commands() {
     local commands; commands=()
@@ -956,6 +978,7 @@ _upstream__subcmd__help_commands() {
 'upgrade:Upgrade installed packages to their latest versions' \
 'list:List installed packages and their metadata' \
 'changelog:Show upstream release notes for an installed package' \
+'docs:Search package README documentation' \
 'probe:Probe a repository/source, choose an asset, and install it' \
 'search:Search provider repositories by keyword(s)' \
 'find:Search repositories interactively and install a selected result' \
@@ -1015,6 +1038,11 @@ _upstream__subcmd__help__subcmd__config__subcmd__reset_commands() {
 _upstream__subcmd__help__subcmd__config__subcmd__set_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help config set commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__docs_commands] )) ||
+_upstream__subcmd__help__subcmd__docs_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help docs commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__doctor_commands] )) ||
 _upstream__subcmd__help__subcmd__doctor_commands() {

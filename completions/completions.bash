@@ -25,6 +25,9 @@ _upstream() {
             upstream,config)
                 cmd="upstream__subcmd__config"
                 ;;
+            upstream,docs)
+                cmd="upstream__subcmd__docs"
+                ;;
             upstream,doctor)
                 cmd="upstream__subcmd__doctor"
                 ;;
@@ -117,6 +120,9 @@ _upstream() {
                 ;;
             upstream__subcmd__help,config)
                 cmd="upstream__subcmd__help__subcmd__config"
+                ;;
+            upstream__subcmd__help,docs)
+                cmd="upstream__subcmd__help__subcmd__docs"
                 ;;
             upstream__subcmd__help,doctor)
                 cmd="upstream__subcmd__help__subcmd__doctor"
@@ -296,7 +302,7 @@ _upstream() {
 
     case "${cmd}" in
         upstream)
-            opts="-y -h -V --yes --help --version install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help"
+            opts="-y -h -V --yes --help --version install build remove rollback reinstall upgrade list changelog docs probe search find config package hooks import export migrate doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -563,6 +569,24 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        upstream__subcmd__docs)
+            opts="-y -h --offline --fetch --yes --help [NAME] [KEYWORDS]..."
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --fetch)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         upstream__subcmd__doctor)
             opts="-y -h --verbose --fix --json --yes --help [NAMES]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
@@ -682,7 +706,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help)
-            opts="install build remove rollback reinstall upgrade list changelog probe search find config package hooks import export migrate doctor help"
+            opts="install build remove rollback reinstall upgrade list changelog docs probe search find config package hooks import export migrate doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -796,6 +820,20 @@ _upstream() {
         upstream__subcmd__help__subcmd__config__subcmd__set)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__docs)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
