@@ -142,67 +142,12 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
         },
     )?;
 
-    if names.len() == 1 {
-        let name = &names[0];
-        let pb = ProgressBar::new_spinner();
-        pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
-        pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
-        pb.enable_steady_tick(Duration::from_millis(120));
-        pb.set_message(format!("Removing {name}"));
-
-        let progress_pb = pb.clone();
-        let mut progress_callback = Some(move |name: &str, event: PackageProgressEvent| {
-            progress_pb.set_message(render_remove_progress_row(name, event).trim().to_string());
-        });
-        let mut message_callback = Some(|_: &str| {});
-
-        match package_remover.remove_single(
-            name,
-            &purge,
-            &force,
-            crate::services::storage::rollback_storage::RollbackSource::Remove,
-            &mut message_callback,
-            &mut progress_callback,
-        ) {
-            Ok(()) => {
-                pb.finish_and_clear();
-                println!("{}", output::status_line_text(Status::Ok, name, "removed"));
-                println!(
-                    "{}",
-                    output::success("Removal complete: 1 removed, 0 failed.")
-                );
-                transaction.complete(vec![remove_success_package(
-                    name,
-                    old_versions.get(name).cloned().flatten(),
-                )])?;
-            }
-            Err(err) => {
-                pb.finish_and_clear();
-                let summary = output::error_summary(&err);
-                transaction.fail(
-                    vec![remove_failed_package(
-                        name,
-                        old_versions.get(name).cloned().flatten(),
-                        summary.clone(),
-                    )],
-                    summary.clone(),
-                )?;
-                println!("{}", output::status_line_text(Status::Fail, name, summary));
-                println!(
-                    "{}",
-                    output::warning("Removal complete: 0 removed, 1 failed.")
-                );
-            }
-        }
-
-        return Ok(());
-    }
-
-    let overall_pb = ProgressBar::new(0);
+    let overall_pb = ProgressBar::new(names.len() as u64);
     overall_pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     overall_pb.set_style(ProgressStyle::with_template(
         "{spinner:.green} Removed {pos}/{len} packages{msg}",
     )?);
+    overall_pb.set_position(0);
     overall_pb.enable_steady_tick(Duration::from_millis(120));
 
     let overall_pb_ref = overall_pb.clone();

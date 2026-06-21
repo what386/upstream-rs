@@ -66,6 +66,10 @@ impl<'a> RemoveOperation<'a> {
         let completion_subject_width =
             output::status_subject_width(package_names.iter().map(String::as_str));
 
+        if let Some(cb) = overall_progress_callback.as_mut() {
+            cb(0, total);
+        }
+
         for package_name in package_names {
             progress!(
                 progress_callback,
@@ -502,6 +506,7 @@ mod tests {
             )
             .expect("bulk remove");
         assert_eq!((removed, failed), (0, 2));
+        assert_eq!(progress_calls.first().copied(), Some((0, 2)));
         assert_eq!(progress_calls.last().copied(), Some((2, 2)));
 
         cleanup(&root).expect("cleanup");
