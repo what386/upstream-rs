@@ -321,14 +321,16 @@ pub enum Commands {
         to_tag: Option<String>,
     },
 
-    /// Search cached package documentation
-    #[command(long_about = "Search cached package documentation.\n\n\
-        This command is currently a UI placeholder for the planned README-backed \
-        documentation search flow. It resolves an installed package, shows the \
-        intended source/cache/query metadata, and renders placeholder section \
-        matches in the pager.\n\n\
+    /// Search package README documentation
+    #[command(long_about = "Search package README documentation.\n\n\
+        Fetches the installed package's upstream README, caches it for offline use, \
+        parses Markdown sections, and opens ranked keyword matches in an interactive \
+        picker with a live preview. If fetching fails and a cached README exists, \
+        upstream falls back to the cached copy. Use --offline to skip fetching and \
+        search only cached documentation.\n\n\
         EXAMPLES:\n  \
         upstream docs rg usage\n  \
+        upstream docs rg --offline usage\n  \
         upstream docs ripgrep configuration file\n  \
         upstream docs bat themes syntax")]
     Docs {
