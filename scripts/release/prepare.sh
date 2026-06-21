@@ -13,15 +13,15 @@ fi
 
 version="${1}"
 
-cargo fmt
-
-git add src/
-git commit -m "cargo fmt" || true
-
 if [[ "$(git branch --show-current)" != "dev" ]]; then
     echo -e "${RED}Not on dev branch${NC}"
     exit 1
 fi
+
+cargo fmt
+
+git add src/
+git commit -m "cargo fmt" || true
 
 tally semver "${version}"
 
@@ -39,3 +39,5 @@ git add ./completions
 git commit -m "Release ${version}: Update shell completions" || true
 
 echo -e "${GREEN}Release ${version} prepared.${NC}"
+
+
