@@ -228,9 +228,11 @@ _arguments "${_arguments_options[@]}" : \
 '--channel=[Channel view to display]:CHANNEL:(stable preview nightly)' \
 '--limit=[Number of releases to inspect instead of only the latest release]:LIMIT:_default' \
 '--tag=[Release tag to inspect (defaults to latest when --limit is omitted)]:TAG:_default' \
+'-k+[File type to show and install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'--kind=[File type to show and install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
 '--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
 '--verbose[Include scored candidate assets for each release]' \
-'--include-incompatible[Include assets that do not match the current OS/architecture or resolved install file type]' \
+'--include-incompatible[Include assets that do not match the current OS/architecture or selected file type]' \
 '--json[Print dry-run probe results as JSON]' \
 '-d[Whether or not to create a .desktop entry for GUI applications]' \
 '--desktop[Whether or not to create a .desktop entry for GUI applications]' \
