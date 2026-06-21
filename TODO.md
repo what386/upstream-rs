@@ -11,3 +11,6 @@
 - [ ] internal: merge packages.json and metadata.json into one packages.db SQL file
       @created 2026-06-21 16:31
 
+- [ ] BREAKING: rollback is now names-only. transactions are no longer recorded. CLI shape reverted.
+      @created 2026-06-21 23:08
+
