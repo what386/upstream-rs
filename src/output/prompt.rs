@@ -6,6 +6,9 @@ use std::io::{self, IsTerminal, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 const SELECTION_SCROLL_MARGIN: usize = 1;
+const MAX_PREVIEW_SELECTION_ROWS: usize = 8;
+const PREVIEW_CHROME_ROWS: usize = 3;
+const FOOTER_ROWS: usize = 1;
 
 static ASSUME_YES: AtomicBool = AtomicBool::new(false);
 
@@ -185,15 +188,14 @@ fn render_selection(
     let prompt_lines = prompt_lines(prompt);
     let preview_lines = selected_preview_lines(previews, selected);
     let preview_line_count = max_preview_line_count(previews);
-    let preview_content_rows = preview_content_rows(
+    let layout = selection_preview_layout(
         term_rows,
         prompt_lines.len(),
         headers.len(),
+        items.len(),
         preview_line_count,
     );
-    let preview_block_rows = preview_block_rows(preview_content_rows);
-    let fixed_rows = prompt_lines.len() + 1 + headers.len() + preview_block_rows;
-    let visible_rows = selection_visible_rows(term_rows, fixed_rows, items.len());
+    let visible_rows = layout.selection_rows;
     *top = selection_top(selected, *top, visible_rows, items.len());
     let bottom = top.saturating_add(visible_rows).min(items.len());
     let mut rendered = 0;
@@ -224,7 +226,7 @@ fn render_selection(
         rendered += 1;
     }
 
-    if preview_content_rows > 0 {
+    if layout.preview_rows > 0 {
         term.write_line("")?;
         rendered += 1;
         term.write_line(&style("Preview").bold().to_string())?;
@@ -235,7 +237,7 @@ fn render_selection(
             .iter()
             .map(String::as_str)
             .chain(std::iter::repeat(""))
-            .take(preview_content_rows)
+            .take(layout.preview_rows)
         {
             term.write_line(&truncate_width(line, cols))?;
             rendered += 1;
@@ -289,36 +291,85 @@ fn preview_content_rows(
     term_rows: usize,
     prompt_rows: usize,
     header_rows: usize,
+    selection_rows: usize,
     preview_line_count: usize,
 ) -> usize {
-    if preview_line_count == 0 || term_rows < 10 {
+    if preview_line_count == 0 {
         return 0;
     }
 
-    let base_rows = prompt_rows + 1 + header_rows;
-    let available_after_one_item = term_rows.saturating_sub(base_rows + 1);
-    if available_after_one_item < 4 {
-        return 0;
-    }
-
-    let target_preview_rows = term_rows.saturating_sub(prompt_rows + header_rows) / 2;
-    let max_preview_rows = target_preview_rows.clamp(4, 18);
-
-    preview_line_count
-        .min(available_after_one_item - 3)
-        .min(max_preview_rows)
-}
-
-fn preview_block_rows(content_rows: usize) -> usize {
-    if content_rows == 0 {
-        0
-    } else {
-        content_rows + 3
-    }
+    let used_rows = prompt_rows
+        .saturating_add(header_rows)
+        .saturating_add(selection_rows)
+        .saturating_add(PREVIEW_CHROME_ROWS)
+        .saturating_add(FOOTER_ROWS);
+    term_rows.saturating_sub(used_rows).min(preview_line_count)
 }
 
 fn selection_visible_rows(term_rows: usize, fixed_rows: usize, item_count: usize) -> usize {
     term_rows.saturating_sub(fixed_rows).max(1).min(item_count)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct SelectionPreviewLayout {
+    selection_rows: usize,
+    preview_rows: usize,
+}
+
+fn selection_preview_layout(
+    term_rows: usize,
+    prompt_rows: usize,
+    header_rows: usize,
+    item_count: usize,
+    preview_line_count: usize,
+) -> SelectionPreviewLayout {
+    if item_count == 0 {
+        return SelectionPreviewLayout {
+            selection_rows: 0,
+            preview_rows: 0,
+        };
+    }
+
+    if preview_line_count == 0 {
+        return SelectionPreviewLayout {
+            selection_rows: selection_visible_rows(
+                term_rows,
+                prompt_rows + header_rows + FOOTER_ROWS,
+                item_count,
+            ),
+            preview_rows: 0,
+        };
+    }
+
+    let fixed_rows = prompt_rows + header_rows + PREVIEW_CHROME_ROWS + FOOTER_ROWS;
+    let available_rows = term_rows.saturating_sub(fixed_rows);
+    if available_rows < 2 {
+        return SelectionPreviewLayout {
+            selection_rows: selection_visible_rows(
+                term_rows,
+                prompt_rows + header_rows + FOOTER_ROWS,
+                item_count,
+            ),
+            preview_rows: 0,
+        };
+    }
+
+    let selection_rows = item_count
+        .min(MAX_PREVIEW_SELECTION_ROWS)
+        .min(available_rows - 1)
+        .max(1);
+    let preview_rows = preview_content_rows(
+        term_rows,
+        prompt_rows,
+        header_rows,
+        selection_rows,
+        preview_line_count,
+    );
+
+    SelectionPreviewLayout {
+        selection_rows,
+        preview_rows,
+    }
 }
 
 fn selection_top(
@@ -404,9 +455,9 @@ fn selection_action_for_key(key: Key) -> SelectionAction {
 #[cfg(test)]
 mod tests {
     use super::{
-        SelectionAction, max_preview_line_count, preview_content_rows, prompt_lines,
-        resolve_text_prompt_value, selection_action_for_key, selection_marker, selection_top,
-        selection_visible_rows,
+        SelectionAction, SelectionPreviewLayout, max_preview_line_count, prompt_lines,
+        resolve_text_prompt_value, selection_action_for_key, selection_marker,
+        selection_preview_layout, selection_top, selection_visible_rows,
     };
     use console::Key;
 
@@ -456,18 +507,68 @@ mod tests {
 
     #[test]
     fn preview_rows_leave_room_for_selection() {
-        assert_eq!(preview_content_rows(24, 1, 2, 20), 10);
-        assert_eq!(preview_content_rows(12, 1, 2, 20), 4);
-        assert_eq!(preview_content_rows(9, 1, 2, 20), 0);
-        assert_eq!(preview_content_rows(12, 2, 2, 20), 3);
-        assert_eq!(selection_visible_rows(12, 2 + 2 + 7, 20), 1);
+        assert_eq!(
+            selection_preview_layout(24, 1, 2, 100, 20),
+            SelectionPreviewLayout {
+                selection_rows: 8,
+                preview_rows: 9,
+            }
+        );
+        assert_eq!(
+            selection_preview_layout(12, 1, 2, 100, 20),
+            SelectionPreviewLayout {
+                selection_rows: 4,
+                preview_rows: 1,
+            }
+        );
+        assert_eq!(
+            selection_preview_layout(9, 1, 2, 100, 20),
+            SelectionPreviewLayout {
+                selection_rows: 1,
+                preview_rows: 1,
+            }
+        );
+        assert_eq!(
+            selection_preview_layout(12, 2, 2, 100, 20),
+            SelectionPreviewLayout {
+                selection_rows: 3,
+                preview_rows: 1,
+            }
+        );
     }
 
     #[test]
     fn preview_rows_grow_on_taller_terminals() {
-        assert_eq!(preview_content_rows(40, 2, 2, 30), 18);
-        assert_eq!(preview_content_rows(80, 2, 2, 100), 18);
-        assert_eq!(preview_content_rows(40, 2, 2, 6), 6);
+        assert_eq!(
+            selection_preview_layout(40, 2, 2, 100, 30),
+            SelectionPreviewLayout {
+                selection_rows: 8,
+                preview_rows: 24,
+            }
+        );
+        assert_eq!(
+            selection_preview_layout(80, 2, 2, 100, 100),
+            SelectionPreviewLayout {
+                selection_rows: 8,
+                preview_rows: 64,
+            }
+        );
+        assert_eq!(
+            selection_preview_layout(40, 2, 2, 100, 6),
+            SelectionPreviewLayout {
+                selection_rows: 8,
+                preview_rows: 6,
+            }
+        );
+    }
+
+    #[test]
+    fn preview_selection_list_is_capped_to_eight_rows() {
+        assert_eq!(
+            selection_preview_layout(80, 2, 2, 100, 100).selection_rows,
+            8
+        );
+        assert_eq!(selection_preview_layout(80, 2, 2, 5, 100).selection_rows, 5);
     }
 
     #[test]
