@@ -3,8 +3,8 @@ use console::style;
 use serde::Serialize;
 
 use crate::{
-    application::operations::doctor_operation::{self, DoctorReport, Level},
     output::{self, Status},
+    routines::doctor::{self, DoctorReport, Level},
 };
 
 fn status_for_level(level: Level) -> Status {
@@ -58,7 +58,7 @@ fn print_hints(report: &DoctorReport) {
 
 pub async fn run(names: Vec<String>, verbose: bool, fix: bool, json: bool) -> Result<()> {
     if json {
-        let report = doctor_operation::run(names, fix).await?;
+        let report = doctor::run(names, fix).await?;
         println!(
             "{}",
             serde_json::to_string_pretty(&json_doctor_report(&report))?
@@ -74,7 +74,7 @@ pub async fn run(names: Vec<String>, verbose: bool, fix: bool, json: bool) -> Re
 
     println!("{}", style("Running upstream doctor...").cyan());
 
-    let report = doctor_operation::run(names, fix).await?;
+    let report = doctor::run(names, fix).await?;
     if verbose {
         print_verbose_findings(&report);
     }
@@ -159,7 +159,7 @@ fn level_label(level: Level) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::json_doctor_report;
-    use crate::application::operations::doctor_operation::{DoctorFinding, DoctorReport, Level};
+    use crate::routines::doctor::{DoctorFinding, DoctorReport, Level};
 
     #[test]
     fn json_doctor_report_serializes_summary_and_findings() {
