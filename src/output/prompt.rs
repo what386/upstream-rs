@@ -1,4 +1,6 @@
 use console::{Key, Term, style};
+
+use super::style::truncate_visible;
 use std::fmt;
 use std::io::{self, IsTerminal, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -377,11 +379,7 @@ fn clear_rendered_selection(term: &Term, rendered_lines: usize) -> anyhow::Resul
 }
 
 fn truncate_width(value: &str, cols: usize) -> String {
-    if cols == 0 {
-        return String::new();
-    }
-
-    value.chars().take(cols).collect()
+    truncate_visible(value, cols)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
