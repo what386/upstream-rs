@@ -142,6 +142,62 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
         },
     )?;
 
+    if names.len() == 1 {
+        let name = &names[0];
+        let pb = ProgressBar::new_spinner();
+        pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
+        pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
+        pb.enable_steady_tick(Duration::from_millis(120));
+        pb.set_message(format!("Removing {name}"));
+
+        let progress_pb = pb.clone();
+        let mut progress_callback = Some(move |name: &str, event: PackageProgressEvent| {
+            progress_pb.set_message(render_remove_progress_row(name, event).trim().to_string());
+        });
+        let mut message_callback = Some(|_: &str| {});
+
+        match package_remover.remove_single(
+            name,
+            &purge,
+            &force,
+            crate::services::storage::rollback_storage::RollbackSource::Remove,
+            &mut message_callback,
+            &mut progress_callback,
+        ) {
+            Ok(()) => {
+                pb.finish_and_clear();
+                println!("{}", output::status_line_text(Status::Ok, name, "removed"));
+                println!(
+                    "{}",
+                    output::success("Removal complete: 1 removed, 0 failed.")
+                );
+                transaction.complete(vec![remove_success_package(
+                    name,
+                    old_versions.get(name).cloned().flatten(),
+                )])?;
+            }
+            Err(err) => {
+                pb.finish_and_clear();
+                let summary = output::error_summary(&err);
+                transaction.fail(
+                    vec![remove_failed_package(
+                        name,
+                        old_versions.get(name).cloned().flatten(),
+                        summary.clone(),
+                    )],
+                    summary.clone(),
+                )?;
+                println!("{}", output::status_line_text(Status::Fail, name, summary));
+                println!(
+                    "{}",
+                    output::warning("Removal complete: 0 removed, 1 failed.")
+                );
+            }
+        }
+
+        return Ok(());
+    }
+
     let overall_pb = ProgressBar::new(0);
     overall_pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     overall_pb.set_style(ProgressStyle::with_template(
@@ -202,115 +258,53 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
         remove_pb_for_progress.set_message(message);
     });
 
-    if names.len() > 1 {
-        let bulk_result = package_remover.remove_bulk(
-            &names,
-            &purge,
-            &force,
-            &mut message_callback,
-            &mut overall_progress_callback,
-            &mut progress_callback,
-        );
-        let (removed, failed) = match bulk_result {
-            Ok(result) => result,
-            Err(err) => {
-                overall_pb.finish_and_clear();
-                transaction.fail(
-                    remove_transaction_packages(&names, &old_versions, 0),
-                    err.to_string(),
-                )?;
-                return Err(err);
-            }
-        };
-        overall_pb.finish_and_clear();
-        let completion_rows = persistent_completion_rows
-            .lock()
-            .map(|rows| rows.clone())
-            .unwrap_or_default();
-        for row in &completion_rows {
-            println!("{row}");
-        }
-        let transaction_packages = remove_transaction_packages_from_completion_rows(
-            &names,
-            &old_versions,
-            &completion_rows,
-        );
-        if failed > 0 {
+    let bulk_result = package_remover.remove_bulk(
+        &names,
+        &purge,
+        &force,
+        &mut message_callback,
+        &mut overall_progress_callback,
+        &mut progress_callback,
+    );
+    let (removed, failed) = match bulk_result {
+        Ok(result) => result,
+        Err(err) => {
+            overall_pb.finish_and_clear();
             transaction.fail(
-                transaction_packages,
-                format!("{failed} package(s) failed to be removed"),
+                remove_transaction_packages(&names, &old_versions, 0),
+                err.to_string(),
             )?;
-            println!(
-                "{}",
-                output::warning(format!(
-                    "Removal complete: {} removed, {} failed.",
-                    removed, failed
-                ))
-            );
-        } else {
-            transaction.complete(transaction_packages)?;
-            println!(
-                "{}",
-                output::success(format!("Removal complete: {} removed, 0 failed.", removed))
-            );
+            return Err(err);
         }
-    } else {
-        match package_remover.remove_single(
-            &names[0],
-            &purge,
-            &force,
-            crate::services::storage::rollback_storage::RollbackSource::Remove,
-            &mut message_callback,
-            &mut progress_callback,
-        ) {
-            Ok(()) => {
-                if let Some(cb) = message_callback.as_mut() {
-                    cb(&output::status_line_text(Status::Ok, &names[0], "removed"));
-                }
-            }
-            Err(err) => {
-                transaction.fail(
-                    vec![remove_failed_package(
-                        &names[0],
-                        old_versions.get(&names[0]).cloned().flatten(),
-                        output::error_summary(&err),
-                    )],
-                    output::error_summary(&err),
-                )?;
-                if let Some(cb) = message_callback.as_mut() {
-                    cb(&output::status_line_text(
-                        Status::Fail,
-                        &names[0],
-                        output::error_summary(&err),
-                    ));
-                }
-                overall_pb.finish_and_clear();
-                if let Ok(rows) = persistent_completion_rows.lock() {
-                    for row in rows.iter() {
-                        println!("{row}");
-                    }
-                }
-                println!(
-                    "{}",
-                    output::warning("Removal complete: 0 removed, 1 failed.")
-                );
-                return Ok(());
-            }
-        }
-        overall_pb.finish_and_clear();
-        if let Ok(rows) = persistent_completion_rows.lock() {
-            for row in rows.iter() {
-                println!("{row}");
-            }
-        }
+    };
+    overall_pb.finish_and_clear();
+    let completion_rows = persistent_completion_rows
+        .lock()
+        .map(|rows| rows.clone())
+        .unwrap_or_default();
+    for row in &completion_rows {
+        println!("{row}");
+    }
+    let transaction_packages =
+        remove_transaction_packages_from_completion_rows(&names, &old_versions, &completion_rows);
+    if failed > 0 {
+        transaction.fail(
+            transaction_packages,
+            format!("{failed} package(s) failed to be removed"),
+        )?;
         println!(
             "{}",
-            output::success("Removal complete: 1 removed, 0 failed.")
+            output::warning(format!(
+                "Removal complete: {} removed, {} failed.",
+                removed, failed
+            ))
         );
-        transaction.complete(vec![remove_success_package(
-            &names[0],
-            old_versions.get(&names[0]).cloned().flatten(),
-        )])?;
+    } else {
+        transaction.complete(transaction_packages)?;
+        println!(
+            "{}",
+            output::success(format!("Removal complete: {} removed, 0 failed.", removed))
+        );
     }
 
     Ok(())
