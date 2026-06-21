@@ -11,7 +11,9 @@ use crate::{
         common::enums::Provider,
         upstream::{AppConfig, Package},
     },
-    providers::{gitea::GiteaClient, github::GithubClient, gitlab::GitlabClient, http_status},
+    providers::{
+        gitea::GiteaClient, github::GithubClient, gitlab::GitlabClient, http::http_status,
+    },
     services::integration::{
         CompletionCacheMismatch, CompletionCacheMismatchKind, CompletionManager, SymlinkManager,
         permission_handler,

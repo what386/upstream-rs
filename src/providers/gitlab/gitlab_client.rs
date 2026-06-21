@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::{
     models::upstream::DownloadConfig,
-    providers::{download_handler, http_status},
+    providers::{download_handler, http::http_status},
 };
 
 use super::gitlab_dtos::GitlabReleaseDto;

@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::{
     models::{provider::RepositorySearchFilters, upstream::DownloadConfig},
-    providers::{download_handler, http_status},
+    providers::{download_handler, http::http_status},
 };
 
 use super::github_dtos::{GithubReleaseDto, GithubRepositorySearchResponseDto};
