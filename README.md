@@ -152,8 +152,10 @@ upstream config set github.api_token=github_pat_xxx
 ```
 
 For GitHub, open your profile menu, then go to **Settings > Developer settings > Personal access tokens**.
-A fine-grained personal access token with public repository access and no additional permissions is enough for public releases.
-A classic personal access token also works; `read:project` is sufficient for this use case.
+
+Both of these will work:
+A fine-grained personal access token with public repository access.
+A classic personal access token with `read:project` permissions.
 
 Run `upstream doctor` after configuring tokens to verify that they work.
 
