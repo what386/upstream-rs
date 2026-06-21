@@ -90,14 +90,12 @@ impl RollbackStorage {
             return Ok(());
         }
 
-        let parsed: RollbackStorageFile = serde_json::from_str(&json)
-            .or_else(|_| parse_legacy_storage_file(&json))
-            .with_context(|| {
-                format!(
-                    "Failed to parse rollback storage '{}'",
-                    self.rollback_file.display()
-                )
-            })?;
+        let parsed: RollbackStorageFile = serde_json::from_str(&json).with_context(|| {
+            format!(
+                "Failed to parse rollback storage '{}'",
+                self.rollback_file.display()
+            )
+        })?;
         if parsed.version != ROLLBACK_STORAGE_VERSION {
             return Err(anyhow!(
                 "Unsupported rollback storage version {} in '{}'. Expected version {}.",
@@ -185,24 +183,6 @@ impl RollbackStorage {
         self.save()?;
         Ok(removed)
     }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct LegacyRollbackStorageFile {
-    version: u32,
-    records: HashMap<String, RollbackRecord>,
-}
-
-fn parse_legacy_storage_file(json: &str) -> serde_json::Result<RollbackStorageFile> {
-    let legacy: LegacyRollbackStorageFile = serde_json::from_str(json)?;
-    Ok(RollbackStorageFile {
-        version: legacy.version,
-        records: legacy
-            .records
-            .into_iter()
-            .map(|(name, record)| (name, vec![record]))
-            .collect(),
-    })
 }
 
 #[cfg(test)]

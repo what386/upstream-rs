@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use crate::{
+    routines::doctor::checks::legacy,
     services::storage::manifest_storage::{CURRENT_LAYOUT_VERSION, ManifestStorage},
     utils::static_paths::UpstreamPaths,
 };
@@ -10,13 +11,12 @@ use crate::routines::migrate::MigrationReport;
 
 pub fn run(paths: &UpstreamPaths) -> Result<MigrationReport> {
     let rewrites = layout::package_path_rewrites(paths);
-    let legacy_layout_detected = layout::legacy_package_dirs_exist(&rewrites);
     let mut manifest_storage =
         ManifestStorage::new(&ManifestStorage::path_for_root(&paths.dirs.data_dir))?;
     let previous_layout_version = manifest_storage
         .manifest()
         .map(|manifest| manifest.layout_version)
-        .or_else(|| legacy_layout_detected.then_some(1));
+        .or_else(|| legacy::previous_layout_version_hint(paths));
     let mut report = MigrationReport::default();
 
     layout::create_required_dirs(paths, &mut report)?;

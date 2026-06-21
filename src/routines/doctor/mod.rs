@@ -1,4 +1,4 @@
-mod checks;
+pub(crate) mod checks;
 mod orchestrator;
 mod report;
 

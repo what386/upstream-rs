@@ -9,11 +9,10 @@ use crate::{
 };
 
 use super::super::{DoctorReport, Level};
+use super::legacy::{MIGRATE_DIR_HINT, looks_like_legacy_layout};
 
 const HOOKS_INIT_DIR_HINT: &str =
     "Run `upstream hooks init` to create missing upstream directories and metadata files.";
-const MIGRATE_DIR_HINT: &str =
-    "Run `upstream migrate` to update local data for the current upstream layout.";
 
 fn required_directory_checks(paths: &UpstreamPaths) -> Vec<(&'static str, &Path)> {
     vec![
@@ -31,26 +30,6 @@ fn required_directory_checks(paths: &UpstreamPaths) -> Vec<(&'static str, &Path)
         ("archives directory", paths.install.archives_dir.as_path()),
         ("tmp directory", paths.install.tmp_dir.as_path()),
     ]
-}
-
-fn looks_like_legacy_layout(paths: &UpstreamPaths) -> bool {
-    let old_package_dirs = [
-        paths.dirs.data_dir.join("appimages"),
-        paths.dirs.data_dir.join("binaries"),
-        paths.dirs.data_dir.join("archives"),
-    ];
-    let old_dirs_exist = old_package_dirs.iter().any(|path| path.exists());
-    let new_layout_incomplete = [
-        paths.dirs.packages_dir.as_path(),
-        paths.dirs.cache_dir.as_path(),
-        paths.install.appimages_dir.as_path(),
-        paths.install.binaries_dir.as_path(),
-        paths.install.archives_dir.as_path(),
-    ]
-    .iter()
-    .any(|path| !path.exists());
-
-    old_dirs_exist && new_layout_incomplete
 }
 
 fn normalized_link_package_name(path: &Path) -> Option<String> {
@@ -263,12 +242,8 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use crate::utils::test_support;
-
-    use super::{
-        HOOKS_INIT_DIR_HINT, MIGRATE_DIR_HINT, find_orphan_install_entries,
-        find_stale_symlink_names, looks_like_legacy_layout,
-    };
+    use super::{HOOKS_INIT_DIR_HINT, find_orphan_install_entries, find_stale_symlink_names};
+    use crate::routines::doctor::checks::legacy::MIGRATE_DIR_HINT;
     use crate::routines::doctor::checks::packages::expected_link_path;
 
     fn temp_root(name: &str) -> PathBuf {
@@ -326,25 +301,6 @@ mod tests {
         assert_eq!(orphans.len(), 2);
         assert!(orphans.contains(&orphan_dir));
         assert!(orphans.contains(&orphan_file));
-
-        cleanup(&root).expect("cleanup");
-    }
-
-    #[test]
-    fn legacy_layout_detector_matches_old_package_dirs_with_missing_new_layout() {
-        let root = temp_root("legacy-layout");
-        let paths = test_support::upstream_paths(&root);
-        fs::create_dir_all(paths.dirs.data_dir.join("binaries")).expect("create legacy binaries");
-
-        assert!(looks_like_legacy_layout(&paths));
-
-        fs::create_dir_all(&paths.dirs.packages_dir).expect("create packages");
-        fs::create_dir_all(&paths.dirs.cache_dir).expect("create cache");
-        fs::create_dir_all(&paths.install.appimages_dir).expect("create appimages");
-        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries");
-        fs::create_dir_all(&paths.install.archives_dir).expect("create archives");
-
-        assert!(!looks_like_legacy_layout(&paths));
 
         cleanup(&root).expect("cleanup");
     }

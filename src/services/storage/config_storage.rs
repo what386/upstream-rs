@@ -65,7 +65,7 @@ impl ConfigStorage {
             for key in table.keys() {
                 if !ALLOWED_TOP_LEVEL_KEYS.contains(&key.as_str()) {
                     return Err(anyhow!(
-                        "Unsupported config key '{}' in '{}'; run `upstream migrate` if this is a legacy config.",
+                        "Unsupported config key '{}' in '{}'; run `upstream migrate` if this config needs migration.",
                         key,
                         self.config_file.display()
                     ));
@@ -330,22 +330,22 @@ mod tests {
     }
 
     #[test]
-    fn load_rejects_legacy_unversioned_config() {
-        let path = temp_config_file("legacy-unversioned");
+    fn load_rejects_unversioned_config() {
+        let path = temp_config_file("unversioned");
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
         fs::write(&path, "[github]\napi_token = \"ghp_abc\"\n").expect("write config");
 
-        let err = ConfigStorage::new(&path).expect_err("legacy config should be rejected");
+        let err = ConfigStorage::new(&path).expect_err("unversioned config should be rejected");
         assert!(err.to_string().contains("Missing version"));
 
         cleanup(&path).expect("cleanup");
     }
 
     #[test]
-    fn load_rejects_legacy_trust_config() {
-        let path = temp_config_file("legacy-trust");
+    fn load_rejects_config_with_unsupported_trust_table() {
+        let path = temp_config_file("unsupported-trust");
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }

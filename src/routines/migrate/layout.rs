@@ -60,10 +60,6 @@ pub(in crate::routines::migrate) fn package_path_rewrites(
     ]
 }
 
-pub(in crate::routines::migrate) fn legacy_package_dirs_exist(rewrites: &[PathRewrite]) -> bool {
-    rewrites.iter().any(|rewrite| rewrite.old.exists())
-}
-
 pub(in crate::routines::migrate) fn move_legacy_package_dirs(
     rewrites: &[PathRewrite],
     report: &mut MigrationReport,
