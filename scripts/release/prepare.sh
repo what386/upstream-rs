@@ -30,6 +30,8 @@ if [[ "$(tally list --released "${version}")" == "No released tasks found." ]]; 
     exit 1
 fi
 
+git commit -m "Update changelog for release ${version}"
+
 just gen-completions
 
 git add ./completions
