@@ -47,7 +47,7 @@ impl ConfigStorage {
             .and_then(toml::Value::as_integer)
             .ok_or_else(|| {
                 anyhow!(
-                    "Unsupported config storage version in '{}'. Missing version {}; run `upstream migrate`.",
+                    "Unsupported config storage version in '{}'. Missing version {}; run `upstream doctor --migrate`.",
                     self.config_file.display(),
                     CONFIG_STORAGE_VERSION
                 )
@@ -65,7 +65,7 @@ impl ConfigStorage {
             for key in table.keys() {
                 if !ALLOWED_TOP_LEVEL_KEYS.contains(&key.as_str()) {
                     return Err(anyhow!(
-                        "Unsupported config key '{}' in '{}'; run `upstream migrate` if this config needs migration.",
+                        "Unsupported config key '{}' in '{}'; run `upstream doctor --migrate` if this config needs migration.",
                         key,
                         self.config_file.display()
                     ));

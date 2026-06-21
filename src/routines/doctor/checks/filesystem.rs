@@ -307,7 +307,7 @@ mod tests {
 
     #[test]
     fn directory_hints_are_easy_to_distinguish() {
-        assert!(MIGRATE_DIR_HINT.contains("upstream migrate"));
+        assert!(MIGRATE_DIR_HINT.contains("upstream doctor --migrate"));
         assert!(HOOKS_INIT_DIR_HINT.contains("upstream hooks init"));
     }
 

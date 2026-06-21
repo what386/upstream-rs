@@ -236,7 +236,7 @@ upstream package unpin nvim
 upstream package rename nvim neovim
 ```
 
-Rollback is package-name-specific. After upgrading across breaking local data changes, run `upstream migrate` when release notes or `doctor` recommend it.
+Rollback is package-name-specific. After upgrading across breaking local data changes, run `upstream doctor --migrate` when release notes or `doctor` recommend it.
 
 ### Import and export
 

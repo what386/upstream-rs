@@ -6,16 +6,17 @@ Start with diagnostics:
 upstream doctor
 upstream doctor --verbose
 upstream doctor --fix
+upstream doctor --migrate
 ```
 
-`doctor` checks installed package paths, symlinks, shell hooks, cached completions, desktop entries, icons, and metadata. Use `--verbose` when you need individual check lines. Use `--fix` to repair supported issues such as PATH hooks, missing symlinks, executable bits, executable metadata, and cached completion drift.
+`doctor` checks installed package paths, symlinks, shell hooks, cached completions, desktop entries, icons, and metadata. Use `--verbose` when you need individual check lines. Use `--fix` to repair supported issues such as PATH hooks, missing symlinks, executable bits, executable metadata, and cached completion drift. Use `--migrate` when local data needs a versioned layout or metadata migration.
 
 ## Migration
 
 If `doctor` reports that local data looks like an older layout, run:
 
 ```bash
-upstream migrate
+upstream doctor --migrate
 ```
 
 Migration creates missing current-layout directories, moves legacy package artifacts into `$HOME/.upstream/packages/`, and rewrites affected metadata paths.

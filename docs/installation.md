@@ -85,10 +85,10 @@ Desktop entries are written to `$HOME/.local/share/applications` on Linux. Shell
 After upgrading across breaking layout changes, run:
 
 ```bash
-upstream migrate
+upstream doctor --migrate
 ```
 
-`doctor` detects common legacy layouts and recommends `migrate` when local data appears to use an older format.
+`doctor` detects common legacy layouts and recommends `doctor --migrate` when local data appears to use an older format.
 
 ## Updating Upstream Itself
 

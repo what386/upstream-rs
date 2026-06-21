@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::utils::static_paths::UpstreamPaths;
 
 pub(crate) const MIGRATE_DIR_HINT: &str =
-    "Run `upstream migrate` to update local data for the current upstream layout.";
+    "Run `upstream doctor --migrate` to update local data for the current upstream layout.";
 
 pub(crate) fn legacy_package_dirs(paths: &UpstreamPaths) -> [PathBuf; 3] {
     [

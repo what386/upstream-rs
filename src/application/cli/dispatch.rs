@@ -267,7 +267,6 @@ impl Cli {
             },
 
             Commands::Export { path, full } => commands::export::run_export(path, full).await,
-            Commands::Migrate => commands::migrate::run(),
             Commands::Import {
                 path,
                 skip_failed,
@@ -284,8 +283,9 @@ impl Cli {
                 names,
                 verbose,
                 fix,
+                migrate,
                 json,
-            } => commands::doctor::run(names, verbose, fix, json).await,
+            } => commands::doctor::run(names, verbose, fix, migrate, json).await,
         }
     }
 }

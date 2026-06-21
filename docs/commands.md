@@ -166,6 +166,7 @@ upstream search [query...] [-p <provider>] [--base-url <url>] [--limit <n>] [fil
 upstream find <query...> [-p <provider>] [--limit <n>] [filters] [--name <name>] [install options]
 upstream probe <repo-or-url> [name] [-p <provider>] [-k <kind>] [--channel <channel>] [--limit <n>] [--verbose] [--include-incompatible]
 upstream doctor [names...] [--verbose] [--fix]
+upstream doctor --migrate
 ```
 
 - `list` shows installed package metadata.
@@ -174,15 +175,7 @@ upstream doctor [names...] [--verbose] [--fix]
 - `search` searches provider repositories for software discovery. Use filters like `--language Rust`, `--topic cli`, `--min-stars 100`, `--max-stars 50000`, `--pushed-after 2026-01-01`, `--include-forks`, and `--include-archived` to narrow results.
 - `find` searches provider repositories with the same discovery filters as `search`, opens an interactive picker, prompts for the package name with an inferred default, and installs the selected result. Use `--name` to skip the prompt.
 - `probe` shows releases and compatible assets, opens an interactive asset picker, prompts for the package name with an inferred default when `[name]` is omitted, and installs the selected asset. When `-k/--kind` is omitted, `probe` shows all current-platform installable file types; pass `-k` to narrow the picker to one kind. Use `--include-incompatible` to show all release assets, or `--dry-run` / `--json` to inspect without installing.
-- `doctor` checks paths, symlinks, hooks, cached completions, desktop entries, and package metadata. `--fix` copies cached completions back into shell completion directories when they drift.
-
-## Migration
-
-```bash
-upstream migrate
-```
-
-Migrates local data after breaking layout or metadata changes. Run it when release notes or `doctor` recommend it.
+- `doctor` checks paths, symlinks, hooks, cached completions, desktop entries, and package metadata. `--fix` copies cached completions back into shell completion directories when they drift. `--migrate` runs local data migrations after breaking layout or metadata changes when release notes or diagnostics recommend it.
 
 ## Configuration, Import, and Export
 
