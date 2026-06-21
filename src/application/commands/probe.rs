@@ -884,9 +884,9 @@ mod tests {
                     Utc::now(),
                 ),
                 Asset::new(
-                    "https://example.invalid/tool".to_string(),
+                    "https://example.invalid/tool.gz".to_string(),
                     2,
-                    "tool".to_string(),
+                    "tool.gz".to_string(),
                     5678,
                     Utc::now(),
                 ),
@@ -901,7 +901,7 @@ mod tests {
         assert_eq!(choices.len(), 1);
         assert_eq!(choices[0].asset.name, "tool.tar.gz");
         assert!(table.rows[0].contains("tool.tar.gz"));
-        assert!(!choices.iter().any(|choice| choice.asset.name == "tool"));
+        assert!(!choices.iter().any(|choice| choice.asset.name == "tool.gz"));
     }
 
     #[test]
@@ -934,9 +934,9 @@ mod tests {
                     Utc::now(),
                 ),
                 Asset::new(
-                    "https://example.invalid/tool".to_string(),
+                    "https://example.invalid/tool.gz".to_string(),
                     2,
-                    "tool".to_string(),
+                    "tool.gz".to_string(),
                     5678,
                     Utc::now(),
                 ),
@@ -954,9 +954,9 @@ mod tests {
                 .iter()
                 .any(|choice| choice.asset.name == "tool.tar.gz")
         );
-        assert!(choices.iter().any(|choice| choice.asset.name == "tool"));
+        assert!(choices.iter().any(|choice| choice.asset.name == "tool.gz"));
         assert!(table.rows.iter().any(|row| row.contains("tool.tar.gz")));
-        assert!(table.rows.iter().any(|row| row.contains("tool")));
+        assert!(table.rows.iter().any(|row| row.contains("tool.gz")));
     }
 
     #[test]
