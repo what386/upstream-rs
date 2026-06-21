@@ -11,6 +11,9 @@
 - [ ] feat: consider bulk installs with `upstream install --package REPO=NAME --package REPO=NAME`
       @created 2026-06-21 15:25
 
+- [ ] feat: merge packages.json and metadata.json into one packages.db SQL file
+      @created 2026-06-21 16:31
+
 
 ## Completed
 
