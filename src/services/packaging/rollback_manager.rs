@@ -14,7 +14,7 @@ use crate::services::packaging::PackageRemover;
 use crate::services::packaging::disk_impact::{
     ByteEstimate, DiskImpact, SignedByteEstimate, estimate_path_size,
 };
-use crate::services::storage::{
+use crate::storage::{
     config_storage::ConfigStorage,
     package_storage::PackageStorage,
     rollback_storage::{RollbackArtifactFormat, RollbackRecord, RollbackSource, RollbackStorage},
@@ -711,10 +711,8 @@ mod tests {
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
-    use crate::services::storage::rollback_storage::{RollbackArtifactFormat, RollbackSource};
-    use crate::services::storage::{
-        package_storage::PackageStorage, rollback_storage::RollbackStorage,
-    };
+    use crate::storage::rollback_storage::{RollbackArtifactFormat, RollbackSource};
+    use crate::storage::{package_storage::PackageStorage, rollback_storage::RollbackStorage};
     use crate::utils::test_support;
     use std::fs;
     use std::io;

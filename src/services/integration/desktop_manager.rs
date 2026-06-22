@@ -1,5 +1,5 @@
 #[cfg(target_os = "linux")]
-use crate::services::integration::appimage_extractor::AppImageExtractor;
+use crate::services::artifact::AppImageExtractor;
 use crate::{
     models::common::{DesktopEntry, enums::Filetype},
     utils::static_paths::UpstreamPaths,

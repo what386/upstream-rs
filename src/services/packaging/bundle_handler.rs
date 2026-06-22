@@ -1,6 +1,6 @@
 use crate::{
     models::upstream::Package,
-    services::integration::{SymlinkManager, permission_handler},
+    services::{artifact::permission_handler, integration::SymlinkManager},
     utils::{filesystem::safe_move, static_paths::UpstreamPaths},
 };
 

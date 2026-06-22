@@ -1,5 +1,5 @@
 #[cfg(target_os = "linux")]
-use crate::services::integration::AppImageExtractor;
+use crate::services::artifact::AppImageExtractor;
 use crate::{
     models::{
         common::{DesktopEntry, enums::TrustMode},
@@ -12,9 +12,9 @@ use crate::{
         integration::{DesktopManager, IconManager},
         packaging::RollbackManager,
         packaging::{PackageInstaller, PackagePhase, PackageProgressEvent, PackageRemover},
-        storage::rollback_storage::{RollbackSource, RollbackStorage},
         trust::TrustedSignatureKeys,
     },
+    storage::rollback_storage::{RollbackSource, RollbackStorage},
     utils::static_paths::UpstreamPaths,
 };
 

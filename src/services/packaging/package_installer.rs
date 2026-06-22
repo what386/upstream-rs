@@ -1,5 +1,5 @@
 #[cfg(target_os = "linux")]
-use crate::services::integration::AppImageExtractor;
+use crate::services::artifact::AppImageExtractor;
 use crate::{
     models::common::{DesktopEntry, enums::TrustMode},
     models::{
@@ -9,9 +9,9 @@ use crate::{
     },
     providers::provider_manager::ProviderManager,
     services::{
+        artifact::{compression_handler, permission_handler},
         integration::{
             CompletionManager, DesktopManager, IconManager, ShellManager, SymlinkManager,
-            compression_handler, permission_handler,
         },
         packaging::{
             PackagePhase, PackageProgressEvent, PackageRemover,
@@ -1138,7 +1138,7 @@ impl<'a> PackageInstaller<'a> {
 
         message!(message_callback, "Made '{}' executable", filename.display());
 
-        match crate::services::integration::AppImageExtractor::new() {
+        match crate::services::artifact::AppImageExtractor::new() {
             Ok(extractor) => match extractor
                 .extract(&package.name, &out_path, message_callback)
                 .await
