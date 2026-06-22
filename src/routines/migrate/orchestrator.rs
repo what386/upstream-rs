@@ -38,9 +38,7 @@ mod tests {
     use crate::storage::manifest::{
         CURRENT_LAYOUT_VERSION, MANIFEST_STORAGE_VERSION, ManifestStorage,
     };
-    use crate::storage::rollback::{
-        RollbackArtifactFormat, RollbackRecord, RollbackSource,
-    };
+    use crate::storage::rollback::{RollbackArtifactFormat, RollbackRecord, RollbackSource};
     use crate::utils::test_support;
     use chrono::Utc;
     use serde_json::json;

@@ -6,10 +6,7 @@ use crate::utils::static_paths::UpstreamPaths;
 use crate::{output, output::Status};
 use crate::{
     services::integration::CompletionManager,
-    storage::{
-        config::ConfigStorage, manifest::ManifestStorage,
-        trust::TrustStorage,
-    },
+    storage::{config::ConfigStorage, manifest::ManifestStorage, trust::TrustStorage},
 };
 #[cfg(windows)]
 use anyhow::Context;

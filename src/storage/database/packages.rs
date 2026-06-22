@@ -220,7 +220,6 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::PackageDatabase;
-    use crate::database::PACKAGE_DB_SCHEMA_VERSION;
     use crate::models::{
         common::{
             Version,
@@ -229,6 +228,7 @@ mod tests {
         upstream::{InstallType, Package},
     };
     use crate::providers::pattern_matcher::PatternTable;
+    use crate::storage::database::PACKAGE_DB_SCHEMA_VERSION;
     use chrono::{TimeZone, Utc};
     use std::path::PathBuf;
 
