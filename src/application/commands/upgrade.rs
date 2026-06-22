@@ -812,7 +812,7 @@ mod tests {
         let mut completed = BTreeMap::new();
         completed.insert(
             "tally".to_string(),
-            "[ok] tally upgraded to 0.13.0 494 B / 494 B".to_string(),
+            "[ok] tally upgraded to 0.13.0".to_string(),
         );
 
         let mut active = BTreeMap::new();
@@ -827,13 +827,13 @@ mod tests {
 
         assert_eq!(
             render_upgrade_progress(&completed, &active),
-            "\n[ok] tally upgraded to 0.13.0 494 B / 494 B\nstable/forge u github 1.00 MiB/5.00 MiB\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
+            "\n[ok] tally upgraded to 0.13.0\nstable/forge u github 1.00 MiB/5.00 MiB\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
         );
 
         active.remove("forge");
         assert_eq!(
             render_upgrade_progress(&completed, &active),
-            "\n[ok] tally upgraded to 0.13.0 494 B / 494 B\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
+            "\n[ok] tally upgraded to 0.13.0\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
         );
 
         completed.clear();
