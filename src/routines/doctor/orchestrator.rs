@@ -1,8 +1,6 @@
 use anyhow::Result;
 
-use crate::{
-    services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
-};
+use crate::{storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths};
 
 use super::{DoctorReport, checks};
 

@@ -16,8 +16,8 @@ use crate::services::packaging::{
     PackageProgressEvent,
     disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
 };
-use crate::services::storage::package_storage::PackageStorage;
 use crate::services::trust::TrustedSignatureKeys;
+use crate::storage::package_storage::PackageStorage;
 use crate::utils::static_paths::UpstreamPaths;
 
 pub struct BuildOperation<'a> {

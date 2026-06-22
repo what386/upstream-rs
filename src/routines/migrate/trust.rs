@@ -5,8 +5,8 @@ use serde::Deserialize;
 
 use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
 use crate::routines::migrate::MigrationReport;
-use crate::services::storage::trust_storage::TrustStorage;
 use crate::services::trust::{CosignPublicKey, MinisignPublicKey};
+use crate::storage::trust_storage::TrustStorage;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 use crate::utils::static_paths::UpstreamPaths;
 

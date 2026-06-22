@@ -11,9 +11,9 @@ use crate::{
             PackageChecker, PackageInstaller, PackageProgressEvent, PackageRemover,
             PackageUpgrader, ResolvedUpgradeTarget,
         },
-        storage::package_storage::PackageStorage,
         trust::TrustedSignatureKeys,
     },
+    storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 

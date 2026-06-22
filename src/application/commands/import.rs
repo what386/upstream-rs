@@ -1,7 +1,8 @@
 use crate::{
     application::operations::import_operation::{ImportKind, ImportOperation},
     output,
-    services::{packaging::OperationProgressEvent, storage::package_storage::PackageStorage},
+    services::packaging::OperationProgressEvent,
+    storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;

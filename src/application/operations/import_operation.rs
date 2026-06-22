@@ -2,9 +2,9 @@ use crate::{
     models::upstream::PackageReference,
     services::{
         packaging::{OperationPhase, OperationProgressEvent},
-        storage::{package_storage::PackageStorage, trust_storage::TrustStorage},
         trust::{CosignPublicKey, MinisignPublicKey},
     },
+    storage::{package_storage::PackageStorage, trust_storage::TrustStorage},
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow, bail};
@@ -307,9 +307,8 @@ impl<'a> ImportOperation<'a> {
 
         // Decompress the tarball into temp_dir.  The archive contains an
         // "upstream/" top-level dir, so after extraction we move that into place.
-        let extracted =
-            crate::services::integration::compression_handler::decompress(path, &temp_dir)
-                .context("Failed to extract snapshot")?;
+        let extracted = crate::services::artifact::compression_handler::decompress(path, &temp_dir)
+            .context("Failed to extract snapshot")?;
 
         // The extracted path should be temp_dir/upstream (the top-level dir we
         // created during export).  Rename it directly to .upstream/.
@@ -399,7 +398,7 @@ where
 mod tests {
     use super::{ImportKind, ImportOperation, is_snapshot};
     use crate::services::packaging::OperationProgressEvent;
-    use crate::services::storage::package_storage::PackageStorage;
+    use crate::storage::package_storage::PackageStorage;
     use crate::utils::test_support;
     use std::path::Path;
     use std::{fs, io};
