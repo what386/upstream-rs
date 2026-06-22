@@ -272,7 +272,7 @@ mod tests {
 
         let outcome =
             LockStorage::try_acquire_at_internal(&lock_path, "next-op", true).expect("try acquire");
-        assert!(matches!(outcome, lock::AcquireOutcome::Waiting));
+        assert!(matches!(outcome, AcquireOutcome::Waiting));
 
         let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
     }
@@ -290,7 +290,7 @@ mod tests {
 
         let outcome =
             LockStorage::try_acquire_at_internal(&lock_path, "next-op", true).expect("try acquire");
-        assert!(matches!(outcome, lock::AcquireOutcome::Waiting));
+        assert!(matches!(outcome, AcquireOutcome::Waiting));
 
         let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
     }

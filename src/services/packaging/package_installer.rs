@@ -15,7 +15,7 @@ use crate::{
         },
         packaging::{
             PackagePhase, PackageProgressEvent, PackageRemover,
-            bundle_handler::BundleHandler,
+            bundles::BundleHandler,
             disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
         },
         trust::{
