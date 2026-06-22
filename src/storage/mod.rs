@@ -1,7 +1,7 @@
 pub mod database;
-pub mod config_storage;
-pub mod lock_storage;
-pub mod manifest_storage;
+pub mod config;
+pub mod lock;
+pub mod manifest;
+pub mod rollback;
+pub mod trust;
 pub mod package_storage;
-pub mod rollback_storage;
-pub mod trust_storage;

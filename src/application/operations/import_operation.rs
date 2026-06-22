@@ -4,7 +4,7 @@ use crate::{
         packaging::{OperationPhase, OperationProgressEvent},
         trust::{CosignPublicKey, MinisignPublicKey},
     },
-    storage::{package_storage::PackageStorage, trust_storage::TrustStorage},
+    storage::{package_storage::PackageStorage, trust::TrustStorage},
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow, bail};

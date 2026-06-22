@@ -4,7 +4,7 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::trust::TrustedSignatureKeys,
     storage::{
-        config_storage::ConfigStorage, package_storage::PackageStorage, trust_storage::TrustStorage,
+        config::ConfigStorage, package_storage::PackageStorage, trust::TrustStorage,
     },
     utils::static_paths::UpstreamPaths,
 };

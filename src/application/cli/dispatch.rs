@@ -5,7 +5,7 @@ use crate::application::cli::arguments::{
 };
 use crate::application::commands;
 use crate::output;
-use crate::storage::lock_storage::LockStorage;
+use crate::storage::lock::LockStorage;
 use crate::utils::static_paths::UpstreamPaths;
 
 impl Cli {
