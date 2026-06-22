@@ -1,16 +1,9 @@
-pub mod compression_handler;
-pub mod permission_handler;
-
-#[cfg(target_os = "linux")]
-mod appimage_extractor;
 mod completion_manager;
 mod desktop_manager;
 mod icon_manager;
 mod shell_manager;
 mod symlink_manager;
 
-#[cfg(target_os = "linux")]
-pub use appimage_extractor::AppImageExtractor;
 pub use completion_manager::{
     CompletionCacheMismatch, CompletionCacheMismatchKind, CompletionManager, CompletionShell,
 };

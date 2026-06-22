@@ -1,4 +1,4 @@
-use crate::services::integration::permission_handler;
+use crate::services::artifact::permission_handler;
 use anyhow::{Result, anyhow};
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
