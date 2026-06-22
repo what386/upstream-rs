@@ -177,7 +177,7 @@ impl Drop for LockStorage {
 
 #[cfg(test)]
 mod tests {
-    use super::LockStorage;
+    use super::{AcquireOutcome, LockStorage};
     use crate::utils::platform::process_id;
     use std::{
         fs,
