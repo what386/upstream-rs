@@ -14,9 +14,9 @@ use crate::{
 
 pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>) -> Result<()> {
     let context = CommandContext::new()?;
-    let package_storage = context.package_storage()?;
-    let package = package_storage
-        .get_package_by_name(&name)
+    let package_database = context.package_database()?;
+    let package = package_database
+        .get_package(&name)?
         .ok_or_else(|| anyhow!("Package '{}' is not installed", name))?;
 
     let from_version = match from_tag.as_deref() {
@@ -64,7 +64,7 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
 
     let to_release = match to_tag.as_deref() {
         Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Current) => {
-            current_package_release(package)
+            current_package_release(&package)
         }
         Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Latest) => context
             .provider_manager
@@ -115,7 +115,7 @@ pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>)
 
     let Some(changelog) = changelog_text_for_package(
         &context.provider_manager,
-        package,
+        &package,
         &from_version,
         &to_release,
         explicit_to_endpoint(to_tag.as_deref()),

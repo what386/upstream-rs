@@ -163,11 +163,11 @@ pub async fn run(
     );
     output::confirm_or_cancel("Proceed with installation?", true)?;
 
-    let mut package_storage = context.package_storage()?;
+    let mut package_database = context.package_database()?;
     let trusted_keys = context.trusted_keys()?;
     let mut install_operation = InstallOperation::new(
         &context.provider_manager,
-        &mut package_storage,
+        &mut package_database,
         &context.paths,
         trusted_keys,
     )?;

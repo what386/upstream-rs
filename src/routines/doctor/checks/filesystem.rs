@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::super::{DoctorReport, Level};
-use super::legacy::{MIGRATE_DIR_HINT, looks_like_legacy_layout};
+use super::legacy::{MIGRATE_DIR_HINT, legacy_package_metadata_exists, looks_like_legacy_layout};
 
 const HOOKS_INIT_DIR_HINT: &str =
     "Run `upstream hooks init` to create missing upstream directories and metadata files.";
@@ -161,14 +161,23 @@ pub(in crate::routines::doctor) fn check_package_metadata_file(
     paths: &UpstreamPaths,
     report: &mut DoctorReport,
 ) {
-    if paths.config.packages_file.exists() {
-        report.line(Level::Ok, "Package metadata file exists");
+    if paths.config.packages_database_file.exists() {
+        report.line(Level::Ok, "Package database exists");
+    } else if legacy_package_metadata_exists(paths) {
+        report.line(
+            Level::Warn,
+            format!(
+                "Legacy package metadata detected: {}",
+                paths.config.packages_file.display()
+            ),
+        );
+        report.hint(MIGRATE_DIR_HINT);
     } else {
         report.line(
             Level::Warn,
             format!(
-                "Package metadata file missing: {}",
-                paths.config.packages_file.display()
+                "Package database missing: {}",
+                paths.config.packages_database_file.display()
             ),
         );
         report.hint("Run `upstream hooks init` to create package metadata storage.");

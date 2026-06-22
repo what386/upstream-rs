@@ -13,7 +13,7 @@ use crate::{
         packaging::{InstallPreview, PackageInstaller, PackagePhase, PackageProgressEvent},
         trust::TrustedSignatureKeys,
     },
-    storage::package_storage::PackageStorage,
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -41,20 +41,20 @@ pub struct LocalArtifactInstallRequest<'a> {
 
 pub struct InstallOperation<'a> {
     installer: PackageInstaller<'a>,
-    package_storage: &'a mut PackageStorage,
+    package_database: &'a mut PackageDatabase,
     trusted_keys: TrustedSignatureKeys,
 }
 
 impl<'a> InstallOperation<'a> {
     pub fn new(
         provider_manager: &'a ProviderManager,
-        package_storage: &'a mut PackageStorage,
+        package_database: &'a mut PackageDatabase,
         paths: &'a UpstreamPaths,
         trusted_keys: TrustedSignatureKeys,
     ) -> Result<Self> {
         Ok(Self {
             installer: PackageInstaller::new(provider_manager, paths)?,
-            package_storage,
+            package_database,
             trusted_keys,
         })
     }
@@ -180,8 +180,8 @@ impl<'a> InstallOperation<'a> {
         }
 
         if let Err(err) = self
-            .package_storage
-            .add_or_update_package(installed_package.clone())
+            .package_database
+            .upsert_package(&installed_package)
             .context(format!(
                 "Failed to save package '{}' to storage",
                 installed_package.name

@@ -13,7 +13,7 @@ use crate::{
         },
         trust::TrustedSignatureKeys,
     },
-    storage::package_storage::PackageStorage,
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -78,7 +78,7 @@ pub struct UpgradeOperation<'a> {
     checker: PackageChecker<'a>,
     provider_manager: &'a ProviderManager,
     paths: &'a UpstreamPaths,
-    package_storage: &'a mut PackageStorage,
+    package_database: &'a mut PackageDatabase,
 }
 
 pub enum UpdateCheckStatus {
@@ -349,7 +349,7 @@ impl<'a> UpgradeOperation<'a> {
 
     pub fn new(
         provider_manager: &'a ProviderManager,
-        package_storage: &'a mut PackageStorage,
+        package_database: &'a mut PackageDatabase,
         paths: &'a UpstreamPaths,
         trusted_keys: TrustedSignatureKeys,
     ) -> Result<Self> {
@@ -366,7 +366,7 @@ impl<'a> UpgradeOperation<'a> {
             checker,
             provider_manager,
             paths,
-            package_storage,
+            package_database,
         })
     }
 
@@ -376,11 +376,12 @@ impl<'a> UpgradeOperation<'a> {
     ) -> SignedByteEstimate {
         rows.iter()
             .map(|row| {
-                let Some(package) = self.package_storage.get_package_by_name(&row.name) else {
+                let Some(package) = self.package_database.get_package(&row.name).ok().flatten()
+                else {
                     return SignedByteEstimate::unknown();
                 };
                 let active_size = PackageRemover::new(self.paths)
-                    .estimate_active_size(package)
+                    .estimate_active_size(&package)
                     .unwrap_or(0);
                 let existing_rollback =
                     estimate_path_size(&self.paths.install.rollback_dir.join(&package.name))
@@ -449,13 +450,12 @@ impl<'a> UpgradeOperation<'a> {
             Some(names) => names
                 .iter()
                 .map(|name| {
-                    self.package_storage
-                        .get_package_by_name(name)
+                    self.package_database
+                        .get_package(name)?
                         .ok_or_else(|| anyhow!("Package '{}' is not installed", name))
-                        .cloned()
                 })
                 .collect::<Result<Vec<_>>>()?,
-            None => self.package_storage.get_all_packages().to_vec(),
+            None => self.package_database.list_packages()?,
         };
         let package_width = preview_package_width(&packages);
         event_callback(UpgradePreviewEvent::Started { package_width });
@@ -636,8 +636,8 @@ impl<'a> UpgradeOperation<'a> {
         H: FnMut(&str),
     {
         let names: Vec<String> = self
-            .package_storage
-            .get_all_packages()
+            .package_database
+            .list_packages()?
             .iter()
             .map(|p| p.name.clone())
             .collect();
@@ -681,10 +681,9 @@ impl<'a> UpgradeOperation<'a> {
         let packages: Vec<_> = names
             .iter()
             .map(|name| {
-                self.package_storage
-                    .get_package_by_name(name)
+                self.package_database
+                    .get_package(name)?
                     .ok_or_else(|| anyhow!("Package '{}' is not installed", name))
-                    .cloned()
             })
             .collect::<Result<Vec<_>>>()?;
 
@@ -795,15 +794,11 @@ impl<'a> UpgradeOperation<'a> {
 
         // Save storage updates once parallel workers are done.
         for updated in updated_packages {
-            self.package_storage.add_or_update_package(updated)?;
+            self.package_database.upsert_package(&updated)?;
         }
 
         // Bulk mode uses per-package workers; a single shared download progress bar is noisy.
         let _ = download_progress;
-
-        self.package_storage
-            .save_packages()
-            .context("Failed to save updated package information")?;
 
         message!(
             message_callback,
@@ -835,8 +830,8 @@ impl<'a> UpgradeOperation<'a> {
             .iter()
             .map(|row| {
                 let package = self
-                    .package_storage
-                    .get_package_by_name(&row.name)
+                    .package_database
+                    .get_package(&row.name)?
                     .ok_or_else(|| anyhow!("Package '{}' is not installed", row.name))?
                     .clone();
                 Ok((package, row.clone()))
@@ -951,11 +946,8 @@ impl<'a> UpgradeOperation<'a> {
         let _ = download_progress;
 
         for updated in updated_packages {
-            self.package_storage.add_or_update_package(updated)?;
+            self.package_database.upsert_package(&updated)?;
         }
-        self.package_storage
-            .save_packages()
-            .context("Failed to save updated package information")?;
 
         Ok((upgraded, failures))
     }
@@ -973,10 +965,9 @@ impl<'a> UpgradeOperation<'a> {
         H: FnMut(&str),
     {
         let package = self
-            .package_storage
-            .get_package_by_name(package_name)
-            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?
-            .clone();
+            .package_database
+            .get_package(package_name)?
+            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
 
         let upgraded = self
             .upgrader
@@ -990,8 +981,7 @@ impl<'a> UpgradeOperation<'a> {
             .await?;
 
         if let Some(updated) = upgraded {
-            self.package_storage.add_or_update_package(updated)?;
-            self.package_storage.save_packages()?;
+            self.package_database.upsert_package(&updated)?;
             Ok(true)
         } else {
             Ok(false)
@@ -999,7 +989,7 @@ impl<'a> UpgradeOperation<'a> {
     }
 
     pub async fn check_all_detailed(&self) -> Vec<UpdateCheckRow> {
-        let packages = self.package_storage.get_all_packages().to_vec();
+        let packages = self.package_database.list_packages().unwrap_or_default();
         self.check_installed_packages_detailed(packages).await
     }
 
@@ -1022,12 +1012,12 @@ impl<'a> UpgradeOperation<'a> {
         let mut selected_indices = Vec::new();
 
         for (idx, name) in package_names.iter().enumerate() {
-            match self.package_storage.get_package_by_name(name) {
-                Some(package) => {
-                    selected_packages.push(package.clone());
+            match self.package_database.get_package(name) {
+                Ok(Some(package)) => {
+                    selected_packages.push(package);
                     selected_indices.push(idx);
                 }
-                None => {
+                Ok(None) | Err(_) => {
                     rows[idx] = Some(UpdateCheckRow {
                         name: name.clone(),
                         channel: None,

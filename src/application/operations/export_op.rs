@@ -1,7 +1,7 @@
 use crate::{
     models::upstream::PackageReference,
     services::packaging::{OperationPhase, OperationProgressEvent},
-    storage::package_storage::PackageStorage,
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
@@ -22,14 +22,14 @@ pub struct ExportManifest {
 }
 
 pub struct ExportOperation<'a> {
-    package_storage: &'a PackageStorage,
+    package_database: &'a PackageDatabase,
     paths: &'a UpstreamPaths,
 }
 
 impl<'a> ExportOperation<'a> {
-    pub fn new(package_storage: &'a PackageStorage, paths: &'a UpstreamPaths) -> Self {
+    pub fn new(package_database: &'a PackageDatabase, paths: &'a UpstreamPaths) -> Self {
         Self {
-            package_storage,
+            package_database,
             paths,
         }
     }
@@ -39,7 +39,7 @@ impl<'a> ExportOperation<'a> {
     where
         P: FnMut(OperationProgressEvent),
     {
-        let packages = self.package_storage.get_all_packages();
+        let packages = self.package_database.list_packages()?;
 
         let references: Vec<PackageReference> = packages
             .iter()
@@ -177,7 +177,7 @@ mod tests {
     use super::ExportOperation;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
-    use crate::storage::package_storage::PackageStorage;
+    use crate::storage::database::PackageDatabase;
     use crate::utils::test_support;
     use std::path::Path;
     use std::{fs, io};
@@ -200,7 +200,7 @@ mod tests {
         let paths = test_paths(&root);
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
-        let storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
+        let storage = PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
         let operation = ExportOperation::new(&storage, &paths);
         let output = root.join("manifest.json");
         let mut progress: Option<fn(crate::services::packaging::OperationProgressEvent)> = None;
@@ -219,7 +219,8 @@ mod tests {
         let paths = test_paths(&root);
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
-        let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
+        let mut storage =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
         let mut pkg = Package::with_defaults(
             "tool".to_string(),
             "owner/tool".to_string(),
@@ -234,7 +235,7 @@ mod tests {
         pkg.build_branch = Some("main".to_string());
         pkg.build_commit = Some("abc123".to_string());
         storage
-            .add_or_update_package(pkg)
+            .upsert_package(&pkg)
             .expect("store installed package");
 
         let operation = ExportOperation::new(&storage, &paths);

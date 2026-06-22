@@ -9,7 +9,7 @@ use crate::{
         artifact::permission_handler,
         integration::{CompletionManager, SymlinkManager},
     },
-    storage::package_storage::PackageStorage,
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -133,13 +133,12 @@ pub(in crate::routines::doctor) fn select_packages(
 
 pub(in crate::routines::doctor) fn check_installed_packages(
     paths: &UpstreamPaths,
-    package_storage: &mut PackageStorage,
+    package_database: &mut PackageDatabase,
     selected: &[Package],
     completion_manager: &CompletionManager<'_>,
     fix: bool,
     report: &mut DoctorReport,
 ) -> Result<()> {
-    let mut changed_packages = false;
     let symlink_manager = SymlinkManager::new(&paths.integration.symlinks_dir);
 
     for package in selected {
@@ -394,12 +393,11 @@ pub(in crate::routines::doctor) fn check_installed_packages(
             }
         }
 
-        if fix
-            && resolved_exec_path != package.exec_path
-            && let Some(mut_pkg) = package_storage.get_mut_package_by_name(&package_name)
-        {
-            mut_pkg.exec_path = resolved_exec_path;
-            changed_packages = true;
+        if fix && resolved_exec_path != package.exec_path {
+            package_database.update_package(&package_name, |package| {
+                package.exec_path = resolved_exec_path.clone();
+                Ok(true)
+            })?;
         }
 
         if let Some(icon_path) = &package.icon_path {
@@ -440,10 +438,6 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                 }
             }
         }
-    }
-
-    if fix && changed_packages {
-        package_storage.save_packages()?;
     }
 
     Ok(())

@@ -68,10 +68,10 @@ pub async fn run(
 ) -> Result<()> {
     let context = CommandContext::new()?;
     let trusted_keys = context.trusted_keys()?;
-    let mut package_storage = context.package_storage()?;
+    let mut package_database = context.package_database()?;
     let mut package_upgrade = UpgradeOperation::new(
         &context.provider_manager,
-        &mut package_storage,
+        &mut package_database,
         &context.paths,
         trusted_keys,
     )?;

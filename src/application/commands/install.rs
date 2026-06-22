@@ -74,7 +74,7 @@ pub async fn run(
     dry_run: bool,
 ) -> Result<()> {
     let context = CommandContext::new()?;
-    let mut package_storage = context.package_storage()?;
+    let mut package_database = context.package_database()?;
     let trusted_keys = context.trusted_keys()?;
     let name = resolve_package_name(name, &repo_slug, provider.as_ref(), base_url.as_deref())?;
 
@@ -93,7 +93,7 @@ pub async fn run(
 
     let mut install_operation = InstallOperation::new(
         &context.provider_manager,
-        &mut package_storage,
+        &mut package_database,
         &context.paths,
         trusted_keys,
     )?;

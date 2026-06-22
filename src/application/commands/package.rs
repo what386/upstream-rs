@@ -2,15 +2,15 @@ use crate::{
     application::operations::metadata_op::MetadataManager,
     output::{self, Status},
     services::integration::SymlinkManager,
-    storage::package_storage::PackageStorage,
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
 
 pub fn run_pin(name: String) -> Result<()> {
     let paths = UpstreamPaths::new()?;
-    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut package_manager = MetadataManager::new(&mut package_storage);
+    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let mut package_manager = MetadataManager::new(&mut package_database);
 
     println!("{}", output::title("Package pin"));
 
@@ -22,8 +22,8 @@ pub fn run_pin(name: String) -> Result<()> {
 
 pub fn run_unpin(name: String) -> Result<()> {
     let paths = UpstreamPaths::new()?;
-    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut package_manager = MetadataManager::new(&mut package_storage);
+    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let mut package_manager = MetadataManager::new(&mut package_database);
 
     println!("{}", output::title("Package unpin"));
 
@@ -35,13 +35,12 @@ pub fn run_unpin(name: String) -> Result<()> {
 
 pub fn run_rename(old_name: String, new_name: String) -> Result<()> {
     let paths = UpstreamPaths::new()?;
-    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let package_before = package_storage
-        .get_package_by_name(&old_name)
-        .cloned()
+    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let package_before = package_database
+        .get_package(&old_name)?
         .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", old_name))?;
 
-    let mut package_manager = MetadataManager::new(&mut package_storage);
+    let mut package_manager = MetadataManager::new(&mut package_database);
     println!("{}", output::title("Package rename"));
 
     let renamed = package_manager.rename_package(&old_name, &new_name)?;

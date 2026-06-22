@@ -7,7 +7,7 @@ use crate::{
         disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate},
     },
     storage::{
-        package_storage::PackageStorage,
+        database::PackageDatabase,
         rollback::{RollbackSource, RollbackStorage},
     },
     utils::static_paths::UpstreamPaths,
@@ -15,7 +15,7 @@ use crate::{
 
 pub struct RollbackOperation {
     paths: UpstreamPaths,
-    package_storage: PackageStorage,
+    package_database: PackageDatabase,
     rollback_storage: RollbackStorage,
 }
 
@@ -80,13 +80,13 @@ pub struct RollbackPruneOutcome {
 impl RollbackOperation {
     pub fn new() -> Result<Self> {
         let paths = UpstreamPaths::new()?;
-        let package_storage = PackageStorage::new(&paths.config.packages_file)?;
+        let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
         let rollback_file = RollbackManager::rollback_file_path(&paths);
         let rollback_storage = RollbackStorage::new(&rollback_file)?;
 
         Ok(Self {
             paths,
-            package_storage,
+            package_database,
             rollback_storage,
         })
     }
@@ -94,7 +94,7 @@ impl RollbackOperation {
     fn manager(&mut self) -> RollbackManager<'_> {
         RollbackManager::new(
             &self.paths,
-            &mut self.package_storage,
+            &mut self.package_database,
             &mut self.rollback_storage,
         )
     }

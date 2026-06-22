@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use crate::{
     application::operations::export_op::ExportOperation, output,
-    services::packaging::OperationProgressEvent, storage::package_storage::PackageStorage,
+    services::packaging::OperationProgressEvent, storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -21,8 +21,8 @@ fn render_export_progress(event: OperationProgressEvent) -> String {
 
 pub async fn run_export(path: PathBuf, full: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
-    let package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let export_op = ExportOperation::new(&package_storage, &paths);
+    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let export_op = ExportOperation::new(&package_database, &paths);
 
     let pb = ProgressBar::new(0);
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));

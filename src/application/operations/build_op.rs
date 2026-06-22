@@ -15,12 +15,12 @@ use crate::services::packaging::{
     disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
 };
 use crate::services::trust::TrustedSignatureKeys;
-use crate::storage::package_storage::PackageStorage;
+use crate::storage::database::PackageDatabase;
 use crate::utils::static_paths::UpstreamPaths;
 
 pub struct BuildOperation<'a> {
     provider_manager: &'a ProviderManager,
-    package_storage: &'a mut PackageStorage,
+    package_database: &'a mut PackageDatabase,
     paths: &'a UpstreamPaths,
 }
 
@@ -40,12 +40,12 @@ pub struct BuildCommandInput {
 impl<'a> BuildOperation<'a> {
     pub fn new(
         provider_manager: &'a ProviderManager,
-        package_storage: &'a mut PackageStorage,
+        package_database: &'a mut PackageDatabase,
         paths: &'a UpstreamPaths,
     ) -> Self {
         Self {
             provider_manager,
-            package_storage,
+            package_database,
             paths,
         }
     }
@@ -254,7 +254,7 @@ impl<'a> BuildOperation<'a> {
 
         let mut install_operation = InstallOperation::new(
             self.provider_manager,
-            self.package_storage,
+            self.package_database,
             self.paths,
             TrustedSignatureKeys::default(),
         )?;

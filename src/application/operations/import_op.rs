@@ -4,7 +4,7 @@ use crate::{
         packaging::{OperationPhase, OperationProgressEvent},
         trust::{CosignPublicKey, MinisignPublicKey},
     },
-    storage::{package_storage::PackageStorage, system::trust::TrustStorage},
+    storage::{database::PackageDatabase, system::trust::TrustStorage},
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow, bail};
@@ -43,14 +43,14 @@ fn is_snapshot(path: &Path) -> bool {
 // ---------------------------------------------------------------------------
 
 pub struct ImportOperation<'a> {
-    package_storage: &'a mut PackageStorage,
+    package_database: &'a mut PackageDatabase,
     paths: &'a UpstreamPaths,
 }
 
 impl<'a> ImportOperation<'a> {
-    pub fn new(package_storage: &'a mut PackageStorage, paths: &'a UpstreamPaths) -> Self {
+    pub fn new(package_database: &'a mut PackageDatabase, paths: &'a UpstreamPaths) -> Self {
         Self {
-            package_storage,
+            package_database,
             paths,
         }
     }
@@ -144,8 +144,8 @@ impl<'a> ImportOperation<'a> {
 
         for reference in manifest.packages {
             if self
-                .package_storage
-                .get_package_by_name(&reference.name)
+                .package_database
+                .get_package(&reference.name)?
                 .is_some()
             {
                 skipped += 1;
@@ -154,8 +154,8 @@ impl<'a> ImportOperation<'a> {
                     format!("Package '{}' already exists; skipping", reference.name),
                 );
             } else if let Err(err) = self
-                .package_storage
-                .add_or_update_package(reference.into_package())
+                .package_database
+                .upsert_package(&reference.into_package())
             {
                 if skip_failed {
                     skipped += 1;
@@ -355,12 +355,7 @@ impl<'a> ImportOperation<'a> {
         // Clean up temp dir (may already be gone if source == extracted).
         let _ = fs::remove_dir_all(&temp_dir);
 
-        // Reload storage from the restored files.
         emit_phase(progress_callback, OperationPhase::LoadingMetadata);
-        self.package_storage.load_packages().context(
-            "Snapshot restored but failed to reload package storage — check the files manually",
-        )?;
-
         emit_detail(progress_callback, "Snapshot restored successfully");
 
         Ok(())
@@ -398,7 +393,7 @@ where
 mod tests {
     use super::{ImportKind, ImportOperation, is_snapshot};
     use crate::services::packaging::OperationProgressEvent;
-    use crate::storage::package_storage::PackageStorage;
+    use crate::storage::database::PackageDatabase;
     use crate::utils::test_support;
     use std::path::Path;
     use std::{fs, io};
@@ -435,7 +430,8 @@ mod tests {
             )
             .expect("write manifest");
 
-        let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
+        let mut storage =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
         let mut operation = ImportOperation::new(&mut storage, &paths);
         let mut progress: Option<fn(OperationProgressEvent)> = None;
 

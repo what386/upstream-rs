@@ -4,7 +4,7 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::trust::TrustedSignatureKeys,
     storage::{
-        package_storage::PackageStorage,
+        database::PackageDatabase,
         system::{config::ConfigStorage, trust::TrustStorage},
     },
     utils::static_paths::UpstreamPaths,
@@ -33,8 +33,8 @@ impl CommandContext {
         })
     }
 
-    pub fn package_storage(&self) -> Result<PackageStorage> {
-        PackageStorage::new(&self.paths.config.packages_file)
+    pub fn package_database(&self) -> Result<PackageDatabase> {
+        PackageDatabase::open(&self.paths.config.packages_database_file)
     }
 
     pub fn trust_storage(&self) -> Result<TrustStorage> {
