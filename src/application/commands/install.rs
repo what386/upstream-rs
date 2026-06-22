@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::{
     application::context::CommandContext,
-    application::operations::install_operation::{InstallOperation, ReleaseInstallRequest},
+    application::operations::install_op::{InstallOperation, ReleaseInstallRequest},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::Package,

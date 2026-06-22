@@ -3,7 +3,7 @@ use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
-    application::operations::rollback_operation::{
+    application::operations::rollback_op::{
         RollbackListRow, RollbackOperation, RollbackPackageOutcome, RollbackPackageStatus,
         RollbackPreview, RollbackPreviewRow,
     },

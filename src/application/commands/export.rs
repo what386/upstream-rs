@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::{
-    application::operations::export_operation::ExportOperation, output,
+    application::operations::export_op::ExportOperation, output,
     services::packaging::OperationProgressEvent, storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
