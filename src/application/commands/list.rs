@@ -59,7 +59,7 @@ fn display_all_packages(storage: &PackageDatabase) -> Result<()> {
     }
 
     let title = format!(
-        "Packages ({})  Flags: D=desktop present, P=pinned",
+        "Packages ({})  Flags: D=desktop, P=pinned",
         packages.len()
     );
     pager::page_text(Some(&title), &format_package_table(&packages))?;
@@ -95,61 +95,99 @@ fn format_path(path: Option<&std::path::PathBuf>, default: &str) -> String {
     .unwrap_or_else(|| default.to_string())
 }
 
-fn format_package_details(package: &Package) -> String {
-    let base_url = package.base_url.as_deref().unwrap_or("-");
-    let build_branch = package.build_branch.as_deref().unwrap_or("-");
-    let build_commit = package.build_commit.as_deref().unwrap_or("-");
-    let match_pattern = if package.match_pattern.is_empty() {
-        "-".to_string()
-    } else {
-        package.match_pattern.to_string()
-    };
-    let exclude_pattern = if package.exclude_pattern.is_empty() {
-        "-".to_string()
-    } else {
-        package.exclude_pattern.to_string()
-    };
+fn write_detail_field(out: &mut String, label: &str, value: impl AsRef<str>) {
+    writeln!(out, "{label:<10} {}", value.as_ref()).expect("write package detail field");
+}
 
-    format!(
-        "Package        : {}\n\
-         Repo           : {}\n\
-         Version        : {}\n\
-         Channel        : {}\n\
-         Provider       : {}\n\
-         Install Type   : {:?}\n\
-         Type           : {:?}\n\
-         Pinned         : {}\n\
-         Has Icon       : {}\n\
-         Base URL       : {}\n\
-         Build Branch   : {}\n\
-         Build Commit   : {}\n\
-         Match Pattern  : {}\n\
-         Excl. Pattern  : {}\n\
-         Install Path   : {}\n\
-         Executable Path: {}\n\
-         Last Upgraded  : {}",
-        package.name,
-        package.repo_slug,
-        package.version,
-        package.channel,
-        package.provider,
-        package.install_type,
-        package.filetype,
-        if package.is_pinned { "yes" } else { "no" },
+fn format_package_details(package: &Package) -> String {
+    let mut out = String::new();
+
+    writeln!(out, "{}", package.name).expect("write package name");
+    write_detail_field(&mut out, "Repo", &package.repo_slug);
+    write_detail_field(&mut out, "Provider", package.provider.to_string());
+    write_detail_field(
+        &mut out,
+        "Channel",
+        package.channel.to_string().to_ascii_lowercase(),
+    );
+    write_detail_field(&mut out, "Kind", package_kind_label(package));
+    match package.install_type {
+        InstallType::Release => {
+            write_detail_field(&mut out, "Version", package.version.to_string())
+        }
+        InstallType::Build => write_detail_field(&mut out, "Ref", package_ref_label(package)),
+    }
+    write_detail_field(
+        &mut out,
+        "Updated",
+        package
+            .last_upgraded
+            .format("%Y-%m-%d %H:%M UTC")
+            .to_string(),
+    );
+
+    if let Some(base_url) = package.base_url.as_deref() {
+        write_detail_field(&mut out, "Base URL", base_url);
+    }
+
+    if matches!(package.install_type, InstallType::Build)
+        || package.build_branch.is_some()
+        || package.build_commit.is_some()
+    {
+        out.push('\n');
+        writeln!(out, "Build").expect("write build section");
+        if let Some(branch) = package.build_branch.as_deref() {
+            write_detail_field(&mut out, "Branch", branch);
+        }
+        if let Some(commit) = package.build_commit.as_deref() {
+            write_detail_field(&mut out, "Commit", commit);
+        }
+    }
+
+    out.push('\n');
+    writeln!(out, "Install").expect("write install section");
+    write_detail_field(
+        &mut out,
+        "Type",
+        format!("{:?}", package.filetype).to_ascii_lowercase(),
+    );
+    write_detail_field(
+        &mut out,
+        "Path",
+        format_path(package.install_path.as_ref(), "-"),
+    );
+    write_detail_field(
+        &mut out,
+        "Command",
+        format_path(package.exec_path.as_ref(), "-"),
+    );
+    write_detail_field(
+        &mut out,
+        "Desktop",
         if package.icon_path.is_some() {
             "yes"
         } else {
             "no"
         },
-        base_url,
-        build_branch,
-        build_commit,
-        match_pattern,
-        exclude_pattern,
-        format_path(package.install_path.as_ref(), "-"),
-        format_path(package.exec_path.as_ref(), "-"),
-        package.last_upgraded.format("%Y-%m-%d %H:%M:%S UTC")
-    )
+    );
+    write_detail_field(
+        &mut out,
+        "Pinned",
+        if package.is_pinned { "yes" } else { "no" },
+    );
+
+    if !package.match_pattern.is_empty() || !package.exclude_pattern.is_empty() {
+        out.push('\n');
+        writeln!(out, "Selection").expect("write selection section");
+        if !package.match_pattern.is_empty() {
+            write_detail_field(&mut out, "Match", package.match_pattern.to_string());
+        }
+        if !package.exclude_pattern.is_empty() {
+            write_detail_field(&mut out, "Exclude", package.exclude_pattern.to_string());
+        }
+    }
+
+    out
 }
 
 fn short_commit(commit: &str) -> String {
@@ -362,8 +400,8 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
 #[cfg(test)]
 mod tests {
     use super::{
-        format_package_table, format_path, package_kind_label, package_ref_label,
-        shorten_upstream_package_path,
+        format_package_details, format_package_table, format_path, package_kind_label,
+        package_ref_label, shorten_upstream_package_path,
     };
     use crate::models::{
         common::{
@@ -436,5 +474,39 @@ mod tests {
         assert!(table.contains("Ref"));
         assert!(table.contains("build"));
         assert!(table.contains("main@abcdef1"));
+    }
+
+    #[test]
+    fn release_package_details_hide_empty_build_and_selection_fields() {
+        let mut release = test_package("rg");
+        release.version = Version::from_tag("15.1.0").expect("version");
+
+        let details = format_package_details(&release);
+
+        assert!(details.starts_with("rg\n"));
+        assert!(details.contains("Kind       release"));
+        assert!(details.contains("Version    15.1.0"));
+        assert!(details.contains("\nInstall\n"));
+        assert!(!details.contains("Build\n"));
+        assert!(!details.contains("Base URL"));
+        assert!(!details.contains("Match"));
+        assert!(!details.contains("Exclude"));
+        assert!(!details.contains("Build Branch"));
+    }
+
+    #[test]
+    fn build_package_details_show_ref_and_build_section() {
+        let mut build = test_package("forge");
+        build.install_type = InstallType::Build;
+        build.build_branch = Some("main".to_string());
+        build.build_commit = Some("abcdef1234567890".to_string());
+
+        let details = format_package_details(&build);
+
+        assert!(details.contains("Kind       build"));
+        assert!(details.contains("Ref        main@abcdef1"));
+        assert!(details.contains("\nBuild\n"));
+        assert!(details.contains("Branch     main"));
+        assert!(details.contains("Commit     abcdef1234567890"));
     }
 }
