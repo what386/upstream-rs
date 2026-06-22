@@ -227,6 +227,22 @@ impl<'a> UpgradeOperation<'a> {
         }
     }
 
+    fn clear_completed_progress<P>(
+        progress_state: &ProgressState,
+        last_progress_events: &mut BTreeMap<String, PackageProgressEvent>,
+        name: &str,
+        progress_callback: &mut Option<P>,
+    ) where
+        P: FnMut(UpgradeProgressEvent),
+    {
+        Self::emit_progress_updates(progress_state, last_progress_events, progress_callback);
+
+        if let Ok(mut state) = progress_state.lock() {
+            state.remove(name);
+        }
+        last_progress_events.remove(name);
+    }
+
     async fn check_packages_parallel(
         &self,
         packages: Vec<crate::models::upstream::Package>,
@@ -839,10 +855,12 @@ impl<'a> UpgradeOperation<'a> {
                         break;
                     };
 
-                    if let Ok(mut state) = progress_state.lock() {
-                        state.remove(&name);
-                    }
-                    last_progress_events.remove(&name);
+                    Self::clear_completed_progress(
+                        &progress_state,
+                        &mut last_progress_events,
+                        &name,
+                        progress_callback,
+                    );
 
                     match result {
                         Ok(updated) => {
@@ -1158,5 +1176,38 @@ mod tests {
             UpgradeOperation::emit_progress_updates(&state, &mut last_render, &mut callback);
         }
         assert_eq!(events.len(), 1);
+    }
+
+    #[test]
+    fn completed_progress_flushes_latest_package_event_before_clearing() {
+        let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
+        let mut last_render = BTreeMap::new();
+        let mut events = Vec::new();
+
+        UpgradeOperation::record_progress_event(
+            &state,
+            "ripgrep",
+            PackageProgressEvent::Phase(PackagePhase::RollingBack),
+        );
+
+        {
+            let mut callback = Some(|event: UpgradeProgressEvent| events.push(event));
+            UpgradeOperation::clear_completed_progress(
+                &state,
+                &mut last_render,
+                "ripgrep",
+                &mut callback,
+            );
+        }
+
+        assert!(events.iter().any(|event| matches!(
+            event,
+            UpgradeProgressEvent::Package {
+                name,
+                event: PackageProgressEvent::Phase(PackagePhase::RollingBack),
+            } if name == "ripgrep"
+        )));
+        assert!(state.lock().expect("state").is_empty());
+        assert!(!last_render.contains_key("ripgrep"));
     }
 }

@@ -605,12 +605,13 @@ impl<'a> PackageInstaller<'a> {
             trust_mode,
             trusted_keys,
         );
+        let mut verifier_download_progress: Option<fn(u64, u64)> = None;
         let status = trust_verifier
             .verify_file(
                 &download_path,
                 release,
                 &package.provider,
-                download_progress_callback,
+                &mut verifier_download_progress,
                 message_callback,
                 progress_callback,
             )
