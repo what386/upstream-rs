@@ -3,7 +3,7 @@ use crate::{
     services::packaging::disk_impact::{DiskImpact, SignedByteEstimate, estimate_path_size},
     services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover, RollbackManager},
     storage::package_storage::PackageStorage,
-    storage::rollback_storage::RollbackSource,
+    storage::rollback::RollbackSource,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
@@ -307,7 +307,7 @@ impl<'a> RemoveOperation<'a> {
             );
             let rollback_file = RollbackManager::rollback_file_path(self.paths);
             let mut rollback_storage =
-                crate::storage::rollback_storage::RollbackStorage::new(&rollback_file)?;
+                crate::storage::rollback::RollbackStorage::new(&rollback_file)?;
             let mut rollback_manager =
                 RollbackManager::new(self.paths, self.package_storage, &mut rollback_storage);
             if let Err(err) =
@@ -414,7 +414,7 @@ mod tests {
     use super::RemoveOperation;
     use crate::services::packaging::PackageProgressEvent;
     use crate::storage::package_storage::PackageStorage;
-    use crate::storage::rollback_storage::RollbackSource;
+    use crate::storage::rollback::RollbackSource;
     use crate::utils::test_support;
     use std::path::Path;
     use std::{fs, io};

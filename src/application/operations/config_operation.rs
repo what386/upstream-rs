@@ -1,4 +1,4 @@
-use crate::storage::config_storage::ConfigStorage;
+use crate::storage::config::ConfigStorage;
 use anyhow::Result;
 use toml;
 
@@ -127,7 +127,7 @@ impl<'a> ConfigUpdater<'a> {
 #[cfg(test)]
 mod tests {
     use super::ConfigUpdater;
-    use crate::storage::config_storage::ConfigStorage;
+    use crate::storage::config::ConfigStorage;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};

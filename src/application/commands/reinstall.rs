@@ -25,7 +25,7 @@ use crate::{
         },
         trust::TrustedSignatureKeys,
     },
-    storage::{package_storage::PackageStorage, rollback_storage::RollbackSource},
+    storage::{package_storage::PackageStorage, rollback::RollbackSource},
     utils::static_paths::UpstreamPaths,
 };
 

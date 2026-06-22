@@ -14,7 +14,7 @@ use crate::{
         packaging::{PackageInstaller, PackagePhase, PackageProgressEvent, PackageRemover},
         trust::TrustedSignatureKeys,
     },
-    storage::rollback_storage::{RollbackSource, RollbackStorage},
+    storage::rollback::{RollbackSource, RollbackStorage},
     utils::static_paths::UpstreamPaths,
 };
 

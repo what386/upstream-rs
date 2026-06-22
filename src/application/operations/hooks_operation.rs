@@ -7,8 +7,8 @@ use crate::{output, output::Status};
 use crate::{
     services::integration::CompletionManager,
     storage::{
-        config_storage::ConfigStorage, manifest_storage::ManifestStorage,
-        trust_storage::TrustStorage,
+        config::ConfigStorage, manifest::ManifestStorage,
+        trust::TrustStorage,
     },
 };
 #[cfg(windows)]
@@ -596,7 +596,7 @@ fn check_windows_integration(paths: &UpstreamPaths, report: &mut InitCheckReport
 #[cfg(test)]
 mod tests {
     use super::purge_data;
-    use crate::storage::manifest_storage::{CURRENT_LAYOUT_VERSION, MANIFEST_FILE_NAME};
+    use crate::storage::manifest::{CURRENT_LAYOUT_VERSION, MANIFEST_FILE_NAME};
     use crate::utils::static_paths::{
         AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, UpstreamPaths,
     };

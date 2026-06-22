@@ -8,7 +8,7 @@ use crate::{
         RollbackPreview, RollbackPreviewRow,
     },
     output::{self, Status, TransactionRow},
-    storage::rollback_storage::RollbackSource,
+    storage::rollback::RollbackSource,
 };
 
 fn restore_phase_label(message: &str) -> &'static str {

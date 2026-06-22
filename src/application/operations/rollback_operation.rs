@@ -8,7 +8,7 @@ use crate::{
     },
     storage::{
         package_storage::PackageStorage,
-        rollback_storage::{RollbackSource, RollbackStorage},
+        rollback::{RollbackSource, RollbackStorage},
     },
     utils::static_paths::UpstreamPaths,
 };
