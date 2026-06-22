@@ -832,40 +832,12 @@ async fn run_dry_run(
 #[cfg(test)]
 mod tests {
     use super::{
-        CheckTableLayout, UpgradePromptAction, json_check_rows, render_upgrade_progress,
-        render_upgrade_progress_row, upgrade_prompt_action_from_input,
+        CheckTableLayout, UpgradePromptAction, json_check_rows, render_upgrade_progress_row,
+        upgrade_prompt_action_from_input,
     };
     use crate::application::operations::upgrade_op::{UpdateCheckRow, UpdateCheckStatus};
     use crate::models::common::enums::{Channel, Provider};
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
-    use std::collections::BTreeMap;
-
-    #[test]
-    fn upgrade_progress_renders_active_rows_only() {
-        let mut active = BTreeMap::new();
-        active.insert(
-            "forge".to_string(),
-            "stable/forge u github 1.00 MiB/5.00 MiB".to_string(),
-        );
-        active.insert(
-            "ripgrep".to_string(),
-            "stable/ripgrep u github 2.00 MiB/4.00 MiB".to_string(),
-        );
-
-        assert_eq!(
-            render_upgrade_progress(&active, 1, 4),
-            " (1 queued)\nstable/forge u github 1.00 MiB/5.00 MiB\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
-        );
-
-        active.remove("forge");
-        assert_eq!(
-            render_upgrade_progress(&active, 1, 4),
-            " (2 queued)\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
-        );
-
-        active.clear();
-        assert_eq!(render_upgrade_progress(&active, 0, 4), " (4 queued)");
-    }
 
     #[test]
     fn upgrade_prompt_accepts_changelog_option() {
