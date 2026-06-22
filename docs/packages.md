@@ -97,7 +97,7 @@ Preview or prune rollback data:
 ```bash
 upstream rollback <name> --dry-run
 upstream rollback --list
-upstream rollback --prune all
+upstream rollback --prune
 upstream rollback --prune <name>
 ```
 

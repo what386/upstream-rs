@@ -125,7 +125,7 @@ upstream rollback <name> --dry-run
 Remove old rollback artifacts:
 
 ```bash
-upstream rollback --prune all
+upstream rollback --prune
 ```
 
 ## Build Failures

@@ -131,11 +131,11 @@ Options:
 
 ```bash
 upstream rollback <packages...> [--dry-run]
-upstream rollback --prune <packages...|all> [--dry-run]
+upstream rollback --prune [packages...] [--dry-run]
 upstream rollback --list
 ```
 
-Manages stored rollback artifacts. Provide package names to restore their latest rollback artifacts. Use `--prune <packages...|all>` to delete rollback data, and `--list` to inspect available artifacts.
+Manages stored rollback artifacts. Provide package names to restore their latest rollback artifacts. Use `--prune` to delete all rollback data or `--prune <packages...>` to delete selected rollback data, and `--list` to inspect available artifacts.
 
 Options:
 
@@ -143,7 +143,7 @@ Options:
 | --- | --- |
 | `--dry-run` | Preview restore or prune actions |
 | `--list` | List stored rollback artifacts |
-| `--prune <packages...|all>` | Delete rollback artifacts |
+| `--prune [packages...]` | Delete rollback artifacts |
 
 ## Package Metadata
 
