@@ -1,3 +1,4 @@
+pub mod database;
 pub mod config_storage;
 pub mod lock_storage;
 pub mod manifest_storage;
