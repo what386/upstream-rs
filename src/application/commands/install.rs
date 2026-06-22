@@ -17,9 +17,10 @@ use crate::{
         },
         provider_manager::ProviderManager,
     },
-    services::packaging::{PackagePhase, PackageProgressEvent},
+    services::packaging::PackageProgressEvent,
 };
 
+const INSTALL_PROGRESS_BAR_WIDTH: usize = 14;
 const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
 
 fn format_transfer(downloaded: u64, total: u64) -> String {
@@ -45,12 +46,18 @@ fn render_install_progress_row(name: &str, event: PackageProgressEvent) -> Strin
             format!(" {:<28} {}", name, phase.label())
         }
         PackageProgressEvent::Download { downloaded, total } => {
-            format!(
-                " {:<28} {:<28} {}",
-                name,
-                PackagePhase::DownloadingPackage.label(),
-                format_transfer(downloaded, total)
-            )
+            let detail = if total > 0 {
+                format!(
+                    "Downloading {} {}",
+                    output::progress_bar(downloaded, total, INSTALL_PROGRESS_BAR_WIDTH),
+                    format_transfer(downloaded, total)
+                )
+            } else if downloaded > 0 {
+                format!("Downloading {}", format_transfer(downloaded, total))
+            } else {
+                "Downloading...".to_string()
+            };
+            format!(" {:<28} {}", name, detail)
         }
         PackageProgressEvent::Warning(message) => {
             format!(" {:<28} {}", name, message)
@@ -374,16 +381,15 @@ mod tests {
             ),
             " pnpm                         Completion install skipped"
         );
-        assert!(
-            render_install_progress_row(
-                "pnpm",
-                PackageProgressEvent::Download {
-                    downloaded: 1024,
-                    total: 2048,
-                },
-            )
-            .contains('/')
+        let download = render_install_progress_row(
+            "pnpm",
+            PackageProgressEvent::Download {
+                downloaded: 1024,
+                total: 2048,
+            },
         );
+        assert!(download.starts_with(" pnpm                         Downloading [=======>      ]"));
+        assert!(download.contains('/'));
     }
 
     #[test]

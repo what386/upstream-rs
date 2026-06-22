@@ -2,22 +2,24 @@ use crate::{
     application::commands::changelog::changelog_text_for_package,
     application::context::CommandContext,
     application::operations::upgrade_op::{
-        UpdateCheckRow, UpdateCheckStatus, UpgradeOperation, UpgradePreviewEvent,
+        UpdateCheckRow, UpdateCheckStatus, UpgradeOperation, UpgradePackageResult,
+        UpgradePreviewEvent, UpgradeProgressEvent,
     },
     models::common::enums::TrustMode,
     output::{self, SizeImpactRow, Status, TransactionRow, TransactionTableLayout},
     providers::provider_manager::ProviderManager,
+    services::packaging::{PackagePhase, PackageProgressEvent},
 };
 use anyhow::Result;
-use console::strip_ansi_codes;
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use indicatif::{HumanBytes, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use serde::Serialize;
 use std::{
     collections::BTreeMap,
     io::{self, IsTerminal, Write},
-    sync::{Arc, Mutex},
     time::Duration,
 };
+
+const UPGRADE_PROGRESS_BAR_WIDTH: usize = 14;
 
 fn upgrade_transaction_row(
     row: &crate::application::operations::upgrade_op::UpgradePreviewRow,
@@ -34,9 +36,14 @@ fn upgrade_transaction_row(
 fn render_upgrade_progress(
     completed_rows: &BTreeMap<String, String>,
     active_rows: &BTreeMap<String, String>,
+    completed: u32,
+    total: u32,
 ) -> String {
+    let active_count = active_rows.len() as u32;
+    let queued = total.saturating_sub(completed).saturating_sub(active_count);
+    let mut parts = vec![format!(" ({queued} queued)")];
     if completed_rows.is_empty() && active_rows.is_empty() {
-        return String::new();
+        return parts.join("");
     }
 
     let rows = completed_rows
@@ -44,17 +51,36 @@ fn render_upgrade_progress(
         .chain(active_rows.values())
         .cloned()
         .collect::<Vec<_>>();
-    format!("\n{}", rows.join("\n"))
+    parts.push(format!("\n{}", rows.join("\n")));
+    parts.join("")
 }
 
-fn completion_message_key(message: &str) -> Option<String> {
-    let cleaned = strip_ansi_codes(message);
-    let rest = cleaned
-        .trim_start()
-        .strip_prefix("[ok]")
-        .or_else(|| cleaned.trim_start().strip_prefix("[fail]"))?
-        .trim_start();
-    rest.split_whitespace().next().map(str::to_string)
+fn phase_label_for_progress(phase: PackagePhase) -> String {
+    phase.label().replace(" ...", "...")
+}
+
+fn render_upgrade_progress_row(
+    name: &str,
+    event: PackageProgressEvent,
+    name_width: usize,
+) -> String {
+    let detail = match event {
+        PackageProgressEvent::Phase(phase) => phase_label_for_progress(phase),
+        PackageProgressEvent::Download { downloaded, total } if total > 0 => {
+            format!(
+                "Downloading {} {} / {}",
+                output::progress_bar(downloaded, total, UPGRADE_PROGRESS_BAR_WIDTH),
+                HumanBytes(downloaded),
+                HumanBytes(total)
+            )
+        }
+        PackageProgressEvent::Download { downloaded, .. } if downloaded > 0 => {
+            format!("Downloading {}", HumanBytes(downloaded))
+        }
+        PackageProgressEvent::Download { .. } => "Downloading...".to_string(),
+        PackageProgressEvent::Warning(message) => output::truncate_end(&message, 96),
+    };
+    format!("{name:<name_width$} {detail}")
 }
 
 pub async fn run(
@@ -169,72 +195,79 @@ pub async fn run(
     confirm_or_show_changelog(&context.provider_manager, &preview_rows).await?;
 
     let overall_pb = ProgressBar::new(preview_rows.len() as u64);
+    overall_pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     overall_pb.set_style(ProgressStyle::with_template(
         "{spinner:.green} Upgraded {pos}/{len} packages{msg}",
     )?);
     overall_pb.enable_steady_tick(Duration::from_millis(120));
 
-    let overall_pb_ref = overall_pb.clone();
-    let mut overall_progress_callback = Some(move |done: u32, total: u32| {
-        overall_pb_ref.set_length(total as u64);
-        overall_pb_ref.set_position(done as u64);
-    });
-
-    let message_pb = overall_pb.clone();
+    let progress_pb = overall_pb.clone();
     let mut active_progress_rows = BTreeMap::new();
     let mut completed_progress_rows = BTreeMap::new();
-    let persistent_completion_rows = Arc::new(Mutex::new(Vec::new()));
-    let completion_rows_ref = Arc::clone(&persistent_completion_rows);
-    let mut message_callback = Some(move |msg: &str| {
-        if let Some(rest) = msg.strip_prefix("__UPGRADE_PROGRESS_ROW__ ") {
-            if let Some((name, row)) = rest.split_once('\t') {
-                active_progress_rows.insert(name.to_string(), row.to_string());
-                message_pb.set_message(render_upgrade_progress(
-                    &completed_progress_rows,
-                    &active_progress_rows,
-                ));
+    let mut completion_rows = Vec::new();
+    let completion_subject_width =
+        output::status_subject_width(preview_rows.iter().map(|row| row.name.as_str()));
+    let active_name_width = preview_rows
+        .iter()
+        .map(|row| row.name.chars().count())
+        .max()
+        .unwrap_or(0);
+    let mut completed_count = 0_u32;
+    let mut total_count = preview_rows.len() as u32;
+    progress_pb.set_message(render_upgrade_progress(
+        &completed_progress_rows,
+        &active_progress_rows,
+        completed_count,
+        total_count,
+    ));
+    let mut progress_callback = Some(|event: UpgradeProgressEvent| {
+        match event {
+            UpgradeProgressEvent::Overall { completed, total } => {
+                completed_count = completed;
+                total_count = total;
+                progress_pb.set_length(total as u64);
+                progress_pb.set_position(completed as u64);
             }
-            return;
-        }
-        if let Some(name) = msg.strip_prefix("__UPGRADE_PROGRESS_DONE__ ") {
-            active_progress_rows.remove(name);
-            message_pb.set_message(render_upgrade_progress(
-                &completed_progress_rows,
-                &active_progress_rows,
-            ));
-            return;
-        }
-        if msg == "__UPGRADE_PROGRESS_CLEAR__" {
-            active_progress_rows.clear();
-            message_pb.set_message(render_upgrade_progress(
-                &completed_progress_rows,
-                &active_progress_rows,
-            ));
-            return;
-        }
-        if let Some(key) = completion_message_key(msg) {
-            active_progress_rows.remove(&key);
-            completed_progress_rows.insert(key, msg.to_string());
-            if let Ok(mut rows) = completion_rows_ref.lock() {
-                rows.push(msg.to_string());
+            UpgradeProgressEvent::Package { name, event } => {
+                active_progress_rows.insert(
+                    name.clone(),
+                    render_upgrade_progress_row(&name, event, active_name_width),
+                );
             }
-            message_pb.set_message(render_upgrade_progress(
-                &completed_progress_rows,
-                &active_progress_rows,
-            ));
-            return;
+            UpgradeProgressEvent::Complete { name, result } => {
+                active_progress_rows.remove(&name);
+                let row = match result {
+                    UpgradePackageResult::Upgraded { version } => {
+                        output::status_line_text_with_width(
+                            Status::Ok,
+                            &name,
+                            format!("upgraded to {version}"),
+                            completion_subject_width,
+                        )
+                    }
+                    UpgradePackageResult::Failed { error } => output::status_line_text_with_width(
+                        Status::Fail,
+                        &name,
+                        error,
+                        completion_subject_width,
+                    ),
+                };
+                completed_progress_rows.insert(name, row.clone());
+                completion_rows.push(row);
+            }
+            UpgradeProgressEvent::Clear => {
+                active_progress_rows.clear();
+            }
         }
-        message_pb.println(msg);
+        progress_pb.set_message(render_upgrade_progress(
+            &completed_progress_rows,
+            &active_progress_rows,
+            completed_count,
+            total_count,
+        ));
     });
-    let mut no_download_progress: Option<fn(u64, u64)> = None;
     let bulk_result = package_upgrade
-        .upgrade_resolved_bulk(
-            &preview_rows,
-            trust_mode,
-            &mut no_download_progress,
-            &mut overall_progress_callback,
-            &mut message_callback,
-        )
+        .upgrade_resolved_bulk(&preview_rows, trust_mode, &mut progress_callback)
         .await;
     let (upgraded, failed) = match bulk_result {
         Ok(result) => result,
@@ -245,10 +278,6 @@ pub async fn run(
     };
 
     overall_pb.finish_and_clear();
-    let completion_rows = persistent_completion_rows
-        .lock()
-        .map(|rows| rows.clone())
-        .unwrap_or_default();
     for row in &completion_rows {
         println!("{row}");
     }
@@ -800,11 +829,12 @@ async fn run_dry_run(
 #[cfg(test)]
 mod tests {
     use super::{
-        CheckTableLayout, UpgradePromptAction, completion_message_key, json_check_rows,
-        render_upgrade_progress, upgrade_prompt_action_from_input,
+        CheckTableLayout, UpgradePromptAction, json_check_rows, render_upgrade_progress,
+        render_upgrade_progress_row, upgrade_prompt_action_from_input,
     };
     use crate::application::operations::upgrade_op::{UpdateCheckRow, UpdateCheckStatus};
     use crate::models::common::enums::{Channel, Provider};
+    use crate::services::packaging::{PackagePhase, PackageProgressEvent};
     use std::collections::BTreeMap;
 
     #[test]
@@ -826,19 +856,22 @@ mod tests {
         );
 
         assert_eq!(
-            render_upgrade_progress(&completed, &active),
-            "\n[ok] tally upgraded to 0.13.0\nstable/forge u github 1.00 MiB/5.00 MiB\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
+            render_upgrade_progress(&completed, &active, 1, 4),
+            " (1 queued)\n[ok] tally upgraded to 0.13.0\nstable/forge u github 1.00 MiB/5.00 MiB\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
         );
 
         active.remove("forge");
         assert_eq!(
-            render_upgrade_progress(&completed, &active),
-            "\n[ok] tally upgraded to 0.13.0\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
+            render_upgrade_progress(&completed, &active, 1, 4),
+            " (2 queued)\n[ok] tally upgraded to 0.13.0\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
         );
 
         completed.clear();
         active.clear();
-        assert_eq!(render_upgrade_progress(&completed, &active), "");
+        assert_eq!(
+            render_upgrade_progress(&completed, &active, 0, 4),
+            " (4 queued)"
+        );
     }
 
     #[test]
@@ -859,16 +892,26 @@ mod tests {
     }
 
     #[test]
-    fn completion_message_key_extracts_package_name() {
-        assert_eq!(
-            completion_message_key("[ok] tally upgraded to 0.13.0"),
-            Some("tally".to_string())
+    fn upgrade_progress_row_renders_download_and_phase_states() {
+        let download = render_upgrade_progress_row(
+            "gitui",
+            PackageProgressEvent::Download {
+                downloaded: 512,
+                total: 1024,
+            },
+            5,
         );
+        assert!(download.starts_with("gitui Downloading [=======>      ]"));
+        assert!(download.contains('/'));
+
         assert_eq!(
-            completion_message_key("[fail] forge failed to upgrade"),
-            Some("forge".to_string())
+            render_upgrade_progress_row(
+                "dz6",
+                PackageProgressEvent::Phase(PackagePhase::InstallingCompletions),
+                5,
+            ),
+            "dz6   Installing completions..."
         );
-        assert_eq!(completion_message_key("Downloading forge ..."), None);
     }
 
     #[test]
