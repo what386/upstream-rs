@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS packages (
     last_upgraded TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS package_patterns (
+CREATE TABLE IF NOT EXISTS patterns (
     package_name TEXT NOT NULL,
     kind TEXT NOT NULL CHECK (kind IN ('match', 'exclude')),
     position INTEGER NOT NULL CHECK (position >= 0),
@@ -42,5 +42,5 @@ CREATE TABLE IF NOT EXISTS package_patterns (
     FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_package_patterns_package_kind_position
-    ON package_patterns(package_name, kind, position);
+CREATE INDEX IF NOT EXISTS idx_patterns_package_kind_position
+    ON patterns(package_name, kind, position);

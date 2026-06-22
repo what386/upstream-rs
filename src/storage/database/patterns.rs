@@ -6,7 +6,7 @@ use crate::providers::pattern_matcher::PatternTable;
 
 pub(super) fn replace_patterns(tx: &Transaction<'_>, package: &Package) -> Result<()> {
     tx.execute(
-        "DELETE FROM package_patterns WHERE package_name = ?1",
+        "DELETE FROM patterns WHERE package_name = ?1",
         [&package.name],
     )
     .with_context(|| format!("Failed to replace patterns for package '{}'", package.name))?;
@@ -29,10 +29,10 @@ fn write_patterns(
 ) -> Result<()> {
     let mut stmt = tx
         .prepare(
-            "INSERT INTO package_patterns (package_name, kind, position, pattern)
+            "INSERT INTO patterns (package_name, kind, position, pattern)
              VALUES (?1, ?2, ?3, ?4)",
         )
-        .context("Failed to prepare package pattern insert")?;
+        .context("Failed to prepare pattern insert")?;
 
     for (position, pattern) in patterns.as_slice().iter().enumerate() {
         stmt.execute(params![package_name, kind, position as u32, pattern])
@@ -46,7 +46,7 @@ fn load_pattern_kind(conn: &Connection, package_name: &str, kind: &str) -> Resul
     let mut stmt = conn
         .prepare(
             "SELECT pattern
-             FROM package_patterns
+             FROM patterns
              WHERE package_name = ?1 AND kind = ?2
              ORDER BY position ASC",
         )
