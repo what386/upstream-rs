@@ -37,3 +37,6 @@ gen-completions:
         cargo run --bin completions --features="shell-completions" -- "$shell" \
             > "./completions/completions.$ext"
     done
+
+inspect-db:
+    lazysql ~/.upstream/metadata/packages.db
