@@ -2,6 +2,18 @@
 
 *Generated on 2026-06-22*
 
+## 2.6.0 — 2026-06-22
+
+### Changes
+
+- BREAKING: rollback is now names-only. transactions are no longer recorded. CLI shape reverted.
+- BREAKING: remove 'metadata' storage and pin reason
+- BREAKING: make migrate a flag in doctor instead of its own subcommand
+- feat: improve list <package> UI
+- feat: add install type and commit hash to list
+- internal: move packages.json into a SQL db
+
+
 ## 2.5.0 — 2026-06-22
 
 ### Changes
@@ -14,6 +26,7 @@
 - feat: rollback prune now has a total progress callback
 - feat: `docs` subcommand to parse READMEs for users
 - feat: run README markdown output through glow when available
+
 
 ## 2.4.1 — 2026-06-21
 
