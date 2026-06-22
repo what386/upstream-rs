@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-06-21
+@modified: 2026-06-22
 
 ## Tasks
 
@@ -10,6 +10,9 @@
 
 - [ ] internal: move packages.json into a SQL db
       @created 2026-06-21 16:31
+
+- [ ] feat: improve list <package> UI
+      @created 2026-06-22 15:40
 
 
 ## Completed
