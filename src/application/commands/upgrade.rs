@@ -21,6 +21,17 @@ use std::{
 
 const UPGRADE_PROGRESS_BAR_WIDTH: usize = 14;
 
+fn new_check_progress_bar() -> ProgressBar {
+    let pb = ProgressBar::new_spinner();
+    pb.set_draw_target(ProgressDrawTarget::stdout_with_hz(10));
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} {msg}").expect("valid progress template"),
+    );
+    pb.enable_steady_tick(Duration::from_millis(120));
+    pb.set_message("checking for updates");
+    pb
+}
+
 fn upgrade_transaction_row(
     row: &crate::application::operations::upgrade_op::UpgradePreviewRow,
 ) -> TransactionRow {
@@ -119,15 +130,7 @@ pub async fn run(
                 let layout = TransactionTableLayout::upgrade_preview(package_width);
                 live_layout = Some(layout);
 
-                let pb = ProgressBar::new_spinner();
-                pb.set_draw_target(ProgressDrawTarget::stdout_with_hz(10));
-                pb.set_style(
-                    ProgressStyle::with_template("{spinner:.cyan} {msg}")
-                        .expect("valid progress template"),
-                );
-                pb.enable_steady_tick(Duration::from_millis(120));
-                pb.set_message("checking for updates");
-                check_pb = Some(pb);
+                check_pb = Some(new_check_progress_bar());
             }
             UpgradePreviewEvent::Checking { name } => {
                 if let Some(pb) = &check_pb {
@@ -657,10 +660,23 @@ async fn run_check(
             println!("{name} {oldver} {newver}");
         }
     } else {
-        let rows = match names {
-            None => package_upgrade.check_all_detailed().await,
-            Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
+        let check_pb = new_check_progress_bar();
+        let mut checking_callback = |name: &str| {
+            check_pb.set_message(format!("checking for updates: {name}"));
         };
+        let rows = match names {
+            None => {
+                package_upgrade
+                    .check_all_detailed_with_callback(&mut checking_callback)
+                    .await
+            }
+            Some(name_vec) => {
+                package_upgrade
+                    .check_selected_detailed_with_callback(&name_vec, &mut checking_callback)
+                    .await
+            }
+        };
+        check_pb.finish_and_clear();
         render_check_table(&rows);
     }
 

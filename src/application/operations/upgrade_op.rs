@@ -230,19 +230,53 @@ impl<'a> UpgradeOperation<'a> {
     async fn check_packages_parallel(
         &self,
         packages: Vec<crate::models::upstream::Package>,
+        checking_callback: &mut dyn FnMut(&str),
     ) -> Vec<(
         crate::models::upstream::Package,
         Result<Option<(String, String)>>,
     )> {
-        let mut checked = stream::iter(packages.into_iter().enumerate().map(
-            |(idx, pkg)| async move {
-                let result = self.checker.check_one(&pkg).await;
-                (idx, pkg, result)
-            },
-        ))
-        .buffer_unordered(CHECK_CONCURRENCY)
-        .collect::<Vec<_>>()
-        .await;
+        let package_count = packages.len();
+        let mut checked = Vec::with_capacity(package_count);
+        let mut package_iter = packages.into_iter().enumerate();
+        let mut pending: FuturesUnordered<
+            LocalBoxFuture<
+                '_,
+                (
+                    usize,
+                    crate::models::upstream::Package,
+                    Result<Option<(String, String)>>,
+                ),
+            >,
+        > = FuturesUnordered::new();
+
+        for _ in 0..CHECK_CONCURRENCY {
+            let Some((idx, pkg)) = package_iter.next() else {
+                break;
+            };
+            checking_callback(&pkg.name);
+            pending.push(
+                async move {
+                    let result = self.checker.check_one(&pkg).await;
+                    (idx, pkg, result)
+                }
+                .boxed_local(),
+            );
+        }
+
+        while let Some((idx, pkg, result)) = pending.next().await {
+            checked.push((idx, pkg, result));
+
+            if let Some((next_idx, next_pkg)) = package_iter.next() {
+                checking_callback(&next_pkg.name);
+                pending.push(
+                    async move {
+                        let result = self.checker.check_one(&next_pkg).await;
+                        (next_idx, next_pkg, result)
+                    }
+                    .boxed_local(),
+                );
+            }
+        }
 
         checked.sort_by_key(|(idx, _, _)| *idx);
         checked
@@ -251,11 +285,12 @@ impl<'a> UpgradeOperation<'a> {
             .collect()
     }
 
-    async fn check_installed_packages_detailed(
+    async fn check_installed_packages_detailed_with_callback(
         &self,
         packages: Vec<crate::models::upstream::Package>,
+        checking_callback: &mut dyn FnMut(&str),
     ) -> Vec<UpdateCheckRow> {
-        self.check_packages_parallel(packages)
+        self.check_packages_parallel(packages, checking_callback)
             .await
             .into_iter()
             .map(|(pkg, result)| match result {
@@ -897,8 +932,18 @@ impl<'a> UpgradeOperation<'a> {
     }
 
     pub async fn check_all_detailed(&self) -> Vec<UpdateCheckRow> {
+        let mut ignored_callback = |_: &str| {};
+        self.check_all_detailed_with_callback(&mut ignored_callback)
+            .await
+    }
+
+    pub async fn check_all_detailed_with_callback(
+        &self,
+        checking_callback: &mut dyn FnMut(&str),
+    ) -> Vec<UpdateCheckRow> {
         let packages = self.package_database.list_packages().unwrap_or_default();
-        self.check_installed_packages_detailed(packages).await
+        self.check_installed_packages_detailed_with_callback(packages, checking_callback)
+            .await
     }
 
     pub async fn check_all_machine_readable(&self) -> Vec<(String, String, String)> {
@@ -914,6 +959,16 @@ impl<'a> UpgradeOperation<'a> {
     }
 
     pub async fn check_selected_detailed(&self, package_names: &[String]) -> Vec<UpdateCheckRow> {
+        let mut ignored_callback = |_: &str| {};
+        self.check_selected_detailed_with_callback(package_names, &mut ignored_callback)
+            .await
+    }
+
+    pub async fn check_selected_detailed_with_callback(
+        &self,
+        package_names: &[String],
+        checking_callback: &mut dyn FnMut(&str),
+    ) -> Vec<UpdateCheckRow> {
         let mut rows: Vec<Option<UpdateCheckRow>> =
             (0..package_names.len()).map(|_| None).collect();
         let mut selected_packages = Vec::new();
@@ -937,7 +992,7 @@ impl<'a> UpgradeOperation<'a> {
         }
 
         let checked_rows = self
-            .check_installed_packages_detailed(selected_packages)
+            .check_installed_packages_detailed_with_callback(selected_packages, checking_callback)
             .await;
         for (row_idx, checked_row) in selected_indices.into_iter().zip(checked_rows) {
             rows[row_idx] = Some(checked_row);
