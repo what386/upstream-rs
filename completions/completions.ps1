@@ -44,7 +44,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import trusted keys, package metadata manifests, or full snapshots')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
-            [CompletionResult]::new('migrate', 'migrate', [CompletionResultType]::ParameterValue, 'Migrate local upstream data after breaking changes')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
@@ -103,56 +102,13 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;rollback' {
+            [CompletionResult]::new('--prune', '--prune', [CompletionResultType]::ParameterName, 'Prune stored rollback artifacts for all packages or selected package names')
+            [CompletionResult]::new('--list', '--list', [CompletionResultType]::ParameterName, 'List stored rollback artifacts')
+            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview rollback restore or prune actions without modifying files or metadata')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Restore rollback artifacts')
-            [CompletionResult]::new('prune', 'prune', [CompletionResultType]::ParameterValue, 'Prune stored rollback artifacts')
-            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List stored rollback artifacts')
-            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
-            break
-        }
-        'upstream;rollback;restore' {
-            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview rollback restore actions without modifying files or metadata')
-            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
-            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            break
-        }
-        'upstream;rollback;prune' {
-            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview rollback prune actions without deleting artifacts or metadata')
-            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
-            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            break
-        }
-        'upstream;rollback;list' {
-            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
-            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            break
-        }
-        'upstream;rollback;help' {
-            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Restore rollback artifacts')
-            [CompletionResult]::new('prune', 'prune', [CompletionResultType]::ParameterValue, 'Prune stored rollback artifacts')
-            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List stored rollback artifacts')
-            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
-            break
-        }
-        'upstream;rollback;help;restore' {
-            break
-        }
-        'upstream;rollback;help;prune' {
-            break
-        }
-        'upstream;rollback;help;list' {
-            break
-        }
-        'upstream;rollback;help;help' {
             break
         }
         'upstream;reinstall' {
@@ -364,7 +320,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;package;pin' {
-            [CompletionResult]::new('--reason', '--reason', [CompletionResultType]::ParameterName, 'Optional reason for pinning this package')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
@@ -484,16 +439,10 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
         }
-        'upstream;migrate' {
-            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
-            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            break
-        }
         'upstream;doctor' {
             [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Print each check result line in addition to summary output')
             [CompletionResult]::new('--fix', '--fix', [CompletionResultType]::ParameterName, 'Attempt automatic repairs for detected issues')
+            [CompletionResult]::new('--migrate', '--migrate', [CompletionResultType]::ParameterName, 'Migrate local upstream data after breaking layout or metadata changes')
             [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Print diagnostic report as JSON')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
@@ -519,7 +468,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import trusted keys, package metadata manifests, or full snapshots')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
-            [CompletionResult]::new('migrate', 'migrate', [CompletionResultType]::ParameterValue, 'Migrate local upstream data after breaking changes')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
@@ -534,18 +482,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;rollback' {
-            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Restore rollback artifacts')
-            [CompletionResult]::new('prune', 'prune', [CompletionResultType]::ParameterValue, 'Prune stored rollback artifacts')
-            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List stored rollback artifacts')
-            break
-        }
-        'upstream;help;rollback;restore' {
-            break
-        }
-        'upstream;help;rollback;prune' {
-            break
-        }
-        'upstream;help;rollback;list' {
             break
         }
         'upstream;help;reinstall' {
@@ -633,9 +569,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;export' {
-            break
-        }
-        'upstream;help;migrate' {
             break
         }
         'upstream;help;doctor' {

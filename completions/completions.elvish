@@ -41,7 +41,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand hooks 'Manage shell integration hooks and local upstream data'
             cand import 'Import trusted keys, package metadata manifests, or full snapshots'
             cand export 'Export packages to a manifest or full snapshot'
-            cand migrate 'Migrate local upstream data after breaking changes'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
@@ -96,48 +95,13 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;rollback'= {
+            cand --prune 'Prune stored rollback artifacts for all packages or selected package names'
+            cand --list 'List stored rollback artifacts'
+            cand --dry-run 'Preview rollback restore or prune actions without modifying files or metadata'
             cand -y 'Accept confirmation prompts'
             cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
-            cand restore 'Restore rollback artifacts'
-            cand prune 'Prune stored rollback artifacts'
-            cand list 'List stored rollback artifacts'
-            cand help 'Print this message or the help of the given subcommand(s)'
-        }
-        &'upstream;rollback;restore'= {
-            cand --dry-run 'Preview rollback restore actions without modifying files or metadata'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
-        }
-        &'upstream;rollback;prune'= {
-            cand --dry-run 'Preview rollback prune actions without deleting artifacts or metadata'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
-        }
-        &'upstream;rollback;list'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
-        }
-        &'upstream;rollback;help'= {
-            cand restore 'Restore rollback artifacts'
-            cand prune 'Prune stored rollback artifacts'
-            cand list 'List stored rollback artifacts'
-            cand help 'Print this message or the help of the given subcommand(s)'
-        }
-        &'upstream;rollback;help;restore'= {
-        }
-        &'upstream;rollback;help;prune'= {
-        }
-        &'upstream;rollback;help;list'= {
-        }
-        &'upstream;rollback;help;help'= {
         }
         &'upstream;reinstall'= {
             cand --trust 'Trust verification mode for release-asset reinstalls'
@@ -326,7 +290,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;package;pin'= {
-            cand --reason 'Optional reason for pinning this package'
             cand -y 'Accept confirmation prompts'
             cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
@@ -425,15 +388,10 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
-        &'upstream;migrate'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
-        }
         &'upstream;doctor'= {
             cand --verbose 'Print each check result line in addition to summary output'
             cand --fix 'Attempt automatic repairs for detected issues'
+            cand --migrate 'Migrate local upstream data after breaking layout or metadata changes'
             cand --json 'Print diagnostic report as JSON'
             cand -y 'Accept confirmation prompts'
             cand --yes 'Accept confirmation prompts'
@@ -458,7 +416,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand hooks 'Manage shell integration hooks and local upstream data'
             cand import 'Import trusted keys, package metadata manifests, or full snapshots'
             cand export 'Export packages to a manifest or full snapshot'
-            cand migrate 'Migrate local upstream data after breaking changes'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
@@ -469,15 +426,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;remove'= {
         }
         &'upstream;help;rollback'= {
-            cand restore 'Restore rollback artifacts'
-            cand prune 'Prune stored rollback artifacts'
-            cand list 'List stored rollback artifacts'
-        }
-        &'upstream;help;rollback;restore'= {
-        }
-        &'upstream;help;rollback;prune'= {
-        }
-        &'upstream;help;rollback;list'= {
         }
         &'upstream;help;reinstall'= {
         }
@@ -540,8 +488,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;import'= {
         }
         &'upstream;help;export'= {
-        }
-        &'upstream;help;migrate'= {
         }
         &'upstream;help;doctor'= {
         }
