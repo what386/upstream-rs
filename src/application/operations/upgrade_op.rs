@@ -33,6 +33,9 @@ struct ProgressEntry {
     event: PackageProgressEvent,
 }
 type ProgressState = Arc<Mutex<BTreeMap<String, ProgressEntry>>>;
+type PendingLocalFutures<'a, T> = FuturesUnordered<LocalBoxFuture<'a, T>>;
+type PackageUpdateCheck = Result<Option<(String, String)>>;
+type IndexedPackageUpdateCheck = (usize, crate::models::upstream::Package, PackageUpdateCheck);
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -247,23 +250,12 @@ impl<'a> UpgradeOperation<'a> {
         &self,
         packages: Vec<crate::models::upstream::Package>,
         checking_callback: &mut dyn FnMut(&str),
-    ) -> Vec<(
-        crate::models::upstream::Package,
-        Result<Option<(String, String)>>,
-    )> {
+    ) -> Vec<(crate::models::upstream::Package, PackageUpdateCheck)> {
         let package_count = packages.len();
         let mut checked = Vec::with_capacity(package_count);
         let mut package_iter = packages.into_iter().enumerate();
-        let mut pending: FuturesUnordered<
-            LocalBoxFuture<
-                '_,
-                (
-                    usize,
-                    crate::models::upstream::Package,
-                    Result<Option<(String, String)>>,
-                ),
-            >,
-        > = FuturesUnordered::new();
+        let mut pending: PendingLocalFutures<'_, IndexedPackageUpdateCheck> =
+            FuturesUnordered::new();
 
         for _ in 0..CHECK_CONCURRENCY {
             let Some((idx, pkg)) = package_iter.next() else {
@@ -453,7 +445,7 @@ impl<'a> UpgradeOperation<'a> {
         let mut rows_by_index: Vec<Option<UpgradePreviewRow>> =
             (0..package_count).map(|_| None).collect();
         let mut package_iter = packages.into_iter().enumerate();
-        let mut pending: FuturesUnordered<LocalBoxFuture<'_, (usize, Option<UpgradePreviewRow>)>> =
+        let mut pending: PendingLocalFutures<'_, (usize, Option<UpgradePreviewRow>)> =
             FuturesUnordered::new();
 
         for _ in 0..CHECK_CONCURRENCY {
