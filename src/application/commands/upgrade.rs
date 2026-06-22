@@ -45,7 +45,6 @@ fn upgrade_transaction_row(
 }
 
 fn render_upgrade_progress(
-    completed_rows: &BTreeMap<String, String>,
     active_rows: &BTreeMap<String, String>,
     completed: u32,
     total: u32,
@@ -53,15 +52,11 @@ fn render_upgrade_progress(
     let active_count = active_rows.len() as u32;
     let queued = total.saturating_sub(completed).saturating_sub(active_count);
     let mut parts = vec![format!(" ({queued} queued)")];
-    if completed_rows.is_empty() && active_rows.is_empty() {
+    if active_rows.is_empty() {
         return parts.join("");
     }
 
-    let rows = completed_rows
-        .values()
-        .chain(active_rows.values())
-        .cloned()
-        .collect::<Vec<_>>();
+    let rows = active_rows.values().cloned().collect::<Vec<_>>();
     parts.push(format!("\n{}", rows.join("\n")));
     parts.join("")
 }
@@ -206,8 +201,6 @@ pub async fn run(
 
     let progress_pb = overall_pb.clone();
     let mut active_progress_rows = BTreeMap::new();
-    let mut completed_progress_rows = BTreeMap::new();
-    let mut completion_rows = Vec::new();
     let completion_subject_width =
         output::status_subject_width(preview_rows.iter().map(|row| row.name.as_str()));
     let active_name_width = preview_rows
@@ -218,7 +211,6 @@ pub async fn run(
     let mut completed_count = 0_u32;
     let mut total_count = preview_rows.len() as u32;
     progress_pb.set_message(render_upgrade_progress(
-        &completed_progress_rows,
         &active_progress_rows,
         completed_count,
         total_count,
@@ -255,15 +247,13 @@ pub async fn run(
                         completion_subject_width,
                     ),
                 };
-                completed_progress_rows.insert(name, row.clone());
-                completion_rows.push(row);
+                progress_pb.suspend(|| println!("{row}"));
             }
             UpgradeProgressEvent::Clear => {
                 active_progress_rows.clear();
             }
         }
         progress_pb.set_message(render_upgrade_progress(
-            &completed_progress_rows,
             &active_progress_rows,
             completed_count,
             total_count,
@@ -281,9 +271,6 @@ pub async fn run(
     };
 
     overall_pb.finish_and_clear();
-    for row in &completion_rows {
-        println!("{row}");
-    }
     if failed > 0 {
         println!(
             "{}",
@@ -854,13 +841,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     #[test]
-    fn upgrade_progress_renders_completed_rows_before_active_rows() {
-        let mut completed = BTreeMap::new();
-        completed.insert(
-            "tally".to_string(),
-            "[ok] tally upgraded to 0.13.0".to_string(),
-        );
-
+    fn upgrade_progress_renders_active_rows_only() {
         let mut active = BTreeMap::new();
         active.insert(
             "forge".to_string(),
@@ -872,22 +853,18 @@ mod tests {
         );
 
         assert_eq!(
-            render_upgrade_progress(&completed, &active, 1, 4),
-            " (1 queued)\n[ok] tally upgraded to 0.13.0\nstable/forge u github 1.00 MiB/5.00 MiB\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
+            render_upgrade_progress(&active, 1, 4),
+            " (1 queued)\nstable/forge u github 1.00 MiB/5.00 MiB\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
         );
 
         active.remove("forge");
         assert_eq!(
-            render_upgrade_progress(&completed, &active, 1, 4),
-            " (2 queued)\n[ok] tally upgraded to 0.13.0\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
+            render_upgrade_progress(&active, 1, 4),
+            " (2 queued)\nstable/ripgrep u github 2.00 MiB/4.00 MiB"
         );
 
-        completed.clear();
         active.clear();
-        assert_eq!(
-            render_upgrade_progress(&completed, &active, 0, 4),
-            " (4 queued)"
-        );
+        assert_eq!(render_upgrade_progress(&active, 0, 4), " (4 queued)");
     }
 
     #[test]
