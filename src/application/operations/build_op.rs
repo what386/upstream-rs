@@ -1,8 +1,6 @@
 use anyhow::{Context, Result, anyhow, bail};
 
-use crate::application::operations::install_op::{
-    InstallOperation, LocalArtifactInstallRequest,
-};
+use crate::application::operations::install_op::{InstallOperation, LocalArtifactInstallRequest};
 use crate::models::{
     common::enums::{Channel, Filetype, Provider},
     upstream::{InstallType, Package},

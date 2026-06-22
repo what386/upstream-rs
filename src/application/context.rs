@@ -3,7 +3,10 @@ use anyhow::Result;
 use crate::{
     providers::provider_manager::ProviderManager,
     services::trust::TrustedSignatureKeys,
-    storage::{config::ConfigStorage, package_storage::PackageStorage, trust::TrustStorage},
+    storage::{
+        package_storage::PackageStorage,
+        system::{config::ConfigStorage, trust::TrustStorage},
+    },
     utils::static_paths::UpstreamPaths,
 };
 
