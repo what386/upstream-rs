@@ -14,6 +14,9 @@
 - [ ] feat: improve list <package> UI
       @created 2026-06-22 15:40
 
+- [ ] feat: add install type and commit hash to list
+      @created 2026-06-22 15:41
+
 
 ## Completed
 
