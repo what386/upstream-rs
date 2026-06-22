@@ -58,10 +58,7 @@ fn display_all_packages(storage: &PackageDatabase) -> Result<()> {
         return Ok(());
     }
 
-    let title = format!(
-        "Packages ({})  Flags: D=desktop, P=pinned",
-        packages.len()
-    );
+    let title = format!("Packages ({})  Flags: D=desktop, P=pinned", packages.len());
     pager::page_text(Some(&title), &format_package_table(&packages))?;
     Ok(())
 }
@@ -99,11 +96,21 @@ fn write_detail_field(out: &mut String, label: &str, value: impl AsRef<str>) {
     writeln!(out, "{label:<10} {}", value.as_ref()).expect("write package detail field");
 }
 
+fn package_detail_heading(package: &Package) -> String {
+    format!(
+        "{} {} ({})",
+        package.name,
+        package_ref_label(package),
+        package.repo_slug
+    )
+}
+
 fn format_package_details(package: &Package) -> String {
     let mut out = String::new();
+    let heading = package_detail_heading(package);
 
-    writeln!(out, "{}", package.name).expect("write package name");
-    write_detail_field(&mut out, "Repo", &package.repo_slug);
+    writeln!(out, "{heading}").expect("write package heading");
+    writeln!(out, "{}", output::divider(heading.chars().count())).expect("write package divider");
     write_detail_field(&mut out, "Provider", package.provider.to_string());
     write_detail_field(
         &mut out,
@@ -111,12 +118,6 @@ fn format_package_details(package: &Package) -> String {
         package.channel.to_string().to_ascii_lowercase(),
     );
     write_detail_field(&mut out, "Kind", package_kind_label(package));
-    match package.install_type {
-        InstallType::Release => {
-            write_detail_field(&mut out, "Version", package.version.to_string())
-        }
-        InstallType::Build => write_detail_field(&mut out, "Ref", package_ref_label(package)),
-    }
     write_detail_field(
         &mut out,
         "Updated",
@@ -483,9 +484,8 @@ mod tests {
 
         let details = format_package_details(&release);
 
-        assert!(details.starts_with("rg\n"));
+        assert!(details.starts_with("rg 15.1.0 (owner/rg)\n--------------------\n"));
         assert!(details.contains("Kind       release"));
-        assert!(details.contains("Version    15.1.0"));
         assert!(details.contains("\nInstall\n"));
         assert!(!details.contains("Build\n"));
         assert!(!details.contains("Base URL"));
@@ -503,8 +503,8 @@ mod tests {
 
         let details = format_package_details(&build);
 
+        assert!(details.starts_with("forge main@abcdef1 (owner/forge)\n"));
         assert!(details.contains("Kind       build"));
-        assert!(details.contains("Ref        main@abcdef1"));
         assert!(details.contains("\nBuild\n"));
         assert!(details.contains("Branch     main"));
         assert!(details.contains("Commit     abcdef1234567890"));
