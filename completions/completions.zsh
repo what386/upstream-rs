@@ -93,83 +93,15 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (rollback)
 _arguments "${_arguments_options[@]}" : \
+'*--prune=[Prune stored rollback artifacts for all packages or selected package names]::NAMES:_default' \
+'--list[List stored rollback artifacts]' \
+'--dry-run[Preview rollback restore or prune actions without modifying files or metadata]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-":: :_upstream__subcmd__rollback_commands" \
-"*::: :->rollback" \
+'*::names -- Package names to restore:_default' \
 && ret=0
-
-    case $state in
-    (rollback)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:upstream-rollback-command-$line[1]:"
-        case $line[1] in
-            (restore)
-_arguments "${_arguments_options[@]}" : \
-'--dry-run[Preview rollback restore actions without modifying files or metadata]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-'*::names -- Package names to restore (latest reversible transaction if omitted):_default' \
-&& ret=0
-;;
-(prune)
-_arguments "${_arguments_options[@]}" : \
-'--dry-run[Preview rollback prune actions without deleting artifacts or metadata]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-'*::names -- Package names to prune (all rollback artifacts if omitted):_default' \
-&& ret=0
-;;
-(list)
-_arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-&& ret=0
-;;
-(help)
-_arguments "${_arguments_options[@]}" : \
-":: :_upstream__subcmd__rollback__subcmd__help_commands" \
-"*::: :->help" \
-&& ret=0
-
-    case $state in
-    (help)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:upstream-rollback-help-command-$line[1]:"
-        case $line[1] in
-            (restore)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(prune)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(list)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(help)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-        esac
-    ;;
-esac
-;;
-        esac
-    ;;
-esac
 ;;
 (reinstall)
 _arguments "${_arguments_options[@]}" : \
@@ -431,7 +363,6 @@ _arguments "${_arguments_options[@]}" : \
         case $line[1] in
             (pin)
 _arguments "${_arguments_options[@]}" : \
-'--reason=[Optional reason for pinning this package]:REASON:_default' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -603,18 +534,11 @@ _arguments "${_arguments_options[@]}" : \
 ':path -- Output path for the manifest or snapshot archive:_files' \
 && ret=0
 ;;
-(migrate)
-_arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-&& ret=0
-;;
 (doctor)
 _arguments "${_arguments_options[@]}" : \
 '--verbose[Print each check result line in addition to summary output]' \
 '--fix[Attempt automatic repairs for detected issues]' \
+'(--verbose --fix --json)--migrate[Migrate local upstream data after breaking layout or metadata changes]' \
 '--json[Print diagnostic report as JSON]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
@@ -649,31 +573,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (rollback)
 _arguments "${_arguments_options[@]}" : \
-":: :_upstream__subcmd__help__subcmd__rollback_commands" \
-"*::: :->rollback" \
 && ret=0
-
-    case $state in
-    (rollback)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:upstream-help-rollback-command-$line[1]:"
-        case $line[1] in
-            (restore)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(prune)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(list)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-        esac
-    ;;
-esac
 ;;
 (reinstall)
 _arguments "${_arguments_options[@]}" : \
@@ -811,10 +711,6 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(migrate)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
 (doctor)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -852,7 +748,6 @@ _upstream_commands() {
 'hooks:Manage shell integration hooks and local upstream data' \
 'import:Import trusted keys, package metadata manifests, or full snapshots' \
 'export:Export packages to a manifest or full snapshot' \
-'migrate:Migrate local upstream data after breaking changes' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -987,7 +882,6 @@ _upstream__subcmd__help_commands() {
 'hooks:Manage shell integration hooks and local upstream data' \
 'import:Import trusted keys, package metadata manifests, or full snapshots' \
 'export:Export packages to a manifest or full snapshot' \
-'migrate:Migrate local upstream data after breaking changes' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1109,11 +1003,6 @@ _upstream__subcmd__help__subcmd__list_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help list commands' commands "$@"
 }
-(( $+functions[_upstream__subcmd__help__subcmd__migrate_commands] )) ||
-_upstream__subcmd__help__subcmd__migrate_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help migrate commands' commands "$@"
-}
 (( $+functions[_upstream__subcmd__help__subcmd__package_commands] )) ||
 _upstream__subcmd__help__subcmd__package_commands() {
     local commands; commands=(
@@ -1155,27 +1044,8 @@ _upstream__subcmd__help__subcmd__remove_commands() {
 }
 (( $+functions[_upstream__subcmd__help__subcmd__rollback_commands] )) ||
 _upstream__subcmd__help__subcmd__rollback_commands() {
-    local commands; commands=(
-'restore:Restore rollback artifacts' \
-'prune:Prune stored rollback artifacts' \
-'list:List stored rollback artifacts' \
-    )
+    local commands; commands=()
     _describe -t commands 'upstream help rollback commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__help__subcmd__rollback__subcmd__list_commands] )) ||
-_upstream__subcmd__help__subcmd__rollback__subcmd__list_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help rollback list commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__help__subcmd__rollback__subcmd__prune_commands] )) ||
-_upstream__subcmd__help__subcmd__rollback__subcmd__prune_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help rollback prune commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__help__subcmd__rollback__subcmd__restore_commands] )) ||
-_upstream__subcmd__help__subcmd__rollback__subcmd__restore_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help rollback restore commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__search_commands] )) ||
 _upstream__subcmd__help__subcmd__search_commands() {
@@ -1269,11 +1139,6 @@ _upstream__subcmd__list_commands() {
     local commands; commands=()
     _describe -t commands 'upstream list commands' commands "$@"
 }
-(( $+functions[_upstream__subcmd__migrate_commands] )) ||
-_upstream__subcmd__migrate_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream migrate commands' commands "$@"
-}
 (( $+functions[_upstream__subcmd__package_commands] )) ||
 _upstream__subcmd__package_commands() {
     local commands; commands=(
@@ -1346,58 +1211,8 @@ _upstream__subcmd__remove_commands() {
 }
 (( $+functions[_upstream__subcmd__rollback_commands] )) ||
 _upstream__subcmd__rollback_commands() {
-    local commands; commands=(
-'restore:Restore rollback artifacts' \
-'prune:Prune stored rollback artifacts' \
-'list:List stored rollback artifacts' \
-'help:Print this message or the help of the given subcommand(s)' \
-    )
+    local commands; commands=()
     _describe -t commands 'upstream rollback commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__rollback__subcmd__help_commands] )) ||
-_upstream__subcmd__rollback__subcmd__help_commands() {
-    local commands; commands=(
-'restore:Restore rollback artifacts' \
-'prune:Prune stored rollback artifacts' \
-'list:List stored rollback artifacts' \
-'help:Print this message or the help of the given subcommand(s)' \
-    )
-    _describe -t commands 'upstream rollback help commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__rollback__subcmd__help__subcmd__help_commands] )) ||
-_upstream__subcmd__rollback__subcmd__help__subcmd__help_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream rollback help help commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__rollback__subcmd__help__subcmd__list_commands] )) ||
-_upstream__subcmd__rollback__subcmd__help__subcmd__list_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream rollback help list commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__rollback__subcmd__help__subcmd__prune_commands] )) ||
-_upstream__subcmd__rollback__subcmd__help__subcmd__prune_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream rollback help prune commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__rollback__subcmd__help__subcmd__restore_commands] )) ||
-_upstream__subcmd__rollback__subcmd__help__subcmd__restore_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream rollback help restore commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__rollback__subcmd__list_commands] )) ||
-_upstream__subcmd__rollback__subcmd__list_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream rollback list commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__rollback__subcmd__prune_commands] )) ||
-_upstream__subcmd__rollback__subcmd__prune_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream rollback prune commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__rollback__subcmd__restore_commands] )) ||
-_upstream__subcmd__rollback__subcmd__restore_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream rollback restore commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__search_commands] )) ||
 _upstream__subcmd__search_commands() {
