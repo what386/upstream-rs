@@ -11,7 +11,7 @@ impl fmt::Display for Commands {
             Commands::Rollback { list, prune, .. } => {
                 if *list {
                     write!(f, "rollback --list")
-                } else if !prune.is_empty() {
+                } else if prune.is_some() {
                     write!(f, "rollback --prune")
                 } else {
                     write!(f, "rollback")

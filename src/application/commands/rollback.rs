@@ -70,7 +70,12 @@ fn show_missing_names(names: &[String]) {
     }
 }
 
-pub fn run(names: Vec<String>, list: bool, prune: Vec<String>, dry_run: bool) -> Result<()> {
+pub fn run(
+    names: Vec<String>,
+    list: bool,
+    prune: Option<Vec<String>>,
+    dry_run: bool,
+) -> Result<()> {
     let mut operation = RollbackOperation::new()?;
 
     match rollback_mode(names, list, prune)? {
@@ -80,23 +85,31 @@ pub fn run(names: Vec<String>, list: bool, prune: Vec<String>, dry_run: bool) ->
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 enum RollbackMode {
     List,
     Restore(Vec<String>),
     Prune(Vec<String>),
 }
 
-fn rollback_mode(names: Vec<String>, list: bool, prune: Vec<String>) -> Result<RollbackMode> {
+fn rollback_mode(
+    names: Vec<String>,
+    list: bool,
+    prune: Option<Vec<String>>,
+) -> Result<RollbackMode> {
     if list {
-        if !names.is_empty() || !prune.is_empty() {
+        if !names.is_empty() || prune.is_some() {
             bail!("--list cannot be combined with package names or --prune");
         }
         return Ok(RollbackMode::List);
     }
 
-    if !prune.is_empty() {
+    if let Some(prune) = prune {
         if !names.is_empty() {
             bail!("--prune cannot be combined with rollback package names");
+        }
+        if prune.is_empty() {
+            return Ok(RollbackMode::Prune(Vec::new()));
         }
         if prune.iter().any(|name| name.eq_ignore_ascii_case("all")) {
             if prune.len() != 1 {
@@ -332,5 +345,38 @@ fn rollback_source_label(source: &RollbackSource) -> &'static str {
         RollbackSource::Upgrade => "upgrade",
         RollbackSource::Reinstall => "reinstall",
         RollbackSource::Remove => "remove",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RollbackMode, rollback_mode};
+
+    #[test]
+    fn rollback_prune_without_names_targets_all_packages() {
+        assert_eq!(
+            rollback_mode(Vec::new(), false, Some(Vec::new())).expect("mode"),
+            RollbackMode::Prune(Vec::new())
+        );
+    }
+
+    #[test]
+    fn rollback_prune_all_remains_supported_as_all_packages() {
+        assert_eq!(
+            rollback_mode(Vec::new(), false, Some(vec!["all".to_string()])).expect("mode"),
+            RollbackMode::Prune(Vec::new())
+        );
+    }
+
+    #[test]
+    fn rollback_prune_rejects_all_combined_with_names() {
+        let err = rollback_mode(
+            Vec::new(),
+            false,
+            Some(vec!["all".to_string(), "ripgrep".to_string()]),
+        )
+        .expect_err("combined all should fail");
+
+        assert!(err.to_string().contains("cannot be combined"));
     }
 }

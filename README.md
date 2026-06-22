@@ -230,7 +230,7 @@ upstream remove rg
 upstream reinstall rg
 upstream rollback rg
 upstream rollback --list
-upstream rollback --prune rg
+upstream rollback --prune
 upstream package pin nvim
 upstream package unpin nvim
 upstream package rename nvim neovim

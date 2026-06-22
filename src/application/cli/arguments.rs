@@ -192,14 +192,14 @@ pub enum Commands {
     /// Manage stored rollback artifacts
     #[command(long_about = "Manage package rollback points.\n\n\
         Provide package names to restore their latest rollback artifacts. Use --list to inspect \
-        available rollback artifacts, or --prune with package names or 'all' to delete stored \
+        available rollback artifacts, or --prune with optional package names to delete stored \
         rollback data.\n\n\
         EXAMPLES:\n  \
         upstream rollback rg\n  \
         upstream rollback rg fd --dry-run\n  \
         upstream rollback --list\n  \
-        upstream rollback --prune rg\n  \
-        upstream rollback --prune all")]
+        upstream rollback --prune\n  \
+        upstream rollback --prune rg")]
     Rollback {
         /// Package names to restore
         #[arg(num_args(0..), value_name = "NAMES")]
@@ -209,9 +209,9 @@ pub enum Commands {
         #[arg(long, default_value_t = false)]
         list: bool,
 
-        /// Prune stored rollback artifacts for package names or all packages
-        #[arg(long, num_args(1..), value_name = "NAMES|all")]
-        prune: Vec<String>,
+        /// Prune stored rollback artifacts for all packages or selected package names
+        #[arg(long, num_args(0..), value_name = "NAMES")]
+        prune: Option<Vec<String>>,
 
         /// Preview rollback restore or prune actions without modifying files or metadata
         #[arg(long, default_value_t = false)]
@@ -861,4 +861,35 @@ pub enum PackageAction {
         /// New package alias
         new_name: String,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Cli, Commands};
+    use clap::Parser;
+
+    #[test]
+    fn rollback_prune_without_values_parses_as_present_empty_prune() {
+        let cli = Cli::try_parse_from(["upstream", "rollback", "--prune"]).expect("parse");
+
+        match cli.command {
+            Commands::Rollback { prune, .. } => {
+                assert_eq!(prune, Some(Vec::new()));
+            }
+            _ => panic!("expected rollback command"),
+        }
+    }
+
+    #[test]
+    fn rollback_prune_with_values_parses_selected_names() {
+        let cli =
+            Cli::try_parse_from(["upstream", "rollback", "--prune", "ripgrep"]).expect("parse");
+
+        match cli.command {
+            Commands::Rollback { prune, .. } => {
+                assert_eq!(prune, Some(vec!["ripgrep".to_string()]));
+            }
+            _ => panic!("expected rollback command"),
+        }
+    }
 }
