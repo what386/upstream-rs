@@ -2,12 +2,9 @@ use anyhow::Result;
 
 use crate::{
     providers::provider_manager::ProviderManager,
-    services::{
-        storage::{
-            config_storage::ConfigStorage, package_storage::PackageStorage,
-            trust_storage::TrustStorage,
-        },
-        trust::TrustedSignatureKeys,
+    services::trust::TrustedSignatureKeys,
+    storage::{
+        config_storage::ConfigStorage, package_storage::PackageStorage, trust_storage::TrustStorage,
     },
     utils::static_paths::UpstreamPaths,
 };

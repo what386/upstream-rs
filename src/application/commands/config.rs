@@ -1,7 +1,7 @@
 use crate::output::Status;
 use crate::{
     application::operations::config_operation::ConfigUpdater, output, output::pager,
-    services::storage::config_storage::ConfigStorage, utils::static_paths::UpstreamPaths,
+    storage::config_storage::ConfigStorage, utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Result, anyhow};
 

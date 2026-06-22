@@ -11,9 +11,9 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         packaging::{InstallPreview, PackageInstaller, PackagePhase, PackageProgressEvent},
-        storage::package_storage::PackageStorage,
         trust::TrustedSignatureKeys,
     },
+    storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 

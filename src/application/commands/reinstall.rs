@@ -23,9 +23,9 @@ use crate::{
                 estimate_path_size, install_impact_from_download,
             },
         },
-        storage::{package_storage::PackageStorage, rollback_storage::RollbackSource},
         trust::TrustedSignatureKeys,
     },
+    storage::{package_storage::PackageStorage, rollback_storage::RollbackSource},
     utils::static_paths::UpstreamPaths,
 };
 

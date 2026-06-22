@@ -1,7 +1,7 @@
 use crate::{
     models::upstream::PackageReference,
     services::packaging::{OperationPhase, OperationProgressEvent},
-    services::storage::package_storage::PackageStorage,
+    storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
@@ -177,7 +177,7 @@ mod tests {
     use super::ExportOperation;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
-    use crate::services::storage::package_storage::PackageStorage;
+    use crate::storage::package_storage::PackageStorage;
     use crate::utils::test_support;
     use std::path::Path;
     use std::{fs, io};

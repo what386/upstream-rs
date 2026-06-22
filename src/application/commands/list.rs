@@ -1,6 +1,6 @@
 use crate::{
-    models::upstream::Package, output, output::pager,
-    services::storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths,
+    models::upstream::Package, output, output::pager, storage::package_storage::PackageStorage,
+    utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Result, anyhow};
 use console::Term;

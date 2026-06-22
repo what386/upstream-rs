@@ -2,7 +2,7 @@ use crate::{
     application::operations::metadata_operation::MetadataManager,
     output::{self, Status},
     services::integration::SymlinkManager,
-    services::storage::package_storage::PackageStorage,
+    storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;

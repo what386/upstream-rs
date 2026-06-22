@@ -2,15 +2,13 @@ use anyhow::{Result, anyhow};
 
 use crate::{
     output,
-    services::{
-        packaging::{
-            RollbackManager,
-            disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate},
-        },
-        storage::{
-            package_storage::PackageStorage,
-            rollback_storage::{RollbackSource, RollbackStorage},
-        },
+    services::packaging::{
+        RollbackManager,
+        disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate},
+    },
+    storage::{
+        package_storage::PackageStorage,
+        rollback_storage::{RollbackSource, RollbackStorage},
     },
     utils::static_paths::UpstreamPaths,
 };

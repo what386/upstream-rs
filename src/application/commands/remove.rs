@@ -14,7 +14,7 @@ use crate::{
         PackageProgressEvent,
         disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate},
     },
-    services::storage::package_storage::PackageStorage,
+    storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 

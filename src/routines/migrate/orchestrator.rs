@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::{
     routines::doctor::checks::legacy,
-    services::storage::manifest_storage::{CURRENT_LAYOUT_VERSION, ManifestStorage},
+    storage::manifest_storage::{CURRENT_LAYOUT_VERSION, ManifestStorage},
     utils::static_paths::UpstreamPaths,
 };
 
@@ -35,10 +35,10 @@ mod tests {
     use super::run;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
-    use crate::services::storage::manifest_storage::{
+    use crate::storage::manifest_storage::{
         CURRENT_LAYOUT_VERSION, MANIFEST_STORAGE_VERSION, ManifestStorage,
     };
-    use crate::services::storage::rollback_storage::{
+    use crate::storage::rollback_storage::{
         RollbackArtifactFormat, RollbackRecord, RollbackSource,
     };
     use crate::utils::test_support;

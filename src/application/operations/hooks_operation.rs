@@ -1,16 +1,16 @@
 #[cfg(unix)]
 use crate::services::integration::{nushell_paths_file_contains_path, render_nushell_paths_file};
-use crate::services::{
-    integration::CompletionManager,
+#[cfg(unix)]
+use crate::utils::platform::shells::installed_shell_commands;
+use crate::utils::static_paths::UpstreamPaths;
+use crate::{output, output::Status};
+use crate::{
+    services::integration::CompletionManager,
     storage::{
         config_storage::ConfigStorage, manifest_storage::ManifestStorage,
         trust_storage::TrustStorage,
     },
 };
-#[cfg(unix)]
-use crate::utils::platform::shells::installed_shell_commands;
-use crate::utils::static_paths::UpstreamPaths;
-use crate::{output, output::Status};
 #[cfg(windows)]
 use anyhow::Context;
 use anyhow::Result;
@@ -596,7 +596,7 @@ fn check_windows_integration(paths: &UpstreamPaths, report: &mut InitCheckReport
 #[cfg(test)]
 mod tests {
     use super::purge_data;
-    use crate::services::storage::manifest_storage::{CURRENT_LAYOUT_VERSION, MANIFEST_FILE_NAME};
+    use crate::storage::manifest_storage::{CURRENT_LAYOUT_VERSION, MANIFEST_FILE_NAME};
     use crate::utils::static_paths::{
         AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, UpstreamPaths,
     };

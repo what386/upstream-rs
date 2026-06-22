@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::upstream::Package;
 use crate::routines::migrate::MigrationReport;
 use crate::routines::migrate::layout::PathRewrite;
-use crate::services::storage::rollback_storage::RollbackRecord;
+use crate::storage::rollback_storage::RollbackRecord;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 use crate::utils::static_paths::UpstreamPaths;
 

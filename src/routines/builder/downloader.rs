@@ -11,7 +11,7 @@ use crate::models::{
     provider::{Asset, Release},
 };
 use crate::providers::provider_manager::ProviderManager;
-use crate::services::integration::compression_handler;
+use crate::services::artifact::compression_handler;
 use crate::utils::{filesystem::manifest_sync::sync_manifested_tree, static_paths::UpstreamPaths};
 
 pub struct SourceDownload {

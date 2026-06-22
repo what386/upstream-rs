@@ -6,9 +6,10 @@ use std::path::{Path, PathBuf};
 use crate::{
     models::upstream::Package,
     services::{
-        integration::{CompletionManager, SymlinkManager, permission_handler},
-        storage::package_storage::PackageStorage,
+        artifact::permission_handler,
+        integration::{CompletionManager, SymlinkManager},
     },
+    storage::package_storage::PackageStorage,
     utils::static_paths::UpstreamPaths,
 };
 

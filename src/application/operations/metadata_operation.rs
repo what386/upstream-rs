@@ -1,4 +1,4 @@
-use crate::services::storage::package_storage::PackageStorage;
+use crate::storage::package_storage::PackageStorage;
 use anyhow::{Context, Result};
 
 pub struct MetadataManager<'a> {
@@ -320,7 +320,7 @@ mod tests {
     use super::MetadataManager;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
-    use crate::services::storage::package_storage::PackageStorage;
+    use crate::storage::package_storage::PackageStorage;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
