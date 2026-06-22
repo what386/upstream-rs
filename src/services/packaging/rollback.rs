@@ -15,9 +15,9 @@ use crate::services::packaging::disk_impact::{
     ByteEstimate, DiskImpact, SignedByteEstimate, estimate_path_size,
 };
 use crate::storage::{
-    config::ConfigStorage,
     package_storage::PackageStorage,
     rollback::{RollbackArtifactFormat, RollbackRecord, RollbackSource, RollbackStorage},
+    system::config::ConfigStorage,
 };
 use crate::utils::filesystem::safe_move;
 use crate::utils::static_paths::UpstreamPaths;

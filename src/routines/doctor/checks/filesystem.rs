@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     models::upstream::{AppConfig, Package},
-    storage::config::ConfigStorage,
+    storage::system::config::ConfigStorage,
     utils::static_paths::UpstreamPaths,
 };
 
