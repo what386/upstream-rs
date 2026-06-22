@@ -1,5 +1,8 @@
 use crate::{
-    models::upstream::Package, output, output::pager, storage::database::PackageDatabase,
+    models::upstream::{InstallType, Package},
+    output,
+    output::pager,
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Result, anyhow};
@@ -149,10 +152,39 @@ fn format_package_details(package: &Package) -> String {
     )
 }
 
+fn short_commit(commit: &str) -> String {
+    commit.chars().take(7).collect()
+}
+
+fn package_kind_label(package: &Package) -> &'static str {
+    match package.install_type {
+        InstallType::Release => "release",
+        InstallType::Build => "build",
+    }
+}
+
+fn package_ref_label(package: &Package) -> String {
+    match package.install_type {
+        InstallType::Release => package.version.to_string(),
+        InstallType::Build => {
+            let label = package
+                .build_branch
+                .as_deref()
+                .map(str::to_string)
+                .unwrap_or_else(|| package.version.to_string());
+            match package.build_commit.as_deref() {
+                Some(commit) if !commit.is_empty() => format!("{label}@{}", short_commit(commit)),
+                _ => label,
+            }
+        }
+    }
+}
+
 struct ColumnWidths {
     name: usize,
     repo: usize,
-    version: usize,
+    kind: usize,
+    reference: usize,
     channel: usize,
     provider: usize,
     flags: usize,
@@ -172,11 +204,16 @@ impl ColumnWidths {
             .map(|p| p.repo_slug.chars().count())
             .max()
             .unwrap_or(4);
-        let max_version = packages
+        let max_kind = packages
             .iter()
-            .map(|p| p.version.to_string().chars().count())
+            .map(|p| package_kind_label(p).chars().count())
             .max()
-            .unwrap_or(7);
+            .unwrap_or("Kind".len());
+        let max_ref = packages
+            .iter()
+            .map(|p| package_ref_label(p).chars().count())
+            .max()
+            .unwrap_or("Ref".len());
         let max_channel = packages
             .iter()
             .map(|p| p.channel.to_string().chars().count())
@@ -191,7 +228,8 @@ impl ColumnWidths {
         let mut widths = Self {
             name: max_name.clamp("Name".len(), 24),
             repo: max_repo.clamp("Repo".len(), 28),
-            version: max_version.clamp("Version".len(), 16),
+            kind: max_kind.clamp("Kind".len(), "release".len()),
+            reference: max_ref.clamp("Ref".len(), 18),
             channel: max_channel.clamp("Channel".len(), 10),
             provider: max_provider.clamp("Provider".len(), 10),
             flags: "Flags".len(),
@@ -201,12 +239,13 @@ impl ColumnWidths {
 
         let non_path_width = widths.name
             + widths.repo
-            + widths.version
+            + widths.kind
+            + widths.reference
             + widths.channel
             + widths.provider
             + widths.flags
             + widths.updated
-            + 7; // spaces between columns
+            + 8; // spaces between columns
         let min_path = 16;
         let max_path = 56;
 
@@ -244,22 +283,24 @@ fn format_package_table(packages: &[Package]) -> String {
 fn table_width(widths: &ColumnWidths) -> usize {
     widths.name
         + widths.repo
-        + widths.version
+        + widths.kind
+        + widths.reference
         + widths.channel
         + widths.provider
         + widths.flags
         + widths.updated
         + widths.path
-        + 7
+        + 8
 }
 
 fn write_table_header(out: &mut String, widths: &ColumnWidths) {
     writeln!(
         out,
-        "{:<name$} {:<repo$} {:<ver$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
+        "{:<name$} {:<repo$} {:<kind$} {:<reference$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
         "Name",
         "Repo",
-        "Version",
+        "Kind",
+        "Ref",
         "Channel",
         "Provider",
         "Flags",
@@ -267,7 +308,8 @@ fn write_table_header(out: &mut String, widths: &ColumnWidths) {
         "Install Path",
         name = widths.name,
         repo = widths.repo,
-        ver = widths.version,
+        kind = widths.kind,
+        reference = widths.reference,
         chan = widths.channel,
         prov = widths.provider,
         flags = widths.flags,
@@ -290,13 +332,15 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
     let pin_indicator = if package.is_pinned { "P" } else { "-" };
     let flags = format!("{desktop_indicator}{pin_indicator}");
     let last_updated = package.last_upgraded.format("%Y-%m-%d").to_string();
+    let package_ref = package_ref_label(package);
 
     writeln!(
         out,
-        "{:<name$} {:<repo$} {:<ver$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
+        "{:<name$} {:<repo$} {:<kind$} {:<reference$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
         output::truncate_end(&package.name, widths.name),
         output::truncate_end(&package.repo_slug, widths.repo),
-        output::truncate_end(&package.version.to_string(), widths.version),
+        package_kind_label(package),
+        output::truncate_end(&package_ref, widths.reference),
         output::truncate_end(&package.channel.to_string(), widths.channel),
         output::truncate_end(&package.provider.to_string(), widths.provider),
         flags,
@@ -304,7 +348,8 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
         install_path,
         name = widths.name,
         repo = widths.repo,
-        ver = widths.version,
+        kind = widths.kind,
+        reference = widths.reference,
         chan = widths.channel,
         prov = widths.provider,
         flags = widths.flags,
@@ -316,7 +361,30 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
 
 #[cfg(test)]
 mod tests {
-    use super::{format_path, shorten_upstream_package_path};
+    use super::{
+        format_package_table, format_path, package_kind_label, package_ref_label,
+        shorten_upstream_package_path,
+    };
+    use crate::models::{
+        common::{
+            Version,
+            enums::{Channel, Filetype, Provider},
+        },
+        upstream::{InstallType, Package},
+    };
+
+    fn test_package(name: &str) -> Package {
+        Package::with_defaults(
+            name.to_string(),
+            format!("owner/{name}"),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        )
+    }
 
     #[test]
     fn package_paths_omit_fixed_upstream_packages_root() {
@@ -337,5 +405,36 @@ mod tests {
 
         assert_eq!(shorten_upstream_package_path(&path), None);
         assert_eq!(format_path(Some(&path), "-"), "~/.upstream/symlinks/rg");
+    }
+
+    #[test]
+    fn package_ref_label_distinguishes_release_and_build_installs() {
+        let mut release = test_package("rg");
+        release.version = Version::from_tag("14.1.0").expect("version");
+
+        let mut build = test_package("forge");
+        build.install_type = InstallType::Build;
+        build.build_branch = Some("main".to_string());
+        build.build_commit = Some("abcdef1234567890".to_string());
+
+        assert_eq!(package_kind_label(&release), "release");
+        assert_eq!(package_ref_label(&release), "14.1.0");
+        assert_eq!(package_kind_label(&build), "build");
+        assert_eq!(package_ref_label(&build), "main@abcdef1");
+    }
+
+    #[test]
+    fn package_table_includes_kind_and_ref_columns() {
+        let mut build = test_package("forge");
+        build.install_type = InstallType::Build;
+        build.build_branch = Some("main".to_string());
+        build.build_commit = Some("abcdef1234567890".to_string());
+
+        let table = format_package_table(&[build]);
+
+        assert!(table.contains("Kind"));
+        assert!(table.contains("Ref"));
+        assert!(table.contains("build"));
+        assert!(table.contains("main@abcdef1"));
     }
 }
