@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::{Result, anyhow};
 use console::Term;
-use std::fmt::Write as _;
+use std::{fmt::Write as _, path::Path};
 
 pub fn run(package_name: Option<String>, json: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
@@ -73,9 +73,23 @@ fn shorten_home_path(path: &str) -> String {
     path.to_string()
 }
 
+fn shorten_upstream_package_path(path: &Path) -> Option<String> {
+    let packages_dir = dirs::home_dir()?.join(".upstream").join("packages");
+    let suffix = path.strip_prefix(packages_dir).ok()?;
+    let suffix = suffix.to_string_lossy();
+    if suffix.is_empty() {
+        None
+    } else {
+        Some(suffix.into_owned())
+    }
+}
+
 fn format_path(path: Option<&std::path::PathBuf>, default: &str) -> String {
-    path.map(|p| shorten_home_path(&p.display().to_string()))
-        .unwrap_or_else(|| default.to_string())
+    path.map(|p| {
+        shorten_upstream_package_path(p)
+            .unwrap_or_else(|| shorten_home_path(&p.display().to_string()))
+    })
+    .unwrap_or_else(|| default.to_string())
 }
 
 fn format_package_details(package: &Package) -> String {
@@ -298,4 +312,30 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
         path = widths.path
     )
     .expect("write package row");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{format_path, shorten_upstream_package_path};
+
+    #[test]
+    fn package_paths_omit_fixed_upstream_packages_root() {
+        let home = dirs::home_dir().expect("home dir");
+        let path = home.join(".upstream/packages/binaries/rg");
+
+        assert_eq!(
+            shorten_upstream_package_path(&path).as_deref(),
+            Some("binaries/rg")
+        );
+        assert_eq!(format_path(Some(&path), "-"), "binaries/rg");
+    }
+
+    #[test]
+    fn non_package_paths_keep_home_shortening() {
+        let home = dirs::home_dir().expect("home dir");
+        let path = home.join(".upstream/symlinks/rg");
+
+        assert_eq!(shorten_upstream_package_path(&path), None);
+        assert_eq!(format_path(Some(&path), "-"), "~/.upstream/symlinks/rg");
+    }
 }
