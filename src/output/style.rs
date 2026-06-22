@@ -33,6 +33,27 @@ pub fn divider(width: usize) -> String {
     "-".repeat(width)
 }
 
+pub fn progress_bar(done: u64, total: u64, width: usize) -> String {
+    if width == 0 {
+        return "[]".to_string();
+    }
+    if total == 0 {
+        return format!("[{}]", "?".repeat(width));
+    }
+
+    let capped = done.min(total);
+    let filled = ((capped as u128 * width as u128) / total as u128) as usize;
+    if filled >= width {
+        return format!("[{}]", "=".repeat(width));
+    }
+
+    format!(
+        "[{}>{}]",
+        "=".repeat(filled),
+        " ".repeat(width.saturating_sub(filled + 1))
+    )
+}
+
 pub fn truncate_visible(value: &str, max: usize) -> String {
     if max == 0 {
         return String::new();
@@ -143,7 +164,16 @@ pub fn truncate_middle(value: &str, max: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::truncate_visible;
+    use super::{progress_bar, truncate_visible};
+
+    #[test]
+    fn progress_bar_renders_fixed_width_ascii_progress() {
+        assert_eq!(progress_bar(0, 100, 6), "[>     ]");
+        assert_eq!(progress_bar(50, 100, 6), "[===>  ]");
+        assert_eq!(progress_bar(100, 100, 6), "[======]");
+        assert_eq!(progress_bar(0, 0, 6), "[??????]");
+        assert_eq!(progress_bar(10, 100, 0), "[]");
+    }
 
     #[test]
     fn truncate_visible_ignores_ansi_sequences() {
