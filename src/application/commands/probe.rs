@@ -7,8 +7,8 @@ use std::time::Duration;
 
 use crate::{
     application::context::CommandContext,
-    application::operations::install_operation::{InstallOperation, SelectedAssetInstallRequest},
-    application::operations::probe_operation::{
+    application::operations::install_op::{InstallOperation, SelectedAssetInstallRequest},
+    application::operations::probe_op::{
         ProbeAssetChoice, ProbeOperation, ProbeRequest, ProbeResult, ProbeRow, ReleaseState,
     },
     models::common::enums::{Channel, Filetype, Provider, TrustMode},
@@ -774,7 +774,7 @@ impl ProbeColumnWidths {
 mod tests {
     use super::{JsonProbeResult, ProbeAssetChoiceTable, json_probe_result};
     use crate::{
-        application::operations::probe_operation::{
+        application::operations::probe_op::{
             ProbeResult, ProbeRow, ReleaseState, build_probe_asset_choices,
         },
         models::{

@@ -1,5 +1,5 @@
 use crate::{
-    application::operations::metadata_operation::MetadataManager,
+    application::operations::metadata_op::MetadataManager,
     output::{self, Status},
     services::integration::SymlinkManager,
     storage::package_storage::PackageStorage,

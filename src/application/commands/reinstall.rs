@@ -5,8 +5,8 @@ use std::time::Duration;
 use crate::{
     application::context::CommandContext,
     application::operations::{
-        install_operation::{InstallOperation, LocalArtifactInstallRequest, ReleaseInstallRequest},
-        remove_operation::RemoveOperation,
+        install_op::{InstallOperation, LocalArtifactInstallRequest, ReleaseInstallRequest},
+        remove_op::RemoveOperation,
     },
     models::{
         common::enums::TrustMode,

@@ -1,7 +1,7 @@
 use crate::{
     application::commands::changelog::changelog_text_for_package,
     application::context::CommandContext,
-    application::operations::upgrade_operation::{
+    application::operations::upgrade_op::{
         UpdateCheckRow, UpdateCheckStatus, UpgradeOperation, UpgradePreviewEvent,
     },
     models::common::enums::TrustMode,
@@ -20,7 +20,7 @@ use std::{
 };
 
 fn upgrade_transaction_row(
-    row: &crate::application::operations::upgrade_operation::UpgradePreviewRow,
+    row: &crate::application::operations::upgrade_op::UpgradePreviewRow,
 ) -> TransactionRow {
     TransactionRow::new(
         format!("{}/{}", row.source, row.name),
@@ -307,7 +307,7 @@ fn prompt_upgrade_action() -> Result<UpgradePromptAction> {
 
 async fn confirm_or_show_changelog(
     provider_manager: &ProviderManager,
-    preview_rows: &[crate::application::operations::upgrade_operation::UpgradePreviewRow],
+    preview_rows: &[crate::application::operations::upgrade_op::UpgradePreviewRow],
 ) -> Result<()> {
     loop {
         match prompt_upgrade_action()? {
@@ -321,7 +321,7 @@ async fn confirm_or_show_changelog(
 
 async fn show_upgrade_changelog(
     provider_manager: &ProviderManager,
-    preview_rows: &[crate::application::operations::upgrade_operation::UpgradePreviewRow],
+    preview_rows: &[crate::application::operations::upgrade_op::UpgradePreviewRow],
 ) -> Result<()> {
     let mut sections = Vec::new();
 
@@ -803,7 +803,7 @@ mod tests {
         CheckTableLayout, UpgradePromptAction, completion_message_key, json_check_rows,
         render_upgrade_progress, upgrade_prompt_action_from_input,
     };
-    use crate::application::operations::upgrade_operation::{UpdateCheckRow, UpdateCheckStatus};
+    use crate::application::operations::upgrade_op::{UpdateCheckRow, UpdateCheckStatus};
     use crate::models::common::enums::{Channel, Provider};
     use std::collections::BTreeMap;
 

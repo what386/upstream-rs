@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    application::operations::remove_operation::RemoveOperation,
+    application::operations::remove_op::RemoveOperation,
     output::{self, SizeImpactRow, Status, TransactionRow},
     services::packaging::{
         PackageProgressEvent,

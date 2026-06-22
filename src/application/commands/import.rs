@@ -1,5 +1,5 @@
 use crate::{
-    application::operations::import_operation::{ImportKind, ImportOperation},
+    application::operations::import_op::{ImportKind, ImportOperation},
     output,
     services::packaging::OperationProgressEvent,
     storage::package_storage::PackageStorage,
