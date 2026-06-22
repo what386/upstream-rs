@@ -12,11 +12,11 @@ use super::mapping::{
 use super::patterns::{load_patterns, replace_patterns};
 
 #[derive(Debug)]
-pub struct PackageDatabase {
+pub(crate) struct PackageConnection {
     conn: Connection,
 }
 
-impl PackageDatabase {
+impl PackageConnection {
     pub fn open(path: &Path) -> Result<Self> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).with_context(|| {
@@ -32,6 +32,7 @@ impl PackageDatabase {
         Self::from_connection(conn)
     }
 
+    #[cfg(test)]
     pub fn open_in_memory() -> Result<Self> {
         Self::from_connection(
             Connection::open_in_memory().context("Failed to open package database in memory")?,
@@ -104,6 +105,20 @@ impl PackageDatabase {
         write_package(&tx, package)?;
         tx.commit()
             .with_context(|| format!("Failed to commit package '{}'", package.name))
+    }
+
+    pub fn replace_all_packages(&mut self, packages: &[Package]) -> Result<()> {
+        let tx = self
+            .conn
+            .transaction()
+            .context("Failed to start package replacement transaction")?;
+        tx.execute("DELETE FROM packages", [])
+            .context("Failed to clear package database")?;
+        for package in packages {
+            write_package(&tx, package)?;
+        }
+        tx.commit()
+            .context("Failed to commit package replacement transaction")
     }
 
     pub fn remove_package(&mut self, name: &str) -> Result<bool> {
@@ -219,7 +234,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::PackageDatabase;
+    use super::PackageConnection;
     use crate::models::{
         common::{
             Version,
@@ -262,7 +277,7 @@ mod tests {
 
     #[test]
     fn open_in_memory_initializes_schema() {
-        let db = PackageDatabase::open_in_memory().expect("open db");
+        let db = PackageConnection::open_in_memory().expect("open db");
 
         assert_eq!(
             db.schema_version().expect("schema version"),
@@ -273,7 +288,7 @@ mod tests {
 
     #[test]
     fn upsert_and_get_package_round_trips_all_fields() {
-        let mut db = PackageDatabase::open_in_memory().expect("open db");
+        let mut db = PackageConnection::open_in_memory().expect("open db");
         let package = test_package("tool");
 
         db.upsert_package(&package).expect("upsert package");
@@ -309,7 +324,7 @@ mod tests {
 
     #[test]
     fn upsert_replaces_package_and_patterns() {
-        let mut db = PackageDatabase::open_in_memory().expect("open db");
+        let mut db = PackageConnection::open_in_memory().expect("open db");
         let mut package = test_package("tool");
         db.upsert_package(&package).expect("upsert package");
 
@@ -329,7 +344,7 @@ mod tests {
 
     #[test]
     fn list_packages_is_sorted_by_name() {
-        let mut db = PackageDatabase::open_in_memory().expect("open db");
+        let mut db = PackageConnection::open_in_memory().expect("open db");
         db.upsert_package(&test_package("zulu"))
             .expect("upsert zulu");
         db.upsert_package(&test_package("alpha"))
@@ -347,7 +362,7 @@ mod tests {
 
     #[test]
     fn remove_package_deletes_package_and_patterns() {
-        let mut db = PackageDatabase::open_in_memory().expect("open db");
+        let mut db = PackageConnection::open_in_memory().expect("open db");
         db.upsert_package(&test_package("tool"))
             .expect("upsert package");
 
@@ -359,7 +374,7 @@ mod tests {
 
     #[test]
     fn update_package_mutates_one_package() {
-        let mut db = PackageDatabase::open_in_memory().expect("open db");
+        let mut db = PackageConnection::open_in_memory().expect("open db");
         db.upsert_package(&test_package("tool"))
             .expect("upsert package");
 
@@ -380,7 +395,7 @@ mod tests {
 
     #[test]
     fn update_package_supports_rename() {
-        let mut db = PackageDatabase::open_in_memory().expect("open db");
+        let mut db = PackageConnection::open_in_memory().expect("open db");
         db.upsert_package(&test_package("old"))
             .expect("upsert package");
 
@@ -389,6 +404,19 @@ mod tests {
             Ok(())
         })
         .expect("rename package");
+
+        assert!(db.get_package("old").expect("load old").is_none());
+        assert!(db.get_package("new").expect("load new").is_some());
+    }
+
+    #[test]
+    fn replace_all_packages_replaces_previous_rows() {
+        let mut db = PackageConnection::open_in_memory().expect("open db");
+        db.upsert_package(&test_package("old"))
+            .expect("upsert old package");
+
+        db.replace_all_packages(&[test_package("new")])
+            .expect("replace all packages");
 
         assert!(db.get_package("old").expect("load old").is_none());
         assert!(db.get_package("new").expect("load new").is_some());

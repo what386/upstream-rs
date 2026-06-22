@@ -23,29 +23,22 @@ pub async fn run(
     fetch: Option<Vec<String>>,
 ) -> Result<()> {
     let context = CommandContext::new()?;
-    let package_storage = context.package_storage()?;
+    let package_database = context.package_database()?;
     if let Some(fetch_names) = fetch {
-        return run_fetch_readmes(
-            &context,
-            package_storage.get_all_packages(),
-            name,
-            keywords,
-            offline,
-            fetch_names,
-        )
-        .await;
+        let packages = package_database.list_packages()?;
+        return run_fetch_readmes(&context, &packages, name, keywords, offline, fetch_names).await;
     }
 
     let name = name.ok_or_else(|| anyhow!("Package name is required unless --fetch is used"))?;
-    let package = package_storage
-        .get_package_by_name(&name)
+    let package = package_database
+        .get_package(&name)?
         .ok_or_else(|| anyhow!("Package '{}' is not installed", name))?;
 
     let query = keywords.join(" ").trim().to_string();
     let result = docs::run(
         &context.provider_manager,
         &context.paths,
-        package,
+        &package,
         &query,
         offline,
     )

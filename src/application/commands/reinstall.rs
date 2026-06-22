@@ -25,7 +25,7 @@ use crate::{
         },
         trust::TrustedSignatureKeys,
     },
-    storage::{package_storage::PackageStorage, rollback::RollbackSource},
+    storage::{database::PackageDatabase, rollback::RollbackSource},
     utils::static_paths::UpstreamPaths,
 };
 
@@ -69,14 +69,14 @@ pub async fn run(
     }
 
     let context = CommandContext::new()?;
-    let mut package_storage = context.package_storage()?;
+    let mut package_database = context.package_database()?;
     let trusted_keys = context.trusted_keys()?;
 
     if dry_run {
         return run_dry_run(
             names,
             trust_mode,
-            &package_storage,
+            &package_database,
             &context.provider_manager,
             &context.paths,
         )
@@ -85,13 +85,13 @@ pub async fn run(
 
     let impact = estimate_reinstall_impact(
         &names,
-        &package_storage,
+        &package_database,
         &context.provider_manager,
         &context.paths,
     )
     .await;
     let rollback_impact =
-        estimate_reinstall_rollback_impact(&names, &package_storage, &context.paths);
+        estimate_reinstall_rollback_impact(&names, &package_database, &context.paths);
     let size_rows = rollback_size_rows(rollback_impact);
     output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
     output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()), false)?;
@@ -117,8 +117,8 @@ pub async fn run(
             ));
         });
 
-        let package = match package_storage.get_package_by_name(name) {
-            Some(pkg) => pkg.clone(),
+        let package = match package_database.get_package(name)? {
+            Some(pkg) => pkg,
             None => {
                 completion_lines.push(output::status_line_text_with_width(
                     Status::Fail,
@@ -133,7 +133,7 @@ pub async fn run(
 
         if let Err(err) = reinstall_one(
             &context.provider_manager,
-            &mut package_storage,
+            &mut package_database,
             &context.paths,
             package,
             trust_mode,
@@ -201,14 +201,14 @@ pub async fn run(
 async fn run_dry_run(
     names: Vec<String>,
     trust_mode: TrustMode,
-    package_storage: &PackageStorage,
+    package_database: &PackageDatabase,
     provider_manager: &ProviderManager,
     paths: &UpstreamPaths,
 ) -> Result<()> {
     println!("{}", output::title("Reinstall preview"));
     output::kv("Trust", trust_mode);
-    let impact = estimate_reinstall_impact(&names, package_storage, provider_manager, paths).await;
-    let rollback_impact = estimate_reinstall_rollback_impact(&names, package_storage, paths);
+    let impact = estimate_reinstall_impact(&names, package_database, provider_manager, paths).await;
+    let rollback_impact = estimate_reinstall_rollback_impact(&names, package_database, paths);
     let size_rows = rollback_size_rows(rollback_impact);
     output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
     output::action_note(
@@ -220,7 +220,7 @@ async fn run_dry_run(
     let mut failed = 0_u32;
 
     for name in &names {
-        let Some(package) = package_storage.get_package_by_name(name).cloned() else {
+        let Some(package) = package_database.get_package(name)? else {
             output::status_line(Status::Fail, name, "not installed");
             failed += 1;
             continue;
@@ -374,7 +374,7 @@ async fn run_dry_run(
 
 async fn estimate_reinstall_impact(
     names: &[String],
-    package_storage: &PackageStorage,
+    package_database: &PackageDatabase,
     provider_manager: &ProviderManager,
     paths: &UpstreamPaths,
 ) -> DiskImpact {
@@ -382,12 +382,12 @@ async fn estimate_reinstall_impact(
     let remover = PackageRemover::new(paths);
 
     for name in names {
-        let Some(package) = package_storage.get_package_by_name(name) else {
+        let Some(package) = package_database.get_package(name).ok().flatten() else {
             total = total + DiskImpact::unknown();
             continue;
         };
 
-        let active_size = remover.estimate_active_size(package).unwrap_or(0);
+        let active_size = remover.estimate_active_size(&package).unwrap_or(0);
         let new_install = match package.install_type {
             InstallType::Release => {
                 let mut preview_package = package.clone();
@@ -434,17 +434,17 @@ async fn estimate_reinstall_impact(
 
 fn estimate_reinstall_rollback_impact(
     names: &[String],
-    package_storage: &PackageStorage,
+    package_database: &PackageDatabase,
     paths: &UpstreamPaths,
 ) -> SignedByteEstimate {
     let remover = PackageRemover::new(paths);
     names
         .iter()
         .map(|name| {
-            let Some(package) = package_storage.get_package_by_name(name) else {
+            let Some(package) = package_database.get_package(name).ok().flatten() else {
                 return SignedByteEstimate::unknown();
             };
-            let active_size = remover.estimate_active_size(package).unwrap_or(0);
+            let active_size = remover.estimate_active_size(&package).unwrap_or(0);
             let existing_rollback =
                 estimate_path_size(&paths.install.rollback_dir.join(&package.name)).unwrap_or(0);
             SignedByteEstimate::exact(
@@ -465,7 +465,7 @@ fn rollback_size_rows(rollback_impact: SignedByteEstimate) -> Vec<SizeImpactRow>
 #[allow(clippy::too_many_arguments)]
 async fn reinstall_one<H>(
     provider_manager: &ProviderManager,
-    package_storage: &mut PackageStorage,
+    package_database: &mut PackageDatabase,
     paths: &UpstreamPaths,
     package: Package,
     trust_mode: TrustMode,
@@ -483,7 +483,7 @@ where
     reinstall_package.exec_path = None;
     reinstall_package.icon_path = None;
 
-    let mut remove_op = RemoveOperation::new(package_storage, paths);
+    let mut remove_op = RemoveOperation::new(package_database, paths);
     let mut no_remove_progress = Some(|_: &str, _: PackageProgressEvent| {});
     remove_op.remove_single(
         &package.name,
@@ -498,7 +498,7 @@ where
         InstallType::Release => {
             let mut install_operation = InstallOperation::new(
                 provider_manager,
-                package_storage,
+                package_database,
                 paths,
                 trusted_keys.clone(),
             )?;
@@ -551,7 +551,7 @@ where
 
             let mut install_operation = InstallOperation::new(
                 provider_manager,
-                package_storage,
+                package_database,
                 paths,
                 trusted_keys.clone(),
             )?;

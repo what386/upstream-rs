@@ -1,5 +1,5 @@
 use crate::{
-    models::upstream::Package, output, output::pager, storage::package_storage::PackageStorage,
+    models::upstream::Package, output, output::pager, storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Result, anyhow};
@@ -8,48 +8,46 @@ use std::fmt::Write as _;
 
 pub fn run(package_name: Option<String>, json: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
-    let package_storage = PackageStorage::new(&paths.config.packages_file)?;
+    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
 
     if json {
         return match package_name {
-            Some(name) => print_single_json(&package_storage, &name),
-            None => print_all_json(&package_storage),
+            Some(name) => print_single_json(&package_database, &name),
+            None => print_all_json(&package_database),
         };
     }
 
     match package_name {
-        Some(name) => display_single_package(&package_storage, &name),
-        None => display_all_packages(&package_storage),
+        Some(name) => display_single_package(&package_database, &name),
+        None => display_all_packages(&package_database),
     }
 }
 
-fn print_single_json(storage: &PackageStorage, name: &str) -> Result<()> {
+fn print_single_json(storage: &PackageDatabase, name: &str) -> Result<()> {
     let package = storage
-        .get_package_by_name(name)
+        .get_package(name)?
         .ok_or_else(|| anyhow!("Package '{}' is not installed.", name))?;
-    println!("{}", serde_json::to_string_pretty(package)?);
+    println!("{}", serde_json::to_string_pretty(&package)?);
     Ok(())
 }
 
-fn print_all_json(storage: &PackageStorage) -> Result<()> {
-    println!(
-        "{}",
-        serde_json::to_string_pretty(storage.get_all_packages())?
-    );
+fn print_all_json(storage: &PackageDatabase) -> Result<()> {
+    let packages = storage.list_packages()?;
+    println!("{}", serde_json::to_string_pretty(&packages)?);
     Ok(())
 }
 
-fn display_single_package(storage: &PackageStorage, name: &str) -> Result<()> {
+fn display_single_package(storage: &PackageDatabase, name: &str) -> Result<()> {
     let package = storage
-        .get_package_by_name(name)
+        .get_package(name)?
         .ok_or_else(|| anyhow!("Package '{}' is not installed.", name))?;
 
-    pager::page_text(None, &format_package_details(package))?;
+    pager::page_text(None, &format_package_details(&package))?;
     Ok(())
 }
 
-fn display_all_packages(storage: &PackageStorage) -> Result<()> {
-    let mut packages = storage.get_all_packages().to_vec();
+fn display_all_packages(storage: &PackageDatabase) -> Result<()> {
+    let mut packages = storage.list_packages()?;
     packages.sort_by_key(|p| p.name.to_lowercase());
 
     if packages.is_empty() {

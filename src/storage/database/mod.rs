@@ -1,11 +1,12 @@
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 
+mod api;
 mod mapping;
 mod packages;
 mod patterns;
 
-pub use packages::PackageDatabase;
+pub use api::PackageDatabase;
 
 pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 1;
 

@@ -35,6 +35,7 @@ mod tests {
     use super::run;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
+    use crate::storage::database::PackageDatabase;
     use crate::storage::manifest::{
         CURRENT_LAYOUT_VERSION, MANIFEST_STORAGE_VERSION, ManifestStorage,
     };
@@ -108,17 +109,19 @@ mod tests {
         assert_eq!(report.updated_packages, 1);
         assert_eq!(report.refreshed_symlinks, 1);
 
-        let migrated: serde_json::Value = serde_json::from_slice(
-            &fs::read(&paths.config.packages_file).expect("read migrated packages"),
-        )
-        .expect("parse migrated packages");
+        let migrated_storage = PackageDatabase::open(&paths.config.packages_database_file)
+            .expect("read migrated packages");
+        let migrated_package = migrated_storage
+            .get_package("tool")
+            .expect("load migrated package")
+            .expect("migrated package");
         assert_eq!(
-            migrated["packages"][0]["install_path"].as_str(),
-            Some(new_binary.to_str().expect("utf8 path"))
+            migrated_package.install_path.as_deref(),
+            Some(new_binary.as_path())
         );
         assert_eq!(
-            migrated["packages"][0]["exec_path"].as_str(),
-            Some(new_binary.to_str().expect("utf8 path"))
+            migrated_package.exec_path.as_deref(),
+            Some(new_binary.as_path())
         );
         let migration_manifest: serde_json::Value = serde_json::from_slice(
             &fs::read(ManifestStorage::path_for_root(&paths.dirs.data_dir))

@@ -1,12 +1,11 @@
 use anyhow::Result;
 
-use crate::{storage::package_storage::PackageStorage, utils::static_paths::UpstreamPaths};
+use crate::{storage::database::PackageDatabase, utils::static_paths::UpstreamPaths};
 
 use super::{DoctorReport, checks};
 
 pub async fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
     let paths = UpstreamPaths::new()?;
-    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
 
     let mut report = DoctorReport::new();
     checks::check_local_layout(&paths, &mut report);
@@ -15,7 +14,15 @@ pub async fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
     checks::check_package_metadata_file(&paths, &mut report);
     checks::check_path_integration(&paths, fix, &mut report);
 
-    let all_packages = package_storage.get_all_packages().to_vec();
+    let mut package_database = if paths.config.packages_database_file.exists() {
+        Some(PackageDatabase::open(&paths.config.packages_database_file)?)
+    } else {
+        None
+    };
+    let all_packages = match &package_database {
+        Some(package_database) => package_database.list_packages()?,
+        None => Vec::new(),
+    };
     checks::check_untracked_package_artifacts(&paths, &all_packages, &mut report);
     let selected = checks::select_packages(&names, &all_packages, &mut report);
 
@@ -23,14 +30,16 @@ pub async fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
         checks::check_provider_tokens(config, &all_packages, &mut report).await;
     }
 
-    checks::check_installed_packages(
-        &paths,
-        &mut package_storage,
-        &selected,
-        &completion_manager,
-        fix,
-        &mut report,
-    )?;
+    if let Some(package_database) = &mut package_database {
+        checks::check_installed_packages(
+            &paths,
+            package_database,
+            &selected,
+            &completion_manager,
+            fix,
+            &mut report,
+        )?;
+    }
 
     Ok(report)
 }

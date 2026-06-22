@@ -2,7 +2,7 @@ use crate::{
     output::{self, Status},
     services::packaging::disk_impact::{DiskImpact, SignedByteEstimate, estimate_path_size},
     services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover, RollbackManager},
-    storage::package_storage::PackageStorage,
+    storage::database::PackageDatabase,
     storage::rollback::RollbackSource,
     utils::static_paths::UpstreamPaths,
 };
@@ -26,16 +26,16 @@ macro_rules! progress {
 
 pub struct RemoveOperation<'a> {
     remover: PackageRemover<'a>,
-    package_storage: &'a mut PackageStorage,
+    package_database: &'a mut PackageDatabase,
     paths: &'a UpstreamPaths,
 }
 
 impl<'a> RemoveOperation<'a> {
-    pub fn new(package_storage: &'a mut PackageStorage, paths: &'a UpstreamPaths) -> Self {
+    pub fn new(package_database: &'a mut PackageDatabase, paths: &'a UpstreamPaths) -> Self {
         let remover = PackageRemover::new(paths);
         Self {
             remover,
-            package_storage,
+            package_database,
             paths,
         }
     }
@@ -171,11 +171,16 @@ impl<'a> RemoveOperation<'a> {
         let mut failures = 0_u32;
 
         for package_name in package_names {
-            let Some(package) = self.package_storage.get_package_by_name(package_name) else {
+            let Some(package) = self
+                .package_database
+                .get_package(package_name)
+                .ok()
+                .flatten()
+            else {
                 failures += 1;
                 continue;
             };
-            impact = impact + self.remover.estimate_remove_impact(package, purge_option);
+            impact = impact + self.remover.estimate_remove_impact(&package, purge_option);
             planned += 1;
         }
 
@@ -191,13 +196,13 @@ impl<'a> RemoveOperation<'a> {
             .iter()
             .map(|package_name| {
                 let package = self
-                    .package_storage
-                    .get_package_by_name(package_name)
+                    .package_database
+                    .get_package(package_name)?
                     .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
                 Ok((
                     format!("{}/{}", package.provider, package.name),
                     package.version.to_string(),
-                    self.remover.estimate_remove_impact(package, purge_option),
+                    self.remover.estimate_remove_impact(&package, purge_option),
                 ))
             })
             .collect()
@@ -215,10 +220,15 @@ impl<'a> RemoveOperation<'a> {
         package_names
             .iter()
             .map(|package_name| {
-                let Some(package) = self.package_storage.get_package_by_name(package_name) else {
+                let Some(package) = self
+                    .package_database
+                    .get_package(package_name)
+                    .ok()
+                    .flatten()
+                else {
                     return SignedByteEstimate::unknown();
                 };
-                let active_size = self.remover.estimate_active_size(package).unwrap_or(0);
+                let active_size = self.remover.estimate_active_size(&package).unwrap_or(0);
                 let existing_rollback =
                     estimate_path_size(&self.paths.install.rollback_dir.join(&package.name))
                         .unwrap_or(0);
@@ -239,10 +249,9 @@ impl<'a> RemoveOperation<'a> {
         H: FnMut(&str),
     {
         let package = self
-            .package_storage
-            .get_package_by_name(package_name)
-            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?
-            .clone();
+            .package_database
+            .get_package(package_name)?
+            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
 
         let install_path = package
             .install_path
@@ -293,10 +302,9 @@ impl<'a> RemoveOperation<'a> {
         P: FnMut(&str, PackageProgressEvent),
     {
         let package = self
-            .package_storage
-            .get_package_by_name(package_name)
-            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?
-            .clone();
+            .package_database
+            .get_package(package_name)?
+            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
 
         let mut rollback_captured = false;
         if !*purge_option {
@@ -309,7 +317,7 @@ impl<'a> RemoveOperation<'a> {
             let mut rollback_storage =
                 crate::storage::rollback::RollbackStorage::new(&rollback_file)?;
             let mut rollback_manager =
-                RollbackManager::new(self.paths, self.package_storage, &mut rollback_storage);
+                RollbackManager::new(self.paths, self.package_database, &mut rollback_storage);
             if let Err(err) =
                 rollback_manager.capture_from_installed(&package, rollback_source, message_callback)
             {
@@ -370,8 +378,8 @@ impl<'a> RemoveOperation<'a> {
             package_name,
             PackageProgressEvent::Phase(PackagePhase::RemovingMetadata)
         );
-        self.package_storage
-            .remove_package_by_name(package_name)
+        self.package_database
+            .remove_package(package_name)
             .context(format!(
                 "Failed to remove '{}' from package storage",
                 package_name
@@ -413,7 +421,7 @@ impl<'a> RemoveOperation<'a> {
 mod tests {
     use super::RemoveOperation;
     use crate::services::packaging::PackageProgressEvent;
-    use crate::storage::package_storage::PackageStorage;
+    use crate::storage::database::PackageDatabase;
     use crate::storage::rollback::RollbackSource;
     use crate::utils::test_support;
     use std::path::Path;
@@ -437,7 +445,8 @@ mod tests {
         let paths = test_paths(&root);
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
-        let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
+        let mut storage =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
         let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
         let mut remove_progress: Option<fn(&str, PackageProgressEvent)> = None;
@@ -463,7 +472,8 @@ mod tests {
         let paths = test_paths(&root);
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
-        let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
+        let mut storage =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
         let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
         let mut progress_calls = Vec::new();
@@ -496,7 +506,8 @@ mod tests {
         let paths = test_paths(&root);
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
-        let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
+        let mut storage =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
         let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
 
@@ -514,7 +525,8 @@ mod tests {
         let paths = test_paths(&root);
         fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
-        let mut storage = PackageStorage::new(&paths.config.packages_file).expect("storage");
+        let mut storage =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
         let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
 
@@ -524,8 +536,9 @@ mod tests {
             .expect("preview bulk");
         assert_eq!((planned, failed), (0, 2));
 
-        let persisted = PackageStorage::new(&paths.config.packages_file).expect("storage reload");
-        assert!(persisted.get_all_packages().is_empty());
+        let persisted =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("storage reload");
+        assert!(persisted.list_packages().expect("list packages").is_empty());
 
         cleanup(&root).expect("cleanup");
     }

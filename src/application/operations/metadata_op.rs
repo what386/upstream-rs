@@ -1,8 +1,8 @@
-use crate::storage::package_storage::PackageStorage;
+use crate::storage::database::PackageDatabase;
 use anyhow::{Context, Result};
 
 pub struct MetadataManager<'a> {
-    package_storage: &'a mut PackageStorage,
+    package_database: &'a mut PackageDatabase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,47 +24,37 @@ pub struct MetadataBulkGetResult {
 }
 
 impl<'a> MetadataManager<'a> {
-    pub fn new(package_storage: &'a mut PackageStorage) -> Self {
-        Self { package_storage }
+    pub fn new(package_database: &'a mut PackageDatabase) -> Self {
+        Self { package_database }
     }
 
     /// Pins a package to its current version, preventing automatic updates.
     pub fn pin_package(&mut self, name: &str) -> Result<()> {
-        let package = self
-            .package_storage
-            .get_mut_package_by_name(name)
-            .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
-
-        if package.is_pinned {
-            return Ok(());
-        }
-
-        package.is_pinned = true;
-        self.package_storage.save_packages()?;
-
+        self.package_database.update_package(name, |package| {
+            if package.is_pinned {
+                return Ok(false);
+            }
+            package.is_pinned = true;
+            Ok(true)
+        })?;
         Ok(())
     }
 
     /// Unpins a package, allowing it to receive automatic updates.
     pub fn unpin_package(&mut self, name: &str) -> Result<()> {
-        let package = self
-            .package_storage
-            .get_mut_package_by_name(name)
-            .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
-
-        if !package.is_pinned {
-            return Ok(());
-        }
-
-        package.is_pinned = false;
-        self.package_storage.save_packages()?;
-
+        self.package_database.update_package(name, |package| {
+            if !package.is_pinned {
+                return Ok(false);
+            }
+            package.is_pinned = false;
+            Ok(true)
+        })?;
         Ok(())
     }
 
     /// Removes package metadata for a package without touching runtime artifacts.
     pub fn remove_package(&mut self, name: &str) -> Result<()> {
-        if !self.package_storage.remove_package_by_name(name)? {
+        if !self.package_database.remove_package(name)? {
             return Err(anyhow::anyhow!("Package '{}' not found", name));
         }
 
@@ -84,17 +74,11 @@ impl<'a> MetadataManager<'a> {
             return Ok(false);
         }
 
-        if self.package_storage.get_package_by_name(new_name).is_some() {
+        if self.package_database.get_package(new_name)?.is_some() {
             return Err(anyhow::anyhow!("Package '{}' already exists", new_name));
         }
 
-        let package = self
-            .package_storage
-            .get_mut_package_by_name(old_name)
-            .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", old_name))?;
-
-        package.name = new_name.to_string();
-        self.package_storage.save_packages()?;
+        self.package_database.rename_package(old_name, new_name)?;
 
         Ok(true)
     }
@@ -106,8 +90,8 @@ impl<'a> MetadataManager<'a> {
 
         // Get the package
         let package = self
-            .package_storage
-            .get_package_by_name(name)
+            .package_database
+            .get_package(name)?
             .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
 
         // Serialize to JSON for manipulation
@@ -121,8 +105,7 @@ impl<'a> MetadataManager<'a> {
             serde_json::from_value(json_value).context("Failed to deserialize updated package")?;
 
         // Update in storage
-        self.package_storage
-            .add_or_update_package(updated_package)?;
+        self.package_database.upsert_package(&updated_package)?;
 
         Ok(MetadataSetResult {
             key: key_path,
@@ -140,8 +123,8 @@ impl<'a> MetadataManager<'a> {
 
         // Get the package
         let package = self
-            .package_storage
-            .get_package_by_name(name)
+            .package_database
+            .get_package(name)?
             .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
 
         // Serialize to JSON for field access
@@ -320,7 +303,7 @@ mod tests {
     use super::MetadataManager;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
-    use crate::storage::package_storage::PackageStorage;
+    use crate::storage::database::PackageDatabase;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -366,17 +349,17 @@ mod tests {
     fn pin_and_unpin_update_package_state() {
         let path = temp_packages_file("pin");
         fs::create_dir_all(path.parent().expect("parent")).expect("create parent");
-        let mut storage = PackageStorage::new(&path).expect("create storage");
-        storage
-            .add_or_update_package(test_package("fd"))
-            .expect("store package");
+        let mut storage = PackageDatabase::open(&path).expect("create storage");
+        let package = test_package("fd");
+        storage.upsert_package(&package).expect("store package");
         let mut manager = MetadataManager::new(&mut storage);
 
         manager.pin_package("fd").expect("pin package");
         assert!(
             manager
-                .package_storage
-                .get_package_by_name("fd")
+                .package_database
+                .get_package("fd")
+                .expect("load package")
                 .expect("package")
                 .is_pinned
         );
@@ -384,8 +367,9 @@ mod tests {
         manager.unpin_package("fd").expect("unpin package");
         assert!(
             !manager
-                .package_storage
-                .get_package_by_name("fd")
+                .package_database
+                .get_package("fd")
+                .expect("load package")
                 .expect("package")
                 .is_pinned
         );
@@ -397,10 +381,9 @@ mod tests {
     fn set_key_and_get_key_support_nested_and_typed_values() {
         let path = temp_packages_file("set-get");
         fs::create_dir_all(path.parent().expect("parent")).expect("create parent");
-        let mut storage = PackageStorage::new(&path).expect("create storage");
-        storage
-            .add_or_update_package(test_package("rg"))
-            .expect("store package");
+        let mut storage = PackageDatabase::open(&path).expect("create storage");
+        let package = test_package("rg");
+        storage.upsert_package(&package).expect("store package");
         let mut manager = MetadataManager::new(&mut storage);
 
         manager
@@ -426,21 +409,31 @@ mod tests {
     fn rename_package_rejects_duplicates_and_updates_alias() {
         let path = temp_packages_file("rename");
         fs::create_dir_all(path.parent().expect("parent")).expect("create parent");
-        let mut storage = PackageStorage::new(&path).expect("create storage");
-        storage
-            .add_or_update_package(test_package("old"))
-            .expect("store old");
-        storage
-            .add_or_update_package(test_package("taken"))
-            .expect("store taken");
+        let mut storage = PackageDatabase::open(&path).expect("create storage");
+        let old = test_package("old");
+        storage.upsert_package(&old).expect("store old");
+        let taken = test_package("taken");
+        storage.upsert_package(&taken).expect("store taken");
         let mut manager = MetadataManager::new(&mut storage);
 
         assert!(manager.rename_package("old", "taken").is_err());
         manager
             .rename_package("old", "new")
             .expect("rename package");
-        assert!(manager.package_storage.get_package_by_name("new").is_some());
-        assert!(manager.package_storage.get_package_by_name("old").is_none());
+        assert!(
+            manager
+                .package_database
+                .get_package("new")
+                .expect("load new")
+                .is_some()
+        );
+        assert!(
+            manager
+                .package_database
+                .get_package("old")
+                .expect("load old")
+                .is_none()
+        );
 
         cleanup(&path).expect("cleanup");
     }
@@ -449,16 +442,21 @@ mod tests {
     fn remove_package_deletes_metadata_and_errors_when_missing() {
         let path = temp_packages_file("remove");
         fs::create_dir_all(path.parent().expect("parent")).expect("create parent");
-        let mut storage = PackageStorage::new(&path).expect("create storage");
-        storage
-            .add_or_update_package(test_package("fd"))
-            .expect("store package");
+        let mut storage = PackageDatabase::open(&path).expect("create storage");
+        let package = test_package("fd");
+        storage.upsert_package(&package).expect("store package");
         let mut manager = MetadataManager::new(&mut storage);
 
         manager
             .remove_package("fd")
             .expect("remove package metadata");
-        assert!(manager.package_storage.get_package_by_name("fd").is_none());
+        assert!(
+            manager
+                .package_database
+                .get_package("fd")
+                .expect("load removed")
+                .is_none()
+        );
 
         let err = manager
             .remove_package("fd")

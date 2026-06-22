@@ -15,7 +15,7 @@ use crate::services::packaging::disk_impact::{
     ByteEstimate, DiskImpact, SignedByteEstimate, estimate_path_size,
 };
 use crate::storage::{
-    package_storage::PackageStorage,
+    database::PackageDatabase,
     rollback::{RollbackArtifactFormat, RollbackRecord, RollbackSource, RollbackStorage},
     system::config::ConfigStorage,
 };
@@ -32,7 +32,7 @@ macro_rules! message {
 
 pub struct RollbackManager<'a> {
     paths: &'a UpstreamPaths,
-    package_storage: &'a mut PackageStorage,
+    package_database: &'a mut PackageDatabase,
     rollback_storage: &'a mut RollbackStorage,
 }
 
@@ -58,12 +58,12 @@ impl<'a> RollbackManager<'a> {
 
     pub fn new(
         paths: &'a UpstreamPaths,
-        package_storage: &'a mut PackageStorage,
+        package_database: &'a mut PackageDatabase,
         rollback_storage: &'a mut RollbackStorage,
     ) -> Self {
         Self {
             paths,
-            package_storage,
+            package_database,
             rollback_storage,
         }
     }
@@ -238,11 +238,7 @@ impl<'a> RollbackManager<'a> {
             return Err(anyhow!("No rollback data found for '{}'", package_name));
         };
 
-        if let Some(current) = self
-            .package_storage
-            .get_package_by_name(package_name)
-            .cloned()
-        {
+        if let Some(current) = self.package_database.get_package(package_name)? {
             message!(
                 message_callback,
                 "Removing current installation for '{}' before rollback ...",
@@ -250,7 +246,7 @@ impl<'a> RollbackManager<'a> {
             );
             let remover = PackageRemover::new(self.paths);
             remover.remove_package_files(&current, message_callback)?;
-            self.package_storage.remove_package_by_name(package_name)?;
+            self.package_database.remove_package(package_name)?;
         }
 
         let target_install_path = record
@@ -313,8 +309,8 @@ impl<'a> RollbackManager<'a> {
             ))?;
         }
 
-        self.package_storage
-            .add_or_update_package(record.package_snapshot.clone())?;
+        self.package_database
+            .upsert_package(&record.package_snapshot)?;
         let remover = PackageRemover::new(self.paths);
         remover.restore_runtime_integrations(&record.package_snapshot, message_callback)?;
 
@@ -356,11 +352,13 @@ impl<'a> RollbackManager<'a> {
     pub fn estimate_restore_impact(&self, package_name: &str) -> Option<DiskImpact> {
         self.rollback_storage.get_record(package_name)?;
         let current_size = self
-            .package_storage
-            .get_package_by_name(package_name)
+            .package_database
+            .get_package(package_name)
+            .ok()
+            .flatten()
             .map(|package| {
                 PackageRemover::new(self.paths)
-                    .estimate_active_size(package)
+                    .estimate_active_size(&package)
                     .unwrap_or(0)
             })
             .unwrap_or(0);
@@ -712,7 +710,7 @@ mod tests {
     use crate::models::upstream::Package;
     use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
     use crate::storage::rollback::{RollbackArtifactFormat, RollbackSource};
-    use crate::storage::{package_storage::PackageStorage, rollback::RollbackStorage};
+    use crate::storage::{database::PackageDatabase, rollback::RollbackStorage};
     use crate::utils::test_support;
     use std::fs;
     use std::io;
@@ -760,8 +758,8 @@ mod tests {
         let root = temp_root("compressed-retention");
         write_rollback_config(&root, "low", 2);
         let paths = test_support::upstream_paths(&root);
-        let mut package_storage =
-            PackageStorage::new(&paths.config.packages_file).expect("package storage");
+        let mut package_database =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("package storage");
         let rollback_file = RollbackManager::rollback_file_path(&paths);
         let mut rollback_storage = RollbackStorage::new(&rollback_file).expect("rollback storage");
         let package = test_package(&root, "tool");
@@ -771,7 +769,7 @@ mod tests {
 
         {
             let mut manager =
-                RollbackManager::new(&paths, &mut package_storage, &mut rollback_storage);
+                RollbackManager::new(&paths, &mut package_database, &mut rollback_storage);
             for contents in ["one", "two", "three"] {
                 fs::write(install_path, contents).expect("write install artifact");
                 manager
@@ -812,8 +810,8 @@ mod tests {
         let root = temp_root("compressed-restore");
         write_rollback_config(&root, "high", 1);
         let paths = test_support::upstream_paths(&root);
-        let mut package_storage =
-            PackageStorage::new(&paths.config.packages_file).expect("package storage");
+        let mut package_database =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("package storage");
         let rollback_file = RollbackManager::rollback_file_path(&paths);
         let mut rollback_storage = RollbackStorage::new(&rollback_file).expect("rollback storage");
         let package = test_package(&root, "tool");
@@ -824,7 +822,7 @@ mod tests {
 
         {
             let mut manager =
-                RollbackManager::new(&paths, &mut package_storage, &mut rollback_storage);
+                RollbackManager::new(&paths, &mut package_database, &mut rollback_storage);
             manager
                 .capture_from_installed(&package, RollbackSource::Upgrade, &mut None::<fn(&str)>)
                 .expect("capture rollback");

@@ -14,7 +14,7 @@ use crate::{
         PackageProgressEvent,
         disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate},
     },
-    storage::package_storage::PackageStorage,
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -64,13 +64,13 @@ fn rollback_size_rows(rollback_impact: SignedByteEstimate) -> Vec<SizeImpactRow>
 pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
 
-    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
+    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
 
     if names.is_empty() {
         return Err(anyhow::anyhow!("At least one package name is required"));
     }
 
-    let mut package_remover = RemoveOperation::new(&mut package_storage, &paths);
+    let mut package_remover = RemoveOperation::new(&mut package_database, &paths);
 
     if dry_run {
         return run_dry_run(names, purge, &mut package_remover);

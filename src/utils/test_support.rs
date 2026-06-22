@@ -27,6 +27,7 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
         config: ConfigPaths {
             config_file: dirs.config_dir.join("config.toml"),
             packages_file: dirs.metadata_dir.join("packages.json"),
+            packages_database_file: dirs.metadata_dir.join("packages.db"),
             trust_file: dirs.metadata_dir.join("trust.json"),
             paths_file: dirs.metadata_dir.join("paths.sh"),
             paths_nu_file: dirs.metadata_dir.join("paths.nu"),

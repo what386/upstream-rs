@@ -21,11 +21,11 @@ pub async fn run(
     dry_run: bool,
 ) -> Result<()> {
     let context = CommandContext::new()?;
-    let mut package_storage = context.package_storage()?;
+    let mut package_database = context.package_database()?;
     let name = resolve_package_name(name, &repo_slug, provider.as_ref(), base_url.as_deref())?;
     let mut operation = BuildOperation::new(
         &context.provider_manager,
-        &mut package_storage,
+        &mut package_database,
         &context.paths,
     );
 

@@ -7,6 +7,7 @@ use crate::{output, output::Status};
 use crate::{
     services::integration::CompletionManager,
     storage::{
+        database::PackageDatabase,
         manifest::ManifestStorage,
         system::{config::ConfigStorage, trust::TrustStorage},
     },
@@ -64,6 +65,7 @@ fn normalize_windows_path(path: &str) -> String {
 pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
     create_package_dirs(paths)?;
     create_manifest_file(paths)?;
+    create_package_database_file(paths)?;
     create_trust_file(paths)?;
     create_metadata_files(paths)?;
     create_default_config_file(paths)?;
@@ -79,6 +81,10 @@ pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
 
 fn create_manifest_file(paths: &UpstreamPaths) -> Result<()> {
     ManifestStorage::new(&ManifestStorage::path_for_root(&paths.dirs.data_dir))?.ensure_current()
+}
+
+fn create_package_database_file(paths: &UpstreamPaths) -> Result<()> {
+    PackageDatabase::open(&paths.config.packages_database_file).map(|_| ())
 }
 
 fn create_trust_file(paths: &UpstreamPaths) -> Result<()> {
@@ -626,6 +632,7 @@ mod tests {
             config: ConfigPaths {
                 config_file: dirs.config_dir.join("config.toml"),
                 packages_file: dirs.metadata_dir.join("packages.json"),
+                packages_database_file: dirs.metadata_dir.join("packages.db"),
                 trust_file: dirs.metadata_dir.join("trust.json"),
                 paths_file: dirs.metadata_dir.join("paths.sh"),
                 paths_nu_file: dirs.metadata_dir.join("paths.nu"),

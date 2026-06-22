@@ -6,20 +6,15 @@ use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 
 use crate::models::upstream::Package;
+use crate::routines::doctor::checks::legacy;
 use crate::routines::migrate::MigrationReport;
 use crate::routines::migrate::layout::PathRewrite;
+use crate::storage::database::PackageDatabase;
 use crate::storage::rollback::RollbackRecord;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 use crate::utils::static_paths::UpstreamPaths;
 
-const PACKAGE_STORAGE_VERSION: u32 = 1;
 const ROLLBACK_STORAGE_VERSION: u32 = 1;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PackageStorageFile {
-    version: u32,
-    packages: Vec<Package>,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RollbackStorageFile {
@@ -38,37 +33,18 @@ pub(in crate::routines::migrate) fn migrate_package_metadata(
     rewrites: &[PathRewrite],
     report: &mut MigrationReport,
 ) -> Result<Vec<Package>> {
-    if !paths.config.packages_file.exists() {
-        return Ok(Vec::new());
-    }
-
-    let json = fs::read_to_string(&paths.config.packages_file).with_context(|| {
-        format!(
-            "Failed to read package metadata '{}'",
-            paths.config.packages_file.display()
-        )
-    })?;
-    if json.trim().is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let mut storage: PackageStorageFile = serde_json::from_str(&json).with_context(|| {
-        format!(
-            "Failed to parse package metadata '{}'",
-            paths.config.packages_file.display()
-        )
-    })?;
-    if storage.version != PACKAGE_STORAGE_VERSION {
-        return Err(anyhow!(
-            "Unsupported package storage version {} in '{}'. Expected version {}.",
-            storage.version,
-            paths.config.packages_file.display(),
-            PACKAGE_STORAGE_VERSION
-        ));
-    }
+    let database_exists = paths.config.packages_database_file.exists();
+    let mut storage = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let mut packages = if !database_exists && legacy::legacy_package_metadata_exists(paths) {
+        let packages = legacy::load_legacy_package_metadata(paths)?;
+        storage.replace_all_packages(&packages)?;
+        packages
+    } else {
+        storage.list_packages()?
+    };
 
     let mut changed = false;
-    for package in &mut storage.packages {
+    for package in &mut packages {
         let package_changed = rewrite_package_paths(package, rewrites);
         if package_changed {
             changed = true;
@@ -77,10 +53,10 @@ pub(in crate::routines::migrate) fn migrate_package_metadata(
     }
 
     if changed {
-        write_json(&paths.config.packages_file, &storage)?;
+        storage.replace_all_packages(&packages)?;
     }
 
-    Ok(storage.packages)
+    Ok(packages)
 }
 
 pub(in crate::routines::migrate) fn migrate_rollback_metadata(

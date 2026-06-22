@@ -2,7 +2,7 @@ use crate::{
     application::operations::import_op::{ImportKind, ImportOperation},
     output,
     services::packaging::OperationProgressEvent,
-    storage::package_storage::PackageStorage,
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
@@ -43,8 +43,8 @@ pub async fn run_import(
     import_as: Option<ImportKindArg>,
 ) -> Result<()> {
     let paths = UpstreamPaths::new()?;
-    let mut package_storage = PackageStorage::new(&paths.config.packages_file)?;
-    let mut import_op = ImportOperation::new(&mut package_storage, &paths);
+    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let mut import_op = ImportOperation::new(&mut package_database, &paths);
 
     println!("{}", output::title("Import"));
     output::action_note(format!("Source: {}", path.display()));
