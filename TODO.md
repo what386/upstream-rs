@@ -8,15 +8,6 @@
 - [ ] feat: consider bulk installs with `upstream install --package REPO=NAME --package REPO=NAME`
       @created 2026-06-21 15:25
 
-- [ ] internal: move packages.json into a SQL db
-      @created 2026-06-21 16:31
-
-- [ ] feat: improve list <package> UI
-      @created 2026-06-22 15:40
-
-- [ ] feat: add install type and commit hash to list
-      @created 2026-06-22 15:41
-
 
 ## Completed
 
@@ -31,4 +22,16 @@
 - [x] BREAKING: make migrate a flag in doctor instead of its own first class subcommand
       @created 2026-06-21 23:44
       @completed 2026-06-21 23:44
+
+- [x] feat: improve list <package> UI
+      @created 2026-06-22 15:40
+      @completed 2026-06-22 17:25
+
+- [x] feat: add install type and commit hash to list
+      @created 2026-06-22 15:41
+      @completed 2026-06-22 17:25
+
+- [x] internal: move packages.json into a SQL db
+      @created 2026-06-21 16:31
+      @completed 2026-06-22 17:25
 
