@@ -889,7 +889,7 @@ impl<'a> UpgradeOperation<'a> {
         while completed < total {
             tokio::select! {
                 maybe_item = pending.next() => {
-                    let Some((name, new_version, downloaded, bytes_total, result)) = maybe_item else {
+                    let Some((name, new_version, _downloaded, _bytes_total, result)) = maybe_item else {
                         break;
                     };
 
@@ -899,7 +899,6 @@ impl<'a> UpgradeOperation<'a> {
                     last_progress_render.remove(&name);
                     message!(message_callback, "__UPGRADE_PROGRESS_DONE__ {}", name);
 
-                    let transfer = Self::format_transfer(downloaded, bytes_total);
                     match result {
                         Ok(updated) => {
                             updated_packages.push(updated);
@@ -910,7 +909,7 @@ impl<'a> UpgradeOperation<'a> {
                                 output::status_line_text_with_width(
                                     Status::Ok,
                                     &name,
-                                    format!("upgraded to {new_version} {transfer}"),
+                                    format!("upgraded to {new_version}"),
                                     completion_subject_width
                                 )
                             );
