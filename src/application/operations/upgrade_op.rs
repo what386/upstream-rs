@@ -18,10 +18,7 @@ use crate::{
 };
 
 use anyhow::{Context, Result, anyhow};
-use futures_util::{
-    future::{FutureExt, LocalBoxFuture},
-    stream::{self, FuturesUnordered, StreamExt},
-};
+use futures_util::stream::{self, FuturesUnordered, StreamExt};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use tokio::time::{self, Duration};
@@ -33,9 +30,6 @@ struct ProgressEntry {
     event: PackageProgressEvent,
 }
 type ProgressState = Arc<Mutex<BTreeMap<String, ProgressEntry>>>;
-type PendingLocalFutures<'a, T> = FuturesUnordered<LocalBoxFuture<'a, T>>;
-type PackageUpdateCheck = Result<Option<(String, String)>>;
-type IndexedPackageUpdateCheck = (usize, crate::models::upstream::Package, PackageUpdateCheck);
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -250,25 +244,21 @@ impl<'a> UpgradeOperation<'a> {
         &self,
         packages: Vec<crate::models::upstream::Package>,
         checking_callback: &mut dyn FnMut(&str),
-    ) -> Vec<(crate::models::upstream::Package, PackageUpdateCheck)> {
+    ) -> Vec<(
+        crate::models::upstream::Package,
+        Result<Option<(String, String)>>,
+    )> {
         let package_count = packages.len();
         let mut checked = Vec::with_capacity(package_count);
         let mut package_iter = packages.into_iter().enumerate();
-        let mut pending: PendingLocalFutures<'_, IndexedPackageUpdateCheck> =
-            FuturesUnordered::new();
+        let mut pending = FuturesUnordered::new();
 
         for _ in 0..CHECK_CONCURRENCY {
             let Some((idx, pkg)) = package_iter.next() else {
                 break;
             };
             checking_callback(&pkg.name);
-            pending.push(
-                async move {
-                    let result = self.checker.check_one(&pkg).await;
-                    (idx, pkg, result)
-                }
-                .boxed_local(),
-            );
+            pending.push(self.check_package_at_index(idx, pkg));
         }
 
         while let Some((idx, pkg, result)) = pending.next().await {
@@ -276,13 +266,7 @@ impl<'a> UpgradeOperation<'a> {
 
             if let Some((next_idx, next_pkg)) = package_iter.next() {
                 checking_callback(&next_pkg.name);
-                pending.push(
-                    async move {
-                        let result = self.checker.check_one(&next_pkg).await;
-                        (next_idx, next_pkg, result)
-                    }
-                    .boxed_local(),
-                );
+                pending.push(self.check_package_at_index(next_idx, next_pkg));
             }
         }
 
@@ -291,6 +275,19 @@ impl<'a> UpgradeOperation<'a> {
             .into_iter()
             .map(|(_, pkg, result)| (pkg, result))
             .collect()
+    }
+
+    async fn check_package_at_index(
+        &self,
+        idx: usize,
+        pkg: crate::models::upstream::Package,
+    ) -> (
+        usize,
+        crate::models::upstream::Package,
+        Result<Option<(String, String)>>,
+    ) {
+        let result = self.checker.check_one(&pkg).await;
+        (idx, pkg, result)
     }
 
     async fn check_installed_packages_detailed_with_callback(
@@ -445,8 +442,7 @@ impl<'a> UpgradeOperation<'a> {
         let mut rows_by_index: Vec<Option<UpgradePreviewRow>> =
             (0..package_count).map(|_| None).collect();
         let mut package_iter = packages.into_iter().enumerate();
-        let mut pending: PendingLocalFutures<'_, (usize, Option<UpgradePreviewRow>)> =
-            FuturesUnordered::new();
+        let mut pending = FuturesUnordered::new();
 
         for _ in 0..CHECK_CONCURRENCY {
             let Some((idx, package)) = package_iter.next() else {
@@ -455,10 +451,7 @@ impl<'a> UpgradeOperation<'a> {
             event_callback(UpgradePreviewEvent::Checking {
                 name: package.name.clone(),
             });
-            pending.push(
-                async move { (idx, self.preview_package_upgrade(package, force).await) }
-                    .boxed_local(),
-            );
+            pending.push(self.preview_package_at_index(idx, package, force));
         }
 
         while let Some((idx, row)) = pending.next().await {
@@ -471,19 +464,20 @@ impl<'a> UpgradeOperation<'a> {
                 event_callback(UpgradePreviewEvent::Checking {
                     name: next_package.name.clone(),
                 });
-                pending.push(
-                    async move {
-                        (
-                            next_idx,
-                            self.preview_package_upgrade(next_package, force).await,
-                        )
-                    }
-                    .boxed_local(),
-                );
+                pending.push(self.preview_package_at_index(next_idx, next_package, force));
             }
         }
 
         Ok(rows_by_index.into_iter().flatten().collect())
+    }
+
+    async fn preview_package_at_index(
+        &self,
+        idx: usize,
+        package: crate::models::upstream::Package,
+        force: bool,
+    ) -> (usize, Option<UpgradePreviewRow>) {
+        (idx, self.preview_package_upgrade(package, force).await)
     }
 
     async fn preview_package_upgrade(
