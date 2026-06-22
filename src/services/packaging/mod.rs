@@ -1,15 +1,15 @@
-pub mod bundle_handler;
+pub mod bundles;
 pub mod disk_impact;
-pub mod package_checker;
-pub mod package_installer;
-pub mod package_remover;
-pub mod package_upgrader;
+pub mod checker;
+pub mod installer;
+pub mod remover;
+pub mod upgrader;
 pub mod progress;
-pub mod rollback_manager;
+pub mod rollback;
 
-pub use package_checker::PackageChecker;
-pub use package_installer::{InstallPreview, PackageInstaller};
-pub use package_remover::PackageRemover;
-pub use package_upgrader::{PackageUpgrader, ResolvedUpgradeTarget};
+pub use checker::PackageChecker;
+pub use installer::{InstallPreview, PackageInstaller};
+pub use remover::PackageRemover;
+pub use upgrader::{PackageUpgrader, ResolvedUpgradeTarget};
 pub use progress::{OperationPhase, OperationProgressEvent, PackagePhase, PackageProgressEvent};
-pub use rollback_manager::RollbackManager;
+pub use rollback::RollbackManager;
