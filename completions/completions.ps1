@@ -316,6 +316,8 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('pin', 'pin', [CompletionResultType]::ParameterValue, 'Pin a package to its current version')
             [CompletionResult]::new('unpin', 'unpin', [CompletionResultType]::ParameterValue, 'Unpin a package to allow updates')
             [CompletionResult]::new('rename', 'rename', [CompletionResultType]::ParameterValue, 'Rename package alias without reinstalling')
+            [CompletionResult]::new('add-entry', 'add-entry', [CompletionResultType]::ParameterValue, 'Create desktop launcher integration for an installed package')
+            [CompletionResult]::new('rm-entry', 'rm-entry', [CompletionResultType]::ParameterValue, 'Remove desktop launcher integration for an installed package')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
         }
@@ -340,10 +342,26 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
         }
+        'upstream;package;add-entry' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;package;rm-entry' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
         'upstream;package;help' {
             [CompletionResult]::new('pin', 'pin', [CompletionResultType]::ParameterValue, 'Pin a package to its current version')
             [CompletionResult]::new('unpin', 'unpin', [CompletionResultType]::ParameterValue, 'Unpin a package to allow updates')
             [CompletionResult]::new('rename', 'rename', [CompletionResultType]::ParameterValue, 'Rename package alias without reinstalling')
+            [CompletionResult]::new('add-entry', 'add-entry', [CompletionResultType]::ParameterValue, 'Create desktop launcher integration for an installed package')
+            [CompletionResult]::new('rm-entry', 'rm-entry', [CompletionResultType]::ParameterValue, 'Remove desktop launcher integration for an installed package')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
         }
@@ -354,6 +372,12 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;package;help;rename' {
+            break
+        }
+        'upstream;package;help;add-entry' {
+            break
+        }
+        'upstream;package;help;rm-entry' {
             break
         }
         'upstream;package;help;help' {
@@ -535,6 +559,8 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('pin', 'pin', [CompletionResultType]::ParameterValue, 'Pin a package to its current version')
             [CompletionResult]::new('unpin', 'unpin', [CompletionResultType]::ParameterValue, 'Unpin a package to allow updates')
             [CompletionResult]::new('rename', 'rename', [CompletionResultType]::ParameterValue, 'Rename package alias without reinstalling')
+            [CompletionResult]::new('add-entry', 'add-entry', [CompletionResultType]::ParameterValue, 'Create desktop launcher integration for an installed package')
+            [CompletionResult]::new('rm-entry', 'rm-entry', [CompletionResultType]::ParameterValue, 'Remove desktop launcher integration for an installed package')
             break
         }
         'upstream;help;package;pin' {
@@ -544,6 +570,12 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;package;rename' {
+            break
+        }
+        'upstream;help;package;add-entry' {
+            break
+        }
+        'upstream;help;package;rm-entry' {
             break
         }
         'upstream;help;hooks' {

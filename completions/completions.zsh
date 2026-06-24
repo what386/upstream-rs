@@ -389,6 +389,24 @@ _arguments "${_arguments_options[@]}" : \
 ':new_name -- New package alias:_default' \
 && ret=0
 ;;
+(add-entry)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':name -- Installed package name:_default' \
+&& ret=0
+;;
+(rm-entry)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':name -- Installed package name:_default' \
+&& ret=0
+;;
 (help)
 _arguments "${_arguments_options[@]}" : \
 ":: :_upstream__subcmd__package__subcmd__help_commands" \
@@ -410,6 +428,14 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (rename)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(add-entry)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(rm-entry)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -664,6 +690,14 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (rename)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(add-entry)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(rm-entry)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -1009,8 +1043,15 @@ _upstream__subcmd__help__subcmd__package_commands() {
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
 'rename:Rename package alias without reinstalling' \
+'add-entry:Create desktop launcher integration for an installed package' \
+'rm-entry:Remove desktop launcher integration for an installed package' \
     )
     _describe -t commands 'upstream help package commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__add-entry_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__add-entry_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help package add-entry commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__pin_commands] )) ||
 _upstream__subcmd__help__subcmd__package__subcmd__pin_commands() {
@@ -1021,6 +1062,11 @@ _upstream__subcmd__help__subcmd__package__subcmd__pin_commands() {
 _upstream__subcmd__help__subcmd__package__subcmd__rename_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package rename commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__rm-entry_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__rm-entry_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help package rm-entry commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__unpin_commands] )) ||
 _upstream__subcmd__help__subcmd__package__subcmd__unpin_commands() {
@@ -1145,9 +1191,16 @@ _upstream__subcmd__package_commands() {
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
 'rename:Rename package alias without reinstalling' \
+'add-entry:Create desktop launcher integration for an installed package' \
+'rm-entry:Remove desktop launcher integration for an installed package' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream package commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__package__subcmd__add-entry_commands] )) ||
+_upstream__subcmd__package__subcmd__add-entry_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package add-entry commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__package__subcmd__help_commands] )) ||
 _upstream__subcmd__package__subcmd__help_commands() {
@@ -1155,9 +1208,16 @@ _upstream__subcmd__package__subcmd__help_commands() {
 'pin:Pin a package to its current version' \
 'unpin:Unpin a package to allow updates' \
 'rename:Rename package alias without reinstalling' \
+'add-entry:Create desktop launcher integration for an installed package' \
+'rm-entry:Remove desktop launcher integration for an installed package' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream package help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__add-entry_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__add-entry_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package help add-entry commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__help_commands] )) ||
 _upstream__subcmd__package__subcmd__help__subcmd__help_commands() {
@@ -1174,6 +1234,11 @@ _upstream__subcmd__package__subcmd__help__subcmd__rename_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help rename commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__rm-entry_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__rm-entry_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package help rm-entry commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__unpin_commands] )) ||
 _upstream__subcmd__package__subcmd__help__subcmd__unpin_commands() {
     local commands; commands=()
@@ -1188,6 +1253,11 @@ _upstream__subcmd__package__subcmd__pin_commands() {
 _upstream__subcmd__package__subcmd__rename_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package rename commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__package__subcmd__rm-entry_commands] )) ||
+_upstream__subcmd__package__subcmd__rm-entry_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package rm-entry commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__package__subcmd__unpin_commands] )) ||
 _upstream__subcmd__package__subcmd__unpin_commands() {
