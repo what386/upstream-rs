@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-22*
+*Generated on 2026-06-24*
+
+## 2.7.0 — 2026-06-24
+
+### Changes
+
+- feat: new package op 'add-entry'/'rm-entry' to (re)generate or remove desktop integrations
+- bug: make cmake artifact discovery check common output dirs and fallback to name matching to avoid shenanigans
+
 
 ## 2.6.0 — 2026-06-22
 
