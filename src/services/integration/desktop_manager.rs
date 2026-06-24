@@ -1,21 +1,23 @@
 #[cfg(target_os = "linux")]
 use crate::services::artifact::AppImageExtractor;
 use crate::{
-    models::common::{DesktopEntry, enums::Filetype},
+    models::{
+        common::{DesktopEntry, enums::Filetype},
+        upstream::Package,
+    },
     utils::static_paths::UpstreamPaths,
 };
-#[cfg(windows)]
-use anyhow::Context;
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use std::{
     fs,
     path::{Path, PathBuf},
 };
 
+use super::IconManager;
+
 #[cfg(windows)]
 use std::process::Command;
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
         if let Some(cb) = $cb.as_mut() {
@@ -39,6 +41,122 @@ impl<'a> DesktopManager<'a> {
     #[cfg(not(target_os = "linux"))]
     pub fn new(paths: &'a UpstreamPaths) -> Self {
         Self { paths }
+    }
+
+    pub async fn enable_package_entry<H>(
+        &self,
+        package: &mut Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        let install_path = package
+            .install_path
+            .clone()
+            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
+
+        #[cfg(target_os = "linux")]
+        let icon_manager = IconManager::new(self.paths, self.extractor);
+        #[cfg(not(target_os = "linux"))]
+        let icon_manager = IconManager::new(self.paths);
+
+        let previous_icon_path = package.icon_path.clone();
+        let icon_path = icon_manager
+            .add_icon(
+                &package.name,
+                &install_path,
+                &package.filetype,
+                message_callback,
+            )
+            .await
+            .context(format!("Failed to add icon for '{}'", package.name))?;
+
+        let mut desktop_package = package.clone();
+        desktop_package.icon_path = icon_path.clone();
+        let desktop_entry = DesktopEntry::from_package(&desktop_package);
+
+        if let Err(err) = self
+            .create_entry(
+                &install_path,
+                &desktop_package.filetype,
+                desktop_entry,
+                message_callback,
+            )
+            .await
+            .context(format!(
+                "Failed to create desktop entry for '{}'",
+                desktop_package.name
+            ))
+        {
+            if let Some(new_icon_path) = icon_path.as_ref()
+                && Some(new_icon_path) != previous_icon_path.as_ref()
+                && new_icon_path.exists()
+            {
+                fs::remove_file(new_icon_path).context(format!(
+                    "Failed to remove icon file at '{}'",
+                    new_icon_path.display()
+                ))?;
+            }
+            return Err(err);
+        }
+
+        package.icon_path = icon_path;
+
+        if let Some(previous_icon_path) = previous_icon_path
+            && Some(&previous_icon_path) != package.icon_path.as_ref()
+            && previous_icon_path.exists()
+        {
+            fs::remove_file(&previous_icon_path).context(format!(
+                "Failed to remove previous icon file at '{}'",
+                previous_icon_path.display()
+            ))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn disable_package_entry<H>(
+        &self,
+        package: &mut Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        message!(message_callback, "Removing desktop entry ...");
+        Self::remove_entry(self.paths, &package.name).context(format!(
+            "Failed to remove desktop entry for '{}'",
+            package.name
+        ))?;
+
+        if let Some(icon_path) = package.icon_path.take()
+            && icon_path.exists()
+        {
+            fs::remove_file(&icon_path).context(format!(
+                "Failed to remove icon file at '{}'",
+                icon_path.display()
+            ))?;
+            message!(
+                message_callback,
+                "Removed stored icon: {}",
+                icon_path.display()
+            );
+        }
+
+        Ok(())
+    }
+
+    pub async fn refresh_package_entry<H>(
+        &self,
+        package: &mut Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        self.disable_package_entry(package, message_callback)?;
+        self.enable_package_entry(package, message_callback).await
     }
 
     pub async fn create_entry<H>(

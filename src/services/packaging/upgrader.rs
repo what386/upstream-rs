@@ -1,15 +1,13 @@
-#[cfg(target_os = "linux")]
-use crate::services::artifact::AppImageExtractor;
 use crate::{
     models::{
-        common::{DesktopEntry, enums::TrustMode},
+        common::enums::TrustMode,
         provider::Release,
         upstream::{InstallType, Package},
     },
     providers::provider_manager::ProviderManager,
     routines::builder::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
-        integration::{DesktopManager, IconManager},
+        integration::DesktopManager,
         packaging::RollbackManager,
         packaging::{PackageInstaller, PackagePhase, PackageProgressEvent, PackageRemover},
         trust::TrustedSignatureKeys,
@@ -480,50 +478,19 @@ impl<'a> PackageUpgrader<'a> {
         H: FnMut(&str),
     {
         #[cfg(target_os = "linux")]
-        let appimage_extractor =
-            AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
-
-        #[cfg(target_os = "linux")]
-        let icon_manager = IconManager::new(self.paths, &appimage_extractor);
-        #[cfg(not(target_os = "linux"))]
-        let icon_manager = IconManager::new(self.paths);
+        let appimage_extractor = crate::services::artifact::AppImageExtractor::new()
+            .context("Failed to initialize appimage extractor")?;
 
         #[cfg(target_os = "linux")]
         let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
         #[cfg(not(target_os = "linux"))]
         let desktop_manager = DesktopManager::new(self.paths);
 
-        let install_path = updated_package.install_path.clone().ok_or_else(|| {
-            anyhow::anyhow!(
-                "Package '{}' has no install path after upgrade",
-                updated_package.name
-            )
-        })?;
-
-        let icon_path = icon_manager
-            .add_icon(
-                &updated_package.name,
-                &install_path,
-                &updated_package.filetype,
-                message_callback,
-            )
-            .await
-            .context(format!("Failed to add icon for '{}'", updated_package.name))?;
-
-        updated_package.icon_path = icon_path;
-
-        let desktop_entry = DesktopEntry::from_package(updated_package);
-
         desktop_manager
-            .create_entry(
-                &install_path,
-                &updated_package.filetype,
-                desktop_entry,
-                message_callback,
-            )
+            .enable_package_entry(updated_package, message_callback)
             .await
             .context(format!(
-                "Failed to create desktop entry for '{}'",
+                "Failed to restore desktop entry for '{}'",
                 updated_package.name
             ))?;
 

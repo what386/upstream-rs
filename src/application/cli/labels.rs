@@ -65,6 +65,7 @@ impl fmt::Display for PackageAction {
             PackageAction::Pin { .. } => write!(f, "package pin"),
             PackageAction::Unpin { .. } => write!(f, "package unpin"),
             PackageAction::Rename { .. } => write!(f, "package rename"),
+            PackageAction::Desktop { .. } => write!(f, "package desktop"),
         }
     }
 }
