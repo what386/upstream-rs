@@ -2,18 +2,13 @@
 use crate::services::artifact::AppImageExtractor;
 use crate::{
     application::operations::metadata_op::MetadataManager,
+    models::upstream::Package,
     output::{self, Status},
     services::integration::{DesktopManager, SymlinkManager},
     storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result};
-
-enum DesktopAction {
-    Enable,
-    Disable,
-    Refresh,
-}
 
 pub fn run_pin(name: String) -> Result<()> {
     let paths = UpstreamPaths::new()?;
@@ -91,24 +86,8 @@ pub fn run_rename(old_name: String, new_name: String) -> Result<()> {
     Ok(())
 }
 
-pub async fn run_desktop_enable(name: String) -> Result<()> {
-    run_desktop(name, DesktopAction::Enable).await
-}
-
-pub async fn run_desktop_disable(name: String) -> Result<()> {
-    run_desktop(name, DesktopAction::Disable).await
-}
-
-pub async fn run_desktop_refresh(name: String) -> Result<()> {
-    run_desktop(name, DesktopAction::Refresh).await
-}
-
-async fn run_desktop(name: String, action: DesktopAction) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
-    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
-    let mut package = package_database
-        .get_package(&name)?
-        .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
+pub async fn run_add_entry(name: String) -> Result<()> {
+    let (paths, mut package_database, mut package) = load_installed_package(&name)?;
 
     #[cfg(target_os = "linux")]
     let appimage_extractor =
@@ -119,33 +98,55 @@ async fn run_desktop(name: String, action: DesktopAction) -> Result<()> {
     #[cfg(not(target_os = "linux"))]
     let desktop_manager = DesktopManager::new(&paths);
 
-    println!("{}", output::title("Package desktop"));
+    println!("{}", output::title("Package add-entry"));
 
     let mut ignored_messages = Some(|_: &str| {});
-    let status = match action {
-        DesktopAction::Enable => {
-            desktop_manager
-                .enable_package_entry(&mut package, &mut ignored_messages)
-                .await?;
-            "desktop enabled"
-        }
-        DesktopAction::Disable => {
-            desktop_manager.disable_package_entry(&mut package, &mut ignored_messages)?;
-            "desktop disabled"
-        }
-        DesktopAction::Refresh => {
-            desktop_manager
-                .refresh_package_entry(&mut package, &mut ignored_messages)
-                .await?;
-            "desktop refreshed"
-        }
-    };
+    desktop_manager
+        .enable_package_entry(&mut package, &mut ignored_messages)
+        .await?;
 
-    package_database.upsert_package(&package).context(format!(
-        "Failed to save package '{}' to storage",
-        package.name
-    ))?;
-    output::status_line(Status::Ok, &package.name, status);
+    save_package(&mut package_database, &package)?;
+    output::status_line(Status::Ok, &name, "entry added");
 
     Ok(())
+}
+
+pub async fn run_rm_entry(name: String) -> Result<()> {
+    let (paths, mut package_database, mut package) = load_installed_package(&name)?;
+
+    #[cfg(target_os = "linux")]
+    let appimage_extractor =
+        AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
+
+    #[cfg(target_os = "linux")]
+    let desktop_manager = DesktopManager::new(&paths, &appimage_extractor);
+    #[cfg(not(target_os = "linux"))]
+    let desktop_manager = DesktopManager::new(&paths);
+
+    println!("{}", output::title("Package rm-entry"));
+
+    let mut ignored_messages = Some(|_: &str| {});
+    desktop_manager.disable_package_entry(&mut package, &mut ignored_messages)?;
+
+    save_package(&mut package_database, &package)?;
+    output::status_line(Status::Ok, &name, "entry removed");
+
+    Ok(())
+}
+
+fn load_installed_package(name: &str) -> Result<(UpstreamPaths, PackageDatabase, Package)> {
+    let paths = UpstreamPaths::new()?;
+    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let package = package_database
+        .get_package(name)?
+        .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
+
+    Ok((paths, package_database, package))
+}
+
+fn save_package(package_database: &mut PackageDatabase, package: &Package) -> Result<()> {
+    package_database.upsert_package(package).context(format!(
+        "Failed to save package '{}' to storage",
+        package.name
+    ))
 }

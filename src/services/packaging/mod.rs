@@ -1,6 +1,6 @@
 pub mod bundles;
-pub mod disk_impact;
 pub mod checker;
+pub mod disk_impact;
 pub mod installer;
 pub mod progress;
 pub mod remover;
