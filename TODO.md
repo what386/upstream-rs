@@ -8,6 +8,9 @@
 - [ ] feat: consider bulk installs with `upstream install --package REPO=NAME --package REPO=NAME`
       @created 2026-06-21 15:25
 
+- [ ] bug: make cmake artifact discovery check common output dirs and fallback to name matching to avoid shenanigans
+      @created 2026-06-24 18:37
+
 
 ## Completed
 
