@@ -147,18 +147,6 @@ impl<'a> DesktopManager<'a> {
         Ok(())
     }
 
-    pub async fn refresh_package_entry<H>(
-        &self,
-        package: &mut Package,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
-        self.disable_package_entry(package, message_callback)?;
-        self.enable_package_entry(package, message_callback).await
-    }
-
     pub async fn create_entry<H>(
         &self,
         install_path: &Path,

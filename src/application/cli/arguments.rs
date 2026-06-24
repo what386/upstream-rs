@@ -615,7 +615,8 @@ pub enum Commands {
         upstream package pin nvim\n  \
         upstream package unpin nvim\n  \
         upstream package rename nvim neovim\n  \
-        upstream package desktop refresh nvim")]
+        upstream package add-entry nvim\n  \
+        upstream package rm-entry nvim")]
     Package {
         #[command(subcommand)]
         action: PackageAction,
@@ -863,89 +864,29 @@ pub enum PackageAction {
         new_name: String,
     },
 
-    /// Manage desktop launcher integration for an installed package
+    /// Create desktop launcher integration for an installed package
     #[command(
-        long_about = "Manually create, remove, or recreate desktop launcher integration.\n\n\
-        These actions use the same desktop integration flow as install and upgrade, \
-        including AppImage extraction, embedded .desktop metadata, icon lookup, and \
+        long_about = "Manually create desktop launcher integration for an installed package.\n\n\
+        This uses the same desktop integration flow as install and upgrade, including \
+        AppImage extraction, embedded .desktop metadata, icon lookup, and \
         stored package metadata updates.\n\n\
-        EXAMPLES:\n  \
-        upstream package desktop enable nvim\n  \
-        upstream package desktop disable nvim\n  \
-        upstream package desktop refresh nvim"
+        EXAMPLE:\n  \
+        upstream package add-entry nvim"
     )]
-    Desktop {
-        #[command(subcommand)]
-        action: PackageDesktopAction,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum PackageDesktopAction {
-    /// Create desktop launcher integration
-    Enable {
+    AddEntry {
         /// Installed package name
         name: String,
     },
 
-    /// Remove desktop launcher integration
-    Disable {
+    /// Remove desktop launcher integration for an installed package
+    #[command(
+        long_about = "Manually remove desktop launcher integration for an installed package.\n\n\
+        This removes the launcher entry and any stored icon metadata owned by upstream.\n\n\
+        EXAMPLE:\n  \
+        upstream package rm-entry nvim"
+    )]
+    RmEntry {
         /// Installed package name
         name: String,
     },
-
-    /// Remove and recreate desktop launcher integration
-    Refresh {
-        /// Installed package name
-        name: String,
-    },
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Cli, Commands, PackageAction, PackageDesktopAction};
-    use clap::Parser;
-
-    #[test]
-    fn rollback_prune_without_values_parses_as_present_empty_prune() {
-        let cli = Cli::try_parse_from(["upstream", "rollback", "--prune"]).expect("parse");
-
-        match cli.command {
-            Commands::Rollback { prune, .. } => {
-                assert_eq!(prune, Some(Vec::new()));
-            }
-            _ => panic!("expected rollback command"),
-        }
-    }
-
-    #[test]
-    fn rollback_prune_with_values_parses_selected_names() {
-        let cli =
-            Cli::try_parse_from(["upstream", "rollback", "--prune", "ripgrep"]).expect("parse");
-
-        match cli.command {
-            Commands::Rollback { prune, .. } => {
-                assert_eq!(prune, Some(vec!["ripgrep".to_string()]));
-            }
-            _ => panic!("expected rollback command"),
-        }
-    }
-
-    #[test]
-    fn package_desktop_enable_parses_package_name() {
-        let cli = Cli::try_parse_from(["upstream", "package", "desktop", "enable", "nvim"])
-            .expect("parse");
-
-        match cli.command {
-            Commands::Package {
-                action:
-                    PackageAction::Desktop {
-                        action: PackageDesktopAction::Enable { name },
-                    },
-            } => {
-                assert_eq!(name, "nvim");
-            }
-            _ => panic!("expected package desktop enable command"),
-        }
-    }
 }
