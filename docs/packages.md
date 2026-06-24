@@ -107,6 +107,11 @@ upstream rollback --prune <name>
 upstream package pin <name>
 upstream package unpin <name>
 upstream package rename <old-name> <new-name>
+upstream package desktop enable <name>
+upstream package desktop disable <name>
+upstream package desktop refresh <name>
 ```
 
 Pinned packages do not upgrade until unpinned. Rename changes the local alias and related metadata without reinstalling the package.
+
+Desktop actions manually create, remove, or recreate launcher integration for an installed package.

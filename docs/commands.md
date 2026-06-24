@@ -151,9 +151,12 @@ Options:
 upstream package pin <name>
 upstream package unpin <name>
 upstream package rename <old-name> <new-name>
+upstream package desktop enable <name>
+upstream package desktop disable <name>
+upstream package desktop refresh <name>
 ```
 
-Pinning prevents upgrades. Renaming changes the local alias without reinstalling.
+Pinning prevents upgrades. Renaming changes the local alias without reinstalling. Desktop actions manually create, remove, or recreate launcher integration for an installed package.
 
 ## Information Commands
 
