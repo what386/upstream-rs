@@ -1,7 +1,5 @@
-#[cfg(target_os = "linux")]
-use crate::services::artifact::AppImageExtractor;
 use crate::{
-    models::common::{DesktopEntry, enums::TrustMode},
+    models::common::enums::TrustMode,
     models::{
         common::enums::Filetype,
         provider::{Asset, Release},
@@ -10,9 +8,7 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         artifact::{compression_handler, permission_handler},
-        integration::{
-            CompletionManager, DesktopManager, IconManager, ShellManager, SymlinkManager,
-        },
+        integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
         packaging::{
             PackagePhase, PackageProgressEvent, PackageRemover,
             bundles::BundleHandler,
@@ -408,50 +404,16 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
     {
         #[cfg(target_os = "linux")]
-        let appimage_extractor =
-            AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
-
-        #[cfg(target_os = "linux")]
-        let icon_manager = IconManager::new(self.paths, &appimage_extractor);
-        #[cfg(not(target_os = "linux"))]
-        let icon_manager = IconManager::new(self.paths);
+        let appimage_extractor = crate::services::artifact::AppImageExtractor::new()
+            .context("Failed to initialize appimage extractor")?;
 
         #[cfg(target_os = "linux")]
         let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
         #[cfg(not(target_os = "linux"))]
         let desktop_manager = DesktopManager::new(self.paths);
 
-        let install_path = installed_package.install_path.clone().ok_or_else(|| {
-            anyhow!(
-                "Package '{}' has no install path after installation",
-                installed_package.name
-            )
-        })?;
-
-        let icon_path = icon_manager
-            .add_icon(
-                &installed_package.name,
-                &install_path,
-                &installed_package.filetype,
-                message_callback,
-            )
-            .await
-            .context(format!(
-                "Failed to add icon for '{}'",
-                installed_package.name
-            ))?;
-
-        installed_package.icon_path = icon_path;
-
-        let desktop_entry = DesktopEntry::from_package(installed_package);
-
         desktop_manager
-            .create_entry(
-                &install_path,
-                &installed_package.filetype,
-                desktop_entry,
-                message_callback,
-            )
+            .enable_package_entry(installed_package, message_callback)
             .await
             .context(format!(
                 "Failed to create desktop entry for '{}'",

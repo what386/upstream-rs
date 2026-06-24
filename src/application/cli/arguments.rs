@@ -614,7 +614,8 @@ pub enum Commands {
         EXAMPLES:\n  \
         upstream package pin nvim\n  \
         upstream package unpin nvim\n  \
-        upstream package rename nvim neovim")]
+        upstream package rename nvim neovim\n  \
+        upstream package desktop refresh nvim")]
     Package {
         #[command(subcommand)]
         action: PackageAction,
@@ -861,11 +862,48 @@ pub enum PackageAction {
         /// New package alias
         new_name: String,
     },
+
+    /// Manage desktop launcher integration for an installed package
+    #[command(
+        long_about = "Manually create, remove, or recreate desktop launcher integration.\n\n\
+        These actions use the same desktop integration flow as install and upgrade, \
+        including AppImage extraction, embedded .desktop metadata, icon lookup, and \
+        stored package metadata updates.\n\n\
+        EXAMPLES:\n  \
+        upstream package desktop enable nvim\n  \
+        upstream package desktop disable nvim\n  \
+        upstream package desktop refresh nvim"
+    )]
+    Desktop {
+        #[command(subcommand)]
+        action: PackageDesktopAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PackageDesktopAction {
+    /// Create desktop launcher integration
+    Enable {
+        /// Installed package name
+        name: String,
+    },
+
+    /// Remove desktop launcher integration
+    Disable {
+        /// Installed package name
+        name: String,
+    },
+
+    /// Remove and recreate desktop launcher integration
+    Refresh {
+        /// Installed package name
+        name: String,
+    },
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Cli, Commands};
+    use super::{Cli, Commands, PackageAction, PackageDesktopAction};
     use clap::Parser;
 
     #[test]
@@ -890,6 +928,24 @@ mod tests {
                 assert_eq!(prune, Some(vec!["ripgrep".to_string()]));
             }
             _ => panic!("expected rollback command"),
+        }
+    }
+
+    #[test]
+    fn package_desktop_enable_parses_package_name() {
+        let cli = Cli::try_parse_from(["upstream", "package", "desktop", "enable", "nvim"])
+            .expect("parse");
+
+        match cli.command {
+            Commands::Package {
+                action:
+                    PackageAction::Desktop {
+                        action: PackageDesktopAction::Enable { name },
+                    },
+            } => {
+                assert_eq!(name, "nvim");
+            }
+            _ => panic!("expected package desktop enable command"),
         }
     }
 }

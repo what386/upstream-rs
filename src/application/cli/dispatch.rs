@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::application::cli::arguments::{
-    Cli, Commands, ConfigAction, HooksAction, ImportAs, PackageAction,
+    Cli, Commands, ConfigAction, HooksAction, ImportAs, PackageAction, PackageDesktopAction,
 };
 use crate::application::commands;
 use crate::output;
@@ -264,6 +264,17 @@ impl Cli {
                 PackageAction::Rename { old_name, new_name } => {
                     commands::package::run_rename(old_name, new_name)
                 }
+                PackageAction::Desktop { action } => match action {
+                    PackageDesktopAction::Enable { name } => {
+                        commands::package::run_desktop_enable(name).await
+                    }
+                    PackageDesktopAction::Disable { name } => {
+                        commands::package::run_desktop_disable(name).await
+                    }
+                    PackageDesktopAction::Refresh { name } => {
+                        commands::package::run_desktop_refresh(name).await
+                    }
+                },
             },
 
             Commands::Export { path, full } => commands::export::run_export(path, full).await,
