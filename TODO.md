@@ -11,7 +11,7 @@
 
 ## Completed
 
-- [x] feat: new package op 'desktop <action> <pkg>' to (re)generate or remove desktop integrations
+- [x] feat: new package op 'add-entry'/'rm-entry' to (re)generate or remove desktop integrations
       @created 2026-06-24 14:48
       @completed 2026-06-24 16:45
 
