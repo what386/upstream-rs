@@ -188,8 +188,14 @@ upstream config list
 upstream config edit
 upstream config reset
 
-upstream export <path> [--full]
-upstream import <path> [--skip-failed] [--as keys|manifest|snapshot]
+upstream export config <path>
+upstream export packages <path>
+upstream export keys <path>
+upstream export profile <path>
+upstream import config <path>
+upstream import packages <path> [--skip-failed] [--latest]
+upstream import keys <path>
+upstream import profile <path> [--skip-failed] [--latest]
 ```
 
 See [Configuration](configuration.md) and [Backup, import, and export](backup.md).

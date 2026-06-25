@@ -10,7 +10,7 @@ This directory contains the detailed reference material for Upstream. The README
 - [Building from source](build.md): source-build behavior and supported build profiles.
 - [Configuration](configuration.md): config file layout, provider tokens, and package metadata.
 - [Trust and verification](trust.md): checksum/signature modes and trusted key imports.
-- [Backup, import, and export](backup.md): manifests, snapshots, and migration workflows.
+- [Backup, import, and export](backup.md): config, package, key, and profile export/import workflows.
 - [Troubleshooting](troubleshooting.md): diagnostics, stale links, hooks, and common failure modes.
 
 ## Global CLI Behavior

@@ -11,13 +11,6 @@ pub enum BuildProfile {
     Cmake,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-pub enum ImportAs {
-    Keys,
-    Manifest,
-    Snapshot,
-}
-
 #[derive(Parser)]
 #[command(name = "upstream")]
 #[command(about = "A package manager for everything else.")]
@@ -636,45 +629,34 @@ pub enum Commands {
         action: HooksAction,
     },
 
-    /// Import trusted keys, package metadata manifests, or full snapshots
+    /// Import config, trusted keys, or exported packages
     #[command(
-        long_about = "Import trusted keys, package metadata manifests, or full snapshots.\n\n\
-        Autodetects the input type by content/extension, prompts for confirmation by default, \
-        and then performs the selected import operation.\n\n\
+        long_about = "Import config, trusted keys, or packages exported from upstream.\n\n\
         EXAMPLES:\n  \
-        upstream import ./minisign.pub            # Import trusted minisign keys\n  \
-        upstream import ./cosign.pub              # Import trusted cosign PEM keys\n  \
-        upstream import ./packages.json           # Import package metadata manifest\n  \
-        upstream import ./backup.tar.gz           # Restore full snapshot\n  \
-        upstream --yes import ./input.bin --as keys"
+        upstream import config ./config.toml\n  \
+        upstream import keys ./minisign.pub\n  \
+        upstream import keys ./cosign.pub\n  \
+        upstream import packages ./packages.json\n  \
+        upstream import packages ./packages.json --latest\n  \
+        upstream import profile ./profile.json"
     )]
     Import {
-        /// Path to a keys file, metadata manifest, or snapshot archive
-        path: std::path::PathBuf,
-
-        /// Continue importing remaining entries when metadata manifest processing fails
-        #[arg(long, default_value_t = false)]
-        skip_failed: bool,
-
-        /// Force the input type instead of autodetection
-        #[arg(long = "as", value_enum)]
-        import_as: Option<ImportAs>,
+        #[command(subcommand)]
+        action: ImportAction,
     },
 
-    /// Export packages to a manifest or full snapshot
-    #[command(long_about = "Export installed packages for backup or transfer.\n\n\
-        By default, writes a lightweight manifest containing just enough info to \
-        reinstall each package. Use --full to instead create a tarball of the entire \
-        upstream directory (a full snapshot).\n\n\
+    /// Export config, trusted keys, or installed package references
+    #[command(
+        long_about = "Export config, trusted keys, or installed packages for backup or transfer.\n\n\
         EXAMPLES:\n  \
-        upstream export ./packages.json           # Export manifest\n  \
-        upstream export ./backup.tar.gz --full    # Full snapshot")]
+        upstream export config ./config.toml\n  \
+        upstream export keys ./keys.json\n  \
+        upstream export packages ./packages.json\n  \
+        upstream export profile ./profile.json"
+    )]
     Export {
-        /// Output path for the manifest or snapshot archive
-        path: std::path::PathBuf,
-        /// Export a full snapshot of the upstream directory instead of a manifest
-        #[arg(long, default_value_t = false)]
-        full: bool,
+        #[command(subcommand)]
+        action: ExportAction,
     },
 
     /// Run diagnostics to detect installation and integration issues
@@ -753,6 +735,119 @@ impl Commands {
             | Commands::Export { .. } => true,
         }
     }
+}
+
+#[derive(Subcommand)]
+pub enum ImportAction {
+    /// Import upstream config
+    #[command(long_about = "Import upstream config from a TOML file.\n\n\
+        EXAMPLE:\n  \
+        upstream import config ./config.toml")]
+    Config {
+        /// Path to an upstream config TOML file
+        path: std::path::PathBuf,
+    },
+
+    /// Import trusted minisign or cosign public keys
+    #[command(long_about = "Import trusted minisign or cosign public keys.\n\n\
+        EXAMPLES:\n  \
+        upstream import keys ./minisign.pub\n  \
+        upstream import keys ./cosign.pub")]
+    Keys {
+        /// Path to a minisign or cosign public key file
+        path: std::path::PathBuf,
+    },
+
+    /// Import and install packages from an upstream packages export
+    #[command(
+        long_about = "Import and install packages from an upstream packages export.\n\n\
+        By default, imports release packages at the version tag recorded in the export. \
+        Use --latest to ignore recorded version tags and install the latest release.\n\n\
+        EXAMPLES:\n  \
+        upstream import packages ./packages.json\n  \
+        upstream import packages ./packages.json --latest"
+    )]
+    Packages {
+        /// Path to an upstream packages export
+        path: std::path::PathBuf,
+
+        /// Continue importing remaining packages when one package fails
+        #[arg(long, default_value_t = false)]
+        skip_failed: bool,
+
+        /// Ignore stored version tags and install the latest release
+        #[arg(long, default_value_t = false)]
+        latest: bool,
+    },
+
+    /// Import config, keys, and packages from an upstream profile export
+    #[command(
+        long_about = "Import config, trusted keys, and packages from an upstream profile export.\n\n\
+        Config is applied first, keys are merged second, and release packages are installed last. \
+        By default, package imports use the version tags recorded in the profile. \
+        Use --latest to ignore recorded version tags and install the latest release.\n\n\
+        EXAMPLES:\n  \
+        upstream import profile ./profile.json\n  \
+        upstream import profile ./profile.json --latest"
+    )]
+    Profile {
+        /// Path to an upstream profile export
+        path: std::path::PathBuf,
+
+        /// Continue importing remaining packages when one package fails
+        #[arg(long, default_value_t = false)]
+        skip_failed: bool,
+
+        /// Ignore stored package version tags and install latest releases
+        #[arg(long, default_value_t = false)]
+        latest: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ExportAction {
+    /// Export upstream config
+    #[command(long_about = "Export upstream config as TOML.\n\n\
+        EXAMPLE:\n  \
+        upstream export config ./config.toml")]
+    Config {
+        /// Output path for the config export
+        path: std::path::PathBuf,
+    },
+
+    /// Export trusted minisign and cosign public keys
+    #[command(long_about = "Export trusted minisign and cosign public keys.\n\n\
+        EXAMPLE:\n  \
+        upstream export keys ./keys.json")]
+    Keys {
+        /// Output path for the keys export
+        path: std::path::PathBuf,
+    },
+
+    /// Export installed package references
+    #[command(long_about = "Export installed package references.\n\n\
+        The output records enough source and version information for \
+        `upstream import packages` to reinstall release packages.\n\n\
+        EXAMPLE:\n  \
+        upstream export packages ./packages.json")]
+    Packages {
+        /// Output path for the packages export
+        path: std::path::PathBuf,
+    },
+
+    /// Export config, trusted keys, and installed package references
+    #[command(
+        long_about = "Export config, trusted keys, and installed package references.\n\n\
+        The output is a portable profile for restoring upstream settings, trust keys, \
+        and release package references. It does not include installed artifacts, \
+        rollback data, or cache contents.\n\n\
+        EXAMPLE:\n  \
+        upstream export profile ./profile.json"
+    )]
+    Profile {
+        /// Output path for the profile export
+        path: std::path::PathBuf,
+    },
 }
 
 #[derive(Subcommand)]

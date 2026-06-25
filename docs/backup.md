@@ -1,79 +1,87 @@
 # Backup, Import, and Export
 
-Upstream supports two backup styles:
+Upstream supports three portable export types:
 
-- A lightweight manifest that records enough package metadata to reinstall.
-- A full snapshot archive of the local Upstream data directory.
+- A config export that records upstream's TOML configuration.
+- A packages export that records installed package sources and release version tags.
+- A keys export that records trusted minisign and cosign public keys.
+- A profile export that bundles config, packages, and keys.
 
-## Export a Manifest
+## Export Config
 
 ```bash
-upstream export ./packages.json
+upstream export config ./config.toml
 ```
 
-The manifest is intended for migration or replication. It does not contain installed binaries.
+Import config on another machine:
+
+```bash
+upstream import config ./config.toml
+```
+
+Config imports replace the current upstream config file after validating the exported TOML.
+
+## Export Packages
+
+```bash
+upstream export packages ./packages.json
+```
+
+The packages export is intended for migration or replication. It does not contain installed binaries, executable paths, icons, rollback data, or local cache contents.
 
 Import it on another machine:
 
 ```bash
-upstream import ./packages.json
+upstream import packages ./packages.json
 ```
 
-Manifest imports add package references only. They do not restore installed files, executable paths, icons, rollback data, or recorded release versions. After importing a manifest, run `upstream install` for the packages you want to materialize on the new machine, using the same local alias and source:
+Package imports install release packages at the version tags recorded in the export. Use `--latest` to ignore stored version tags and install each package's latest release:
 
 ```bash
-upstream install BurntSushi/ripgrep rg -k binary
+upstream import packages ./packages.json --latest
 ```
 
-Use a full snapshot when you need to restore installed artifacts and runtime paths exactly.
+Build-installed packages are recorded in the export, but build imports are not currently installed automatically.
 
-## Export a Full Snapshot
+## Export Trusted Keys
 
 ```bash
-upstream export ./backup.tar.gz --full
+upstream export keys ./keys.json
 ```
 
-A full snapshot captures the local Upstream data directory. Restore it with:
+Import keys on another machine:
 
 ```bash
-upstream import ./backup.tar.gz --as snapshot
+upstream import keys ./keys.json
 ```
 
-Snapshot imports replace local Upstream data after confirmation. Use them when restoring the same environment or moving a complete local state.
+Key imports merge into `$HOME/.upstream/metadata/trust.json` and deduplicate existing keys.
 
-## Import Trusted Keys
+## Export a Profile
 
 ```bash
-upstream import ./minisign.pub --as keys
-upstream import ./cosign.pub --as keys
+upstream export profile ./profile.json
 ```
 
-Autodetection usually works, but `--as keys` is useful in scripts.
-
-## Autodetection and `--as`
-
-Import can autodetect:
-
-| Input | Import kind |
-| --- | --- |
-| `*.tar.gz`, `*.tgz` | Snapshot |
-| JSON manifest with supported version | Manifest |
-| minisign/cosign public key files | Keys |
-
-Force the import type when autodetection is ambiguous:
+Import a profile on another machine:
 
 ```bash
-upstream import ./input.bin --as keys
-upstream import ./packages.json --as manifest
-upstream import ./backup.tgz --as snapshot
+upstream import profile ./profile.json
 ```
+
+Profile imports apply config first, merge trusted keys second, and install release packages last. Use `--latest` to ignore stored package version tags:
+
+```bash
+upstream import profile ./profile.json --latest
+```
+
+Profiles are portable restore bundles. They do not include installed artifacts, rollback data, or cache contents.
 
 ## Partial Failures
 
-For manifest imports, `--skip-failed` continues processing remaining entries if an individual package metadata import fails:
+For package and profile imports, `--skip-failed` continues processing remaining packages if an individual package install fails:
 
 ```bash
-upstream import ./packages.json --skip-failed
+upstream import packages ./packages.json --skip-failed
+upstream import profile ./profile.json --skip-failed
 ```
-
-`--skip-failed` has no effect for key or snapshot imports.

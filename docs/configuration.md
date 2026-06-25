@@ -148,8 +148,8 @@ $HOME/.upstream/metadata/trust.json
 Prefer importing key files with:
 
 ```bash
-upstream import ./minisign.pub --as keys
-upstream import ./cosign.pub --as keys
+upstream import keys ./minisign.pub
+upstream import keys ./cosign.pub
 ```
 
 Manual edits are possible, but imports handle parsing and deduplication.

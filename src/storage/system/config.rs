@@ -100,6 +100,11 @@ impl ConfigStorage {
         &self.config
     }
 
+    pub fn replace_config(&mut self, config: AppConfig) -> Result<()> {
+        self.config = config;
+        self.save_config()
+    }
+
     /// Sets a configuration value at the given key path (e.g., "github.api_token").
     pub fn try_set_value(&mut self, key_path: &str, value: &str) -> Result<()> {
         if key_path.trim().is_empty() {
