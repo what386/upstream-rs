@@ -8,9 +8,6 @@
 - [ ] feat: consider bulk installs with `upstream install --package REPO=NAME --package REPO=NAME`
       @created 2026-06-21 15:25
 
-- [ ] script: make install script aware of existing .upstream directory
-      @created 2026-06-25 19:02
-
 
 ## Completed
 
@@ -21,4 +18,8 @@
 - [x] feat: improve import/export cli and behavior
       @created 2026-06-25 19:53
       @completed 2026-06-25 19:53
+
+- [x] script: make install script aware of existing .upstream directory
+      @created 2026-06-25 19:02
+      @completed 2026-06-25 19:59
 
