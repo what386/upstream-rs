@@ -11,11 +11,7 @@ GITHUB_USER="what386"
 GITHUB_REPO="upstream-rs"
 BINARY_NAME="upstream"
 OS="apple-darwin"
-
-INSTALL_COMMANDS=(
-  "hooks init"
-  "--yes install what386/upstream-rs upstream -k binary"
-)
+UPSTREAM_DIR="${HOME}/.upstream"
 
 detect_arch() {
   case "$(uname -m)" in
@@ -25,6 +21,76 @@ detect_arch() {
     i386|i686) echo "i686" ;;
     *) echo "unknown" ;;
   esac
+}
+
+choose_existing_data_action() {
+  if [[ ! -e "$UPSTREAM_DIR" ]]; then
+    echo "new"
+    return 0
+  fi
+
+  if [[ ! -d "$UPSTREAM_DIR" ]]; then
+    echo -e "${RED}Error: '$UPSTREAM_DIR' exists but is not a directory.${NC}" >&2
+    exit 1
+  fi
+
+  case "${UPSTREAM_EXISTING_DATA:-}" in
+    keep|replace)
+      echo "$UPSTREAM_EXISTING_DATA"
+      return 0
+      ;;
+    "")
+      ;;
+    *)
+      echo -e "${RED}Error: UPSTREAM_EXISTING_DATA must be 'keep' or 'replace'.${NC}" >&2
+      exit 1
+      ;;
+  esac
+
+  if ! { : </dev/tty; } 2>/dev/null; then
+    echo -e "${YELLOW}Existing '$UPSTREAM_DIR' found; no TTY available, keeping it.${NC}" >&2
+    echo "keep"
+    return 0
+  fi
+
+  while true; do
+    printf "%bExisting '%s' found. Keep it and refresh hooks, or replace it? [K/r] %b" "$YELLOW" "$UPSTREAM_DIR" "$NC" >/dev/tty
+    read -r answer </dev/tty
+    case "${answer:-keep}" in
+      keep|Keep|KEEP|k|K|"")
+        echo "keep"
+        return 0
+        ;;
+      replace|Replace|REPLACE|r|R)
+        echo "replace"
+        return 0
+        ;;
+      *)
+        echo "Please answer 'keep' or 'replace'." >/dev/tty
+        ;;
+    esac
+  done
+}
+
+run_upstream() {
+  echo -e "${YELLOW}Running:${NC} upstream $*"
+  if ! "$TMP_FILE" "$@"; then
+    echo -e "${RED}Error: Command failed: upstream $*${NC}"
+    rm -rf "$TMP_DIR"
+    exit 1
+  fi
+}
+
+upstream_package_installed() {
+  "$TMP_FILE" list upstream --json >/dev/null 2>&1
+}
+
+install_upstream_if_missing() {
+  if upstream_package_installed; then
+    echo -e "${GREEN}Managed upstream package already present; skipping package install.${NC}"
+  else
+    run_upstream --yes install what386/upstream-rs upstream -k binary
+  fi
 }
 
 main() {
@@ -58,18 +124,16 @@ main() {
   chmod +x "$TMP_FILE"
   echo -e "${GREEN}Download complete!${NC}"
 
-  total="${#INSTALL_COMMANDS[@]}"
-  current=0
-  for cmd in "${INSTALL_COMMANDS[@]}"; do
-    current=$((current + 1))
-    echo -e "${YELLOW}Running command ${current}/${total}: ${NC}$cmd"
+  existing_action="$(choose_existing_data_action)"
+  if [[ "$existing_action" == "replace" ]]; then
+    echo -e "${YELLOW}Removing existing '$UPSTREAM_DIR'...${NC}"
+    rm -rf "$UPSTREAM_DIR"
+  elif [[ "$existing_action" == "keep" ]]; then
+    echo -e "${GREEN}Keeping existing '$UPSTREAM_DIR'.${NC}"
+  fi
 
-    if ! "$TMP_FILE" $cmd; then
-      echo -e "${RED}Error: Command failed: $cmd${NC}"
-      rm -rf "$TMP_DIR"
-      exit 1
-    fi
-  done
+  run_upstream hooks init
+  install_upstream_if_missing
 
   rm -rf "$TMP_DIR"
   echo -e "${GREEN}Installation complete!${NC}"
