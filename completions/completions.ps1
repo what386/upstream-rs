@@ -42,8 +42,8 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific behavior')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
-            [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import trusted keys, package metadata manifests, or full snapshots')
-            [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
+            [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import config, trusted keys, or exported packages')
+            [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export config, trusted keys, or installed package references')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
@@ -447,20 +447,133 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;import' {
-            [CompletionResult]::new('--as', '--as', [CompletionResultType]::ParameterName, 'Force the input type instead of autodetection')
-            [CompletionResult]::new('--skip-failed', '--skip-failed', [CompletionResultType]::ParameterName, 'Continue importing remaining entries when metadata manifest processing fails')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Import upstream config')
+            [CompletionResult]::new('keys', 'keys', [CompletionResultType]::ParameterValue, 'Import trusted minisign or cosign public keys')
+            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Import and install packages from an upstream packages export')
+            [CompletionResult]::new('profile', 'profile', [CompletionResultType]::ParameterValue, 'Import config, keys, and packages from an upstream profile export')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;import;config' {
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
         }
-        'upstream;export' {
-            [CompletionResult]::new('--full', '--full', [CompletionResultType]::ParameterName, 'Export a full snapshot of the upstream directory instead of a manifest')
+        'upstream;import;keys' {
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;import;packages' {
+            [CompletionResult]::new('--skip-failed', '--skip-failed', [CompletionResultType]::ParameterName, 'Continue importing remaining packages when one package fails')
+            [CompletionResult]::new('--latest', '--latest', [CompletionResultType]::ParameterName, 'Ignore stored version tags and install the latest release')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;import;profile' {
+            [CompletionResult]::new('--skip-failed', '--skip-failed', [CompletionResultType]::ParameterName, 'Continue importing remaining packages when one package fails')
+            [CompletionResult]::new('--latest', '--latest', [CompletionResultType]::ParameterName, 'Ignore stored package version tags and install latest releases')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;import;help' {
+            [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Import upstream config')
+            [CompletionResult]::new('keys', 'keys', [CompletionResultType]::ParameterValue, 'Import trusted minisign or cosign public keys')
+            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Import and install packages from an upstream packages export')
+            [CompletionResult]::new('profile', 'profile', [CompletionResultType]::ParameterValue, 'Import config, keys, and packages from an upstream profile export')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;import;help;config' {
+            break
+        }
+        'upstream;import;help;keys' {
+            break
+        }
+        'upstream;import;help;packages' {
+            break
+        }
+        'upstream;import;help;profile' {
+            break
+        }
+        'upstream;import;help;help' {
+            break
+        }
+        'upstream;export' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Export upstream config')
+            [CompletionResult]::new('keys', 'keys', [CompletionResultType]::ParameterValue, 'Export trusted minisign and cosign public keys')
+            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Export installed package references')
+            [CompletionResult]::new('profile', 'profile', [CompletionResultType]::ParameterValue, 'Export config, trusted keys, and installed package references')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;export;config' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;export;keys' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;export;packages' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;export;profile' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
+        'upstream;export;help' {
+            [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Export upstream config')
+            [CompletionResult]::new('keys', 'keys', [CompletionResultType]::ParameterValue, 'Export trusted minisign and cosign public keys')
+            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Export installed package references')
+            [CompletionResult]::new('profile', 'profile', [CompletionResultType]::ParameterValue, 'Export config, trusted keys, and installed package references')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;export;help;config' {
+            break
+        }
+        'upstream;export;help;keys' {
+            break
+        }
+        'upstream;export;help;packages' {
+            break
+        }
+        'upstream;export;help;profile' {
+            break
+        }
+        'upstream;export;help;help' {
             break
         }
         'upstream;doctor' {
@@ -490,8 +603,8 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Manage upstream configuration')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage package-specific behavior')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell integration hooks and local upstream data')
-            [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import trusted keys, package metadata manifests, or full snapshots')
-            [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export packages to a manifest or full snapshot')
+            [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import config, trusted keys, or exported packages')
+            [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export config, trusted keys, or installed package references')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
@@ -598,9 +711,41 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;import' {
+            [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Import upstream config')
+            [CompletionResult]::new('keys', 'keys', [CompletionResultType]::ParameterValue, 'Import trusted minisign or cosign public keys')
+            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Import and install packages from an upstream packages export')
+            [CompletionResult]::new('profile', 'profile', [CompletionResultType]::ParameterValue, 'Import config, keys, and packages from an upstream profile export')
+            break
+        }
+        'upstream;help;import;config' {
+            break
+        }
+        'upstream;help;import;keys' {
+            break
+        }
+        'upstream;help;import;packages' {
+            break
+        }
+        'upstream;help;import;profile' {
             break
         }
         'upstream;help;export' {
+            [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Export upstream config')
+            [CompletionResult]::new('keys', 'keys', [CompletionResultType]::ParameterValue, 'Export trusted minisign and cosign public keys')
+            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Export installed package references')
+            [CompletionResult]::new('profile', 'profile', [CompletionResultType]::ParameterValue, 'Export config, trusted keys, and installed package references')
+            break
+        }
+        'upstream;help;export;config' {
+            break
+        }
+        'upstream;help;export;keys' {
+            break
+        }
+        'upstream;help;export;packages' {
+            break
+        }
+        'upstream;help;export;profile' {
             break
         }
         'upstream;help;doctor' {

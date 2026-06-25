@@ -541,24 +541,191 @@ esac
 ;;
 (import)
 _arguments "${_arguments_options[@]}" : \
-'--as=[Force the input type instead of autodetection]:IMPORT_AS:(keys manifest snapshot)' \
-'--skip-failed[Continue importing remaining entries when metadata manifest processing fails]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':path -- Path to a keys file, metadata manifest, or snapshot archive:_files' \
+":: :_upstream__subcmd__import_commands" \
+"*::: :->import" \
 && ret=0
+
+    case $state in
+    (import)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-import-command-$line[1]:"
+        case $line[1] in
+            (config)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':path -- Path to an upstream config TOML file:_files' \
+&& ret=0
+;;
+(keys)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':path -- Path to a minisign or cosign public key file:_files' \
+&& ret=0
+;;
+(packages)
+_arguments "${_arguments_options[@]}" : \
+'--skip-failed[Continue importing remaining packages when one package fails]' \
+'--latest[Ignore stored version tags and install the latest release]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':path -- Path to an upstream packages export:_files' \
+&& ret=0
+;;
+(profile)
+_arguments "${_arguments_options[@]}" : \
+'--skip-failed[Continue importing remaining packages when one package fails]' \
+'--latest[Ignore stored package version tags and install latest releases]' \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':path -- Path to an upstream profile export:_files' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_upstream__subcmd__import__subcmd__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-import-help-command-$line[1]:"
+        case $line[1] in
+            (config)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(keys)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(packages)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(profile)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
 ;;
 (export)
 _arguments "${_arguments_options[@]}" : \
-'--full[Export a full snapshot of the upstream directory instead of a manifest]' \
 '-y[Accept confirmation prompts]' \
 '--yes[Accept confirmation prompts]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':path -- Output path for the manifest or snapshot archive:_files' \
+":: :_upstream__subcmd__export_commands" \
+"*::: :->export" \
 && ret=0
+
+    case $state in
+    (export)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-export-command-$line[1]:"
+        case $line[1] in
+            (config)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':path -- Output path for the config export:_files' \
+&& ret=0
+;;
+(keys)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':path -- Output path for the keys export:_files' \
+&& ret=0
+;;
+(packages)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':path -- Output path for the packages export:_files' \
+&& ret=0
+;;
+(profile)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts]' \
+'--yes[Accept confirmation prompts]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':path -- Output path for the profile export:_files' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_upstream__subcmd__export__subcmd__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-export-help-command-$line[1]:"
+        case $line[1] in
+            (config)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(keys)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(packages)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(profile)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
 ;;
 (doctor)
 _arguments "${_arguments_options[@]}" : \
@@ -739,11 +906,67 @@ esac
 ;;
 (import)
 _arguments "${_arguments_options[@]}" : \
+":: :_upstream__subcmd__help__subcmd__import_commands" \
+"*::: :->import" \
 && ret=0
+
+    case $state in
+    (import)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-help-import-command-$line[1]:"
+        case $line[1] in
+            (config)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(keys)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(packages)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(profile)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
 ;;
 (export)
 _arguments "${_arguments_options[@]}" : \
+":: :_upstream__subcmd__help__subcmd__export_commands" \
+"*::: :->export" \
 && ret=0
+
+    case $state in
+    (export)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-help-export-command-$line[1]:"
+        case $line[1] in
+            (config)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(keys)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(packages)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(profile)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
 ;;
 (doctor)
 _arguments "${_arguments_options[@]}" : \
@@ -780,8 +1003,8 @@ _upstream_commands() {
 'config:Manage upstream configuration' \
 'package:Manage package-specific behavior' \
 'hooks:Manage shell integration hooks and local upstream data' \
-'import:Import trusted keys, package metadata manifests, or full snapshots' \
-'export:Export packages to a manifest or full snapshot' \
+'import:Import config, trusted keys, or exported packages' \
+'export:Export config, trusted keys, or installed package references' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -888,8 +1111,70 @@ _upstream__subcmd__doctor_commands() {
 }
 (( $+functions[_upstream__subcmd__export_commands] )) ||
 _upstream__subcmd__export_commands() {
-    local commands; commands=()
+    local commands; commands=(
+'config:Export upstream config' \
+'keys:Export trusted minisign and cosign public keys' \
+'packages:Export installed package references' \
+'profile:Export config, trusted keys, and installed package references' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
     _describe -t commands 'upstream export commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__export__subcmd__config_commands] )) ||
+_upstream__subcmd__export__subcmd__config_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream export config commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__export__subcmd__help_commands] )) ||
+_upstream__subcmd__export__subcmd__help_commands() {
+    local commands; commands=(
+'config:Export upstream config' \
+'keys:Export trusted minisign and cosign public keys' \
+'packages:Export installed package references' \
+'profile:Export config, trusted keys, and installed package references' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'upstream export help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__export__subcmd__help__subcmd__config_commands] )) ||
+_upstream__subcmd__export__subcmd__help__subcmd__config_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream export help config commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__export__subcmd__help__subcmd__help_commands] )) ||
+_upstream__subcmd__export__subcmd__help__subcmd__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream export help help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__export__subcmd__help__subcmd__keys_commands] )) ||
+_upstream__subcmd__export__subcmd__help__subcmd__keys_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream export help keys commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__export__subcmd__help__subcmd__packages_commands] )) ||
+_upstream__subcmd__export__subcmd__help__subcmd__packages_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream export help packages commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__export__subcmd__help__subcmd__profile_commands] )) ||
+_upstream__subcmd__export__subcmd__help__subcmd__profile_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream export help profile commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__export__subcmd__keys_commands] )) ||
+_upstream__subcmd__export__subcmd__keys_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream export keys commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__export__subcmd__packages_commands] )) ||
+_upstream__subcmd__export__subcmd__packages_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream export packages commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__export__subcmd__profile_commands] )) ||
+_upstream__subcmd__export__subcmd__profile_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream export profile commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__find_commands] )) ||
 _upstream__subcmd__find_commands() {
@@ -914,8 +1199,8 @@ _upstream__subcmd__help_commands() {
 'config:Manage upstream configuration' \
 'package:Manage package-specific behavior' \
 'hooks:Manage shell integration hooks and local upstream data' \
-'import:Import trusted keys, package metadata manifests, or full snapshots' \
-'export:Export packages to a manifest or full snapshot' \
+'import:Import config, trusted keys, or exported packages' \
+'export:Export config, trusted keys, or installed package references' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -979,8 +1264,33 @@ _upstream__subcmd__help__subcmd__doctor_commands() {
 }
 (( $+functions[_upstream__subcmd__help__subcmd__export_commands] )) ||
 _upstream__subcmd__help__subcmd__export_commands() {
-    local commands; commands=()
+    local commands; commands=(
+'config:Export upstream config' \
+'keys:Export trusted minisign and cosign public keys' \
+'packages:Export installed package references' \
+'profile:Export config, trusted keys, and installed package references' \
+    )
     _describe -t commands 'upstream help export commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__export__subcmd__config_commands] )) ||
+_upstream__subcmd__help__subcmd__export__subcmd__config_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help export config commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__export__subcmd__keys_commands] )) ||
+_upstream__subcmd__help__subcmd__export__subcmd__keys_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help export keys commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__export__subcmd__packages_commands] )) ||
+_upstream__subcmd__help__subcmd__export__subcmd__packages_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help export packages commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__export__subcmd__profile_commands] )) ||
+_upstream__subcmd__help__subcmd__export__subcmd__profile_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help export profile commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__find_commands] )) ||
 _upstream__subcmd__help__subcmd__find_commands() {
@@ -1024,8 +1334,33 @@ _upstream__subcmd__help__subcmd__hooks__subcmd__purge_commands() {
 }
 (( $+functions[_upstream__subcmd__help__subcmd__import_commands] )) ||
 _upstream__subcmd__help__subcmd__import_commands() {
-    local commands; commands=()
+    local commands; commands=(
+'config:Import upstream config' \
+'keys:Import trusted minisign or cosign public keys' \
+'packages:Import and install packages from an upstream packages export' \
+'profile:Import config, keys, and packages from an upstream profile export' \
+    )
     _describe -t commands 'upstream help import commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__import__subcmd__config_commands] )) ||
+_upstream__subcmd__help__subcmd__import__subcmd__config_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help import config commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__import__subcmd__keys_commands] )) ||
+_upstream__subcmd__help__subcmd__import__subcmd__keys_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help import keys commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__import__subcmd__packages_commands] )) ||
+_upstream__subcmd__help__subcmd__import__subcmd__packages_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help import packages commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__import__subcmd__profile_commands] )) ||
+_upstream__subcmd__help__subcmd__import__subcmd__profile_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help import profile commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__install_commands] )) ||
 _upstream__subcmd__help__subcmd__install_commands() {
@@ -1172,8 +1507,70 @@ _upstream__subcmd__hooks__subcmd__purge_commands() {
 }
 (( $+functions[_upstream__subcmd__import_commands] )) ||
 _upstream__subcmd__import_commands() {
-    local commands; commands=()
+    local commands; commands=(
+'config:Import upstream config' \
+'keys:Import trusted minisign or cosign public keys' \
+'packages:Import and install packages from an upstream packages export' \
+'profile:Import config, keys, and packages from an upstream profile export' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
     _describe -t commands 'upstream import commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__import__subcmd__config_commands] )) ||
+_upstream__subcmd__import__subcmd__config_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream import config commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__import__subcmd__help_commands] )) ||
+_upstream__subcmd__import__subcmd__help_commands() {
+    local commands; commands=(
+'config:Import upstream config' \
+'keys:Import trusted minisign or cosign public keys' \
+'packages:Import and install packages from an upstream packages export' \
+'profile:Import config, keys, and packages from an upstream profile export' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'upstream import help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__import__subcmd__help__subcmd__config_commands] )) ||
+_upstream__subcmd__import__subcmd__help__subcmd__config_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream import help config commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__import__subcmd__help__subcmd__help_commands] )) ||
+_upstream__subcmd__import__subcmd__help__subcmd__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream import help help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__import__subcmd__help__subcmd__keys_commands] )) ||
+_upstream__subcmd__import__subcmd__help__subcmd__keys_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream import help keys commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__import__subcmd__help__subcmd__packages_commands] )) ||
+_upstream__subcmd__import__subcmd__help__subcmd__packages_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream import help packages commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__import__subcmd__help__subcmd__profile_commands] )) ||
+_upstream__subcmd__import__subcmd__help__subcmd__profile_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream import help profile commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__import__subcmd__keys_commands] )) ||
+_upstream__subcmd__import__subcmd__keys_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream import keys commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__import__subcmd__packages_commands] )) ||
+_upstream__subcmd__import__subcmd__packages_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream import packages commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__import__subcmd__profile_commands] )) ||
+_upstream__subcmd__import__subcmd__profile_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream import profile commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__install_commands] )) ||
 _upstream__subcmd__install_commands() {
