@@ -1,6 +1,6 @@
 mod filesystem;
 mod integration;
-pub(crate) mod legacy;
+pub mod legacy;
 mod packages;
 mod tokens;
 

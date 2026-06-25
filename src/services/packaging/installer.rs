@@ -755,7 +755,7 @@ impl<'a> PackageInstaller<'a> {
         }
     }
 
-    pub(crate) fn install_local_artifact_files<H>(
+    pub fn install_local_artifact_files<H>(
         &self,
         mut package: Package,
         artifact_path: &Path,

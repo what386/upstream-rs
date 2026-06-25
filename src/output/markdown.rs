@@ -28,7 +28,7 @@ impl MarkdownRenderer {
     }
 
     #[cfg(test)]
-    pub(crate) fn plain() -> Self {
+    pub fn plain() -> Self {
         Self {
             enabled: false,
             width: 80,

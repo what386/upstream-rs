@@ -6,9 +6,9 @@ use serde::Deserialize;
 use crate::models::upstream::Package;
 use crate::utils::static_paths::UpstreamPaths;
 
-pub(crate) const MIGRATE_DIR_HINT: &str =
+pub const MIGRATE_DIR_HINT: &str =
     "Run `upstream doctor --migrate` to update local data for the current upstream layout.";
-pub(crate) const LEGACY_PACKAGE_STORAGE_VERSION: u32 = 1;
+pub const LEGACY_PACKAGE_STORAGE_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Deserialize)]
 struct LegacyPackageStorageFile {
@@ -16,7 +16,7 @@ struct LegacyPackageStorageFile {
     packages: Vec<Package>,
 }
 
-pub(crate) fn legacy_package_dirs(paths: &UpstreamPaths) -> [PathBuf; 3] {
+pub fn legacy_package_dirs(paths: &UpstreamPaths) -> [PathBuf; 3] {
     [
         paths.dirs.data_dir.join("appimages"),
         paths.dirs.data_dir.join("binaries"),
@@ -24,11 +24,11 @@ pub(crate) fn legacy_package_dirs(paths: &UpstreamPaths) -> [PathBuf; 3] {
     ]
 }
 
-pub(crate) fn legacy_package_dirs_exist(paths: &UpstreamPaths) -> bool {
+pub fn legacy_package_dirs_exist(paths: &UpstreamPaths) -> bool {
     legacy_package_dirs(paths).iter().any(|path| path.exists())
 }
 
-pub(crate) fn current_package_layout_incomplete(paths: &UpstreamPaths) -> bool {
+pub fn current_package_layout_incomplete(paths: &UpstreamPaths) -> bool {
     [
         paths.dirs.packages_dir.as_path(),
         paths.dirs.cache_dir.as_path(),
@@ -40,19 +40,19 @@ pub(crate) fn current_package_layout_incomplete(paths: &UpstreamPaths) -> bool {
     .any(|path| !path.exists())
 }
 
-pub(crate) fn looks_like_legacy_layout(paths: &UpstreamPaths) -> bool {
+pub fn looks_like_legacy_layout(paths: &UpstreamPaths) -> bool {
     legacy_package_dirs_exist(paths) && current_package_layout_incomplete(paths)
 }
 
-pub(crate) fn previous_layout_version_hint(paths: &UpstreamPaths) -> Option<u32> {
+pub fn previous_layout_version_hint(paths: &UpstreamPaths) -> Option<u32> {
     legacy_package_dirs_exist(paths).then_some(1)
 }
 
-pub(crate) fn legacy_package_metadata_exists(paths: &UpstreamPaths) -> bool {
+pub fn legacy_package_metadata_exists(paths: &UpstreamPaths) -> bool {
     paths.config.packages_file.exists()
 }
 
-pub(crate) fn load_legacy_package_metadata(paths: &UpstreamPaths) -> Result<Vec<Package>> {
+pub fn load_legacy_package_metadata(paths: &UpstreamPaths) -> Result<Vec<Package>> {
     let packages_file = &paths.config.packages_file;
     let json = fs::read_to_string(packages_file).with_context(|| {
         format!(
