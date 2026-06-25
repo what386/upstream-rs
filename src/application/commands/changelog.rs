@@ -170,7 +170,7 @@ fn current_package_release(package: &Package) -> Release {
     }
 }
 
-pub(crate) async fn changelog_text_for_package(
+pub async fn changelog_text_for_package(
     provider_manager: &ProviderManager,
     package: &Package,
     from_version: &Version,
@@ -199,7 +199,7 @@ pub(crate) async fn changelog_text_for_package(
     ))
 }
 
-pub(crate) fn changelog_text_from_releases(
+pub fn changelog_text_from_releases(
     package: &Package,
     from_version: &Version,
     to_release: &Release,

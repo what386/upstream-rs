@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
 use reqwest::{Response, StatusCode, header};
 
-pub(crate) fn error_for_status(response: &Response, service: &str, url: &str) -> Result<()> {
+pub fn error_for_status(response: &Response, service: &str, url: &str) -> Result<()> {
     let status = response.status();
     if status.is_success() {
         return Ok(());
@@ -18,7 +18,7 @@ pub(crate) fn error_for_status(response: &Response, service: &str, url: &str) ->
     )
 }
 
-pub(crate) fn rate_limit_message(
+pub fn rate_limit_message(
     status: StatusCode,
     headers: &header::HeaderMap,
     service: &str,

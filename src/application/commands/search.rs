@@ -221,7 +221,7 @@ fn write_row(out: &mut String, row: &RepositorySearchResult, widths: &SearchColu
     .expect("write search row");
 }
 
-pub(crate) fn format_stars(stars: u64) -> String {
+pub fn format_stars(stars: u64) -> String {
     if stars < 1_000 {
         return stars.to_string();
     }
@@ -240,7 +240,7 @@ fn format_with_suffix(value: u64, divisor: f64, suffix: &str) -> String {
     }
 }
 
-pub(crate) fn format_relative_updated(updated_at: DateTime<Utc>) -> String {
+pub fn format_relative_updated(updated_at: DateTime<Utc>) -> String {
     format_relative_updated_with_now(updated_at, Utc::now())
 }
 
@@ -279,11 +279,11 @@ fn format_relative_updated_with_now(updated_at: DateTime<Utc>, now: DateTime<Utc
     }
 }
 
-pub(crate) fn default_dash(value: &str) -> &str {
+pub fn default_dash(value: &str) -> &str {
     if value.trim().is_empty() { "-" } else { value }
 }
 
-pub(crate) fn truncate(value: &str, max: usize) -> String {
+pub fn truncate(value: &str, max: usize) -> String {
     output::truncate_end(value, max)
 }
 

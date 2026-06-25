@@ -1,6 +1,6 @@
 mod direct_adapter;
 mod http_client;
-pub(crate) mod http_status;
+pub mod http_status;
 mod webscraper_adapter;
 
 pub use direct_adapter::DirectAdapter;

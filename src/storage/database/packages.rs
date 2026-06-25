@@ -12,7 +12,7 @@ use super::mapping::{
 use super::patterns::{load_patterns, replace_patterns};
 
 #[derive(Debug)]
-pub(crate) struct PackageConnection {
+pub struct PackageConnection {
     conn: Connection,
 }
 
