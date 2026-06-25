@@ -831,7 +831,7 @@ impl<'a> UpgradeOperation<'a> {
         }))
         .buffer_unordered(UPGRADE_CONCURRENCY);
 
-        let mut ticker = time::interval(Duration::from_millis(350));
+        let mut ticker = time::interval(Duration::from_millis(100));
         ticker.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
 
         while completed < total {
