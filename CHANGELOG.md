@@ -1,6 +1,15 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-24*
+*Generated on 2026-06-25*
+
+## 2.8.0 — 2026-06-25
+
+### Changes
+
+- behavior: throttle upgrade pb to 100ms (has parity with install)
+- feat: improve import/export cli and behavior
+- script: make install script aware of existing .upstream directory
+
 
 ## 2.7.0 — 2026-06-24
 
