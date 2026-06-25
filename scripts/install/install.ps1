@@ -12,11 +12,7 @@ $YELLOW = "Yellow"
 $GITHUB_USER = "what386"
 $GITHUB_REPO = "upstream-rs"
 $BINARY_NAME = "upstream"
-
-$INSTALL_COMMANDS = @(
-    @("hooks", "init"),
-    @("--yes", "install", "what386/upstream-rs", "upstream", "-k", "win-exe")
-)
+$UPSTREAM_DIR = Join-Path $HOME ".upstream"
 
 function Write-ColorOutput {
     param(
@@ -68,6 +64,76 @@ function Detect-Arch {
     return "unknown"
 }
 
+function Select-ExistingDataAction {
+    if (-not (Test-Path $UPSTREAM_DIR)) {
+        return "new"
+    }
+
+    if (-not (Test-Path $UPSTREAM_DIR -PathType Container)) {
+        throw "'$UPSTREAM_DIR' exists but is not a directory."
+    }
+
+    if ($env:UPSTREAM_EXISTING_DATA) {
+        switch ($env:UPSTREAM_EXISTING_DATA.ToLowerInvariant()) {
+            "keep" { return "keep" }
+            "replace" { return "replace" }
+            default { throw "UPSTREAM_EXISTING_DATA must be 'keep' or 'replace'." }
+        }
+    }
+
+    if ([Console]::IsInputRedirected) {
+        Write-ColorOutput "Existing '$UPSTREAM_DIR' found; no interactive input available, keeping it." $YELLOW
+        return "keep"
+    }
+
+    while ($true) {
+        $answer = Read-Host "Existing '$UPSTREAM_DIR' found. Keep it and refresh hooks, or replace it? [K/r]"
+        switch ($answer.ToLowerInvariant()) {
+            "" { return "keep" }
+            "k" { return "keep" }
+            "keep" { return "keep" }
+            "r" { return "replace" }
+            "replace" { return "replace" }
+            default { Write-Host "Please answer 'keep' or 'replace'." }
+        }
+    }
+}
+
+function Invoke-UpstreamCommand {
+    param(
+        [string]$Binary,
+        [string[]]$Arguments
+    )
+
+    Write-ColorOutput "Running: " $YELLOW -NoNewline
+    Write-Host "upstream $($Arguments -join ' ')"
+    & $Binary @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed: upstream $($Arguments -join ' ')"
+    }
+}
+
+function Test-UpstreamPackageInstalled {
+    param(
+        [string]$Binary
+    )
+
+    & $Binary @("list", "upstream", "--json") *> $null
+    return $LASTEXITCODE -eq 0
+}
+
+function Install-UpstreamIfMissing {
+    param(
+        [string]$Binary
+    )
+
+    if (Test-UpstreamPackageInstalled -Binary $Binary) {
+        Write-ColorOutput "Managed upstream package already present; skipping package install." $GREEN
+    } else {
+        Invoke-UpstreamCommand -Binary $Binary -Arguments @("--yes", "install", "what386/upstream-rs", "upstream", "-k", "win-exe")
+    }
+}
+
 function Main {
     Write-ColorOutput "Starting installation..." $GREEN
 
@@ -102,19 +168,16 @@ function Main {
 
         Write-ColorOutput "Download complete!" $GREEN
 
-        # Run installation commands
-        for ($i = 0; $i -lt $INSTALL_COMMANDS.Count; $i++) {
-            $cmd = [string[]]$INSTALL_COMMANDS[$i]
-            Write-ColorOutput "Running command $($i + 1)/$($INSTALL_COMMANDS.Count): " $YELLOW -NoNewline
-            Write-Host ($cmd -join ' ')
-
-            $process = Start-Process -FilePath $TMP_FILE -ArgumentList $cmd -Wait -NoNewWindow -PassThru
-
-            if ($process.ExitCode -ne 0) {
-                Write-ColorOutput "Error: Command failed: $($cmd -join ' ')" $RED
-                throw "Command execution failed"
-            }
+        $existingAction = Select-ExistingDataAction
+        if ($existingAction -eq "replace") {
+            Write-ColorOutput "Removing existing '$UPSTREAM_DIR'..." $YELLOW
+            Remove-Item -Recurse -Force $UPSTREAM_DIR
+        } elseif ($existingAction -eq "keep") {
+            Write-ColorOutput "Keeping existing '$UPSTREAM_DIR'." $GREEN
         }
+
+        Invoke-UpstreamCommand -Binary $TMP_FILE -Arguments @("hooks", "init")
+        Install-UpstreamIfMissing -Binary $TMP_FILE
 
         Write-ColorOutput "Installation complete!" $GREEN
     }
