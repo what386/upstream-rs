@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::application::cli::arguments::{
-    Cli, Commands, ConfigAction, HooksAction, ImportAs, PackageAction,
+    Cli, Commands, ConfigAction, ExportAction, HooksAction, ImportAction, PackageAction,
 };
 use crate::application::commands;
 use crate::output;
@@ -268,19 +268,26 @@ impl Cli {
                 PackageAction::RmEntry { name } => commands::package::run_rm_entry(name).await,
             },
 
-            Commands::Export { path, full } => commands::export::run_export(path, full).await,
-            Commands::Import {
-                path,
-                skip_failed,
-                import_as,
-            } => {
-                let forced_kind = import_as.map(|value| match value {
-                    ImportAs::Keys => commands::import::ImportKindArg::Keys,
-                    ImportAs::Manifest => commands::import::ImportKindArg::Manifest,
-                    ImportAs::Snapshot => commands::import::ImportKindArg::Snapshot,
-                });
-                commands::import::run_import(path, skip_failed, forced_kind).await
-            }
+            Commands::Export { action } => match action {
+                ExportAction::Config { path } => commands::export::run_export_config(path),
+                ExportAction::Keys { path } => commands::export::run_export_keys(path),
+                ExportAction::Packages { path } => commands::export::run_export_packages(path),
+                ExportAction::Profile { path } => commands::export::run_export_profile(path),
+            },
+            Commands::Import { action } => match action {
+                ImportAction::Config { path } => commands::import::run_import_config(path),
+                ImportAction::Keys { path } => commands::import::run_import_keys(path),
+                ImportAction::Packages {
+                    path,
+                    skip_failed,
+                    latest,
+                } => commands::import::run_import_packages(path, skip_failed, latest).await,
+                ImportAction::Profile {
+                    path,
+                    skip_failed,
+                    latest,
+                } => commands::import::run_import_profile(path, skip_failed, latest).await,
+            },
             Commands::Doctor {
                 names,
                 verbose,

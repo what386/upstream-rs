@@ -32,8 +32,8 @@ Use `--trust checksum` when a package is expected to publish checksum assets and
 Upstream supports trusted minisign and cosign public keys. Import keys with:
 
 ```bash
-upstream import ./minisign.pub --as keys
-upstream import ./cosign.pub --as keys
+upstream import keys ./minisign.pub
+upstream import keys ./cosign.pub
 ```
 
 Imported keys are merged into `$HOME/.upstream/metadata/trust.json` and deduplicated.

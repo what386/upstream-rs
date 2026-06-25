@@ -13,7 +13,7 @@ It installs binaries, archives, AppImages, and other release artifacts from sour
 * Track `stable`, `preview`, or `nightly` channels
 * Pin packages to prevent upgrades
 * Create desktop entries for GUI apps
-* Import/export package manifests and full snapshots
+* Import/export package lists and trusted keys
 * Optional checksum and signature verification
 * Shell integration hooks and diagnostics
 
@@ -243,11 +243,17 @@ Rollback is package-name-specific. After upgrading across breaking local data ch
 ### Import and export
 
 ```bash
-upstream export ./packages.json
-upstream import ./packages.json
+upstream export config ./config.toml
+upstream import config ./config.toml
 
-upstream export ./backup.tar.gz --full
-upstream import ./backup.tar.gz
+upstream export packages ./packages.json
+upstream import packages ./packages.json
+
+upstream export keys ./keys.json
+upstream import keys ./keys.json
+
+upstream export profile ./profile.json
+upstream import profile ./profile.json
 ```
 
 ## Command Overview
@@ -269,8 +275,8 @@ upstream import ./backup.tar.gz
 | `config`    | Manage configuration                 |
 | `package`   | Pin, unpin, or rename packages       |
 | `hooks`     | Manage shell integration             |
-| `import`    | Import keys, manifests, or snapshots |
-| `export`    | Export manifests or snapshots        |
+| `import`    | Import config, trusted keys, or exported packages |
+| `export`    | Export config, trusted keys, or installed packages |
 | `doctor`    | Check installation health            |
 
 Use `-y` or `--yes` to accept confirmation prompts automatically.

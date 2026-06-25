@@ -1,173 +1,271 @@
 use crate::{
-    models::upstream::PackageReference,
-    services::{
-        packaging::{OperationPhase, OperationProgressEvent},
-        trust::{CosignPublicKey, MinisignPublicKey},
+    application::operations::install_op::{InstallOperation, ReleaseInstallRequest},
+    models::{
+        common::enums::TrustMode,
+        upstream::{AppConfig, InstallType, PackageReference},
     },
-    storage::{database::PackageDatabase, system::trust::TrustStorage},
+    providers::provider_manager::ProviderManager,
+    services::{
+        packaging::{OperationPhase, OperationProgressEvent, PackageProgressEvent},
+        trust::{CosignPublicKey, MinisignPublicKey, TrustedSignatureKeys},
+    },
+    storage::{
+        database::PackageDatabase,
+        system::{config::ConfigStorage, trust::TrustStorage},
+    },
     utils::static_paths::UpstreamPaths,
 };
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, bail};
 use minisign_verify::PublicKey;
 use p256::ecdsa::VerifyingKey;
 use p256::pkcs8::DecodePublicKey;
 use serde::Deserialize;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, path::Path};
 
-// ---------------------------------------------------------------------------
-// Manifest (mirrors ExportManifest but only needs Deserialize)
-// ---------------------------------------------------------------------------
+pub const PACKAGES_EXPORT_VERSION: u32 = 2;
+pub const PROFILE_EXPORT_VERSION: u32 = 1;
 
-#[derive(Deserialize)]
-pub struct ImportManifest {
+#[derive(Debug, Deserialize)]
+pub struct ImportPackages {
     pub version: u32,
     pub packages: Vec<PackageReference>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ImportKind {
-    Keys,
-    Manifest,
-    Snapshot,
+#[derive(Deserialize)]
+struct ImportKeys {
+    version: u32,
+    #[serde(default)]
+    minisign_public_keys: Vec<MinisignPublicKey>,
+    #[serde(default)]
+    cosign_public_keys: Vec<CosignPublicKey>,
 }
 
-/// Returns true if the path looks like a tarball we produced.
-fn is_snapshot(path: &Path) -> bool {
-    let name = path.file_name().unwrap_or_default().to_string_lossy();
-    name.ends_with(".tar.gz") || name.ends_with(".tgz")
+#[derive(Deserialize)]
+struct ImportProfile {
+    version: u32,
+    config: AppConfig,
+    packages: ImportPackages,
+    keys: ImportKeys,
 }
-
-// ---------------------------------------------------------------------------
-// Operation
-// ---------------------------------------------------------------------------
 
 pub struct ImportOperation<'a> {
+    provider_manager: &'a ProviderManager,
     package_database: &'a mut PackageDatabase,
     paths: &'a UpstreamPaths,
+    trusted_keys: TrustedSignatureKeys,
 }
 
 impl<'a> ImportOperation<'a> {
-    pub fn new(package_database: &'a mut PackageDatabase, paths: &'a UpstreamPaths) -> Self {
+    pub fn new(
+        provider_manager: &'a ProviderManager,
+        package_database: &'a mut PackageDatabase,
+        paths: &'a UpstreamPaths,
+        trusted_keys: TrustedSignatureKeys,
+    ) -> Self {
         Self {
+            provider_manager,
             package_database,
             paths,
+            trusted_keys,
         }
     }
 
-    pub fn detect_kind(path: &Path, forced_kind: Option<ImportKind>) -> Result<ImportKind> {
-        if let Some(kind) = forced_kind {
-            return Ok(kind);
-        }
-
-        if is_snapshot(path) {
-            return Ok(ImportKind::Snapshot);
-        }
-
-        if Self::read_manifest(path).is_ok() {
-            return Ok(ImportKind::Manifest);
-        }
-
-        if Self::parse_signature_key_file(path).is_ok() {
-            return Ok(ImportKind::Keys);
-        }
-
-        Err(anyhow!(
-            "Could not detect import type for '{}'. Use --as keys|manifest|snapshot.",
-            path.display()
-        ))
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub async fn import<P>(
+    pub async fn import_packages<P>(
         &mut self,
         path: &Path,
         skip_failed: bool,
-        forced_kind: Option<ImportKind>,
+        latest: bool,
         progress_callback: &mut Option<P>,
     ) -> Result<()>
     where
         P: FnMut(OperationProgressEvent),
     {
-        let kind = Self::detect_kind(path, forced_kind)?;
-
-        match kind {
-            ImportKind::Snapshot => {
-                if skip_failed {
-                    emit_warning(
-                        progress_callback,
-                        "--skip-failed has no effect for snapshot imports",
-                    );
-                }
-                self.import_snapshot(path, progress_callback)
-            }
-            ImportKind::Manifest => {
-                let manifest = Self::read_manifest(path)?;
-                self.import_manifest_metadata(manifest, skip_failed, progress_callback)
-                    .await
-            }
-            ImportKind::Keys => {
-                let (minisign_keys, cosign_keys) = Self::parse_signature_key_file(path)?;
-                self.import_keys(minisign_keys, cosign_keys, skip_failed, progress_callback)
-            }
-        }
+        let packages = Self::read_packages(path)?;
+        self.import_packages_from_export(packages, skip_failed, latest, progress_callback)
+            .await
     }
 
-    fn read_manifest(path: &Path) -> Result<ImportManifest> {
+    pub fn import_keys<P>(&self, path: &Path, progress_callback: &mut Option<P>) -> Result<()>
+    where
+        P: FnMut(OperationProgressEvent),
+    {
+        let (minisign_keys, cosign_keys) = match Self::read_keys_export(path) {
+            Ok(keys) => (keys.minisign_public_keys, keys.cosign_public_keys),
+            Err(_) => Self::parse_signature_key_file(path)?,
+        };
+        self.import_key_values(minisign_keys, cosign_keys, progress_callback)
+    }
+
+    pub fn read_profile_config(path: &Path) -> Result<AppConfig> {
+        Ok(Self::read_profile(path)?.config)
+    }
+
+    pub async fn import_profile<P>(
+        &mut self,
+        path: &Path,
+        skip_failed: bool,
+        latest: bool,
+        progress_callback: &mut Option<P>,
+    ) -> Result<()>
+    where
+        P: FnMut(OperationProgressEvent),
+    {
+        let profile = Self::read_profile(path)?;
+        self.import_config_value(profile.config, progress_callback)?;
+        self.import_key_values(
+            profile.keys.minisign_public_keys,
+            profile.keys.cosign_public_keys,
+            progress_callback,
+        )?;
+        self.trusted_keys =
+            TrustStorage::new(&self.paths.config.trust_file)?.trusted_signature_keys();
+        self.import_packages_from_export(profile.packages, skip_failed, latest, progress_callback)
+            .await
+    }
+
+    fn read_packages(path: &Path) -> Result<ImportPackages> {
         let content = fs::read_to_string(path)
-            .context(format!("Failed to read manifest from '{}'", path.display()))?;
-        let manifest: ImportManifest =
-            serde_json::from_str(&content).context("Failed to parse manifest")?;
-        if manifest.version != 1 {
+            .with_context(|| format!("Failed to read packages export from '{}'", path.display()))?;
+        let packages: ImportPackages =
+            serde_json::from_str(&content).context("Failed to parse packages export")?;
+        if packages.version != PACKAGES_EXPORT_VERSION {
             bail!(
-                "Unsupported manifest version {}. Upgrade upstream and try again.",
-                manifest.version
+                "Unsupported packages export version {}. Upgrade upstream and try again.",
+                packages.version
             );
         }
-        Ok(manifest)
+        Ok(packages)
     }
 
-    async fn import_manifest_metadata<P>(
+    fn read_keys_export(path: &Path) -> Result<ImportKeys> {
+        let content = fs::read_to_string(path)
+            .with_context(|| format!("Failed to read keys export from '{}'", path.display()))?;
+        let keys: ImportKeys =
+            serde_json::from_str(&content).context("Failed to parse keys export")?;
+        if keys.version != crate::storage::system::trust::TRUST_STORAGE_VERSION {
+            bail!(
+                "Unsupported keys export version {}. Upgrade upstream and try again.",
+                keys.version
+            );
+        }
+        Ok(keys)
+    }
+
+    fn read_profile(path: &Path) -> Result<ImportProfile> {
+        let content = fs::read_to_string(path)
+            .with_context(|| format!("Failed to read profile export from '{}'", path.display()))?;
+        let profile: ImportProfile =
+            serde_json::from_str(&content).context("Failed to parse profile export")?;
+        if profile.version != PROFILE_EXPORT_VERSION {
+            bail!(
+                "Unsupported profile export version {}. Upgrade upstream and try again.",
+                profile.version
+            );
+        }
+        Self::validate_packages(&profile.packages)?;
+        Self::validate_keys(&profile.keys)?;
+        Ok(profile)
+    }
+
+    fn validate_packages(packages: &ImportPackages) -> Result<()> {
+        if packages.version != PACKAGES_EXPORT_VERSION {
+            bail!(
+                "Unsupported packages export version {}. Upgrade upstream and try again.",
+                packages.version
+            );
+        }
+        Ok(())
+    }
+
+    fn validate_keys(keys: &ImportKeys) -> Result<()> {
+        if keys.version != crate::storage::system::trust::TRUST_STORAGE_VERSION {
+            bail!(
+                "Unsupported keys export version {}. Upgrade upstream and try again.",
+                keys.version
+            );
+        }
+        Ok(())
+    }
+
+    async fn import_packages_from_export<P>(
         &mut self,
-        manifest: ImportManifest,
+        export: ImportPackages,
         skip_failed: bool,
+        latest: bool,
         progress_callback: &mut Option<P>,
     ) -> Result<()>
     where
         P: FnMut(OperationProgressEvent),
     {
-        let total = manifest.packages.len() as u32;
+        let total = export.packages.len() as u32;
         let mut completed = 0_u32;
         let mut imported = 0_u32;
         let mut skipped = 0_u32;
-        emit_phase(progress_callback, OperationPhase::ImportingManifest);
+        emit_phase(progress_callback, OperationPhase::ImportingPackages);
 
-        for reference in manifest.packages {
-            if self
-                .package_database
-                .get_package(&reference.name)?
-                .is_some()
-            {
+        for reference in export.packages {
+            if self.package_database.package_exists(&reference.name)? {
                 skipped += 1;
                 emit_warning(
                     progress_callback,
                     format!("Package '{}' already exists; skipping", reference.name),
                 );
-            } else if let Err(err) = self
-                .package_database
-                .upsert_package(&reference.into_package())
-            {
-                if skip_failed {
-                    skipped += 1;
-                    emit_warning(
-                        progress_callback,
-                        format!("Failed to import package metadata: {err}"),
-                    );
-                } else {
-                    return Err(err);
-                }
+            } else if reference.install_type != InstallType::Release {
+                skipped += 1;
+                emit_warning(
+                    progress_callback,
+                    format!(
+                        "Package '{}' is a build package; build imports are not supported",
+                        reference.name
+                    ),
+                );
             } else {
-                imported += 1;
+                let package_name = reference.name.clone();
+                let version = if latest {
+                    None
+                } else {
+                    reference.version_tag.clone()
+                };
+                let result = {
+                    let mut install_operation = InstallOperation::new(
+                        self.provider_manager,
+                        self.package_database,
+                        self.paths,
+                        self.trusted_keys.clone(),
+                    )?;
+                    let mut no_download_progress: Option<fn(u64, u64)> = None;
+                    let mut ignored_messages = Some(|_: &str| {});
+                    let mut package_progress = None::<fn(PackageProgressEvent)>;
+                    install_operation
+                        .install_release(
+                            ReleaseInstallRequest {
+                                package: reference.into_package(),
+                                version,
+                                add_entry: false,
+                                trust_mode: TrustMode::BestEffort,
+                            },
+                            &mut no_download_progress,
+                            &mut ignored_messages,
+                            &mut package_progress,
+                        )
+                        .await
+                };
+
+                if let Err(err) = result {
+                    if skip_failed {
+                        skipped += 1;
+                        emit_warning(
+                            progress_callback,
+                            format!("Failed to import package '{}': {err}", package_name),
+                        );
+                    } else {
+                        return Err(err).with_context(|| {
+                            format!("Failed to import package '{}'", package_name)
+                        });
+                    }
+                } else {
+                    imported += 1;
+                }
             }
 
             completed += 1;
@@ -182,30 +280,23 @@ impl<'a> ImportOperation<'a> {
         emit_detail(
             progress_callback,
             format!(
-                "Manifest import complete: {} added, {} skipped",
+                "Packages import complete: {} installed, {} skipped",
                 imported, skipped
             ),
         );
         Ok(())
     }
 
-    fn import_keys<P>(
+    fn import_key_values<P>(
         &self,
         minisign_keys: Vec<MinisignPublicKey>,
         cosign_keys: Vec<CosignPublicKey>,
-        skip_failed: bool,
         progress_callback: &mut Option<P>,
     ) -> Result<()>
     where
         P: FnMut(OperationProgressEvent),
     {
         emit_phase(progress_callback, OperationPhase::ImportingKeys);
-        if skip_failed {
-            emit_warning(
-                progress_callback,
-                "--skip-failed has no effect for key imports",
-            );
-        }
         let mut trust_storage = TrustStorage::new(&self.paths.config.trust_file)?;
         let summary = trust_storage.merge_trusted_keys(&minisign_keys, &cosign_keys)?;
         emit_detail(
@@ -223,11 +314,26 @@ impl<'a> ImportOperation<'a> {
         Ok(())
     }
 
+    fn import_config_value<P>(
+        &self,
+        config: AppConfig,
+        progress_callback: &mut Option<P>,
+    ) -> Result<()>
+    where
+        P: FnMut(OperationProgressEvent),
+    {
+        emit_phase(progress_callback, OperationPhase::ImportingConfig);
+        let mut target = ConfigStorage::new(&self.paths.config.config_file)?;
+        target.replace_config(config)?;
+        emit_detail(progress_callback, "Config import complete");
+        Ok(())
+    }
+
     fn parse_signature_key_file(
         path: &Path,
     ) -> Result<(Vec<MinisignPublicKey>, Vec<CosignPublicKey>)> {
         let content = fs::read_to_string(path)
-            .context(format!("Failed to read key file '{}'", path.display()))?;
+            .with_context(|| format!("Failed to read key file '{}'", path.display()))?;
         let mut minisign_keys = Vec::new();
         let mut cosign_keys = Vec::new();
         let mut in_pem = false;
@@ -268,97 +374,13 @@ impl<'a> ImportOperation<'a> {
         }
 
         if minisign_keys.is_empty() && cosign_keys.is_empty() {
-            return Err(anyhow!(
+            bail!(
                 "No valid minisign or cosign public keys found in '{}'",
                 path.display()
-            ));
+            );
         }
 
         Ok((minisign_keys, cosign_keys))
-    }
-
-    // -----------------------------------------------------------------------
-    // Full import (snapshot)
-    // -----------------------------------------------------------------------
-
-    fn import_snapshot<P>(&mut self, path: &Path, progress_callback: &mut Option<P>) -> Result<()>
-    where
-        P: FnMut(OperationProgressEvent),
-    {
-        let upstream_dir = &self.paths.dirs.data_dir;
-        let upstream_parent = upstream_dir
-            .parent()
-            .ok_or_else(|| anyhow!("upstream dir has no parent"))?;
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        let pid = std::process::id();
-
-        // Stage extraction in a temp directory and only swap into place once validated.
-        let temp_dir = upstream_parent.join(format!(".upstream-import-{pid}-{unique}"));
-        let backup_dir = upstream_parent.join(format!(".upstream-backup-{pid}-{unique}"));
-        fs::create_dir_all(&temp_dir).context(format!(
-            "Failed to create temporary import directory '{}'",
-            temp_dir.display()
-        ))?;
-
-        emit_phase(progress_callback, OperationPhase::ExtractingSnapshot);
-
-        // Decompress the tarball into temp_dir.  The archive contains an
-        // "upstream/" top-level dir, so after extraction we move that into place.
-        let extracted = crate::services::artifact::compression_handler::decompress(path, &temp_dir)
-            .context("Failed to extract snapshot")?;
-
-        // The extracted path should be temp_dir/upstream (the top-level dir we
-        // created during export).  Rename it directly to .upstream/.
-        let source = if extracted.join("upstream").is_dir() {
-            extracted.join("upstream")
-        } else {
-            // Flattened by decompress — the contents are already in extracted.
-            extracted.clone()
-        };
-
-        if !source.is_dir() {
-            return Err(anyhow!(
-                "Snapshot extraction did not produce a directory at '{}'",
-                source.display()
-            ));
-        }
-
-        let mut backed_up_existing = false;
-        if upstream_dir.exists() {
-            emit_phase(progress_callback, OperationPhase::CreatingSnapshotBackup);
-            fs::rename(upstream_dir, &backup_dir).context(format!(
-                "Failed to move existing upstream directory '{}' to backup '{}'",
-                upstream_dir.display(),
-                backup_dir.display()
-            ))?;
-            backed_up_existing = true;
-        }
-
-        emit_phase(progress_callback, OperationPhase::RestoringSnapshot);
-        if let Err(err) = fs::rename(&source, upstream_dir) {
-            if backed_up_existing {
-                let _ = fs::rename(&backup_dir, upstream_dir);
-            }
-            return Err(err).context(format!(
-                "Failed to move extracted snapshot to '{}'",
-                upstream_dir.display()
-            ));
-        }
-
-        if backed_up_existing {
-            let _ = fs::remove_dir_all(&backup_dir);
-        }
-
-        // Clean up temp dir (may already be gone if source == extracted).
-        let _ = fs::remove_dir_all(&temp_dir);
-
-        emit_phase(progress_callback, OperationPhase::LoadingMetadata);
-        emit_detail(progress_callback, "Snapshot restored successfully");
-
-        Ok(())
     }
 }
 
@@ -391,61 +413,92 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{ImportKind, ImportOperation, is_snapshot};
-    use crate::services::packaging::OperationProgressEvent;
-    use crate::storage::database::PackageDatabase;
-    use crate::utils::test_support;
-    use std::path::Path;
-    use std::{fs, io};
+    use super::{ImportOperation, PACKAGES_EXPORT_VERSION, PROFILE_EXPORT_VERSION};
+    use std::{
+        fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
 
-    fn temp_root(name: &str) -> std::path::PathBuf {
-        test_support::temp_root("upstream-import-test", name)
-    }
-
-    fn test_paths(root: &Path) -> crate::utils::static_paths::UpstreamPaths {
-        test_support::upstream_paths(root)
-    }
-
-    fn cleanup(path: &Path) -> io::Result<()> {
-        fs::remove_dir_all(path)
+    fn temp_file(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir().join(format!("upstream-import-test-{name}-{nanos}.json"))
     }
 
     #[test]
-    fn snapshot_detection_matches_supported_extensions() {
-        assert!(is_snapshot(std::path::Path::new("backup.tar.gz")));
-        assert!(is_snapshot(std::path::Path::new("backup.tgz")));
-        assert!(!is_snapshot(std::path::Path::new("manifest.json")));
+    fn read_packages_rejects_unsupported_version() {
+        let path = temp_file("bad-version");
+        fs::write(&path, r#"{"version":1,"packages":[]}"#).expect("write packages");
+
+        let err = ImportOperation::read_packages(&path).expect_err("reject old version");
+
+        assert!(
+            err.to_string()
+                .contains("Unsupported packages export version")
+        );
+        let _ = fs::remove_file(path);
     }
 
-    #[tokio::test]
-    async fn import_manifest_rejects_unsupported_manifest_version() {
-        let root = temp_root("bad-version");
-        let paths = test_paths(&root);
-        fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
-            .expect("create metadata dir");
-        let manifest_path = root.join("manifest.json");
+    #[test]
+    fn read_packages_accepts_current_version() {
+        let path = temp_file("current-version");
         fs::write(
-                &manifest_path,
-                r#"{"version":2,"packages":[{"name":"x","repo_slug":"o/r","filetype":"Binary","channel":"Stable","provider":"Github","base_url":null,"build_branch":null,"build_commit":null,"match_pattern":null,"exclude_pattern":null}]}"#,
-            )
-            .expect("write manifest");
+            &path,
+            format!(r#"{{"version":{PACKAGES_EXPORT_VERSION},"packages":[]}}"#),
+        )
+        .expect("write packages");
 
-        let mut storage =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
-        let mut operation = ImportOperation::new(&mut storage, &paths);
-        let mut progress: Option<fn(OperationProgressEvent)> = None;
+        let packages = ImportOperation::read_packages(&path).expect("read packages");
 
-        let err = operation
-            .import(
-                &manifest_path,
-                false,
-                Some(ImportKind::Manifest),
-                &mut progress,
-            )
-            .await
-            .expect_err("must reject unsupported version");
-        assert!(err.to_string().contains("Unsupported manifest version"));
+        assert_eq!(packages.version, PACKAGES_EXPORT_VERSION);
+        let _ = fs::remove_file(path);
+    }
 
-        cleanup(&root).expect("cleanup");
+    #[test]
+    fn read_keys_export_accepts_current_version() {
+        let path = temp_file("keys-current-version");
+        fs::write(
+            &path,
+            format!(
+                r#"{{"version":{},"minisign_public_keys":[{{"id":"fixture","key":"abc"}}],"cosign_public_keys":[]}}"#,
+                crate::storage::system::trust::TRUST_STORAGE_VERSION
+            ),
+        )
+        .expect("write keys");
+
+        let keys = ImportOperation::read_keys_export(&path).expect("read keys");
+
+        assert_eq!(keys.minisign_public_keys.len(), 1);
+        assert_eq!(keys.minisign_public_keys[0].id.as_deref(), Some("fixture"));
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn read_profile_config_accepts_current_version() {
+        let path = temp_file("profile-current-version");
+        fs::write(
+            &path,
+            format!(
+                r#"{{
+                    "version":{PROFILE_EXPORT_VERSION},
+                    "config":{{"version":2}},
+                    "packages":{{"version":{PACKAGES_EXPORT_VERSION},"packages":[]}},
+                    "keys":{{"version":{},"minisign_public_keys":[],"cosign_public_keys":[]}}
+                }}"#,
+                crate::storage::system::trust::TRUST_STORAGE_VERSION
+            ),
+        )
+        .expect("write profile");
+
+        let config = ImportOperation::read_profile_config(&path).expect("read profile config");
+
+        assert_eq!(
+            config.version,
+            crate::models::upstream::app_config::CONFIG_STORAGE_VERSION
+        );
+        let _ = fs::remove_file(path);
     }
 }

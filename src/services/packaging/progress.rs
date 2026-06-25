@@ -54,13 +54,14 @@ pub enum PackageProgressEvent {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OperationPhase {
-    SerializingManifest,
-    WritingManifest,
+    SerializingExport,
+    WritingExport,
     ScanningFiles,
     ArchivingFiles,
     FinalizingArchive,
-    ImportingManifest,
+    ImportingPackages,
     ImportingKeys,
+    ImportingConfig,
     ExtractingSnapshot,
     CreatingSnapshotBackup,
     RestoringSnapshot,
@@ -70,13 +71,14 @@ pub enum OperationPhase {
 impl OperationPhase {
     pub fn label(self) -> &'static str {
         match self {
-            Self::SerializingManifest => "Serializing manifest ...",
-            Self::WritingManifest => "Writing manifest ...",
+            Self::SerializingExport => "Serializing export ...",
+            Self::WritingExport => "Writing export ...",
             Self::ScanningFiles => "Scanning files ...",
             Self::ArchivingFiles => "Archiving files ...",
             Self::FinalizingArchive => "Finalizing archive ...",
-            Self::ImportingManifest => "Importing manifest ...",
+            Self::ImportingPackages => "Importing packages ...",
             Self::ImportingKeys => "Importing keys ...",
+            Self::ImportingConfig => "Importing config ...",
             Self::ExtractingSnapshot => "Extracting snapshot ...",
             Self::CreatingSnapshotBackup => "Creating snapshot backup ...",
             Self::RestoringSnapshot => "Restoring snapshot ...",
