@@ -5,7 +5,7 @@
 
 ## Tasks
 
-- [ ] feat: consider bulk installs with `upstream install --package REPO=NAME --package REPO=NAME`
+- [ ] feat: consider bulk installs with `upstream install REPO=NAME REPO=NAME`
       @created 2026-06-21 15:25
 
 
