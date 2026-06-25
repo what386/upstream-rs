@@ -11,3 +11,6 @@
 - [ ] behavior: throttle upgrade pb to 100ms (has parity with install)
       @created 2026-06-25 18:52
 
+- [ ] script: make install script aware of existing .upstream directory
+      @created 2026-06-25 19:02
+
