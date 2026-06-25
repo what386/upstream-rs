@@ -39,8 +39,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific behavior'
             cand hooks 'Manage shell integration hooks and local upstream data'
-            cand import 'Import trusted keys, package metadata manifests, or full snapshots'
-            cand export 'Export packages to a manifest or full snapshot'
+            cand import 'Import config, trusted keys, or exported packages'
+            cand export 'Export config, trusted keys, or installed package references'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
@@ -394,19 +394,112 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;hooks;help;help'= {
         }
         &'upstream;import'= {
-            cand --as 'Force the input type instead of autodetection'
-            cand --skip-failed 'Continue importing remaining entries when metadata manifest processing fails'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand config 'Import upstream config'
+            cand keys 'Import trusted minisign or cosign public keys'
+            cand packages 'Import and install packages from an upstream packages export'
+            cand profile 'Import config, keys, and packages from an upstream profile export'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;import;config'= {
             cand -y 'Accept confirmation prompts'
             cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
-        &'upstream;export'= {
-            cand --full 'Export a full snapshot of the upstream directory instead of a manifest'
+        &'upstream;import;keys'= {
             cand -y 'Accept confirmation prompts'
             cand --yes 'Accept confirmation prompts'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;import;packages'= {
+            cand --skip-failed 'Continue importing remaining packages when one package fails'
+            cand --latest 'Ignore stored version tags and install the latest release'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;import;profile'= {
+            cand --skip-failed 'Continue importing remaining packages when one package fails'
+            cand --latest 'Ignore stored package version tags and install latest releases'
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;import;help'= {
+            cand config 'Import upstream config'
+            cand keys 'Import trusted minisign or cosign public keys'
+            cand packages 'Import and install packages from an upstream packages export'
+            cand profile 'Import config, keys, and packages from an upstream profile export'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;import;help;config'= {
+        }
+        &'upstream;import;help;keys'= {
+        }
+        &'upstream;import;help;packages'= {
+        }
+        &'upstream;import;help;profile'= {
+        }
+        &'upstream;import;help;help'= {
+        }
+        &'upstream;export'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand config 'Export upstream config'
+            cand keys 'Export trusted minisign and cosign public keys'
+            cand packages 'Export installed package references'
+            cand profile 'Export config, trusted keys, and installed package references'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;export;config'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;export;keys'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;export;packages'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;export;profile'= {
+            cand -y 'Accept confirmation prompts'
+            cand --yes 'Accept confirmation prompts'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;export;help'= {
+            cand config 'Export upstream config'
+            cand keys 'Export trusted minisign and cosign public keys'
+            cand packages 'Export installed package references'
+            cand profile 'Export config, trusted keys, and installed package references'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;export;help;config'= {
+        }
+        &'upstream;export;help;keys'= {
+        }
+        &'upstream;export;help;packages'= {
+        }
+        &'upstream;export;help;profile'= {
+        }
+        &'upstream;export;help;help'= {
         }
         &'upstream;doctor'= {
             cand --verbose 'Print each check result line in addition to summary output'
@@ -434,8 +527,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand config 'Manage upstream configuration'
             cand package 'Manage package-specific behavior'
             cand hooks 'Manage shell integration hooks and local upstream data'
-            cand import 'Import trusted keys, package metadata manifests, or full snapshots'
-            cand export 'Export packages to a manifest or full snapshot'
+            cand import 'Import config, trusted keys, or exported packages'
+            cand export 'Export config, trusted keys, or installed package references'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
@@ -512,8 +605,32 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;hooks;purge'= {
         }
         &'upstream;help;import'= {
+            cand config 'Import upstream config'
+            cand keys 'Import trusted minisign or cosign public keys'
+            cand packages 'Import and install packages from an upstream packages export'
+            cand profile 'Import config, keys, and packages from an upstream profile export'
+        }
+        &'upstream;help;import;config'= {
+        }
+        &'upstream;help;import;keys'= {
+        }
+        &'upstream;help;import;packages'= {
+        }
+        &'upstream;help;import;profile'= {
         }
         &'upstream;help;export'= {
+            cand config 'Export upstream config'
+            cand keys 'Export trusted minisign and cosign public keys'
+            cand packages 'Export installed package references'
+            cand profile 'Export config, trusted keys, and installed package references'
+        }
+        &'upstream;help;export;config'= {
+        }
+        &'upstream;help;export;keys'= {
+        }
+        &'upstream;help;export;packages'= {
+        }
+        &'upstream;help;export;profile'= {
         }
         &'upstream;help;doctor'= {
         }

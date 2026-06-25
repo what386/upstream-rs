@@ -109,6 +109,36 @@ _upstream() {
             upstream__subcmd__config__subcmd__help,set)
                 cmd="upstream__subcmd__config__subcmd__help__subcmd__set"
                 ;;
+            upstream__subcmd__export,config)
+                cmd="upstream__subcmd__export__subcmd__config"
+                ;;
+            upstream__subcmd__export,help)
+                cmd="upstream__subcmd__export__subcmd__help"
+                ;;
+            upstream__subcmd__export,keys)
+                cmd="upstream__subcmd__export__subcmd__keys"
+                ;;
+            upstream__subcmd__export,packages)
+                cmd="upstream__subcmd__export__subcmd__packages"
+                ;;
+            upstream__subcmd__export,profile)
+                cmd="upstream__subcmd__export__subcmd__profile"
+                ;;
+            upstream__subcmd__export__subcmd__help,config)
+                cmd="upstream__subcmd__export__subcmd__help__subcmd__config"
+                ;;
+            upstream__subcmd__export__subcmd__help,help)
+                cmd="upstream__subcmd__export__subcmd__help__subcmd__help"
+                ;;
+            upstream__subcmd__export__subcmd__help,keys)
+                cmd="upstream__subcmd__export__subcmd__help__subcmd__keys"
+                ;;
+            upstream__subcmd__export__subcmd__help,packages)
+                cmd="upstream__subcmd__export__subcmd__help__subcmd__packages"
+                ;;
+            upstream__subcmd__export__subcmd__help,profile)
+                cmd="upstream__subcmd__export__subcmd__help__subcmd__profile"
+                ;;
             upstream__subcmd__help,build)
                 cmd="upstream__subcmd__help__subcmd__build"
                 ;;
@@ -181,6 +211,18 @@ _upstream() {
             upstream__subcmd__help__subcmd__config,set)
                 cmd="upstream__subcmd__help__subcmd__config__subcmd__set"
                 ;;
+            upstream__subcmd__help__subcmd__export,config)
+                cmd="upstream__subcmd__help__subcmd__export__subcmd__config"
+                ;;
+            upstream__subcmd__help__subcmd__export,keys)
+                cmd="upstream__subcmd__help__subcmd__export__subcmd__keys"
+                ;;
+            upstream__subcmd__help__subcmd__export,packages)
+                cmd="upstream__subcmd__help__subcmd__export__subcmd__packages"
+                ;;
+            upstream__subcmd__help__subcmd__export,profile)
+                cmd="upstream__subcmd__help__subcmd__export__subcmd__profile"
+                ;;
             upstream__subcmd__help__subcmd__hooks,check)
                 cmd="upstream__subcmd__help__subcmd__hooks__subcmd__check"
                 ;;
@@ -192,6 +234,18 @@ _upstream() {
                 ;;
             upstream__subcmd__help__subcmd__hooks,purge)
                 cmd="upstream__subcmd__help__subcmd__hooks__subcmd__purge"
+                ;;
+            upstream__subcmd__help__subcmd__import,config)
+                cmd="upstream__subcmd__help__subcmd__import__subcmd__config"
+                ;;
+            upstream__subcmd__help__subcmd__import,keys)
+                cmd="upstream__subcmd__help__subcmd__import__subcmd__keys"
+                ;;
+            upstream__subcmd__help__subcmd__import,packages)
+                cmd="upstream__subcmd__help__subcmd__import__subcmd__packages"
+                ;;
+            upstream__subcmd__help__subcmd__import,profile)
+                cmd="upstream__subcmd__help__subcmd__import__subcmd__profile"
                 ;;
             upstream__subcmd__help__subcmd__package,add-entry)
                 cmd="upstream__subcmd__help__subcmd__package__subcmd__add__subcmd__entry"
@@ -237,6 +291,36 @@ _upstream() {
                 ;;
             upstream__subcmd__hooks__subcmd__help,purge)
                 cmd="upstream__subcmd__hooks__subcmd__help__subcmd__purge"
+                ;;
+            upstream__subcmd__import,config)
+                cmd="upstream__subcmd__import__subcmd__config"
+                ;;
+            upstream__subcmd__import,help)
+                cmd="upstream__subcmd__import__subcmd__help"
+                ;;
+            upstream__subcmd__import,keys)
+                cmd="upstream__subcmd__import__subcmd__keys"
+                ;;
+            upstream__subcmd__import,packages)
+                cmd="upstream__subcmd__import__subcmd__packages"
+                ;;
+            upstream__subcmd__import,profile)
+                cmd="upstream__subcmd__import__subcmd__profile"
+                ;;
+            upstream__subcmd__import__subcmd__help,config)
+                cmd="upstream__subcmd__import__subcmd__help__subcmd__config"
+                ;;
+            upstream__subcmd__import__subcmd__help,help)
+                cmd="upstream__subcmd__import__subcmd__help__subcmd__help"
+                ;;
+            upstream__subcmd__import__subcmd__help,keys)
+                cmd="upstream__subcmd__import__subcmd__help__subcmd__keys"
+                ;;
+            upstream__subcmd__import__subcmd__help,packages)
+                cmd="upstream__subcmd__import__subcmd__help__subcmd__packages"
+                ;;
+            upstream__subcmd__import__subcmd__help,profile)
+                cmd="upstream__subcmd__import__subcmd__help__subcmd__profile"
                 ;;
             upstream__subcmd__package,add-entry)
                 cmd="upstream__subcmd__package__subcmd__add__subcmd__entry"
@@ -581,8 +665,148 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__export)
-            opts="-y -h --full --yes --help <PATH>"
+            opts="-y -h --yes --help config keys packages profile help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__export__subcmd__config)
+            opts="-y -h --yes --help <PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__export__subcmd__help)
+            opts="config keys packages profile help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__export__subcmd__help__subcmd__config)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__export__subcmd__help__subcmd__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__export__subcmd__help__subcmd__keys)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__export__subcmd__help__subcmd__packages)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__export__subcmd__help__subcmd__profile)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__export__subcmd__keys)
+            opts="-y -h --yes --help <PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__export__subcmd__packages)
+            opts="-y -h --yes --help <PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__export__subcmd__profile)
+            opts="-y -h --yes --help <PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -839,8 +1063,64 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__export)
-            opts=""
+            opts="config keys packages profile"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__export__subcmd__config)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__export__subcmd__keys)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__export__subcmd__packages)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__export__subcmd__profile)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -951,8 +1231,64 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__import)
-            opts=""
+            opts="config keys packages profile"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__import__subcmd__config)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__import__subcmd__keys)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__import__subcmd__packages)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__import__subcmd__profile)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -1315,16 +1651,152 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__import)
-            opts="-y -h --skip-failed --as --yes --help <PATH>"
+            opts="-y -h --yes --help config keys packages profile help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --as)
-                    COMPREPLY=($(compgen -W "keys manifest snapshot" -- "${cur}"))
-                    return 0
+                *)
+                    COMPREPLY=()
                     ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__import__subcmd__config)
+            opts="-y -h --yes --help <PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__import__subcmd__help)
+            opts="config keys packages profile help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__import__subcmd__help__subcmd__config)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__import__subcmd__help__subcmd__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__import__subcmd__help__subcmd__keys)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__import__subcmd__help__subcmd__packages)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__import__subcmd__help__subcmd__profile)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__import__subcmd__keys)
+            opts="-y -h --yes --help <PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__import__subcmd__packages)
+            opts="-y -h --skip-failed --latest --yes --help <PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__import__subcmd__profile)
+            opts="-y -h --skip-failed --latest --yes --help <PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
                 *)
                     COMPREPLY=()
                     ;;
