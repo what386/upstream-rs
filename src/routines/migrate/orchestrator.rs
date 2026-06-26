@@ -356,7 +356,7 @@ mod tests {
         assert_eq!(report.migrated_trusted_keys, 2);
         let migrated_config =
             fs::read_to_string(&paths.config.config_file).expect("read migrated config");
-        assert!(migrated_config.contains("version = 2"));
+        assert!(!migrated_config.contains("version ="));
         assert!(!migrated_config.contains("[trust]"));
 
         let trust_json: serde_json::Value = serde_json::from_slice(

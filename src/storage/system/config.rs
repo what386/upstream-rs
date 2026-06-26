@@ -1,17 +1,51 @@
 use anyhow::{Context, Result, anyhow};
 use serde::de::DeserializeOwned;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 use toml;
 
 use crate::models::upstream::AppConfig;
-use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 
-const ALLOWED_TOP_LEVEL_KEYS: &[&str] = &[
-    "version", "github", "gitlab", "gitea", "download", "rollback",
+const ALLOWED_TOP_LEVEL_KEYS: &[&str] = &["github", "gitlab", "gitea", "download", "rollback"];
+const EXPECTED_CONFIG_PATHS: &[&str] = &[
+    "github",
+    "github.api_token",
+    "gitlab",
+    "gitlab.api_token",
+    "gitea",
+    "gitea.api_token",
+    "download",
+    "download.low_threshold_mb",
+    "download.high_threshold_mb",
+    "download.low_threads",
+    "download.high_threads",
+    "rollback",
+    "rollback.compression_level",
+    "rollback.stored_artifacts",
 ];
+const DEFAULTED_CONFIG_KEYS: &[&str] = &[
+    "download.low_threshold_mb",
+    "download.high_threshold_mb",
+    "download.low_threads",
+    "download.high_threads",
+    "rollback.compression_level",
+    "rollback.stored_artifacts",
+];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigVerification {
+    pub config_file_exists: bool,
+    pub missing_keys: Vec<String>,
+    pub unused_keys: Vec<String>,
+}
+
+impl ConfigVerification {
+    pub fn has_issues(&self) -> bool {
+        !self.missing_keys.is_empty() || !self.unused_keys.is_empty()
+    }
+}
 
 #[derive(Debug)]
 pub struct ConfigStorage {
@@ -42,30 +76,12 @@ impl ConfigStorage {
 
         let value: toml::Value =
             toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
-        let version = value
-            .get("version")
-            .and_then(toml::Value::as_integer)
-            .ok_or_else(|| {
-                anyhow!(
-                    "Unsupported config storage version in '{}'. Missing version {}; run `upstream doctor --migrate`.",
-                    self.config_file.display(),
-                    CONFIG_STORAGE_VERSION
-                )
-            })?;
-        if version != i64::from(CONFIG_STORAGE_VERSION) {
-            return Err(anyhow!(
-                "Unsupported config storage version {} in '{}'. Expected version {}.",
-                version,
-                self.config_file.display(),
-                CONFIG_STORAGE_VERSION
-            ));
-        }
 
         if let Some(table) = value.as_table() {
             for key in table.keys() {
                 if !ALLOWED_TOP_LEVEL_KEYS.contains(&key.as_str()) {
                     return Err(anyhow!(
-                        "Unsupported config key '{}' in '{}'; run `upstream doctor --migrate` if this config needs migration.",
+                        "Unsupported config key '{}' in '{}'; run `upstream config verify` to inspect unused keys.",
                         key,
                         self.config_file.display()
                     ));
@@ -107,11 +123,13 @@ impl ConfigStorage {
 
     /// Sets a configuration value at the given key path (e.g., "github.api_token").
     pub fn try_set_value(&mut self, key_path: &str, value: &str) -> Result<()> {
-        if key_path.trim().is_empty() {
+        let key_path = key_path.trim();
+
+        if key_path.is_empty() {
             return Err(anyhow!("Key path cannot be empty"));
         }
 
-        let mut root = toml::Value::try_from(&self.config).context("Failed to serialize config")?;
+        let mut root = public_config_value(&self.config).context("Failed to serialize config")?;
 
         let keys: Vec<&str> = key_path.split('.').collect();
         let (path, final_key) = keys.split_at(keys.len() - 1);
@@ -148,7 +166,7 @@ impl ConfigStorage {
     }
 
     fn get_value(&self, key_path: &str) -> Result<toml::Value> {
-        let root = toml::Value::try_from(&self.config).context("Failed to serialize config")?;
+        let root = public_config_value(&self.config).context("Failed to serialize config")?;
 
         let mut current = &root;
         for key in key_path.split('.') {
@@ -163,8 +181,52 @@ impl ConfigStorage {
     /// Gets all configuration keys and values as flattened dot-notation paths.
     pub fn get_flattened_config(&self) -> HashMap<String, String> {
         let root =
-            toml::Value::try_from(&self.config).unwrap_or(toml::Value::Table(Default::default()));
+            public_config_value(&self.config).unwrap_or(toml::Value::Table(Default::default()));
         Self::flatten_value(&root, "", 10, 0)
+    }
+
+    pub fn verify_file(config_file: &Path) -> Result<ConfigVerification> {
+        if !config_file.exists() {
+            return Ok(ConfigVerification {
+                config_file_exists: false,
+                missing_keys: DEFAULTED_CONFIG_KEYS
+                    .iter()
+                    .map(|key| (*key).to_string())
+                    .collect(),
+                unused_keys: Vec::new(),
+            });
+        }
+
+        let toml_str = fs::read_to_string(config_file).context("Failed to load config file")?;
+        let value: toml::Value =
+            toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
+        let mut all_paths = BTreeSet::new();
+        let mut leaf_paths = BTreeSet::new();
+        collect_config_paths(&value, "", &mut all_paths, &mut leaf_paths);
+
+        let expected_paths: BTreeSet<&str> = EXPECTED_CONFIG_PATHS.iter().copied().collect();
+        let unused_keys = all_paths
+            .iter()
+            .filter(|path| !expected_paths.contains(path.as_str()))
+            .cloned()
+            .collect();
+        let missing_keys = DEFAULTED_CONFIG_KEYS
+            .iter()
+            .filter(|key| !leaf_paths.contains(**key))
+            .map(|key| (*key).to_string())
+            .collect();
+
+        let mut normalized = value;
+        remove_unused_config_paths(&mut normalized, "");
+        let _config: AppConfig = normalized
+            .try_into()
+            .context("Tried to parse known config keys")?;
+
+        Ok(ConfigVerification {
+            config_file_exists: true,
+            missing_keys,
+            unused_keys,
+        })
     }
 
     /// Resets all configuration to defaults.
@@ -230,6 +292,64 @@ impl ConfigStorage {
     }
 }
 
+fn public_config_value(config: &AppConfig) -> Result<toml::Value> {
+    toml::Value::try_from(config).context("Failed to serialize config")
+}
+
+fn collect_config_paths(
+    value: &toml::Value,
+    prefix: &str,
+    all_paths: &mut BTreeSet<String>,
+    leaf_paths: &mut BTreeSet<String>,
+) {
+    match value {
+        toml::Value::Table(table) => {
+            if !prefix.is_empty() {
+                all_paths.insert(prefix.to_string());
+            }
+            for (key, value) in table {
+                let next = if prefix.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{prefix}.{key}")
+                };
+                collect_config_paths(value, &next, all_paths, leaf_paths);
+            }
+        }
+        _ => {
+            if !prefix.is_empty() {
+                all_paths.insert(prefix.to_string());
+                leaf_paths.insert(prefix.to_string());
+            }
+        }
+    }
+}
+
+fn remove_unused_config_paths(value: &mut toml::Value, prefix: &str) {
+    let Some(table) = value.as_table_mut() else {
+        return;
+    };
+
+    table.retain(|key, child| {
+        let path = if prefix.is_empty() {
+            key.to_string()
+        } else {
+            format!("{prefix}.{key}")
+        };
+        if !is_expected_config_path_or_parent(&path) {
+            return false;
+        }
+        remove_unused_config_paths(child, &path);
+        true
+    });
+}
+
+fn is_expected_config_path_or_parent(path: &str) -> bool {
+    EXPECTED_CONFIG_PATHS
+        .iter()
+        .any(|expected| *expected == path || expected.starts_with(&format!("{path}.")))
+}
+
 #[cfg(test)]
 mod tests {
     use super::ConfigStorage;
@@ -265,10 +385,6 @@ mod tests {
         assert!(!path.exists());
         assert!(storage.get_config().github.api_token.is_none());
         assert!(storage.get_config().gitlab.api_token.is_none());
-        assert_eq!(
-            storage.get_config().version,
-            crate::models::upstream::app_config::CONFIG_STORAGE_VERSION
-        );
         assert_eq!(storage.get_config().download.low_threshold_mb, 16);
         assert_eq!(storage.get_config().download.high_threshold_mb, 64);
         assert_eq!(storage.get_config().download.low_threads, 2);
@@ -335,15 +451,48 @@ mod tests {
     }
 
     #[test]
-    fn load_rejects_unversioned_config() {
+    fn load_accepts_unversioned_config() {
         let path = temp_config_file("unversioned");
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
         fs::write(&path, "[github]\napi_token = \"ghp_abc\"\n").expect("write config");
 
-        let err = ConfigStorage::new(&path).expect_err("unversioned config should be rejected");
-        assert!(err.to_string().contains("Missing version"));
+        let storage = ConfigStorage::new(&path).expect("unversioned config should load");
+        assert_eq!(
+            storage.get_config().github.api_token.as_deref(),
+            Some("ghp_abc")
+        );
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn load_rejects_legacy_version_key() {
+        let path = temp_config_file("legacy-version");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        fs::write(&path, "version = 999\n\n[download]\nhigh_threads = 6\n").expect("write config");
+
+        let err = ConfigStorage::new(&path).expect_err("legacy version should be rejected");
+        assert!(err.to_string().contains("Unsupported config key 'version'"));
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn save_config_omits_internal_version_key() {
+        let path = temp_config_file("save-without-version");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        let storage = ConfigStorage::new(&path).expect("create storage");
+        storage.save_config().expect("save config");
+
+        let content = fs::read_to_string(&path).expect("read config");
+        assert!(!content.contains("version ="));
+        assert!(content.contains("[download]"));
 
         cleanup(&path).expect("cleanup");
     }
@@ -356,12 +505,47 @@ mod tests {
         }
         fs::write(
             &path,
-            "version = 2\n\n[trust]\nminisign_public_keys = []\ncosign_public_keys = []\n",
+            "[trust]\nminisign_public_keys = []\ncosign_public_keys = []\n",
         )
         .expect("write config");
 
         let err = ConfigStorage::new(&path).expect_err("trust config should be rejected");
         assert!(err.to_string().contains("Unsupported config key 'trust'"));
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn verify_reports_missing_and_unused_keys() {
+        let path = temp_config_file("verify");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        fs::write(
+            &path,
+            "version = 2\n\n[download]\nlow_threads = 3\n\n[extra]\nvalue = true\n",
+        )
+        .expect("write config");
+
+        let verification = ConfigStorage::verify_file(&path).expect("verify config");
+        assert!(verification.config_file_exists);
+        assert!(verification.unused_keys.contains(&"version".to_string()));
+        assert!(verification.unused_keys.contains(&"extra".to_string()));
+        assert!(
+            verification
+                .unused_keys
+                .contains(&"extra.value".to_string())
+        );
+        assert!(
+            verification
+                .missing_keys
+                .contains(&"download.high_threads".to_string())
+        );
+        assert!(
+            verification
+                .missing_keys
+                .contains(&"rollback.compression_level".to_string())
+        );
 
         cleanup(&path).expect("cleanup");
     }

@@ -256,6 +256,7 @@ impl Cli {
                 ConfigAction::Set { keys } => commands::config::run_set(keys),
                 ConfigAction::Get { keys } => commands::config::run_get(keys),
                 ConfigAction::List => commands::config::run_list(),
+                ConfigAction::Verify => commands::config::run_verify(),
                 ConfigAction::Edit => commands::config::run_edit(),
                 ConfigAction::Reset => commands::config::run_reset(),
             },

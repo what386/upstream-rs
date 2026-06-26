@@ -484,7 +484,7 @@ mod tests {
             format!(
                 r#"{{
                     "version":{PROFILE_EXPORT_VERSION},
-                    "config":{{"version":2}},
+                    "config":{{}},
                     "packages":{{"version":{PACKAGES_EXPORT_VERSION},"packages":[]}},
                     "keys":{{"version":{},"minisign_public_keys":[],"cosign_public_keys":[]}}
                 }}"#,
@@ -495,10 +495,7 @@ mod tests {
 
         let config = ImportOperation::read_profile_config(&path).expect("read profile config");
 
-        assert_eq!(
-            config.version,
-            crate::models::upstream::app_config::CONFIG_STORAGE_VERSION
-        );
+        assert!(config.github.api_token.is_none());
         let _ = fs::remove_file(path);
     }
 }

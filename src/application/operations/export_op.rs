@@ -272,7 +272,7 @@ mod tests {
             .expect("export config");
 
         let content = fs::read_to_string(&output).expect("read config");
-        assert!(content.contains("version = 2"));
+        assert!(!content.contains("version ="));
         assert!(content.contains("[download]"));
 
         cleanup(&root).expect("cleanup");
@@ -312,7 +312,7 @@ mod tests {
         let content = fs::read_to_string(&output).expect("read profile");
         let profile: serde_json::Value = serde_json::from_str(&content).expect("parse profile");
         assert_eq!(profile["version"].as_u64(), Some(1));
-        assert_eq!(profile["config"]["version"].as_u64(), Some(2));
+        assert!(profile["config"]["version"].is_null());
         assert_eq!(
             profile["packages"]["packages"][0]["name"].as_str(),
             Some("tool")
