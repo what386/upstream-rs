@@ -662,12 +662,12 @@ pub enum Commands {
     /// Run diagnostics to detect installation and integration issues
     #[command(
         long_about = "Inspect upstream installation health and package state.\n\n\
-        Checks package paths, symlinks, shell PATH integration, cached completions, \
+        Checks package paths, symlinks, shell PATH integration, completion directories, \
         desktop/icon files, and metadata. \
         Reports a compact summary by default and includes actionable hints. \
         Use --verbose to print each individual check result. Use --fix to repair \
         supported issues such as PATH hooks, missing symlinks, executable bits, \
-        executable metadata, and cached completion drift. Use --migrate after \
+        and executable metadata. Use --migrate after \
         upgrading across breaking local data changes when diagnostics or release notes \
         ask for a data migration.\n\n\
         EXAMPLES:\n  \

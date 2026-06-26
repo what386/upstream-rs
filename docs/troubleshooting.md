@@ -9,7 +9,7 @@ upstream doctor --fix
 upstream doctor --migrate
 ```
 
-`doctor` checks installed package paths, symlinks, shell hooks, cached completions, desktop entries, icons, and metadata. Use `--verbose` when you need individual check lines. Use `--fix` to repair supported issues such as PATH hooks, missing symlinks, executable bits, executable metadata, and cached completion drift. Use `--migrate` when local data needs a versioned layout or metadata migration.
+`doctor` checks installed package paths, symlinks, shell hooks, completion directories, desktop entries, icons, and metadata. Use `--verbose` when you need individual check lines. Use `--fix` to repair supported issues such as PATH hooks, missing symlinks, executable bits, and executable metadata. Use `--migrate` when local data needs a versioned layout or metadata migration.
 
 ## Migration
 
@@ -57,19 +57,13 @@ Then reinstall.
 
 ## Stale or Missing Shell Completions
 
-Package completions are cached under:
-
-```text
-$HOME/.upstream/cache/completions/<package>/
-```
-
-If shell completion files are missing or differ from the cached copies, run:
+Package completions are installed directly into shell-specific user completion directories when supported. If shell completion files are missing or stale, reinstall the package:
 
 ```bash
-upstream doctor --fix
+upstream reinstall <name>
 ```
 
-`doctor --fix` copies cached completions back into the supported shell completion directories.
+If completion directories are missing, run `upstream hooks init`.
 
 ## Bad Asset Selection
 

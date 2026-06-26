@@ -5,16 +5,12 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     models::upstream::{InstallType, Package},
-    services::{
-        artifact::permission_handler,
-        integration::{CompletionManager, SymlinkManager},
-    },
+    services::{artifact::permission_handler, integration::SymlinkManager},
     storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
 use super::super::{DoctorReport, Level};
-use super::integration::check_completion_cache_drift;
 
 fn is_executable(path: &Path) -> bool {
     #[cfg(unix)]
@@ -177,7 +173,6 @@ pub(in crate::routines::doctor) fn check_installed_packages(
     paths: &UpstreamPaths,
     package_database: &mut PackageDatabase,
     selected: &[Package],
-    completion_manager: &CompletionManager<'_>,
     fix: bool,
     report: &mut DoctorReport,
 ) -> Result<()> {
@@ -187,8 +182,6 @@ pub(in crate::routines::doctor) fn check_installed_packages(
         let package_name = package.name.clone();
         let package_label = format!("package '{}'", package.name);
         let mut resolved_exec_path = package.exec_path.clone();
-
-        check_completion_cache_drift(completion_manager, &package.name, fix, report);
 
         match &package.install_path {
             Some(path) if path.exists() => {

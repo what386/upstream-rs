@@ -9,7 +9,7 @@ pub async fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
 
     let mut report = DoctorReport::new();
     checks::check_local_layout(&paths, &mut report);
-    let completion_manager = checks::check_completion_directories(&paths, &mut report);
+    checks::check_completion_directories(&paths, &mut report);
     let app_config = checks::load_app_config(&paths, &mut report);
     checks::check_package_metadata_file(&paths, &mut report);
     checks::check_path_integration(&paths, fix, &mut report);
@@ -32,14 +32,7 @@ pub async fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
 
     if let Some(package_database) = &mut package_database {
         checks::check_version_tag_templates(package_database, &selected, fix, &mut report).await?;
-        checks::check_installed_packages(
-            &paths,
-            package_database,
-            &selected,
-            &completion_manager,
-            fix,
-            &mut report,
-        )?;
+        checks::check_installed_packages(&paths, package_database, &selected, fix, &mut report)?;
     }
 
     Ok(report)
