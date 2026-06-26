@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] add `--for <tag>` to changelog
-      @created 2026-06-26 23:22
-
 
 ## Completed
 
@@ -30,4 +27,8 @@
 - [x] change default compression level to `low` for rollbacks
       @created 2026-06-26 22:50
       @completed 2026-06-26 22:50
+
+- [x] add `--for <tag>` to changelog
+      @created 2026-06-26 23:22
+      @completed 2026-06-26 23:57
 
