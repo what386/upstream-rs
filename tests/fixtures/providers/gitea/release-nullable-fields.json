@@ -1,0 +1,19 @@
+{
+  "id": 7,
+  "tag_name": null,
+  "name": null,
+  "body": null,
+  "prerelease": false,
+  "draft": false,
+  "published_at": null,
+  "assets": [
+    {
+      "id": 1,
+      "name": null,
+      "browser_download_url": null,
+      "size": 0,
+      "content_type": null,
+      "created_at": null
+    }
+  ]
+}

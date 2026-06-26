@@ -547,17 +547,8 @@ mod tests {
 
     #[tokio::test]
     async fn discover_assets_extracts_and_filters_html_links() {
-        let html = r##"
-                <html><body>
-                    <a href="tool-v1.2.3-linux.tar.gz">main</a>
-                    <a href="/downloads/tool-v1.2.3-linux.tar.gz">duplicate</a>
-                    <a href="tool-v1.2.3.sha256">checksum</a>
-                    <a href="mailto:test@example.com">mail</a>
-                    <a href="#anchor">anchor</a>
-                    <a href="https://example.invalid/tool-v1.2.3-macos.zip">mac</a>
-                    <button data-download-url="/tool-v1.2.3-windows.zip">win</button>
-                </body></html>
-            "##;
+        let html =
+            include_str!("../../../tests/fixtures/providers/http/snippets/discovery-links.html");
         let body = html.to_string();
         let last_modified = "Tue, 10 Feb 2026 15:04:05 GMT".to_string();
         let server = spawn_test_server(1, move |_, _| {
@@ -601,12 +592,9 @@ mod tests {
 
     #[test]
     fn extract_link_values_accepts_spaced_and_unquoted_attributes() {
-        let html = r#"
-            <a href = "tool-a.zip">quoted with spaces</a>
-            <a HREF='tool-b.tar.gz'>uppercase single quoted</a>
-            <a href=tool-c.7z>unquoted</a>
-            <button data-download-url = /tool-d.zip>data attr</button>
-        "#;
+        let html = include_str!(
+            "../../../tests/fixtures/providers/http/snippets/spaced-link-attributes.html"
+        );
 
         let values = HttpClient::extract_link_values(html);
 

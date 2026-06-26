@@ -347,14 +347,7 @@ mod tests {
         fs::create_dir_all(&paths.dirs.config_dir).expect("create config");
         fs::write(
             &paths.config.config_file,
-            r#"
-[github]
-api_token = "ghp_abc"
-
-[trust]
-minisign_public_keys = [{ id = "mini", key = "RWabc" }]
-cosign_public_keys = [{ id = "cosign", key = "-----BEGIN PUBLIC KEY-----\nkey\n-----END PUBLIC KEY-----" }]
-"#,
+            include_str!("../../../tests/fixtures/storage/system/legacy-config-with-trust.toml"),
         )
         .expect("write legacy config");
 

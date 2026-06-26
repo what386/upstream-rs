@@ -267,27 +267,8 @@ mod tests {
 
     #[test]
     fn nullable_string_fields_deserialize_to_empty_strings() {
-        let json = r#"
-            {
-              "id": 7,
-              "tag_name": null,
-              "name": null,
-              "body": null,
-              "prerelease": false,
-              "draft": false,
-              "published_at": null,
-              "assets": [
-                {
-                  "id": 1,
-                  "name": null,
-                  "browser_download_url": null,
-                  "size": 0,
-                  "content_type": null,
-                  "created_at": null
-                }
-              ]
-            }
-            "#;
+        let json =
+            include_str!("../../../tests/fixtures/providers/gitea/release-nullable-fields.json");
 
         let parsed = serde_json::from_str::<GiteaReleaseDto>(json).expect("parse release");
         assert_eq!(parsed.tag_name, "");

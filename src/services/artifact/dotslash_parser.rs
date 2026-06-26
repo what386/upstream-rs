@@ -372,51 +372,10 @@ mod tests {
     use super::*;
     use crate::models::common::enums::{Channel, Filetype, Provider};
 
-    const EXAMPLE_DOTSLASH: &str = r#"#!/usr/bin/env dotslash
-
-// The URLs in this file were taken from https://nodejs.org/dist/v18.19.0/
-
-{
-  "name": "node-v18.19.0",
-  "platforms": {
-    "macos-aarch64": {
-      "size": 40660307,
-      "hash": "blake3",
-      "digest": "6e2ca33951e586e7670016dd9e503d028454bf9249d5ff556347c3d98c347c34",
-      "format": "tar.gz",
-      "path": "node-v18.19.0-darwin-arm64/bin/node",
-      "providers": [
-        {
-          "url": "https://nodejs.org/dist/v18.19.0/node-v18.19.0-darwin-arm64.tar.gz"
-        }
-      ]
-    },
-    "macos-x86_64": {
-      "size": 42202872,
-      "hash": "blake3",
-      "digest": "37521058114e7f71e0de3fe8042c8fa7908305e9115488c6c29b514f9cd2a24c",
-      "format": "tar.gz",
-      "path": "node-v18.19.0-darwin-x64/bin/node",
-      "providers": [
-        {
-          "url": "https://nodejs.org/dist/v18.19.0/node-v18.19.0-darwin-x64.tar.gz"
-        }
-      ]
-    },
-    "linux-x86_64": {
-      "size": 44694523,
-      "hash": "blake3",
-      "digest": "72b81fc3a30b7bedc1a09a3fafc4478a1b02e5ebf0ad04ea15d23b3e9dc89212",
-      "format": "tar.gz",
-      "path": "node-v18.19.0-linux-x64/bin/node",
-      "providers": [
-        {
-          "url": "https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.gz"
-        }
-      ]
-    }
-  }
-}"#;
+    const INVALID_DOTSLASH_FIXTURE: &str =
+        include_str!("../../../tests/fixtures/artifact/dotslash/invalid-dotslash");
+    const VALID_DOTSLASH_FIXTURE: &str =
+        include_str!("../../../tests/fixtures/artifact/dotslash/valid-dotslash");
 
     fn architecture(os_kind: OSKind, cpu_arch: CpuArch) -> ArchitectureInfo {
         ArchitectureInfo {
@@ -460,7 +419,7 @@ mod tests {
     #[test]
     fn selects_linux_x86_64_asset_from_example_file() {
         let asset = select_asset_for_architecture(
-            EXAMPLE_DOTSLASH,
+            VALID_DOTSLASH_FIXTURE,
             &architecture(OSKind::Linux, CpuArch::X86_64),
         )
         .expect("select asset");
@@ -478,7 +437,7 @@ mod tests {
     #[test]
     fn selects_macos_aarch64_asset_from_example_file() {
         let filename = select_asset_for_architecture(
-            EXAMPLE_DOTSLASH,
+            VALID_DOTSLASH_FIXTURE,
             &architecture(OSKind::MacOS, CpuArch::Aarch64),
         )
         .expect("select asset")
@@ -540,7 +499,7 @@ mod tests {
     #[test]
     fn errors_when_host_platform_is_missing() {
         let err = select_asset_for_architecture(
-            EXAMPLE_DOTSLASH,
+            VALID_DOTSLASH_FIXTURE,
             &architecture(OSKind::Windows, CpuArch::X86_64),
         )
         .expect_err("missing platform");
@@ -549,6 +508,18 @@ mod tests {
             err.to_string()
                 .contains("DotSlash file has no asset for platform windows-x86_64")
         );
+    }
+
+    #[test]
+    fn errors_when_file_is_not_valid_dotslash() {
+        let err = select_asset_for_architecture(
+            INVALID_DOTSLASH_FIXTURE,
+            &architecture(OSKind::Linux, CpuArch::X86_64),
+        )
+        .expect_err("invalid dotslash");
+
+        assert!(err.to_string().contains("Failed to parse DotSlash file"));
+        assert!(err.to_string().contains("missing field `platforms`"));
     }
 
     #[test]
