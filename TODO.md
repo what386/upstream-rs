@@ -5,14 +5,11 @@
 
 ## Tasks
 
-- [ ] feat: make list grep-like
-      @created 2026-06-26 17:51
-
 - [ ] feat: interactive config editor
       @created 2026-06-26 19:45
 
-- [ ] feat: split list and info. allow substring matching on both
-      @created 2026-06-26 19:54
+- [ ] change default compression level to `low` for rollbacks
+      @created 2026-06-26 22:50
 
 
 ## Completed
@@ -28,4 +25,8 @@
 - [x] feat: add median size filtering for assets to try and avoid installing weird files
       @created 2026-06-26 17:57
       @completed 2026-06-26 19:34
+
+- [x] feat: split list and info. allow substring matching on both
+      @created 2026-06-26 19:54
+      @completed 2026-06-26 22:43
 
