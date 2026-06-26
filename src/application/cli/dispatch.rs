@@ -134,7 +134,8 @@ impl Cli {
                 name,
                 from_tag,
                 to_tag,
-            } => commands::changelog::run(name, from_tag, to_tag).await,
+                for_tag,
+            } => commands::changelog::run(name, from_tag, to_tag, for_tag).await,
 
             Commands::Docs {
                 name,
