@@ -10,6 +10,7 @@ use crate::{
     },
     models::{
         common::enums::TrustMode,
+        provider::Release,
         upstream::{InstallType, Package},
     },
     output::{self, SizeImpactRow, Status},
@@ -232,17 +233,8 @@ async fn run_dry_run(
                 preview_package.install_path = None;
                 preview_package.exec_path = None;
                 preview_package.icon_path = None;
-                let version_tag = format!("v{}", package.version);
 
-                match provider_manager
-                    .get_release_by_tag(
-                        &preview_package.repo_slug,
-                        &version_tag,
-                        &preview_package.provider,
-                        preview_package.base_url.as_deref(),
-                    )
-                    .await
-                {
+                match resolve_reinstall_release(provider_manager, &preview_package).await {
                     Ok(release) => {
                         match provider_manager.find_recommended_asset(&release, &preview_package) {
                             Ok(asset) => {
@@ -271,7 +263,10 @@ async fn run_dry_run(
                                 output::status_line(
                                     Status::Fail,
                                     &package.name,
-                                    format!("failed to select release asset {version_tag}: {err}"),
+                                    format!(
+                                        "failed to select release asset {}: {err}",
+                                        release.tag
+                                    ),
                                 );
                                 failed += 1;
                             }
@@ -281,7 +276,7 @@ async fn run_dry_run(
                         output::status_line(
                             Status::Fail,
                             &package.name,
-                            format!("failed to resolve release {version_tag}: {err}"),
+                            format!("failed to resolve release: {err}"),
                         );
                         failed += 1;
                     }
@@ -323,16 +318,7 @@ async fn run_dry_run(
                         }
                     }
                 } else {
-                    let version_tag = format!("v{}", package.version);
-                    match provider_manager
-                        .get_release_by_tag(
-                            &package.repo_slug,
-                            &version_tag,
-                            &package.provider,
-                            package.base_url.as_deref(),
-                        )
-                        .await
-                    {
+                    match resolve_reinstall_release(provider_manager, &package).await {
                         Ok(release) => {
                             output::status_line(
                                 Status::Plan,
@@ -352,7 +338,7 @@ async fn run_dry_run(
                             output::status_line(
                                 Status::Fail,
                                 &package.name,
-                                format!("failed to resolve release {version_tag}: {err}"),
+                                format!("failed to resolve release: {err}"),
                             );
                             failed += 1;
                         }
@@ -394,14 +380,7 @@ async fn estimate_reinstall_impact(
                 preview_package.install_path = None;
                 preview_package.exec_path = None;
                 preview_package.icon_path = None;
-                let version_tag = format!("v{}", package.version);
-                match provider_manager
-                    .get_release_by_tag(
-                        &preview_package.repo_slug,
-                        &version_tag,
-                        &preview_package.provider,
-                        preview_package.base_url.as_deref(),
-                    )
+                match resolve_reinstall_release(provider_manager, &preview_package)
                     .await
                     .and_then(|release| {
                         provider_manager.find_recommended_asset(&release, &preview_package)
@@ -462,6 +441,28 @@ fn rollback_size_rows(rollback_impact: SignedByteEstimate) -> Vec<SizeImpactRow>
     }
 }
 
+async fn resolve_reinstall_release(
+    provider_manager: &ProviderManager,
+    package: &Package,
+) -> Result<Release> {
+    let tag = package.version_tag_from_template().ok_or_else(|| {
+        anyhow!(
+            "package '{}' is missing a version tag template; run `upstream doctor --fix` to repair package metadata",
+            package.name
+        )
+    })?;
+
+    provider_manager
+        .get_release_by_tag(
+            &package.repo_slug,
+            &tag,
+            &package.provider,
+            package.base_url.as_deref(),
+        )
+        .await
+        .map_err(|err| anyhow!("failed to resolve release tag '{}': {err}", tag))
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn reinstall_one<H>(
     provider_manager: &ProviderManager,
@@ -477,7 +478,14 @@ where
     H: FnMut(&str),
 {
     let had_icon = package.icon_path.is_some();
-    let version_tag = format!("v{}", package.version);
+    let resolved_release = match package.install_type {
+        InstallType::Release => Some(resolve_reinstall_release(provider_manager, &package).await?),
+        InstallType::Build if package.build_branch.is_none() => {
+            Some(resolve_reinstall_release(provider_manager, &package).await?)
+        }
+        InstallType::Build => None,
+    };
+    let version_tag = resolved_release.as_ref().map(|release| release.tag.clone());
     let mut reinstall_package = package.clone();
     reinstall_package.install_path = None;
     reinstall_package.exec_path = None;
@@ -507,7 +515,7 @@ where
                 .install_release(
                     ReleaseInstallRequest {
                         package: reinstall_package,
-                        version: Some(version_tag),
+                        version: version_tag,
                         add_entry: had_icon,
                         trust_mode,
                     },
@@ -535,7 +543,7 @@ where
                             version_tag: if reinstall_package.build_branch.is_some() {
                                 None
                             } else {
-                                Some(version_tag)
+                                version_tag
                             },
                             branch: reinstall_package.build_branch.clone(),
                             requested_profile: None,

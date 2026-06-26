@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    models::upstream::Package,
+    models::upstream::{InstallType, Package},
     services::{
         artifact::permission_handler,
         integration::{CompletionManager, SymlinkManager},
@@ -129,6 +129,48 @@ pub(in crate::routines::doctor) fn select_packages(
     }
 
     selected
+}
+
+pub(in crate::routines::doctor) async fn check_version_tag_templates(
+    package_database: &mut PackageDatabase,
+    selected: &[Package],
+    fix: bool,
+    report: &mut DoctorReport,
+) -> Result<()> {
+    for package in selected {
+        if package.install_type != InstallType::Release || package.version.is_unknown() {
+            continue;
+        }
+
+        if package.version_tag_template.is_some() {
+            report.line(
+                Level::Ok,
+                format!("package '{}' version tag template exists", package.name),
+            );
+            continue;
+        }
+
+        report.line(
+            Level::Warn,
+            format!("package '{}' is missing version tag template", package.name),
+        );
+        report.hint("Run `upstream doctor --fix` to repair version tag templates.");
+
+        if !fix {
+            continue;
+        }
+
+        package_database.update_package(&package.name, |package| {
+            package.version_tag_template = Some("v{}".to_string());
+            Ok(true)
+        })?;
+        report.line(
+            Level::Ok,
+            format!("package '{}' repaired version tag template", package.name),
+        );
+    }
+
+    Ok(())
 }
 
 pub(in crate::routines::doctor) fn check_installed_packages(
@@ -455,9 +497,19 @@ mod tests {
     #[cfg(unix)]
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use super::expected_link_path;
     #[cfg(unix)]
     use super::{LinkStatus, inspect_unix_link};
+    use super::{check_version_tag_templates, expected_link_path};
+    use crate::models::{
+        common::{
+            Version,
+            enums::{Channel, Filetype, Provider},
+        },
+        upstream::Package,
+    };
+    use crate::routines::doctor::DoctorReport;
+    use crate::storage::database::PackageDatabase;
+    use crate::utils::test_support;
 
     #[cfg(unix)]
     fn temp_root(name: &str) -> PathBuf {
@@ -483,6 +535,39 @@ mod tests {
 
         #[cfg(not(windows))]
         assert_eq!(link.file_name().and_then(|n| n.to_str()), Some("tool"));
+    }
+
+    #[tokio::test]
+    async fn fix_version_tag_templates_uses_v_template_without_network() {
+        let root = test_support::temp_root("upstream-doctor-test", "version-tag-template");
+        let paths = test_support::upstream_paths(&root);
+        let mut db = PackageDatabase::open(&paths.config.packages_database_file).expect("open db");
+        let mut package = Package::with_defaults(
+            "codex".to_string(),
+            "openai/codex".to_string(),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.version = Version::new(0, 142, 0, false);
+        db.upsert_package(&package).expect("upsert package");
+        let selected = vec![package];
+        let mut report = DoctorReport::new();
+
+        check_version_tag_templates(&mut db, &selected, true, &mut report)
+            .await
+            .expect("repair templates");
+
+        let stored = db
+            .get_package("codex")
+            .expect("load package")
+            .expect("package exists");
+        assert_eq!(stored.version_tag_template.as_deref(), Some("v{}"));
+
+        std::fs::remove_dir_all(&root).expect("cleanup");
     }
 
     #[cfg(unix)]

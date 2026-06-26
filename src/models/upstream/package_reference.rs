@@ -67,7 +67,7 @@ fn release_version_tag(package: &Package) -> Option<String> {
         return None;
     }
 
-    Some(format!("v{}", package.version))
+    package.version_tag_from_template()
 }
 
 #[cfg(test)]
@@ -128,6 +128,7 @@ mod tests {
             None,
         );
         package.version = Version::new(1, 2, 3, false);
+        package.version_tag_template = Some("rust-v{}-beta.4".to_string());
         package.build_branch = Some("dev".to_string());
         package.build_commit = Some("0123456789abcdef".to_string());
 
@@ -138,7 +139,7 @@ mod tests {
         assert_eq!(reference.channel, Channel::Preview);
         assert_eq!(reference.provider, Provider::Github);
         assert_eq!(reference.install_type, InstallType::Release);
-        assert_eq!(reference.version_tag.as_deref(), Some("v1.2.3"));
+        assert_eq!(reference.version_tag.as_deref(), Some("rust-v1.2.3-beta.4"));
         assert_eq!(reference.build_branch.as_deref(), Some("dev"));
         assert_eq!(reference.build_commit.as_deref(), Some("0123456789abcdef"));
         assert_eq!(reference.match_pattern.to_string(), "linux");

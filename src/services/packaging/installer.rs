@@ -698,6 +698,8 @@ impl<'a> PackageInstaller<'a> {
         );
 
         package.version = release.version.clone();
+        package.version_tag_template =
+            Package::version_tag_template_from_tag(&release.tag, &release.version);
 
         match package.filetype {
             Filetype::AppImage => {

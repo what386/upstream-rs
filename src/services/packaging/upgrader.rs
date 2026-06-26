@@ -357,6 +357,11 @@ impl<'a> PackageUpgrader<'a> {
                     let mut install_pkg = package.clone();
                     install_pkg.build_branch = output.branch.clone();
                     install_pkg.build_commit = output.commit.or(branch_head_commit.clone());
+                    install_pkg.version_tag_template = if install_pkg.build_branch.is_some() {
+                        None
+                    } else {
+                        Package::version_tag_template_from_tag(&output.release.tag, &output.version)
+                    };
                     progress!(
                         progress_callback,
                         PackageProgressEvent::Phase(PackagePhase::InstallingPackage)

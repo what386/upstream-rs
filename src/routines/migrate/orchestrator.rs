@@ -42,6 +42,7 @@ mod tests {
     use crate::storage::rollback::{RollbackArtifactFormat, RollbackRecord, RollbackSource};
     use crate::utils::test_support;
     use chrono::Utc;
+    use rusqlite::Connection;
     use serde_json::json;
     use std::path::{Path, PathBuf};
     use std::{fs, io};
@@ -227,6 +228,114 @@ mod tests {
             migrated["records"]["tool"][0]["package_snapshot"]["exec_path"].as_str(),
             Some(new_archive.to_str().expect("utf8 path"))
         );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn migrate_upgrades_package_database_schema() {
+        let root = temp_root("package-db-schema");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(
+            paths
+                .config
+                .packages_database_file
+                .parent()
+                .expect("database parent"),
+        )
+        .expect("create database parent");
+        let conn = Connection::open(&paths.config.packages_database_file).expect("open sqlite");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE packages (
+                name TEXT PRIMARY KEY NOT NULL,
+                repo_slug TEXT NOT NULL,
+                filetype TEXT NOT NULL,
+                version_major INTEGER NOT NULL,
+                version_minor INTEGER NOT NULL,
+                version_patch INTEGER NOT NULL,
+                version_is_prerelease INTEGER NOT NULL,
+                channel TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                base_url TEXT,
+                install_type TEXT NOT NULL,
+                build_branch TEXT,
+                build_commit TEXT,
+                is_pinned INTEGER NOT NULL,
+                icon_path TEXT,
+                install_path TEXT,
+                exec_path TEXT,
+                last_upgraded TEXT NOT NULL
+            );
+            CREATE TABLE patterns (
+                package_name TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                pattern TEXT NOT NULL,
+                PRIMARY KEY (package_name, kind, position),
+                FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE
+            );
+            CREATE INDEX idx_patterns_package_kind_position
+                ON patterns(package_name, kind, position);
+            PRAGMA user_version = 1;
+            INSERT INTO packages (
+                name,
+                repo_slug,
+                filetype,
+                version_major,
+                version_minor,
+                version_patch,
+                version_is_prerelease,
+                channel,
+                provider,
+                base_url,
+                install_type,
+                build_branch,
+                build_commit,
+                is_pinned,
+                icon_path,
+                install_path,
+                exec_path,
+                last_upgraded
+            ) VALUES (
+                'codex',
+                'openai/codex',
+                'Archive',
+                0,
+                142,
+                0,
+                0,
+                'Stable',
+                'Github',
+                NULL,
+                'Release',
+                NULL,
+                NULL,
+                0,
+                NULL,
+                NULL,
+                NULL,
+                '2026-06-26T00:00:00Z'
+            );
+            "#,
+        )
+        .expect("create v1 package database");
+        drop(conn);
+
+        let report = run(&paths).expect("migrate");
+
+        assert_eq!(report.skipped_symlinks, 1);
+        let migrated_storage = PackageDatabase::open(&paths.config.packages_database_file)
+            .expect("open migrated package database");
+        assert_eq!(
+            migrated_storage.schema_version().expect("schema version"),
+            crate::storage::database::PACKAGE_DB_SCHEMA_VERSION
+        );
+        let migrated_package = migrated_storage
+            .get_package("codex")
+            .expect("load migrated package")
+            .expect("migrated package");
+        assert!(migrated_package.version_tag_template.is_none());
 
         cleanup(&root).expect("cleanup");
     }

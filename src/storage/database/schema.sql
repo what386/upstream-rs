@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS packages (
     version_minor INTEGER NOT NULL CHECK (version_minor >= 0),
     version_patch INTEGER NOT NULL CHECK (version_patch >= 0),
     version_is_prerelease INTEGER NOT NULL CHECK (version_is_prerelease IN (0, 1)),
+    version_tag_template TEXT,
     channel TEXT NOT NULL CHECK (channel IN ('Stable', 'Preview', 'Nightly')),
     provider TEXT NOT NULL CHECK (
         provider IN ('Github', 'Gitlab', 'Gitea', 'WebScraper', 'Direct')

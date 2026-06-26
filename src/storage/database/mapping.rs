@@ -17,6 +17,7 @@ pub const PACKAGE_COLUMNS: &str = "
     version_minor,
     version_patch,
     version_is_prerelease,
+    version_tag_template,
     channel,
     provider,
     base_url,
@@ -34,7 +35,7 @@ pub(super) fn row_to_package(row: &Row<'_>) -> rusqlite::Result<Package> {
     let version_minor: u32 = row.get(4)?;
     let version_patch: u32 = row.get(5)?;
     let version_is_prerelease: bool = db_bool(row.get(6)?);
-    let last_upgraded: String = row.get(17)?;
+    let last_upgraded: String = row.get(18)?;
 
     Ok(Package {
         name: row.get(0)?,
@@ -46,19 +47,20 @@ pub(super) fn row_to_package(row: &Row<'_>) -> rusqlite::Result<Package> {
             version_patch,
             version_is_prerelease,
         ),
-        channel: enum_from_db_value(row.get::<_, String>(7)?, 7)?,
-        provider: enum_from_db_value(row.get::<_, String>(8)?, 8)?,
-        base_url: row.get(9)?,
-        install_type: enum_from_db_value(row.get::<_, String>(10)?, 10)?,
-        build_branch: row.get(11)?,
-        build_commit: row.get(12)?,
-        is_pinned: db_bool(row.get(13)?),
+        version_tag_template: row.get(7)?,
+        channel: enum_from_db_value(row.get::<_, String>(8)?, 8)?,
+        provider: enum_from_db_value(row.get::<_, String>(9)?, 9)?,
+        base_url: row.get(10)?,
+        install_type: enum_from_db_value(row.get::<_, String>(11)?, 11)?,
+        build_branch: row.get(12)?,
+        build_commit: row.get(13)?,
+        is_pinned: db_bool(row.get(14)?),
         match_pattern: PatternTable::empty(),
         exclude_pattern: PatternTable::empty(),
-        icon_path: optional_path_from_db(row.get(14)?),
-        install_path: optional_path_from_db(row.get(15)?),
-        exec_path: optional_path_from_db(row.get(16)?),
-        last_upgraded: parse_timestamp(last_upgraded, 17)?,
+        icon_path: optional_path_from_db(row.get(15)?),
+        install_path: optional_path_from_db(row.get(16)?),
+        exec_path: optional_path_from_db(row.get(17)?),
+        last_upgraded: parse_timestamp(last_upgraded, 18)?,
     })
 }
 
