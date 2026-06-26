@@ -1,104 +1,15 @@
 #[cfg(unix)]
 use crate::services::integration::{ShellManager, nushell_paths_file_contains_path};
-use crate::{
-    services::integration::{
-        CompletionCacheMismatch, CompletionCacheMismatchKind, CompletionManager,
-    },
-    utils::static_paths::UpstreamPaths,
-};
+use crate::{services::integration::CompletionManager, utils::static_paths::UpstreamPaths};
 #[cfg(unix)]
 use std::fs;
 
 use super::super::{DoctorReport, Level};
 
-fn completion_cache_mismatch_message(
-    package_name: &str,
-    mismatch: &CompletionCacheMismatch,
-) -> String {
-    match mismatch.kind {
-        CompletionCacheMismatchKind::Missing => format!(
-            "package '{}' cached {} completion is missing from shell directory: {} (cache: {})",
-            package_name,
-            mismatch.shell.label(),
-            mismatch.installed_path.display(),
-            mismatch.cached_path.display()
-        ),
-        CompletionCacheMismatchKind::Different => format!(
-            "package '{}' cached {} completion differs from shell completion: {} (cache: {})",
-            package_name,
-            mismatch.shell.label(),
-            mismatch.installed_path.display(),
-            mismatch.cached_path.display()
-        ),
-    }
-}
-
-pub(in crate::routines::doctor::checks) fn check_completion_cache_drift(
-    completion_manager: &CompletionManager<'_>,
-    package_name: &str,
-    fix: bool,
+pub(in crate::routines::doctor) fn check_completion_directories(
+    paths: &UpstreamPaths,
     report: &mut DoctorReport,
 ) {
-    let mismatches = match completion_manager.cached_completion_mismatches(package_name) {
-        Ok(mismatches) => mismatches,
-        Err(err) => {
-            report.line(
-                Level::Warn,
-                format!(
-                    "package '{}' cached completion check failed: {}",
-                    package_name, err
-                ),
-            );
-            return;
-        }
-    };
-
-    if mismatches.is_empty() {
-        return;
-    }
-
-    for mismatch in &mismatches {
-        report.line(
-            Level::Warn,
-            completion_cache_mismatch_message(package_name, mismatch),
-        );
-    }
-    report.hint("Run `upstream doctor --fix [package]` to copy cached completions into shell completion directories.");
-
-    if !fix {
-        return;
-    }
-
-    let mut no_messages: Option<fn(&str)> = None;
-    match completion_manager.copy_cached_completions_to_shells(package_name, &mut no_messages) {
-        Ok(0) => report.line(
-            Level::Warn,
-            format!(
-                "package '{}' has cached completion drift, but no cached completions were copied",
-                package_name
-            ),
-        ),
-        Ok(count) => report.line(
-            Level::Ok,
-            format!(
-                "package '{}' copied {} cached completion(s) to shell directories",
-                package_name, count
-            ),
-        ),
-        Err(err) => report.line(
-            Level::Warn,
-            format!(
-                "package '{}' failed to copy cached completions during fix: {}",
-                package_name, err
-            ),
-        ),
-    }
-}
-
-pub(in crate::routines::doctor) fn check_completion_directories<'a>(
-    paths: &'a UpstreamPaths,
-    report: &mut DoctorReport,
-) -> CompletionManager<'a> {
     let completion_manager = CompletionManager::new(paths);
     let completion_dirs = completion_manager.installed_shell_completion_dirs();
     if completion_dirs.is_empty() {
@@ -120,8 +31,6 @@ pub(in crate::routines::doctor) fn check_completion_directories<'a>(
             );
         }
     }
-
-    completion_manager
 }
 
 pub(in crate::routines::doctor) fn check_path_integration(
@@ -225,32 +134,4 @@ fn fix_paths_file(_paths: &UpstreamPaths, _report: &mut DoctorReport) {}
 #[cfg(not(unix))]
 fn check_paths_file(_paths: &UpstreamPaths, report: &mut DoctorReport) {
     report.line(Level::Ok, "PATH integration check skipped on this platform");
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use crate::services::integration::{
-        CompletionCacheMismatch, CompletionCacheMismatchKind, CompletionShell,
-    };
-
-    use super::completion_cache_mismatch_message;
-
-    #[test]
-    fn completion_cache_mismatch_warning_names_cache_and_shell_paths() {
-        let mismatch = CompletionCacheMismatch {
-            shell: CompletionShell::Fish,
-            cached_path: PathBuf::from("/upstream/cache/completions/rg/rg.fish"),
-            installed_path: PathBuf::from("/fish/completions/rg.fish"),
-            kind: CompletionCacheMismatchKind::Different,
-        };
-
-        let message = completion_cache_mismatch_message("rg", &mismatch);
-
-        assert!(message.contains("package 'rg'"));
-        assert!(message.contains("cached fish completion differs"));
-        assert!(message.contains("/fish/completions/rg.fish"));
-        assert!(message.contains("/upstream/cache/completions/rg/rg.fish"));
-    }
 }

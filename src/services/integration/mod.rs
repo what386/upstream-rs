@@ -4,9 +4,7 @@ mod icon_manager;
 mod shell_manager;
 mod symlink_manager;
 
-pub use completion_manager::{
-    CompletionCacheMismatch, CompletionCacheMismatchKind, CompletionManager, CompletionShell,
-};
+pub use completion_manager::{CompletionManager, CompletionShell};
 pub use desktop_manager::DesktopManager;
 pub use icon_manager::IconManager;
 pub use shell_manager::ShellManager;
