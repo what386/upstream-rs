@@ -161,7 +161,8 @@ Pinning prevents upgrades. Renaming changes the local alias without reinstalling
 ## Information Commands
 
 ```bash
-upstream list [name] [--json]
+upstream list [filter] [--json]
+upstream info <query> [--json]
 upstream changelog <name> [--from <tag|current|latest>] [--to <tag|current|latest>]
 upstream docs <name> [--offline] [keywords...]
 upstream docs --fetch [names...]
@@ -172,7 +173,8 @@ upstream doctor [names...] [--verbose] [--fix]
 upstream doctor --migrate
 ```
 
-- `list` shows installed package metadata.
+- `list` shows installed packages. Provide `[filter]` to show only package names that contain that string.
+- `info` shows detailed metadata for one installed package. The query can be an exact package name or a unique substring.
 - `changelog` shows release notes for installed packages. `--from` and `--to` accept release tags plus `current` for the installed version and `latest` for the tracked latest release. If `glow` is installed, changelog Markdown is rendered with glow's terminal styling.
 - `docs` fetches an installed package's upstream README, caches it under upstream's cache directory, parses Markdown sections, and opens ranked keyword matches in an interactive picker. If no keywords are provided, sections are shown in README order. If `glow` is installed, previews and selected sections use glow's terminal Markdown styling. If fetching fails and a cached README exists, upstream falls back to the cached copy. Use `--offline` to search only cached documentation. Use `--fetch [names...]` to refresh cached READMEs without opening the picker; omitting names refreshes all installed packages.
 - `search` searches provider repositories for software discovery. Use filters like `--language Rust`, `--topic cli`, `--min-stars 100`, `--max-stars 50000`, `--pushed-after 2026-01-01`, `--include-forks`, and `--include-archived` to narrow results.

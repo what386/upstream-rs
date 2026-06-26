@@ -129,6 +129,12 @@ List installed packages:
 upstream list
 ```
 
+Show details for an installed package:
+
+```bash
+upstream info rg
+```
+
 Remove a package:
 
 ```bash

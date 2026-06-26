@@ -126,7 +126,9 @@ impl Cli {
                 .await
             }
 
-            Commands::List { name, json } => commands::list::run(name, json),
+            Commands::List { filter, json } => commands::list::run(filter, json),
+
+            Commands::Info { query, json } => commands::info::run(query, json),
 
             Commands::Changelog {
                 name,

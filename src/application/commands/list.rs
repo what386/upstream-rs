@@ -5,62 +5,67 @@ use crate::{
     storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use console::Term;
 use std::{fmt::Write as _, path::Path};
 
-pub fn run(package_name: Option<String>, json: bool) -> Result<()> {
+pub fn run(filter: Option<String>, json: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
 
     if json {
-        return match package_name {
-            Some(name) => print_single_json(&package_database, &name),
-            None => print_all_json(&package_database),
-        };
+        return print_list_json(&package_database, filter.as_deref());
     }
 
-    match package_name {
-        Some(name) => display_single_package(&package_database, &name),
-        None => display_all_packages(&package_database),
-    }
+    display_package_list(&package_database, filter.as_deref())
 }
 
-fn print_single_json(storage: &PackageDatabase, name: &str) -> Result<()> {
-    let package = storage
-        .get_package(name)?
-        .ok_or_else(|| anyhow!("Package '{}' is not installed.", name))?;
-    println!("{}", serde_json::to_string_pretty(&package)?);
-    Ok(())
-}
-
-fn print_all_json(storage: &PackageDatabase) -> Result<()> {
+fn print_list_json(storage: &PackageDatabase, filter: Option<&str>) -> Result<()> {
     let packages = storage.list_packages()?;
+    let packages = filter_packages_by_name(packages, filter);
     println!("{}", serde_json::to_string_pretty(&packages)?);
     Ok(())
 }
 
-fn display_single_package(storage: &PackageDatabase, name: &str) -> Result<()> {
-    let package = storage
-        .get_package(name)?
-        .ok_or_else(|| anyhow!("Package '{}' is not installed.", name))?;
-
-    pager::page_text(None, &format_package_details(&package))?;
-    Ok(())
-}
-
-fn display_all_packages(storage: &PackageDatabase) -> Result<()> {
-    let mut packages = storage.list_packages()?;
-    packages.sort_by_key(|p| p.name.to_lowercase());
+fn display_package_list(storage: &PackageDatabase, filter: Option<&str>) -> Result<()> {
+    let packages = storage.list_packages()?;
+    let mut packages = filter_packages_by_name(packages, filter);
 
     if packages.is_empty() {
-        println!("{}", output::warning("No packages installed."));
+        match filter {
+            Some(filter) => println!(
+                "{}",
+                output::warning(format!("No installed packages match '{}'.", filter))
+            ),
+            None => println!("{}", output::warning("No packages installed.")),
+        }
         return Ok(());
     }
 
-    let title = format!("Packages ({})  Flags: D=desktop, P=pinned", packages.len());
+    packages.sort_by_key(|p| p.name.to_lowercase());
+
+    let title = match filter {
+        Some(filter) => format!(
+            "Packages matching '{}' ({})  Flags: D=desktop, P=pinned",
+            filter,
+            packages.len()
+        ),
+        None => format!("Packages ({})  Flags: D=desktop, P=pinned", packages.len()),
+    };
     pager::page_text(Some(&title), &format_package_table(&packages))?;
     Ok(())
+}
+
+fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Vec<Package> {
+    let Some(filter) = filter else {
+        return packages;
+    };
+    let filter = filter.to_lowercase();
+
+    packages
+        .into_iter()
+        .filter(|package| package.name.to_lowercase().contains(&filter))
+        .collect()
 }
 
 fn shorten_home_path(path: &str) -> String {
@@ -90,105 +95,6 @@ fn format_path(path: Option<&std::path::PathBuf>, default: &str) -> String {
             .unwrap_or_else(|| shorten_home_path(&p.display().to_string()))
     })
     .unwrap_or_else(|| default.to_string())
-}
-
-fn write_detail_field(out: &mut String, label: &str, value: impl AsRef<str>) {
-    writeln!(out, "{label:<10} {}", value.as_ref()).expect("write package detail field");
-}
-
-fn package_detail_heading(package: &Package) -> String {
-    format!(
-        "{} {} ({})",
-        package.name,
-        package_ref_label(package),
-        package.repo_slug
-    )
-}
-
-fn format_package_details(package: &Package) -> String {
-    let mut out = String::new();
-    let heading = package_detail_heading(package);
-
-    writeln!(out, "{heading}").expect("write package heading");
-    writeln!(out, "{}", output::divider(heading.chars().count())).expect("write package divider");
-    write_detail_field(&mut out, "Provider", package.provider.to_string());
-    write_detail_field(
-        &mut out,
-        "Channel",
-        package.channel.to_string().to_ascii_lowercase(),
-    );
-    write_detail_field(&mut out, "Kind", package_kind_label(package));
-    write_detail_field(
-        &mut out,
-        "Updated",
-        package
-            .last_upgraded
-            .format("%Y-%m-%d %H:%M UTC")
-            .to_string(),
-    );
-
-    if let Some(base_url) = package.base_url.as_deref() {
-        write_detail_field(&mut out, "Base URL", base_url);
-    }
-
-    if matches!(package.install_type, InstallType::Build)
-        || package.build_branch.is_some()
-        || package.build_commit.is_some()
-    {
-        out.push('\n');
-        writeln!(out, "Build").expect("write build section");
-        if let Some(branch) = package.build_branch.as_deref() {
-            write_detail_field(&mut out, "Branch", branch);
-        }
-        if let Some(commit) = package.build_commit.as_deref() {
-            write_detail_field(&mut out, "Commit", commit);
-        }
-    }
-
-    out.push('\n');
-    writeln!(out, "Install").expect("write install section");
-    write_detail_field(
-        &mut out,
-        "Type",
-        format!("{:?}", package.filetype).to_ascii_lowercase(),
-    );
-    write_detail_field(
-        &mut out,
-        "Path",
-        format_path(package.install_path.as_ref(), "-"),
-    );
-    write_detail_field(
-        &mut out,
-        "Command",
-        format_path(package.exec_path.as_ref(), "-"),
-    );
-    write_detail_field(
-        &mut out,
-        "Desktop",
-        if package.icon_path.is_some() {
-            "yes"
-        } else {
-            "no"
-        },
-    );
-    write_detail_field(
-        &mut out,
-        "Pinned",
-        if package.is_pinned { "yes" } else { "no" },
-    );
-
-    if !package.match_pattern.is_empty() || !package.exclude_pattern.is_empty() {
-        out.push('\n');
-        writeln!(out, "Selection").expect("write selection section");
-        if !package.match_pattern.is_empty() {
-            write_detail_field(&mut out, "Match", package.match_pattern.to_string());
-        }
-        if !package.exclude_pattern.is_empty() {
-            write_detail_field(&mut out, "Exclude", package.exclude_pattern.to_string());
-        }
-    }
-
-    out
 }
 
 fn short_commit(commit: &str) -> String {
@@ -396,4 +302,44 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
         path = widths.path
     )
     .expect("write package row");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::filter_packages_by_name;
+    use crate::models::common::enums::{Channel, Filetype, Provider};
+    use crate::models::upstream::Package;
+
+    fn package(name: &str) -> Package {
+        Package::with_defaults(
+            name.to_string(),
+            format!("owner/{name}"),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        )
+    }
+
+    #[test]
+    fn package_list_filter_keeps_name_substring_matches() {
+        let packages = vec![package("codex"), package("ripgrep"), package("vscode")];
+        let filtered = filter_packages_by_name(packages, Some("code"));
+        let names = filtered
+            .iter()
+            .map(|package| package.name.as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(names, vec!["codex", "vscode"]);
+    }
+
+    #[test]
+    fn package_list_filter_none_keeps_all_packages() {
+        let packages = vec![package("codex"), package("ripgrep")];
+        let filtered = filter_packages_by_name(packages, None);
+
+        assert_eq!(filtered.len(), 2);
+    }
 }
