@@ -12,12 +12,40 @@ use crate::{
     providers::provider_manager::ProviderManager,
 };
 
-pub async fn run(name: String, from_tag: Option<String>, to_tag: Option<String>) -> Result<()> {
+pub async fn run(
+    name: String,
+    from_tag: Option<String>,
+    to_tag: Option<String>,
+    for_tag: Option<String>,
+) -> Result<()> {
     let context = CommandContext::new()?;
     let package_database = context.package_database()?;
     let package = package_database
         .get_package(&name)?
         .ok_or_else(|| anyhow!("Package '{}' is not installed", name))?;
+
+    if let Some(tag) = for_tag {
+        let release = context
+            .provider_manager
+            .get_release_by_tag(
+                &package.repo_slug,
+                &tag,
+                &package.provider,
+                package.base_url.as_deref(),
+            )
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to fetch release '{}' for '{}'",
+                    tag, package.repo_slug
+                )
+            })?;
+        let changelog = changelog_text_for_release(&package, &release);
+        let renderer = output::MarkdownRenderer::for_terminal();
+        let changelog = renderer.render(&changelog);
+        pager::page_text(Some(&format!("Changelog: {}", package.name)), &changelog)?;
+        return Ok(());
+    }
 
     let from_version = match from_tag.as_deref() {
         Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Current) => {
@@ -239,6 +267,32 @@ pub fn changelog_text_from_releases(
     Some(changelog)
 }
 
+pub fn changelog_text_for_release(package: &Package, release: &Release) -> String {
+    let mut changelog = String::new();
+    changelog.push_str(&format!(
+        "  Release:      {} ({})\n",
+        release.version, release.tag
+    ));
+    changelog.push_str(&format!(
+        "  Source:       {} ({})\n",
+        package.repo_slug, package.provider
+    ));
+    changelog.push_str(&format!("  Channel:      {}\n\n", package.channel));
+    changelog.push_str(&format!("## {}\n", release_heading(release)));
+    changelog.push_str(&format!(
+        "tag {} - published {}\n\n",
+        release.tag,
+        release.published_at.format("%Y-%m-%d")
+    ));
+    if release.body.trim().is_empty() {
+        changelog.push_str("(no release notes)\n");
+    } else {
+        changelog.push_str(release.body.trim());
+        changelog.push('\n');
+    }
+    changelog
+}
+
 fn select_changelog_releases(
     releases: Vec<Release>,
     package: &Package,
@@ -288,8 +342,8 @@ fn release_heading(release: &Release) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        ChangelogEndpoint, current_package_release, explicit_to_endpoint, is_changelog_endpoint,
-        select_changelog_releases,
+        ChangelogEndpoint, changelog_text_for_release, current_package_release,
+        explicit_to_endpoint, is_changelog_endpoint, select_changelog_releases,
     };
     use crate::models::{
         common::{
@@ -411,5 +465,19 @@ mod tests {
         assert_eq!(release.version, package.version);
         assert_eq!(release.tag, package.version.to_string());
         assert_eq!(release.published_at, package.last_upgraded);
+    }
+
+    #[test]
+    fn changelog_text_for_release_renders_one_tag() {
+        let package = package(Channel::Stable);
+        let release = release("v1.2.3", false);
+
+        let changelog = changelog_text_for_release(&package, &release);
+
+        assert!(changelog.contains("Release:      1.2.3 (v1.2.3)"));
+        assert!(changelog.contains("Source:       owner/tool (github)"));
+        assert!(changelog.contains("## v1.2.3"));
+        assert!(changelog.contains("notes for v1.2.3"));
+        assert!(!changelog.contains("Range:"));
     }
 }

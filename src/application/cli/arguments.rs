@@ -325,12 +325,14 @@ pub enum Commands {
     /// Show upstream release notes for an installed package
     #[command(long_about = "Show release notes for an installed package.\n\n\
         By default, prints release bodies newer than the installed version up to \
-        the latest release for the package's tracked channel. Use --from and --to \
+        the latest release for the package's tracked channel. Use --for to show \
+        release notes for one tag, or use --from and --to \
         to override the range endpoints by release tag, or use current/latest for \
         the installed or tracked latest release. If glow is installed, changelog \
         Markdown is rendered with glow's terminal styling.\n\n\
         EXAMPLES:\n  \
         upstream changelog nvim\n  \
+        upstream changelog nvim --for v0.11.0\n  \
         upstream changelog nvim --from current --to latest\n  \
         upstream changelog nvim --from v0.10.0\n  \
         upstream changelog nvim --from v0.10.0 --to v0.11.0")]
@@ -339,12 +341,16 @@ pub enum Commands {
         name: String,
 
         /// Override the starting release tag
-        #[arg(long = "from")]
+        #[arg(long = "from", conflicts_with = "for_tag")]
         from_tag: Option<String>,
 
         /// Override the ending release tag
-        #[arg(long = "to")]
+        #[arg(long = "to", conflicts_with = "for_tag")]
         to_tag: Option<String>,
+
+        /// Show release notes for one release tag
+        #[arg(long = "for", conflicts_with_all = ["from_tag", "to_tag"])]
+        for_tag: Option<String>,
     },
 
     /// Search package README documentation
