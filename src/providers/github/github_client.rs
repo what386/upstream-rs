@@ -297,27 +297,8 @@ mod tests {
 
     #[test]
     fn github_release_dto_accepts_nullable_string_fields() {
-        let json = r#"
-        {
-          "id": 1,
-          "tag_name": "v1.0.0",
-          "name": null,
-          "body": null,
-          "prerelease": false,
-          "draft": false,
-          "published_at": null,
-          "assets": [
-            {
-              "id": 42,
-              "name": "tree-sitter-linux.tar.gz",
-              "browser_download_url": "https://example.com/asset.tar.gz",
-              "size": 1234,
-              "content_type": null,
-              "created_at": null
-            }
-          ]
-        }
-        "#;
+        let json =
+            include_str!("../../../tests/fixtures/providers/github/release-nullable-fields.json");
 
         let parsed = serde_json::from_str::<GithubReleaseDto>(json).expect("valid release JSON");
         assert_eq!(parsed.name, "");
@@ -329,22 +310,8 @@ mod tests {
 
     #[test]
     fn github_search_dto_accepts_nullable_string_fields() {
-        let json = r#"
-        {
-          "items": [
-            {
-              "full_name": "BurntSushi/ripgrep",
-              "name": "ripgrep",
-              "description": null,
-              "stargazers_count": 10,
-              "language": null,
-              "updated_at": null,
-              "archived": false,
-              "fork": false
-            }
-          ]
-        }
-        "#;
+        let json =
+            include_str!("../../../tests/fixtures/providers/github/search-nullable-fields.json");
 
         let parsed = serde_json::from_str::<GithubRepositorySearchResponseDto>(json)
             .expect("valid search JSON");

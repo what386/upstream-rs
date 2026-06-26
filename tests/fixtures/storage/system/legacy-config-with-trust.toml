@@ -1,0 +1,6 @@
+[github]
+api_token = "ghp_abc"
+
+[trust]
+minisign_public_keys = [{ id = "mini", key = "RWabc" }]
+cosign_public_keys = [{ id = "cosign", key = "-----BEGIN PUBLIC KEY-----\nkey\n-----END PUBLIC KEY-----" }]

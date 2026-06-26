@@ -581,23 +581,7 @@ mod tests {
 
         fs::write(
             &desktop_file,
-            r#"
-    Name=ignored-outside-section
-    [Desktop Entry]
-    Name=KDE Connect
-    Name[fr]=KDEConnect
-    GenericName=Device Synchronization
-    Comment=Make all your devices one
-    Exec=kdeconnect-app
-    Icon=kdeconnect
-    Type=Application
-    Terminal=false
-    Categories=Qt;KDE;Network
-    X-AppImage-Name=KDE_Connect
-
-    [Desktop Action New]
-    Name=ignored-action
-    "#,
+            include_str!("../../../tests/fixtures/integration/desktop/preserved-fields.desktop"),
         )
         .expect("write desktop file");
 

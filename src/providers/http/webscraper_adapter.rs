@@ -374,13 +374,9 @@ mod tests {
 
     #[tokio::test]
     async fn get_latest_release_selects_assets_for_latest_detected_version() {
-        let html = r#"
-                <html><body>
-                    <a href="/tool-v1.9.0-linux.tar.gz">old</a>
-                    <a href="/tool-v1.10.0-linux.tar.gz">new</a>
-                    <a href="/tool-v1.10.0-linux.sha256">checksum</a>
-                </body></html>
-            "#
+        let html = include_str!(
+            "../../../tests/fixtures/providers/http/snippets/latest-version-links.html"
+        )
         .to_string();
         let html_len = html.len().to_string();
         let html_for_server = html.clone();
@@ -465,12 +461,9 @@ mod tests {
 
     #[tokio::test]
     async fn get_latest_release_uses_html_last_modified_for_unversioned_links() {
-        let html = r#"
-                <html><body>
-                    <a href="/tool-release.zip">download</a>
-                </body></html>
-            "#
-        .to_string();
+        let html =
+            include_str!("../../../tests/fixtures/providers/http/snippets/unversioned-link.html")
+                .to_string();
         let html_len = html.len().to_string();
         let html_for_server = html.clone();
         let server = spawn_test_server(2, move |method, path| match (method, path) {
