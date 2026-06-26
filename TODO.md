@@ -8,18 +8,3 @@
 - [ ] feat: consider bulk installs with `upstream install REPO=NAME REPO=NAME`
       @created 2026-06-21 15:25
 
-
-## Completed
-
-- [x] bug: fix issue where version tags like 'rust-v1.2.3' would be reconstructed as 'v1.2.3'. now uses a template system.
-      @created 2026-06-26 16:48
-      @completed 2026-06-26 16:48
-
-- [x] behavior: remove completion file caching
-      @created 2026-06-26 17:09
-      @completed 2026-06-26 17:11
-
-- [x] behavior: doctor fix no longer shows normal doctor path
-      @created 2026-06-26 17:09
-      @completed 2026-06-26 17:19
-
