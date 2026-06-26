@@ -1,8 +1,6 @@
 use crate::models::common::enums::CompressionLevel;
 use serde::{Deserialize, Serialize};
 
-pub const CONFIG_STORAGE_VERSION: u32 = 2;
-
 const MB: u64 = 1024 * 1024;
 
 const LOW_PARALLEL_DOWNLOAD_SIZE_MB: u64 = 16;
@@ -26,7 +24,7 @@ pub struct RollbackConfig {
 impl Default for RollbackConfig {
     fn default() -> Self {
         Self {
-            compression_level: CompressionLevel::High,
+            compression_level: CompressionLevel::Low,
             stored_artifacts: 1,
         }
     }
@@ -65,7 +63,6 @@ impl DownloadConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AppConfig {
-    pub version: u32,
     pub github: ProviderConfig,
     pub gitlab: ProviderConfig,
     pub gitea: ProviderConfig,
@@ -76,7 +73,6 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            version: CONFIG_STORAGE_VERSION,
             github: ProviderConfig::default(),
             gitlab: ProviderConfig::default(),
             gitea: ProviderConfig::default(),

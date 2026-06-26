@@ -18,6 +18,7 @@ $HOME/.config/upstream/config.toml
 upstream config list
 upstream config get github.api_token
 upstream config set github.api_token=ghp_xxx
+upstream config verify
 upstream config edit
 upstream config reset
 ```
@@ -35,11 +36,12 @@ upstream config set github.api_token=ghp_xxx
 upstream config set rollback.compression_level=high rollback.stored_artifacts=2
 ```
 
+Use `config verify` to check `config.toml` for missing keys that will use defaults and unused keys that are no longer read by upstream.
+
 ## Config Keys
 
 | Key | Type | Default | Purpose |
 | --- | --- | --- | --- |
-| `version` | integer | `2` | Config file schema version |
 | `github.api_token` | string | unset | GitHub API token |
 | `gitlab.api_token` | string | unset | GitLab API token |
 | `gitea.api_token` | string | unset | Gitea API token |
@@ -184,4 +186,4 @@ Do not hand-edit these files unless you are repairing a known issue. Use `packag
 
 ## Editing Safely
 
-Use `upstream config edit` for manual config changes. Use `upstream doctor` after manual repairs to check paths and metadata consistency.
+Use `upstream config edit` for manual config changes, then run `upstream config verify` to check for stale or missing configuration keys. Use `upstream doctor` after manual repairs to check paths and metadata consistency.

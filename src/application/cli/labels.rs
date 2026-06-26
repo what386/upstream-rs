@@ -43,6 +43,7 @@ impl fmt::Display for ConfigAction {
             ConfigAction::Set { .. } => write!(f, "config set"),
             ConfigAction::Get { .. } => write!(f, "config get"),
             ConfigAction::List => write!(f, "config list"),
+            ConfigAction::Verify => write!(f, "config verify"),
             ConfigAction::Edit => write!(f, "config edit"),
             ConfigAction::Reset => write!(f, "config reset"),
         }

@@ -615,6 +615,7 @@ pub enum Commands {
         upstream config set github.api_token=ghp_xxx\n  \
         upstream config get download.high_threads\n  \
         upstream config list\n  \
+        upstream config verify\n  \
         upstream config edit")]
     Config {
         #[command(subcommand)]
@@ -742,9 +743,10 @@ impl Commands {
             Commands::Rollback { list: true, .. } => false,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
             Commands::Package { .. } => true,
-            Commands::Config { action } => {
-                !matches!(action, ConfigAction::Get { .. } | ConfigAction::List)
-            }
+            Commands::Config { action } => !matches!(
+                action,
+                ConfigAction::Get { .. } | ConfigAction::List | ConfigAction::Verify
+            ),
             Commands::Install { .. }
             | Commands::Build { .. }
             | Commands::Remove { .. }
@@ -936,6 +938,9 @@ pub enum ConfigAction {
 
     /// List all configuration keys
     List,
+
+    /// Check config.toml for missing or unused keys
+    Verify,
 
     /// Open configuration file in your default editor
     Edit,

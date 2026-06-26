@@ -98,6 +98,50 @@ pub fn run_list() -> Result<()> {
     Ok(())
 }
 
+pub fn run_verify() -> Result<()> {
+    let paths = UpstreamPaths::new()?;
+    let verification = ConfigStorage::verify_file(&paths.config.config_file)?;
+
+    println!("{}", output::title("Config verify"));
+    output::action_note(format!("Path: {}", paths.config.config_file.display()));
+
+    if !verification.config_file_exists {
+        output::status_line(
+            Status::Warn,
+            "config",
+            "file missing; defaults will be used",
+        );
+    }
+
+    if verification.missing_keys.is_empty() {
+        output::status_line(Status::Ok, "missing", "none");
+    } else {
+        for key in &verification.missing_keys {
+            output::status_line(Status::Warn, key, "missing; default value will be used");
+        }
+    }
+
+    if verification.unused_keys.is_empty() {
+        output::status_line(Status::Ok, "unused", "none");
+    } else {
+        for key in &verification.unused_keys {
+            output::status_line(Status::Fail, key, "unused by this version of upstream");
+        }
+        return Err(anyhow!(
+            "Configuration contains {} unused key(s)",
+            verification.unused_keys.len()
+        ));
+    }
+
+    if verification.has_issues() {
+        println!("{}", output::warning("Configuration has warnings."));
+    } else {
+        println!("{}", output::success("Configuration is valid."));
+    }
+
+    Ok(())
+}
+
 pub fn run_reset() -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;

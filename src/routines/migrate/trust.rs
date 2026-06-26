@@ -3,7 +3,6 @@ use std::fs;
 use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 
-use crate::models::upstream::app_config::CONFIG_STORAGE_VERSION;
 use crate::routines::migrate::MigrationReport;
 use crate::services::trust::{CosignPublicKey, MinisignPublicKey};
 use crate::storage::system::trust::TrustStorage;
@@ -68,14 +67,7 @@ pub(in crate::routines::migrate) fn migrate_trust_config(
         trust_storage.ensure_exists()?;
     }
 
-    let version = config_table
-        .get("version")
-        .and_then(toml::Value::as_integer);
-    if version != Some(i64::from(CONFIG_STORAGE_VERSION)) {
-        config_table.insert(
-            "version".to_string(),
-            toml::Value::Integer(i64::from(CONFIG_STORAGE_VERSION)),
-        );
+    if config_table.remove("version").is_some() {
         changed_config = true;
     }
 
