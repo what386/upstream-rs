@@ -8,12 +8,18 @@ use crate::models::upstream::Package;
 use crate::providers::pattern_matcher::{
     GeneratedAssetPatterns, generate_patterns_for_asset, pattern_match_ratio,
 };
+use crate::utils::math::median_sorted;
 use crate::utils::platform::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
 
 #[derive(Debug, Clone)]
 pub struct AssetCandidate {
     pub asset: Asset,
     pub score: i32,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct AssetSizeProfile {
+    median: u64,
 }
 
 pub struct AssetSelector {
@@ -40,10 +46,11 @@ impl AssetSelector {
             .filter(|a| self.is_potentially_compatible(a))
             .filter(|a| a.filetype == target_filetype)
             .collect();
+        let size_profile = AssetSizeProfile::from_assets(compatible_assets.iter().copied());
 
         compatible_assets
             .into_iter()
-            .max_by_key(|a| self.score_asset(a, package))
+            .max_by_key(|a| self.score_asset(a, package, size_profile.as_ref()))
             .cloned()
             .ok_or_else(|| {
                 anyhow!(
@@ -65,14 +72,19 @@ impl AssetSelector {
             package.filetype
         };
 
-        let mut candidates: Vec<AssetCandidate> = release
+        let compatible_assets: Vec<&Asset> = release
             .assets
             .iter()
             .filter(|a| self.is_potentially_compatible(a))
             .filter(|a| a.filetype == target_filetype)
+            .collect();
+        let size_profile = AssetSizeProfile::from_assets(compatible_assets.iter().copied());
+
+        let mut candidates: Vec<AssetCandidate> = compatible_assets
+            .into_iter()
             .map(|asset| AssetCandidate {
                 asset: asset.clone(),
-                score: self.score_asset(asset, package),
+                score: self.score_asset(asset, package, size_profile.as_ref()),
             })
             .collect();
 
@@ -91,14 +103,19 @@ impl AssetSelector {
             vec![package.filetype]
         };
 
-        let mut candidates: Vec<AssetCandidate> = release
+        let compatible_assets: Vec<&Asset> = release
             .assets
             .iter()
             .filter(|a| self.is_potentially_compatible(a))
             .filter(|a| target_filetypes.contains(&a.filetype))
+            .collect();
+        let size_profile = AssetSizeProfile::from_assets(compatible_assets.iter().copied());
+
+        let mut candidates: Vec<AssetCandidate> = compatible_assets
+            .into_iter()
             .map(|asset| AssetCandidate {
                 asset: asset.clone(),
-                score: self.score_asset(asset, package),
+                score: self.score_asset(asset, package, size_profile.as_ref()),
             })
             .collect();
 
@@ -169,7 +186,12 @@ impl AssetSelector {
         true
     }
 
-    fn score_asset(&self, asset: &Asset, package: &Package) -> i32 {
+    fn score_asset(
+        &self,
+        asset: &Asset,
+        package: &Package,
+        size_profile: Option<&AssetSizeProfile>,
+    ) -> i32 {
         let name = asset.name.to_lowercase();
         let mut score = 0;
 
@@ -223,6 +245,10 @@ impl AssetSelector {
             score -= 20;
         }
 
+        if size_profile.is_some_and(|profile| profile.is_outside_expected_range(asset.size)) {
+            score -= 20;
+        }
+
         if !package.match_pattern.is_empty() {
             score += (pattern_match_ratio(&name, &package.match_pattern) * 100.0).round() as i32;
         }
@@ -241,6 +267,50 @@ impl AssetSelector {
         package_name: &str,
     ) -> GeneratedAssetPatterns {
         generate_patterns_for_asset(selected, release_assets, package_name)
+    }
+}
+
+impl AssetSizeProfile {
+    const OUTLIER_FACTOR: u64 = 10;
+    const EXPECTED_RANGE_FACTOR: u64 = 2;
+
+    fn from_assets<'a>(assets: impl IntoIterator<Item = &'a Asset>) -> Option<Self> {
+        let mut sizes: Vec<u64> = assets
+            .into_iter()
+            .map(|asset| asset.size)
+            .filter(|size| *size > 0)
+            .collect();
+        if sizes.is_empty() {
+            return None;
+        }
+
+        sizes.sort_unstable();
+        let raw_median = median_sorted(&sizes)?;
+        let lower_bound = raw_median.div_ceil(Self::OUTLIER_FACTOR);
+        let upper_bound = raw_median.saturating_mul(Self::OUTLIER_FACTOR);
+        let trimmed: Vec<u64> = sizes
+            .iter()
+            .copied()
+            .filter(|size| *size >= lower_bound && *size <= upper_bound)
+            .collect();
+
+        let median = if trimmed.is_empty() {
+            raw_median
+        } else {
+            median_sorted(&trimmed)?
+        };
+
+        Some(Self { median })
+    }
+
+    fn is_outside_expected_range(&self, size: u64) -> bool {
+        if size == 0 || self.median == 0 {
+            return false;
+        }
+
+        let lower_bound = self.median.div_ceil(Self::EXPECTED_RANGE_FACTOR);
+        let upper_bound = self.median.saturating_mul(Self::EXPECTED_RANGE_FACTOR);
+        size < lower_bound || size > upper_bound
     }
 }
 
@@ -444,6 +514,66 @@ mod tests {
         assert_eq!(candidates.len(), 2);
         assert_eq!(candidates[0].asset.name, "tool-static.tar.bz2");
         assert!(candidates[0].score > candidates[1].score);
+    }
+
+    #[test]
+    fn get_candidate_assets_penalizes_sizes_far_from_trimmed_median() {
+        let selector = AssetSelector::new();
+        let package = make_package(Filetype::Archive);
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/tool-normal.tar.gz".to_string(),
+                    1,
+                    "tool-normal.tar.gz".to_string(),
+                    10_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-peer.tar.gz".to_string(),
+                    2,
+                    "tool-peer.tar.gz".to_string(),
+                    11_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-large.tar.gz".to_string(),
+                    3,
+                    "tool-large.tar.gz".to_string(),
+                    25_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-huge.tar.gz".to_string(),
+                    4,
+                    "tool-huge.tar.gz".to_string(),
+                    600_000_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let candidates = selector
+            .get_candidate_assets(&release, &package)
+            .expect("candidates");
+        let score_for = |name: &str| {
+            candidates
+                .iter()
+                .find(|candidate| candidate.asset.name == name)
+                .map(|candidate| candidate.score)
+                .expect("candidate score")
+        };
+
+        assert_eq!(
+            score_for("tool-large.tar.gz"),
+            score_for("tool-normal.tar.gz") - 20
+        );
+        assert_eq!(
+            score_for("tool-huge.tar.gz"),
+            score_for("tool-normal.tar.gz") - 40
+        );
     }
 
     #[test]
