@@ -356,8 +356,10 @@ mod tests {
         assert_eq!(report.migrated_trusted_keys, 2);
         let migrated_config =
             fs::read_to_string(&paths.config.config_file).expect("read migrated config");
-        assert!(!migrated_config.contains("version ="));
-        assert!(!migrated_config.contains("[trust]"));
+        assert_eq!(
+            migrated_config,
+            include_str!("../../../tests/fixtures/storage/legacy-config-with-trust.toml")
+        );
 
         let trust_json: serde_json::Value = serde_json::from_slice(
             &fs::read(&paths.config.trust_file).expect("read trust storage"),

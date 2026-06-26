@@ -9,7 +9,7 @@ upstream doctor --fix
 upstream doctor --migrate
 ```
 
-`doctor` checks installed package paths, symlinks, shell hooks, completion directories, desktop entries, icons, and metadata. Use `--verbose` when you need individual check lines. Use `--fix` to repair supported issues such as PATH hooks, missing symlinks, executable bits, and executable metadata. Use `--migrate` when local data needs a versioned layout or metadata migration.
+`doctor` checks installed package paths, symlinks, shell hooks, completion directories, desktop entries, icons, config, and metadata. Use `--verbose` when you need individual check lines. Use `--fix` to repair supported issues such as PATH hooks, missing symlinks, executable bits, executable metadata, and unused config keys. Use `--migrate` when local data needs a versioned layout or metadata migration.
 
 ## Migration
 

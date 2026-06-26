@@ -103,11 +103,7 @@ impl ConfigStorage {
             format!("Failed to save config to '{}'", self.config_file.display())
         })?;
 
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&self.config_file, fs::Permissions::from_mode(0o600))?;
-        }
+        set_config_permissions(&self.config_file)?;
 
         Ok(())
     }
@@ -229,6 +225,30 @@ impl ConfigStorage {
         })
     }
 
+    pub fn remove_unused_keys(config_file: &Path) -> Result<Vec<String>> {
+        if !config_file.exists() {
+            return Ok(Vec::new());
+        }
+
+        let verification = Self::verify_file(config_file)?;
+        if verification.unused_keys.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let toml_str = fs::read_to_string(config_file).context("Failed to load config file")?;
+        let mut value: toml::Value =
+            toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
+        remove_unused_config_paths(&mut value, "");
+
+        let rendered =
+            toml::to_string_pretty(&value).context("Failed to serialize cleaned config")?;
+        write_atomic(config_file, rendered.as_bytes())
+            .with_context(|| format!("Failed to save config to '{}'", config_file.display()))?;
+        set_config_permissions(config_file)?;
+
+        Ok(verification.unused_keys)
+    }
+
     /// Resets all configuration to defaults.
     pub fn reset_to_defaults(&mut self) -> Result<()> {
         self.config = AppConfig::default();
@@ -294,6 +314,16 @@ impl ConfigStorage {
 
 fn public_config_value(config: &AppConfig) -> Result<toml::Value> {
     toml::Value::try_from(config).context("Failed to serialize config")
+}
+
+fn set_config_permissions(config_file: &Path) -> Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(config_file, fs::Permissions::from_mode(0o600))?;
+    }
+
+    Ok(())
 }
 
 fn collect_config_paths(

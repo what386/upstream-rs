@@ -6,7 +6,6 @@ use serde::Deserialize;
 use crate::routines::migrate::MigrationReport;
 use crate::services::trust::{CosignPublicKey, MinisignPublicKey};
 use crate::storage::system::trust::TrustStorage;
-use crate::utils::filesystem::atomic_ops::write_atomic;
 use crate::utils::static_paths::UpstreamPaths;
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -38,22 +37,22 @@ pub(in crate::routines::migrate) fn migrate_trust_config(
         return Ok(());
     }
 
-    let mut config_value: toml::Value = toml::from_str(&raw_config).with_context(|| {
+    let config_value: toml::Value = toml::from_str(&raw_config).with_context(|| {
         format!(
             "Failed to parse config '{}'",
             paths.config.config_file.display()
         )
     })?;
-    let config_table = config_value.as_table_mut().ok_or_else(|| {
+    let config_table = config_value.as_table().ok_or_else(|| {
         anyhow!(
             "Config '{}' must be a TOML table",
             paths.config.config_file.display()
         )
     })?;
 
-    let mut changed_config = false;
-    if let Some(trust_value) = config_table.remove("trust") {
+    if let Some(trust_value) = config_table.get("trust") {
         let legacy_trust: LegacyTrustConfig = trust_value
+            .clone()
             .try_into()
             .context("Failed to parse legacy config trust keys")?;
         let summary = trust_storage.merge_trusted_keys(
@@ -62,24 +61,8 @@ pub(in crate::routines::migrate) fn migrate_trust_config(
         )?;
         report.migrated_trusted_keys += summary.minisign.imported + summary.cosign.imported;
         report.deduped_trusted_keys += summary.minisign.deduped + summary.cosign.deduped;
-        changed_config = true;
     } else {
         trust_storage.ensure_exists()?;
-    }
-
-    if config_table.remove("version").is_some() {
-        changed_config = true;
-    }
-
-    if changed_config {
-        let rendered =
-            toml::to_string_pretty(&config_value).context("Failed to serialize migrated config")?;
-        write_atomic(&paths.config.config_file, rendered.as_bytes()).with_context(|| {
-            format!(
-                "Failed to write migrated config '{}'",
-                paths.config.config_file.display()
-            )
-        })?;
     }
 
     Ok(())
