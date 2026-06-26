@@ -11,6 +11,9 @@
 - [ ] feat: interactive config editor
       @created 2026-06-26 19:45
 
+- [ ] feat: split list and info. allow substring matching on both
+      @created 2026-06-26 19:54
+
 
 ## Completed
 
