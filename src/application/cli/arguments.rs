@@ -688,7 +688,7 @@ pub enum Commands {
         Reports a compact summary by default and includes actionable hints. \
         Use --verbose to print each individual check result. Use --fix to repair \
         supported issues such as PATH hooks, missing symlinks, executable bits, \
-        and executable metadata. Use --migrate after \
+        executable metadata, and unused config keys. Use --migrate after \
         upgrading across breaking local data changes when diagnostics or release notes \
         ask for a data migration.\n\n\
         EXAMPLES:\n  \

@@ -10,7 +10,7 @@ pub async fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
     let mut report = DoctorReport::new();
     checks::check_local_layout(&paths, &mut report);
     checks::check_completion_directories(&paths, &mut report);
-    let app_config = checks::load_app_config(&paths, &mut report);
+    let app_config = checks::check_app_config(&paths, fix, &mut report);
     checks::check_package_metadata_file(&paths, &mut report);
     checks::check_path_integration(&paths, fix, &mut report);
 
