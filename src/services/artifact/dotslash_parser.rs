@@ -1,0 +1,439 @@
+use std::collections::BTreeMap;
+use std::path::Path;
+use std::str::FromStr;
+
+use anyhow::{Result, anyhow};
+use serde::Deserialize;
+
+use crate::utils::platform::platform_info::{ArchitectureInfo, CpuArch, OSKind};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DotSlashAsset {
+    pub dotslash_name: String,
+    pub platform: DotSlashPlatform,
+    pub filename: String,
+    pub url: String,
+    pub size: u64,
+    pub hash: String,
+    pub digest: String,
+    pub format: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DotSlashPlatform {
+    pub key: String,
+    pub os: OSKind,
+    pub arch: CpuArch,
+}
+
+#[derive(Debug, Deserialize)]
+struct DotSlashFile {
+    name: String,
+    platforms: BTreeMap<String, DotSlashPlatformEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DotSlashPlatformEntry {
+    size: u64,
+    hash: String,
+    digest: String,
+    format: String,
+    path: String,
+    providers: Vec<DotSlashProvider>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DotSlashProvider {
+    url: String,
+}
+
+pub fn select_asset(contents: &str) -> Result<DotSlashAsset> {
+    select_asset_for_architecture(contents, &ArchitectureInfo::new())
+}
+
+pub fn select_asset_filename(contents: &str) -> Result<String> {
+    Ok(select_asset(contents)?.filename)
+}
+
+pub fn select_asset_for_architecture(
+    contents: &str,
+    architecture: &ArchitectureInfo,
+) -> Result<DotSlashAsset> {
+    let file = parse_dotslash(contents)?;
+
+    let mut unsupported_platforms = Vec::new();
+
+    for (platform_key, entry) in file.platforms {
+        let platform = match parse_platform_key(&platform_key) {
+            Ok(platform) => platform,
+            Err(_) => {
+                unsupported_platforms.push(platform_key);
+                continue;
+            }
+        };
+
+        if platform.os != architecture.os_kind || platform.arch != architecture.cpu_arch {
+            continue;
+        }
+
+        let provider = entry
+            .providers
+            .iter()
+            .find(|provider| !provider.url.trim().is_empty())
+            .ok_or_else(|| anyhow!("DotSlash platform '{}' has no URL provider", platform.key))?;
+        let filename = filename_from_url(&provider.url)?;
+
+        return Ok(DotSlashAsset {
+            dotslash_name: file.name,
+            platform,
+            filename,
+            url: provider.url.clone(),
+            size: entry.size,
+            hash: entry.hash,
+            digest: entry.digest,
+            format: entry.format,
+            path: entry.path,
+        });
+    }
+
+    let available = unsupported_platforms.join(", ");
+    if available.is_empty() {
+        Err(anyhow!(
+            "DotSlash file has no asset for platform {}-{}",
+            os_key(&architecture.os_kind),
+            arch_key(&architecture.cpu_arch)
+        ))
+    } else {
+        Err(anyhow!(
+            "DotSlash file has no asset for platform {}-{}; unsupported platform keys: {}",
+            os_key(&architecture.os_kind),
+            arch_key(&architecture.cpu_arch),
+            available
+        ))
+    }
+}
+
+fn parse_dotslash(contents: &str) -> Result<DotSlashFile> {
+    let json = strip_json_comments(json_payload(contents)?);
+    serde_json::from_str(&json).map_err(|err| anyhow!("Failed to parse DotSlash file: {err}"))
+}
+
+fn json_payload(contents: &str) -> Result<&str> {
+    let offset = contents
+        .find('{')
+        .ok_or_else(|| anyhow!("DotSlash file does not contain a JSON object"))?;
+    Ok(&contents[offset..])
+}
+
+fn strip_json_comments(input: &str) -> String {
+    let mut output = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    let mut in_string = false;
+    let mut escaping = false;
+
+    while let Some(ch) = chars.next() {
+        if in_string {
+            output.push(ch);
+            if escaping {
+                escaping = false;
+            } else if ch == '\\' {
+                escaping = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => {
+                in_string = true;
+                output.push(ch);
+            }
+            '/' if chars.peek() == Some(&'/') => {
+                let _ = chars.next();
+                for next in chars.by_ref() {
+                    if next == '\n' {
+                        output.push('\n');
+                        break;
+                    }
+                }
+            }
+            '/' if chars.peek() == Some(&'*') => {
+                let _ = chars.next();
+                let mut previous = '\0';
+                for next in chars.by_ref() {
+                    if previous == '*' && next == '/' {
+                        break;
+                    }
+                    if next == '\n' {
+                        output.push('\n');
+                    }
+                    previous = next;
+                }
+            }
+            _ => output.push(ch),
+        }
+    }
+
+    output
+}
+
+fn parse_platform_key(platform_key: &str) -> Result<DotSlashPlatform> {
+    let (os, arch) = platform_key
+        .split_once('-')
+        .ok_or_else(|| anyhow!("Invalid DotSlash platform key '{platform_key}'"))?;
+    let os = parse_os_key(os)?;
+    let arch = parse_arch_key(arch)?;
+
+    if os == OSKind::Unknown || arch == CpuArch::Unknown {
+        return Err(anyhow!(
+            "Unsupported DotSlash platform key '{platform_key}'"
+        ));
+    }
+
+    Ok(DotSlashPlatform {
+        key: platform_key.to_string(),
+        os,
+        arch,
+    })
+}
+
+fn parse_os_key(os: &str) -> Result<OSKind> {
+    match os {
+        "darwin" => Ok(OSKind::MacOS),
+        "win" => Ok(OSKind::Windows),
+        _ => OSKind::from_str(os).map_err(|_| anyhow!("Unsupported DotSlash OS '{os}'")),
+    }
+}
+
+fn parse_arch_key(arch: &str) -> Result<CpuArch> {
+    match arch {
+        "amd64" | "x64" => Ok(CpuArch::X86_64),
+        "arm64" => Ok(CpuArch::Aarch64),
+        "i386" | "i686" => Ok(CpuArch::X86),
+        _ => CpuArch::from_str(arch).map_err(|err| anyhow!("Unsupported DotSlash arch: {err}")),
+    }
+}
+
+fn filename_from_url(url: &str) -> Result<String> {
+    let path = url
+        .split(['?', '#'])
+        .next()
+        .unwrap_or(url)
+        .trim_end_matches('/');
+    let filename = Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .ok_or_else(|| anyhow!("DotSlash provider URL has no filename: {url}"))?;
+
+    Ok(filename.to_string())
+}
+
+fn os_key(os: &OSKind) -> &'static str {
+    match os {
+        OSKind::Windows => "windows",
+        OSKind::MacOS => "macos",
+        OSKind::Linux => "linux",
+        OSKind::FreeBSD => "freebsd",
+        OSKind::OpenBSD => "openbsd",
+        OSKind::NetBSD => "netbsd",
+        OSKind::Android => "android",
+        OSKind::Ios => "ios",
+        OSKind::Unknown => "unknown",
+    }
+}
+
+fn arch_key(arch: &CpuArch) -> &'static str {
+    match arch {
+        CpuArch::X86 => "x86",
+        CpuArch::X86_64 => "x86_64",
+        CpuArch::Arm => "arm",
+        CpuArch::Aarch64 => "aarch64",
+        CpuArch::Ppc => "powerpc",
+        CpuArch::Ppc64 => "powerpc64",
+        CpuArch::Riscv64 => "riscv64",
+        CpuArch::S390x => "s390x",
+        CpuArch::Unknown => "unknown",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EXAMPLE_DOTSLASH: &str = r#"#!/usr/bin/env dotslash
+
+// The URLs in this file were taken from https://nodejs.org/dist/v18.19.0/
+
+{
+  "name": "node-v18.19.0",
+  "platforms": {
+    "macos-aarch64": {
+      "size": 40660307,
+      "hash": "blake3",
+      "digest": "6e2ca33951e586e7670016dd9e503d028454bf9249d5ff556347c3d98c347c34",
+      "format": "tar.gz",
+      "path": "node-v18.19.0-darwin-arm64/bin/node",
+      "providers": [
+        {
+          "url": "https://nodejs.org/dist/v18.19.0/node-v18.19.0-darwin-arm64.tar.gz"
+        }
+      ]
+    },
+    "macos-x86_64": {
+      "size": 42202872,
+      "hash": "blake3",
+      "digest": "37521058114e7f71e0de3fe8042c8fa7908305e9115488c6c29b514f9cd2a24c",
+      "format": "tar.gz",
+      "path": "node-v18.19.0-darwin-x64/bin/node",
+      "providers": [
+        {
+          "url": "https://nodejs.org/dist/v18.19.0/node-v18.19.0-darwin-x64.tar.gz"
+        }
+      ]
+    },
+    "linux-x86_64": {
+      "size": 44694523,
+      "hash": "blake3",
+      "digest": "72b81fc3a30b7bedc1a09a3fafc4478a1b02e5ebf0ad04ea15d23b3e9dc89212",
+      "format": "tar.gz",
+      "path": "node-v18.19.0-linux-x64/bin/node",
+      "providers": [
+        {
+          "url": "https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.gz"
+        }
+      ]
+    }
+  }
+}"#;
+
+    fn architecture(os_kind: OSKind, cpu_arch: CpuArch) -> ArchitectureInfo {
+        ArchitectureInfo {
+            is_os_64_bit: true,
+            cpu_arch,
+            os_kind,
+        }
+    }
+
+    #[test]
+    fn selects_linux_x86_64_asset_from_example_file() {
+        let asset = select_asset_for_architecture(
+            EXAMPLE_DOTSLASH,
+            &architecture(OSKind::Linux, CpuArch::X86_64),
+        )
+        .expect("select asset");
+
+        assert_eq!(asset.dotslash_name, "node-v18.19.0");
+        assert_eq!(asset.platform.key, "linux-x86_64");
+        assert_eq!(asset.filename, "node-v18.19.0-linux-x64.tar.gz");
+        assert_eq!(
+            asset.url,
+            "https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.gz"
+        );
+        assert_eq!(asset.path, "node-v18.19.0-linux-x64/bin/node");
+    }
+
+    #[test]
+    fn selects_macos_aarch64_asset_from_example_file() {
+        let filename = select_asset_for_architecture(
+            EXAMPLE_DOTSLASH,
+            &architecture(OSKind::MacOS, CpuArch::Aarch64),
+        )
+        .expect("select asset")
+        .filename;
+
+        assert_eq!(filename, "node-v18.19.0-darwin-arm64.tar.gz");
+    }
+
+    #[test]
+    fn ignores_shebang_and_comments_before_json() {
+        let contents = r#"#!/usr/bin/env dotslash
+// leading comment
+{
+  "name": "tool",
+  "platforms": {
+    "linux-x86_64": {
+      "size": 12,
+      "hash": "blake3",
+      "digest": "abc",
+      "format": "tar.gz",
+      "path": "tool/bin/tool",
+      "providers": [{ "url": "https://example.com/tool.tar.gz?download=1" }]
+    }
+  }
+}"#;
+
+        let filename =
+            select_asset_for_architecture(contents, &architecture(OSKind::Linux, CpuArch::X86_64))
+                .expect("select asset")
+                .filename;
+
+        assert_eq!(filename, "tool.tar.gz");
+    }
+
+    #[test]
+    fn strips_json_comments_without_breaking_urls() {
+        let contents = r#"{
+  "name": "tool",
+  "platforms": {
+    "linux-x86_64": {
+      "size": 12,
+      "hash": "blake3",
+      "digest": "abc",
+      "format": "tar.gz", // package format
+      "path": "tool/bin/tool",
+      "providers": [{ "url": "https://example.com/tool.tar.gz" }]
+    }
+  }
+}"#;
+
+        let asset =
+            select_asset_for_architecture(contents, &architecture(OSKind::Linux, CpuArch::X86_64))
+                .expect("select asset");
+
+        assert_eq!(asset.url, "https://example.com/tool.tar.gz");
+        assert_eq!(asset.filename, "tool.tar.gz");
+    }
+
+    #[test]
+    fn errors_when_host_platform_is_missing() {
+        let err = select_asset_for_architecture(
+            EXAMPLE_DOTSLASH,
+            &architecture(OSKind::Windows, CpuArch::X86_64),
+        )
+        .expect_err("missing platform");
+
+        assert!(
+            err.to_string()
+                .contains("DotSlash file has no asset for platform windows-x86_64")
+        );
+    }
+
+    #[test]
+    fn errors_when_selected_platform_has_no_provider_url() {
+        let contents = r#"{
+  "name": "tool",
+  "platforms": {
+    "linux-x86_64": {
+      "size": 12,
+      "hash": "blake3",
+      "digest": "abc",
+      "format": "tar.gz",
+      "path": "tool/bin/tool",
+      "providers": [{ "url": "" }]
+    }
+  }
+}"#;
+
+        let err =
+            select_asset_for_architecture(contents, &architecture(OSKind::Linux, CpuArch::X86_64))
+                .expect_err("missing provider");
+
+        assert!(
+            err.to_string()
+                .contains("DotSlash platform 'linux-x86_64' has no URL provider")
+        );
+    }
+}
