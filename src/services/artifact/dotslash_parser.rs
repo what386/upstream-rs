@@ -372,10 +372,8 @@ mod tests {
     use super::*;
     use crate::models::common::enums::{Channel, Filetype, Provider};
 
-    const INVALID_DOTSLASH_FIXTURE: &str =
-        include_str!("../../../tests/fixtures/artifact/dotslash/invalid-dotslash");
-    const VALID_DOTSLASH_FIXTURE: &str =
-        include_str!("../../../tests/fixtures/artifact/dotslash/valid-dotslash");
+    const INVALID_DOTSLASH_FIXTURE: &str = include_str!("../../../tests/fixtures/dotslash-invalid");
+    const VALID_DOTSLASH_FIXTURE: &str = include_str!("../../../tests/fixtures/dotslash-valid");
 
     fn architecture(os_kind: OSKind, cpu_arch: CpuArch) -> ArchitectureInfo {
         ArchitectureInfo {

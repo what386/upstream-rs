@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn nullable_string_fields_deserialize_to_empty_strings() {
         let json =
-            include_str!("../../../tests/fixtures/providers/gitea/release-nullable-fields.json");
+            include_str!("../../../tests/fixtures/providers/gitea-release-nullable-fields.json");
 
         let parsed = serde_json::from_str::<GiteaReleaseDto>(json).expect("parse release");
         assert_eq!(parsed.tag_name, "");

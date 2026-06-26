@@ -298,7 +298,7 @@ mod tests {
     #[test]
     fn github_release_dto_accepts_nullable_string_fields() {
         let json =
-            include_str!("../../../tests/fixtures/providers/github/release-nullable-fields.json");
+            include_str!("../../../tests/fixtures/providers/github-release-nullable-fields.json");
 
         let parsed = serde_json::from_str::<GithubReleaseDto>(json).expect("valid release JSON");
         assert_eq!(parsed.name, "");
@@ -311,7 +311,7 @@ mod tests {
     #[test]
     fn github_search_dto_accepts_nullable_string_fields() {
         let json =
-            include_str!("../../../tests/fixtures/providers/github/search-nullable-fields.json");
+            include_str!("../../../tests/fixtures/providers/github-search-nullable-fields.json");
 
         let parsed = serde_json::from_str::<GithubRepositorySearchResponseDto>(json)
             .expect("valid search JSON");
