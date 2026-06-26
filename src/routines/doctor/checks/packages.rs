@@ -146,24 +146,22 @@ pub(in crate::routines::doctor) async fn check_version_tag_templates(
             continue;
         }
 
-        report.line(
-            Level::Warn,
-            format!("package '{}' is missing version tag template", package.name),
-        );
-        report.hint("Run `upstream doctor --fix` to repair version tag templates.");
-
-        if !fix {
-            continue;
+        if fix {
+            package_database.update_package(&package.name, |package| {
+                package.version_tag_template = Some("v{}".to_string());
+                Ok(true)
+            })?;
+            report.line(
+                Level::Ok,
+                format!("package '{}' repaired version tag template", package.name),
+            );
+        } else {
+            report.line(
+                Level::Warn,
+                format!("package '{}' is missing version tag template", package.name),
+            );
+            report.hint("Run `upstream doctor --fix` to repair version tag templates.");
         }
-
-        package_database.update_package(&package.name, |package| {
-            package.version_tag_template = Some("v{}".to_string());
-            Ok(true)
-        })?;
-        report.line(
-            Level::Ok,
-            format!("package '{}' repaired version tag template", package.name),
-        );
     }
 
     Ok(())
@@ -559,6 +557,8 @@ mod tests {
             .expect("load package")
             .expect("package exists");
         assert_eq!(stored.version_tag_template.as_deref(), Some("v{}"));
+        assert!(report.warnings.is_empty());
+        assert!(report.hints.is_empty());
 
         std::fs::remove_dir_all(&root).expect("cleanup");
     }
