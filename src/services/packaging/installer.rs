@@ -7,7 +7,7 @@ use crate::{
     },
     providers::provider_manager::ProviderManager,
     services::{
-        artifact::{compression_handler, permission_handler},
+        artifact::{compression_handler, dotslash_parser, permission_handler},
         integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
         packaging::{
             PackagePhase, PackageProgressEvent, PackageRemover,
@@ -341,12 +341,8 @@ impl<'a> PackageInstaller<'a> {
         };
 
         let best_asset = self
-            .provider_manager
-            .find_recommended_asset(&release, package)
-            .context(format!(
-                "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
-                package.name, package.filetype
-            ))?;
+            .select_asset(package, &release, None::<&mut fn(&str)>)
+            .await?;
 
         let resolved_filetype = if package.filetype == Filetype::Auto {
             best_asset.filetype
@@ -487,12 +483,8 @@ impl<'a> PackageInstaller<'a> {
         message!(message_callback, "Selecting asset from '{}'", release.name);
 
         let best_asset = self
-            .provider_manager
-            .find_recommended_asset(release, &package)
-            .context(format!(
-                "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
-                package.name, package.filetype
-            ))?;
+            .select_asset(&package, release, message_callback.as_mut())
+            .await?;
 
         self.install_package_asset_files(
             package,
@@ -535,6 +527,16 @@ impl<'a> PackageInstaller<'a> {
             "Failed to create package extraction cache '{}'",
             package_extract_cache.display()
         ))?;
+
+        let resolved_asset = self
+            .try_dotslash_asset(
+                &package,
+                asset,
+                &package_download_cache,
+                message_callback.as_mut(),
+            )
+            .await?;
+        let asset = resolved_asset.as_ref().unwrap_or(asset);
 
         if package.filetype == Filetype::Auto {
             message!(
@@ -924,6 +926,121 @@ impl<'a> PackageInstaller<'a> {
         Ok(package)
     }
 
+    async fn select_asset<H>(
+        &self,
+        package: &Package,
+        release: &Release,
+        message_callback: Option<&mut H>,
+    ) -> Result<Asset>
+    where
+        H: FnMut(&str),
+    {
+        if let Some(descriptor) = find_dotslash_asset(release, package) {
+            let cache_key = format!("{}-dotslash", Self::package_cache_key(&package.name));
+            let descriptor_cache = self.download_cache.join(cache_key);
+            fs::create_dir_all(&descriptor_cache).context(format!(
+                "Failed to create DotSlash download cache '{}'",
+                descriptor_cache.display()
+            ))?;
+
+            if let Some(asset) = self
+                .resolve_dotslash_asset(package, descriptor, &descriptor_cache, message_callback)
+                .await?
+            {
+                return Ok(asset);
+            }
+        }
+
+        self.find_recommended_asset(release, package)
+            .context(format!(
+                "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
+                package.name, package.filetype
+            ))
+    }
+
+    fn find_recommended_asset(&self, release: &Release, package: &Package) -> Result<Asset> {
+        let mut filtered_release = release.clone();
+        filtered_release
+            .assets
+            .retain(|asset| !is_dotslash_asset(&asset.name, package));
+
+        self.provider_manager
+            .find_recommended_asset(&filtered_release, package)
+    }
+
+    async fn try_dotslash_asset<H>(
+        &self,
+        package: &Package,
+        asset: &Asset,
+        package_download_cache: &Path,
+        message_callback: Option<&mut H>,
+    ) -> Result<Option<Asset>>
+    where
+        H: FnMut(&str),
+    {
+        if !is_dotslash_asset(&asset.name, package) {
+            return Ok(None);
+        }
+
+        self.resolve_dotslash_asset(package, asset, package_download_cache, message_callback)
+            .await
+    }
+
+    async fn resolve_dotslash_asset<H>(
+        &self,
+        package: &Package,
+        descriptor: &Asset,
+        download_cache: &Path,
+        mut message_callback: Option<&mut H>,
+    ) -> Result<Option<Asset>>
+    where
+        H: FnMut(&str),
+    {
+        message!(
+            &mut message_callback,
+            "Inspecting DotSlash descriptor '{}'",
+            descriptor.name
+        );
+
+        let mut no_progress: Option<fn(u64, u64)> = None;
+        let descriptor_path = self
+            .provider_manager
+            .download_asset(
+                descriptor,
+                &package.provider,
+                download_cache,
+                &mut no_progress,
+            )
+            .await
+            .context(format!(
+                "Failed to download DotSlash descriptor '{}'",
+                descriptor.name
+            ))?;
+
+        let Ok(contents) = fs::read_to_string(&descriptor_path) else {
+            return Ok(None);
+        };
+
+        let Ok(selected) = dotslash_parser::select_asset(&contents) else {
+            return Ok(None);
+        };
+
+        message!(
+            &mut message_callback,
+            "Resolved DotSlash asset '{}' for '{}'",
+            selected.filename,
+            selected.platform.key
+        );
+
+        Ok(Some(Asset::new(
+            selected.url,
+            descriptor.id,
+            selected.filename,
+            selected.size,
+            descriptor.created_at,
+        )))
+    }
+
     fn select_nested_archive_root(extracted_path: &Path, package: &Package) -> Option<PathBuf> {
         if !extracted_path.is_dir() {
             return None;
@@ -1203,6 +1320,27 @@ impl<'a> PackageInstaller<'a> {
     }
 }
 
+fn find_dotslash_asset<'a>(release: &'a Release, package: &Package) -> Option<&'a Asset> {
+    release
+        .assets
+        .iter()
+        .find(|asset| is_dotslash_asset(&asset.name, package))
+}
+
+fn is_dotslash_asset(asset_name: &str, package: &Package) -> bool {
+    let path = Path::new(asset_name);
+    if path.extension().is_some() {
+        return false;
+    }
+
+    let Some(filename) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+
+    let repo_name = package.repo_slug.rsplit('/').next().unwrap_or("");
+    filename.eq_ignore_ascii_case(repo_name) || filename.eq_ignore_ascii_case(&package.name)
+}
+
 impl<'a> Drop for PackageInstaller<'a> {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.extract_cache);
@@ -1212,7 +1350,7 @@ impl<'a> Drop for PackageInstaller<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::PackageInstaller;
+    use super::{PackageInstaller, is_dotslash_asset};
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use crate::utils::test_support;
@@ -1288,6 +1426,24 @@ mod tests {
             key.chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
         );
+    }
+
+    #[test]
+    fn dotslash_asset_name_matches_repo_basename_without_extension() {
+        let package = make_package("upstream", None, None);
+
+        assert!(is_dotslash_asset("upstream", &package));
+        assert!(is_dotslash_asset("UPSTREAM", &package));
+        assert!(!is_dotslash_asset("upstream.tar.gz", &package));
+    }
+
+    #[test]
+    fn dotslash_asset_name_can_match_package_name() {
+        let mut package = make_package("node", None, None);
+        package.repo_slug = "nodejs/node".to_string();
+
+        assert!(is_dotslash_asset("node", &package));
+        assert!(!is_dotslash_asset("node.exe", &package));
     }
 
     #[cfg(target_os = "linux")]
