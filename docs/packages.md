@@ -68,6 +68,7 @@ Git source builds reuse cached workspaces under `$HOME/.upstream/cache/build/` w
 ```bash
 upstream remove <name>
 upstream remove <name> --purge
+upstream uninstall <name>
 ```
 
 Plain remove deletes the installed artifact and managed integrations, then removes package metadata. It preserves rollback data and app-owned config/cache/data. `--purge` also removes candidate user config/cache/data paths for the package name.

@@ -263,7 +263,7 @@ upstream import profile ./profile.json
 | `install`   | Install from a release source        |
 | `build`     | Build and install from source        |
 | `upgrade`   | Upgrade packages                     |
-| `remove`    | Remove packages                      |
+| `remove`    | Remove packages (`uninstall` alias)  |
 | `reinstall` | Reinstall using stored metadata      |
 | `rollback`  | Manage rollback artifacts            |
 | `list`      | Show installed packages              |
