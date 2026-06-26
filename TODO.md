@@ -8,6 +8,9 @@
 - [ ] feat: make list grep-like
       @created 2026-06-26 17:51
 
+- [ ] feat: interactive config editor
+      @created 2026-06-26 19:45
+
 
 ## Completed
 
