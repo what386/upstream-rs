@@ -11,6 +11,9 @@
 - [ ] behavior: doctor fix no longer shows normal doctor path
       @created 2026-06-26 17:09
 
+- [ ] behavior: remove completion file caching
+      @created 2026-06-26 17:09
+
 
 ## Completed
 
