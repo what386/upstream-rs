@@ -23,6 +23,8 @@ pub struct Package {
 
     pub filetype: Filetype,
     pub version: Version,
+    #[serde(default)]
+    pub version_tag_template: Option<String>,
     pub channel: Channel,
     pub provider: Provider,
     pub base_url: Option<String>,
@@ -60,6 +62,7 @@ impl Package {
 
             filetype,
             version: Version::new(0, 0, 0, false),
+            version_tag_template: None,
             channel,
             provider,
             base_url,
@@ -96,6 +99,34 @@ impl Package {
         }
 
         release.version.is_newer_than(&self.version)
+    }
+
+    pub fn version_tag_from_template(&self) -> Option<String> {
+        let template = self.version_tag_template.as_ref()?;
+        if !template.contains("{}") {
+            return None;
+        }
+
+        Some(template.replacen("{}", &self.version_core_string(), 1))
+    }
+
+    pub fn version_tag_template_from_tag(tag: &str, version: &Version) -> Option<String> {
+        if version.is_unknown() {
+            return None;
+        }
+
+        let version_text = Self::version_core_string_for(version);
+        let index = tag.find(&version_text)?;
+        let suffix_start = index + version_text.len();
+        Some(format!("{}{{}}{}", &tag[..index], &tag[suffix_start..]))
+    }
+
+    fn version_core_string(&self) -> String {
+        Self::version_core_string_for(&self.version)
+    }
+
+    fn version_core_string_for(version: &Version) -> String {
+        format!("{}.{}.{}", version.major, version.minor, version.patch)
     }
 }
 
@@ -212,5 +243,30 @@ mod tests {
             Version::new(99, 0, 0, false),
             Duration::seconds(0)
         )));
+    }
+
+    #[test]
+    fn version_tag_template_from_tag_keeps_prefix_and_suffix() {
+        let version = Version::new(1, 2, 3, false);
+
+        assert_eq!(
+            Package::version_tag_template_from_tag("rust-v1.2.3", &version).as_deref(),
+            Some("rust-v{}")
+        );
+        assert_eq!(
+            Package::version_tag_template_from_tag("v1.2.3-beta.4", &version).as_deref(),
+            Some("v{}-beta.4")
+        );
+    }
+
+    #[test]
+    fn version_tag_from_template_reconstructs_current_version() {
+        let mut package = update_test_package(Version::new(1, 2, 3, false), Channel::Stable);
+        package.version_tag_template = Some("rust-v{}-beta.4".to_string());
+
+        assert_eq!(
+            package.version_tag_from_template().as_deref(),
+            Some("rust-v1.2.3-beta.4")
+        );
     }
 }

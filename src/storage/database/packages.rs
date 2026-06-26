@@ -174,6 +174,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             version_minor,
             version_patch,
             version_is_prerelease,
+            version_tag_template,
             channel,
             provider,
             base_url,
@@ -186,7 +187,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             exec_path,
             last_upgraded
         ) VALUES (
-            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18
+            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19
         )
         ON CONFLICT(name) DO UPDATE SET
             repo_slug = excluded.repo_slug,
@@ -195,6 +196,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             version_minor = excluded.version_minor,
             version_patch = excluded.version_patch,
             version_is_prerelease = excluded.version_is_prerelease,
+            version_tag_template = excluded.version_tag_template,
             channel = excluded.channel,
             provider = excluded.provider,
             base_url = excluded.base_url,
@@ -214,6 +216,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             package.version.minor,
             package.version.patch,
             bool_to_db(package.version.is_prerelease),
+            package.version_tag_template,
             enum_to_db(&package.channel)?,
             enum_to_db(&package.provider)?,
             package.base_url,
@@ -245,6 +248,7 @@ mod tests {
     use crate::providers::pattern_matcher::PatternTable;
     use crate::storage::database::PACKAGE_DB_SCHEMA_VERSION;
     use chrono::{TimeZone, Utc};
+    use rusqlite::Connection;
     use std::path::PathBuf;
 
     fn test_package(name: &str) -> Package {
@@ -259,6 +263,7 @@ mod tests {
             Some("https://api.github.com".to_string()),
         );
         package.version = Version::new(1, 2, 3, true);
+        package.version_tag_template = Some("rust-v{}-beta.4".to_string());
         package.install_type = InstallType::Build;
         package.build_branch = Some("main".to_string());
         package.build_commit = Some("abcdef".to_string());
@@ -287,6 +292,52 @@ mod tests {
     }
 
     #[test]
+    fn open_rejects_schema_v1_without_runtime_migration() {
+        let conn = Connection::open_in_memory().expect("open sqlite");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE packages (
+                name TEXT PRIMARY KEY NOT NULL,
+                repo_slug TEXT NOT NULL,
+                filetype TEXT NOT NULL,
+                version_major INTEGER NOT NULL,
+                version_minor INTEGER NOT NULL,
+                version_patch INTEGER NOT NULL,
+                version_is_prerelease INTEGER NOT NULL,
+                channel TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                base_url TEXT,
+                install_type TEXT NOT NULL,
+                build_branch TEXT,
+                build_commit TEXT,
+                is_pinned INTEGER NOT NULL,
+                icon_path TEXT,
+                install_path TEXT,
+                exec_path TEXT,
+                last_upgraded TEXT NOT NULL
+            );
+            CREATE TABLE patterns (
+                package_name TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                pattern TEXT NOT NULL,
+                PRIMARY KEY (package_name, kind, position)
+            );
+            PRAGMA user_version = 1;
+            "#,
+        )
+        .expect("create v1 schema");
+
+        let err = PackageConnection::from_connection(conn).expect_err("reject v1 schema");
+
+        assert!(
+            err.to_string()
+                .contains("Unsupported package database schema version 1")
+        );
+        assert!(err.to_string().contains("doctor --migrate"));
+    }
+
+    #[test]
     fn upsert_and_get_package_round_trips_all_fields() {
         let mut db = PackageConnection::open_in_memory().expect("open db");
         let package = test_package("tool");
@@ -301,6 +352,7 @@ mod tests {
         assert_eq!(stored.repo_slug, package.repo_slug);
         assert_eq!(stored.filetype, package.filetype);
         assert_eq!(stored.version, package.version);
+        assert_eq!(stored.version_tag_template, package.version_tag_template);
         assert_eq!(stored.channel, package.channel);
         assert_eq!(stored.provider, package.provider);
         assert_eq!(stored.base_url, package.base_url);

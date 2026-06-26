@@ -232,6 +232,7 @@ mod tests {
             None,
         );
         package.version = Version::new(1, 2, 3, false);
+        package.version_tag_template = Some("v{}".to_string());
         package.install_path = Some(paths.install.binaries_dir.join("tool"));
         storage
             .upsert_package(&package)

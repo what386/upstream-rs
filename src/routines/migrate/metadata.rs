@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
 use crate::models::upstream::Package;
@@ -15,6 +16,7 @@ use crate::utils::filesystem::atomic_ops::write_atomic;
 use crate::utils::static_paths::UpstreamPaths;
 
 const ROLLBACK_STORAGE_VERSION: u32 = 1;
+const PACKAGE_DB_SCHEMA_VERSION_WITH_TAG_TEMPLATE: u32 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RollbackStorageFile {
@@ -34,6 +36,9 @@ pub(in crate::routines::migrate) fn migrate_package_metadata(
     report: &mut MigrationReport,
 ) -> Result<Vec<Package>> {
     let database_exists = paths.config.packages_database_file.exists();
+    if database_exists {
+        migrate_package_database_schema(paths)?;
+    }
     let mut storage = PackageDatabase::open(&paths.config.packages_database_file)?;
     let mut packages = if !database_exists && legacy::legacy_package_metadata_exists(paths) {
         let packages = legacy::load_legacy_package_metadata(paths)?;
@@ -57,6 +62,36 @@ pub(in crate::routines::migrate) fn migrate_package_metadata(
     }
 
     Ok(packages)
+}
+
+fn migrate_package_database_schema(paths: &UpstreamPaths) -> Result<()> {
+    let conn = Connection::open(&paths.config.packages_database_file).with_context(|| {
+        format!(
+            "Failed to open package database '{}'",
+            paths.config.packages_database_file.display()
+        )
+    })?;
+    let schema_version = conn
+        .query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
+        .context("Failed to read package database schema version")?;
+
+    if schema_version == PACKAGE_DB_SCHEMA_VERSION_WITH_TAG_TEMPLATE {
+        return Ok(());
+    }
+    if schema_version != 1 {
+        return Err(anyhow!(
+            "Unsupported package database schema version {} in '{}'. Expected version 1 or {}.",
+            schema_version,
+            paths.config.packages_database_file.display(),
+            PACKAGE_DB_SCHEMA_VERSION_WITH_TAG_TEMPLATE
+        ));
+    }
+
+    conn.execute_batch(
+        "ALTER TABLE packages ADD COLUMN version_tag_template TEXT;
+         PRAGMA user_version = 2;",
+    )
+    .context("Failed to migrate package database schema to version 2")
 }
 
 pub(in crate::routines::migrate) fn migrate_rollback_metadata(

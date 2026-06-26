@@ -9,5 +9,5 @@ pub(super) use filesystem::{
     load_app_config,
 };
 pub(super) use integration::{check_completion_directories, check_path_integration};
-pub(super) use packages::{check_installed_packages, select_packages};
+pub(super) use packages::{check_installed_packages, check_version_tag_templates, select_packages};
 pub(super) use tokens::check_provider_tokens;

@@ -251,6 +251,11 @@ impl<'a> BuildOperation<'a> {
         package.install_type = InstallType::Build;
         package.build_branch = build_result.branch.clone();
         package.build_commit = build_result.commit.clone();
+        package.version_tag_template = if package.build_branch.is_some() {
+            None
+        } else {
+            Package::version_tag_template_from_tag(&build_result.release.tag, &build_result.version)
+        };
 
         let mut install_operation = InstallOperation::new(
             self.provider_manager,
