@@ -42,6 +42,10 @@ impl WebScraperAdapter {
         )
     }
 
+    fn is_extensionless_file(info: &HttpAssetInfo) -> bool {
+        Path::new(&info.name).extension().is_none()
+    }
+
     fn select_infos_for_best_version(
         infos: &[HttpAssetInfo],
         best_version: Option<&Version>,
@@ -50,20 +54,29 @@ impl WebScraperAdapter {
             return infos.to_vec();
         };
 
-        let filtered: Vec<_> = infos
+        let extensionless_files = infos
             .iter()
-            .filter(|info| {
-                Self::parse_version_from_filename(&info.name)
-                    .map(|v| v.cmp(target_version).is_eq())
-                    .unwrap_or_else(|| Self::is_unversioned_download_asset(info))
-            })
-            .cloned()
-            .collect();
+            .filter(|info| Self::is_extensionless_file(info));
+        let filtered = infos.iter().filter(|info| {
+            Self::parse_version_from_filename(&info.name)
+                .map(|v| v.cmp(target_version).is_eq())
+                .unwrap_or_else(|| Self::is_unversioned_download_asset(info))
+        });
 
-        if filtered.is_empty() {
+        let mut selected = Vec::new();
+        for info in extensionless_files.chain(filtered) {
+            if !selected
+                .iter()
+                .any(|selected: &HttpAssetInfo| selected.download_url == info.download_url)
+            {
+                selected.push(info.clone());
+            }
+        }
+
+        if selected.is_empty() {
             infos.to_vec()
         } else {
-            filtered
+            selected
         }
     }
 
@@ -346,8 +359,9 @@ mod tests {
     }
 
     #[test]
-    fn version_filter_keeps_unversioned_download_assets() {
+    fn version_filter_keeps_unversioned_download_assets_and_extensionless_files() {
         let infos = vec![
+            test_asset("ffmpeg"),
             test_asset("ffmpeg-release-essentials.7z"),
             test_asset("ffmpeg-release-essentials.zip"),
             test_asset("ffmpeg-release-github"),
@@ -363,21 +377,20 @@ mod tests {
         );
         let names: Vec<_> = selected.iter().map(|info| info.name.as_str()).collect();
 
+        assert_eq!(names.first(), Some(&"ffmpeg"));
         assert!(names.contains(&"ffmpeg-release-essentials.7z"));
         assert!(names.contains(&"ffmpeg-release-essentials.zip"));
         assert!(names.contains(&"ffmpeg-8.0.1-essentials_build.7z"));
         assert!(names.contains(&"ffmpeg-8.0.1-full_build.7z"));
-        assert!(!names.contains(&"ffmpeg-release-github"));
+        assert!(names.contains(&"ffmpeg-release-github"));
         assert!(!names.contains(&"ffmpeg-release-essentials.7z.ver"));
         assert!(!names.contains(&"ffmpeg-7.1.1-full_build.7z"));
     }
 
     #[tokio::test]
     async fn get_latest_release_selects_assets_for_latest_detected_version() {
-        let html = include_str!(
-            "../../../tests/fixtures/providers/http/snippets/latest-version-links.html"
-        )
-        .to_string();
+        let html = include_str!("../../../tests/fixtures/providers/http/latest-version-links.html")
+            .to_string();
         let html_len = html.len().to_string();
         let html_for_server = html.clone();
         let server = spawn_test_server(1, move |method, _| {
@@ -408,6 +421,42 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn get_latest_release_keeps_extensionless_file_before_version_filter() {
+        let html = include_str!(
+            "../../../tests/fixtures/providers/http/extensionless-and-versioned-links.html"
+        )
+        .to_string();
+        let html_len = html.len().to_string();
+        let html_for_server = html.clone();
+        let server = spawn_test_server(1, move |method, _| {
+            assert_eq!(method, "GET");
+            http_response(
+                "HTTP/1.1 200 OK",
+                &[
+                    ("Connection", "close"),
+                    ("Content-Type", "text/html"),
+                    ("Content-Length", &html_len),
+                ],
+                &html_for_server,
+            )
+        });
+
+        let adapter =
+            WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
+        let release = adapter
+            .get_latest_release(&server)
+            .await
+            .expect("latest release");
+        let names = asset_names(&release);
+
+        assert_eq!(release.version, Version::new(1, 10, 0, false));
+        assert_eq!(names.first(), Some(&"tool"));
+        assert!(names.contains(&"tool-v1.10.0-linux.tar.gz"));
+        assert!(!names.contains(&"tool-v1.9.0-linux.tar.gz"));
+        assert!(!names.contains(&"tool-v1.10.0-linux.sha256"));
+    }
+
+    #[tokio::test]
     async fn fixture_ffmpeg_builds_page_keeps_latest_release_downloads() {
         let html = include_str!("../../../tests/fixtures/providers/http/ffmpeg.html");
         let server = spawn_test_server(1, move |method, _| {
@@ -432,7 +481,7 @@ mod tests {
         assert!(names.contains(&"ffmpeg-8.0.1-full_build.7z"));
         assert!(names.iter().all(|name| !name.ends_with(".sha256")));
         assert!(names.iter().all(|name| !name.ends_with(".ver")));
-        assert!(!names.contains(&"ffmpeg-release-github"));
+        assert!(names.contains(&"ffmpeg-release-github"));
     }
 
     #[tokio::test]
@@ -461,9 +510,8 @@ mod tests {
 
     #[tokio::test]
     async fn get_latest_release_uses_html_last_modified_for_unversioned_links() {
-        let html =
-            include_str!("../../../tests/fixtures/providers/http/snippets/unversioned-link.html")
-                .to_string();
+        let html = include_str!("../../../tests/fixtures/providers/http/unversioned-link.html")
+            .to_string();
         let html_len = html.len().to_string();
         let html_for_server = html.clone();
         let server = spawn_test_server(2, move |method, path| match (method, path) {
