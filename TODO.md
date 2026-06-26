@@ -8,6 +8,9 @@
 - [ ] feat: consider bulk installs with `upstream install REPO=NAME REPO=NAME`
       @created 2026-06-21 15:25
 
+- [ ] behavior: doctor fix no longer shows normal doctor path
+      @created 2026-06-26 17:09
+
 
 ## Completed
 
