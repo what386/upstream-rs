@@ -1,6 +1,15 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-25*
+*Generated on 2026-06-26*
+
+## 2.8.1 — 2026-06-26
+
+### Changes
+
+- bug: fix issue where version tags like 'rust-v1.2.3' would be reconstructed as 'v1.2.3'. now uses a template system.
+- behavior: remove completion file caching
+- behavior: doctor fix no longer shows normal doctor path
+
 
 ## 2.8.0 — 2026-06-25
 
