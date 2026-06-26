@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] feat: consider bulk installs with `upstream install REPO=NAME REPO=NAME`
-      @created 2026-06-21 15:25
-
 - [ ] feat: make list grep-like
       @created 2026-06-26 17:51
 
@@ -19,7 +16,4 @@
 
 - [ ] alias 'uninstall' to 'remove'
       @created 2026-06-26 18:08
-
-- [ ] feat: consider neural network asset selection
-      @created 2026-06-26 18:11
 
