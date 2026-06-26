@@ -24,6 +24,7 @@ pub enum BuildProfile {
     upstream install BurntSushi/ripgrep        # name inferred as ripgrep\n  \
     upstream upgrade                # Upgrade all packages\n  \
     upstream list                   # Show installed packages\n  \
+    upstream info rg                # Show package details\n  \
     upstream config set github.api_token=ghp_xxx"
 )]
 #[command(
@@ -287,16 +288,34 @@ pub enum Commands {
         dry_run: bool,
     },
 
-    /// List installed packages and their metadata
-    #[command(long_about = "Display information about installed packages.\n\n\
+    /// List installed packages
+    #[command(long_about = "Display installed packages.\n\n\
         Without arguments, shows a summary of all installed packages. \
-        Provide a package name to see detailed information.\n\n\
+        Provide a filter to show only package names containing that string.\n\n\
         EXAMPLES:\n  \
         upstream list       # List all packages\n  \
-        upstream list nvim  # Show details for nvim")]
+        upstream list code  # List installed packages whose names contain code")]
     List {
-        /// Package name for detailed information
-        name: Option<String>,
+        /// Package name substring to filter the list
+        filter: Option<String>,
+
+        /// Print package list as JSON
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+
+    /// Show installed package details
+    #[command(
+        long_about = "Display detailed information for one installed package.\n\n\
+        The query can be an exact package name or a unique substring. Exact names \
+        take precedence over fuzzy matches.\n\n\
+        EXAMPLES:\n  \
+        upstream info nvim  # Show details for nvim\n  \
+        upstream info code  # Show details when exactly one package contains code"
+    )]
+    Info {
+        /// Package name or unique substring for detailed information
+        query: String,
 
         /// Print raw package metadata as JSON
         #[arg(long, default_value_t = false)]
@@ -714,6 +733,7 @@ impl Commands {
     pub fn requires_lock(&self) -> bool {
         match self {
             Commands::List { .. } => false,
+            Commands::Info { .. } => false,
             Commands::Changelog { .. } => false,
             Commands::Docs { .. } => false,
             Commands::Doctor { fix, migrate, .. } => *fix || *migrate,

@@ -7,6 +7,7 @@ pub mod export;
 pub mod find;
 pub mod hooks;
 pub mod import;
+pub mod info;
 pub mod install;
 pub mod list;
 pub mod package;
