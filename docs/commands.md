@@ -101,6 +101,7 @@ upstream upgrade rg --force
 
 ```bash
 upstream remove [packages...] [options]
+upstream uninstall [packages...] [options]
 ```
 
 Options:

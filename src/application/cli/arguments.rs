@@ -155,6 +155,7 @@ pub enum Commands {
 
     /// Remove one or more installed packages
     #[command(
+        visible_alias = "uninstall",
         long_about = "Uninstall packages and optionally remove cached data.\n\n\
         By default, removes the package binary/files but preserves cached release data. \
         Use --purge to remove everything. Use --force to ignore uninstall errors \
