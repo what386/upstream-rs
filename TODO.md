@@ -20,3 +20,6 @@
 - [ ] alias 'uninstall' to 'remove'
       @created 2026-06-26 18:08
 
+- [ ] feat: consider neural network asset selection
+      @created 2026-06-26 18:11
+
