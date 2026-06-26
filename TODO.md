@@ -15,7 +15,7 @@
       @created 2026-06-26 18:04
       @completed 2026-06-26 19:21
 
-- [x] alias 'uninstall' to 'remove'
+- [x] add alias 'uninstall' for 'remove'
       @created 2026-06-26 18:08
       @completed 2026-06-26 19:24
 
