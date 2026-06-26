@@ -11,3 +11,6 @@
 - [ ] feat: make list grep-like
       @created 2026-06-26 17:51
 
+- [ ] feat: add median size filtering for assets to try and avoid installing weird files
+      @created 2026-06-26 17:57
+
