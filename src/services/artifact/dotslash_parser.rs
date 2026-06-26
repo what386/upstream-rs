@@ -1,11 +1,19 @@
 use std::collections::BTreeMap;
+use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 
-use crate::utils::platform::platform_info::{ArchitectureInfo, CpuArch, OSKind};
+use crate::{
+    models::{
+        provider::{Asset, Release},
+        upstream::Package,
+    },
+    providers::provider_manager::ProviderManager,
+    utils::platform::platform_info::{ArchitectureInfo, CpuArch, OSKind},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DotSlashAsset {
@@ -54,6 +62,106 @@ pub fn select_asset(contents: &str) -> Result<DotSlashAsset> {
 
 pub fn select_asset_filename(contents: &str) -> Result<String> {
     Ok(select_asset(contents)?.filename)
+}
+
+pub fn find_asset<'a>(release: &'a Release, package: &Package) -> Option<&'a Asset> {
+    release
+        .assets
+        .iter()
+        .find(|asset| is_asset(&asset.name, package))
+}
+
+pub fn is_asset(asset_name: &str, package: &Package) -> bool {
+    let path = Path::new(asset_name);
+    if path.extension().is_some() {
+        return false;
+    }
+
+    let Some(filename) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+
+    let repo_name = package.repo_slug.rsplit('/').next().unwrap_or("");
+    filename.eq_ignore_ascii_case(repo_name) || filename.eq_ignore_ascii_case(&package.name)
+}
+
+pub async fn resolve_selected_asset<H>(
+    package: &Package,
+    asset: &Asset,
+    provider_manager: &ProviderManager,
+    download_cache: &Path,
+    message_callback: Option<&mut H>,
+) -> Result<Option<Asset>>
+where
+    H: FnMut(&str),
+{
+    if !is_asset(&asset.name, package) {
+        return Ok(None);
+    }
+
+    resolve_asset(
+        package,
+        asset,
+        provider_manager,
+        download_cache,
+        message_callback,
+    )
+    .await
+}
+
+pub async fn resolve_asset<H>(
+    package: &Package,
+    descriptor: &Asset,
+    provider_manager: &ProviderManager,
+    download_cache: &Path,
+    mut message_callback: Option<&mut H>,
+) -> Result<Option<Asset>>
+where
+    H: FnMut(&str),
+{
+    if let Some(cb) = message_callback.as_mut() {
+        cb(&format!(
+            "Inspecting DotSlash descriptor '{}'",
+            descriptor.name
+        ));
+    }
+
+    let mut no_progress: Option<fn(u64, u64)> = None;
+    let descriptor_path = provider_manager
+        .download_asset(
+            descriptor,
+            &package.provider,
+            download_cache,
+            &mut no_progress,
+        )
+        .await
+        .context(format!(
+            "Failed to download DotSlash descriptor '{}'",
+            descriptor.name
+        ))?;
+
+    let Ok(contents) = fs::read_to_string(&descriptor_path) else {
+        return Ok(None);
+    };
+
+    let Ok(selected) = select_asset(&contents) else {
+        return Ok(None);
+    };
+
+    if let Some(cb) = message_callback.as_mut() {
+        cb(&format!(
+            "Resolved DotSlash asset '{}' for '{}'",
+            selected.filename, selected.platform.key
+        ));
+    }
+
+    Ok(Some(Asset::new(
+        selected.url,
+        descriptor.id,
+        selected.filename,
+        selected.size,
+        descriptor.created_at,
+    )))
 }
 
 pub fn select_asset_for_architecture(
@@ -262,6 +370,7 @@ fn arch_key(arch: &CpuArch) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::common::enums::{Channel, Filetype, Provider};
 
     const EXAMPLE_DOTSLASH: &str = r#"#!/usr/bin/env dotslash
 
@@ -315,6 +424,37 @@ mod tests {
             cpu_arch,
             os_kind,
         }
+    }
+
+    fn package(name: &str) -> Package {
+        Package::with_defaults(
+            name.to_string(),
+            format!("owner/{name}"),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        )
+    }
+
+    #[test]
+    fn dotslash_asset_name_matches_repo_basename_without_extension() {
+        let package = package("upstream");
+
+        assert!(is_asset("upstream", &package));
+        assert!(is_asset("UPSTREAM", &package));
+        assert!(!is_asset("upstream.tar.gz", &package));
+    }
+
+    #[test]
+    fn dotslash_asset_name_can_match_package_name() {
+        let mut package = package("node");
+        package.repo_slug = "nodejs/node".to_string();
+
+        assert!(is_asset("node", &package));
+        assert!(!is_asset("node.exe", &package));
     }
 
     #[test]

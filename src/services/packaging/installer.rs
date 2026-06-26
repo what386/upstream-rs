@@ -529,7 +529,7 @@ impl<'a> PackageInstaller<'a> {
         ))?;
 
         let resolved_asset = self
-            .try_dotslash_asset(
+            .try_resolve_selected_asset(
                 &package,
                 asset,
                 &package_download_cache,
@@ -935,7 +935,7 @@ impl<'a> PackageInstaller<'a> {
     where
         H: FnMut(&str),
     {
-        if let Some(descriptor) = find_dotslash_asset(release, package) {
+        if let Some(descriptor) = dotslash_parser::find_asset(release, package) {
             let cache_key = format!("{}-dotslash", Self::package_cache_key(&package.name));
             let descriptor_cache = self.download_cache.join(cache_key);
             fs::create_dir_all(&descriptor_cache).context(format!(
@@ -944,7 +944,7 @@ impl<'a> PackageInstaller<'a> {
             ))?;
 
             if let Some(asset) = self
-                .resolve_dotslash_asset(package, descriptor, &descriptor_cache, message_callback)
+                .resolve_asset(package, descriptor, &descriptor_cache, message_callback)
                 .await?
             {
                 return Ok(asset);
@@ -962,13 +962,13 @@ impl<'a> PackageInstaller<'a> {
         let mut filtered_release = release.clone();
         filtered_release
             .assets
-            .retain(|asset| !is_dotslash_asset(&asset.name, package));
+            .retain(|asset| !dotslash_parser::is_asset(&asset.name, package));
 
         self.provider_manager
             .find_recommended_asset(&filtered_release, package)
     }
 
-    async fn try_dotslash_asset<H>(
+    async fn try_resolve_selected_asset<H>(
         &self,
         package: &Package,
         asset: &Asset,
@@ -978,67 +978,34 @@ impl<'a> PackageInstaller<'a> {
     where
         H: FnMut(&str),
     {
-        if !is_dotslash_asset(&asset.name, package) {
-            return Ok(None);
-        }
-
-        self.resolve_dotslash_asset(package, asset, package_download_cache, message_callback)
-            .await
+        dotslash_parser::resolve_selected_asset(
+            package,
+            asset,
+            self.provider_manager,
+            package_download_cache,
+            message_callback,
+        )
+        .await
     }
 
-    async fn resolve_dotslash_asset<H>(
+    async fn resolve_asset<H>(
         &self,
         package: &Package,
-        descriptor: &Asset,
+        asset: &Asset,
         download_cache: &Path,
-        mut message_callback: Option<&mut H>,
+        message_callback: Option<&mut H>,
     ) -> Result<Option<Asset>>
     where
         H: FnMut(&str),
     {
-        message!(
-            &mut message_callback,
-            "Inspecting DotSlash descriptor '{}'",
-            descriptor.name
-        );
-
-        let mut no_progress: Option<fn(u64, u64)> = None;
-        let descriptor_path = self
-            .provider_manager
-            .download_asset(
-                descriptor,
-                &package.provider,
-                download_cache,
-                &mut no_progress,
-            )
-            .await
-            .context(format!(
-                "Failed to download DotSlash descriptor '{}'",
-                descriptor.name
-            ))?;
-
-        let Ok(contents) = fs::read_to_string(&descriptor_path) else {
-            return Ok(None);
-        };
-
-        let Ok(selected) = dotslash_parser::select_asset(&contents) else {
-            return Ok(None);
-        };
-
-        message!(
-            &mut message_callback,
-            "Resolved DotSlash asset '{}' for '{}'",
-            selected.filename,
-            selected.platform.key
-        );
-
-        Ok(Some(Asset::new(
-            selected.url,
-            descriptor.id,
-            selected.filename,
-            selected.size,
-            descriptor.created_at,
-        )))
+        dotslash_parser::resolve_asset(
+            package,
+            asset,
+            self.provider_manager,
+            download_cache,
+            message_callback,
+        )
+        .await
     }
 
     fn select_nested_archive_root(extracted_path: &Path, package: &Package) -> Option<PathBuf> {
@@ -1320,27 +1287,6 @@ impl<'a> PackageInstaller<'a> {
     }
 }
 
-fn find_dotslash_asset<'a>(release: &'a Release, package: &Package) -> Option<&'a Asset> {
-    release
-        .assets
-        .iter()
-        .find(|asset| is_dotslash_asset(&asset.name, package))
-}
-
-fn is_dotslash_asset(asset_name: &str, package: &Package) -> bool {
-    let path = Path::new(asset_name);
-    if path.extension().is_some() {
-        return false;
-    }
-
-    let Some(filename) = path.file_name().and_then(|name| name.to_str()) else {
-        return false;
-    };
-
-    let repo_name = package.repo_slug.rsplit('/').next().unwrap_or("");
-    filename.eq_ignore_ascii_case(repo_name) || filename.eq_ignore_ascii_case(&package.name)
-}
-
 impl<'a> Drop for PackageInstaller<'a> {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.extract_cache);
@@ -1350,7 +1296,7 @@ impl<'a> Drop for PackageInstaller<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{PackageInstaller, is_dotslash_asset};
+    use super::PackageInstaller;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use crate::utils::test_support;
@@ -1426,24 +1372,6 @@ mod tests {
             key.chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
         );
-    }
-
-    #[test]
-    fn dotslash_asset_name_matches_repo_basename_without_extension() {
-        let package = make_package("upstream", None, None);
-
-        assert!(is_dotslash_asset("upstream", &package));
-        assert!(is_dotslash_asset("UPSTREAM", &package));
-        assert!(!is_dotslash_asset("upstream.tar.gz", &package));
-    }
-
-    #[test]
-    fn dotslash_asset_name_can_match_package_name() {
-        let mut package = make_package("node", None, None);
-        package.repo_slug = "nodejs/node".to_string();
-
-        assert!(is_dotslash_asset("node", &package));
-        assert!(!is_dotslash_asset("node.exe", &package));
     }
 
     #[cfg(target_os = "linux")]
