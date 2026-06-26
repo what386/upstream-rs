@@ -14,3 +14,6 @@
 - [ ] feat: add median size filtering for assets to try and avoid installing weird files
       @created 2026-06-26 17:57
 
+- [ ] support dotslash json entries (read as metadata, not shell out to dotslash)
+      @created 2026-06-26 18:04
+
