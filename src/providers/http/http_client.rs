@@ -547,8 +547,7 @@ mod tests {
 
     #[tokio::test]
     async fn discover_assets_extracts_and_filters_html_links() {
-        let html =
-            include_str!("../../../tests/fixtures/providers/http/snippets/discovery-links.html");
+        let html = include_str!("../../../tests/fixtures/providers/http/discovery-links.html");
         let body = html.to_string();
         let last_modified = "Tue, 10 Feb 2026 15:04:05 GMT".to_string();
         let server = spawn_test_server(1, move |_, _| {
@@ -592,9 +591,8 @@ mod tests {
 
     #[test]
     fn extract_link_values_accepts_spaced_and_unquoted_attributes() {
-        let html = include_str!(
-            "../../../tests/fixtures/providers/http/snippets/spaced-link-attributes.html"
-        );
+        let html =
+            include_str!("../../../tests/fixtures/providers/http/spaced-link-attributes.html");
 
         let values = HttpClient::extract_link_values(html);
 

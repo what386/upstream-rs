@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn gitlab_release_dto_deserializes_minimal_valid_payload() {
-        let json = include_str!("../../../tests/fixtures/providers/gitlab/release-minimal.json");
+        let json = include_str!("../../../tests/fixtures/providers/gitlab-release-minimal.json");
 
         let parsed = serde_json::from_str::<GitlabReleaseDto>(json).expect("parse release");
         assert_eq!(parsed.tag_name, "v1.0.0");

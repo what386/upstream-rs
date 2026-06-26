@@ -347,7 +347,7 @@ mod tests {
         fs::create_dir_all(&paths.dirs.config_dir).expect("create config");
         fs::write(
             &paths.config.config_file,
-            include_str!("../../../tests/fixtures/storage/system/legacy-config-with-trust.toml"),
+            include_str!("../../../tests/fixtures/storage/legacy-config-with-trust.toml"),
         )
         .expect("write legacy config");
 
