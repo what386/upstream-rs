@@ -17,3 +17,6 @@
 - [ ] support dotslash json entries (read as metadata, not shell out to dotslash)
       @created 2026-06-26 18:04
 
+- [ ] alias 'uninstall' to 'remove'
+      @created 2026-06-26 18:08
+
