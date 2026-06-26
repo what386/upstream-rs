@@ -5,8 +5,8 @@
 
 ## Tasks
 
-- [ ] feat: interactive config editor
-      @created 2026-06-26 19:45
+- [ ] add `--for <tag>` to changelog
+      @created 2026-06-26 23:22
 
 
 ## Completed
