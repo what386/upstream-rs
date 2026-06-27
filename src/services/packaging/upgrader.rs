@@ -4,6 +4,7 @@ use crate::{
         provider::{Asset, Release},
         upstream::{InstallType, Package},
     },
+    output,
     providers::provider_manager::ProviderManager,
     routines::builder::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
@@ -61,6 +62,12 @@ struct FailedUpgradeRollback<'a> {
     original_install_path: &'a Path,
     backup_path: &'a Path,
     failure_context: &'a str,
+}
+
+enum ZsyncUpgradeAttempt {
+    NotApplicable,
+    Updated(Package),
+    Fallback(anyhow::Error),
 }
 
 impl<'a> PackageUpgrader<'a> {
@@ -122,18 +129,18 @@ impl<'a> PackageUpgrader<'a> {
         download_progress: &mut Option<F>,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
-    ) -> Result<Option<Package>>
+    ) -> Result<ZsyncUpgradeAttempt>
     where
         F: FnMut(u64, u64),
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
         if !Self::can_apply_zsync(&package, asset, backup_path) {
-            return Ok(None);
+            return Ok(ZsyncUpgradeAttempt::NotApplicable);
         }
 
         if zsync_handler::find_asset(release, asset).is_none() {
-            return Ok(None);
+            return Ok(ZsyncUpgradeAttempt::NotApplicable);
         }
 
         let work_root = Self::zsync_work_root(self.paths, &package);
@@ -143,16 +150,23 @@ impl<'a> PackageUpgrader<'a> {
             work_cache.display()
         ))?;
 
-        let work_target = work_root.join(backup_path.file_name().ok_or_else(|| {
-            anyhow::anyhow!("Backup path '{}' has no filename", backup_path.display())
-        })?);
+        let work_target =
+            work_root.join(Path::new(&asset.name).file_name().ok_or_else(|| {
+                anyhow::anyhow!("Selected asset '{}' has no filename", asset.name)
+            })?);
 
-        let result: Result<Package> = async {
-            progress!(
-                progress_callback,
-                PackageProgressEvent::Phase(PackagePhase::ApplyingZsyncUpdate)
-            );
-            zsync_handler::update_selected_asset(
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::ApplyingZsyncUpdate)
+        );
+        {
+            let progress_cell = std::cell::RefCell::new(progress_callback.as_mut());
+            let mut zsync_progress = Some(|downloaded: u64, total: u64| {
+                if let Some(cb) = progress_cell.borrow_mut().as_deref_mut() {
+                    cb(PackageProgressEvent::Zsync { downloaded, total });
+                }
+            });
+            if let Err(err) = zsync_handler::update_selected_asset(
                 &package,
                 release,
                 asset,
@@ -161,10 +175,17 @@ impl<'a> PackageUpgrader<'a> {
                 backup_path,
                 &work_target,
                 message_callback.as_mut(),
+                &mut zsync_progress,
             )
             .await
-            .context(format!("Failed to update '{}' via zsync", package.name))?;
+            .context(format!("Failed to update '{}' via zsync", package.name))
+            {
+                let _ = fs::remove_dir_all(&work_root);
+                return Ok(ZsyncUpgradeAttempt::Fallback(err));
+            }
+        }
 
+        let result: Result<Package> = async {
             let trust_verifier = crate::services::trust::TrustVerifier::new(
                 self.provider_manager,
                 &work_cache,
@@ -232,7 +253,7 @@ impl<'a> PackageUpgrader<'a> {
         }
 
         let _ = fs::remove_dir_all(&work_root);
-        Ok(Some(result?))
+        result.map(ZsyncUpgradeAttempt::Updated)
     }
 
     fn capture_successful_upgrade_rollback(
@@ -567,8 +588,8 @@ impl<'a> PackageUpgrader<'a> {
                 )
                 .await
             {
-                Ok(Some(updated_package)) => Ok(updated_package),
-                Ok(None) => {
+                Ok(ZsyncUpgradeAttempt::Updated(updated_package)) => Ok(updated_package),
+                Ok(ZsyncUpgradeAttempt::NotApplicable) => {
                     let mut install_pkg = package.clone();
                     install_pkg.install_path = None;
                     install_pkg.exec_path = None;
@@ -586,11 +607,9 @@ impl<'a> PackageUpgrader<'a> {
                         )
                         .await
                 }
-                Err(err) => {
-                    let warning = format!(
-                        "zsync update failed for '{}'; falling back to direct download: {}",
-                        package.name, err
-                    );
+                Ok(ZsyncUpgradeAttempt::Fallback(err)) => {
+                    let summary = output::error_summary(&err);
+                    let warning = format!("zsync failed, fallback: {summary}");
                     progress!(
                         progress_callback,
                         PackageProgressEvent::Warning(warning.clone())
@@ -613,6 +632,7 @@ impl<'a> PackageUpgrader<'a> {
                         )
                         .await
                 }
+                Err(err) => Err(err),
             }
         };
         let mut updated_package = match install_result {
@@ -982,5 +1002,4 @@ mod tests {
 
         cleanup(&root).expect("cleanup");
     }
-
 }
