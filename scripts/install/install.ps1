@@ -35,30 +35,45 @@ function Write-ColorOutput {
 function Detect-Arch {
     # Try multiple methods to detect architecture
 
-    # Method 1: Using RuntimeInformation (PowerShell Core)
-    $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+    # Method 1: Using RuntimeInformation when available.
+    try {
+        $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
 
-    switch ($arch) {
-        ([System.Runtime.InteropServices.Architecture]::X64)   { return "x86_64" }
-        ([System.Runtime.InteropServices.Architecture]::Arm64) { return "aarch64" }
-        ([System.Runtime.InteropServices.Architecture]::Arm)   { return "armv7" }
-        ([System.Runtime.InteropServices.Architecture]::X86)   { return "i686" }
+        switch ($arch) {
+            ([System.Runtime.InteropServices.Architecture]::X64)   { return "x86_64" }
+            ([System.Runtime.InteropServices.Architecture]::Arm64) { return "aarch64" }
+        }
+    } catch {
+        # Fall back to environment and WMI/CIM probes below.
     }
 
-    $envArch = $env:PROCESSOR_ARCHITECTURE
+    $envArch = if ($env:PROCESSOR_ARCHITEW6432) {
+        $env:PROCESSOR_ARCHITEW6432
+    } else {
+        $env:PROCESSOR_ARCHITECTURE
+    }
 
     switch ($envArch) {
         "AMD64" { return "x86_64" }
         "ARM64" { return "aarch64" }
-        "ARM"   { return "armv7" }
-        "x86"   { return "i686" }
     }
 
-    switch ($wmiArch) {
-        9  { return "x86_64" }  # x64
-        12 { return "aarch64" } # ARM64
-        5  { return "armv7" }   # ARM
-        0  { return "i686" }    # x86
+    try {
+        $wmiArch = (Get-CimInstance -ClassName Win32_Processor | Select-Object -First 1).Architecture
+        switch ($wmiArch) {
+            9  { return "x86_64" }  # x64
+            12 { return "aarch64" } # ARM64
+        }
+    } catch {
+        try {
+            $wmiArch = (Get-WmiObject -Class Win32_Processor | Select-Object -First 1).Architecture
+            switch ($wmiArch) {
+                9  { return "x86_64" }  # x64
+                12 { return "aarch64" } # ARM64
+            }
+        } catch {
+            # Unsupported or unavailable probe.
+        }
     }
 
     return "unknown"
@@ -118,8 +133,18 @@ function Test-UpstreamPackageInstalled {
         [string]$Binary
     )
 
-    & $Binary @("list", "upstream", "--json") *> $null
-    return $LASTEXITCODE -eq 0
+    $output = & $Binary @("list", "upstream", "--json") 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        return $false
+    }
+
+    try {
+        $packages = @($output | ConvertFrom-Json)
+    } catch {
+        return $false
+    }
+
+    return [bool]($packages | Where-Object { $_.name -eq "upstream" } | Select-Object -First 1)
 }
 
 function Install-UpstreamIfMissing {
