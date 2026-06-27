@@ -84,6 +84,18 @@ fn render_upgrade_progress_row(
             format!("Downloading {}", HumanBytes(downloaded))
         }
         PackageProgressEvent::Download { .. } => "Downloading...".to_string(),
+        PackageProgressEvent::Zsync { downloaded, total } if total > 0 => {
+            format!(
+                "Zsync upgrading {} {} / {}",
+                output::progress_bar(downloaded, total, UPGRADE_PROGRESS_BAR_WIDTH),
+                HumanBytes(downloaded),
+                HumanBytes(total)
+            )
+        }
+        PackageProgressEvent::Zsync { downloaded, .. } if downloaded > 0 => {
+            format!("Zsync upgrading {}", HumanBytes(downloaded))
+        }
+        PackageProgressEvent::Zsync { .. } => "Zsync upgrading...".to_string(),
         PackageProgressEvent::Warning(message) => output::truncate_end(&message, 96),
     };
     format!("{name:<name_width$} {detail}")
@@ -228,6 +240,15 @@ pub async fn run(
                     name.clone(),
                     render_upgrade_progress_row(&name, event, active_name_width),
                 );
+            }
+            UpgradeProgressEvent::Warning { name, message } => {
+                let row = output::status_line_text_with_width(
+                    Status::Warn,
+                    &name,
+                    message,
+                    completion_subject_width,
+                );
+                progress_pb.suspend(|| println!("{row}"));
             }
             UpgradeProgressEvent::Complete { name, result } => {
                 active_progress_rows.remove(&name);
@@ -868,6 +889,17 @@ mod tests {
         );
         assert!(download.starts_with("gitui Downloading [=======>      ]"));
         assert!(download.contains('/'));
+
+        let zsync = render_upgrade_progress_row(
+            "gitui",
+            PackageProgressEvent::Zsync {
+                downloaded: 512,
+                total: 1024,
+            },
+            5,
+        );
+        assert!(zsync.starts_with("gitui Zsync upgrading [=======>      ]"));
+        assert!(zsync.contains('/'));
 
         assert_eq!(
             render_upgrade_progress_row(

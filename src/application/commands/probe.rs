@@ -182,7 +182,12 @@ pub async fn run(
         let should_emit = last_emit
             .map(|elapsed: std::time::Instant| elapsed.elapsed() >= PROGRESS_UPDATE_INTERVAL)
             .unwrap_or(true);
-        if should_emit || !matches!(event, PackageProgressEvent::Download { .. }) {
+        if should_emit
+            || !matches!(
+                event,
+                PackageProgressEvent::Download { .. } | PackageProgressEvent::Zsync { .. }
+            )
+        {
             progress_pb.set_message(render_probe_install_progress_message(&progress_name, event));
             last_emit = Some(std::time::Instant::now());
         }
@@ -277,6 +282,16 @@ fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) ->
                 PackagePhase::DownloadingPackage.label(),
                 transfer
             )
+        }
+        PackageProgressEvent::Zsync { downloaded, total } => {
+            let transfer = if total > 0 {
+                format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
+            } else if downloaded > 0 {
+                format!("{}", HumanBytes(downloaded))
+            } else {
+                "-".to_string()
+            };
+            format!(" {:<28} {:<28} {}", name, "Zsync upgrading...", transfer)
         }
         PackageProgressEvent::Warning(message) => {
             format!(" {:<28} {}", name, message)
@@ -511,10 +526,7 @@ struct JsonAssetCandidate {
     target_arch: Option<String>,
 }
 
-fn json_probe_result(
-    probe_result: &ProbeResult,
-    rows: &[ProbeRow],
-) -> JsonProbeResult {
+fn json_probe_result(probe_result: &ProbeResult, rows: &[ProbeRow]) -> JsonProbeResult {
     JsonProbeResult {
         source: JsonProbeSource {
             input: probe_result.input.clone(),

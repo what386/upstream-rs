@@ -59,6 +59,20 @@ fn render_install_progress_row(name: &str, event: PackageProgressEvent) -> Strin
             };
             format!(" {:<28} {}", name, detail)
         }
+        PackageProgressEvent::Zsync { downloaded, total } => {
+            let detail = if total > 0 {
+                format!(
+                    "Zsync upgrading {} {}",
+                    output::progress_bar(downloaded, total, INSTALL_PROGRESS_BAR_WIDTH),
+                    format_transfer(downloaded, total)
+                )
+            } else if downloaded > 0 {
+                format!("Zsync upgrading {}", format_transfer(downloaded, total))
+            } else {
+                "Zsync upgrading...".to_string()
+            };
+            format!(" {:<28} {}", name, detail)
+        }
         PackageProgressEvent::Warning(message) => {
             format!(" {:<28} {}", name, message)
         }
@@ -155,7 +169,12 @@ pub async fn run(
         let should_emit = last_emit
             .map(|elapsed: std::time::Instant| elapsed.elapsed() >= PROGRESS_UPDATE_INTERVAL)
             .unwrap_or(true);
-        if should_emit || !matches!(event, PackageProgressEvent::Download { .. }) {
+        if should_emit
+            || !matches!(
+                event,
+                PackageProgressEvent::Download { .. } | PackageProgressEvent::Zsync { .. }
+            )
+        {
             progress_pb.set_message(render_install_progress_message(&progress_name, event));
             last_emit = Some(std::time::Instant::now());
         }
