@@ -15,10 +15,7 @@ struct LegacyTrustConfig {
     cosign_public_keys: Vec<CosignPublicKey>,
 }
 
-pub(in crate::routines::migrate) fn migrate_trust_config(
-    paths: &UpstreamPaths,
-    report: &mut MigrationReport,
-) -> Result<()> {
+pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
     let mut trust_storage = TrustStorage::new(&paths.config.trust_file)?;
 
     if !paths.config.config_file.exists() {
@@ -66,4 +63,60 @@ pub(in crate::routines::migrate) fn migrate_trust_config(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::run;
+    use crate::routines::migrate::MigrationReport;
+    use crate::utils::test_support;
+    use std::path::{Path, PathBuf};
+    use std::{fs, io};
+
+    fn temp_root(name: &str) -> PathBuf {
+        test_support::temp_root("upstream-migrate-v2-3-test", name)
+    }
+
+    fn cleanup(path: &Path) -> io::Result<()> {
+        fs::remove_dir_all(path)
+    }
+
+    #[test]
+    fn migrate_moves_legacy_config_trust_keys_to_trust_storage() {
+        let root = temp_root("trust-config");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(&paths.dirs.config_dir).expect("create config");
+        fs::create_dir_all(&paths.dirs.metadata_dir).expect("create metadata");
+        fs::write(
+            &paths.config.config_file,
+            include_str!("../../../../tests/fixtures/storage/legacy-config-with-trust.toml"),
+        )
+        .expect("write legacy config");
+        let mut report = MigrationReport::default();
+
+        run(&paths, &mut report).expect("migrate trust config");
+
+        assert_eq!(report.migrated_trusted_keys, 2);
+        let migrated_config =
+            fs::read_to_string(&paths.config.config_file).expect("read migrated config");
+        assert_eq!(
+            migrated_config,
+            include_str!("../../../../tests/fixtures/storage/legacy-config-with-trust.toml")
+        );
+
+        let trust_json: serde_json::Value = serde_json::from_slice(
+            &fs::read(&paths.config.trust_file).expect("read trust storage"),
+        )
+        .expect("parse trust storage");
+        assert_eq!(
+            trust_json["minisign_public_keys"][0]["id"].as_str(),
+            Some("mini")
+        );
+        assert_eq!(
+            trust_json["cosign_public_keys"][0]["id"].as_str(),
+            Some("cosign")
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
 }
