@@ -2,6 +2,16 @@
 
 *Generated on 2026-06-27*
 
+## 2.10.0 — 2026-06-27
+
+### Changes
+
+- bug: fix migration issues if db is created early
+- feat: zsync support for updates
+- feat: config options for check/upgrade concurrency
+- feat: asset selection improvements
+
+
 ## 2.9.0 — 2026-06-27
 
 ### Changes
