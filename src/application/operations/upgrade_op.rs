@@ -30,6 +30,7 @@ struct ProgressEntry {
     event: PackageProgressEvent,
 }
 type ProgressState = Arc<Mutex<BTreeMap<String, ProgressEntry>>>;
+type WarningState = Arc<Mutex<Vec<(String, String)>>>;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -121,6 +122,10 @@ pub enum UpgradeProgressEvent {
         name: String,
         event: PackageProgressEvent,
     },
+    Warning {
+        name: String,
+        message: String,
+    },
     Complete {
         name: String,
         result: UpgradePackageResult,
@@ -147,6 +152,24 @@ impl<'a> UpgradeOperation<'a> {
         );
     }
 
+    fn record_zsync_progress(
+        progress_state: &ProgressState,
+        name: &str,
+        downloaded: u64,
+        total: u64,
+    ) {
+        let Ok(mut state) = progress_state.lock() else {
+            return;
+        };
+
+        state.insert(
+            name.to_string(),
+            ProgressEntry {
+                event: PackageProgressEvent::Zsync { downloaded, total },
+            },
+        );
+    }
+
     fn record_status_progress(
         progress_state: &ProgressState,
         name: &str,
@@ -161,6 +184,7 @@ impl<'a> UpgradeOperation<'a> {
 
     fn record_progress_event(
         progress_state: &ProgressState,
+        warning_state: &WarningState,
         name: &str,
         event: PackageProgressEvent,
     ) {
@@ -173,21 +197,35 @@ impl<'a> UpgradeOperation<'a> {
             PackageProgressEvent::Download { downloaded, total } => {
                 Self::record_download_progress(progress_state, name, downloaded, total)
             }
-            PackageProgressEvent::Warning(message) => Self::record_status_progress(
-                progress_state,
-                name,
-                PackageProgressEvent::Warning(message),
-            ),
+            PackageProgressEvent::Zsync { downloaded, total } => {
+                Self::record_zsync_progress(progress_state, name, downloaded, total)
+            }
+            PackageProgressEvent::Warning(message) => {
+                if let Ok(mut warnings) = warning_state.lock() {
+                    warnings.push((name.to_string(), message));
+                }
+            }
         }
     }
 
     fn emit_progress_updates<P>(
         progress_state: &ProgressState,
+        warning_state: &WarningState,
         last_progress_events: &mut BTreeMap<String, PackageProgressEvent>,
         progress_callback: &mut Option<P>,
     ) where
         P: FnMut(UpgradeProgressEvent),
     {
+        let warnings = warning_state
+            .lock()
+            .map(|mut warnings| warnings.drain(..).collect::<Vec<_>>())
+            .unwrap_or_default();
+        if let Some(cb) = progress_callback.as_mut() {
+            for (name, message) in warnings {
+                cb(UpgradeProgressEvent::Warning { name, message });
+            }
+        }
+
         let snapshot = progress_state
             .lock()
             .map(|state| {
@@ -226,13 +264,19 @@ impl<'a> UpgradeOperation<'a> {
 
     fn clear_completed_progress<P>(
         progress_state: &ProgressState,
+        warning_state: &WarningState,
         last_progress_events: &mut BTreeMap<String, PackageProgressEvent>,
         name: &str,
         progress_callback: &mut Option<P>,
     ) where
         P: FnMut(UpgradeProgressEvent),
     {
-        Self::emit_progress_updates(progress_state, last_progress_events, progress_callback);
+        Self::emit_progress_updates(
+            progress_state,
+            warning_state,
+            last_progress_events,
+            progress_callback,
+        );
 
         if let Ok(mut state) = progress_state.lock() {
             state.remove(name);
@@ -792,12 +836,14 @@ impl<'a> UpgradeOperation<'a> {
         let mut failures = 0;
         let mut updated_packages = Vec::new();
         let progress_state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
+        let warning_state: WarningState = Arc::new(Mutex::new(Vec::new()));
         let mut last_progress_events: BTreeMap<String, PackageProgressEvent> = BTreeMap::new();
         if let Some(cb) = progress_callback.as_mut() {
             cb(UpgradeProgressEvent::Overall { completed, total });
         }
         let mut pending = stream::iter(packages.into_iter().map(|(package, row)| {
             let state_ref = Arc::clone(&progress_state);
+            let warning_state_ref = Arc::clone(&warning_state);
             async move {
                 let name = package.name.clone();
                 let new_version = row.new_version.clone();
@@ -811,7 +857,7 @@ impl<'a> UpgradeOperation<'a> {
                 });
                 let mut ignored_messages = Some(|_: &str| {});
                 let mut progress_cb = Some(|event: PackageProgressEvent| {
-                    Self::record_progress_event(&state_ref, &name, event);
+                    Self::record_progress_event(&state_ref, &warning_state_ref, &name, event);
                 });
 
                 let result = upgrader
@@ -843,6 +889,7 @@ impl<'a> UpgradeOperation<'a> {
 
                     Self::clear_completed_progress(
                         &progress_state,
+                        &warning_state,
                         &mut last_progress_events,
                         &name,
                         progress_callback,
@@ -883,7 +930,7 @@ impl<'a> UpgradeOperation<'a> {
                     }
                 }
                 _ = ticker.tick() => {
-                    Self::emit_progress_updates(&progress_state, &mut last_progress_events, progress_callback);
+                    Self::emit_progress_updates(&progress_state, &warning_state, &mut last_progress_events, progress_callback);
                 }
             }
         }
@@ -1084,9 +1131,11 @@ mod tests {
     #[test]
     fn progress_state_tracks_latest_package_progress_event() {
         let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
+        let warnings = Arc::new(Mutex::new(Vec::new()));
 
         UpgradeOperation::record_progress_event(
             &state,
+            &warnings,
             "ripgrep",
             PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot),
         );
@@ -1106,6 +1155,24 @@ mod tests {
 
         UpgradeOperation::record_progress_event(
             &state,
+            &warnings,
+            "ripgrep",
+            PackageProgressEvent::Zsync {
+                downloaded: 192,
+                total: 256,
+            },
+        );
+        assert_eq!(
+            state.lock().expect("state")["ripgrep"].event,
+            PackageProgressEvent::Zsync {
+                downloaded: 192,
+                total: 256,
+            }
+        );
+
+        UpgradeOperation::record_progress_event(
+            &state,
+            &warnings,
             "ripgrep",
             PackageProgressEvent::Phase(PackagePhase::InstallingPackage),
         );
@@ -1118,13 +1185,19 @@ mod tests {
     #[test]
     fn progress_updates_emit_typed_package_events_without_sentinels() {
         let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
+        let warnings = Arc::new(Mutex::new(Vec::new()));
         let mut last_render = BTreeMap::new();
         let mut events = Vec::new();
 
         UpgradeOperation::record_download_progress(&state, "ripgrep", 128, 256);
         {
             let mut callback = Some(|event: UpgradeProgressEvent| events.push(event));
-            UpgradeOperation::emit_progress_updates(&state, &mut last_render, &mut callback);
+            UpgradeOperation::emit_progress_updates(
+                &state,
+                &warnings,
+                &mut last_render,
+                &mut callback,
+            );
         }
         assert!(events.iter().any(|event| matches!(
             event,
@@ -1139,7 +1212,12 @@ mod tests {
 
         {
             let mut callback = Some(|event: UpgradeProgressEvent| events.push(event));
-            UpgradeOperation::emit_progress_updates(&state, &mut last_render, &mut callback);
+            UpgradeOperation::emit_progress_updates(
+                &state,
+                &warnings,
+                &mut last_render,
+                &mut callback,
+            );
         }
         assert_eq!(events.len(), 1);
     }
@@ -1147,11 +1225,13 @@ mod tests {
     #[test]
     fn completed_progress_flushes_latest_package_event_before_clearing() {
         let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
+        let warnings = Arc::new(Mutex::new(Vec::new()));
         let mut last_render = BTreeMap::new();
         let mut events = Vec::new();
 
         UpgradeOperation::record_progress_event(
             &state,
+            &warnings,
             "ripgrep",
             PackageProgressEvent::Phase(PackagePhase::RollingBack),
         );
@@ -1160,6 +1240,7 @@ mod tests {
             let mut callback = Some(|event: UpgradeProgressEvent| events.push(event));
             UpgradeOperation::clear_completed_progress(
                 &state,
+                &warnings,
                 &mut last_render,
                 "ripgrep",
                 &mut callback,
