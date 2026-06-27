@@ -146,15 +146,11 @@ impl<'a> PackageUpgrader<'a> {
         let work_target = work_root.join(backup_path.file_name().ok_or_else(|| {
             anyhow::anyhow!("Backup path '{}' has no filename", backup_path.display())
         })?);
-        fs::copy(backup_path, &work_target).context(format!(
-            "Failed to stage '{}' for zsync update",
-            backup_path.display()
-        ))?;
 
         let result: Result<Package> = async {
             progress!(
                 progress_callback,
-                PackageProgressEvent::Phase(PackagePhase::DownloadingPackage)
+                PackageProgressEvent::Phase(PackagePhase::ApplyingZsyncUpdate)
             );
             zsync_handler::update_selected_asset(
                 &package,
@@ -162,6 +158,7 @@ impl<'a> PackageUpgrader<'a> {
                 asset,
                 self.provider_manager,
                 &work_cache,
+                backup_path,
                 &work_target,
                 message_callback.as_mut(),
             )
@@ -986,19 +983,4 @@ mod tests {
         cleanup(&root).expect("cleanup");
     }
 
-    #[test]
-    fn zsync_work_root_uses_upstream_temp_dir() {
-        let root = temp_root("zsync-work-root");
-        let paths = test_paths(&root);
-        let package = test_package("tool", root.join("tool"));
-
-        let work_root = PackageUpgrader::zsync_work_root(&paths, &package);
-
-        assert_eq!(
-            work_root.parent().expect("work root parent"),
-            paths.install.tmp_dir
-        );
-
-        cleanup(&root).expect("cleanup");
-    }
 }

@@ -1,6 +1,6 @@
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Stdio;
 
 use anyhow::{Context, Result, anyhow};
@@ -52,7 +52,8 @@ pub async fn update_selected_asset<H>(
     target_asset: &Asset,
     provider_manager: &ProviderManager,
     download_cache: &Path,
-    target_path: &Path,
+    seed_path: &Path,
+    output_path: &Path,
     message_callback: Option<&mut H>,
 ) -> Result<bool>
 where
@@ -67,7 +68,8 @@ where
         zsync_asset,
         provider_manager,
         download_cache,
-        target_path,
+        seed_path,
+        output_path,
         message_callback,
     )
     .await?;
@@ -80,13 +82,14 @@ pub async fn update_asset<H>(
     zsync_asset: &Asset,
     provider_manager: &ProviderManager,
     download_cache: &Path,
-    target_path: &Path,
+    seed_path: &Path,
+    output_path: &Path,
     mut message_callback: Option<&mut H>,
 ) -> Result<()>
 where
     H: FnMut(&str),
 {
-    ensure_target_file(target_path)?;
+    ensure_seed_file(seed_path)?;
     let status = Command::new("zsync")
         .arg("-V")
         .stdout(Stdio::null())
@@ -118,7 +121,6 @@ where
         .await
         .with_context(|| format!("Failed to download zsync descriptor '{}'", zsync_asset.name))?;
 
-    let output_path = zsync_output_path(target_path);
     if output_path.exists() {
         let _ = fs::remove_file(&output_path);
     }
@@ -126,11 +128,11 @@ where
     message!(
         message_callback,
         "Updating '{}' with '{}'",
-        target_path.display(),
+        seed_path.display(),
         zsync_asset.name
     );
 
-    let result = run_zsync_update(target_path, &output_path, &zsync_path).await;
+    let result = run_zsync_update(seed_path, &zsync_path, output_path).await;
     if result.is_err() {
         let _ = fs::remove_file(&output_path);
     }
@@ -143,48 +145,40 @@ where
         ));
     }
 
-    fs::rename(&output_path, target_path).with_context(|| {
-        format!(
-            "Failed to replace '{}' with zsync output '{}'",
-            target_path.display(),
-            output_path.display()
-        )
-    })?;
-
     message!(
         message_callback,
         "Updated '{}' via zsync",
-        target_path.display()
+        output_path.display()
     );
 
     Ok(())
 }
 
-fn ensure_target_file(target_path: &Path) -> Result<()> {
-    if !target_path.exists() {
+fn ensure_seed_file(seed_path: &Path) -> Result<()> {
+    if !seed_path.exists() {
         return Err(anyhow!(
-            "Target file for zsync update was not found: '{}'",
-            target_path.display()
+            "Seed file for zsync update was not found: '{}'",
+            seed_path.display()
         ));
     }
 
-    if !target_path.is_file() {
+    if !seed_path.is_file() {
         return Err(anyhow!(
-            "Target path for zsync update is not a file: '{}'",
-            target_path.display()
+            "Seed path for zsync update is not a file: '{}'",
+            seed_path.display()
         ));
     }
 
     Ok(())
 }
 
-async fn run_zsync_update(target_path: &Path, output_path: &Path, zsync_path: &Path) -> Result<()> {
+async fn run_zsync_update(seed_path: &Path, input_path: &Path, output_path: &Path) -> Result<()> {
     let output = Command::new("zsync")
         .arg("-i")
-        .arg(target_path)
+        .arg(seed_path)
         .arg("-o")
         .arg(output_path)
-        .arg(zsync_path)
+        .arg(input_path)
         .output()
         .await
         .map_err(zsync_spawn_error)?;
@@ -205,13 +199,6 @@ async fn run_zsync_update(target_path: &Path, output_path: &Path, zsync_path: &P
 
     Err(anyhow!("zsync update failed: {detail}"))
 }
-fn zsync_output_path(target_path: &Path) -> PathBuf {
-    let file_name = target_path
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "artifact".to_string());
-    target_path.with_file_name(format!("{file_name}.zsync-update"))
-}
 
 fn zsync_spawn_error(error: io::Error) -> anyhow::Error {
     match error.kind() {
@@ -227,13 +214,12 @@ fn zsync_spawn_error(error: io::Error) -> anyhow::Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{find_asset, is_asset, zsync_output_path};
+    use super::{find_asset, is_asset};
     use crate::models::{
         common::Version,
         provider::{Asset, Release},
     };
     use chrono::{TimeZone, Utc};
-    use std::path::Path;
 
     fn asset(name: &str) -> Asset {
         Asset::new(
@@ -269,11 +255,5 @@ mod tests {
 
         let found = find_asset(&release, &target).expect("find zsync sidecar");
         assert_eq!(found.name, "tool.tar.gz.zsync");
-    }
-
-    #[test]
-    fn zsync_output_path_uses_sibling_temp_file() {
-        let output = zsync_output_path(Path::new("/tmp/tool.tar.gz"));
-        assert_eq!(output, Path::new("/tmp/tool.tar.gz.zsync-update"));
     }
 }
