@@ -4,7 +4,7 @@ use std::path::Path;
 use std::process::Stdio;
 
 use anyhow::{Context, Result, anyhow};
-use tokio::process::Command;
+use tokio::{io::AsyncReadExt, process::Command};
 
 use crate::{
     models::{
@@ -46,7 +46,7 @@ pub fn find_asset<'a>(release: &'a Release, target_asset: &Asset) -> Option<&'a 
         .find(|asset| is_asset(&asset.name, &target_asset.name))
 }
 
-pub async fn update_selected_asset<H>(
+pub async fn update_selected_asset<H, P>(
     package: &Package,
     release: &Release,
     target_asset: &Asset,
@@ -55,9 +55,11 @@ pub async fn update_selected_asset<H>(
     seed_path: &Path,
     output_path: &Path,
     message_callback: Option<&mut H>,
+    progress_callback: &mut Option<P>,
 ) -> Result<bool>
 where
     H: FnMut(&str),
+    P: FnMut(u64, u64),
 {
     let Some(zsync_asset) = find_asset(release, target_asset) else {
         return Ok(false);
@@ -70,24 +72,29 @@ where
         download_cache,
         seed_path,
         output_path,
+        target_asset.size,
         message_callback,
+        progress_callback,
     )
     .await?;
 
     Ok(true)
 }
 
-pub async fn update_asset<H>(
+pub async fn update_asset<H, P>(
     package: &Package,
     zsync_asset: &Asset,
     provider_manager: &ProviderManager,
     download_cache: &Path,
     seed_path: &Path,
     output_path: &Path,
+    target_size: u64,
     mut message_callback: Option<&mut H>,
+    progress_callback: &mut Option<P>,
 ) -> Result<()>
 where
     H: FnMut(&str),
+    P: FnMut(u64, u64),
 {
     ensure_seed_file(seed_path)?;
     let status = Command::new("zsync")
@@ -132,7 +139,15 @@ where
         zsync_asset.name
     );
 
-    let result = run_zsync_update(seed_path, &zsync_path, output_path).await;
+    let result = run_zsync_update(
+        seed_path,
+        &zsync_path,
+        &zsync_asset.download_url,
+        output_path,
+        target_size,
+        progress_callback,
+    )
+    .await;
     if result.is_err() {
         let _ = fs::remove_file(&output_path);
     }
@@ -172,32 +187,126 @@ fn ensure_seed_file(seed_path: &Path) -> Result<()> {
     Ok(())
 }
 
-async fn run_zsync_update(seed_path: &Path, input_path: &Path, output_path: &Path) -> Result<()> {
-    let output = Command::new("zsync")
-        .arg("-i")
-        .arg(seed_path)
-        .arg("-o")
-        .arg(output_path)
+async fn run_zsync_update<P>(
+    seed_path: &Path,
+    input_path: &Path,
+    descriptor_url: &str,
+    output_path: &Path,
+    total_size: u64,
+    progress_callback: &mut Option<P>,
+) -> Result<()>
+where
+    P: FnMut(u64, u64),
+{
+    let mut child = Command::new("zsync")
+        .arg(format!("-i={}", seed_path.display()))
+        .arg(format!("-o={}", output_path.display()))
+        .arg(format!("-u={descriptor_url}"))
         .arg(input_path)
-        .output()
-        .await
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .map_err(zsync_spawn_error)?;
 
-    if output.status.success() {
+    let mut stdout = child.stdout.take();
+    let mut stderr = child.stderr.take();
+    let mut stdout_done = stdout.is_none();
+    let mut stderr_done = stderr.is_none();
+    let mut stdout_buf = Vec::new();
+    let mut stderr_buf = Vec::new();
+    let mut stdout_chunk = [0_u8; 1024];
+    let mut stderr_chunk = [0_u8; 1024];
+
+    while !stdout_done || !stderr_done {
+        tokio::select! {
+            read = async {
+                match stdout.as_mut() {
+                    Some(stream) => stream.read(&mut stdout_chunk).await,
+                    None => Ok(0),
+                }
+            }, if !stdout_done => {
+                match read {
+                    Ok(0) => stdout_done = true,
+                    Ok(n) => {
+                        stdout_buf.extend_from_slice(&stdout_chunk[..n]);
+                        emit_zsync_progress(&stdout_buf, total_size, progress_callback);
+                    }
+                    Err(err) => return Err(anyhow!("Failed to read zsync stdout: {err}")),
+                }
+            }
+            read = async {
+                match stderr.as_mut() {
+                    Some(stream) => stream.read(&mut stderr_chunk).await,
+                    None => Ok(0),
+                }
+            }, if !stderr_done => {
+                match read {
+                    Ok(0) => stderr_done = true,
+                    Ok(n) => {
+                        stderr_buf.extend_from_slice(&stderr_chunk[..n]);
+                        emit_zsync_progress(&stderr_buf, total_size, progress_callback);
+                    }
+                    Err(err) => return Err(anyhow!("Failed to read zsync stderr: {err}")),
+                }
+            }
+        }
+    }
+
+    let status = child.wait().await.map_err(zsync_spawn_error)?;
+
+    if status.success() {
+        if let Some(cb) = progress_callback.as_mut() {
+            cb(total_size, total_size);
+        }
         return Ok(());
     }
 
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&stderr_buf).trim().to_string();
+    let stdout = String::from_utf8_lossy(&stdout_buf).trim().to_string();
     let detail = if !stderr.is_empty() {
         stderr
     } else if !stdout.is_empty() {
         stdout
     } else {
-        format!("status {}", output.status)
+        format!("status {status}")
     };
 
     Err(anyhow!("zsync update failed: {detail}"))
+}
+
+fn emit_zsync_progress<P>(bytes: &[u8], total_size: u64, progress_callback: &mut Option<P>)
+where
+    P: FnMut(u64, u64),
+{
+    let Some(percent) = parse_zsync_percent(bytes) else {
+        return;
+    };
+    let downloaded = ((total_size as f64) * (percent / 100.0)).round() as u64;
+    if let Some(cb) = progress_callback.as_mut() {
+        cb(downloaded.min(total_size), total_size);
+    }
+}
+
+fn parse_zsync_percent(bytes: &[u8]) -> Option<f64> {
+    let text = String::from_utf8_lossy(bytes);
+    let marker = text.rfind('%')?;
+    let before = &text[..marker];
+    let start = before
+        .char_indices()
+        .rev()
+        .find_map(|(idx, ch)| {
+            if ch.is_ascii_digit() || ch == '.' {
+                None
+            } else {
+                Some(idx + ch.len_utf8())
+            }
+        })
+        .unwrap_or(0);
+    let value = before[start..].trim();
+    if value.is_empty() {
+        return None;
+    }
+    value.parse::<f64>().ok().filter(|value| value.is_finite())
 }
 
 fn zsync_spawn_error(error: io::Error) -> anyhow::Error {
@@ -214,7 +323,7 @@ fn zsync_spawn_error(error: io::Error) -> anyhow::Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{find_asset, is_asset};
+    use super::{find_asset, is_asset, parse_zsync_percent};
     use crate::models::{
         common::Version,
         provider::{Asset, Release},
@@ -255,5 +364,12 @@ mod tests {
 
         let found = find_asset(&release, &target).expect("find zsync sidecar");
         assert_eq!(found.name, "tool.tar.gz.zsync");
+    }
+
+    #[test]
+    fn parses_zsync_progress_percent_from_output_chunk() {
+        assert_eq!(parse_zsync_percent(b"reading seed file 12.5%"), Some(12.5));
+        assert_eq!(parse_zsync_percent(b"\rdownloading 100%"), Some(100.0));
+        assert_eq!(parse_zsync_percent(b"no progress here"), None);
     }
 }
