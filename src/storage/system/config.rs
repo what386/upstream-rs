@@ -316,11 +316,11 @@ fn public_config_value(config: &AppConfig) -> Result<toml::Value> {
     toml::Value::try_from(config).context("Failed to serialize config")
 }
 
-fn set_config_permissions(config_file: &Path) -> Result<()> {
+fn set_config_permissions(_config_file: &Path) -> Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(config_file, fs::Permissions::from_mode(0o600))?;
+        fs::set_permissions(_config_file, fs::Permissions::from_mode(0o600))?;
     }
 
     Ok(())

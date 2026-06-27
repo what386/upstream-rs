@@ -33,10 +33,10 @@ impl AssetSelector {
     }
 
     pub fn find_recommended_asset(&self, release: &Release, package: &Package) -> Result<Asset> {
-        if let Some(candidates) = self.neural_candidate_assets(release, package) {
-            if let Some(candidate) = candidates.into_iter().next() {
-                return Ok(candidate.asset);
-            }
+        if let Some(candidates) = self.neural_candidate_assets(release, package)
+            && let Some(candidate) = candidates.into_iter().next()
+        {
+            return Ok(candidate.asset);
         }
 
         self.heuristic_selector

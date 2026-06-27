@@ -747,7 +747,7 @@ fn model_arch(arch: &CpuArch) -> Option<&'static str> {
 }
 
 fn contains(values: &[&str], value: &str) -> bool {
-    values.iter().any(|item| *item == value)
+    values.contains(&value)
 }
 
 fn py_bool(value: bool) -> &'static str {

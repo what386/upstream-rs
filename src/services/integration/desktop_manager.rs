@@ -204,7 +204,7 @@ impl<'a> DesktopManager<'a> {
                 .filter(|icon| !icon.is_empty())
                 .map(Path::new);
 
-            return self.create_windows_shortcut(name, exec_path, icon_path);
+            self.create_windows_shortcut(name, exec_path, icon_path)
         }
     }
 
@@ -230,7 +230,7 @@ impl<'a> DesktopManager<'a> {
                     fs::remove_file(&path)?;
                 }
             }
-            return Ok(());
+            Ok(())
         }
 
         #[cfg(windows)]
@@ -239,7 +239,7 @@ impl<'a> DesktopManager<'a> {
             if path.exists() {
                 fs::remove_file(&path)?;
             }
-            return Ok(());
+            Ok(())
         }
     }
 

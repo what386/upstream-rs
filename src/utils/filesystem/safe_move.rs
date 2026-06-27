@@ -97,7 +97,7 @@ fn copy_symlink(src: &Path, dst: &Path) -> io::Result<()> {
         if src.metadata()?.is_dir() {
             return std::os::windows::fs::symlink_dir(link_target, dst);
         }
-        return std::os::windows::fs::symlink_file(link_target, dst);
+        std::os::windows::fs::symlink_file(link_target, dst)
     }
 }
 

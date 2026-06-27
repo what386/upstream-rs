@@ -575,7 +575,7 @@ mod tests {
         let base = paths.integration.symlinks_dir.join(name);
         #[cfg(windows)]
         {
-            return base.with_extension("exe");
+            base.with_extension("exe")
         }
         #[cfg(not(windows))]
         {
