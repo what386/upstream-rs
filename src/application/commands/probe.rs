@@ -29,7 +29,6 @@ pub async fn run(
     limit: Option<u32>,
     tag: Option<String>,
     kind: Filetype,
-    verbose: bool,
     include_incompatible: bool,
     json: bool,
     create_entry: bool,
@@ -53,7 +52,7 @@ pub async fn run(
 
     if probe_result.releases.is_empty() {
         if json {
-            let result = json_probe_result(&probe_result, &[], verbose);
+            let result = json_probe_result(&probe_result, &[]);
             println!("{}", serde_json::to_string_pretty(&result)?);
             return Ok(());
         }
@@ -68,16 +67,13 @@ pub async fn run(
     }
 
     if json {
-        let result = json_probe_result(&probe_result, &probe_result.rows, verbose);
+        let result = json_probe_result(&probe_result, &probe_result.rows);
         println!("{}", serde_json::to_string_pretty(&result)?);
         return Ok(());
     }
 
     if dry_run {
-        pager::page_text(
-            Some("Probe"),
-            &format_probe_results(&probe_result.notes, &probe_result.rows, verbose),
-        )?;
+        pager::page_text(Some("Probe"), &format_probe_results(&probe_result.notes, &probe_result.rows))?;
         return Ok(());
     }
 
@@ -520,7 +516,6 @@ struct JsonAssetCandidate {
 fn json_probe_result(
     probe_result: &ProbeResult,
     rows: &[ProbeRow],
-    include_candidates: bool,
 ) -> JsonProbeResult {
     JsonProbeResult {
         source: JsonProbeSource {
@@ -541,7 +536,7 @@ fn json_probe_result(
                 published: row.published.clone(),
                 assets_count: row.assets_count,
                 top_candidate: row.top_candidate.clone(),
-                candidates: include_candidates.then(|| json_asset_candidates(row)),
+                candidates: Some(json_asset_candidates(row)),
                 candidate_error: row.candidate_error.clone(),
             })
             .collect(),
@@ -608,7 +603,7 @@ fn write_candidates(out: &mut String, row: &ProbeRow) {
     }
 }
 
-fn format_probe_results(notes: &[String], rows: &[ProbeRow], verbose: bool) -> String {
+fn format_probe_results(notes: &[String], rows: &[ProbeRow]) -> String {
     let widths = ProbeColumnWidths::from_rows(rows);
     let mut out = String::new();
 
@@ -657,9 +652,7 @@ fn format_probe_results(notes: &[String], rows: &[ProbeRow], verbose: bool) -> S
         )
         .expect("write probe row");
 
-        if verbose {
-            write_candidates(&mut out, row);
-        }
+        write_candidates(&mut out, row);
     }
 
     out
@@ -838,7 +831,7 @@ mod tests {
             choices: Vec::new(),
         };
 
-        let result: JsonProbeResult = json_probe_result(&probe_result, &[row], true);
+        let result: JsonProbeResult = json_probe_result(&probe_result, &[row]);
         let json = serde_json::to_value(result).expect("serialize probe result");
 
         assert_eq!(json["source"]["provider"], "github");
