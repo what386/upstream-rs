@@ -79,20 +79,6 @@ impl AssetSelector {
             || name.ends_with(".snap")
     }
 
-    #[cfg(unix)]
-    fn unsupported_package_asset_penalty(name: &str) -> i32 {
-        if Self::is_unsupported_package_asset_name(name) {
-            -120
-        } else {
-            0
-        }
-    }
-
-    #[cfg(not(unix))]
-    fn unsupported_package_asset_penalty(_name: &str) -> i32 {
-        0
-    }
-
     pub fn get_candidate_assets(
         &self,
         release: &Release,
@@ -276,7 +262,6 @@ impl AssetSelector {
         score += Self::primary_name_score(&name, &package_name);
         score += Self::asset_role_score(&name, &package_name);
         score += Self::auxiliary_asset_penalty(&name);
-        score += Self::unsupported_package_asset_penalty(&name);
 
         if let Some(target_arch) = &asset.target_arch {
             if *target_arch == self.architecture_info.cpu_arch {
