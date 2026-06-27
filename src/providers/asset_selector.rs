@@ -798,67 +798,67 @@ mod tests {
         assert!(candidates[0].score > candidates[1].score);
     }
 
-   #[test]
-fn get_candidate_assets_penalizes_sizes_far_from_trimmed_median() {
-    let selector = AssetSelector::new();
-    let package = make_package(Filetype::Archive);
-    let release = make_release(
-        vec![
-            Asset::new(
-                "https://example.invalid/tool-normal.tar.gz".to_string(),
-                1,
-                "tool-normal.tar.gz".to_string(),
-                10_000_000,
-                Utc::now(),
-            ),
-            Asset::new(
-                "https://example.invalid/tool-peer.tar.gz".to_string(),
-                2,
-                "tool-peer.tar.gz".to_string(),
-                11_000_000,
-                Utc::now(),
-            ),
-            Asset::new(
-                "https://example.invalid/tool-large.tar.gz".to_string(),
-                3,
-                "tool-large.tar.gz".to_string(),
-                25_000_000,
-                Utc::now(),
-            ),
-            Asset::new(
-                "https://example.invalid/tool-huge.tar.gz".to_string(),
-                4,
-                "tool-huge.tar.gz".to_string(),
-                600_000_000,
-                Utc::now(),
-            ),
-        ],
-        false,
-        "v1.0.0",
-    );
+    #[test]
+    fn get_candidate_assets_penalizes_sizes_far_from_trimmed_median() {
+        let selector = AssetSelector::new();
+        let package = make_package(Filetype::Archive);
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/tool-normal.tar.gz".to_string(),
+                    1,
+                    "tool-normal.tar.gz".to_string(),
+                    10_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-peer.tar.gz".to_string(),
+                    2,
+                    "tool-peer.tar.gz".to_string(),
+                    11_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-large.tar.gz".to_string(),
+                    3,
+                    "tool-large.tar.gz".to_string(),
+                    25_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-huge.tar.gz".to_string(),
+                    4,
+                    "tool-huge.tar.gz".to_string(),
+                    600_000_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
 
-    let candidates = selector
-        .get_candidate_assets(&release, &package)
-        .expect("candidates");
+        let candidates = selector
+            .get_candidate_assets(&release, &package)
+            .expect("candidates");
 
-    let score_for = |name: &str| {
-        candidates
-            .iter()
-            .find(|candidate| candidate.asset.name == name)
-            .map(|candidate| candidate.score)
-            .expect("candidate score")
-    };
+        let score_for = |name: &str| {
+            candidates
+                .iter()
+                .find(|candidate| candidate.asset.name == name)
+                .map(|candidate| candidate.score)
+                .expect("candidate score")
+        };
 
-    assert_eq!(
-        score_for("tool-large.tar.gz"),
-        score_for("tool-normal.tar.gz") - 20
-    );
+        assert_eq!(
+            score_for("tool-large.tar.gz"),
+            score_for("tool-normal.tar.gz") - 20
+        );
 
-    assert_eq!(
-        score_for("tool-huge.tar.gz"),
-        score_for("tool-normal.tar.gz") - 30
-    );
-}
+        assert_eq!(
+            score_for("tool-huge.tar.gz"),
+            score_for("tool-normal.tar.gz") - 30
+        );
+    }
 
     #[test]
     fn get_installable_candidate_assets_keeps_all_supported_auto_filetypes() {
