@@ -60,7 +60,7 @@ impl DownloadConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AppConfig {
     pub github: ProviderConfig,
@@ -68,16 +68,4 @@ pub struct AppConfig {
     pub gitea: ProviderConfig,
     pub download: DownloadConfig,
     pub rollback: RollbackConfig,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            github: ProviderConfig::default(),
-            gitlab: ProviderConfig::default(),
-            gitea: ProviderConfig::default(),
-            download: DownloadConfig::default(),
-            rollback: RollbackConfig::default(),
-        }
-    }
 }
