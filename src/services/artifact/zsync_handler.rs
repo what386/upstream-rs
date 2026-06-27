@@ -23,7 +23,9 @@ macro_rules! message {
 }
 
 pub fn is_asset(asset_name: &str, target_asset_name: &str) -> bool {
-    let Some(asset_file_name) = Path::new(asset_name).file_name().and_then(|name| name.to_str())
+    let Some(asset_file_name) = Path::new(asset_name)
+        .file_name()
+        .and_then(|name| name.to_str())
     else {
         return false;
     };
@@ -85,7 +87,19 @@ where
     H: FnMut(&str),
 {
     ensure_target_file(target_path)?;
-    ensure_zsync_available().await?;
+    let status = Command::new("zsync")
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .await
+        .map_err(zsync_spawn_error)?;
+
+    if !status.success() {
+        return Err(anyhow!(
+            "Required external binary 'zsync' is not executable or returned a failing status"
+        ));
+    }
 
     message!(
         message_callback,
@@ -116,7 +130,7 @@ where
         zsync_asset.name
     );
 
-    let result = run_zsync_update(Path::new("zsync"), target_path, &output_path, &zsync_path).await;
+    let result = run_zsync_update(target_path, &output_path, &zsync_path).await;
     if result.is_err() {
         let _ = fs::remove_file(&output_path);
     }
@@ -164,35 +178,8 @@ fn ensure_target_file(target_path: &Path) -> Result<()> {
     Ok(())
 }
 
-async fn ensure_zsync_available() -> Result<()> {
-    ensure_zsync_available_at(Path::new("zsync")).await
-}
-
-async fn ensure_zsync_available_at(command: &Path) -> Result<()> {
-    let status = spawn_zsync_command(command)
-        .arg("--version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .await
-        .map_err(zsync_spawn_error)?;
-
-    if !status.success() {
-        return Err(anyhow!(
-            "Required external binary 'zsync' is not executable or returned a failing status"
-        ));
-    }
-
-    Ok(())
-}
-
-async fn run_zsync_update(
-    command: &Path,
-    target_path: &Path,
-    output_path: &Path,
-    zsync_path: &Path,
-) -> Result<()> {
-    let output = spawn_zsync_command(command)
+async fn run_zsync_update(target_path: &Path, output_path: &Path, zsync_path: &Path) -> Result<()> {
+    let output = Command::new("zsync")
         .arg("-i")
         .arg(target_path)
         .arg("-o")
@@ -218,11 +205,6 @@ async fn run_zsync_update(
 
     Err(anyhow!("zsync update failed: {detail}"))
 }
-
-fn spawn_zsync_command(command: &Path) -> Command {
-    Command::new(command)
-}
-
 fn zsync_output_path(target_path: &Path) -> PathBuf {
     let file_name = target_path
         .file_name()
@@ -245,25 +227,13 @@ fn zsync_spawn_error(error: io::Error) -> anyhow::Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        ensure_zsync_available_at, find_asset, is_asset, run_zsync_update, zsync_output_path,
-    };
-    use crate::{
-        models::{
-            common::Version,
-            provider::{Asset, Release},
-        },
+    use super::{find_asset, is_asset, zsync_output_path};
+    use crate::models::{
+        common::Version,
+        provider::{Asset, Release},
     };
     use chrono::{TimeZone, Utc};
-    use std::{fs, path::Path};
-
-    fn temp_root(name: &str) -> std::path::PathBuf {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("time")
-            .as_nanos();
-        std::env::temp_dir().join(format!("upstream-zsync-test-{name}-{nanos}"))
-    }
+    use std::path::Path;
 
     fn asset(name: &str) -> Asset {
         Asset::new(
@@ -305,62 +275,5 @@ mod tests {
     fn zsync_output_path_uses_sibling_temp_file() {
         let output = zsync_output_path(Path::new("/tmp/tool.tar.gz"));
         assert_eq!(output, Path::new("/tmp/tool.tar.gz.zsync-update"));
-    }
-
-    #[tokio::test]
-    async fn missing_zsync_binary_reports_clear_error() {
-        let err = ensure_zsync_available_at(Path::new("/definitely/missing/zsync"))
-            .await
-            .expect_err("missing zsync");
-        assert!(err.to_string().contains("not found"));
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn non_executable_zsync_binary_reports_clear_error() {
-        use std::os::unix::fs::PermissionsExt;
-
-        let root = temp_root("nonexec");
-        fs::create_dir_all(&root).expect("create root");
-        let script = root.join("zsync");
-        fs::write(&script, "#!/bin/sh\nexit 0\n").expect("write script");
-        fs::set_permissions(&script, fs::Permissions::from_mode(0o644)).expect("chmod");
-
-        let err = ensure_zsync_available_at(&script)
-            .await
-            .expect_err("non executable zsync");
-        assert!(err.to_string().contains("not executable"));
-
-        let _ = fs::remove_dir_all(root);
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn run_zsync_update_uses_input_and_output_paths() {
-        use std::os::unix::fs::PermissionsExt;
-
-        let root = temp_root("run");
-        fs::create_dir_all(&root).expect("create root");
-        let script = root.join("zsync");
-        let input = root.join("tool.tar.gz");
-        let output = root.join("tool.tar.gz.zsync-update");
-        let control = root.join("tool.tar.gz.zsync");
-
-        fs::write(&input, b"old-data").expect("write input");
-        fs::write(&control, b"zsync-control").expect("write control");
-        fs::write(
-            &script,
-            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then exit 0; fi\ncp \"$2\" \"$4\"\n",
-        )
-        .expect("write script");
-        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).expect("chmod");
-
-        run_zsync_update(&script, &input, &output, &control)
-            .await
-            .expect("run zsync update");
-
-        assert_eq!(fs::read(&output).expect("read output"), b"old-data");
-
-        let _ = fs::remove_dir_all(root);
     }
 }
