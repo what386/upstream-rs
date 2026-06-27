@@ -53,7 +53,7 @@ struct DotSlashPlatformEntry {
 
 #[derive(Debug, Deserialize)]
 struct DotSlashProvider {
-    url: String,
+    url: Option<String>,
 }
 
 pub fn select_asset(contents: &str) -> Result<DotSlashAsset> {
@@ -185,18 +185,19 @@ pub fn select_asset_for_architecture(
             continue;
         }
 
-        let provider = entry
+        let url = entry
             .providers
             .iter()
-            .find(|provider| !provider.url.trim().is_empty())
+            .filter_map(|provider| provider.url.as_deref())
+            .find(|url| !url.trim().is_empty())
             .ok_or_else(|| anyhow!("DotSlash platform '{}' has no URL provider", platform.key))?;
-        let filename = filename_from_url(&provider.url)?;
+        let filename = filename_from_url(url)?;
 
         return Ok(DotSlashAsset {
             dotslash_name: file.name,
             platform,
             filename,
-            url: provider.url.clone(),
+            url: url.to_string(),
             size: entry.size,
             hash: entry.hash,
             digest: entry.digest,
@@ -492,6 +493,47 @@ mod tests {
 
         assert_eq!(asset.url, "https://example.com/tool.tar.gz");
         assert_eq!(asset.filename, "tool.tar.gz");
+    }
+
+    #[test]
+    fn selects_url_provider_when_other_provider_variants_are_present() {
+        let contents = r#"{
+  "name": "codex",
+  "platforms": {
+    "linux-x86_64": {
+      "size": 77258145,
+      "hash": "blake3",
+      "digest": "822f3acafd8f6a700723e7183e5e756b410bdcce130a9931faa223a24acde9e6",
+      "format": "tar.zst",
+      "path": "bin/codex",
+      "providers": [
+        {
+          "url": "https://github.com/openai/codex/releases/download/rust-v0.142.3/codex-package-x86_64-unknown-linux-musl.tar.zst"
+        },
+        {
+          "type": "github-release",
+          "repo": "https://github.com/openai/codex",
+          "tag": "rust-v0.142.3",
+          "name": "codex-package-x86_64-unknown-linux-musl.tar.zst"
+        }
+      ]
+    }
+  }
+}"#;
+
+        let asset =
+            select_asset_for_architecture(contents, &architecture(OSKind::Linux, CpuArch::X86_64))
+                .expect("select asset");
+
+        assert_eq!(
+            asset.filename,
+            "codex-package-x86_64-unknown-linux-musl.tar.zst"
+        );
+        assert_eq!(
+            asset.url,
+            "https://github.com/openai/codex/releases/download/rust-v0.142.3/codex-package-x86_64-unknown-linux-musl.tar.zst"
+        );
+        assert_eq!(asset.path, "bin/codex");
     }
 
     #[test]
