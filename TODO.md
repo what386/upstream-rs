@@ -8,9 +8,6 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
-- [ ] feat: config options for check/upgrade concurrency
-      @created 2026-06-27 21:19
-
 
 ## Completed
 
@@ -21,4 +18,8 @@
 - [x] feat: zsync support for updates
       @created 2026-06-27 18:21
       @completed 2026-06-27 19:45
+
+- [x] feat: config options for check/upgrade concurrency
+      @created 2026-06-27 21:19
+      @completed 2026-06-27 21:19
 
