@@ -6,7 +6,7 @@ use upstream_rs::application::cli::arguments::Cli;
 #[derive(Parser, Debug)]
 #[command(
     name = "upstream-completions",
-    about = "Generate shell completions for upstream"
+    about = "Generate shell completions for the upstream CLI"
 )]
 struct CompletionArgs {
     #[arg(value_enum)]
