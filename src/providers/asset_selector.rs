@@ -398,7 +398,7 @@ impl AssetSelector {
         let mut score = 0;
         let tokens = Self::asset_name_tokens(name);
 
-        let has = |token: &str| tokens.iter().any(|candidate| *candidate == token);
+        let has = |token: &str| tokens.contains(&token);
 
         if has("cli") {
             score += 20;
@@ -522,15 +522,11 @@ impl AssetSelector {
 
         let mut stem = name;
 
-        loop {
-            let Some(suffix) = SUFFIXES
-                .iter()
-                .find(|suffix| stem.ends_with(**suffix))
-                .copied()
-            else {
-                break;
-            };
-
+        while let Some(suffix) = SUFFIXES
+            .iter()
+            .find(|suffix| stem.ends_with(**suffix))
+            .copied()
+        {
             stem = &stem[..stem.len() - suffix.len()];
         }
 
