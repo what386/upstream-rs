@@ -31,6 +31,23 @@ pub struct GithubReleaseDto {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GithubTagDto {
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GithubBranchDto {
+    pub commit: GithubCommitDto,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GithubCommitDto {
+    #[serde(default, deserialize_with = "deserialize_nullable_string")]
+    pub sha: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GithubRepositorySearchResponseDto {
     pub items: Vec<GithubRepositorySearchItemDto>,
 }
