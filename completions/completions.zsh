@@ -198,12 +198,11 @@ _arguments "${_arguments_options[@]}" : \
 '-k+[Asset kind to show and install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
 '--kind=[Asset kind to show and install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
 '--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
-'--verbose[Show scored candidate assets and selection details]' \
 '--include-incompatible[Include assets that do not match the current OS/architecture or selected file type]' \
 '--json[Print probe results as JSON and exit]' \
 '-d[Create a desktop launcher entry for GUI applications]' \
 '--desktop[Create a desktop launcher entry for GUI applications]' \
-'--dry-run[Show parsed releases without selecting, downloading, or installing]' \
+'--dry-run[Run the normal interactive selection and preview flow, then stop before installation]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \

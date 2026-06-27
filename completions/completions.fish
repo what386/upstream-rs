@@ -162,11 +162,10 @@ best-effort\t''
 checksum\t''
 signature\t''
 all\t''"
-complete -c upstream -n "__fish_upstream_using_subcommand probe" -l verbose -d 'Show scored candidate assets and selection details'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l include-incompatible -d 'Include assets that do not match the current OS/architecture or selected file type'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l json -d 'Print probe results as JSON and exit'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s d -l desktop -d 'Create a desktop launcher entry for GUI applications'
-complete -c upstream -n "__fish_upstream_using_subcommand probe" -l dry-run -d 'Show parsed releases without selecting, downloading, or installing'
+complete -c upstream -n "__fish_upstream_using_subcommand probe" -l dry-run -d 'Run the normal interactive selection and preview flow, then stop before installation'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s y -l yes -d 'Accept confirmation prompts automatically'
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s h -l help -d 'Print help (see more with \'--help\')'
 complete -c upstream -n "__fish_upstream_using_subcommand search" -s p -l provider -d 'Source provider to search (defaults to GitHub)' -r
