@@ -1,9 +1,16 @@
-mod layout;
-mod metadata;
-mod orchestrator;
 mod report;
-mod symlinks;
-mod trust;
+mod steps;
 
-pub use orchestrator::run;
+use anyhow::Result;
+
 pub use report::MigrationReport;
+
+use crate::utils::static_paths::UpstreamPaths;
+
+pub fn run(paths: &UpstreamPaths) -> Result<MigrationReport> {
+    let mut report = MigrationReport::default();
+
+    steps::run(paths, &mut report)?;
+
+    Ok(report)
+}
