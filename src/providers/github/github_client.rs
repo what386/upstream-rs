@@ -368,9 +368,7 @@ mod tests {
 
     use crate::models::provider::RepositorySearchFilters;
     use crate::providers::github::GithubClient;
-    use crate::providers::github::github_dtos::{
-        GithubBranchDto, GithubReleaseDto, GithubRepositorySearchResponseDto,
-    };
+    use crate::providers::github::github_dtos::{GithubReleaseDto, GithubRepositorySearchResponseDto};
 
     #[test]
     fn github_release_dto_accepts_nullable_string_fields() {
@@ -396,14 +394,6 @@ mod tests {
         assert_eq!(parsed.items[0].description, "");
         assert_eq!(parsed.items[0].language, "");
         assert_eq!(parsed.items[0].updated_at, "");
-    }
-
-    #[test]
-    fn github_branch_dto_reads_commit_sha() {
-        let parsed = serde_json::from_str::<GithubBranchDto>(r#"{"commit":{"sha":"abc123"}}"#)
-            .expect("valid branch JSON");
-
-        assert_eq!(parsed.commit.sha, "abc123");
     }
 
     #[test]

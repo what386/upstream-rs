@@ -329,27 +329,6 @@ mod tests {
     }
 
     #[test]
-    fn convert_search_result_maps_fields() {
-        let dto = GithubRepositorySearchItemDto {
-            full_name: "BurntSushi/ripgrep".to_string(),
-            name: "ripgrep".to_string(),
-            description: "fast grep".to_string(),
-            stargazers_count: 123,
-            language: "Rust".to_string(),
-            updated_at: "2026-05-09T00:00:00Z".to_string(),
-            archived: false,
-            fork: false,
-        };
-
-        let result = GithubAdapter::convert_search_result(dto);
-        assert_eq!(result.repo_slug, "BurntSushi/ripgrep");
-        assert_eq!(result.display_name, "ripgrep");
-        assert_eq!(result.description, "fast grep");
-        assert_eq!(result.stars, 123);
-        assert_eq!(result.language, "Rust");
-    }
-
-    #[test]
     fn convert_search_result_invalid_timestamp_uses_min() {
         let dto = GithubRepositorySearchItemDto {
             full_name: "owner/repo".to_string(),

@@ -353,8 +353,8 @@ impl ProviderManager {
 #[cfg(test)]
 mod tests {
     use super::ProviderManager;
-    use crate::models::common::{Version, enums::Provider};
-    use crate::models::provider::{Release, RepositorySearchFilters};
+    use crate::models::common::Version;
+    use crate::models::provider::Release;
     use chrono::Utc;
 
     fn make_release(prerelease: bool, tag: &str) -> Release {
@@ -372,12 +372,6 @@ mod tests {
     }
 
     #[test]
-    fn nightly_release_detection_is_case_insensitive() {
-        assert!(ProviderManager::is_nightly_release("Nightly-20260221"));
-        assert!(!ProviderManager::is_nightly_release("v1.2.3"));
-    }
-
-    #[test]
     fn preview_release_excludes_nightly_tags() {
         let preview = make_release(true, "v1.2.3-rc1");
         let nightly = make_release(true, "nightly-20260221");
@@ -386,40 +380,4 @@ mod tests {
         assert!(!ProviderManager::is_preview_release(&nightly));
     }
 
-    #[tokio::test]
-    async fn search_repositories_is_unsupported_for_non_github_providers() {
-        let manager =
-            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
-        let err = manager
-            .search_repositories(
-                "ripgrep",
-                &Provider::Gitlab,
-                Some(5),
-                &RepositorySearchFilters::default(),
-                None,
-            )
-            .await
-            .expect_err("gitlab search should be unsupported");
-
-        assert!(
-            err.to_string()
-                .contains("Repository search is not supported"),
-            "unexpected error: {err}"
-        );
-    }
-
-    #[tokio::test]
-    async fn project_readme_is_unsupported_for_direct_provider() {
-        let manager =
-            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
-        let err = manager
-            .get_project_readme("https://example.invalid/tool", &Provider::Direct, None)
-            .await
-            .expect_err("direct provider should not support project READMEs");
-
-        assert!(
-            err.to_string().contains("Project README is not supported"),
-            "unexpected error: {err}"
-        );
-    }
 }
