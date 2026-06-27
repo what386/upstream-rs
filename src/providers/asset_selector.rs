@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::{Result, anyhow};
@@ -34,24 +35,10 @@ impl AssetSelector {
     }
 
     pub fn find_recommended_asset(&self, release: &Release, package: &Package) -> Result<Asset> {
-        let target_filetype = if package.filetype == Filetype::Auto {
-            Self::resolve_auto_filetype(release)?
-        } else {
-            package.filetype
-        };
-
-        let compatible_assets: Vec<&Asset> = release
-            .assets
-            .iter()
-            .filter(|a| self.is_potentially_compatible(a))
-            .filter(|a| a.filetype == target_filetype)
-            .collect();
-        let size_profile = AssetSizeProfile::from_assets(compatible_assets.iter().copied());
-
-        compatible_assets
+        self.get_candidate_assets(release, package)?
             .into_iter()
-            .max_by_key(|a| self.score_asset(a, package, size_profile.as_ref()))
-            .cloned()
+            .max_by_key(|candidate| candidate.score)
+            .map(|candidate| candidate.asset)
             .ok_or_else(|| {
                 anyhow!(
                     "No compatible assets found for {} on {}",
@@ -61,30 +48,100 @@ impl AssetSelector {
             })
     }
 
+    // 0 B    – 4 KiB   : -80
+    // 4 KB   – 16 KiB  : -60
+    // 16 KB  – 50 KiB  : -40
+    // 50 KB  – 100 KiB : -20
+    // 100 KB – 500 MiB : 0
+    // > 500 MiB        : -10
+    fn absolute_size_score(asset: &Asset) -> i32 {
+        match asset.size {
+            0..=3_999 => -80,
+            4_000..=15_999 => -60,
+            16_000..=49_999 => -40,
+            50_000..=99_999 => -20,
+            500_000_001.. => -10,
+            _ => 0,
+        }
+    }
+
+    #[cfg(unix)]
+    fn is_unsupported_package_asset_name(name: &str) -> bool {
+        name.ends_with(".deb")
+            || name.ends_with(".rpm")
+            || name.ends_with(".apk")
+            || name.ends_with(".pkg.tar.zst")
+            || name.ends_with(".pkg.tar.xz")
+            || name.ends_with(".pkg.tar.gz")
+            || name.ends_with(".pkg.tar")
+            || name.ends_with(".pacman")
+            || name.ends_with(".flatpak")
+            || name.ends_with(".snap")
+    }
+
+    #[cfg(unix)]
+    fn unsupported_package_asset_penalty(name: &str) -> i32 {
+        if Self::is_unsupported_package_asset_name(name) {
+            -120
+        } else {
+            0
+        }
+    }
+
+    #[cfg(not(unix))]
+    fn unsupported_package_asset_penalty(_name: &str) -> i32 {
+        0
+    }
+
     pub fn get_candidate_assets(
         &self,
         release: &Release,
         package: &Package,
     ) -> Result<Vec<AssetCandidate>> {
-        let target_filetype = if package.filetype == Filetype::Auto {
-            Self::resolve_auto_filetype(release)?
-        } else {
-            package.filetype
-        };
+        let target_filetypes = Self::target_filetypes(package);
 
         let compatible_assets: Vec<&Asset> = release
             .assets
             .iter()
             .filter(|a| self.is_potentially_compatible(a))
-            .filter(|a| a.filetype == target_filetype)
+            .filter(|a| target_filetypes.contains(&a.filetype))
+            .filter(|a| {
+                if package.filetype != Filetype::Auto {
+                    return true;
+                }
+
+                let name = a.name.to_lowercase();
+
+                if Self::is_auxiliary_asset_name(&name) {
+                    return false;
+                }
+
+                #[cfg(unix)]
+                {
+                    if Self::is_unsupported_package_asset_name(&name) {
+                        return false;
+                    }
+                }
+
+                true
+            })
             .collect();
-        let size_profile = AssetSizeProfile::from_assets(compatible_assets.iter().copied());
+
+        if compatible_assets.is_empty() {
+            return Err(anyhow!(
+                "No compatible assets found for {} on {}",
+                format_arch(&self.architecture_info.cpu_arch),
+                format_os(&self.architecture_info.os_kind)
+            ));
+        }
+
+        let size_profiles = Self::size_profiles_by_filetype(&compatible_assets);
 
         let mut candidates: Vec<AssetCandidate> = compatible_assets
             .into_iter()
             .map(|asset| AssetCandidate {
                 asset: asset.clone(),
-                score: self.score_asset(asset, package, size_profile.as_ref()),
+                score: self.score_asset(asset, package, size_profiles.get(&asset.filetype)),
             })
             .collect();
 
@@ -97,30 +154,16 @@ impl AssetSelector {
         release: &Release,
         package: &Package,
     ) -> Vec<AssetCandidate> {
-        let target_filetypes = if package.filetype == Filetype::Auto {
+        self.get_candidate_assets(release, package)
+            .unwrap_or_default()
+    }
+
+    fn target_filetypes(package: &Package) -> Vec<Filetype> {
+        if package.filetype == Filetype::Auto {
             Self::get_priority_for_os()
         } else {
             vec![package.filetype]
-        };
-
-        let compatible_assets: Vec<&Asset> = release
-            .assets
-            .iter()
-            .filter(|a| self.is_potentially_compatible(a))
-            .filter(|a| target_filetypes.contains(&a.filetype))
-            .collect();
-        let size_profile = AssetSizeProfile::from_assets(compatible_assets.iter().copied());
-
-        let mut candidates: Vec<AssetCandidate> = compatible_assets
-            .into_iter()
-            .map(|asset| AssetCandidate {
-                asset: asset.clone(),
-                score: self.score_asset(asset, package, size_profile.as_ref()),
-            })
-            .collect();
-
-        candidates.sort_by_key(|b| std::cmp::Reverse(b.score));
-        candidates
+        }
     }
 
     fn get_priority_for_os() -> Vec<Filetype> {
@@ -160,6 +203,36 @@ impl AssetSelector {
             .ok_or_else(|| anyhow!("No compatible filetype found in release assets"))
     }
 
+    fn filetype_priority_score(filetype: Filetype) -> i32 {
+        let priority = Self::get_priority_for_os();
+
+        priority
+            .iter()
+            .position(|candidate| *candidate == filetype)
+            .map(|index| {
+                let max = priority.len() as i32;
+                (max - index as i32) * 20
+            })
+            .unwrap_or(-100)
+    }
+
+    fn size_profiles_by_filetype(assets: &[&Asset]) -> HashMap<Filetype, AssetSizeProfile> {
+        let mut profiles = HashMap::new();
+
+        for filetype in Self::get_priority_for_os() {
+            if let Some(profile) = AssetSizeProfile::from_assets(
+                assets
+                    .iter()
+                    .copied()
+                    .filter(|asset| asset.filetype == filetype),
+            ) {
+                profiles.insert(filetype, profile);
+            }
+        }
+
+        profiles
+    }
+
     fn is_potentially_compatible(&self, asset: &Asset) -> bool {
         if let Some(target_os) = &asset.target_os
             && *target_os != self.architecture_info.os_kind
@@ -180,7 +253,7 @@ impl AssetSelector {
                 return true;
             }
 
-            return *target_arch == self.architecture_info.cpu_arch;
+            return false;
         }
 
         true
@@ -193,7 +266,17 @@ impl AssetSelector {
         size_profile: Option<&AssetSizeProfile>,
     ) -> i32 {
         let name = asset.name.to_lowercase();
+        let package_name = Self::package_identity(package);
         let mut score = 0;
+
+        if package.filetype == Filetype::Auto {
+            score += Self::filetype_priority_score(asset.filetype);
+        }
+
+        score += Self::primary_name_score(&name, &package_name);
+        score += Self::asset_role_score(&name, &package_name);
+        score += Self::auxiliary_asset_penalty(&name);
+        score += Self::unsupported_package_asset_penalty(&name);
 
         if let Some(target_arch) = &asset.target_arch {
             if *target_arch == self.architecture_info.cpu_arch {
@@ -233,17 +316,7 @@ impl AssetSelector {
             score += 5;
         }
 
-        if name.contains("debug") || name.contains("symbols") {
-            score -= 20;
-        }
-
-        if !name.contains(&package.name.to_lowercase()) {
-            score -= 40;
-        }
-
-        if asset.size < 100_000 || asset.size > 500_000_000 {
-            score -= 20;
-        }
+        score += Self::absolute_size_score(asset);
 
         if size_profile.is_some_and(|profile| profile.is_outside_expected_range(asset.size)) {
             score -= 20;
@@ -258,6 +331,225 @@ impl AssetSelector {
         }
 
         score
+    }
+
+    fn package_identity(package: &Package) -> String {
+        let explicit_name = package.name.trim();
+        if !explicit_name.is_empty() {
+            return explicit_name.to_lowercase();
+        }
+
+        package
+            .repo_slug
+            .rsplit('/')
+            .next()
+            .unwrap_or(package.repo_slug.as_str())
+            .trim_end_matches(".git")
+            .to_lowercase()
+    }
+
+    fn primary_name_score(name: &str, package_name: &str) -> i32 {
+        if package_name.is_empty() {
+            return 0;
+        }
+
+        let stem = Self::strip_known_asset_suffixes(name);
+
+        if stem == package_name {
+            return 80;
+        }
+
+        if Self::starts_with_primary_target(&stem, package_name) {
+            return 50;
+        }
+
+        if stem.starts_with(&format!("{package_name}-"))
+            || stem.starts_with(&format!("{package_name}_"))
+        {
+            return 10;
+        }
+
+        if Self::contains_name_token(&stem, package_name) {
+            return 0;
+        }
+
+        -60
+    }
+
+    fn starts_with_primary_target(stem: &str, package_name: &str) -> bool {
+        const PRIMARY_TARGET_PREFIXES: &[&str] = &[
+            "x86_64",
+            "amd64",
+            "x64",
+            "aarch64",
+            "arm64",
+            "arm",
+            "x86",
+            "i686",
+            "linux",
+            "darwin",
+            "macos",
+            "windows",
+            "win32",
+            "win64",
+            "musl",
+            "gnu",
+            "manylinux",
+        ];
+
+        PRIMARY_TARGET_PREFIXES.iter().any(|target| {
+            stem.starts_with(&format!("{package_name}-{target}"))
+                || stem.starts_with(&format!("{package_name}_{target}"))
+        })
+    }
+
+    fn contains_name_token(value: &str, package_name: &str) -> bool {
+        value
+            .split(|c: char| !c.is_ascii_alphanumeric())
+            .any(|token| token == package_name)
+    }
+
+    fn asset_role_score(name: &str, package_name: &str) -> i32 {
+        let mut score = 0;
+        let tokens = Self::asset_name_tokens(name);
+
+        let has = |token: &str| tokens.iter().any(|candidate| *candidate == token);
+
+        if has("cli") {
+            score += 20;
+        }
+
+        if has("bin") || has("binary") {
+            score += 15;
+        }
+
+        if has("standalone") || has("portable") || has("bundle") {
+            score += 10;
+        }
+
+        if has("server") {
+            score -= 25;
+        }
+
+        if has("proxy") {
+            score -= 25;
+        }
+
+        if has("sdk") {
+            score -= 25;
+        }
+
+        if has("npm") {
+            score -= 25;
+        }
+
+        if has("zsh") || has("bash") || has("fish") || has("completion") || has("completions") {
+            score -= 25;
+        }
+
+        if has("package") {
+            score -= 10;
+        }
+
+        if has("app") && !package_name.contains("app") {
+            score -= 10;
+        }
+
+        score
+    }
+
+    fn auxiliary_asset_penalty(name: &str) -> i32 {
+        let mut penalty = 0;
+
+        if name.contains("symbols") || name.contains("debug") || name.contains("pdb") {
+            penalty -= 80;
+        }
+
+        if Self::is_auxiliary_asset_name(name) {
+            penalty -= 100;
+        }
+
+        if Self::is_installer_script_name(name) {
+            penalty -= 80;
+        }
+
+        penalty
+    }
+
+    fn is_auxiliary_asset_name(name: &str) -> bool {
+        name.ends_with(".sig")
+            || name.ends_with(".asc")
+            || name.ends_with(".sigstore")
+            || name.ends_with(".sha256")
+            || name.ends_with(".sha256sum")
+            || name.ends_with(".sha256sums")
+            || name.ends_with("_sha256sum")
+            || name.ends_with("_sha256sums")
+            || name.ends_with(".checksums")
+            || name.ends_with(".checksum")
+            || name.ends_with(".json")
+            || name.ends_with(".spdx")
+            || name.ends_with(".sbom")
+            || name.ends_with(".txt")
+    }
+
+    fn is_installer_script_name(name: &str) -> bool {
+        matches!(
+            name,
+            "install.sh"
+                | "install.ps1"
+                | "install.bat"
+                | "install.cmd"
+                | "installer.sh"
+                | "installer.ps1"
+                | "setup.sh"
+                | "setup.ps1"
+        )
+    }
+
+    fn asset_name_tokens(name: &str) -> Vec<&str> {
+        name.split(|c: char| !c.is_ascii_alphanumeric())
+            .filter(|token| !token.is_empty())
+            .collect()
+    }
+
+    fn strip_known_asset_suffixes(name: &str) -> String {
+        const SUFFIXES: &[&str] = &[
+            ".tar.bz2",
+            ".tar.gz",
+            ".tar.xz",
+            ".tar.zst",
+            ".appimage",
+            ".dmg",
+            ".pkg",
+            ".msi",
+            ".exe",
+            ".tgz",
+            ".tbz",
+            ".txz",
+            ".zip",
+            ".whl",
+            ".gz",
+            ".bz2",
+            ".xz",
+            ".zst",
+        ];
+
+        let mut stem = name;
+
+        loop {
+            let Some(suffix) = SUFFIXES
+                .iter()
+                .find(|suffix| stem.ends_with(**suffix))
+                .copied()
+            else {
+                break;
+            };
+
+            stem = &stem[..stem.len() - suffix.len()];
+        }
+
+        stem.to_string()
     }
 
     pub fn generate_patterns_for_asset(
@@ -280,14 +572,17 @@ impl AssetSizeProfile {
             .map(|asset| asset.size)
             .filter(|size| *size > 0)
             .collect();
+
         if sizes.is_empty() {
             return None;
         }
 
         sizes.sort_unstable();
+
         let raw_median = median_sorted(&sizes)?;
         let lower_bound = raw_median.div_ceil(Self::OUTLIER_FACTOR);
         let upper_bound = raw_median.saturating_mul(Self::OUTLIER_FACTOR);
+
         let trimmed: Vec<u64> = sizes
             .iter()
             .copied()
@@ -310,6 +605,7 @@ impl AssetSizeProfile {
 
         let lower_bound = self.median.div_ceil(Self::EXPECTED_RANGE_FACTOR);
         let upper_bound = self.median.saturating_mul(Self::EXPECTED_RANGE_FACTOR);
+
         size < lower_bound || size > upper_bound
     }
 }
@@ -511,70 +807,73 @@ mod tests {
         let candidates = selector
             .get_candidate_assets(&release, &package)
             .expect("candidates");
+
         assert_eq!(candidates.len(), 2);
         assert_eq!(candidates[0].asset.name, "tool-static.tar.bz2");
         assert!(candidates[0].score > candidates[1].score);
     }
 
-    #[test]
-    fn get_candidate_assets_penalizes_sizes_far_from_trimmed_median() {
-        let selector = AssetSelector::new();
-        let package = make_package(Filetype::Archive);
-        let release = make_release(
-            vec![
-                Asset::new(
-                    "https://example.invalid/tool-normal.tar.gz".to_string(),
-                    1,
-                    "tool-normal.tar.gz".to_string(),
-                    10_000_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool-peer.tar.gz".to_string(),
-                    2,
-                    "tool-peer.tar.gz".to_string(),
-                    11_000_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool-large.tar.gz".to_string(),
-                    3,
-                    "tool-large.tar.gz".to_string(),
-                    25_000_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool-huge.tar.gz".to_string(),
-                    4,
-                    "tool-huge.tar.gz".to_string(),
-                    600_000_000,
-                    Utc::now(),
-                ),
-            ],
-            false,
-            "v1.0.0",
-        );
+   #[test]
+fn get_candidate_assets_penalizes_sizes_far_from_trimmed_median() {
+    let selector = AssetSelector::new();
+    let package = make_package(Filetype::Archive);
+    let release = make_release(
+        vec![
+            Asset::new(
+                "https://example.invalid/tool-normal.tar.gz".to_string(),
+                1,
+                "tool-normal.tar.gz".to_string(),
+                10_000_000,
+                Utc::now(),
+            ),
+            Asset::new(
+                "https://example.invalid/tool-peer.tar.gz".to_string(),
+                2,
+                "tool-peer.tar.gz".to_string(),
+                11_000_000,
+                Utc::now(),
+            ),
+            Asset::new(
+                "https://example.invalid/tool-large.tar.gz".to_string(),
+                3,
+                "tool-large.tar.gz".to_string(),
+                25_000_000,
+                Utc::now(),
+            ),
+            Asset::new(
+                "https://example.invalid/tool-huge.tar.gz".to_string(),
+                4,
+                "tool-huge.tar.gz".to_string(),
+                600_000_000,
+                Utc::now(),
+            ),
+        ],
+        false,
+        "v1.0.0",
+    );
 
-        let candidates = selector
-            .get_candidate_assets(&release, &package)
-            .expect("candidates");
-        let score_for = |name: &str| {
-            candidates
-                .iter()
-                .find(|candidate| candidate.asset.name == name)
-                .map(|candidate| candidate.score)
-                .expect("candidate score")
-        };
+    let candidates = selector
+        .get_candidate_assets(&release, &package)
+        .expect("candidates");
 
-        assert_eq!(
-            score_for("tool-large.tar.gz"),
-            score_for("tool-normal.tar.gz") - 20
-        );
-        assert_eq!(
-            score_for("tool-huge.tar.gz"),
-            score_for("tool-normal.tar.gz") - 40
-        );
-    }
+    let score_for = |name: &str| {
+        candidates
+            .iter()
+            .find(|candidate| candidate.asset.name == name)
+            .map(|candidate| candidate.score)
+            .expect("candidate score")
+    };
+
+    assert_eq!(
+        score_for("tool-large.tar.gz"),
+        score_for("tool-normal.tar.gz") - 20
+    );
+
+    assert_eq!(
+        score_for("tool-huge.tar.gz"),
+        score_for("tool-normal.tar.gz") - 30
+    );
+}
 
     #[test]
     fn get_installable_candidate_assets_keeps_all_supported_auto_filetypes() {
@@ -644,6 +943,369 @@ mod tests {
         let best = selector
             .find_recommended_asset(&release, &package)
             .expect("best asset");
+
         assert_eq!(best.name, "tool-static.tar.bz2");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn auto_scores_across_supported_filetypes_instead_of_hard_selecting_appimage() {
+        let selector = AssetSelector::new();
+        let package = make_package(Filetype::Auto);
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/not-the-tool-debug.AppImage".to_string(),
+                    1,
+                    "not-the-tool-debug.AppImage".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-static.tar.bz2".to_string(),
+                    2,
+                    "tool-static.tar.bz2".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let best = selector
+            .find_recommended_asset(&release, &package)
+            .expect("best asset");
+
+        assert_eq!(best.name, "tool-static.tar.bz2");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn auto_still_prefers_appimage_when_candidates_are_otherwise_good() {
+        let selector = AssetSelector::new();
+        let package = make_package(Filetype::Auto);
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/tool.tar.gz".to_string(),
+                    1,
+                    "tool.tar.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.AppImage".to_string(),
+                    2,
+                    "tool.AppImage".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let best = selector
+            .find_recommended_asset(&release, &package)
+            .expect("best asset");
+
+        assert_eq!(best.name, "tool.AppImage");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn auto_candidate_assets_include_all_supported_filetypes_sorted_by_score() {
+        let selector = AssetSelector::new();
+        let package = make_package(Filetype::Auto);
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/tool.tar.gz".to_string(),
+                    1,
+                    "tool.tar.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.gz".to_string(),
+                    2,
+                    "tool.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.AppImage".to_string(),
+                    3,
+                    "tool.AppImage".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.sha256".to_string(),
+                    4,
+                    "tool.sha256".to_string(),
+                    1_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let candidates = selector
+            .get_candidate_assets(&release, &package)
+            .expect("candidates");
+
+        assert!(candidates.iter().any(|c| c.asset.name == "tool.AppImage"));
+        assert!(candidates.iter().any(|c| c.asset.name == "tool.tar.gz"));
+        assert!(candidates.iter().any(|c| c.asset.name == "tool.gz"));
+        assert!(!candidates.iter().any(|c| c.asset.name == "tool.sha256"));
+
+        assert_eq!(candidates[0].asset.name, "tool.AppImage");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn primary_package_asset_beats_subcomponent_assets() {
+        let selector = AssetSelector::new();
+        let package = Package::with_defaults(
+            String::new(),
+            "owner/codex".to_string(),
+            Filetype::Auto,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/codex-app-server-package-x86_64-unknown-linux-musl.tar.gz"
+                        .to_string(),
+                    1,
+                    "codex-app-server-package-x86_64-unknown-linux-musl.tar.gz".to_string(),
+                    86_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/codex-x86_64-unknown-linux-musl.tar.gz".to_string(),
+                    2,
+                    "codex-x86_64-unknown-linux-musl.tar.gz".to_string(),
+                    99_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/codex-responses-api-proxy-x86_64-unknown-linux-musl.tar.gz"
+                        .to_string(),
+                    3,
+                    "codex-responses-api-proxy-x86_64-unknown-linux-musl.tar.gz".to_string(),
+                    4_000_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let best = selector
+            .find_recommended_asset(&release, &package)
+            .expect("best asset");
+
+        assert_eq!(best.name, "codex-x86_64-unknown-linux-musl.tar.gz");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn auto_filters_auxiliary_assets_from_installable_candidates() {
+        let selector = AssetSelector::new();
+        let package = make_package(Filetype::Auto);
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/tool.tar.gz".to_string(),
+                    1,
+                    "tool.tar.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.sigstore".to_string(),
+                    2,
+                    "tool.sigstore".to_string(),
+                    8_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool_SHA256SUMS".to_string(),
+                    3,
+                    "tool_SHA256SUMS".to_string(),
+                    1_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/config-schema.json".to_string(),
+                    4,
+                    "config-schema.json".to_string(),
+                    155_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let candidates = selector
+            .get_candidate_assets(&release, &package)
+            .expect("candidates");
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].asset.name, "tool.tar.gz");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn auto_filters_unsupported_package_assets() {
+        let selector = AssetSelector::new();
+        let package = make_package(Filetype::Auto);
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/tool.tar.gz".to_string(),
+                    1,
+                    "tool.tar.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.deb".to_string(),
+                    2,
+                    "tool.deb".to_string(),
+                    2_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.rpm".to_string(),
+                    3,
+                    "tool.rpm".to_string(),
+                    2_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.pkg.tar.zst".to_string(),
+                    4,
+                    "tool.pkg.tar.zst".to_string(),
+                    2_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.snap".to_string(),
+                    5,
+                    "tool.snap".to_string(),
+                    2_000_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let candidates = selector
+            .get_candidate_assets(&release, &package)
+            .expect("candidates");
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].asset.name, "tool.tar.gz");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn symbols_assets_are_heavily_demoted() {
+        let selector = AssetSelector::new();
+        let package = Package::with_defaults(
+            String::new(),
+            "owner/codex".to_string(),
+            Filetype::Auto,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/codex-symbols-x86_64-unknown-linux-musl.tar.gz"
+                        .to_string(),
+                    1,
+                    "codex-symbols-x86_64-unknown-linux-musl.tar.gz".to_string(),
+                    197_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/codex-x86_64-unknown-linux-musl.tar.gz".to_string(),
+                    2,
+                    "codex-x86_64-unknown-linux-musl.tar.gz".to_string(),
+                    99_000_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let candidates = selector
+            .get_candidate_assets(&release, &package)
+            .expect("candidates");
+
+        assert_eq!(
+            candidates[0].asset.name,
+            "codex-x86_64-unknown-linux-musl.tar.gz"
+        );
+        assert!(candidates[0].score > candidates[1].score);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn repo_slug_basename_is_used_when_package_name_is_empty() {
+        let selector = AssetSelector::new();
+        let package = Package::with_defaults(
+            String::new(),
+            "openai/codex".to_string(),
+            Filetype::Auto,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/argument-comment-lint-x86_64-unknown-linux-gnu.tar.gz"
+                        .to_string(),
+                    1,
+                    "argument-comment-lint-x86_64-unknown-linux-gnu.tar.gz".to_string(),
+                    3_000_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/codex-x86_64-unknown-linux-musl.tar.gz".to_string(),
+                    2,
+                    "codex-x86_64-unknown-linux-musl.tar.gz".to_string(),
+                    99_000_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let best = selector
+            .find_recommended_asset(&release, &package)
+            .expect("best asset");
+
+        assert_eq!(best.name, "codex-x86_64-unknown-linux-musl.tar.gz");
     }
 }
