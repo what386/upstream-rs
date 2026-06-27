@@ -11,7 +11,9 @@ use crate::utils::filesystem::atomic_ops::write_atomic;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-const ALLOWED_TOP_LEVEL_KEYS: &[&str] = &["github", "gitlab", "gitea", "download", "rollback"];
+const ALLOWED_TOP_LEVEL_KEYS: &[&str] = &[
+    "github", "gitlab", "gitea", "download", "upgrade", "rollback",
+];
 const EXPECTED_CONFIG_PATHS: &[&str] = &[
     "github",
     "github.api_token",
@@ -24,6 +26,9 @@ const EXPECTED_CONFIG_PATHS: &[&str] = &[
     "download.high_threshold_mb",
     "download.low_threads",
     "download.high_threads",
+    "upgrade",
+    "upgrade.check_concurrency",
+    "upgrade.install_concurrency",
     "rollback",
     "rollback.compression_level",
     "rollback.stored_artifacts",
@@ -33,6 +38,8 @@ const DEFAULTED_CONFIG_KEYS: &[&str] = &[
     "download.high_threshold_mb",
     "download.low_threads",
     "download.high_threads",
+    "upgrade.check_concurrency",
+    "upgrade.install_concurrency",
     "rollback.compression_level",
     "rollback.stored_artifacts",
 ];
@@ -422,6 +429,8 @@ mod tests {
         assert_eq!(storage.get_config().download.high_threshold_mb, 64);
         assert_eq!(storage.get_config().download.low_threads, 2);
         assert_eq!(storage.get_config().download.high_threads, 4);
+        assert_eq!(storage.get_config().upgrade.check_concurrency, 8);
+        assert_eq!(storage.get_config().upgrade.install_concurrency, 4);
 
         cleanup(&path).expect("cleanup");
     }
@@ -446,6 +455,9 @@ mod tests {
         storage
             .try_set_value("download.high_threads", "6")
             .expect("set high threads");
+        storage
+            .try_set_value("upgrade.check_concurrency", "3")
+            .expect("set check concurrency");
 
         let github_token: Option<String> = storage
             .try_get_value("github.api_token")
@@ -459,11 +471,15 @@ mod tests {
         let high_threads: usize = storage
             .try_get_value("download.high_threads")
             .expect("read high threads");
+        let check_concurrency: usize = storage
+            .try_get_value("upgrade.check_concurrency")
+            .expect("read check concurrency");
 
         assert_eq!(github_token.as_deref(), Some("ghp_abc"));
         assert_eq!(token.as_deref(), Some("abc"));
         assert_eq!(low_threshold, 8);
         assert_eq!(high_threads, 6);
+        assert_eq!(check_concurrency, 3);
 
         cleanup(&path).expect("cleanup");
     }
@@ -578,6 +594,11 @@ mod tests {
             verification
                 .missing_keys
                 .contains(&"rollback.compression_level".to_string())
+        );
+        assert!(
+            verification
+                .missing_keys
+                .contains(&"upgrade.check_concurrency".to_string())
         );
 
         cleanup(&path).expect("cleanup");

@@ -1,6 +1,7 @@
 use crate::{
     models::common::enums::{Channel, Provider, TrustMode},
     models::provider::Release,
+    models::upstream::UpgradeConfig,
     output::{self, Status},
     providers::provider_manager::ProviderManager,
     services::packaging::disk_impact::{
@@ -23,8 +24,6 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use tokio::time::{self, Duration};
 
-const CHECK_CONCURRENCY: usize = 8;
-const UPGRADE_CONCURRENCY: usize = 4;
 #[derive(Clone)]
 struct ProgressEntry {
     event: PackageProgressEvent,
@@ -72,6 +71,7 @@ pub struct UpgradeOperation<'a> {
     provider_manager: &'a ProviderManager,
     paths: &'a UpstreamPaths,
     package_database: &'a mut PackageDatabase,
+    upgrade_config: UpgradeConfig,
 }
 
 pub enum UpdateCheckStatus {
@@ -297,7 +297,7 @@ impl<'a> UpgradeOperation<'a> {
         let mut package_iter = packages.into_iter().enumerate();
         let mut pending = FuturesUnordered::new();
 
-        for _ in 0..CHECK_CONCURRENCY {
+        for _ in 0..self.upgrade_config.check_concurrency() {
             let Some((idx, pkg)) = package_iter.next() else {
                 break;
             };
@@ -374,6 +374,7 @@ impl<'a> UpgradeOperation<'a> {
         package_database: &'a mut PackageDatabase,
         paths: &'a UpstreamPaths,
         trusted_keys: TrustedSignatureKeys,
+        upgrade_config: UpgradeConfig,
     ) -> Result<Self> {
         let installer = PackageInstaller::new(provider_manager, paths)?;
         let remover = PackageRemover::new(paths);
@@ -389,6 +390,7 @@ impl<'a> UpgradeOperation<'a> {
             provider_manager,
             paths,
             package_database,
+            upgrade_config,
         })
     }
 
@@ -488,7 +490,7 @@ impl<'a> UpgradeOperation<'a> {
         let mut package_iter = packages.into_iter().enumerate();
         let mut pending = FuturesUnordered::new();
 
-        for _ in 0..CHECK_CONCURRENCY {
+        for _ in 0..self.upgrade_config.check_concurrency() {
             let Some((idx, package)) = package_iter.next() else {
                 break;
             };
@@ -730,7 +732,7 @@ impl<'a> UpgradeOperation<'a> {
                 .context(format!("Failed to upgrade package '{}'", name));
             (name, channel, provider, downloaded, bytes_total, result)
         }))
-        .buffer_unordered(UPGRADE_CONCURRENCY);
+        .buffer_unordered(self.upgrade_config.install_concurrency());
 
         while completed < total {
             let Some((name, channel, provider, downloaded, bytes_total, result)) =
@@ -875,7 +877,7 @@ impl<'a> UpgradeOperation<'a> {
                 (name, new_version, downloaded, bytes_total, result)
             }
         }))
-        .buffer_unordered(UPGRADE_CONCURRENCY);
+        .buffer_unordered(self.upgrade_config.install_concurrency());
 
         let mut ticker = time::interval(Duration::from_millis(100));
         ticker.set_missed_tick_behavior(time::MissedTickBehavior::Delay);

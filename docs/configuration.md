@@ -49,6 +49,8 @@ Use `config verify` to check `config.toml` for missing keys that will use defaul
 | `download.high_threshold_mb` | integer | `64` | Minimum asset size for high parallel download worker count |
 | `download.low_threads` | integer | `2` | Parallel workers used at or above the low threshold |
 | `download.high_threads` | integer | `4` | Parallel workers used at or above the high threshold |
+| `upgrade.check_concurrency` | integer | `8` | Packages checked in parallel during `upgrade --check` and upgrade previews |
+| `upgrade.install_concurrency` | integer | `4` | Packages upgraded in parallel after confirmation |
 | `rollback.compression_level` | `none`, `low`, `high` | `high` | Compression level for rollback artifacts |
 | `rollback.stored_artifacts` | integer | `1` | Number of rollback artifacts to keep per package |
 
@@ -119,6 +121,26 @@ Examples:
 ```bash
 upstream config set download.low_threshold_mb=32
 upstream config set download.high_threshold_mb=128 download.high_threads=6
+```
+
+## Upgrade Concurrency
+
+Upgrade checks and bulk upgrade application can run several packages in parallel.
+
+Default upgrade concurrency keys:
+
+```text
+upgrade.check_concurrency = 8
+upgrade.install_concurrency = 4
+```
+
+`upgrade.check_concurrency` controls update checks used by `upstream upgrade --check` and by the preview step before applying upgrades. `upgrade.install_concurrency` controls how many packages are upgraded at once after confirmation. Values below `1` are treated as `1`.
+
+Examples:
+
+```bash
+upstream config set upgrade.check_concurrency=4
+upstream config set upgrade.install_concurrency=2
 ```
 
 ## Rollback

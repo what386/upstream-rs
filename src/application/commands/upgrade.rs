@@ -118,6 +118,7 @@ pub async fn run(
         &mut package_database,
         &context.paths,
         trusted_keys,
+        context.app_config.upgrade,
     )?;
 
     // Handle --check flag

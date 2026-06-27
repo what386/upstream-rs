@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use crate::{
+    models::upstream::AppConfig,
     providers::provider_manager::ProviderManager,
     services::trust::TrustedSignatureKeys,
     storage::{
@@ -13,13 +14,14 @@ use crate::{
 pub struct CommandContext {
     pub paths: UpstreamPaths,
     pub provider_manager: ProviderManager,
+    pub app_config: AppConfig,
 }
 
 impl CommandContext {
     pub fn new() -> Result<Self> {
         let paths = UpstreamPaths::new()?;
         let config = ConfigStorage::new(&paths.config.config_file)?;
-        let app_config = config.get_config();
+        let app_config = config.get_config().clone();
         let provider_manager = ProviderManager::new(
             app_config.github.api_token.as_deref(),
             app_config.gitlab.api_token.as_deref(),
@@ -30,6 +32,7 @@ impl CommandContext {
         Ok(Self {
             paths,
             provider_manager,
+            app_config,
         })
     }
 
