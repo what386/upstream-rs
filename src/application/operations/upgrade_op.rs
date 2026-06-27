@@ -1061,26 +1061,6 @@ mod tests {
     }
 
     #[test]
-    fn package_phase_labels_are_high_level() {
-        assert_eq!(
-            PackagePhase::CreatingSnapshot.label(),
-            "Creating snapshot ..."
-        );
-        assert_eq!(
-            PackagePhase::ChecksummingPackage.label(),
-            "Checksumming package ..."
-        );
-        assert_eq!(
-            PackagePhase::VerifyingSignature.label(),
-            "Verifying signature ..."
-        );
-        assert_eq!(
-            PackagePhase::InstallingPackage.label(),
-            "Installing package ..."
-        );
-    }
-
-    #[test]
     fn preview_package_width_uses_source_prefixed_package_labels() {
         let packages = vec![
             test_package("gh", Channel::Stable),

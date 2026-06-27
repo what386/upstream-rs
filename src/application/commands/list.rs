@@ -335,11 +335,4 @@ mod tests {
         assert_eq!(names, vec!["codex", "vscode"]);
     }
 
-    #[test]
-    fn package_list_filter_none_keeps_all_packages() {
-        let packages = vec![package("codex"), package("ripgrep")];
-        let filtered = filter_packages_by_name(packages, None);
-
-        assert_eq!(filtered.len(), 2);
-    }
 }

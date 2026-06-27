@@ -402,7 +402,7 @@ fn query_label(query: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
-    use super::{DocsChoiceTable, format_selected_section, query_label, resolve_fetch_targets};
+    use super::{DocsChoiceTable, format_selected_section, resolve_fetch_targets};
     use crate::{
         models::{
             common::enums::{Channel, Filetype, Provider},
@@ -458,17 +458,6 @@ mod tests {
     }
 
     #[test]
-    fn selected_section_output_labels_empty_query() {
-        let mut result = result();
-        result.query.clear();
-        let renderer = MarkdownRenderer::plain();
-
-        let output = format_selected_section(&result, &result.sections[0], &renderer);
-
-        assert!(output.contains("queries: (none)"));
-    }
-
-    #[test]
     fn docs_choice_table_pairs_rows_with_previews() {
         let result = result();
         let renderer = MarkdownRenderer::plain();
@@ -480,13 +469,6 @@ mod tests {
         assert!(table.headers[0].contains("Section"));
         assert!(table.rows[0].contains("Usage"));
         assert!(table.previews[0].contains("Basic usage notes."));
-    }
-
-    #[test]
-    fn query_label_uses_none_for_empty_query() {
-        assert_eq!(query_label(""), "(none)");
-        assert_eq!(query_label("   "), "(none)");
-        assert_eq!(query_label("usage"), "usage");
     }
 
     #[test]

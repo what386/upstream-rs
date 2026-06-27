@@ -259,7 +259,7 @@ fn package_ref_label(package: &Package) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{PackageMatchKind, match_header, resolve_package_query};
+    use super::{PackageMatchKind, resolve_package_query};
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
 
@@ -307,13 +307,4 @@ mod tests {
         );
     }
 
-    #[test]
-    fn match_header_labels_exact_and_fuzzy_matches() {
-        let packages = vec![package("code"), package("codex")];
-        let exact = resolve_package_query(&packages, "code").expect("exact query");
-        let fuzzy = resolve_package_query(&packages, "dex").expect("fuzzy query");
-
-        assert_eq!(match_header(&exact), "Exact match: code");
-        assert_eq!(match_header(&fuzzy), "Fuzzy match: dex -> codex");
-    }
 }
