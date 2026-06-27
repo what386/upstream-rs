@@ -1,18 +1,16 @@
 use anyhow::Result;
-use console::style;
 use indicatif::{HumanBytes, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use serde::Serialize;
-use std::fmt::Write as _;
 use std::time::Duration;
 
 use crate::{
     application::context::CommandContext,
     application::operations::install_op::{InstallOperation, SelectedAssetInstallRequest},
     application::operations::probe_op::{
-        ProbeAssetChoice, ProbeOperation, ProbeRequest, ProbeResult, ProbeRow, ReleaseState,
+        ProbeAssetChoice, ProbeOperation, ProbeRequest, ProbeResult, ProbeRow,
     },
     models::common::enums::{Channel, Filetype, Provider, TrustMode},
-    output::{self, Status, TransactionRow, pager},
+    output::{self, Status, TransactionRow},
     providers::discovery::infer_package_name,
     services::packaging::{PackagePhase, PackageProgressEvent},
 };
@@ -69,11 +67,6 @@ pub async fn run(
     if json {
         let result = json_probe_result(&probe_result, &probe_result.rows);
         println!("{}", serde_json::to_string_pretty(&result)?);
-        return Ok(());
-    }
-
-    if dry_run {
-        pager::page_text(Some("Probe"), &format_probe_results(&probe_result.notes, &probe_result.rows))?;
         return Ok(());
     }
 
@@ -157,6 +150,12 @@ pub async fn run(
         &selection.disk_impact,
         "Net disk change:",
     );
+
+    if dry_run {
+        output::action_note("resolve only (no download, no install, no metadata changes)");
+        return Ok(());
+    }
+
     output::confirm_or_cancel("Proceed with installation?", true)?;
 
     let mut package_database = context.package_database()?;
@@ -566,110 +565,6 @@ fn json_asset_candidates(row: &ProbeRow) -> Vec<JsonAssetCandidate> {
         .collect()
 }
 
-fn write_candidates(out: &mut String, row: &ProbeRow) {
-    let Some(candidates) = row.candidates.as_ref() else {
-        writeln!(
-            out,
-            "     candidates: failed ({})",
-            truncate(row.candidate_error.as_deref().unwrap_or("unknown"), 48)
-        )
-        .expect("write candidate error");
-        return;
-    };
-
-    if candidates.is_empty() {
-        writeln!(out, "     candidates: none").expect("write empty candidates");
-        return;
-    }
-
-    writeln!(out, "     candidates:").expect("write candidates label");
-    let name_width = candidates
-        .iter()
-        .map(|candidate| candidate.asset.name.chars().count())
-        .max()
-        .unwrap_or(44)
-        .max(44);
-    for (rank, candidate) in candidates.iter().enumerate() {
-        let asset = &candidate.asset;
-        writeln!(
-            out,
-            "       #{} {:<name_width$} {:>11} {:<10} score={}",
-            rank + 1,
-            &asset.name,
-            HumanBytes(asset.size),
-            format!("{:?}", asset.filetype),
-            candidate.score,
-            name_width = name_width
-        )
-        .expect("write candidate row");
-    }
-}
-
-fn format_probe_results(notes: &[String], rows: &[ProbeRow]) -> String {
-    let widths = ProbeColumnWidths::from_rows(rows);
-    let mut out = String::new();
-
-    for note in notes {
-        writeln!(out, "  {note}").expect("write probe note");
-    }
-    if !notes.is_empty() {
-        writeln!(out).expect("write probe note spacer");
-    }
-
-    let header = format!(
-        "{:<id$} {:<state$} {:<tag$} {:<ver$} {:<pubd$} {:<assets$} {}",
-        "ID",
-        "State",
-        "Tag",
-        "Version",
-        "Published",
-        "Assets",
-        "Top Candidate",
-        id = widths.id,
-        state = widths.state,
-        tag = widths.tag,
-        ver = widths.version,
-        pubd = widths.published,
-        assets = widths.assets
-    );
-    writeln!(out, "{}", style(header).bold()).expect("write probe header");
-    writeln!(out, "{}", "-".repeat(widths.table_width())).expect("write probe divider");
-
-    for row in rows {
-        writeln!(
-            out,
-            "{:<id$} {} {:<tag$} {:<ver$} {:<pubd$} {:<assets$} {}",
-            row.row_id,
-            format_state_cell(&row.state, widths.state),
-            truncate(&row.tag, widths.tag),
-            truncate(&row.version, widths.version),
-            row.published,
-            row.assets_count,
-            truncate(&row.top_candidate, widths.top_candidate),
-            id = widths.id,
-            tag = widths.tag,
-            ver = widths.version,
-            pubd = widths.published,
-            assets = widths.assets
-        )
-        .expect("write probe row");
-
-        write_candidates(&mut out, row);
-    }
-
-    out
-}
-
-fn format_state_cell(state: &ReleaseState, width: usize) -> String {
-    let padded = format!("{:<width$}", state.label(), width = width);
-    match state {
-        ReleaseState::Release => style(padded).green().to_string(),
-        ReleaseState::Preview => style(padded).yellow().to_string(),
-        ReleaseState::Draft => style(padded).blue().to_string(),
-        ReleaseState::DraftPre => style(padded).magenta().to_string(),
-    }
-}
-
 fn truncate(value: &str, max: usize) -> String {
     let char_count = value.chars().count();
     if char_count <= max {
@@ -682,86 +577,6 @@ fn truncate(value: &str, max: usize) -> String {
     }
     out.push_str("...");
     out
-}
-
-struct ProbeColumnWidths {
-    id: usize,
-    state: usize,
-    tag: usize,
-    version: usize,
-    published: usize,
-    assets: usize,
-    top_candidate: usize,
-}
-
-impl ProbeColumnWidths {
-    fn from_rows(rows: &[ProbeRow]) -> Self {
-        let id = rows
-            .iter()
-            .map(|r| r.row_id.chars().count())
-            .max()
-            .unwrap_or(2)
-            .max("ID".len());
-        let state = rows
-            .iter()
-            .map(|r| r.state.label().chars().count())
-            .max()
-            .unwrap_or(5)
-            .max("State".len());
-        let tag = rows
-            .iter()
-            .map(|r| r.tag.chars().count())
-            .max()
-            .unwrap_or(3)
-            .max("Tag".len())
-            .min(42);
-        let version = rows
-            .iter()
-            .map(|r| r.version.chars().count())
-            .max()
-            .unwrap_or(7)
-            .max("Version".len())
-            .min(22);
-        let published = rows
-            .iter()
-            .map(|r| r.published.chars().count())
-            .max()
-            .unwrap_or(9)
-            .max("Published".len());
-        let assets = rows
-            .iter()
-            .map(|r| r.assets_count.to_string().chars().count())
-            .max()
-            .unwrap_or(1)
-            .max("Assets".len());
-        let top_candidate = rows
-            .iter()
-            .map(|r| r.top_candidate.chars().count())
-            .max()
-            .unwrap_or(13)
-            .max("Top Candidate".len());
-
-        Self {
-            id,
-            state,
-            tag,
-            version,
-            published,
-            assets,
-            top_candidate,
-        }
-    }
-
-    fn table_width(&self) -> usize {
-        self.id
-            + self.state
-            + self.tag
-            + self.version
-            + self.published
-            + self.assets
-            + self.top_candidate
-            + 6 // spaces between 7 columns
-    }
 }
 
 #[cfg(test)]
