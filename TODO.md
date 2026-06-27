@@ -5,9 +5,6 @@
 
 ## Tasks
 
-- [ ] docs: update helptext
-      @created 2026-06-27 00:08
-
 
 ## Completed
 
@@ -34,4 +31,8 @@
 - [x] add `--for <tag>` to changelog
       @created 2026-06-26 23:22
       @completed 2026-06-26 23:57
+
+- [x] docs: update helptext
+      @created 2026-06-27 00:08
+      @completed 2026-06-27 00:08
 
