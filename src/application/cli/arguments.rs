@@ -406,7 +406,6 @@ pub enum Commands {
         upstream probe owner/repo --limit 20\n  \
         upstream probe owner/repo --tag v1.2.3\n  \
         upstream probe owner/repo -k archive\n  \
-        upstream probe owner/repo --channel nightly --verbose\n  \
         upstream probe owner/repo --dry-run\n  \
         upstream probe owner/repo --json")]
     Probe {
@@ -439,10 +438,6 @@ pub enum Commands {
         /// Asset kind to show and install
         #[arg(short, long, value_enum, default_value_t = Filetype::Auto)]
         kind: Filetype,
-
-        /// Show scored candidate assets and selection details
-        #[arg(long, default_value_t = false)]
-        verbose: bool,
 
         /// Include assets that do not match the current OS/architecture or selected file type
         #[arg(long, default_value_t = false)]
