@@ -51,6 +51,7 @@ impl PackagePhase {
 pub enum PackageProgressEvent {
     Phase(PackagePhase),
     Download { downloaded: u64, total: u64 },
+    Zsync { downloaded: u64, total: u64 },
     Warning(String),
 }
 
