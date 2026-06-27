@@ -499,6 +499,18 @@ impl<'a> PackageInstaller<'a> {
         .await
     }
 
+    pub async fn resolve_release_asset<H>(
+        &self,
+        package: &Package,
+        release: &Release,
+        message_callback: Option<&mut H>,
+    ) -> Result<Asset>
+    where
+        H: FnMut(&str),
+    {
+        self.select_asset(package, release, message_callback).await
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn install_package_asset_files<F, H, P>(
         &self,
