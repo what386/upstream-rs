@@ -29,6 +29,33 @@ impl GoProfile {
             None
         }
     }
+
+    fn command_target(project_dir: &Path, package_name: &str) -> Option<String> {
+        let command_dir = project_dir.join("cmd").join(package_name);
+        if command_dir.is_dir() {
+            Some(format!("./cmd/{package_name}"))
+        } else {
+            None
+        }
+    }
+
+    fn artifact_is_executable(artifact: &Path) -> Result<bool> {
+        let metadata = std::fs::metadata(artifact).context(format!(
+            "Failed to read Go artifact metadata '{}'",
+            artifact.display()
+        ))?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            Ok(metadata.permissions().mode() & 0o111 != 0)
+        }
+
+        #[cfg(not(unix))]
+        {
+            Ok(metadata.is_file())
+        }
+    }
 }
 
 impl BuildProfileHandler for GoProfile {
@@ -64,45 +91,29 @@ impl BuildProfileHandler for GoProfile {
             ))?;
         }
 
-        emit_line_callback(line_callback, "Running go build -o <artifact> . ...");
-        let root_status = run_command_with_line_callback(
+        let target = Self::command_target(&project_dir, package_name).unwrap_or_else(|| ".".into());
+        let context = format!("Failed to run 'go build -o <artifact> {target}'. Is Go installed?");
+        emit_line_callback(
+            line_callback,
+            format!("Running go build -o <artifact> {target} ..."),
+        );
+        let status = run_command_with_line_callback(
             Command::new("go")
                 .arg("build")
                 .arg("-o")
                 .arg(&artifact)
-                .arg(".")
+                .arg(&target)
                 .current_dir(&project_dir),
-            "Failed to run 'go build -o <artifact> .'. Is Go installed?",
+            &context,
             line_callback,
         )?;
 
-        if !root_status.success() {
-            let cmd_target = format!("./cmd/{package_name}");
-            let context = format!(
-                "Failed to run fallback 'go build -o <artifact> {cmd_target}'. Is Go installed?"
+        if !status.success() {
+            bail!(
+                "Go build failed for '{}' using target '{}'",
+                package_name,
+                target
             );
-            emit_line_callback(
-                line_callback,
-                format!("Running go build -o <artifact> {cmd_target} ..."),
-            );
-            let cmd_status = run_command_with_line_callback(
-                Command::new("go")
-                    .arg("build")
-                    .arg("-o")
-                    .arg(&artifact)
-                    .arg(&cmd_target)
-                    .current_dir(&project_dir),
-                &context,
-                line_callback,
-            )?;
-
-            if !cmd_status.success() {
-                bail!(
-                    "Go build failed for '{}': both '.' and './cmd/{}' targets failed",
-                    package_name,
-                    package_name
-                );
-            }
         }
 
         if !artifact.exists() {
@@ -112,6 +123,52 @@ impl BuildProfileHandler for GoProfile {
             ));
         }
 
+        if !Self::artifact_is_executable(&artifact)? {
+            return Err(anyhow!(
+                "Go build output '{}' is not executable; '{}' appears to be a library package, not a command. Use --build-profile go with a package name that matches ./cmd/<name> or build a main package.",
+                artifact.display(),
+                target
+            ));
+        }
+
         Ok(artifact)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::GoProfile;
+
+    fn temp_root(name: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir().join(format!("upstream-go-profile-test-{name}-{nanos}"))
+    }
+
+    #[test]
+    fn command_target_prefers_matching_cmd_package() {
+        let root = temp_root("cmd-target");
+        fs::create_dir_all(root.join("cmd").join("zsync")).expect("create command dir");
+
+        let target = GoProfile::command_target(&root, "zsync");
+
+        assert_eq!(target.as_deref(), Some("./cmd/zsync"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn command_target_returns_none_without_matching_cmd_package() {
+        let root = temp_root("no-cmd-target");
+        fs::create_dir_all(&root).expect("create root");
+
+        let target = GoProfile::command_target(&root, "zsync");
+
+        assert!(target.is_none());
+        let _ = fs::remove_dir_all(&root);
     }
 }
