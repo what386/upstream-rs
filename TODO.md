@@ -8,6 +8,10 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
-- [ ] bug: fix migration issues if db is created early
+
+## Completed
+
+- [x] bug: fix migration issues if db is created early
       @created 2026-06-27 16:19
+      @completed 2026-06-27 16:20
 
