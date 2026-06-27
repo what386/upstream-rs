@@ -46,6 +46,7 @@ pub fn find_asset<'a>(release: &'a Release, target_asset: &Asset) -> Option<&'a 
         .find(|asset| is_asset(&asset.name, &target_asset.name))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn update_selected_asset<H, P>(
     package: &Package,
     release: &Release,
@@ -81,6 +82,7 @@ where
     Ok(true)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn update_asset<H, P>(
     package: &Package,
     zsync_asset: &Asset,
@@ -129,7 +131,7 @@ where
         .with_context(|| format!("Failed to download zsync descriptor '{}'", zsync_asset.name))?;
 
     if output_path.exists() {
-        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(output_path);
     }
 
     message!(
@@ -149,7 +151,7 @@ where
     )
     .await;
     if result.is_err() {
-        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(output_path);
     }
     result?;
 
