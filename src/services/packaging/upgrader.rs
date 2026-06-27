@@ -1,13 +1,14 @@
 use crate::{
     models::{
         common::enums::TrustMode,
-        provider::Release,
+        provider::{Asset, Release},
         upstream::{InstallType, Package},
     },
     providers::provider_manager::ProviderManager,
     routines::builder::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
-        integration::DesktopManager,
+        artifact::zsync_handler,
+        integration::{CompletionManager, DesktopManager},
         packaging::RollbackManager,
         packaging::{PackageInstaller, PackagePhase, PackageProgressEvent, PackageRemover},
         trust::TrustedSignatureKeys,
@@ -21,6 +22,7 @@ use console::style;
 use std::{
     fs,
     path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 macro_rules! message {
@@ -62,6 +64,14 @@ struct FailedUpgradeRollback<'a> {
 }
 
 impl<'a> PackageUpgrader<'a> {
+    fn zsync_work_root(package: &Package) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir().join(format!("upstream-zsync-{}-{nonce}", package.name))
+    }
+
     fn backup_path(paths: &UpstreamPaths, install_path: &Path) -> Result<PathBuf> {
         let file_name = install_path.file_name().ok_or_else(|| {
             anyhow::anyhow!("Install path '{}' has no filename", install_path.display())
@@ -84,6 +94,143 @@ impl<'a> PackageUpgrader<'a> {
             fs::remove_file(path).context(format!("Failed to remove file '{}'", path.display()))?;
         }
         Ok(())
+    }
+
+    fn can_apply_zsync(package: &Package, asset: &Asset, install_path: &Path) -> bool {
+        install_path.is_file()
+            && asset.filetype == package.filetype
+            && !matches!(
+                package.filetype,
+                crate::models::common::enums::Filetype::Archive
+                    | crate::models::common::enums::Filetype::Compressed
+                    | crate::models::common::enums::Filetype::MacApp
+                    | crate::models::common::enums::Filetype::MacDmg
+            )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn try_zsync_upgrade_release<F, H, P>(
+        &self,
+        package: Package,
+        release: &Release,
+        asset: &Asset,
+        trust_mode: TrustMode,
+        backup_path: &Path,
+        download_progress: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Option<Package>>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        if !Self::can_apply_zsync(&package, asset, backup_path) {
+            return Ok(None);
+        }
+
+        if zsync_handler::find_asset(release, asset).is_none() {
+            return Ok(None);
+        }
+
+        let work_root = Self::zsync_work_root(&package);
+        let work_cache = work_root.join("downloads");
+        fs::create_dir_all(&work_cache).context(format!(
+            "Failed to create zsync cache directory '{}'",
+            work_cache.display()
+        ))?;
+
+        let work_target = work_root.join(backup_path.file_name().ok_or_else(|| {
+            anyhow::anyhow!("Backup path '{}' has no filename", backup_path.display())
+        })?);
+        fs::copy(backup_path, &work_target).context(format!(
+            "Failed to stage '{}' for zsync update",
+            backup_path.display()
+        ))?;
+
+        let result: Result<Package> = async {
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Phase(PackagePhase::DownloadingPackage)
+            );
+            zsync_handler::update_selected_asset(
+                &package,
+                release,
+                asset,
+                self.provider_manager,
+                &work_cache,
+                &work_target,
+                message_callback.as_mut(),
+            )
+            .await
+            .context(format!("Failed to update '{}' via zsync", package.name))?;
+
+            let trust_verifier = crate::services::trust::TrustVerifier::new(
+                self.provider_manager,
+                &work_cache,
+                trust_mode,
+                &self.trusted_keys,
+            );
+            let mut verifier_download_progress: Option<fn(u64, u64)> = None;
+            trust_verifier
+                .verify_file(
+                    &work_target,
+                    release,
+                    &package.provider,
+                    &mut verifier_download_progress,
+                    message_callback,
+                    progress_callback,
+                )
+                .await
+                .context("Failed trust verification for zsync-updated artifact")?;
+
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Phase(PackagePhase::InstallingCompletions)
+            );
+            if let Err(err) = CompletionManager::new(self.paths)
+                .install_from_release_assets(
+                    &package.name,
+                    release,
+                    self.provider_manager,
+                    &package.provider,
+                    &work_cache,
+                    message_callback,
+                )
+                .await
+            {
+                progress!(
+                    progress_callback,
+                    PackageProgressEvent::Warning(format!("Completion install skipped: {err}"))
+                );
+            }
+
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
+            );
+            let mut install_pkg = package;
+            install_pkg.version = release.version.clone();
+            install_pkg.version_tag_template =
+                Package::version_tag_template_from_tag(&release.tag, &release.version);
+
+            self.installer
+                .install_local_artifact_files(
+                    install_pkg,
+                    &work_target,
+                    release.version.clone(),
+                    message_callback,
+                )
+                .context("Failed to install zsync-updated artifact")
+        }
+        .await;
+
+        if let Some(callback) = download_progress.as_mut() {
+            callback(0, 0);
+        }
+
+        let _ = fs::remove_dir_all(&work_root);
+        Ok(Some(result?))
     }
 
     fn capture_successful_upgrade_rollback(
@@ -394,17 +541,44 @@ impl<'a> PackageUpgrader<'a> {
                     package.name
                 );
             };
-            self.installer
-                .install_package_files(
+            let selected_asset = self
+                .installer
+                .resolve_release_asset(&package, release, message_callback.as_mut())
+                .await
+                .context(format!(
+                    "Failed to resolve upgrade asset for '{}'",
+                    package.name
+                ))?;
+
+            if let Some(updated_package) = self
+                .try_zsync_upgrade_release(
                     package.clone(),
                     release,
+                    &selected_asset,
                     trust_mode,
-                    &self.trusted_keys,
+                    &backup_path,
                     download_progress,
                     message_callback,
                     progress_callback,
                 )
-                .await
+                .await?
+            {
+                Ok(updated_package)
+            } else {
+                self.installer
+                    .install_selected_asset(
+                        &self.trusted_keys,
+                        package.clone(),
+                        release,
+                        &selected_asset,
+                        &false,
+                        trust_mode,
+                        download_progress,
+                        message_callback,
+                        progress_callback,
+                    )
+                    .await
+            }
         };
         let mut updated_package = match install_result {
             Ok(updated_package) => updated_package,
@@ -550,11 +724,12 @@ impl<'a> PackageUpgrader<'a> {
 mod tests {
     use super::{FailedUpgradeRollback, PackageUpgrader};
     use crate::models::common::enums::{Channel, Filetype, Provider};
-    use crate::models::upstream::Package;
+    use crate::models::{provider::Asset, upstream::Package};
     use crate::providers::provider_manager::ProviderManager;
     use crate::services::packaging::{PackageInstaller, PackageRemover};
     use crate::services::trust::TrustedSignatureKeys;
     use crate::utils::{static_paths::UpstreamPaths, test_support};
+    use chrono::Utc;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -601,6 +776,16 @@ mod tests {
         package.install_path = Some(install_path.clone());
         package.exec_path = Some(install_path);
         package
+    }
+
+    fn test_asset(name: &str) -> Asset {
+        Asset::new(
+            format!("https://example.invalid/{name}"),
+            1,
+            name.to_string(),
+            123,
+            Utc::now(),
+        )
     }
 
     #[test]
@@ -670,6 +855,44 @@ mod tests {
         );
         assert!(!backup_path.exists());
         assert!(expected_symlink_path(&paths, "tool").exists());
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn can_apply_zsync_accepts_direct_file_binary_upgrades() {
+        let root = temp_root("zsync-binary");
+        let install_path = root.join("tool");
+        fs::create_dir_all(&root).expect("create root");
+        fs::write(&install_path, b"old").expect("write installed file");
+
+        let package = test_package("tool", install_path.clone());
+        let asset = test_asset("tool");
+
+        assert!(PackageUpgrader::can_apply_zsync(
+            &package,
+            &asset,
+            &install_path
+        ));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn can_apply_zsync_rejects_archives_and_directories() {
+        let root = temp_root("zsync-archive");
+        let install_dir = root.join("tool");
+        fs::create_dir_all(&install_dir).expect("create installed dir");
+
+        let mut package = test_package("tool", install_dir.clone());
+        package.filetype = Filetype::Archive;
+        let asset = test_asset("tool.tar.gz");
+
+        assert!(!PackageUpgrader::can_apply_zsync(
+            &package,
+            &asset,
+            &install_dir
+        ));
 
         cleanup(&root).expect("cleanup");
     }
