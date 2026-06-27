@@ -739,8 +739,7 @@ impl ProbeColumnWidths {
             .map(|r| r.top_candidate.chars().count())
             .max()
             .unwrap_or(13)
-            .max("Top Candidate".len())
-            .min(44);
+            .max("Top Candidate".len());
 
         Self {
             id,
