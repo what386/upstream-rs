@@ -18,160 +18,179 @@ set edit:completion:arg-completer[upstream] = {|@words|
     }
     var completions = [
         &'upstream'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand -V 'Print version'
             cand --version 'Print version'
-            cand install 'Install a package from an upstream release source'
-            cand build 'Build and install from source for release tags without artifacts'
-            cand remove 'Remove one or more installed packages'
-            cand rollback 'Manage stored rollback artifacts'
-            cand reinstall 'Reinstall one or more packages (remove then install)'
-            cand upgrade 'Upgrade installed packages to their latest versions'
-            cand list 'List installed packages and their metadata'
-            cand changelog 'Show upstream release notes for an installed package'
-            cand docs 'Search package README documentation'
-            cand probe 'Probe a repository/source, choose an asset, and install it'
-            cand search 'Search provider repositories by keyword(s)'
-            cand find 'Search repositories interactively and install a selected result'
-            cand config 'Manage upstream configuration'
-            cand package 'Manage package-specific behavior'
-            cand hooks 'Manage shell integration hooks and local upstream data'
-            cand import 'Import config, trusted keys, or exported packages'
-            cand export 'Export config, trusted keys, or installed package references'
+            cand install 'Install a release asset or direct download'
+            cand build 'Build and install a package from source'
+            cand remove 'Remove installed package files and metadata'
+            cand uninstall 'Remove installed package files and metadata'
+            cand rollback 'Restore or prune stored rollback artifacts'
+            cand reinstall 'Reinstall packages from their stored source metadata'
+            cand upgrade 'Check for or install package updates'
+            cand list 'List installed packages'
+            cand info 'Show details for one installed package'
+            cand changelog 'Show release notes for an installed package'
+            cand docs 'Search cached or fetched package README docs'
+            cand probe 'Inspect releases, choose an asset, and install it'
+            cand search 'Search provider repositories without installing'
+            cand find 'Search repositories interactively and install one'
+            cand config 'View, edit, and validate config.toml'
+            cand package 'Manage installed package records and launcher entries'
+            cand hooks 'Manage shell PATH hooks and local upstream data'
+            cand import 'Import config, trust keys, packages, or a profile'
+            cand export 'Export config, trust keys, packages, or a profile'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;install'= {
-            cand -t 'Version tag to install (defaults to latest)'
-            cand --tag 'Version tag to install (defaults to latest)'
-            cand -k 'File type to install'
-            cand --kind 'File type to install'
+            cand -t 'Release tag to install (defaults to latest matching the channel)'
+            cand --tag 'Release tag to install (defaults to latest matching the channel)'
+            cand -k 'Asset kind to install'
+            cand --kind 'Asset kind to install'
             cand -p 'Source provider hosting the repository. Defaults to auto-detection'
             cand --provider 'Source provider hosting the repository. Defaults to auto-detection'
             cand --base-url 'Custom base URL. Defaults to provider''s root'
-            cand -c 'Update channel to track'
-            cand --channel 'Update channel to track'
+            cand -c 'Release channel to track for upgrades'
+            cand --channel 'Release channel to track for upgrades'
             cand -m 'Match pattern to use as a hint for which asset to prefer'
             cand --match-pattern 'Match pattern to use as a hint for which asset to prefer'
             cand -e 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")'
             cand --exclude-pattern 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")'
             cand --trust 'Trust verification mode for downloaded assets'
-            cand -d 'Whether or not to create a .desktop entry for GUI applications'
-            cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
-            cand --dry-run 'Preview install resolution without downloading or writing files'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -d 'Create a desktop launcher entry for GUI applications'
+            cand --desktop 'Create a desktop launcher entry for GUI applications'
+            cand --dry-run 'Preview install resolution without downloading, installing, or writing metadata'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;build'= {
-            cand -t 'Version tag to build (defaults to latest)'
-            cand --tag 'Version tag to build (defaults to latest)'
-            cand --branch 'Branch name to build from (uses latest commit from that branch)'
+            cand -t 'Release tag to build (defaults to latest matching the channel)'
+            cand --tag 'Release tag to build (defaults to latest matching the channel)'
+            cand --branch 'Branch to build from instead of a release tag'
             cand -p 'Source provider hosting the repository. Defaults to auto-detection'
             cand --provider 'Source provider hosting the repository. Defaults to auto-detection'
             cand --base-url 'Custom base URL. Defaults to provider''s root'
-            cand -c 'Update channel to track'
-            cand --channel 'Update channel to track'
+            cand -c 'Release channel to track for future builds'
+            cand --channel 'Release channel to track for future builds'
             cand --build-profile 'Build profile used to compile/install from source (auto-detected when omitted)'
-            cand -d 'Whether or not to create a .desktop entry for GUI applications'
-            cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
-            cand --dry-run 'Preview build resolution without compiling or writing files'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -d 'Create a desktop launcher entry for GUI applications'
+            cand --desktop 'Create a desktop launcher entry for GUI applications'
+            cand --dry-run 'Preview build resolution without compiling, installing, or writing metadata'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;remove'= {
-            cand --purge 'Remove all associated cached data'
-            cand --force 'Ignore uninstall errors and remove metadata anyway'
+            cand --purge 'Remove package-owned cached data as well as active files'
+            cand --force 'Remove metadata even when uninstall cleanup fails'
             cand --dry-run 'Preview removal actions without deleting files or metadata'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;uninstall'= {
+            cand --purge 'Remove package-owned cached data as well as active files'
+            cand --force 'Remove metadata even when uninstall cleanup fails'
+            cand --dry-run 'Preview removal actions without deleting files or metadata'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;rollback'= {
-            cand --prune 'Prune stored rollback artifacts for all packages or selected package names'
-            cand --list 'List stored rollback artifacts'
+            cand --prune 'Delete rollback artifacts for all packages or selected package names'
+            cand --list 'List available rollback artifacts'
             cand --dry-run 'Preview rollback restore or prune actions without modifying files or metadata'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;reinstall'= {
             cand --trust 'Trust verification mode for release-asset reinstalls'
-            cand --force 'Ignore uninstall errors and remove metadata anyway before reinstalling'
-            cand --dry-run 'Preview reinstall resolution without removing, building, or writing files'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand --force 'Continue reinstalling after uninstall cleanup errors'
+            cand --dry-run 'Preview reinstall resolution without removing, installing, or writing metadata'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;upgrade'= {
             cand --trust 'Trust verification mode for downloaded assets'
-            cand --force 'Force upgrade even if already up to date'
+            cand --force 'Reinstall even when the selected version is already installed'
             cand --check 'Check for available upgrades without applying them'
-            cand --machine-readable 'Use script-friendly check output: one line per update, "name oldver newver"'
+            cand --machine-readable 'Print one line per available update: "name oldver newver"'
             cand --json 'Print check results as JSON'
-            cand --dry-run 'Preview upgrade resolution without downloading or writing files'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand --dry-run 'Preview upgrade resolution without downloading, installing, or writing metadata'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;list'= {
+            cand --json 'Print package list as JSON'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;info'= {
             cand --json 'Print raw package metadata as JSON'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;changelog'= {
-            cand --from 'Override the starting release tag'
-            cand --to 'Override the ending release tag'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand --from 'Starting release tag, or "current"'
+            cand --to 'Ending release tag, "current", or "latest"'
+            cand --for 'Show release notes for exactly one release tag'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;docs'= {
-            cand --fetch 'Refresh cached README docs for named packages, or all packages when no names are provided'
+            cand --fetch 'Refresh cached README docs for named packages, or all installed packages when empty'
             cand --offline 'Use only the cached README and skip network fetching'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;probe'= {
-            cand -p 'Source provider (defaults to github, or scraper for URLs)'
-            cand --provider 'Source provider (defaults to github, or scraper for URLs)'
+            cand -p 'Source provider (defaults to GitHub, or scraper for plain URLs)'
+            cand --provider 'Source provider (defaults to GitHub, or scraper for plain URLs)'
             cand --base-url 'Custom base URL for self-hosted providers'
-            cand -c 'Channel view to display'
-            cand --channel 'Channel view to display'
-            cand --limit 'Number of releases to inspect instead of only the latest release'
-            cand --tag 'Release tag to inspect (defaults to latest when --limit is omitted)'
-            cand -k 'File type to show and install'
-            cand --kind 'File type to show and install'
+            cand -c 'Release channel to display and track'
+            cand --channel 'Release channel to display and track'
+            cand --limit 'Number of releases to inspect instead of only one tag/latest release'
+            cand --tag 'Release tag to inspect exactly'
+            cand -k 'Asset kind to show and install'
+            cand --kind 'Asset kind to show and install'
             cand --trust 'Trust verification mode for downloaded assets'
-            cand --verbose 'Include scored candidate assets for each release'
+            cand --verbose 'Show scored candidate assets and selection details'
             cand --include-incompatible 'Include assets that do not match the current OS/architecture or selected file type'
-            cand --json 'Print dry-run probe results as JSON'
-            cand -d 'Whether or not to create a .desktop entry for GUI applications'
-            cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
+            cand --json 'Print probe results as JSON and exit'
+            cand -d 'Create a desktop launcher entry for GUI applications'
+            cand --desktop 'Create a desktop launcher entry for GUI applications'
             cand --dry-run 'Show parsed releases without selecting, downloading, or installing'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;search'= {
-            cand -p 'Source provider to search (defaults to github)'
-            cand --provider 'Source provider to search (defaults to github)'
+            cand -p 'Source provider to search (defaults to GitHub)'
+            cand --provider 'Source provider to search (defaults to GitHub)'
             cand --base-url 'Custom base URL for self-hosted providers'
             cand --limit 'Maximum number of results to display'
             cand --language 'Restrict results to repositories with this primary language'
@@ -181,15 +200,15 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --pushed-after 'Restrict results to repositories pushed on or after YYYY-MM-DD'
             cand --include-forks 'Include forked repositories in provider search results'
             cand --include-archived 'Include archived repositories in provider search results'
-            cand --json 'Print search results as JSON'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand --json 'Print repository search results as JSON'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;find'= {
-            cand -p 'Source provider to search (defaults to github)'
-            cand --provider 'Source provider to search (defaults to github)'
+            cand -p 'Source provider to search (defaults to GitHub)'
+            cand --provider 'Source provider to search (defaults to GitHub)'
             cand --base-url 'Custom base URL for self-hosted providers'
             cand --limit 'Maximum number of results to display'
             cand --language 'Restrict results to repositories with this primary language'
@@ -198,10 +217,10 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --max-stars 'Restrict results to repositories with at most this many stars'
             cand --pushed-after 'Restrict results to repositories pushed on or after YYYY-MM-DD'
             cand --name 'Package name to register without prompting'
-            cand -k 'File type to install'
-            cand --kind 'File type to install'
-            cand -c 'Update channel to track'
-            cand --channel 'Update channel to track'
+            cand -k 'Asset kind to install'
+            cand --kind 'Asset kind to install'
+            cand -c 'Release channel to track for upgrades'
+            cand --channel 'Release channel to track for upgrades'
             cand -m 'Match pattern to use as a hint for which asset to prefer'
             cand --match-pattern 'Match pattern to use as a hint for which asset to prefer'
             cand -e 'Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")'
@@ -209,62 +228,70 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --trust 'Trust verification mode for downloaded assets'
             cand --include-forks 'Include forked repositories in provider search results'
             cand --include-archived 'Include archived repositories in provider search results'
-            cand -d 'Whether or not to create a .desktop entry for GUI applications'
-            cand --desktop 'Whether or not to create a .desktop entry for GUI applications'
-            cand --dry-run 'Preview install resolution without downloading or writing files'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -d 'Create a desktop launcher entry for GUI applications'
+            cand --desktop 'Create a desktop launcher entry for GUI applications'
+            cand --dry-run 'Preview install resolution without downloading, installing, or writing metadata'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand set 'Set configuration values'
             cand get 'Get configuration values'
-            cand list 'List all configuration keys'
-            cand edit 'Open configuration file in your default editor'
-            cand reset 'Reset configuration to defaults'
+            cand list 'List current configuration values'
+            cand verify 'Check config.toml for missing or unused keys'
+            cand edit 'Open config.toml in your default editor'
+            cand reset 'Reset config.toml to defaults'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;config;set'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config;get'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config;list'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
-            cand -h 'Print help'
-            cand --help 'Print help'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;config;verify'= {
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config;edit'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
-            cand -h 'Print help'
-            cand --help 'Print help'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config;reset'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
-            cand -h 'Print help'
-            cand --help 'Print help'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config;help'= {
             cand set 'Set configuration values'
             cand get 'Get configuration values'
-            cand list 'List all configuration keys'
-            cand edit 'Open configuration file in your default editor'
-            cand reset 'Reset configuration to defaults'
+            cand list 'List current configuration values'
+            cand verify 'Check config.toml for missing or unused keys'
+            cand edit 'Open config.toml in your default editor'
+            cand reset 'Reset config.toml to defaults'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;config;help;set'= {
@@ -273,6 +300,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;config;help;list'= {
         }
+        &'upstream;config;help;verify'= {
+        }
         &'upstream;config;help;edit'= {
         }
         &'upstream;config;help;reset'= {
@@ -280,53 +309,53 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;config;help;help'= {
         }
         &'upstream;package'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
-            cand pin 'Pin a package to its current version'
-            cand unpin 'Unpin a package to allow updates'
-            cand rename 'Rename package alias without reinstalling'
-            cand add-entry 'Create desktop launcher integration for an installed package'
-            cand rm-entry 'Remove desktop launcher integration for an installed package'
+            cand pin 'Mark an installed package as pinned'
+            cand unpin 'Clear the pinned flag on an installed package'
+            cand rename 'Rename an installed package record and aliases'
+            cand add-entry 'Add a desktop launcher entry for an installed package'
+            cand rm-entry 'Remove an upstream-managed desktop launcher entry'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;package;pin'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;unpin'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;rename'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;add-entry'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;rm-entry'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;help'= {
-            cand pin 'Pin a package to its current version'
-            cand unpin 'Unpin a package to allow updates'
-            cand rename 'Rename package alias without reinstalling'
-            cand add-entry 'Create desktop launcher integration for an installed package'
-            cand rm-entry 'Remove desktop launcher integration for an installed package'
+            cand pin 'Mark an installed package as pinned'
+            cand unpin 'Clear the pinned flag on an installed package'
+            cand rename 'Rename an installed package record and aliases'
+            cand add-entry 'Add a desktop launcher entry for an installed package'
+            cand rm-entry 'Remove an upstream-managed desktop launcher entry'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;package;help;pin'= {
@@ -342,44 +371,44 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;package;help;help'= {
         }
         &'upstream;hooks'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
-            cand init 'Add upstream shell integration hooks'
-            cand check 'Check upstream shell integration hooks'
-            cand clean 'Remove upstream shell integration hooks'
+            cand init 'Install shell PATH hooks'
+            cand check 'Check shell PATH hooks'
+            cand clean 'Remove shell PATH hooks'
             cand purge 'Remove hooks and delete the local upstream data directory'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;hooks;init'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;hooks;check'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;hooks;clean'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;hooks;purge'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;hooks;help'= {
-            cand init 'Add upstream shell integration hooks'
-            cand check 'Check upstream shell integration hooks'
-            cand clean 'Remove upstream shell integration hooks'
+            cand init 'Install shell PATH hooks'
+            cand check 'Check shell PATH hooks'
+            cand clean 'Remove shell PATH hooks'
             cand purge 'Remove hooks and delete the local upstream data directory'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
@@ -394,49 +423,49 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;hooks;help;help'= {
         }
         &'upstream;import'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
-            cand config 'Import upstream config'
+            cand config 'Replace config.toml from an export'
             cand keys 'Import trusted minisign or cosign public keys'
-            cand packages 'Import and install packages from an upstream packages export'
-            cand profile 'Import config, keys, and packages from an upstream profile export'
+            cand packages 'Install packages from an exported package list'
+            cand profile 'Import config, keys, and packages from a profile'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;import;config'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;import;keys'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;import;packages'= {
-            cand --skip-failed 'Continue importing remaining packages when one package fails'
-            cand --latest 'Ignore stored version tags and install the latest release'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand --skip-failed 'Continue installing remaining packages after a package import fails'
+            cand --latest 'Ignore exported version tags and install latest releases'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;import;profile'= {
-            cand --skip-failed 'Continue importing remaining packages when one package fails'
-            cand --latest 'Ignore stored package version tags and install latest releases'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand --skip-failed 'Continue installing remaining packages after a package import fails'
+            cand --latest 'Ignore exported package version tags and install latest releases'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;import;help'= {
-            cand config 'Import upstream config'
+            cand config 'Replace config.toml from an export'
             cand keys 'Import trusted minisign or cosign public keys'
-            cand packages 'Import and install packages from an upstream packages export'
-            cand profile 'Import config, keys, and packages from an upstream profile export'
+            cand packages 'Install packages from an exported package list'
+            cand profile 'Import config, keys, and packages from a profile'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;import;help;config'= {
@@ -450,45 +479,45 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;import;help;help'= {
         }
         &'upstream;export'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
-            cand config 'Export upstream config'
+            cand config 'Export config.toml'
             cand keys 'Export trusted minisign and cosign public keys'
-            cand packages 'Export installed package references'
-            cand profile 'Export config, trusted keys, and installed package references'
+            cand packages 'Export installed release-package references'
+            cand profile 'Export config, trust keys, and package references'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;export;config'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;export;keys'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;export;packages'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;export;profile'= {
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;export;help'= {
-            cand config 'Export upstream config'
+            cand config 'Export config.toml'
             cand keys 'Export trusted minisign and cosign public keys'
-            cand packages 'Export installed package references'
-            cand profile 'Export config, trusted keys, and installed package references'
+            cand packages 'Export installed release-package references'
+            cand profile 'Export config, trust keys, and package references'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'upstream;export;help;config'= {
@@ -506,29 +535,30 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --fix 'Attempt automatic repairs for detected issues'
             cand --migrate 'Migrate local upstream data after breaking layout or metadata changes'
             cand --json 'Print diagnostic report as JSON'
-            cand -y 'Accept confirmation prompts'
-            cand --yes 'Accept confirmation prompts'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;help'= {
-            cand install 'Install a package from an upstream release source'
-            cand build 'Build and install from source for release tags without artifacts'
-            cand remove 'Remove one or more installed packages'
-            cand rollback 'Manage stored rollback artifacts'
-            cand reinstall 'Reinstall one or more packages (remove then install)'
-            cand upgrade 'Upgrade installed packages to their latest versions'
-            cand list 'List installed packages and their metadata'
-            cand changelog 'Show upstream release notes for an installed package'
-            cand docs 'Search package README documentation'
-            cand probe 'Probe a repository/source, choose an asset, and install it'
-            cand search 'Search provider repositories by keyword(s)'
-            cand find 'Search repositories interactively and install a selected result'
-            cand config 'Manage upstream configuration'
-            cand package 'Manage package-specific behavior'
-            cand hooks 'Manage shell integration hooks and local upstream data'
-            cand import 'Import config, trusted keys, or exported packages'
-            cand export 'Export config, trusted keys, or installed package references'
+            cand install 'Install a release asset or direct download'
+            cand build 'Build and install a package from source'
+            cand remove 'Remove installed package files and metadata'
+            cand rollback 'Restore or prune stored rollback artifacts'
+            cand reinstall 'Reinstall packages from their stored source metadata'
+            cand upgrade 'Check for or install package updates'
+            cand list 'List installed packages'
+            cand info 'Show details for one installed package'
+            cand changelog 'Show release notes for an installed package'
+            cand docs 'Search cached or fetched package README docs'
+            cand probe 'Inspect releases, choose an asset, and install it'
+            cand search 'Search provider repositories without installing'
+            cand find 'Search repositories interactively and install one'
+            cand config 'View, edit, and validate config.toml'
+            cand package 'Manage installed package records and launcher entries'
+            cand hooks 'Manage shell PATH hooks and local upstream data'
+            cand import 'Import config, trust keys, packages, or a profile'
+            cand export 'Export config, trust keys, packages, or a profile'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
@@ -546,6 +576,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;help;list'= {
         }
+        &'upstream;help;info'= {
+        }
         &'upstream;help;changelog'= {
         }
         &'upstream;help;docs'= {
@@ -559,9 +591,10 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;config'= {
             cand set 'Set configuration values'
             cand get 'Get configuration values'
-            cand list 'List all configuration keys'
-            cand edit 'Open configuration file in your default editor'
-            cand reset 'Reset configuration to defaults'
+            cand list 'List current configuration values'
+            cand verify 'Check config.toml for missing or unused keys'
+            cand edit 'Open config.toml in your default editor'
+            cand reset 'Reset config.toml to defaults'
         }
         &'upstream;help;config;set'= {
         }
@@ -569,16 +602,18 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;help;config;list'= {
         }
+        &'upstream;help;config;verify'= {
+        }
         &'upstream;help;config;edit'= {
         }
         &'upstream;help;config;reset'= {
         }
         &'upstream;help;package'= {
-            cand pin 'Pin a package to its current version'
-            cand unpin 'Unpin a package to allow updates'
-            cand rename 'Rename package alias without reinstalling'
-            cand add-entry 'Create desktop launcher integration for an installed package'
-            cand rm-entry 'Remove desktop launcher integration for an installed package'
+            cand pin 'Mark an installed package as pinned'
+            cand unpin 'Clear the pinned flag on an installed package'
+            cand rename 'Rename an installed package record and aliases'
+            cand add-entry 'Add a desktop launcher entry for an installed package'
+            cand rm-entry 'Remove an upstream-managed desktop launcher entry'
         }
         &'upstream;help;package;pin'= {
         }
@@ -591,9 +626,9 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;package;rm-entry'= {
         }
         &'upstream;help;hooks'= {
-            cand init 'Add upstream shell integration hooks'
-            cand check 'Check upstream shell integration hooks'
-            cand clean 'Remove upstream shell integration hooks'
+            cand init 'Install shell PATH hooks'
+            cand check 'Check shell PATH hooks'
+            cand clean 'Remove shell PATH hooks'
             cand purge 'Remove hooks and delete the local upstream data directory'
         }
         &'upstream;help;hooks;init'= {
@@ -605,10 +640,10 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;hooks;purge'= {
         }
         &'upstream;help;import'= {
-            cand config 'Import upstream config'
+            cand config 'Replace config.toml from an export'
             cand keys 'Import trusted minisign or cosign public keys'
-            cand packages 'Import and install packages from an upstream packages export'
-            cand profile 'Import config, keys, and packages from an upstream profile export'
+            cand packages 'Install packages from an exported package list'
+            cand profile 'Import config, keys, and packages from a profile'
         }
         &'upstream;help;import;config'= {
         }
@@ -619,10 +654,10 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;import;profile'= {
         }
         &'upstream;help;export'= {
-            cand config 'Export upstream config'
+            cand config 'Export config.toml'
             cand keys 'Export trusted minisign and cosign public keys'
-            cand packages 'Export installed package references'
-            cand profile 'Export config, trusted keys, and installed package references'
+            cand packages 'Export installed release-package references'
+            cand profile 'Export config, trust keys, and package references'
         }
         &'upstream;help;export;config'= {
         }
