@@ -584,7 +584,7 @@ fn write_candidates(out: &mut String, row: &ProbeRow) {
     }
 
     writeln!(out, "     candidates:").expect("write candidates label");
-    for (rank, candidate) in candidates.iter().take(6).enumerate() {
+    for (rank, candidate) in candidates.iter().enumerate() {
         let asset = &candidate.asset;
         writeln!(
             out,
@@ -596,10 +596,6 @@ fn write_candidates(out: &mut String, row: &ProbeRow) {
             candidate.score
         )
         .expect("write candidate row");
-    }
-    if candidates.len() > 6 {
-        writeln!(out, "       ... and {} more", candidates.len() - 6)
-            .expect("write candidate overflow");
     }
 }
 
