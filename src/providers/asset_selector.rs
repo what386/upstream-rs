@@ -1,15 +1,14 @@
-use std::path::Path;
-
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 
 use crate::models::common::enums::Filetype;
 use crate::models::provider::{Asset, Release};
 use crate::models::upstream::Package;
+use crate::providers::heuristic_asset_selector::HeuristicAssetSelector;
+use crate::providers::neural_asset_selector::NeuralAssetSelector;
 use crate::providers::pattern_matcher::{
     GeneratedAssetPatterns, generate_patterns_for_asset, pattern_match_ratio,
 };
-use crate::utils::math::median_sorted;
-use crate::utils::platform::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
+use crate::utils::platform::platform_info::ArchitectureInfo;
 
 #[derive(Debug, Clone)]
 pub struct AssetCandidate {
@@ -17,48 +16,31 @@ pub struct AssetCandidate {
     pub score: i32,
 }
 
-#[derive(Debug, Clone, Copy)]
-struct AssetSizeProfile {
-    median: u64,
-}
-
 pub struct AssetSelector {
-    architecture_info: ArchitectureInfo,
+    heuristic_selector: HeuristicAssetSelector,
+    neural_selector: Option<NeuralAssetSelector>,
 }
 
 impl AssetSelector {
     pub fn new() -> Self {
+        let architecture_info = ArchitectureInfo::new();
+        let heuristic_selector = HeuristicAssetSelector::new(architecture_info.clone());
+        let neural_selector = NeuralAssetSelector::with_architecture(architecture_info).ok();
         Self {
-            architecture_info: ArchitectureInfo::new(),
+            heuristic_selector,
+            neural_selector,
         }
     }
 
     pub fn find_recommended_asset(&self, release: &Release, package: &Package) -> Result<Asset> {
-        let target_filetype = if package.filetype == Filetype::Auto {
-            Self::resolve_auto_filetype(release)?
-        } else {
-            package.filetype
-        };
+        if let Some(candidates) = self.neural_candidate_assets(release, package) {
+            if let Some(candidate) = candidates.into_iter().next() {
+                return Ok(candidate.asset);
+            }
+        }
 
-        let compatible_assets: Vec<&Asset> = release
-            .assets
-            .iter()
-            .filter(|a| self.is_potentially_compatible(a))
-            .filter(|a| a.filetype == target_filetype)
-            .collect();
-        let size_profile = AssetSizeProfile::from_assets(compatible_assets.iter().copied());
-
-        compatible_assets
-            .into_iter()
-            .max_by_key(|a| self.score_asset(a, package, size_profile.as_ref()))
-            .cloned()
-            .ok_or_else(|| {
-                anyhow!(
-                    "No compatible assets found for {} on {}",
-                    format_arch(&self.architecture_info.cpu_arch),
-                    format_os(&self.architecture_info.os_kind)
-                )
-            })
+        self.heuristic_selector
+            .find_recommended_asset(release, package)
     }
 
     pub fn get_candidate_assets(
@@ -66,30 +48,12 @@ impl AssetSelector {
         release: &Release,
         package: &Package,
     ) -> Result<Vec<AssetCandidate>> {
-        let target_filetype = if package.filetype == Filetype::Auto {
-            Self::resolve_auto_filetype(release)?
-        } else {
-            package.filetype
-        };
+        if let Some(candidates) = self.neural_candidate_assets(release, package) {
+            return Ok(candidates);
+        }
 
-        let compatible_assets: Vec<&Asset> = release
-            .assets
-            .iter()
-            .filter(|a| self.is_potentially_compatible(a))
-            .filter(|a| a.filetype == target_filetype)
-            .collect();
-        let size_profile = AssetSizeProfile::from_assets(compatible_assets.iter().copied());
-
-        let mut candidates: Vec<AssetCandidate> = compatible_assets
-            .into_iter()
-            .map(|asset| AssetCandidate {
-                asset: asset.clone(),
-                score: self.score_asset(asset, package, size_profile.as_ref()),
-            })
-            .collect();
-
-        candidates.sort_by_key(|b| std::cmp::Reverse(b.score));
-        Ok(candidates)
+        self.heuristic_selector
+            .get_candidate_assets(release, package)
     }
 
     pub fn get_installable_candidate_assets(
@@ -97,167 +61,53 @@ impl AssetSelector {
         release: &Release,
         package: &Package,
     ) -> Vec<AssetCandidate> {
-        let target_filetypes = if package.filetype == Filetype::Auto {
-            Self::get_priority_for_os()
-        } else {
-            vec![package.filetype]
-        };
+        if let Some(candidates) = self.neural_candidate_assets(release, package) {
+            return candidates;
+        }
 
-        let compatible_assets: Vec<&Asset> = release
-            .assets
-            .iter()
-            .filter(|a| self.is_potentially_compatible(a))
-            .filter(|a| target_filetypes.contains(&a.filetype))
-            .collect();
-        let size_profile = AssetSizeProfile::from_assets(compatible_assets.iter().copied());
-
-        let mut candidates: Vec<AssetCandidate> = compatible_assets
-            .into_iter()
-            .map(|asset| AssetCandidate {
-                asset: asset.clone(),
-                score: self.score_asset(asset, package, size_profile.as_ref()),
-            })
-            .collect();
-
-        candidates.sort_by_key(|b| std::cmp::Reverse(b.score));
-        candidates
+        self.heuristic_selector
+            .get_installable_candidate_assets(release, package)
     }
 
-    fn get_priority_for_os() -> Vec<Filetype> {
-        #[cfg(target_os = "linux")]
-        return vec![
-            Filetype::AppImage,
-            Filetype::Archive,
-            Filetype::Compressed,
-            Filetype::Binary,
-        ];
+    fn neural_candidate_assets(
+        &self,
+        release: &Release,
+        package: &Package,
+    ) -> Option<Vec<AssetCandidate>> {
+        let neural_selector = self.neural_selector.as_ref()?;
+        let target_filetypes = self.heuristic_selector.target_filetypes(package.filetype);
+        let compatible_assets: Vec<Asset> = release
+            .assets
+            .iter()
+            .filter(|asset| target_filetypes.contains(&asset.filetype))
+            .cloned()
+            .collect();
+        if compatible_assets.is_empty() {
+            return None;
+        }
 
-        #[cfg(target_os = "windows")]
-        return vec![Filetype::WinExe, Filetype::Archive, Filetype::Compressed];
-
-        #[cfg(target_os = "macos")]
-        return vec![
-            Filetype::MacApp,
-            Filetype::MacDmg,
-            Filetype::Archive,
-            Filetype::Compressed,
-            Filetype::Binary,
-        ];
+        let mut filtered_release = release.clone();
+        filtered_release.assets = compatible_assets;
+        let prediction = neural_selector
+            .predict(&filtered_release, package, filtered_release.assets.len())
+            .ok()?;
+        let mut candidates: Vec<AssetCandidate> = prediction
+            .alternatives
+            .into_iter()
+            .map(|alternative| {
+                let asset = filtered_release.assets[alternative.asset_index].clone();
+                let score = neural_score_to_i32(alternative.score)
+                    .saturating_add(neural_pattern_adjustment(&asset.name, package));
+                AssetCandidate { asset, score }
+            })
+            .collect();
+        candidates = apply_pattern_filters(candidates, package);
+        candidates.sort_by_key(|candidate| std::cmp::Reverse(candidate.score));
+        Some(candidates)
     }
 
     pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {
-        let priority = Self::get_priority_for_os();
-
-        priority
-            .iter()
-            .find(|&&filetype| {
-                release
-                    .assets
-                    .iter()
-                    .any(|asset| asset.filetype == filetype)
-            })
-            .copied()
-            .ok_or_else(|| anyhow!("No compatible filetype found in release assets"))
-    }
-
-    fn is_potentially_compatible(&self, asset: &Asset) -> bool {
-        if let Some(target_os) = &asset.target_os
-            && *target_os != self.architecture_info.os_kind
-        {
-            return false;
-        }
-
-        if let Some(target_arch) = &asset.target_arch {
-            if *target_arch == self.architecture_info.cpu_arch {
-                return true;
-            }
-
-            if self.architecture_info.cpu_arch == CpuArch::X86_64 && *target_arch == CpuArch::X86 {
-                return true;
-            }
-
-            if self.architecture_info.cpu_arch == CpuArch::Aarch64 && *target_arch == CpuArch::Arm {
-                return true;
-            }
-
-            return *target_arch == self.architecture_info.cpu_arch;
-        }
-
-        true
-    }
-
-    fn score_asset(
-        &self,
-        asset: &Asset,
-        package: &Package,
-        size_profile: Option<&AssetSizeProfile>,
-    ) -> i32 {
-        let name = asset.name.to_lowercase();
-        let mut score = 0;
-
-        if let Some(target_arch) = &asset.target_arch {
-            if *target_arch == self.architecture_info.cpu_arch {
-                score += 80;
-            } else if (self.architecture_info.cpu_arch == CpuArch::X86_64
-                && *target_arch == CpuArch::X86)
-                || (self.architecture_info.cpu_arch == CpuArch::Aarch64
-                    && *target_arch == CpuArch::Arm)
-            {
-                score += 30;
-            }
-        }
-
-        if asset.filetype == Filetype::Archive {
-            if name.ends_with(".tar.bz2") || name.ends_with(".tbz") {
-                score += 15;
-            } else if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
-                score += 10;
-            } else if name.ends_with(".zip") {
-                score += 5;
-            }
-        }
-
-        if asset.filetype == Filetype::Compressed {
-            if name.ends_with(".bz2") {
-                score += 10;
-            } else if name.ends_with(".gz") {
-                score += 5;
-            }
-        }
-
-        if asset.filetype == Filetype::Binary && Path::new(&name).extension().is_none() {
-            score += 10;
-        }
-
-        if name.contains("static") {
-            score += 5;
-        }
-
-        if name.contains("debug") || name.contains("symbols") {
-            score -= 20;
-        }
-
-        if !name.contains(&package.name.to_lowercase()) {
-            score -= 40;
-        }
-
-        if asset.size < 100_000 || asset.size > 500_000_000 {
-            score -= 20;
-        }
-
-        if size_profile.is_some_and(|profile| profile.is_outside_expected_range(asset.size)) {
-            score -= 20;
-        }
-
-        if !package.match_pattern.is_empty() {
-            score += (pattern_match_ratio(&name, &package.match_pattern) * 100.0).round() as i32;
-        }
-
-        if !package.exclude_pattern.is_empty() {
-            score -= (pattern_match_ratio(&name, &package.exclude_pattern) * 100.0).round() as i32;
-        }
-
-        score
+        HeuristicAssetSelector::resolve_auto_filetype(release)
     }
 
     pub fn generate_patterns_for_asset(
@@ -270,56 +120,77 @@ impl AssetSelector {
     }
 }
 
-impl AssetSizeProfile {
-    const OUTLIER_FACTOR: u64 = 10;
-    const EXPECTED_RANGE_FACTOR: u64 = 2;
-
-    fn from_assets<'a>(assets: impl IntoIterator<Item = &'a Asset>) -> Option<Self> {
-        let mut sizes: Vec<u64> = assets
-            .into_iter()
-            .map(|asset| asset.size)
-            .filter(|size| *size > 0)
-            .collect();
-        if sizes.is_empty() {
-            return None;
-        }
-
-        sizes.sort_unstable();
-        let raw_median = median_sorted(&sizes)?;
-        let lower_bound = raw_median.div_ceil(Self::OUTLIER_FACTOR);
-        let upper_bound = raw_median.saturating_mul(Self::OUTLIER_FACTOR);
-        let trimmed: Vec<u64> = sizes
-            .iter()
-            .copied()
-            .filter(|size| *size >= lower_bound && *size <= upper_bound)
-            .collect();
-
-        let median = if trimmed.is_empty() {
-            raw_median
-        } else {
-            median_sorted(&trimmed)?
-        };
-
-        Some(Self { median })
-    }
-
-    fn is_outside_expected_range(&self, size: u64) -> bool {
-        if size == 0 || self.median == 0 {
-            return false;
-        }
-
-        let lower_bound = self.median.div_ceil(Self::EXPECTED_RANGE_FACTOR);
-        let upper_bound = self.median.saturating_mul(Self::EXPECTED_RANGE_FACTOR);
-        size < lower_bound || size > upper_bound
+fn neural_score_to_i32(score: f64) -> i32 {
+    let scaled = (score * 10_000.0).round();
+    if scaled < i32::MIN as f64 {
+        i32::MIN
+    } else if scaled > i32::MAX as f64 {
+        i32::MAX
+    } else {
+        scaled as i32
     }
 }
+fn neural_pattern_adjustment(asset_name: &str, package: &Package) -> i32 {
+    const PATTERN_SCORE_WEIGHT: f64 = 1_000_000.0;
 
+    let name = asset_name.to_lowercase();
+    let mut adjustment = 0.0;
+    if !package.match_pattern.is_empty() {
+        adjustment += pattern_match_ratio(&name, &package.match_pattern) * PATTERN_SCORE_WEIGHT;
+    }
+    if !package.exclude_pattern.is_empty() {
+        adjustment -= pattern_match_ratio(&name, &package.exclude_pattern) * PATTERN_SCORE_WEIGHT;
+    }
+    adjustment.round() as i32
+}
+fn apply_pattern_filters(
+    mut candidates: Vec<AssetCandidate>,
+    package: &Package,
+) -> Vec<AssetCandidate> {
+    if !package.match_pattern.is_empty() {
+        let matching: Vec<AssetCandidate> = candidates
+            .iter()
+            .filter(|candidate| {
+                pattern_match_ratio(&candidate.asset.name, &package.match_pattern) > 0.0
+            })
+            .cloned()
+            .collect();
+        if !matching.is_empty() {
+            candidates = matching;
+        }
+    }
+
+    if !package.exclude_pattern.is_empty() {
+        let non_excluded: Vec<AssetCandidate> = candidates
+            .iter()
+            .filter(|candidate| {
+                pattern_match_ratio(&candidate.asset.name, &package.exclude_pattern) <= 0.0
+            })
+            .cloned()
+            .collect();
+        if !non_excluded.is_empty() {
+            candidates = non_excluded;
+        }
+    }
+
+    candidates
+}
+
+#[cfg(test)]
+impl AssetSelector {
+    fn new_without_neural() -> Self {
+        let architecture_info = ArchitectureInfo::new();
+        Self {
+            heuristic_selector: HeuristicAssetSelector::new(architecture_info),
+            neural_selector: None,
+        }
+    }
+}
 impl Default for AssetSelector {
     fn default() -> Self {
         Self::new()
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::AssetSelector;
@@ -350,6 +221,18 @@ mod tests {
             filetype,
             Some("static".to_string()),
             Some("debug".to_string()),
+            Channel::Stable,
+            Provider::Github,
+            None,
+        )
+    }
+    fn make_neural_package(filetype: Filetype) -> Package {
+        Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            filetype,
+            None,
+            None,
             Channel::Stable,
             Provider::Github,
             None,
@@ -485,7 +368,7 @@ mod tests {
 
     #[test]
     fn get_candidate_assets_sorts_by_score_descending() {
-        let selector = AssetSelector::new();
+        let selector = AssetSelector::new_without_neural();
         let package = make_package(Filetype::Archive);
         let release = make_release(
             vec![
@@ -518,7 +401,7 @@ mod tests {
 
     #[test]
     fn get_candidate_assets_penalizes_sizes_far_from_trimmed_median() {
-        let selector = AssetSelector::new();
+        let selector = AssetSelector::new_without_neural();
         let package = make_package(Filetype::Archive);
         let release = make_release(
             vec![
@@ -577,8 +460,155 @@ mod tests {
     }
 
     #[test]
-    fn get_installable_candidate_assets_keeps_all_supported_auto_filetypes() {
+    fn neural_candidates_filter_filetype_but_not_parsed_platform_or_arch() {
         let selector = AssetSelector::new();
+        let package = make_neural_package(Filetype::Archive);
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/tool-x86_64-pc-windows-msvc.zip".to_string(),
+                    1,
+                    "tool-x86_64-pc-windows-msvc.zip".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-aarch64-apple-darwin.tar.gz".to_string(),
+                    2,
+                    "tool-aarch64-apple-darwin.tar.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-x86_64-unknown-linux-gnu.tar.gz".to_string(),
+                    3,
+                    "tool-x86_64-unknown-linux-gnu.tar.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool.exe".to_string(),
+                    4,
+                    "tool.exe".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let candidates = selector.get_installable_candidate_assets(&release, &package);
+
+        assert_eq!(candidates.len(), 3);
+        assert!(
+            candidates
+                .iter()
+                .any(|candidate| candidate.asset.name == "tool-x86_64-pc-windows-msvc.zip")
+        );
+        assert!(
+            candidates
+                .iter()
+                .any(|candidate| candidate.asset.name == "tool-aarch64-apple-darwin.tar.gz")
+        );
+        assert!(
+            candidates
+                .iter()
+                .any(|candidate| candidate.asset.name == "tool-x86_64-unknown-linux-gnu.tar.gz")
+        );
+        assert!(
+            !candidates
+                .iter()
+                .any(|candidate| candidate.asset.name == "tool.exe")
+        );
+    }
+    #[test]
+    fn neural_candidates_apply_match_patterns_after_model_scoring() {
+        let selector = AssetSelector::new();
+        let package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Archive,
+            Some("forcewinner".to_string()),
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/tool-x86_64-unknown-linux-gnu.tar.gz".to_string(),
+                    1,
+                    "tool-x86_64-unknown-linux-gnu.tar.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-forcewinner.tar.gz".to_string(),
+                    2,
+                    "tool-forcewinner.tar.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let candidates = selector
+            .get_candidate_assets(&release, &package)
+            .expect("candidates");
+
+        assert_eq!(candidates[0].asset.name, "tool-forcewinner.tar.gz");
+    }
+    #[test]
+    fn neural_candidates_apply_exclude_patterns_after_model_scoring() {
+        let selector = AssetSelector::new();
+        let package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Archive,
+            None,
+            Some("forceblock".to_string()),
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/tool-forceblock.tar.gz".to_string(),
+                    1,
+                    "tool-forceblock.tar.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/tool-keep.tar.gz".to_string(),
+                    2,
+                    "tool-keep.tar.gz".to_string(),
+                    200_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "v1.0.0",
+        );
+
+        let candidates = selector
+            .get_candidate_assets(&release, &package)
+            .expect("candidates");
+
+        assert!(
+            candidates
+                .iter()
+                .all(|candidate| candidate.asset.name != "tool-forceblock.tar.gz")
+        );
+    }
+    #[test]
+    fn get_installable_candidate_assets_keeps_all_supported_auto_filetypes() {
+        let selector = AssetSelector::new_without_neural();
         let package = make_package(Filetype::Auto);
         let release = make_release(
             vec![
@@ -618,7 +648,7 @@ mod tests {
 
     #[test]
     fn find_recommended_asset_returns_highest_scored_compatible_asset() {
-        let selector = AssetSelector::new();
+        let selector = AssetSelector::new_without_neural();
         let package = make_package(Filetype::Archive);
         let release = make_release(
             vec![

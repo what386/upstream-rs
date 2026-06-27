@@ -1,6 +1,8 @@
 pub mod asset_selector;
 pub mod discovery;
 pub mod download_handler;
+pub mod heuristic_asset_selector;
+pub mod neural_asset_selector;
 pub mod pattern_matcher;
 pub mod provider_manager;
 pub mod release_provider;
