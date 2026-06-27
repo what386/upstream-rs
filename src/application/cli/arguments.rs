@@ -397,7 +397,8 @@ pub enum Commands {
         opens an interactive asset picker, prompts for a package name when needed, and \
         installs the selected asset. In AUTO kind mode, probe shows installable asset \
         kinds for the current platform instead of forcing one kind. Use --dry-run to \
-        inspect parsed releases without selecting, downloading, or installing.\n\n\
+        follow the same interactive selection and preview flow, but stop before \
+        confirmation, download, installation, or metadata changes.\n\n\
         EXAMPLES:\n  \
         upstream probe neovim/neovim\n  \
         upstream probe https://ziglang.org/download/ -p scraper --limit 20\n  \
@@ -455,7 +456,7 @@ pub enum Commands {
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
         trust_mode: TrustMode,
 
-        /// Show parsed releases without selecting, downloading, or installing
+        /// Run the normal interactive selection and preview flow, then stop before installation
         #[arg(long, default_value_t = false)]
         dry_run: bool,
     },
