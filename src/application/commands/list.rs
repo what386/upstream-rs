@@ -334,5 +334,4 @@ mod tests {
 
         assert_eq!(names, vec!["codex", "vscode"]);
     }
-
 }

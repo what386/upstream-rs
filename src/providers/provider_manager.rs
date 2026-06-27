@@ -379,5 +379,4 @@ mod tests {
         assert!(ProviderManager::is_preview_release(&preview));
         assert!(!ProviderManager::is_preview_release(&nightly));
     }
-
 }

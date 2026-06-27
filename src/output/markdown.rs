@@ -138,5 +138,4 @@ mod tests {
 
         assert_eq!(normalize_glow_output(output), "\x1b[1mTitle\x1b[0m\n\nbody");
     }
-
 }

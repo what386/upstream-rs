@@ -368,7 +368,9 @@ mod tests {
 
     use crate::models::provider::RepositorySearchFilters;
     use crate::providers::github::GithubClient;
-    use crate::providers::github::github_dtos::{GithubReleaseDto, GithubRepositorySearchResponseDto};
+    use crate::providers::github::github_dtos::{
+        GithubReleaseDto, GithubRepositorySearchResponseDto,
+    };
 
     #[test]
     fn github_release_dto_accepts_nullable_string_fields() {
