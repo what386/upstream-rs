@@ -8,6 +8,9 @@ use toml;
 use crate::models::upstream::AppConfig;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
 const ALLOWED_TOP_LEVEL_KEYS: &[&str] = &["github", "gitlab", "gitea", "download", "rollback"];
 const EXPECTED_CONFIG_PATHS: &[&str] = &[
     "github",
@@ -103,6 +106,7 @@ impl ConfigStorage {
             format!("Failed to save config to '{}'", self.config_file.display())
         })?;
 
+        #[cfg(unix)]
         set_config_permissions(&self.config_file)?;
 
         Ok(())
@@ -244,6 +248,8 @@ impl ConfigStorage {
             toml::to_string_pretty(&value).context("Failed to serialize cleaned config")?;
         write_atomic(config_file, rendered.as_bytes())
             .with_context(|| format!("Failed to save config to '{}'", config_file.display()))?;
+
+        #[cfg(unix)]
         set_config_permissions(config_file)?;
 
         Ok(verification.unused_keys)
@@ -316,12 +322,9 @@ fn public_config_value(config: &AppConfig) -> Result<toml::Value> {
     toml::Value::try_from(config).context("Failed to serialize config")
 }
 
+#[cfg(unix)]
 fn set_config_permissions(config_file: &Path) -> Result<()> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(config_file, fs::Permissions::from_mode(0o600))?;
-    }
+    fs::set_permissions(config_file, fs::Permissions::from_mode(0o600))?;
 
     Ok(())
 }
