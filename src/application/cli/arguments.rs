@@ -628,15 +628,19 @@ pub enum Commands {
         action: ConfigAction,
     },
 
-    /// Manage package-specific behavior
-    #[command(long_about = "Control package behavior.\n\n\
-        Pin packages to prevent upgrades or rename installed package aliases.\n\n\
+    /// Manage installed package records and launcher entries
+    #[command(
+        long_about = "Manage installed package records and launcher entries.\n\n\
+        Use these commands to update upstream's stored package metadata. Pin or \
+        unpin a package's upgrade state, rename a local package alias, or manually \
+        add/remove an upstream-managed desktop launcher entry.\n\n\
         EXAMPLES:\n  \
         upstream package pin nvim\n  \
         upstream package unpin nvim\n  \
         upstream package rename nvim neovim\n  \
         upstream package add-entry nvim\n  \
-        upstream package rm-entry nvim")]
+        upstream package rm-entry nvim"
+    )]
     Package {
         #[command(subcommand)]
         action: PackageAction,
@@ -957,9 +961,10 @@ pub enum ConfigAction {
 
 #[derive(Subcommand)]
 pub enum PackageAction {
-    /// Pin a package to its current version
-    #[command(long_about = "Prevent a package from being upgraded.\n\n\
-        Pinned packages are skipped during 'upstream upgrade' operations.\n\n\
+    /// Mark an installed package as pinned
+    #[command(long_about = "Mark an installed package as pinned.\n\n\
+        This updates package metadata so the package is skipped during \
+        'upstream upgrade' operations.\n\n\
         EXAMPLE:\n  \
         upstream package pin nvim")]
     Pin {
@@ -967,9 +972,10 @@ pub enum PackageAction {
         name: String,
     },
 
-    /// Unpin a package to allow updates
-    #[command(long_about = "Remove version pin from a package.\n\n\
-        Unpinned packages will be included in future upgrade operations.\n\n\
+    /// Clear the pinned flag on an installed package
+    #[command(long_about = "Clear the pinned flag on an installed package.\n\n\
+        This updates package metadata so the package can be included in future \
+        upgrade operations.\n\n\
         EXAMPLE:\n  \
         upstream package unpin nvim")]
     Unpin {
@@ -977,10 +983,10 @@ pub enum PackageAction {
         name: String,
     },
 
-    /// Rename package alias without reinstalling
-    #[command(long_about = "Rename the local alias of an installed package.\n\n\
-        This changes how upstream tracks the package and updates integration aliases \
-        (symlink/desktop entry) when possible.\n\n\
+    /// Rename an installed package record and aliases
+    #[command(long_about = "Rename an installed package record and aliases.\n\n\
+        This changes the local package name stored by upstream and updates integration \
+        aliases such as symlinks when possible. It does not reinstall the package.\n\n\
         EXAMPLE:\n  \
         upstream package rename nvim neovim")]
     Rename {
@@ -991,12 +997,12 @@ pub enum PackageAction {
         new_name: String,
     },
 
-    /// Create desktop launcher integration for an installed package
+    /// Add a desktop launcher entry for an installed package
     #[command(
-        long_about = "Manually create desktop launcher integration for an installed package.\n\n\
-        This uses the same desktop integration flow as install and upgrade, including \
-        AppImage extraction, embedded .desktop metadata, icon lookup, and \
-        stored package metadata updates.\n\n\
+        long_about = "Add a desktop launcher entry for an installed package.\n\n\
+        This re-runs upstream's desktop entry creation flow, including AppImage \
+        extraction, embedded .desktop metadata, icon lookup, launcher file writing, \
+        and stored package metadata updates.\n\n\
         EXAMPLE:\n  \
         upstream package add-entry nvim"
     )]
@@ -1005,13 +1011,12 @@ pub enum PackageAction {
         name: String,
     },
 
-    /// Remove desktop launcher integration for an installed package
-    #[command(
-        long_about = "Manually remove desktop launcher integration for an installed package.\n\n\
-        This removes the launcher entry and any stored icon metadata owned by upstream.\n\n\
+    /// Remove an upstream-managed desktop launcher entry
+    #[command(long_about = "Remove an upstream-managed desktop launcher entry.\n\n\
+        This removes the launcher entry and any stored icon metadata owned by upstream. \
+        It does not uninstall package files.\n\n\
         EXAMPLE:\n  \
-        upstream package rm-entry nvim"
-    )]
+        upstream package rm-entry nvim")]
     RmEntry {
         /// Installed package name
         name: String,
