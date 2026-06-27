@@ -7,6 +7,8 @@ const LOW_PARALLEL_DOWNLOAD_SIZE_MB: u64 = 16;
 const HIGH_PARALLEL_DOWNLOAD_SIZE_MB: u64 = 64;
 const LOW_PARALLEL_DOWNLOADS: usize = 2;
 const HIGH_PARALLEL_DOWNLOADS: usize = 4;
+const UPGRADE_CHECK_CONCURRENCY: usize = 8;
+const UPGRADE_INSTALL_CONCURRENCY: usize = 4;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
@@ -60,6 +62,32 @@ impl DownloadConfig {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(default)]
+pub struct UpgradeConfig {
+    pub check_concurrency: usize,
+    pub install_concurrency: usize,
+}
+
+impl Default for UpgradeConfig {
+    fn default() -> Self {
+        Self {
+            check_concurrency: UPGRADE_CHECK_CONCURRENCY,
+            install_concurrency: UPGRADE_INSTALL_CONCURRENCY,
+        }
+    }
+}
+
+impl UpgradeConfig {
+    pub fn check_concurrency(self) -> usize {
+        self.check_concurrency.max(1)
+    }
+
+    pub fn install_concurrency(self) -> usize {
+        self.install_concurrency.max(1)
+    }
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AppConfig {
@@ -67,5 +95,6 @@ pub struct AppConfig {
     pub gitlab: ProviderConfig,
     pub gitea: ProviderConfig,
     pub download: DownloadConfig,
+    pub upgrade: UpgradeConfig,
     pub rollback: RollbackConfig,
 }
