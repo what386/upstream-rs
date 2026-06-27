@@ -8,6 +8,9 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
+- [ ] feat: zsync support for updates
+      @created 2026-06-27 18:21
+
 
 ## Completed
 
