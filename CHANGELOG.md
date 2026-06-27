@@ -1,6 +1,19 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-26*
+*Generated on 2026-06-27*
+
+## 2.9.0 — 2026-06-27
+
+### Changes
+
+- support dotslash json entries (read as metadata, not shell out to dotslash)
+- add alias 'uninstall' for 'remove'
+- feat: add median size filtering for assets to try and avoid installing weird files
+- feat: split list and info. allow substring matching on both
+- change default compression level to `low` for rollbacks
+- add `--for <tag>` to changelog
+- docs: update helptext
+
 
 ## 2.8.1 — 2026-06-26
 
