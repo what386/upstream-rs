@@ -88,7 +88,7 @@ where
 {
     ensure_target_file(target_path)?;
     let status = Command::new("zsync")
-        .arg("--version")
+        .arg("-V")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
