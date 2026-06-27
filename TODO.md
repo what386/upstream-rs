@@ -1,9 +1,12 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-06-26
+@modified: 2026-06-27
 
 ## Tasks
+
+- [ ] docs: update helptext
+      @created 2026-06-27 00:08
 
 
 ## Completed
