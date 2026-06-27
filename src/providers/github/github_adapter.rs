@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use std::path::Path;
 
@@ -7,7 +7,9 @@ use crate::models::provider::{Asset, Release, RepositorySearchFilters, Repositor
 use crate::providers::release_provider::ReleaseProvider;
 
 use super::github_client::GithubClient;
-use super::github_dtos::{GithubAssetDto, GithubReleaseDto, GithubRepositorySearchItemDto};
+use super::github_dtos::{
+    GithubAssetDto, GithubReleaseDto, GithubRepositorySearchItemDto, GithubTagDto,
+};
 
 #[derive(Debug, Clone)]
 pub struct GithubAdapter {
@@ -34,13 +36,30 @@ impl GithubAdapter {
     }
 
     pub async fn get_release_by_tag(&self, slug: &str, tag: &str) -> Result<Release> {
-        let dto = self.client.get_release_by_tag(slug, tag).await?;
-        Ok(self.convert_release(dto))
+        match self.client.get_release_by_tag(slug, tag).await {
+            Ok(dto) => Ok(self.convert_release(dto)),
+            Err(release_err) => {
+                let tag = self
+                    .client
+                    .get_tag_by_name(slug, tag)
+                    .await
+                    .map_err(|tag_err| anyhow!("{release_err}; tag fallback failed: {tag_err}"))?;
+                Ok(Self::convert_tag(tag))
+            }
+        }
     }
 
     pub async fn get_latest_release(&self, slug: &str) -> Result<Release> {
-        let dto = self.client.get_latest_release(slug).await?;
-        Ok(self.convert_release(dto))
+        match self.client.get_latest_release(slug).await {
+            Ok(dto) => Ok(self.convert_release(dto)),
+            Err(release_err) => {
+                let tag =
+                    self.client.get_latest_tag(slug).await.map_err(|tag_err| {
+                        anyhow!("{release_err}; tag fallback failed: {tag_err}")
+                    })?;
+                Ok(Self::convert_tag(tag))
+            }
+        }
     }
 
     pub async fn get_releases(
@@ -150,6 +169,21 @@ impl GithubAdapter {
         }
     }
 
+    fn convert_tag(dto: GithubTagDto) -> Release {
+        let version = Version::from_tag(&dto.name).unwrap_or_else(|_| Version::new(0, 0, 0, false));
+        Release {
+            id: 0,
+            tag: dto.name.clone(),
+            name: dto.name,
+            body: String::new(),
+            is_draft: false,
+            is_prerelease: version.is_prerelease,
+            published_at: DateTime::<Utc>::MIN_UTC,
+            assets: Vec::new(),
+            version,
+        }
+    }
+
     fn convert_search_result(dto: GithubRepositorySearchItemDto) -> RepositorySearchResult {
         RepositorySearchResult {
             repo_slug: dto.full_name,
@@ -231,7 +265,7 @@ mod tests {
     use super::GithubAdapter;
     use crate::providers::github::github_client::GithubClient;
     use crate::providers::github::github_dtos::{
-        GithubAssetDto, GithubReleaseDto, GithubRepositorySearchItemDto,
+        GithubAssetDto, GithubReleaseDto, GithubRepositorySearchItemDto, GithubTagDto,
     };
 
     #[test]
@@ -275,6 +309,23 @@ mod tests {
         assert!(release.is_prerelease);
         assert_eq!(release.assets.len(), 1);
         assert_eq!(release.assets[0].id, 9);
+    }
+
+    #[test]
+    fn convert_tag_builds_synthetic_release_without_assets() {
+        let release = GithubAdapter::convert_tag(GithubTagDto {
+            name: "v0.6.5".to_string(),
+        });
+
+        assert_eq!(release.id, 0);
+        assert_eq!(release.tag, "v0.6.5");
+        assert_eq!(release.name, "v0.6.5");
+        assert_eq!(release.version.to_string(), "0.6.5");
+        assert!(release.assets.is_empty());
+        assert_eq!(
+            release.published_at,
+            chrono::DateTime::<chrono::Utc>::MIN_UTC
+        );
     }
 
     #[test]

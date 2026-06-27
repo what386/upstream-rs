@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use reqwest::{Client, header};
+use reqwest::{Client, StatusCode, header};
 use serde::Deserialize;
 use std::path::Path;
 
@@ -8,11 +8,9 @@ use crate::{
     providers::{download_handler, http::http_status},
 };
 
-use super::github_dtos::{GithubReleaseDto, GithubRepositorySearchResponseDto};
-#[derive(Debug, Deserialize)]
-struct GithubCommitDto {
-    sha: String,
-}
+use super::github_dtos::{
+    GithubBranchDto, GithubReleaseDto, GithubRepositorySearchResponseDto, GithubTagDto,
+};
 
 #[derive(Debug, Clone)]
 pub struct GithubClient {
@@ -128,6 +126,29 @@ impl GithubClient {
             .context(format!("Failed to get release for tag {}", tag))
     }
 
+    pub async fn get_tag_by_name(&self, owner_repo: &str, tag: &str) -> Result<GithubTagDto> {
+        let per_page = 100;
+        let mut page = 1;
+
+        loop {
+            let tags = self
+                .get_tags_page(owner_repo, per_page, page)
+                .await
+                .context(format!("Failed to get tags page {}", page))?;
+            let partial_page = tags.len() < per_page as usize;
+
+            if let Some(found) = tags.into_iter().find(|candidate| candidate.name == tag) {
+                return Ok(found);
+            }
+
+            if partial_page {
+                anyhow::bail!("Tag '{}' not found for {}", tag, owner_repo);
+            }
+
+            page += 1;
+        }
+    }
+
     pub async fn get_latest_release(&self, owner_repo: &str) -> Result<GithubReleaseDto> {
         let url = format!(
             "https://api.github.com/repos/{}/releases/latest",
@@ -136,6 +157,31 @@ impl GithubClient {
         self.get_json(&url)
             .await
             .context(format!("Failed to get latest release for {}", owner_repo))
+    }
+
+    pub async fn get_latest_tag(&self, owner_repo: &str) -> Result<GithubTagDto> {
+        let mut tags = self
+            .get_tags_page(owner_repo, 1, 1)
+            .await
+            .context(format!("Failed to get latest tag for {}", owner_repo))?;
+
+        tags.pop()
+            .context(format!("No tags found for {}", owner_repo))
+    }
+
+    pub async fn get_tags_page(
+        &self,
+        owner_repo: &str,
+        per_page: u32,
+        page: u32,
+    ) -> Result<Vec<GithubTagDto>> {
+        let url = format!(
+            "https://api.github.com/repos/{}/tags?per_page={}&page={}",
+            owner_repo, per_page, page
+        );
+        self.get_json(&url)
+            .await
+            .context(format!("Failed to get tags page {}", page))
     }
 
     pub async fn get_releases(
@@ -197,14 +243,45 @@ impl GithubClient {
     pub async fn get_branch_head_sha(&self, owner_repo: &str, branch: &str) -> Result<String> {
         let encoded_branch = branch.replace('/', "%2F");
         let url = format!(
-            "https://api.github.com/repos/{}/commits/{}",
+            "https://api.github.com/repos/{}/branches/{}",
             owner_repo, encoded_branch
         );
-        let dto: GithubCommitDto = self.get_json(&url).await.context(format!(
-            "Failed to get branch head for {}/{}",
-            owner_repo, branch
-        ))?;
-        Ok(dto.sha)
+        let response = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .context(format!("Failed to send request to {}", url))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            if let Some(message) =
+                http_status::rate_limit_message(status, response.headers(), "GitHub API", &url)
+            {
+                anyhow::bail!("{message}");
+            }
+            if matches!(
+                status,
+                StatusCode::NOT_FOUND | StatusCode::UNPROCESSABLE_ENTITY
+            ) {
+                anyhow::bail!(
+                    "Branch '{}' not found for {}; verify the branch name or omit --branch to build a release tag",
+                    branch,
+                    owner_repo
+                );
+            }
+            http_status::error_for_status(&response, "GitHub API", &url)?;
+        }
+
+        let dto: GithubBranchDto = response
+            .json()
+            .await
+            .context("Failed to parse JSON response")
+            .context(format!(
+                "Failed to get branch head for {}/{}",
+                owner_repo, branch
+            ))?;
+        Ok(dto.commit.sha)
     }
 
     pub async fn get_project_readme(&self, owner_repo: &str) -> Result<String> {
@@ -292,7 +369,7 @@ mod tests {
     use crate::models::provider::RepositorySearchFilters;
     use crate::providers::github::GithubClient;
     use crate::providers::github::github_dtos::{
-        GithubReleaseDto, GithubRepositorySearchResponseDto,
+        GithubBranchDto, GithubReleaseDto, GithubRepositorySearchResponseDto,
     };
 
     #[test]
@@ -319,6 +396,14 @@ mod tests {
         assert_eq!(parsed.items[0].description, "");
         assert_eq!(parsed.items[0].language, "");
         assert_eq!(parsed.items[0].updated_at, "");
+    }
+
+    #[test]
+    fn github_branch_dto_reads_commit_sha() {
+        let parsed = serde_json::from_str::<GithubBranchDto>(r#"{"commit":{"sha":"abc123"}}"#)
+            .expect("valid branch JSON");
+
+        assert_eq!(parsed.commit.sha, "abc123");
     }
 
     #[test]
