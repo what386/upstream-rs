@@ -64,12 +64,15 @@ struct FailedUpgradeRollback<'a> {
 }
 
 impl<'a> PackageUpgrader<'a> {
-    fn zsync_work_root(package: &Package) -> PathBuf {
+    fn zsync_work_root(paths: &UpstreamPaths, package: &Package) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
-        std::env::temp_dir().join(format!("upstream-zsync-{}-{nonce}", package.name))
+        paths
+            .install
+            .tmp_dir
+            .join(format!("upstream-zsync-{}-{nonce}", package.name))
     }
 
     fn backup_path(paths: &UpstreamPaths, install_path: &Path) -> Result<PathBuf> {
@@ -133,7 +136,7 @@ impl<'a> PackageUpgrader<'a> {
             return Ok(None);
         }
 
-        let work_root = Self::zsync_work_root(&package);
+        let work_root = Self::zsync_work_root(self.paths, &package);
         let work_cache = work_root.join("downloads");
         fs::create_dir_all(&work_cache).context(format!(
             "Failed to create zsync cache directory '{}'",
@@ -210,6 +213,8 @@ impl<'a> PackageUpgrader<'a> {
                 PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
             );
             let mut install_pkg = package;
+            install_pkg.install_path = None;
+            install_pkg.exec_path = None;
             install_pkg.version = release.version.clone();
             install_pkg.version_tag_template =
                 Package::version_tag_template_from_tag(&release.tag, &release.version);
@@ -502,6 +507,8 @@ impl<'a> PackageUpgrader<'a> {
             match build_result {
                 Ok(output) => {
                     let mut install_pkg = package.clone();
+                    install_pkg.install_path = None;
+                    install_pkg.exec_path = None;
                     install_pkg.build_branch = output.branch.clone();
                     install_pkg.build_commit = output.commit.or(branch_head_commit.clone());
                     install_pkg.version_tag_template = if install_pkg.build_branch.is_some() {
@@ -550,7 +557,7 @@ impl<'a> PackageUpgrader<'a> {
                     package.name
                 ))?;
 
-            if let Some(updated_package) = self
+            match self
                 .try_zsync_upgrade_release(
                     package.clone(),
                     release,
@@ -561,23 +568,54 @@ impl<'a> PackageUpgrader<'a> {
                     message_callback,
                     progress_callback,
                 )
-                .await?
+                .await
             {
-                Ok(updated_package)
-            } else {
-                self.installer
-                    .install_selected_asset(
-                        &self.trusted_keys,
-                        package.clone(),
-                        release,
-                        &selected_asset,
-                        &false,
-                        trust_mode,
-                        download_progress,
-                        message_callback,
+                Ok(Some(updated_package)) => Ok(updated_package),
+                Ok(None) => {
+                    let mut install_pkg = package.clone();
+                    install_pkg.install_path = None;
+                    install_pkg.exec_path = None;
+                    self.installer
+                        .install_selected_asset(
+                            &self.trusted_keys,
+                            install_pkg,
+                            release,
+                            &selected_asset,
+                            &false,
+                            trust_mode,
+                            download_progress,
+                            message_callback,
+                            progress_callback,
+                        )
+                        .await
+                }
+                Err(err) => {
+                    let warning = format!(
+                        "zsync update failed for '{}'; falling back to direct download: {}",
+                        package.name, err
+                    );
+                    progress!(
                         progress_callback,
-                    )
-                    .await
+                        PackageProgressEvent::Warning(warning.clone())
+                    );
+                    message!(message_callback, "{}", warning);
+                    let mut install_pkg = package.clone();
+                    install_pkg.install_path = None;
+                    install_pkg.exec_path = None;
+                    self.installer
+                        .install_selected_asset(
+                            &self.trusted_keys,
+                            install_pkg,
+                            release,
+                            &selected_asset,
+                            &false,
+                            trust_mode,
+                            download_progress,
+                            message_callback,
+                            progress_callback,
+                        )
+                        .await
+                }
             }
         };
         let mut updated_package = match install_result {
@@ -860,6 +898,57 @@ mod tests {
     }
 
     #[test]
+    fn rollback_failed_upgrade_restores_previous_binary_without_partial_install() {
+        let root = temp_root("rollback-install-failure");
+        let paths = test_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
+        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
+        fs::create_dir_all(&paths.integration.symlinks_dir).expect("create symlinks dir");
+
+        let install_path = paths.install.binaries_dir.join("tool");
+        let backup_path = paths.install.tmp_dir.join("tool.old");
+        fs::write(&backup_path, b"old").expect("write backup binary");
+
+        let previous = test_package("tool", install_path.clone());
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+        let installer = PackageInstaller::new(&provider_manager, &paths).expect("installer");
+        let remover = PackageRemover::new(&paths);
+        let upgrader = PackageUpgrader::new(
+            &provider_manager,
+            installer,
+            remover,
+            &paths,
+            TrustedSignatureKeys::default(),
+        );
+        let mut msg = Some(|_: &str| {});
+
+        let err = upgrader
+            .rollback_failed_upgrade(
+                FailedUpgradeRollback {
+                    previous_package: &previous,
+                    partially_installed_package: None,
+                    original_install_path: &install_path,
+                    backup_path: &backup_path,
+                    failure_context: "Failed to install new version",
+                },
+                anyhow::anyhow!("already installed"),
+                &mut msg,
+            )
+            .expect_err("rollback helper returns original failure");
+
+        assert!(err.to_string().contains("previous version restored"));
+        assert_eq!(
+            fs::read(&install_path).expect("read restored binary"),
+            b"old"
+        );
+        assert!(!backup_path.exists());
+        assert!(expected_symlink_path(&paths, "tool").exists());
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
     fn can_apply_zsync_accepts_direct_file_binary_upgrades() {
         let root = temp_root("zsync-binary");
         let install_path = root.join("tool");
@@ -893,6 +982,22 @@ mod tests {
             &asset,
             &install_dir
         ));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn zsync_work_root_uses_upstream_temp_dir() {
+        let root = temp_root("zsync-work-root");
+        let paths = test_paths(&root);
+        let package = test_package("tool", root.join("tool"));
+
+        let work_root = PackageUpgrader::zsync_work_root(&paths, &package);
+
+        assert_eq!(
+            work_root.parent().expect("work root parent"),
+            paths.install.tmp_dir
+        );
 
         cleanup(&root).expect("cleanup");
     }
