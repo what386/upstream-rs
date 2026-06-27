@@ -16,12 +16,15 @@ pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result
     }
 
     let mut storage = PackageDatabase::open(&paths.config.packages_database_file)?;
-    let packages = if !database_exists && legacy::legacy_package_metadata_exists(paths) {
-        let packages = legacy::load_legacy_package_metadata(paths)?;
-        storage.replace_all_packages(&packages)?;
-        packages
+    let packages = storage.list_packages()?;
+    let packages = if legacy::legacy_package_metadata_exists(paths) && packages.is_empty() {
+        let legacy_packages = legacy::load_legacy_package_metadata(paths)?;
+        if !legacy_packages.is_empty() {
+            storage.replace_all_packages(&legacy_packages)?;
+        }
+        legacy_packages
     } else {
-        storage.list_packages()?
+        packages
     };
 
     if database_exists {
@@ -146,6 +149,47 @@ mod tests {
         run(&paths, &mut report).expect("migrate package database");
 
         assert_eq!(report.refreshed_symlinks, 0);
+        let migrated_storage = PackageDatabase::open(&paths.config.packages_database_file)
+            .expect("open migrated package database");
+        let migrated_package = migrated_storage
+            .get_package("tool")
+            .expect("load migrated package")
+            .expect("migrated package");
+        assert_eq!(
+            migrated_package.install_path.as_deref(),
+            Some(binary.as_path())
+        );
+        assert_eq!(
+            migrated_package.exec_path.as_deref(),
+            Some(binary.as_path())
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn migrate_imports_package_json_when_database_was_created_empty() {
+        let root = temp_root("empty-db-package-json-import");
+        let paths = test_support::upstream_paths(&root);
+        let binary = paths.dirs.packages_dir.join("binaries").join("tool");
+        fs::create_dir_all(binary.parent().expect("binary parent")).expect("create binary parent");
+        fs::write(&binary, b"tool").expect("write binary");
+        fs::create_dir_all(&paths.dirs.metadata_dir).expect("create metadata");
+        fs::write(
+            &paths.config.packages_file,
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "version": 1,
+                "packages": [test_package("tool", binary.clone(), binary.clone())],
+            }))
+            .expect("serialize packages"),
+        )
+        .expect("write packages");
+        fs::create_dir_all(&paths.integration.symlinks_dir).expect("create symlinks");
+        PackageDatabase::open(&paths.config.packages_database_file).expect("create empty db");
+        let mut report = MigrationReport::default();
+
+        run(&paths, &mut report).expect("migrate package database");
+
         let migrated_storage = PackageDatabase::open(&paths.config.packages_database_file)
             .expect("open migrated package database");
         let migrated_package = migrated_storage
