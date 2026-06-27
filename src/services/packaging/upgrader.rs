@@ -64,12 +64,6 @@ struct FailedUpgradeRollback<'a> {
     failure_context: &'a str,
 }
 
-enum ZsyncUpgradeAttempt {
-    NotApplicable,
-    Updated(Package),
-    Fallback(anyhow::Error),
-}
-
 impl<'a> PackageUpgrader<'a> {
     fn zsync_work_root(paths: &UpstreamPaths, package: &Package) -> PathBuf {
         let nonce = SystemTime::now()
@@ -129,18 +123,18 @@ impl<'a> PackageUpgrader<'a> {
         download_progress: &mut Option<F>,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
-    ) -> Result<ZsyncUpgradeAttempt>
+    ) -> Result<Option<Package>>
     where
         F: FnMut(u64, u64),
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
         if !Self::can_apply_zsync(&package, asset, backup_path) {
-            return Ok(ZsyncUpgradeAttempt::NotApplicable);
+            return Ok(None);
         }
 
         if zsync_handler::find_asset(release, asset).is_none() {
-            return Ok(ZsyncUpgradeAttempt::NotApplicable);
+            return Ok(None);
         }
 
         let work_root = Self::zsync_work_root(self.paths, &package);
@@ -181,7 +175,7 @@ impl<'a> PackageUpgrader<'a> {
             .context(format!("Failed to update '{}' via zsync", package.name))
             {
                 let _ = fs::remove_dir_all(&work_root);
-                return Ok(ZsyncUpgradeAttempt::Fallback(err));
+                return Err(err);
             }
         }
 
@@ -253,7 +247,7 @@ impl<'a> PackageUpgrader<'a> {
         }
 
         let _ = fs::remove_dir_all(&work_root);
-        result.map(ZsyncUpgradeAttempt::Updated)
+        result.map(Some)
     }
 
     fn capture_successful_upgrade_rollback(
@@ -568,7 +562,7 @@ impl<'a> PackageUpgrader<'a> {
             };
             let selected_asset = self
                 .installer
-                .resolve_release_asset(&package, release, message_callback.as_mut())
+                .resolve_release_asset(package, release, message_callback.as_mut())
                 .await
                 .context(format!(
                     "Failed to resolve upgrade asset for '{}'",
@@ -588,8 +582,8 @@ impl<'a> PackageUpgrader<'a> {
                 )
                 .await
             {
-                Ok(ZsyncUpgradeAttempt::Updated(updated_package)) => Ok(updated_package),
-                Ok(ZsyncUpgradeAttempt::NotApplicable) => {
+                Ok(Some(updated_package)) => Ok(updated_package),
+                Ok(None) => {
                     let mut install_pkg = package.clone();
                     install_pkg.install_path = None;
                     install_pkg.exec_path = None;
@@ -607,7 +601,7 @@ impl<'a> PackageUpgrader<'a> {
                         )
                         .await
                 }
-                Ok(ZsyncUpgradeAttempt::Fallback(err)) => {
+                Err(err) => {
                     let summary = output::error_summary(&err);
                     let warning = format!("zsync failed, fallback: {summary}");
                     progress!(
@@ -632,7 +626,6 @@ impl<'a> PackageUpgrader<'a> {
                         )
                         .await
                 }
-                Err(err) => Err(err),
             }
         };
         let mut updated_package = match install_result {
