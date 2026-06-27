@@ -8,6 +8,9 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
+- [ ] feat: asset selection improvements
+      @created 2026-06-27 21:19
+
 
 ## Completed
 
