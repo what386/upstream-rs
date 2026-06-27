@@ -306,5 +306,4 @@ mod tests {
             "Package query 'code' is ambiguous: codex, vscode"
         );
     }
-
 }
