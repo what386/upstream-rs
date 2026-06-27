@@ -390,8 +390,7 @@ impl ProbeAssetChoiceWidths {
             .map(|choice| choice.asset.name.chars().count())
             .max()
             .unwrap_or(5)
-            .max("Asset".len())
-            .min(56);
+            .max("Asset".len());
         let kind = choices
             .iter()
             .map(|choice| format!("{:?}", choice.asset.filetype).chars().count())
@@ -584,16 +583,23 @@ fn write_candidates(out: &mut String, row: &ProbeRow) {
     }
 
     writeln!(out, "     candidates:").expect("write candidates label");
+    let name_width = candidates
+        .iter()
+        .map(|candidate| candidate.asset.name.chars().count())
+        .max()
+        .unwrap_or(44)
+        .max(44);
     for (rank, candidate) in candidates.iter().enumerate() {
         let asset = &candidate.asset;
         writeln!(
             out,
-            "       #{} {:<44} {:>11} {:<10} score={}",
+            "       #{} {:<name_width$} {:>11} {:<10} score={}",
             rank + 1,
-            truncate(&asset.name, 46),
+            &asset.name,
             HumanBytes(asset.size),
             format!("{:?}", asset.filetype),
-            candidate.score
+            candidate.score,
+            name_width = name_width
         )
         .expect("write candidate row");
     }
