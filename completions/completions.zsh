@@ -15,8 +15,8 @@ _upstream() {
 
     local context curcontext="$curcontext" state line
     _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '-V[Print version]' \
@@ -32,60 +32,72 @@ _upstream() {
         case $line[1] in
             (install)
 _arguments "${_arguments_options[@]}" : \
-'-t+[Version tag to install (defaults to latest)]:TAG:_default' \
-'--tag=[Version tag to install (defaults to latest)]:TAG:_default' \
-'-k+[File type to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
-'--kind=[File type to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'-t+[Release tag to install (defaults to latest matching the channel)]:TAG:_default' \
+'--tag=[Release tag to install (defaults to latest matching the channel)]:TAG:_default' \
+'-k+[Asset kind to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'--kind=[Asset kind to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
 '-p+[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
 '--provider=[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
 '--base-url=[Custom base URL. Defaults to provider'\''s root]:BASE_URL:_default' \
-'-c+[Update channel to track]:CHANNEL:(stable preview nightly)' \
-'--channel=[Update channel to track]:CHANNEL:(stable preview nightly)' \
+'-c+[Release channel to track for upgrades]:CHANNEL:(stable preview nightly)' \
+'--channel=[Release channel to track for upgrades]:CHANNEL:(stable preview nightly)' \
 '-m+[Match pattern to use as a hint for which asset to prefer]:match:_default' \
 '--match-pattern=[Match pattern to use as a hint for which asset to prefer]:match:_default' \
 '-e+[Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")]:exclude:_default' \
 '--exclude-pattern=[Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")]:exclude:_default' \
 '--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
-'-d[Whether or not to create a .desktop entry for GUI applications]' \
-'--desktop[Whether or not to create a .desktop entry for GUI applications]' \
-'--dry-run[Preview install resolution without downloading or writing files]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-d[Create a desktop launcher entry for GUI applications]' \
+'--desktop[Create a desktop launcher entry for GUI applications]' \
+'--dry-run[Preview install resolution without downloading, installing, or writing metadata]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':repo_slug -- Repository identifier or URL:_default' \
+':repo_slug -- Repository identifier or direct download URL:_default' \
 '::name -- Name to register the application under (falls back to git repository name when omitted):_default' \
 && ret=0
 ;;
 (build)
 _arguments "${_arguments_options[@]}" : \
-'(--branch)-t+[Version tag to build (defaults to latest)]:TAG:_default' \
-'(--branch)--tag=[Version tag to build (defaults to latest)]:TAG:_default' \
-'(-t --tag)--branch=[Branch name to build from (uses latest commit from that branch)]:BRANCH:_default' \
+'(--branch)-t+[Release tag to build (defaults to latest matching the channel)]:TAG:_default' \
+'(--branch)--tag=[Release tag to build (defaults to latest matching the channel)]:TAG:_default' \
+'(-t --tag)--branch=[Branch to build from instead of a release tag]:BRANCH:_default' \
 '-p+[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
 '--provider=[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
 '--base-url=[Custom base URL. Defaults to provider'\''s root]:BASE_URL:_default' \
-'-c+[Update channel to track]:CHANNEL:(stable preview nightly)' \
-'--channel=[Update channel to track]:CHANNEL:(stable preview nightly)' \
+'-c+[Release channel to track for future builds]:CHANNEL:(stable preview nightly)' \
+'--channel=[Release channel to track for future builds]:CHANNEL:(stable preview nightly)' \
 '--build-profile=[Build profile used to compile/install from source (auto-detected when omitted)]:BUILD_PROFILE:(rust dotnet go zig cmake)' \
-'-d[Whether or not to create a .desktop entry for GUI applications]' \
-'--desktop[Whether or not to create a .desktop entry for GUI applications]' \
-'--dry-run[Preview build resolution without compiling or writing files]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-d[Create a desktop launcher entry for GUI applications]' \
+'--desktop[Create a desktop launcher entry for GUI applications]' \
+'--dry-run[Preview build resolution without compiling, installing, or writing metadata]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':repo_slug -- Repository identifier or URL:_default' \
+':repo_slug -- Repository identifier or git URL:_default' \
 '::name -- Name to register the application under (falls back to git repository name when omitted):_default' \
 && ret=0
 ;;
 (remove)
 _arguments "${_arguments_options[@]}" : \
-'--purge[Remove all associated cached data]' \
-'--force[Ignore uninstall errors and remove metadata anyway]' \
+'--purge[Remove package-owned cached data as well as active files]' \
+'--force[Remove metadata even when uninstall cleanup fails]' \
 '--dry-run[Preview removal actions without deleting files or metadata]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'*::names -- Names of packages to remove:_default' \
+&& ret=0
+;;
+(uninstall)
+_arguments "${_arguments_options[@]}" : \
+'--purge[Remove package-owned cached data as well as active files]' \
+'--force[Remove metadata even when uninstall cleanup fails]' \
+'--dry-run[Preview removal actions without deleting files or metadata]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Names of packages to remove:_default' \
@@ -93,11 +105,11 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (rollback)
 _arguments "${_arguments_options[@]}" : \
-'*--prune=[Prune stored rollback artifacts for all packages or selected package names]::NAMES:_default' \
-'--list[List stored rollback artifacts]' \
+'*--prune=[Delete rollback artifacts for all packages or selected package names]::NAMES:_default' \
+'--list[List available rollback artifacts]' \
 '--dry-run[Preview rollback restore or prune actions without modifying files or metadata]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Package names to restore:_default' \
@@ -106,46 +118,57 @@ _arguments "${_arguments_options[@]}" : \
 (reinstall)
 _arguments "${_arguments_options[@]}" : \
 '--trust=[Trust verification mode for release-asset reinstalls]:TRUST_MODE:(none best-effort checksum signature all)' \
-'--force[Ignore uninstall errors and remove metadata anyway before reinstalling]' \
-'--dry-run[Preview reinstall resolution without removing, building, or writing files]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'--force[Continue reinstalling after uninstall cleanup errors]' \
+'--dry-run[Preview reinstall resolution without removing, installing, or writing metadata]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-'*::names -- Names of packages to reinstall:_default' \
+'*::names -- Installed package names to reinstall:_default' \
 && ret=0
 ;;
 (upgrade)
 _arguments "${_arguments_options[@]}" : \
 '--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
-'--force[Force upgrade even if already up to date]' \
+'--force[Reinstall even when the selected version is already installed]' \
 '--check[Check for available upgrades without applying them]' \
-'--machine-readable[Use script-friendly check output\: one line per update, "name oldver newver"]' \
+'--machine-readable[Print one line per available update\: "name oldver newver"]' \
 '(--machine-readable)--json[Print check results as JSON]' \
-'--dry-run[Preview upgrade resolution without downloading or writing files]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'--dry-run[Preview upgrade resolution without downloading, installing, or writing metadata]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-'*::names -- Packages to upgrade (upgrades all if omitted):_default' \
+'*::names -- Installed package names to upgrade (all packages if omitted):_default' \
 && ret=0
 ;;
 (list)
 _arguments "${_arguments_options[@]}" : \
-'--json[Print raw package metadata as JSON]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'--json[Print package list as JSON]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-'::name -- Package name for detailed information:_default' \
+'::filter -- Package name substring to filter the list:_default' \
+&& ret=0
+;;
+(info)
+_arguments "${_arguments_options[@]}" : \
+'--json[Print raw package metadata as JSON]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':query -- Package name or unique substring for detailed information:_default' \
 && ret=0
 ;;
 (changelog)
 _arguments "${_arguments_options[@]}" : \
-'--from=[Override the starting release tag]:FROM_TAG:_default' \
-'--to=[Override the ending release tag]:TO_TAG:_default' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'(--for)--from=[Starting release tag, or "current"]:FROM_TAG:_default' \
+'(--for)--to=[Ending release tag, "current", or "latest"]:TO_TAG:_default' \
+'(--from --to)--for=[Show release notes for exactly one release tag]:FOR_TAG:_default' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Installed package name:_default' \
@@ -153,46 +176,46 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (docs)
 _arguments "${_arguments_options[@]}" : \
-'*--fetch=[Refresh cached README docs for named packages, or all packages when no names are provided]::NAME:_default' \
+'*--fetch=[Refresh cached README docs for named packages, or all installed packages when empty]::NAME:_default' \
 '(--fetch)--offline[Use only the cached README and skip network fetching]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-'::name -- Installed package name:_default' \
+'::name -- Installed package name to search, unless --fetch is refreshing all docs:_default' \
 '*::keywords -- Optional search keywords (joined with spaces):_default' \
 && ret=0
 ;;
 (probe)
 _arguments "${_arguments_options[@]}" : \
-'-p+[Source provider (defaults to github, or scraper for URLs)]:PROVIDER:_default' \
-'--provider=[Source provider (defaults to github, or scraper for URLs)]:PROVIDER:_default' \
+'-p+[Source provider (defaults to GitHub, or scraper for plain URLs)]:PROVIDER:_default' \
+'--provider=[Source provider (defaults to GitHub, or scraper for plain URLs)]:PROVIDER:_default' \
 '--base-url=[Custom base URL for self-hosted providers]:BASE_URL:_default' \
-'-c+[Channel view to display]:CHANNEL:(stable preview nightly)' \
-'--channel=[Channel view to display]:CHANNEL:(stable preview nightly)' \
-'--limit=[Number of releases to inspect instead of only the latest release]:LIMIT:_default' \
-'--tag=[Release tag to inspect (defaults to latest when --limit is omitted)]:TAG:_default' \
-'-k+[File type to show and install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
-'--kind=[File type to show and install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'-c+[Release channel to display and track]:CHANNEL:(stable preview nightly)' \
+'--channel=[Release channel to display and track]:CHANNEL:(stable preview nightly)' \
+'--limit=[Number of releases to inspect instead of only one tag/latest release]:LIMIT:_default' \
+'--tag=[Release tag to inspect exactly]:TAG:_default' \
+'-k+[Asset kind to show and install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'--kind=[Asset kind to show and install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
 '--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
-'--verbose[Include scored candidate assets for each release]' \
+'--verbose[Show scored candidate assets and selection details]' \
 '--include-incompatible[Include assets that do not match the current OS/architecture or selected file type]' \
-'--json[Print dry-run probe results as JSON]' \
-'-d[Whether or not to create a .desktop entry for GUI applications]' \
-'--desktop[Whether or not to create a .desktop entry for GUI applications]' \
+'--json[Print probe results as JSON and exit]' \
+'-d[Create a desktop launcher entry for GUI applications]' \
+'--desktop[Create a desktop launcher entry for GUI applications]' \
 '--dry-run[Show parsed releases without selecting, downloading, or installing]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':repo_slug -- Repository identifier or URL to probe:_default' \
+':repo_slug -- Repository identifier or download page URL to inspect:_default' \
 '::name -- Name to register the application under (prompts with inferred default when omitted):_default' \
 && ret=0
 ;;
 (search)
 _arguments "${_arguments_options[@]}" : \
-'-p+[Source provider to search (defaults to github)]:PROVIDER:_default' \
-'--provider=[Source provider to search (defaults to github)]:PROVIDER:_default' \
+'-p+[Source provider to search (defaults to GitHub)]:PROVIDER:_default' \
+'--provider=[Source provider to search (defaults to GitHub)]:PROVIDER:_default' \
 '--base-url=[Custom base URL for self-hosted providers]:BASE_URL:_default' \
 '--limit=[Maximum number of results to display]:LIMIT:_default' \
 '--language=[Restrict results to repositories with this primary language]:LANGUAGE:_default' \
@@ -202,18 +225,18 @@ _arguments "${_arguments_options[@]}" : \
 '--pushed-after=[Restrict results to repositories pushed on or after YYYY-MM-DD]:YYYY-MM-DD:_default' \
 '--include-forks[Include forked repositories in provider search results]' \
 '--include-archived[Include archived repositories in provider search results]' \
-'--json[Print search results as JSON]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'--json[Print repository search results as JSON]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-'*::query_words -- Optional query words (joined with spaces):_default' \
+'*::query_words -- Optional query words:_default' \
 && ret=0
 ;;
 (find)
 _arguments "${_arguments_options[@]}" : \
-'-p+[Source provider to search (defaults to github)]:PROVIDER:_default' \
-'--provider=[Source provider to search (defaults to github)]:PROVIDER:_default' \
+'-p+[Source provider to search (defaults to GitHub)]:PROVIDER:_default' \
+'--provider=[Source provider to search (defaults to GitHub)]:PROVIDER:_default' \
 '--base-url=[Custom base URL for self-hosted providers]:BASE_URL:_default' \
 '--limit=[Maximum number of results to display]:LIMIT:_default' \
 '--language=[Restrict results to repositories with this primary language]:LANGUAGE:_default' \
@@ -222,10 +245,10 @@ _arguments "${_arguments_options[@]}" : \
 '--max-stars=[Restrict results to repositories with at most this many stars]:N:_default' \
 '--pushed-after=[Restrict results to repositories pushed on or after YYYY-MM-DD]:YYYY-MM-DD:_default' \
 '--name=[Package name to register without prompting]:NAME:_default' \
-'-k+[File type to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
-'--kind=[File type to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
-'-c+[Update channel to track]:CHANNEL:(stable preview nightly)' \
-'--channel=[Update channel to track]:CHANNEL:(stable preview nightly)' \
+'-k+[Asset kind to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'--kind=[Asset kind to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'-c+[Release channel to track for upgrades]:CHANNEL:(stable preview nightly)' \
+'--channel=[Release channel to track for upgrades]:CHANNEL:(stable preview nightly)' \
 '-m+[Match pattern to use as a hint for which asset to prefer]:match:_default' \
 '--match-pattern=[Match pattern to use as a hint for which asset to prefer]:match:_default' \
 '-e+[Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")]:exclude:_default' \
@@ -233,20 +256,20 @@ _arguments "${_arguments_options[@]}" : \
 '--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
 '--include-forks[Include forked repositories in provider search results]' \
 '--include-archived[Include archived repositories in provider search results]' \
-'-d[Whether or not to create a .desktop entry for GUI applications]' \
-'--desktop[Whether or not to create a .desktop entry for GUI applications]' \
-'--dry-run[Preview install resolution without downloading or writing files]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-d[Create a desktop launcher entry for GUI applications]' \
+'--desktop[Create a desktop launcher entry for GUI applications]' \
+'--dry-run[Preview install resolution without downloading, installing, or writing metadata]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-'*::query_words -- Query words (joined with spaces):_default' \
+'*::query_words -- Query words:_default' \
 && ret=0
 ;;
 (config)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__config_commands" \
@@ -261,8 +284,8 @@ _arguments "${_arguments_options[@]}" : \
         case $line[1] in
             (set)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::keys -- Configuration assignments (format\: key.path=value):_default' \
@@ -270,8 +293,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (get)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::keys -- Configuration keys to retrieve (format\: key.path):_default' \
@@ -279,26 +302,34 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (list)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
-'-h[Print help]' \
-'--help[Print help]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
+(verify)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
 (edit)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
-'-h[Print help]' \
-'--help[Print help]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
 (reset)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
-'-h[Print help]' \
-'--help[Print help]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
 (help)
@@ -325,6 +356,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(verify)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (edit)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -347,8 +382,8 @@ esac
 ;;
 (package)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__package_commands" \
@@ -363,8 +398,8 @@ _arguments "${_arguments_options[@]}" : \
         case $line[1] in
             (pin)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name of package to pin:_default' \
@@ -372,8 +407,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (unpin)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name of package to unpin:_default' \
@@ -381,8 +416,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (rename)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':old_name -- Existing package alias:_default' \
@@ -391,8 +426,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (add-entry)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Installed package name:_default' \
@@ -400,8 +435,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (rm-entry)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Installed package name:_default' \
@@ -453,8 +488,8 @@ esac
 ;;
 (hooks)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__hooks_commands" \
@@ -469,32 +504,32 @@ _arguments "${_arguments_options[@]}" : \
         case $line[1] in
             (init)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
 (check)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
 (clean)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
 (purge)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
@@ -541,8 +576,8 @@ esac
 ;;
 (import)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__import_commands" \
@@ -557,8 +592,8 @@ _arguments "${_arguments_options[@]}" : \
         case $line[1] in
             (config)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Path to an upstream config TOML file:_files' \
@@ -566,8 +601,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (keys)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Path to a minisign or cosign public key file:_files' \
@@ -575,10 +610,10 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (packages)
 _arguments "${_arguments_options[@]}" : \
-'--skip-failed[Continue importing remaining packages when one package fails]' \
-'--latest[Ignore stored version tags and install the latest release]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'--skip-failed[Continue installing remaining packages after a package import fails]' \
+'--latest[Ignore exported version tags and install latest releases]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Path to an upstream packages export:_files' \
@@ -586,10 +621,10 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (profile)
 _arguments "${_arguments_options[@]}" : \
-'--skip-failed[Continue importing remaining packages when one package fails]' \
-'--latest[Ignore stored package version tags and install latest releases]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'--skip-failed[Continue installing remaining packages after a package import fails]' \
+'--latest[Ignore exported package version tags and install latest releases]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Path to an upstream profile export:_files' \
@@ -637,8 +672,8 @@ esac
 ;;
 (export)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__export_commands" \
@@ -653,8 +688,8 @@ _arguments "${_arguments_options[@]}" : \
         case $line[1] in
             (config)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Output path for the config export:_files' \
@@ -662,8 +697,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (keys)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Output path for the keys export:_files' \
@@ -671,8 +706,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (packages)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Output path for the packages export:_files' \
@@ -680,8 +715,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (profile)
 _arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Output path for the profile export:_files' \
@@ -733,8 +768,8 @@ _arguments "${_arguments_options[@]}" : \
 '--fix[Attempt automatic repairs for detected issues]' \
 '(--verbose --fix --json)--migrate[Migrate local upstream data after breaking layout or metadata changes]' \
 '--json[Print diagnostic report as JSON]' \
-'-y[Accept confirmation prompts]' \
-'--yes[Accept confirmation prompts]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Package names to check (all installed packages if omitted):_default' \
@@ -780,6 +815,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(info)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (changelog)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -821,6 +860,10 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(verify)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -988,23 +1031,25 @@ esac
 (( $+functions[_upstream_commands] )) ||
 _upstream_commands() {
     local commands; commands=(
-'install:Install a package from an upstream release source' \
-'build:Build and install from source for release tags without artifacts' \
-'remove:Remove one or more installed packages' \
-'rollback:Manage stored rollback artifacts' \
-'reinstall:Reinstall one or more packages (remove then install)' \
-'upgrade:Upgrade installed packages to their latest versions' \
-'list:List installed packages and their metadata' \
-'changelog:Show upstream release notes for an installed package' \
-'docs:Search package README documentation' \
-'probe:Probe a repository/source, choose an asset, and install it' \
-'search:Search provider repositories by keyword(s)' \
-'find:Search repositories interactively and install a selected result' \
-'config:Manage upstream configuration' \
-'package:Manage package-specific behavior' \
-'hooks:Manage shell integration hooks and local upstream data' \
-'import:Import config, trusted keys, or exported packages' \
-'export:Export config, trusted keys, or installed package references' \
+'install:Install a release asset or direct download' \
+'build:Build and install a package from source' \
+'remove:Remove installed package files and metadata' \
+'uninstall:Remove installed package files and metadata' \
+'rollback:Restore or prune stored rollback artifacts' \
+'reinstall:Reinstall packages from their stored source metadata' \
+'upgrade:Check for or install package updates' \
+'list:List installed packages' \
+'info:Show details for one installed package' \
+'changelog:Show release notes for an installed package' \
+'docs:Search cached or fetched package README docs' \
+'probe:Inspect releases, choose an asset, and install it' \
+'search:Search provider repositories without installing' \
+'find:Search repositories interactively and install one' \
+'config:View, edit, and validate config.toml' \
+'package:Manage installed package records and launcher entries' \
+'hooks:Manage shell PATH hooks and local upstream data' \
+'import:Import config, trust keys, packages, or a profile' \
+'export:Export config, trust keys, packages, or a profile' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1025,9 +1070,10 @@ _upstream__subcmd__config_commands() {
     local commands; commands=(
 'set:Set configuration values' \
 'get:Get configuration values' \
-'list:List all configuration keys' \
-'edit:Open configuration file in your default editor' \
-'reset:Reset configuration to defaults' \
+'list:List current configuration values' \
+'verify:Check config.toml for missing or unused keys' \
+'edit:Open config.toml in your default editor' \
+'reset:Reset config.toml to defaults' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream config commands' commands "$@"
@@ -1047,9 +1093,10 @@ _upstream__subcmd__config__subcmd__help_commands() {
     local commands; commands=(
 'set:Set configuration values' \
 'get:Get configuration values' \
-'list:List all configuration keys' \
-'edit:Open configuration file in your default editor' \
-'reset:Reset configuration to defaults' \
+'list:List current configuration values' \
+'verify:Check config.toml for missing or unused keys' \
+'edit:Open config.toml in your default editor' \
+'reset:Reset config.toml to defaults' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream config help commands' commands "$@"
@@ -1084,6 +1131,11 @@ _upstream__subcmd__config__subcmd__help__subcmd__set_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config help set commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__config__subcmd__help__subcmd__verify_commands] )) ||
+_upstream__subcmd__config__subcmd__help__subcmd__verify_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream config help verify commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__config__subcmd__list_commands] )) ||
 _upstream__subcmd__config__subcmd__list_commands() {
     local commands; commands=()
@@ -1099,6 +1151,11 @@ _upstream__subcmd__config__subcmd__set_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config set commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__config__subcmd__verify_commands] )) ||
+_upstream__subcmd__config__subcmd__verify_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream config verify commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__docs_commands] )) ||
 _upstream__subcmd__docs_commands() {
     local commands; commands=()
@@ -1112,10 +1169,10 @@ _upstream__subcmd__doctor_commands() {
 (( $+functions[_upstream__subcmd__export_commands] )) ||
 _upstream__subcmd__export_commands() {
     local commands; commands=(
-'config:Export upstream config' \
+'config:Export config.toml' \
 'keys:Export trusted minisign and cosign public keys' \
-'packages:Export installed package references' \
-'profile:Export config, trusted keys, and installed package references' \
+'packages:Export installed release-package references' \
+'profile:Export config, trust keys, and package references' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream export commands' commands "$@"
@@ -1128,10 +1185,10 @@ _upstream__subcmd__export__subcmd__config_commands() {
 (( $+functions[_upstream__subcmd__export__subcmd__help_commands] )) ||
 _upstream__subcmd__export__subcmd__help_commands() {
     local commands; commands=(
-'config:Export upstream config' \
+'config:Export config.toml' \
 'keys:Export trusted minisign and cosign public keys' \
-'packages:Export installed package references' \
-'profile:Export config, trusted keys, and installed package references' \
+'packages:Export installed release-package references' \
+'profile:Export config, trust keys, and package references' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream export help commands' commands "$@"
@@ -1184,23 +1241,24 @@ _upstream__subcmd__find_commands() {
 (( $+functions[_upstream__subcmd__help_commands] )) ||
 _upstream__subcmd__help_commands() {
     local commands; commands=(
-'install:Install a package from an upstream release source' \
-'build:Build and install from source for release tags without artifacts' \
-'remove:Remove one or more installed packages' \
-'rollback:Manage stored rollback artifacts' \
-'reinstall:Reinstall one or more packages (remove then install)' \
-'upgrade:Upgrade installed packages to their latest versions' \
-'list:List installed packages and their metadata' \
-'changelog:Show upstream release notes for an installed package' \
-'docs:Search package README documentation' \
-'probe:Probe a repository/source, choose an asset, and install it' \
-'search:Search provider repositories by keyword(s)' \
-'find:Search repositories interactively and install a selected result' \
-'config:Manage upstream configuration' \
-'package:Manage package-specific behavior' \
-'hooks:Manage shell integration hooks and local upstream data' \
-'import:Import config, trusted keys, or exported packages' \
-'export:Export config, trusted keys, or installed package references' \
+'install:Install a release asset or direct download' \
+'build:Build and install a package from source' \
+'remove:Remove installed package files and metadata' \
+'rollback:Restore or prune stored rollback artifacts' \
+'reinstall:Reinstall packages from their stored source metadata' \
+'upgrade:Check for or install package updates' \
+'list:List installed packages' \
+'info:Show details for one installed package' \
+'changelog:Show release notes for an installed package' \
+'docs:Search cached or fetched package README docs' \
+'probe:Inspect releases, choose an asset, and install it' \
+'search:Search provider repositories without installing' \
+'find:Search repositories interactively and install one' \
+'config:View, edit, and validate config.toml' \
+'package:Manage installed package records and launcher entries' \
+'hooks:Manage shell PATH hooks and local upstream data' \
+'import:Import config, trust keys, packages, or a profile' \
+'export:Export config, trust keys, packages, or a profile' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1221,9 +1279,10 @@ _upstream__subcmd__help__subcmd__config_commands() {
     local commands; commands=(
 'set:Set configuration values' \
 'get:Get configuration values' \
-'list:List all configuration keys' \
-'edit:Open configuration file in your default editor' \
-'reset:Reset configuration to defaults' \
+'list:List current configuration values' \
+'verify:Check config.toml for missing or unused keys' \
+'edit:Open config.toml in your default editor' \
+'reset:Reset config.toml to defaults' \
     )
     _describe -t commands 'upstream help config commands' commands "$@"
 }
@@ -1252,6 +1311,11 @@ _upstream__subcmd__help__subcmd__config__subcmd__set_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help config set commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__help__subcmd__config__subcmd__verify_commands] )) ||
+_upstream__subcmd__help__subcmd__config__subcmd__verify_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help config verify commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__help__subcmd__docs_commands] )) ||
 _upstream__subcmd__help__subcmd__docs_commands() {
     local commands; commands=()
@@ -1265,10 +1329,10 @@ _upstream__subcmd__help__subcmd__doctor_commands() {
 (( $+functions[_upstream__subcmd__help__subcmd__export_commands] )) ||
 _upstream__subcmd__help__subcmd__export_commands() {
     local commands; commands=(
-'config:Export upstream config' \
+'config:Export config.toml' \
 'keys:Export trusted minisign and cosign public keys' \
-'packages:Export installed package references' \
-'profile:Export config, trusted keys, and installed package references' \
+'packages:Export installed release-package references' \
+'profile:Export config, trust keys, and package references' \
     )
     _describe -t commands 'upstream help export commands' commands "$@"
 }
@@ -1305,9 +1369,9 @@ _upstream__subcmd__help__subcmd__help_commands() {
 (( $+functions[_upstream__subcmd__help__subcmd__hooks_commands] )) ||
 _upstream__subcmd__help__subcmd__hooks_commands() {
     local commands; commands=(
-'init:Add upstream shell integration hooks' \
-'check:Check upstream shell integration hooks' \
-'clean:Remove upstream shell integration hooks' \
+'init:Install shell PATH hooks' \
+'check:Check shell PATH hooks' \
+'clean:Remove shell PATH hooks' \
 'purge:Remove hooks and delete the local upstream data directory' \
     )
     _describe -t commands 'upstream help hooks commands' commands "$@"
@@ -1335,10 +1399,10 @@ _upstream__subcmd__help__subcmd__hooks__subcmd__purge_commands() {
 (( $+functions[_upstream__subcmd__help__subcmd__import_commands] )) ||
 _upstream__subcmd__help__subcmd__import_commands() {
     local commands; commands=(
-'config:Import upstream config' \
+'config:Replace config.toml from an export' \
 'keys:Import trusted minisign or cosign public keys' \
-'packages:Import and install packages from an upstream packages export' \
-'profile:Import config, keys, and packages from an upstream profile export' \
+'packages:Install packages from an exported package list' \
+'profile:Import config, keys, and packages from a profile' \
     )
     _describe -t commands 'upstream help import commands' commands "$@"
 }
@@ -1362,6 +1426,11 @@ _upstream__subcmd__help__subcmd__import__subcmd__profile_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help import profile commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__help__subcmd__info_commands] )) ||
+_upstream__subcmd__help__subcmd__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help info commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__help__subcmd__install_commands] )) ||
 _upstream__subcmd__help__subcmd__install_commands() {
     local commands; commands=()
@@ -1375,11 +1444,11 @@ _upstream__subcmd__help__subcmd__list_commands() {
 (( $+functions[_upstream__subcmd__help__subcmd__package_commands] )) ||
 _upstream__subcmd__help__subcmd__package_commands() {
     local commands; commands=(
-'pin:Pin a package to its current version' \
-'unpin:Unpin a package to allow updates' \
-'rename:Rename package alias without reinstalling' \
-'add-entry:Create desktop launcher integration for an installed package' \
-'rm-entry:Remove desktop launcher integration for an installed package' \
+'pin:Mark an installed package as pinned' \
+'unpin:Clear the pinned flag on an installed package' \
+'rename:Rename an installed package record and aliases' \
+'add-entry:Add a desktop launcher entry for an installed package' \
+'rm-entry:Remove an upstream-managed desktop launcher entry' \
     )
     _describe -t commands 'upstream help package commands' commands "$@"
 }
@@ -1441,9 +1510,9 @@ _upstream__subcmd__help__subcmd__upgrade_commands() {
 (( $+functions[_upstream__subcmd__hooks_commands] )) ||
 _upstream__subcmd__hooks_commands() {
     local commands; commands=(
-'init:Add upstream shell integration hooks' \
-'check:Check upstream shell integration hooks' \
-'clean:Remove upstream shell integration hooks' \
+'init:Install shell PATH hooks' \
+'check:Check shell PATH hooks' \
+'clean:Remove shell PATH hooks' \
 'purge:Remove hooks and delete the local upstream data directory' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1462,9 +1531,9 @@ _upstream__subcmd__hooks__subcmd__clean_commands() {
 (( $+functions[_upstream__subcmd__hooks__subcmd__help_commands] )) ||
 _upstream__subcmd__hooks__subcmd__help_commands() {
     local commands; commands=(
-'init:Add upstream shell integration hooks' \
-'check:Check upstream shell integration hooks' \
-'clean:Remove upstream shell integration hooks' \
+'init:Install shell PATH hooks' \
+'check:Check shell PATH hooks' \
+'clean:Remove shell PATH hooks' \
 'purge:Remove hooks and delete the local upstream data directory' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1508,10 +1577,10 @@ _upstream__subcmd__hooks__subcmd__purge_commands() {
 (( $+functions[_upstream__subcmd__import_commands] )) ||
 _upstream__subcmd__import_commands() {
     local commands; commands=(
-'config:Import upstream config' \
+'config:Replace config.toml from an export' \
 'keys:Import trusted minisign or cosign public keys' \
-'packages:Import and install packages from an upstream packages export' \
-'profile:Import config, keys, and packages from an upstream profile export' \
+'packages:Install packages from an exported package list' \
+'profile:Import config, keys, and packages from a profile' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream import commands' commands "$@"
@@ -1524,10 +1593,10 @@ _upstream__subcmd__import__subcmd__config_commands() {
 (( $+functions[_upstream__subcmd__import__subcmd__help_commands] )) ||
 _upstream__subcmd__import__subcmd__help_commands() {
     local commands; commands=(
-'config:Import upstream config' \
+'config:Replace config.toml from an export' \
 'keys:Import trusted minisign or cosign public keys' \
-'packages:Import and install packages from an upstream packages export' \
-'profile:Import config, keys, and packages from an upstream profile export' \
+'packages:Install packages from an exported package list' \
+'profile:Import config, keys, and packages from a profile' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream import help commands' commands "$@"
@@ -1572,6 +1641,11 @@ _upstream__subcmd__import__subcmd__profile_commands() {
     local commands; commands=()
     _describe -t commands 'upstream import profile commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__info_commands] )) ||
+_upstream__subcmd__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream info commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__install_commands] )) ||
 _upstream__subcmd__install_commands() {
     local commands; commands=()
@@ -1585,11 +1659,11 @@ _upstream__subcmd__list_commands() {
 (( $+functions[_upstream__subcmd__package_commands] )) ||
 _upstream__subcmd__package_commands() {
     local commands; commands=(
-'pin:Pin a package to its current version' \
-'unpin:Unpin a package to allow updates' \
-'rename:Rename package alias without reinstalling' \
-'add-entry:Create desktop launcher integration for an installed package' \
-'rm-entry:Remove desktop launcher integration for an installed package' \
+'pin:Mark an installed package as pinned' \
+'unpin:Clear the pinned flag on an installed package' \
+'rename:Rename an installed package record and aliases' \
+'add-entry:Add a desktop launcher entry for an installed package' \
+'rm-entry:Remove an upstream-managed desktop launcher entry' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream package commands' commands "$@"
@@ -1602,11 +1676,11 @@ _upstream__subcmd__package__subcmd__add-entry_commands() {
 (( $+functions[_upstream__subcmd__package__subcmd__help_commands] )) ||
 _upstream__subcmd__package__subcmd__help_commands() {
     local commands; commands=(
-'pin:Pin a package to its current version' \
-'unpin:Unpin a package to allow updates' \
-'rename:Rename package alias without reinstalling' \
-'add-entry:Create desktop launcher integration for an installed package' \
-'rm-entry:Remove desktop launcher integration for an installed package' \
+'pin:Mark an installed package as pinned' \
+'unpin:Clear the pinned flag on an installed package' \
+'rename:Rename an installed package record and aliases' \
+'add-entry:Add a desktop launcher entry for an installed package' \
+'rm-entry:Remove an upstream-managed desktop launcher entry' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream package help commands' commands "$@"
