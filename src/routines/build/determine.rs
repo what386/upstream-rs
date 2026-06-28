@@ -2,8 +2,8 @@ use std::path::Path;
 
 use anyhow::{Result, anyhow};
 
-use crate::routines::builder::BuildProfile;
-use crate::routines::builder::profiles::BuildProfileHandler;
+use crate::routines::build::BuildProfile;
+use crate::routines::build::profiles::BuildProfileHandler;
 
 fn profile_name(profile: BuildProfile) -> &'static str {
     match profile {
@@ -53,8 +53,8 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::determine_profile;
-    use crate::routines::builder::BuildProfile;
-    use crate::routines::builder::profiles::BuildProfileHandler;
+    use crate::routines::build::BuildProfile;
+    use crate::routines::build::profiles::BuildProfileHandler;
 
     struct FakeHandler {
         profile: BuildProfile,

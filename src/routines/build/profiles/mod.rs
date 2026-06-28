@@ -9,7 +9,7 @@ use std::{
 
 use anyhow::{Context, Result};
 
-use crate::routines::builder::BuildProfile;
+use crate::routines::build::BuildProfile;
 
 pub mod cmake;
 pub mod dotnet;

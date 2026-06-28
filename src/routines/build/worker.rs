@@ -6,10 +6,10 @@ use anyhow::{Context, Result, anyhow};
 
 use crate::models::common::{enums::Channel, version::Version};
 use crate::providers::provider_manager::ProviderManager;
-use crate::routines::builder::determine::determine_profile;
-use crate::routines::builder::downloader::SourceDownloader;
-use crate::routines::builder::profiles::handlers;
-use crate::routines::builder::{BuildOutput, BuildRequest, scripts};
+use crate::routines::build::determine::determine_profile;
+use crate::routines::build::downloader::SourceDownloader;
+use crate::routines::build::profiles::handlers;
+use crate::routines::build::{BuildOutput, BuildRequest, scripts};
 use crate::utils::static_paths::UpstreamPaths;
 
 pub struct BuildWorker<'a> {
