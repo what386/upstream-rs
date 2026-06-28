@@ -8,8 +8,8 @@ use crate::models::{
 use crate::output;
 use crate::providers::discovery::{SourceKind, infer_source, normalize_source_for_provider};
 use crate::providers::provider_manager::ProviderManager;
-use crate::routines::builder::scripts::BuildScriptAction;
-use crate::routines::builder::{BuildProfile, BuildRequest, worker::BuildWorker};
+use crate::routines::build::scripts::BuildScriptAction;
+use crate::routines::build::{BuildProfile, BuildRequest, worker::BuildWorker};
 use crate::services::packaging::{
     PackageProgressEvent,
     disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},

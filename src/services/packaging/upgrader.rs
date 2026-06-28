@@ -6,7 +6,7 @@ use crate::{
     },
     output,
     providers::provider_manager::ProviderManager,
-    routines::builder::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
+    routines::build::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         artifact::zsync_handler,
         integration::{CompletionManager, DesktopManager},
