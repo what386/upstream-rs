@@ -3,7 +3,7 @@ use std::process::Command;
 
 use anyhow::{Result, anyhow, bail};
 
-use crate::routines::builder::{
+use crate::routines::build::{
     BuildProfile,
     profiles::{BuildProfileHandler, emit_line_callback, run_command_with_line_callback},
 };
