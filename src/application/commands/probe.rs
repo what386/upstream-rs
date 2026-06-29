@@ -12,7 +12,7 @@ use crate::{
     models::common::enums::{Channel, Filetype, Provider, TrustMode},
     output::{self, Status, TransactionRow},
     providers::discovery::infer_package_name,
-    services::packaging::{PackagePhase, PackageProgressEvent},
+    services::packaging::PackageProgressEvent,
 };
 
 const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
@@ -269,29 +269,32 @@ fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) ->
             format!(" {:<28} {}", name, phase.label())
         }
         PackageProgressEvent::Download { downloaded, total } => {
-            let transfer = if total > 0 {
-                format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
+            let detail = if total > 0 {
+                format!(
+                    "Downloading {} {}",
+                    output::progress_bar(downloaded, total, 14),
+                    format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
+                )
             } else if downloaded > 0 {
-                format!("{}", HumanBytes(downloaded))
+                format!("Downloading {}", HumanBytes(downloaded))
             } else {
-                "-".to_string()
+                "Downloading...".to_string()
             };
-            format!(
-                " {:<28} {:<28} {}",
-                name,
-                PackagePhase::DownloadingPackage.label(),
-                transfer
-            )
+            format!(" {:<28} {}", name, detail)
         }
         PackageProgressEvent::Zsync { downloaded, total } => {
-            let transfer = if total > 0 {
-                format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
+            let detail = if total > 0 {
+                format!(
+                    "Zsync upgrading {} {}",
+                    output::progress_bar(downloaded, total, 14),
+                    format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
+                )
             } else if downloaded > 0 {
-                format!("{}", HumanBytes(downloaded))
+                format!("Zsync upgrading {}", HumanBytes(downloaded))
             } else {
-                "-".to_string()
+                "Zsync upgrading...".to_string()
             };
-            format!(" {:<28} {:<28} {}", name, "Zsync upgrading...", transfer)
+            format!(" {:<28} {}", name, detail)
         }
         PackageProgressEvent::Warning(message) => {
             format!(" {:<28} {}", name, message)
@@ -593,7 +596,9 @@ fn truncate(value: &str, max: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{JsonProbeResult, ProbeAssetChoiceTable, json_probe_result};
+    use super::{
+        JsonProbeResult, ProbeAssetChoiceTable, json_probe_result, render_probe_install_progress_row,
+    };
     use crate::{
         application::operations::probe_op::{
             ProbeResult, ProbeRow, ReleaseState, build_probe_asset_choices,
@@ -607,6 +612,7 @@ mod tests {
             upstream::Package,
         },
         providers::{asset_selector::AssetCandidate, provider_manager::ProviderManager},
+        services::packaging::{PackagePhase, PackageProgressEvent},
     };
     use chrono::{TimeZone, Utc};
 
@@ -824,5 +830,35 @@ mod tests {
         assert_eq!(choices.len(), 2);
         assert!(table.rows[0].contains("tool.tar.gz"));
         assert!(table.rows[1].contains("tool"));
+    }
+
+    #[test]
+    fn probe_install_progress_row_renders_download_and_phase_states() {
+        let download = render_probe_install_progress_row(
+            "pnpm",
+            PackageProgressEvent::Download {
+                downloaded: 1024,
+                total: 2048,
+            },
+        );
+        assert!(download.starts_with(" pnpm                         Downloading [=======>      ]"));
+        assert!(download.contains('/'));
+
+        let zsync = render_probe_install_progress_row(
+            "pnpm",
+            PackageProgressEvent::Zsync {
+                downloaded: 1024,
+                total: 2048,
+            },
+        );
+        assert!(zsync.starts_with(" pnpm                         Zsync upgrading [=======>      ]"));
+        assert!(zsync.contains('/'));
+
+        let phase = render_probe_install_progress_row(
+            "dz6",
+            PackageProgressEvent::Phase(PackagePhase::InstallingCompletions),
+        );
+        assert!(phase.starts_with(" dz6"));
+        assert!(phase.contains("Installing completions ..."));
     }
 }
