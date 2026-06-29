@@ -239,11 +239,13 @@ fn resolve_package_name(
         return Ok(name);
     }
 
-    infer_package_name(source, provider, base_url)?.ok_or_else(|| {
-        anyhow::anyhow!(
+    let Some(default) = infer_package_name(source, provider, base_url)? else {
+        return Err(anyhow::anyhow!(
             "Package name is required for this source. Provide a name after the repository or URL."
-        )
-    })
+        ));
+    };
+
+    output::prompt_text("Package name", Some(&default))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -378,9 +380,7 @@ fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        render_install_progress_message, render_install_progress_row, resolve_package_name,
-    };
+    use super::{default_package_name, render_install_progress_message, render_install_progress_row};
     use crate::models::common::enums::Provider;
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
 
@@ -423,28 +423,35 @@ mod tests {
     }
 
     #[test]
-    fn resolve_package_name_infers_git_repo_name_when_omitted() {
+    fn default_package_name_infers_git_repo_name_when_omitted() {
         assert_eq!(
-            resolve_package_name(None, "BurntSushi/ripgrep", None, None).expect("resolve name"),
-            "ripgrep"
+            default_package_name("BurntSushi/ripgrep", None, None).expect("default name"),
+            Some("ripgrep".to_string())
         );
         assert_eq!(
-            resolve_package_name(
-                None,
+            default_package_name(
                 "https://gitlab.example.com/group/project",
                 Some(&Provider::Gitlab),
                 Some("https://gitlab.example.com"),
             )
-            .expect("resolve name"),
-            "project"
+            .expect("default name"),
+            Some("project".to_string())
         );
     }
 
     #[test]
-    fn resolve_package_name_requires_name_for_http_sources() {
-        let err = resolve_package_name(None, "https://example.invalid/downloads", None, None)
-            .expect_err("name should be required");
+    fn default_package_name_returns_none_for_http_sources() {
+        let default =
+            default_package_name("https://example.invalid/downloads", None, None).expect("default");
 
-        assert!(err.to_string().contains("Package name is required"));
+        assert_eq!(default, None);
     }
+}
+
+fn default_package_name(
+    source: &str,
+    provider: Option<&Provider>,
+    base_url: Option<&str>,
+) -> Result<Option<String>> {
+    infer_package_name(source, provider, base_url)
 }
