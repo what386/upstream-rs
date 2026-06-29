@@ -188,13 +188,13 @@ impl AssetSelector {
     fn filetype_priority_score(filetype: Filetype) -> i32 {
         #[cfg(target_os = "linux")]
         {
-            return match filetype {
+            match filetype {
                 Filetype::AppImage => 160,
                 Filetype::Archive => 60,
                 Filetype::Compressed => 40,
                 Filetype::Binary => 20,
                 _ => -100,
-            };
+            }
         }
 
         #[cfg(target_os = "windows")]

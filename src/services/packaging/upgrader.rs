@@ -493,7 +493,8 @@ impl<'a> PackageUpgrader<'a> {
         }
 
         // Install new version
-        let install_result = if package.install_type == InstallType::Build {
+
+        if package.install_type == InstallType::Build {
             progress!(
                 progress_callback,
                 PackageProgressEvent::Phase(PackagePhase::RebuildingFromSource)
@@ -730,8 +731,7 @@ impl<'a> PackageUpgrader<'a> {
             }
 
             Ok(updated_package)
-        };
-        install_result
+        }
     }
 
     async fn add_desktop_integration<H>(
