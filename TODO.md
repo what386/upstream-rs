@@ -12,6 +12,9 @@
 - [ ] feat: auto-desktop detection
       @created 2026-06-29 19:09
 
+- [ ] probe now checks if packagename is taken
+      @created 2026-06-29 19:47
+
 
 ## Completed
 
