@@ -560,14 +560,33 @@ impl<'a> PackageUpgrader<'a> {
                     package.name
                 );
             };
-            let selected_asset = self
+            let selected_asset = match self
                 .installer
                 .resolve_release_asset(package, release, message_callback.as_mut())
                 .await
-                .context(format!(
-                    "Failed to resolve upgrade asset for '{}'",
-                    package.name
-                ))?;
+            {
+                Ok(asset) => asset,
+                Err(err) => {
+                    progress!(
+                        progress_callback,
+                        PackageProgressEvent::Phase(PackagePhase::RollingBack)
+                    );
+                    return self.rollback_failed_upgrade(
+                        FailedUpgradeRollback {
+                            previous_package: package,
+                            partially_installed_package: None,
+                            original_install_path: &original_install_path,
+                            backup_path: &backup_path,
+                            failure_context: "Failed to resolve upgrade asset",
+                        },
+                        err.context(format!(
+                            "Failed to resolve upgrade asset for '{}'",
+                            package.name
+                        )),
+                        message_callback,
+                    );
+                }
+            };
 
             match self
                 .try_zsync_upgrade_release(
@@ -770,11 +789,13 @@ impl<'a> PackageUpgrader<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{FailedUpgradeRollback, PackageUpgrader};
+    use super::{FailedUpgradeRollback, PackageUpgrader, ResolvedUpgradeTarget};
     use crate::models::common::enums::{Channel, Filetype, Provider};
-    use crate::models::{provider::Asset, upstream::Package};
+    use crate::models::{provider::{Asset, Release}, upstream::Package};
     use crate::providers::provider_manager::ProviderManager;
-    use crate::services::packaging::{PackageInstaller, PackageRemover};
+    use crate::services::packaging::{
+        PackageInstaller, PackageProgressEvent, PackageRemover,
+    };
     use crate::services::trust::TrustedSignatureKeys;
     use crate::utils::{static_paths::UpstreamPaths, test_support};
     use chrono::Utc;
@@ -954,6 +975,75 @@ mod tests {
         );
         assert!(!backup_path.exists());
         assert!(expected_symlink_path(&paths, "tool").exists());
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn upgrade_resolved_rolls_back_when_asset_selection_fails() {
+        let root = temp_root("resolve-asset-failure");
+        let paths = test_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
+        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
+        fs::create_dir_all(&paths.integration.symlinks_dir).expect("create symlinks dir");
+
+        let install_path = paths.install.binaries_dir.join("tool");
+        fs::write(&install_path, b"old").expect("write installed binary");
+
+        let mut package = test_package("tool", install_path.clone());
+        package.version = crate::models::common::Version::new(3, 11, 15, false);
+
+        let release = Release {
+            id: 1,
+            tag: "v3.12.0".to_string(),
+            name: "v3.12.0".to_string(),
+            body: String::new(),
+            is_draft: false,
+            is_prerelease: false,
+            assets: vec![Asset::new(
+                "https://example.invalid/tool.AppImage".to_string(),
+                2,
+                "tool.AppImage".to_string(),
+                123,
+                Utc::now(),
+            )],
+            version: crate::models::common::Version::new(3, 12, 0, false),
+            published_at: Utc::now(),
+        };
+
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+        let installer = PackageInstaller::new(&provider_manager, &paths).expect("installer");
+        let remover = PackageRemover::new(&paths);
+        let upgrader = PackageUpgrader::new(
+            &provider_manager,
+            installer,
+            remover,
+            &paths,
+            TrustedSignatureKeys::default(),
+        );
+        let mut download = Some(|_: u64, _: u64| {});
+        let mut msg = Some(|_: &str| {});
+        let mut progress = Some(|_: PackageProgressEvent| {});
+
+        let err = upgrader
+            .upgrade_resolved(
+                &package,
+                ResolvedUpgradeTarget::Release(release),
+                crate::models::common::enums::TrustMode::None,
+                &mut download,
+                &mut msg,
+                &mut progress,
+            )
+            .await
+            .expect_err("upgrade should fail and roll back");
+
+        assert!(err
+            .to_string()
+            .contains("Failed to resolve upgrade asset for 'tool'"));
+        assert_eq!(fs::read(&install_path).expect("restored install"), b"old");
+        assert!(expected_symlink_path(&paths, "tool").exists());
+        assert!(!paths.install.tmp_dir.join("tool.old").exists());
 
         cleanup(&root).expect("cleanup");
     }
