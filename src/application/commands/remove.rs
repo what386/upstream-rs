@@ -9,11 +9,8 @@ use std::{
 
 use crate::{
     application::operations::remove_op::RemoveOperation,
-    output::{self, SizeImpactRow, Status, TransactionRow},
-    services::packaging::{
-        PackageProgressEvent,
-        disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate},
-    },
+    output::{self, Status, TransactionRow},
+    services::packaging::{PackageProgressEvent, disk_impact::{ByteEstimate, DiskImpact}},
     storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
@@ -54,14 +51,6 @@ fn render_remove_progress_row(name: &str, event: PackageProgressEvent) -> String
     format!(" {:<28} {}", name, status)
 }
 
-fn rollback_size_rows(rollback_impact: SignedByteEstimate) -> Vec<SizeImpactRow> {
-    if matches!(rollback_impact.bytes, Some(0)) {
-        Vec::new()
-    } else {
-        vec![SizeImpactRow::new("Rollback storage", rollback_impact)]
-    }
-}
-
 pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
 
@@ -89,14 +78,7 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
             TransactionRow::single_version(name, version, impact.net, ByteEstimate::exact(0))
         })
         .collect::<Vec<_>>();
-    let rollback_impact = package_remover.estimate_rollback_impact(&names, purge);
-    let size_rows = rollback_size_rows(rollback_impact);
-    output::print_transaction_table_with_size_rows(
-        &transaction_rows,
-        &impact,
-        "Net disk change:",
-        &size_rows,
-    );
+    output::print_transaction_table_with_size_rows(&transaction_rows, &impact, "Net disk change:", &[]);
     output::confirm_or_cancel("Proceed with removal?", true)?;
 
     let overall_pb = ProgressBar::new(names.len() as u64);
@@ -209,9 +191,7 @@ fn run_dry_run(
     println!("{}", output::title("Remove preview"));
     output::kv("Purge", if purge { "yes" } else { "no" });
     let (impact, _, estimate_failed) = package_remover.estimate_bulk_impact(&names, purge);
-    let rollback_impact = package_remover.estimate_rollback_impact(&names, purge);
-    let size_rows = rollback_size_rows(rollback_impact);
-    output::print_disk_impact_with_size_rows(&impact, &size_rows, false);
+    output::print_disk_impact_with_size_rows(&impact, &[], false);
     if estimate_failed > 0 {
         output::action_note(format!(
             "{estimate_failed} package(s) could not be included in disk estimate"

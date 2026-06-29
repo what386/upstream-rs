@@ -13,20 +13,17 @@ use crate::{
         provider::Release,
         upstream::{InstallType, Package},
     },
-    output::{self, SizeImpactRow, Status},
+    output::{self, Status},
     providers::provider_manager::ProviderManager,
     routines::build::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         packaging::{
             PackageProgressEvent, PackageRemover,
-            disk_impact::{
-                ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate,
-                estimate_path_size, install_impact_from_download,
-            },
+            disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate, install_impact_from_download},
         },
         trust::TrustedSignatureKeys,
     },
-    storage::{database::PackageDatabase, rollback::RollbackSource},
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -91,10 +88,7 @@ pub async fn run(
         &context.paths,
     )
     .await;
-    let rollback_impact =
-        estimate_reinstall_rollback_impact(&names, &package_database, &context.paths);
-    let size_rows = rollback_size_rows(rollback_impact);
-    output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
+    output::print_disk_impact_with_size_rows(&impact, &[], true);
     output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()), false)?;
 
     let mut reinstalled = 0_u32;
@@ -209,9 +203,7 @@ async fn run_dry_run(
     println!("{}", output::title("Reinstall preview"));
     output::kv("Trust", trust_mode);
     let impact = estimate_reinstall_impact(&names, package_database, provider_manager, paths).await;
-    let rollback_impact = estimate_reinstall_rollback_impact(&names, package_database, paths);
-    let size_rows = rollback_size_rows(rollback_impact);
-    output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
+    output::print_disk_impact_with_size_rows(&impact, &[], true);
     output::action_note(
         "resolve only (no remove, no download, no build, no install, no metadata changes)",
     );
@@ -411,36 +403,6 @@ async fn estimate_reinstall_impact(
     total
 }
 
-fn estimate_reinstall_rollback_impact(
-    names: &[String],
-    package_database: &PackageDatabase,
-    paths: &UpstreamPaths,
-) -> SignedByteEstimate {
-    let remover = PackageRemover::new(paths);
-    names
-        .iter()
-        .map(|name| {
-            let Some(package) = package_database.get_package(name).ok().flatten() else {
-                return SignedByteEstimate::unknown();
-            };
-            let active_size = remover.estimate_active_size(&package).unwrap_or(0);
-            let existing_rollback =
-                estimate_path_size(&paths.install.rollback_dir.join(&package.name)).unwrap_or(0);
-            SignedByteEstimate::exact(
-                i128::from(active_size).saturating_sub(i128::from(existing_rollback)),
-            )
-        })
-        .fold(SignedByteEstimate::exact(0), |total, impact| total + impact)
-}
-
-fn rollback_size_rows(rollback_impact: SignedByteEstimate) -> Vec<SizeImpactRow> {
-    if matches!(rollback_impact.bytes, Some(0)) {
-        Vec::new()
-    } else {
-        vec![SizeImpactRow::new("Rollback storage", rollback_impact)]
-    }
-}
-
 async fn resolve_reinstall_release(
     provider_manager: &ProviderManager,
     package: &Package,
@@ -493,14 +455,7 @@ where
 
     let mut remove_op = RemoveOperation::new(package_database, paths);
     let mut no_remove_progress = Some(|_: &str, _: PackageProgressEvent| {});
-    remove_op.remove_single(
-        &package.name,
-        &false,
-        &force,
-        RollbackSource::Reinstall,
-        message_callback,
-        &mut no_remove_progress,
-    )?;
+    remove_op.remove_single(&package.name, &false, &force, message_callback, &mut no_remove_progress)?;
 
     match package.install_type {
         InstallType::Release => {
