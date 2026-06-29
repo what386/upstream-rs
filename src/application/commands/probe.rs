@@ -99,8 +99,11 @@ pub async fn run(
         &probe_result.provider,
         probe_result.base_url.as_deref(),
     )?;
-    let selection =
-        probe_operation.prepare_install_selection(&probe_result, selected, install_name)?;
+    let selection = probe_operation.prepare_install_selection(
+        &probe_result,
+        selected,
+        install_name,
+    )?;
 
     println!("{}", output::title("Install preview"));
     output::kv("Package", &selection.package.name);
