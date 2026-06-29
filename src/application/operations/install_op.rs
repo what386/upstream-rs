@@ -240,8 +240,8 @@ mod tests {
             upstream::Package,
         },
         providers::provider_manager::ProviderManager,
-        storage::database::PackageDatabase,
         services::trust::TrustedSignatureKeys,
+        storage::database::PackageDatabase,
         utils::test_support,
     };
     use std::fs;
@@ -287,17 +287,17 @@ mod tests {
         let mut progress: Option<fn(crate::services::packaging::PackageProgressEvent)> = None;
         let err = operation
             .install_local_artifact(
-            crate::application::operations::install_op::LocalArtifactInstallRequest {
-                package: test_package("tool"),
-                artifact_path: &root.join("missing-artifact"),
-                version: crate::models::common::Version::new(1, 2, 3, false),
-                add_entry: false,
-            },
-            &mut message,
-            &mut progress,
-        )
-        .await
-        .expect_err("duplicate name should be rejected");
+                crate::application::operations::install_op::LocalArtifactInstallRequest {
+                    package: test_package("tool"),
+                    artifact_path: &root.join("missing-artifact"),
+                    version: crate::models::common::Version::new(1, 2, 3, false),
+                    add_entry: false,
+                },
+                &mut message,
+                &mut progress,
+            )
+            .await
+            .expect_err("duplicate name should be rejected");
 
         assert!(err.to_string().contains("already exists"));
         let _ = fs::remove_dir_all(&root);

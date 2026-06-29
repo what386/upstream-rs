@@ -73,8 +73,8 @@ fn resolve_package_name(
 
 #[cfg(test)]
 mod tests {
-    use crate::providers::discovery::infer_package_name;
     use crate::models::common::enums::Provider;
+    use crate::providers::discovery::infer_package_name;
 
     #[test]
     fn default_package_name_infers_git_repo_name_when_omitted() {

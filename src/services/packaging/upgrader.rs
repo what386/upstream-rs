@@ -773,7 +773,8 @@ impl<'a> PackageUpgrader<'a> {
         H: FnMut(&str),
     {
         let cleanup_result = if let Some(partial) = rollback.partially_installed_package {
-            self.remover.remove_package_files(&partial, message_callback)
+            self.remover
+                .remove_package_files(&partial, message_callback)
         } else {
             Self::remove_path_if_exists(&rollback.original_install_path)
         };
@@ -816,9 +817,7 @@ mod tests {
         upstream::Package,
     };
     use crate::providers::provider_manager::ProviderManager;
-    use crate::services::packaging::{
-        PackageInstaller, PackageProgressEvent, PackageRemover,
-    };
+    use crate::services::packaging::{PackageInstaller, PackageProgressEvent, PackageRemover};
     use crate::services::trust::TrustedSignatureKeys;
     use crate::utils::{static_paths::UpstreamPaths, test_support};
     use chrono::Utc;
@@ -1061,9 +1060,10 @@ mod tests {
             .await
             .expect_err("upgrade should fail and roll back");
 
-        assert!(err
-            .to_string()
-            .contains("Failed to resolve upgrade asset for 'tool'"));
+        assert!(
+            err.to_string()
+                .contains("Failed to resolve upgrade asset for 'tool'")
+        );
         assert_eq!(fs::read(&install_path).expect("restored install"), b"old");
         assert!(expected_symlink_path(&paths, "tool").exists());
         assert!(!paths.install.tmp_dir.join("tool.old").exists());

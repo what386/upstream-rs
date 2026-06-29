@@ -10,7 +10,10 @@ use std::{
 use crate::{
     application::operations::remove_op::RemoveOperation,
     output::{self, Status, TransactionRow},
-    services::packaging::{PackageProgressEvent, disk_impact::{ByteEstimate, DiskImpact}},
+    services::packaging::{
+        PackageProgressEvent,
+        disk_impact::{ByteEstimate, DiskImpact},
+    },
     storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
@@ -78,7 +81,12 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
             TransactionRow::single_version(name, version, impact.net, ByteEstimate::exact(0))
         })
         .collect::<Vec<_>>();
-    output::print_transaction_table_with_size_rows(&transaction_rows, &impact, "Net disk change:", &[]);
+    output::print_transaction_table_with_size_rows(
+        &transaction_rows,
+        &impact,
+        "Net disk change:",
+        &[],
+    );
     output::confirm_or_cancel("Proceed with removal?", true)?;
 
     let overall_pb = ProgressBar::new(names.len() as u64);
