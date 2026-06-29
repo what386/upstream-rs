@@ -73,7 +73,7 @@ fn resolve_package_name(
 
 #[cfg(test)]
 mod tests {
-    use super::default_package_name;
+    use crate::providers::discovery::infer_package_name;
     use crate::models::common::enums::Provider;
 
     #[test]
@@ -100,12 +100,12 @@ mod tests {
 
         assert_eq!(default, None);
     }
-}
 
-fn default_package_name(
-    source: &str,
-    provider: Option<&Provider>,
-    base_url: Option<&str>,
-) -> Result<Option<String>> {
-    infer_package_name(source, provider, base_url)
+    fn default_package_name(
+        source: &str,
+        provider: Option<&Provider>,
+        base_url: Option<&str>,
+    ) -> anyhow::Result<Option<String>> {
+        infer_package_name(source, provider, base_url)
+    }
 }
