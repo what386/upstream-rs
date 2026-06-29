@@ -135,8 +135,8 @@ impl<'a> ProbeOperation<'a> {
             &install_name,
         );
 
-        let package = Package::with_defaults(
-            install_name,
+        let mut package = Package::with_defaults(
+            install_name.clone(),
             result.repo_slug.clone(),
             selected_asset.filetype,
             Some(generated.match_pattern.to_string()),
@@ -145,6 +145,14 @@ impl<'a> ProbeOperation<'a> {
             result.provider.clone(),
             result.base_url.clone(),
         );
+        package.name = install_name;
+        package.repo_slug = result.repo_slug.clone();
+        package.filetype = selected_asset.filetype;
+        package.channel = result.channel.clone();
+        package.provider = result.provider.clone();
+        package.base_url = result.base_url.clone();
+        package.match_pattern = generated.match_pattern;
+        package.exclude_pattern = generated.exclude_pattern;
         let disk_impact = install_impact_from_download(asset_size_estimate(selected_asset.size));
 
         Ok(ProbeInstallSelection {
