@@ -56,12 +56,30 @@ pub enum ResolvedUpgradeTarget {
     Branch { branch: String, head_commit: String },
 }
 
-struct FailedUpgradeRollback<'a> {
-    previous_package: &'a Package,
-    partially_installed_package: Option<&'a Package>,
-    original_install_path: &'a Path,
-    backup_path: &'a Path,
-    failure_context: &'a str,
+struct UpgradeRollbackGuard {
+    previous_package: Package,
+    partially_installed_package: Option<Package>,
+    original_install_path: PathBuf,
+    backup_path: PathBuf,
+}
+
+impl UpgradeRollbackGuard {
+    fn new(
+        previous_package: Package,
+        original_install_path: PathBuf,
+        backup_path: PathBuf,
+    ) -> Self {
+        Self {
+            previous_package,
+            partially_installed_package: None,
+            original_install_path,
+            backup_path,
+        }
+    }
+
+    fn set_partial_package(&mut self, package: Package) {
+        self.partially_installed_package = Some(package);
+    }
 }
 
 impl<'a> PackageUpgrader<'a> {
@@ -560,6 +578,11 @@ impl<'a> PackageUpgrader<'a> {
                     package.name
                 );
             };
+            let mut rollback_guard = UpgradeRollbackGuard::new(
+                package.clone(),
+                original_install_path.clone(),
+                backup_path.clone(),
+            );
             let selected_asset = match self
                 .installer
                 .resolve_release_asset(package, release, message_callback.as_mut())
@@ -572,23 +595,18 @@ impl<'a> PackageUpgrader<'a> {
                         PackageProgressEvent::Phase(PackagePhase::RollingBack)
                     );
                     return self.rollback_failed_upgrade(
-                        FailedUpgradeRollback {
-                            previous_package: package,
-                            partially_installed_package: None,
-                            original_install_path: &original_install_path,
-                            backup_path: &backup_path,
-                            failure_context: "Failed to resolve upgrade asset",
-                        },
+                        rollback_guard,
                         err.context(format!(
                             "Failed to resolve upgrade asset for '{}'",
                             package.name
                         )),
+                        "Failed to resolve upgrade asset",
                         message_callback,
                     );
                 }
             };
 
-            match self
+            let install_result = match self
                 .try_zsync_upgrade_release(
                     package.clone(),
                     release,
@@ -601,12 +619,16 @@ impl<'a> PackageUpgrader<'a> {
                 )
                 .await
             {
-                Ok(Some(updated_package)) => Ok(updated_package),
+                Ok(Some(updated_package)) => {
+                    rollback_guard.set_partial_package(updated_package.clone());
+                    Ok(updated_package)
+                }
                 Ok(None) => {
                     let mut install_pkg = package.clone();
                     install_pkg.install_path = None;
                     install_pkg.exec_path = None;
-                    self.installer
+                    let updated_package = self
+                        .installer
                         .install_selected_asset(
                             &self.trusted_keys,
                             install_pkg,
@@ -618,7 +640,9 @@ impl<'a> PackageUpgrader<'a> {
                             message_callback,
                             progress_callback,
                         )
-                        .await
+                        .await?;
+                    rollback_guard.set_partial_package(updated_package.clone());
+                    Ok(updated_package)
                 }
                 Err(err) => {
                     let summary = output::error_summary(&err);
@@ -631,7 +655,8 @@ impl<'a> PackageUpgrader<'a> {
                     let mut install_pkg = package.clone();
                     install_pkg.install_path = None;
                     install_pkg.exec_path = None;
-                    self.installer
+                    let updated_package = self
+                        .installer
                         .install_selected_asset(
                             &self.trusted_keys,
                             install_pkg,
@@ -643,76 +668,70 @@ impl<'a> PackageUpgrader<'a> {
                             message_callback,
                             progress_callback,
                         )
-                        .await
+                        .await?;
+                    rollback_guard.set_partial_package(updated_package.clone());
+                    Ok(updated_package)
                 }
-            }
-        };
-        let mut updated_package = match install_result {
-            Ok(updated_package) => updated_package,
-            Err(install_err) => {
+            };
+
+            let mut updated_package = match install_result {
+                Ok(updated_package) => updated_package,
+                Err(install_err) => {
+                    progress!(
+                        progress_callback,
+                        PackageProgressEvent::Phase(PackagePhase::RollingBack)
+                    );
+
+                    return self.rollback_failed_upgrade(
+                        rollback_guard,
+                        install_err,
+                        "Failed to install new version",
+                        message_callback,
+                    );
+                }
+            };
+
+            // Restore desktop integration if it existed before
+            if had_desktop_integration {
                 progress!(
                     progress_callback,
-                    PackageProgressEvent::Phase(PackagePhase::RollingBack)
+                    PackageProgressEvent::Phase(PackagePhase::CreatingRuntimeLinks)
                 );
 
-                return self.rollback_failed_upgrade(
-                    FailedUpgradeRollback {
-                        previous_package: package,
-                        partially_installed_package: None,
-                        original_install_path: &original_install_path,
-                        backup_path: &backup_path,
-                        failure_context: "Failed to install new version",
-                    },
-                    install_err,
-                    message_callback,
-                );
+                if let Err(err) = self
+                    .add_desktop_integration(&mut updated_package, message_callback)
+                    .await
+                {
+                    progress!(
+                        progress_callback,
+                        PackageProgressEvent::Phase(PackagePhase::RollingBack)
+                    );
+                    return self.rollback_failed_upgrade(
+                        rollback_guard,
+                        err.context("Failed to restore desktop integration"),
+                        "Failed to restore desktop integration",
+                        message_callback,
+                    );
+                }
             }
-        };
 
-        // Restore desktop integration if it existed before
-        if had_desktop_integration {
-            progress!(
-                progress_callback,
-                PackageProgressEvent::Phase(PackagePhase::CreatingRuntimeLinks)
-            );
-
-            if let Err(err) = self
-                .add_desktop_integration(&mut updated_package, message_callback)
-                .await
+            if let Err(err) =
+                Self::capture_successful_upgrade_rollback(self.paths, package, &backup_path)
             {
                 progress!(
                     progress_callback,
-                    PackageProgressEvent::Phase(PackagePhase::RollingBack)
+                    PackageProgressEvent::Warning(format!(
+                        "Warning: failed to capture rollback for '{}': {}",
+                        package.name, err
+                    ))
                 );
-                return self.rollback_failed_upgrade(
-                    FailedUpgradeRollback {
-                        previous_package: package,
-                        partially_installed_package: Some(&updated_package),
-                        original_install_path: &original_install_path,
-                        backup_path: &backup_path,
-                        failure_context: "Failed to restore desktop integration",
-                    },
-                    err.context("Failed to restore desktop integration"),
-                    message_callback,
-                );
+                Self::remove_path_if_exists(&backup_path)
+                    .context(format!("Failed to remove backup for '{}'", package.name))?;
             }
-        }
 
-        if let Err(err) =
-            Self::capture_successful_upgrade_rollback(self.paths, package, &backup_path)
-        {
-            progress!(
-                progress_callback,
-                PackageProgressEvent::Warning(format!(
-                    "Warning: failed to capture rollback for '{}': {}",
-                    package.name, err
-                ))
-            );
-            Self::remove_path_if_exists(&backup_path)
-                .context(format!("Failed to remove backup for '{}'", package.name))?;
-        }
-
-        Ok(updated_package)
+            Ok(updated_package)
+        };
+        install_result
     }
 
     async fn add_desktop_integration<H>(
@@ -745,53 +764,57 @@ impl<'a> PackageUpgrader<'a> {
 
     fn rollback_failed_upgrade<H>(
         &self,
-        rollback: FailedUpgradeRollback<'_>,
+        rollback: UpgradeRollbackGuard,
         failure: anyhow::Error,
+        failure_context: &'static str,
         message_callback: &mut Option<H>,
     ) -> Result<Package>
     where
         H: FnMut(&str),
     {
         let cleanup_result = if let Some(partial) = rollback.partially_installed_package {
-            self.remover.remove_package_files(partial, message_callback)
+            self.remover.remove_package_files(&partial, message_callback)
         } else {
-            Self::remove_path_if_exists(rollback.original_install_path)
+            Self::remove_path_if_exists(&rollback.original_install_path)
         };
 
         if let Err(cleanup_err) = cleanup_result {
             return Err(anyhow::anyhow!(
                 "{} for '{}': {}. Rollback failed while removing partial install: {}",
-                rollback.failure_context,
+                failure_context,
                 rollback.previous_package.name,
                 failure,
                 cleanup_err
             ));
         }
 
-        fs::rename(rollback.backup_path, rollback.original_install_path).context(format!(
+        fs::rename(&rollback.backup_path, &rollback.original_install_path).context(format!(
             "{} for '{}': {}. Rollback failed while restoring backup",
-            rollback.failure_context, rollback.previous_package.name, failure
+            failure_context, rollback.previous_package.name, failure
         ))?;
 
         self.remover
-            .restore_runtime_integrations(rollback.previous_package, message_callback)
+            .restore_runtime_integrations(&rollback.previous_package, message_callback)
             .context(format!(
                 "{} for '{}': {}. Rollback failed while restoring runtime links",
-                rollback.failure_context, rollback.previous_package.name, failure
+                failure_context, rollback.previous_package.name, failure
             ))?;
 
         Err(failure).context(format!(
             "{} for '{}' (previous version restored)",
-            rollback.failure_context, rollback.previous_package.name
+            failure_context, rollback.previous_package.name
         ))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{FailedUpgradeRollback, PackageUpgrader, ResolvedUpgradeTarget};
+    use super::{PackageUpgrader, ResolvedUpgradeTarget, UpgradeRollbackGuard};
     use crate::models::common::enums::{Channel, Filetype, Provider};
-    use crate::models::{provider::{Asset, Release}, upstream::Package};
+    use crate::models::{
+        provider::{Asset, Release},
+        upstream::Package,
+    };
     use crate::providers::provider_manager::ProviderManager;
     use crate::services::packaging::{
         PackageInstaller, PackageProgressEvent, PackageRemover,
@@ -905,14 +928,14 @@ mod tests {
 
         let err = upgrader
             .rollback_failed_upgrade(
-                FailedUpgradeRollback {
-                    previous_package: &previous,
-                    partially_installed_package: Some(&partial),
-                    original_install_path: &install_path,
-                    backup_path: &backup_path,
-                    failure_context: "Failed to restore desktop integration",
+                UpgradeRollbackGuard {
+                    previous_package: previous,
+                    partially_installed_package: Some(partial),
+                    original_install_path: install_path.clone(),
+                    backup_path: backup_path.clone(),
                 },
                 anyhow::anyhow!("desktop failed"),
+                "Failed to restore desktop integration",
                 &mut msg,
             )
             .expect_err("rollback helper returns original failure");
@@ -956,14 +979,14 @@ mod tests {
 
         let err = upgrader
             .rollback_failed_upgrade(
-                FailedUpgradeRollback {
-                    previous_package: &previous,
+                UpgradeRollbackGuard {
+                    previous_package: previous,
                     partially_installed_package: None,
-                    original_install_path: &install_path,
-                    backup_path: &backup_path,
-                    failure_context: "Failed to install new version",
+                    original_install_path: install_path.clone(),
+                    backup_path: backup_path.clone(),
                 },
                 anyhow::anyhow!("already installed"),
+                "Failed to install new version",
                 &mut msg,
             )
             .expect_err("rollback helper returns original failure");
