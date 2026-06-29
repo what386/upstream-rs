@@ -12,26 +12,3 @@
 - [ ] feat: auto-desktop detection
       @created 2026-06-29 19:09
 
-
-## Completed
-
-- [x] remove no longer creates rollback artifacts
-      @created 2026-06-29 18:25
-      @completed 2026-06-29 18:37
-
-- [x] make appimages win more on linux
-      @created 2026-06-29 18:20
-      @completed 2026-06-29 18:37
-
-- [x] fix bug where failed upgrades would not rollback successfully
-      @created 2026-06-29 17:39
-      @completed 2026-06-29 18:37
-
-- [x] fix: probe now uses progress bar for downloads
-      @created 2026-06-29 18:40
-      @completed 2026-06-29 19:03
-
-- [x] probe now checks if packagename is taken
-      @created 2026-06-29 19:47
-      @completed 2026-06-29 19:47
-

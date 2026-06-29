@@ -1,6 +1,17 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-27*
+*Generated on 2026-06-29*
+
+## 2.10.1 — 2026-06-29
+
+### Changes
+
+- remove no longer creates rollback artifacts
+- make appimages win more on linux
+- fix bug where failed upgrades would not rollback successfully
+- fix: probe now uses progress bar for downloads
+- probe now checks if packagename is taken
+
 
 ## 2.10.0 — 2026-06-27
 
