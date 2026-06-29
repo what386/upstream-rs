@@ -20,7 +20,7 @@ pub fn parse_os(filename: &str) -> Option<OSKind> {
     if contains_marker(
         &name,
         &[
-            ".exe", ".msi", ".dll", "windows", "win64", "win32", "win", "msvc",
+            ".exe", ".msi", ".dll", "windows", "win64", "win32", "win", "msvc", ".nsis",
         ],
     ) {
         return Some(OSKind::Windows);
