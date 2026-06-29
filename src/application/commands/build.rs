@@ -4,6 +4,7 @@ use crate::application::cli::arguments::BuildProfile as CliBuildProfile;
 use crate::application::context::CommandContext;
 use crate::application::operations::build_op::{BuildCommandInput, BuildOperation};
 use crate::models::common::enums::{Channel, Provider};
+use crate::output;
 use crate::providers::discovery::infer_package_name;
 use crate::routines::build::BuildProfile;
 
@@ -61,41 +62,50 @@ fn resolve_package_name(
         return Ok(name);
     }
 
-    infer_package_name(source, provider, base_url)?.ok_or_else(|| {
-        anyhow::anyhow!(
+    let Some(default) = infer_package_name(source, provider, base_url)? else {
+        return Err(anyhow::anyhow!(
             "Package name is required for this source. Provide a name after the repository or URL."
-        )
-    })
+        ));
+    };
+
+    output::prompt_text("Package name", Some(&default))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_package_name;
+    use super::default_package_name;
     use crate::models::common::enums::Provider;
 
     #[test]
-    fn resolve_package_name_infers_git_repo_name_when_omitted() {
+    fn default_package_name_infers_git_repo_name_when_omitted() {
         assert_eq!(
-            resolve_package_name(None, "BurntSushi/ripgrep", None, None).expect("resolve name"),
-            "ripgrep"
+            default_package_name("BurntSushi/ripgrep", None, None).expect("default name"),
+            Some("ripgrep".to_string())
         );
         assert_eq!(
-            resolve_package_name(
-                None,
+            default_package_name(
                 "https://codeberg.org/forgejo/forgejo",
                 Some(&Provider::Gitea),
                 Some("https://codeberg.org"),
             )
-            .expect("resolve name"),
-            "forgejo"
+            .expect("default name"),
+            Some("forgejo".to_string())
         );
     }
 
     #[test]
-    fn resolve_package_name_requires_name_for_http_sources() {
-        let err = resolve_package_name(None, "https://example.invalid/downloads", None, None)
-            .expect_err("name should be required");
+    fn default_package_name_returns_none_for_http_sources() {
+        let default =
+            default_package_name("https://example.invalid/downloads", None, None).expect("default");
 
-        assert!(err.to_string().contains("Package name is required"));
+        assert_eq!(default, None);
     }
+}
+
+fn default_package_name(
+    source: &str,
+    provider: Option<&Provider>,
+    base_url: Option<&str>,
+) -> Result<Option<String>> {
+    infer_package_name(source, provider, base_url)
 }
