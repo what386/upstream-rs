@@ -9,12 +9,18 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
-- [ ] fix bug where failed upgrades would not rollback successfully
-      @created 2026-06-29 17:39
 
-- [ ] make appimages win more on linux
-      @created 2026-06-29 18:20
+## Completed
 
-- [ ] remove no longer creates rollback artifacts
+- [x] remove no longer creates rollback artifacts
       @created 2026-06-29 18:25
+      @completed 2026-06-29 18:37
+
+- [x] make appimages win more on linux
+      @created 2026-06-29 18:20
+      @completed 2026-06-29 18:37
+
+- [x] fix bug where failed upgrades would not rollback successfully
+      @created 2026-06-29 17:39
+      @completed 2026-06-29 18:37
 
