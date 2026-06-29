@@ -9,6 +9,9 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
+- [ ] feat: auto-desktop detection
+      @created 2026-06-29 19:09
+
 
 ## Completed
 
