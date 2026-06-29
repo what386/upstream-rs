@@ -12,9 +12,6 @@
 - [ ] feat: auto-desktop detection
       @created 2026-06-29 19:09
 
-- [ ] probe now checks if packagename is taken
-      @created 2026-06-29 19:47
-
 
 ## Completed
 
@@ -33,4 +30,8 @@
 - [x] fix: probe now uses progress bar for downloads
       @created 2026-06-29 18:40
       @completed 2026-06-29 19:03
+
+- [x] probe now checks if packagename is taken
+      @created 2026-06-29 19:47
+      @completed 2026-06-29 19:47
 
