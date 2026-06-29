@@ -271,9 +271,10 @@ fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) ->
         PackageProgressEvent::Download { downloaded, total } => {
             let detail = if total > 0 {
                 format!(
-                    "Downloading {} {}",
+                    "Downloading {} {} / {}",
                     output::progress_bar(downloaded, total, 14),
-                    format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
+                    HumanBytes(downloaded),
+                    HumanBytes(total)
                 )
             } else if downloaded > 0 {
                 format!("Downloading {}", HumanBytes(downloaded))
@@ -285,9 +286,10 @@ fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) ->
         PackageProgressEvent::Zsync { downloaded, total } => {
             let detail = if total > 0 {
                 format!(
-                    "Zsync upgrading {} {}",
+                    "Zsync upgrading {} {} / {}",
                     output::progress_bar(downloaded, total, 14),
-                    format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
+                    HumanBytes(downloaded),
+                    HumanBytes(total)
                 )
             } else if downloaded > 0 {
                 format!("Zsync upgrading {}", HumanBytes(downloaded))
