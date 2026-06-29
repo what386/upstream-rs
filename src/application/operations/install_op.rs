@@ -81,6 +81,7 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        self.ensure_package_name_available(&request.package.name)?;
         match self
             .installer
             .install_release(
@@ -114,6 +115,7 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        self.ensure_package_name_available(&request.package.name)?;
         match self
             .installer
             .install_selected_asset(
@@ -146,6 +148,7 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        self.ensure_package_name_available(&request.package.name)?;
         match self
             .installer
             .install_local_artifact(
@@ -193,6 +196,14 @@ impl<'a> InstallOperation<'a> {
         Ok(installed_package)
     }
 
+    fn ensure_package_name_available(&self, name: &str) -> Result<()> {
+        if self.package_database.package_exists(name)? {
+            return Err(anyhow!("Package '{}' already exists", name));
+        }
+
+        Ok(())
+    }
+
     fn fail_after_metadata_error<H>(
         &self,
         installed_package: Package,
@@ -217,5 +228,78 @@ impl<'a> InstallOperation<'a> {
                 cleanup_err
             )),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::InstallOperation;
+    use crate::{
+        models::{
+            common::enums::{Channel, Filetype, Provider},
+            upstream::Package,
+        },
+        providers::provider_manager::ProviderManager,
+        storage::database::PackageDatabase,
+        services::trust::TrustedSignatureKeys,
+        utils::test_support,
+    };
+    use std::fs;
+
+    fn test_package(name: &str) -> Package {
+        Package::with_defaults(
+            name.to_string(),
+            format!("owner/{name}"),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        )
+    }
+
+    #[tokio::test]
+    async fn install_local_artifact_rejects_existing_package_name_before_installing() {
+        let root = test_support::temp_root("upstream-install-op", "duplicate-name");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
+        fs::create_dir_all(&paths.dirs.metadata_dir).expect("create metadata dir");
+
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+        let mut package_database =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("open database");
+        package_database
+            .upsert_package(&test_package("tool"))
+            .expect("store package");
+
+        let trusted_keys = TrustedSignatureKeys::default();
+        let mut operation = InstallOperation::new(
+            &provider_manager,
+            &mut package_database,
+            &paths,
+            trusted_keys,
+        )
+        .expect("install operation");
+
+        let mut message = Some(|_: &str| {});
+        let mut progress: Option<fn(crate::services::packaging::PackageProgressEvent)> = None;
+        let err = operation
+            .install_local_artifact(
+            crate::application::operations::install_op::LocalArtifactInstallRequest {
+                package: test_package("tool"),
+                artifact_path: &root.join("missing-artifact"),
+                version: crate::models::common::Version::new(1, 2, 3, false),
+                add_entry: false,
+            },
+            &mut message,
+            &mut progress,
+        )
+        .await
+        .expect_err("duplicate name should be rejected");
+
+        assert!(err.to_string().contains("already exists"));
+        let _ = fs::remove_dir_all(&root);
     }
 }
