@@ -1,9 +1,8 @@
 use crate::{
     output::{self, Status},
-    services::packaging::disk_impact::{DiskImpact, SignedByteEstimate, estimate_path_size},
-    services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover, RollbackManager},
+    services::packaging::disk_impact::DiskImpact,
+    services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover},
     storage::database::PackageDatabase,
-    storage::rollback::RollbackSource,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
@@ -27,7 +26,6 @@ macro_rules! progress {
 pub struct RemoveOperation<'a> {
     remover: PackageRemover<'a>,
     package_database: &'a mut PackageDatabase,
-    paths: &'a UpstreamPaths,
 }
 
 impl<'a> RemoveOperation<'a> {
@@ -36,7 +34,6 @@ impl<'a> RemoveOperation<'a> {
         Self {
             remover,
             package_database,
-            paths,
         }
     }
 
@@ -76,7 +73,6 @@ impl<'a> RemoveOperation<'a> {
                     package_name,
                     purge_option,
                     force_option,
-                    RollbackSource::Remove,
                     message_callback,
                     progress_callback,
                 )
@@ -208,37 +204,6 @@ impl<'a> RemoveOperation<'a> {
             .collect()
     }
 
-    pub fn estimate_rollback_impact(
-        &self,
-        package_names: &[String],
-        purge_option: bool,
-    ) -> SignedByteEstimate {
-        if purge_option {
-            return SignedByteEstimate::exact(0);
-        }
-
-        package_names
-            .iter()
-            .map(|package_name| {
-                let Some(package) = self
-                    .package_database
-                    .get_package(package_name)
-                    .ok()
-                    .flatten()
-                else {
-                    return SignedByteEstimate::unknown();
-                };
-                let active_size = self.remover.estimate_active_size(&package).unwrap_or(0);
-                let existing_rollback =
-                    estimate_path_size(&self.paths.install.rollback_dir.join(&package.name))
-                        .unwrap_or(0);
-                SignedByteEstimate::exact(
-                    i128::from(active_size).saturating_sub(i128::from(existing_rollback)),
-                )
-            })
-            .fold(SignedByteEstimate::exact(0), |total, impact| total + impact)
-    }
-
     pub fn preview_single<H>(
         &mut self,
         package_name: &str,
@@ -293,7 +258,6 @@ impl<'a> RemoveOperation<'a> {
         package_name: &str,
         purge_option: &bool,
         force_option: &bool,
-        rollback_source: RollbackSource,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
     ) -> Result<()>
@@ -306,58 +270,18 @@ impl<'a> RemoveOperation<'a> {
             .get_package(package_name)?
             .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
 
-        let mut rollback_captured = false;
-        if !*purge_option {
-            progress!(
-                progress_callback,
-                package_name,
-                PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot)
-            );
-            let rollback_file = RollbackManager::rollback_file_path(self.paths);
-            let mut rollback_storage =
-                crate::storage::rollback::RollbackStorage::new(&rollback_file)?;
-            let mut rollback_manager =
-                RollbackManager::new(self.paths, self.package_database, &mut rollback_storage);
-            if let Err(err) =
-                rollback_manager.capture_from_installed(&package, rollback_source, message_callback)
-            {
-                progress!(
-                    progress_callback,
-                    package_name,
-                    PackageProgressEvent::Warning(format!(
-                        "Warning: failed to capture rollback: {err}"
-                    ))
-                );
-            } else {
-                rollback_captured = true;
-            }
-        }
-
-        let removal_result = if rollback_captured {
-            progress!(
-                progress_callback,
-                package_name,
-                PackageProgressEvent::Phase(PackagePhase::RemovingRuntimeLinks)
-            );
-            self.remover
-                .remove_runtime_and_desktop_artifacts(&package, message_callback)
-                .context(format!(
-                    "Failed to perform removal operations for '{}'",
-                    package_name
-                ))
-        } else {
-            progress!(
-                progress_callback,
-                package_name,
-                PackageProgressEvent::Phase(PackagePhase::RemovingPackage)
-            );
-            self.remover
-                .remove_package_files(&package, message_callback)
-                .context(format!(
-                    "Failed to perform removal operations for '{}'",
-                    package_name
-                ))
-        };
+        progress!(
+            progress_callback,
+            package_name,
+            PackageProgressEvent::Phase(PackagePhase::RemovingPackage)
+        );
+        let removal_result = self
+            .remover
+            .remove_package_files(&package, message_callback)
+            .context(format!(
+                "Failed to perform removal operations for '{}'",
+                package_name
+            ));
 
         if let Err(err) = removal_result {
             if !*force_option {
@@ -420,9 +344,10 @@ impl<'a> RemoveOperation<'a> {
 #[cfg(test)]
 mod tests {
     use super::RemoveOperation;
+    use crate::models::common::enums::{Channel, Filetype, Provider};
+    use crate::models::upstream::Package;
     use crate::services::packaging::PackageProgressEvent;
     use crate::storage::database::PackageDatabase;
-    use crate::storage::rollback::RollbackSource;
     use crate::utils::test_support;
     use std::path::Path;
     use std::{fs, io};
@@ -452,14 +377,7 @@ mod tests {
         let mut remove_progress: Option<fn(&str, PackageProgressEvent)> = None;
 
         let err = op
-            .remove_single(
-                "missing",
-                &false,
-                &false,
-                RollbackSource::Remove,
-                &mut msg,
-                &mut remove_progress,
-            )
+            .remove_single("missing", &false, &false, &mut msg, &mut remove_progress)
             .expect_err("missing package");
         assert!(err.to_string().contains("is not installed"));
 
@@ -496,6 +414,48 @@ mod tests {
         assert_eq!((removed, failed), (0, 2));
         assert_eq!(progress_calls.first().copied(), Some((0, 2)));
         assert_eq!(progress_calls.last().copied(), Some((2, 2)));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn remove_single_does_not_capture_rollback_artifacts() {
+        let root = temp_root("no-rollback");
+        let paths = test_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
+        fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
+            .expect("create metadata dir");
+
+        let install_path = paths.install.binaries_dir.join("tool");
+        fs::write(&install_path, b"binary").expect("write install");
+
+        let mut package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_path = Some(install_path.clone());
+        package.exec_path = Some(install_path.clone());
+
+        let mut storage =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
+        storage.upsert_package(&package).expect("store package");
+
+        let mut op = RemoveOperation::new(&mut storage, &paths);
+        let mut msg = Some(|_: &str| {});
+        let mut progress: Option<fn(&str, PackageProgressEvent)> = None;
+
+        op.remove_single(&package.name, &false, &false, &mut msg, &mut progress)
+            .expect("remove package");
+
+        assert!(!install_path.exists());
+        assert!(!paths.install.rollback_dir.join("tool").exists());
+        assert!(!paths.dirs.metadata_dir.join("rollback.json").exists());
 
         cleanup(&root).expect("cleanup");
     }
