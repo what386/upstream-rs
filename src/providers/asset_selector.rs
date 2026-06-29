@@ -158,10 +158,7 @@ impl AssetSelector {
         ];
 
         #[cfg(target_os = "windows")]
-        return vec![
-            Filetype::WinExe,
-            Filetype::Archive,
-            Filetype::Compressed];
+        return vec![Filetype::WinExe, Filetype::Archive, Filetype::Compressed];
 
         #[cfg(target_os = "macos")]
         return vec![
@@ -222,7 +219,6 @@ impl AssetSelector {
             };
         }
     }
-
 
     fn size_profiles_by_filetype(assets: &[&Asset]) -> HashMap<Filetype, AssetSizeProfile> {
         let mut profiles = HashMap::new();

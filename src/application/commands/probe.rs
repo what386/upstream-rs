@@ -99,11 +99,8 @@ pub async fn run(
         &probe_result.provider,
         probe_result.base_url.as_deref(),
     )?;
-    let selection = probe_operation.prepare_install_selection(
-        &probe_result,
-        selected,
-        install_name,
-    )?;
+    let selection =
+        probe_operation.prepare_install_selection(&probe_result, selected, install_name)?;
 
     println!("{}", output::title("Install preview"));
     output::kv("Package", &selection.package.name);
@@ -600,7 +597,8 @@ fn truncate(value: &str, max: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        JsonProbeResult, ProbeAssetChoiceTable, json_probe_result, render_probe_install_progress_row,
+        JsonProbeResult, ProbeAssetChoiceTable, json_probe_result,
+        render_probe_install_progress_row,
     };
     use crate::{
         application::operations::probe_op::{
@@ -854,7 +852,9 @@ mod tests {
                 total: 2048,
             },
         );
-        assert!(zsync.starts_with(" pnpm                         Zsync upgrading [=======>      ]"));
+        assert!(
+            zsync.starts_with(" pnpm                         Zsync upgrading [=======>      ]")
+        );
         assert!(zsync.contains('/'));
 
         let phase = render_probe_install_progress_row(

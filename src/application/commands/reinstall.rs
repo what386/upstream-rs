@@ -19,7 +19,10 @@ use crate::{
     services::{
         packaging::{
             PackageProgressEvent, PackageRemover,
-            disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate, install_impact_from_download},
+            disk_impact::{
+                ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate,
+                install_impact_from_download,
+            },
         },
         trust::TrustedSignatureKeys,
     },
@@ -455,7 +458,13 @@ where
 
     let mut remove_op = RemoveOperation::new(package_database, paths);
     let mut no_remove_progress = Some(|_: &str, _: PackageProgressEvent| {});
-    remove_op.remove_single(&package.name, &false, &force, message_callback, &mut no_remove_progress)?;
+    remove_op.remove_single(
+        &package.name,
+        &false,
+        &force,
+        message_callback,
+        &mut no_remove_progress,
+    )?;
 
     match package.install_type {
         InstallType::Release => {
