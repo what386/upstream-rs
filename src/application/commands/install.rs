@@ -380,8 +380,9 @@ fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{default_package_name, render_install_progress_message, render_install_progress_row};
+    use super::{render_install_progress_message, render_install_progress_row};
     use crate::models::common::enums::Provider;
+    use crate::providers::discovery::infer_package_name;
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
 
     #[test]
@@ -446,12 +447,12 @@ mod tests {
 
         assert_eq!(default, None);
     }
-}
 
-fn default_package_name(
-    source: &str,
-    provider: Option<&Provider>,
-    base_url: Option<&str>,
-) -> Result<Option<String>> {
-    infer_package_name(source, provider, base_url)
+    fn default_package_name(
+        source: &str,
+        provider: Option<&Provider>,
+        base_url: Option<&str>,
+    ) -> anyhow::Result<Option<String>> {
+        infer_package_name(source, provider, base_url)
+    }
 }
