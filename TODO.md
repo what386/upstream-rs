@@ -9,9 +9,6 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
-- [ ] fix: probe now uses progress bar for downloads
-      @created 2026-06-29 18:40
-
 
 ## Completed
 
@@ -26,4 +23,8 @@
 - [x] fix bug where failed upgrades would not rollback successfully
       @created 2026-06-29 17:39
       @completed 2026-06-29 18:37
+
+- [x] fix: probe now uses progress bar for downloads
+      @created 2026-06-29 18:40
+      @completed 2026-06-29 19:03
 
