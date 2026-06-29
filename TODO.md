@@ -9,6 +9,9 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
+- [ ] fix: probe now uses progress bar for downloads
+      @created 2026-06-29 18:40
+
 
 ## Completed
 
