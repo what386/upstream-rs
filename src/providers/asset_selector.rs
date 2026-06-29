@@ -84,7 +84,11 @@ impl AssetSelector {
         release: &Release,
         package: &Package,
     ) -> Result<Vec<AssetCandidate>> {
-        let target_filetypes = Self::target_filetypes(package);
+        let target_filetypes = if package.filetype == Filetype::Auto {
+            Self::supported_filetypes_for_os()
+        } else {
+            vec![package.filetype]
+        };
 
         let compatible_assets: Vec<&Asset> = release
             .assets
@@ -144,15 +148,7 @@ impl AssetSelector {
             .unwrap_or_default()
     }
 
-    fn target_filetypes(package: &Package) -> Vec<Filetype> {
-        if package.filetype == Filetype::Auto {
-            Self::get_priority_for_os()
-        } else {
-            vec![package.filetype]
-        }
-    }
-
-    fn get_priority_for_os() -> Vec<Filetype> {
+    fn supported_filetypes_for_os() -> Vec<Filetype> {
         #[cfg(target_os = "linux")]
         return vec![
             Filetype::AppImage,
@@ -162,7 +158,10 @@ impl AssetSelector {
         ];
 
         #[cfg(target_os = "windows")]
-        return vec![Filetype::WinExe, Filetype::Archive, Filetype::Compressed];
+        return vec![
+            Filetype::WinExe,
+            Filetype::Archive,
+            Filetype::Compressed];
 
         #[cfg(target_os = "macos")]
         return vec![
@@ -175,7 +174,7 @@ impl AssetSelector {
     }
 
     pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {
-        let priority = Self::get_priority_for_os();
+        let priority = Self::supported_filetypes_for_os();
 
         priority
             .iter()
@@ -190,22 +189,45 @@ impl AssetSelector {
     }
 
     fn filetype_priority_score(filetype: Filetype) -> i32 {
-        let priority = Self::get_priority_for_os();
+        #[cfg(target_os = "linux")]
+        {
+            return match filetype {
+                Filetype::AppImage => 160,
+                Filetype::Archive => 60,
+                Filetype::Compressed => 40,
+                Filetype::Binary => 20,
+                _ => -100,
+            };
+        }
 
-        priority
-            .iter()
-            .position(|candidate| *candidate == filetype)
-            .map(|index| {
-                let max = priority.len() as i32;
-                (max - index as i32) * 20
-            })
-            .unwrap_or(-100)
+        #[cfg(target_os = "windows")]
+        {
+            return match filetype {
+                Filetype::WinExe => 100,
+                Filetype::Archive => 60,
+                Filetype::Compressed => 40,
+                _ => -100,
+            };
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            return match filetype {
+                Filetype::MacApp => 120,
+                Filetype::MacDmg => 100,
+                Filetype::Archive => 60,
+                Filetype::Compressed => 40,
+                Filetype::Binary => 20,
+                _ => -100,
+            };
+        }
     }
+
 
     fn size_profiles_by_filetype(assets: &[&Asset]) -> HashMap<Filetype, AssetSizeProfile> {
         let mut profiles = HashMap::new();
 
-        for filetype in Self::get_priority_for_os() {
+        for filetype in Self::supported_filetypes_for_os() {
             if let Some(profile) = AssetSizeProfile::from_assets(
                 assets
                     .iter()
