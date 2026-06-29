@@ -15,3 +15,6 @@
 - [ ] make appimages win more on linux
       @created 2026-06-29 18:20
 
+- [ ] remove no longer creates rollback artifacts
+      @created 2026-06-29 18:25
+
