@@ -12,3 +12,6 @@
 - [ ] fix bug where failed upgrades would not rollback successfully
       @created 2026-06-29 17:39
 
+- [ ] make appimages win more on linux
+      @created 2026-06-29 18:20
+
