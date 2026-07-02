@@ -397,7 +397,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__build)
-            opts="-t -p -c -d -y -h --tag --branch --provider --base-url --channel --desktop --build-profile --dry-run --yes --help <REPO_SLUG> [NAME]"
+            opts="-t -p -c -d -y -h --tag --branch --provider --base-url --channel --desktop --build-profile --dry-run --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -447,7 +447,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__changelog)
-            opts="-y -h --from --to --for --yes --help <NAME>"
+            opts="-y -h --from --to --for --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -501,7 +501,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__config__subcmd__get)
-            opts="-y -h --yes --help <KEYS>..."
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -655,7 +655,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__config__subcmd__set)
-            opts="-y -h --yes --help <KEYS>..."
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -683,7 +683,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__docs)
-            opts="-y -h --offline --fetch --yes --help [NAME] [KEYWORDS]..."
+            opts="-y -h --offline --fetch --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -701,7 +701,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__doctor)
-            opts="-y -h --verbose --fix --migrate --json --yes --help [NAMES]..."
+            opts="-y -h --verbose --fix --migrate --json --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -729,7 +729,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__export__subcmd__config)
-            opts="-y -h --yes --help <PATH>"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -827,7 +827,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__export__subcmd__keys)
-            opts="-y -h --yes --help <PATH>"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -841,7 +841,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__export__subcmd__packages)
-            opts="-y -h --yes --help <PATH>"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -855,7 +855,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__export__subcmd__profile)
-            opts="-y -h --yes --help <PATH>"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -869,7 +869,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__find)
-            opts="-p -k -c -m -e -d -y -h --provider --base-url --limit --language --topic --min-stars --max-stars --pushed-after --include-forks --include-archived --name --kind --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --help <QUERY_WORDS>..."
+            opts="-p -k -c -m -e -d -y -h --provider --base-url --limit --language --topic --min-stars --max-stars --pushed-after --include-forks --include-archived --name --kind --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1743,7 +1743,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__import__subcmd__config)
-            opts="-y -h --yes --help <PATH>"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1841,7 +1841,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__import__subcmd__keys)
-            opts="-y -h --yes --help <PATH>"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1855,7 +1855,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__import__subcmd__packages)
-            opts="-y -h --skip-failed --latest --yes --help <PATH>"
+            opts="-y -h --skip-failed --latest --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1869,7 +1869,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__import__subcmd__profile)
-            opts="-y -h --skip-failed --latest --yes --help <PATH>"
+            opts="-y -h --skip-failed --latest --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1883,7 +1883,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__info)
-            opts="-y -h --json --yes --help <QUERY>"
+            opts="-y -h --json --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1897,7 +1897,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__install)
-            opts="-t -k -p -c -m -e -d -y -h --tag --kind --provider --base-url --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --help <REPO_SLUG> [NAME]"
+            opts="-t -k -p -c -m -e -d -y -h --tag --kind --provider --base-url --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1967,7 +1967,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__list)
-            opts="-y -h --json --yes --help [FILTER]"
+            opts="-y -h --json --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1995,7 +1995,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__package__subcmd__add__subcmd__entry)
-            opts="-y -h --yes --help <NAME>"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2107,7 +2107,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__package__subcmd__pin)
-            opts="-y -h --yes --help <NAME>"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2121,7 +2121,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__package__subcmd__rename)
-            opts="-y -h --yes --help <OLD_NAME> <NEW_NAME>"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2135,7 +2135,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__package__subcmd__rm__subcmd__entry)
-            opts="-y -h --yes --help <NAME>"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2149,7 +2149,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__package__subcmd__unpin)
-            opts="-y -h --yes --help <NAME>"
+            opts="-y -h --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2163,7 +2163,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__probe)
-            opts="-p -c -k -d -y -h --provider --base-url --channel --limit --tag --kind --include-incompatible --json --desktop --trust --dry-run --yes --help <REPO_SLUG> [NAME]"
+            opts="-p -c -k -d -y -h --provider --base-url --channel --limit --tag --kind --include-incompatible --json --desktop --trust --dry-run --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2217,7 +2217,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__reinstall)
-            opts="-y -h --trust --force --dry-run --yes --help [NAMES]..."
+            opts="-y -h --trust --force --dry-run --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2235,7 +2235,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__remove)
-            opts="-y -h --purge --force --dry-run --yes --help [NAMES]..."
+            opts="-y -h --purge --force --dry-run --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2249,7 +2249,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__rollback)
-            opts="-y -h --list --prune --dry-run --yes --help [NAMES]..."
+            opts="-y -h --list --prune --dry-run --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2267,7 +2267,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__search)
-            opts="-p -y -h --provider --base-url --limit --language --topic --min-stars --max-stars --pushed-after --include-forks --include-archived --json --yes --help [QUERY_WORDS]..."
+            opts="-p -y -h --provider --base-url --limit --language --topic --min-stars --max-stars --pushed-after --include-forks --include-archived --json --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2317,7 +2317,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__upgrade)
-            opts="-y -h --force --check --machine-readable --json --trust --dry-run --yes --help [NAMES]..."
+            opts="-y -h --force --check --machine-readable --json --trust --dry-run --yes --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
