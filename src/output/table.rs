@@ -308,11 +308,12 @@ fn format_compact_unsigned(value: ByteEstimate) -> String {
 fn format_compact_signed(value: SignedByteEstimate) -> String {
     match value.bytes {
         Some(bytes) => {
+            let prefix = confidence_prefix(value.confidence);
             let magnitude = HumanBytes(bytes.unsigned_abs() as u64);
             if bytes < 0 {
-                format!("-{magnitude}")
+                format!("{prefix}-{magnitude}")
             } else {
-                format!("{magnitude}")
+                format!("{prefix}{magnitude}")
             }
         }
         None => "unknown".to_string(),
@@ -321,9 +322,15 @@ fn format_compact_signed(value: SignedByteEstimate) -> String {
 
 fn format_compact_delta(value: SignedByteEstimate) -> String {
     match value.bytes {
-        Some(bytes) if bytes > 0 => format!("+{}", HumanBytes(bytes as u64)),
-        Some(bytes) if bytes < 0 => format!("-{}", HumanBytes(bytes.unsigned_abs() as u64)),
-        Some(_) => "no change".to_string(),
+        Some(bytes) if bytes > 0 => {
+            format!("{}+{}", confidence_prefix(value.confidence), HumanBytes(bytes as u64))
+        }
+        Some(bytes) if bytes < 0 => format!(
+            "{}-{}",
+            confidence_prefix(value.confidence),
+            HumanBytes(bytes.unsigned_abs() as u64)
+        ),
+        Some(_) => format!("{}no change", confidence_prefix(value.confidence)),
         None => "unknown".to_string(),
     }
 }
@@ -351,56 +358,47 @@ fn compact_signed_magnitude(value: SignedByteEstimate) -> String {
 
 fn format_unsigned(value: ByteEstimate) -> String {
     match value.bytes {
-        Some(bytes) => format!(
-            "{}{}",
-            HumanBytes(bytes),
-            confidence_suffix(value.confidence)
-        ),
+        Some(bytes) => format!("{}{}", confidence_prefix(value.confidence), HumanBytes(bytes)),
         None => "unknown".to_string(),
     }
 }
 
 fn format_signed(value: SignedByteEstimate) -> String {
     match value.bytes {
-        Some(0) => format!("no change{}", confidence_suffix(value.confidence)),
+        Some(0) => format!("{}no change", confidence_prefix(value.confidence)),
         Some(bytes) if bytes > 0 => {
+            format!("{}{}", confidence_prefix(value.confidence), HumanBytes(bytes as u64))
+        }
+        Some(bytes) => {
             format!(
-                "{}{}",
-                HumanBytes(bytes as u64),
-                confidence_suffix(value.confidence)
+                "{}-{}",
+                confidence_prefix(value.confidence),
+                HumanBytes(bytes.unsigned_abs() as u64)
             )
         }
-        Some(bytes) => format!(
-            "-{}{}",
-            HumanBytes(bytes.unsigned_abs() as u64),
-            confidence_suffix(value.confidence)
-        ),
         None => "unknown".to_string(),
     }
 }
 
 fn format_signed_delta(value: SignedByteEstimate) -> String {
     match value.bytes {
-        Some(bytes) if bytes > 0 => format!(
-            "+{}{}",
-            HumanBytes(bytes as u64),
-            confidence_suffix(value.confidence)
-        ),
+        Some(bytes) if bytes > 0 => {
+            format!("{}+{}", confidence_prefix(value.confidence), HumanBytes(bytes as u64))
+        }
         Some(bytes) if bytes < 0 => format!(
-            "-{}{}",
-            HumanBytes(bytes.unsigned_abs() as u64),
-            confidence_suffix(value.confidence)
+            "{}-{}",
+            confidence_prefix(value.confidence),
+            HumanBytes(bytes.unsigned_abs() as u64)
         ),
-        Some(_) => format!("no change{}", confidence_suffix(value.confidence)),
+        Some(_) => format!("{}no change", confidence_prefix(value.confidence)),
         None => "unknown".to_string(),
     }
 }
 
-fn confidence_suffix(confidence: SizeConfidence) -> &'static str {
+fn confidence_prefix(confidence: SizeConfidence) -> &'static str {
     match confidence {
-        SizeConfidence::Exact => "",
-        SizeConfidence::Estimated => " (estimated)",
-        SizeConfidence::Unknown => "",
+        SizeConfidence::Exact | SizeConfidence::Unknown => "",
+        SizeConfidence::Estimated => "~",
     }
 }
 
@@ -409,8 +407,8 @@ mod tests {
     use crate::services::packaging::disk_impact::{ByteEstimate, SignedByteEstimate};
 
     use super::{
-        SizeImpactRow, TransactionRow, TransactionTableLayout, format_compact_delta, format_signed,
-        format_signed_delta, total_disk_change,
+        SizeImpactRow, TransactionRow, TransactionTableLayout, format_compact_delta,
+        format_compact_signed, format_signed, format_signed_delta, total_disk_change,
     };
 
     #[test]
@@ -445,10 +443,7 @@ mod tests {
 
     #[test]
     fn signed_disk_impact_uses_label_context() {
-        assert_eq!(
-            format_signed(SignedByteEstimate::estimated(5 * 1024 * 1024)),
-            "5.00 MiB (estimated)"
-        );
+        assert_eq!(format_signed(SignedByteEstimate::estimated(5 * 1024 * 1024)), "~5.00 MiB");
         assert_eq!(
             format_signed(SignedByteEstimate::exact(-5 * 1024 * 1024)),
             "-5.00 MiB"
@@ -463,11 +458,27 @@ mod tests {
         );
         assert_eq!(
             format_signed_delta(SignedByteEstimate::estimated(-5 * 1024 * 1024)),
-            "-5.00 MiB (estimated)"
+            "~-5.00 MiB"
         );
         assert_eq!(
             format_compact_delta(SignedByteEstimate::exact(5 * 1024 * 1024)),
             "+5.00 MiB"
+        );
+        assert_eq!(
+            format_compact_delta(SignedByteEstimate::estimated(-5 * 1024 * 1024)),
+            "~-5.00 MiB"
+        );
+    }
+
+    #[test]
+    fn compact_signed_values_keep_estimate_marker() {
+        assert_eq!(
+            format_compact_signed(SignedByteEstimate::estimated(5 * 1024 * 1024)),
+            "~5.00 MiB"
+        );
+        assert_eq!(
+            format_compact_signed(SignedByteEstimate::estimated(-5 * 1024 * 1024)),
+            "~-5.00 MiB"
         );
     }
 

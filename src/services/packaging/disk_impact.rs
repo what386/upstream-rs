@@ -89,7 +89,11 @@ impl std::ops::Add for SignedByteEstimate {
                     confidence,
                 }
             }
-            _ => Self::unknown(),
+            (Some(bytes), None) | (None, Some(bytes)) => Self {
+                bytes: Some(bytes),
+                confidence: SizeConfidence::Estimated,
+            },
+            (None, None) => Self::unknown(),
         }
     }
 }
@@ -210,6 +214,13 @@ mod tests {
     fn signed_estimates_add_and_preserve_estimated_confidence() {
         let total = SignedByteEstimate::exact(10) + SignedByteEstimate::estimated(-3);
         assert_eq!(total.bytes, Some(7));
+        assert_eq!(format!("{:?}", total.confidence), "Estimated");
+    }
+
+    #[test]
+    fn signed_estimates_keep_known_subtotals_when_some_values_are_unknown() {
+        let total = SignedByteEstimate::exact(-10) + SignedByteEstimate::unknown();
+        assert_eq!(total.bytes, Some(-10));
         assert_eq!(format!("{:?}", total.confidence), "Estimated");
     }
 
