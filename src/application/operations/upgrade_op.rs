@@ -706,7 +706,6 @@ impl<'a> UpgradeOperation<'a> {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let mut updated_packages = Vec::new();
         let mut pending = stream::iter(packages.into_iter().map(|package| async move {
             let name = package.name.clone();
             let channel = package.channel.clone();
@@ -744,24 +743,43 @@ impl<'a> UpgradeOperation<'a> {
             let transfer = format_transfer(downloaded, bytes_total);
             match result {
                 Ok(Some(updated)) => {
-                    updated_packages.push(updated);
-                    message!(
-                        message_callback,
-                        "{}",
-                        output::status_line_text_with_width(
-                            Status::Ok,
-                            &name,
-                            format!(
-                                "{:<10} {:<3} {:<10} {}",
-                                channel.to_string().to_lowercase(),
-                                "u",
-                                provider.to_string(),
-                                transfer
-                            ),
-                            completion_subject_width
-                        )
-                    );
-                    upgraded += 1;
+                    if let Err(err) = self.package_database.upsert_package(&updated) {
+                        message!(
+                            message_callback,
+                            "{}",
+                            output::status_line_text_with_width(
+                                Status::Fail,
+                                &name,
+                                format!(
+                                    "{:<10} {:<3} {:<10} {}",
+                                    channel.to_string().to_lowercase(),
+                                    "!",
+                                    provider.to_string(),
+                                    output::error_summary_with_limit(&err, 96)
+                                ),
+                                completion_subject_width
+                            )
+                        );
+                        failures += 1;
+                    } else {
+                        message!(
+                            message_callback,
+                            "{}",
+                            output::status_line_text_with_width(
+                                Status::Ok,
+                                &name,
+                                format!(
+                                    "{:<10} {:<3} {:<10} {}",
+                                    channel.to_string().to_lowercase(),
+                                    "u",
+                                    provider.to_string(),
+                                    transfer
+                                ),
+                                completion_subject_width
+                            )
+                        );
+                        upgraded += 1;
+                    }
                 }
                 Ok(None) => {}
                 Err(e) => {
@@ -789,11 +807,6 @@ impl<'a> UpgradeOperation<'a> {
             if let Some(cb) = overall_progress.as_mut() {
                 cb(completed, total);
             }
-        }
-
-        // Save storage updates once parallel workers are done.
-        for updated in updated_packages {
-            self.package_database.upsert_package(&updated)?;
         }
 
         // Bulk mode uses per-package workers; a single shared download progress bar is noisy.
@@ -836,7 +849,6 @@ impl<'a> UpgradeOperation<'a> {
         let mut completed = 0;
         let mut upgraded = 0;
         let mut failures = 0;
-        let mut updated_packages = Vec::new();
         let progress_state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
         let warning_state: WarningState = Arc::new(Mutex::new(Vec::new()));
         let mut last_progress_events: BTreeMap<String, PackageProgressEvent> = BTreeMap::new();
@@ -899,15 +911,27 @@ impl<'a> UpgradeOperation<'a> {
 
                     match result {
                         Ok(updated) => {
-                            updated_packages.push(updated);
-                            upgraded += 1;
-                            if let Some(cb) = progress_callback.as_mut() {
-                                cb(UpgradeProgressEvent::Complete {
-                                    name,
-                                    result: UpgradePackageResult::Upgraded {
-                                        version: new_version,
-                                    },
-                                });
+                            match persist_upgrade_and_emit_complete(
+                                self.package_database,
+                                progress_callback,
+                                name.clone(),
+                                &updated,
+                                new_version,
+                            ) {
+                                Ok(()) => {
+                                    upgraded += 1;
+                                }
+                                Err(err) => {
+                                    failures += 1;
+                                    if let Some(cb) = progress_callback.as_mut() {
+                                        cb(UpgradeProgressEvent::Complete {
+                                            name,
+                                            result: UpgradePackageResult::Failed {
+                                                error: output::error_summary(&err),
+                                            },
+                                        });
+                                    }
+                                }
                             }
                         }
                         Err(err) => {
@@ -939,10 +963,6 @@ impl<'a> UpgradeOperation<'a> {
 
         if let Some(cb) = progress_callback.as_mut() {
             cb(UpgradeProgressEvent::Clear);
-        }
-
-        for updated in updated_packages {
-            self.package_database.upsert_package(&updated)?;
         }
 
         Ok((upgraded, failures))
@@ -1084,17 +1104,41 @@ fn format_transfer(downloaded: u64, total: u64) -> String {
     }
 }
 
+fn persist_upgrade_and_emit_complete<P>(
+    package_database: &mut PackageDatabase,
+    progress_callback: &mut Option<P>,
+    name: String,
+    updated: &crate::models::upstream::Package,
+    version: String,
+) -> Result<()>
+where
+    P: FnMut(UpgradeProgressEvent),
+{
+    package_database.upsert_package(updated)?;
+    if let Some(cb) = progress_callback.as_mut() {
+        cb(UpgradeProgressEvent::Complete {
+            name,
+            result: UpgradePackageResult::Upgraded { version },
+        });
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        ProgressState, UpgradeOperation, UpgradeProgressEvent, format_transfer,
-        preview_package_width,
+        ProgressState, UpgradeOperation, UpgradePackageResult, UpgradeProgressEvent, format_transfer,
+        persist_upgrade_and_emit_complete, preview_package_width,
     };
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
+    use crate::storage::database::PackageDatabase;
     use std::collections::BTreeMap;
     use std::sync::{Arc, Mutex};
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::{fs, io, path::Path};
 
     fn test_package(name: &str, channel: Channel) -> Package {
         Package::with_defaults(
@@ -1107,6 +1151,23 @@ mod tests {
             Provider::Github,
             None,
         )
+    }
+
+    fn temp_database_path(name: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir()
+            .join(format!("upstream-upgrade-op-test-{name}-{nanos}"))
+            .join("packages.db")
+    }
+
+    fn cleanup(path: &Path) -> io::Result<()> {
+        if let Some(parent) = path.parent() {
+            fs::remove_dir_all(parent)?;
+        }
+        Ok(())
     }
 
     #[test]
@@ -1258,5 +1319,54 @@ mod tests {
         )));
         assert!(state.lock().expect("state").is_empty());
         assert!(!last_render.contains_key("ripgrep"));
+    }
+
+    #[test]
+    fn upgrade_completion_callback_observes_persisted_package_state() {
+        let path = temp_database_path("completion-order");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+
+        let mut database = PackageDatabase::open(&path).expect("open database");
+        let mut stored = test_package("tool", Channel::Stable);
+        stored.version.major = 1;
+        database.upsert_package(&stored).expect("seed package");
+
+        let mut updated = stored.clone();
+        updated.version.major = 2;
+        let updated_version = updated.version.to_string();
+        let mut callback_state = Vec::new();
+
+        {
+            let mut callback = Some(|event: UpgradeProgressEvent| {
+                if let UpgradeProgressEvent::Complete { name, result } = event {
+                    callback_state.push((name, result));
+                    let reader = PackageDatabase::open(&path).expect("open reader");
+                    let package = reader
+                        .get_package("tool")
+                        .expect("read package in callback")
+                        .expect("updated package");
+                    assert_eq!(package.version.major, 2);
+                }
+            });
+
+            persist_upgrade_and_emit_complete(
+                &mut database,
+                &mut callback,
+                "tool".to_string(),
+                &updated,
+                updated_version.clone(),
+            )
+            .expect("persist and emit completion");
+        }
+
+        assert_eq!(callback_state.len(), 1);
+        assert!(matches!(
+            &callback_state[0].1,
+            UpgradePackageResult::Upgraded { version } if version == &updated_version
+        ));
+
+        cleanup(&path).expect("cleanup");
     }
 }
