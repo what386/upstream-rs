@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-06-29
+@modified: 2026-07-02
 
 
 ## Tasks
@@ -11,4 +11,7 @@
 
 - [ ] feat: auto-desktop detection
       @created 2026-06-29 19:09
+
+- [ ] feat: better filesize estimates
+      @created 2026-07-02 19:52
 
