@@ -1128,8 +1128,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        ProgressState, UpgradeOperation, UpgradePackageResult, UpgradeProgressEvent, format_transfer,
-        persist_upgrade_and_emit_complete, preview_package_width,
+        ProgressState, UpgradeOperation, UpgradePackageResult, UpgradeProgressEvent,
+        format_transfer, persist_upgrade_and_emit_complete, preview_package_width,
     };
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;

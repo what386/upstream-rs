@@ -323,7 +323,11 @@ fn format_compact_signed(value: SignedByteEstimate) -> String {
 fn format_compact_delta(value: SignedByteEstimate) -> String {
     match value.bytes {
         Some(bytes) if bytes > 0 => {
-            format!("{}+{}", confidence_prefix(value.confidence), HumanBytes(bytes as u64))
+            format!(
+                "{}+{}",
+                confidence_prefix(value.confidence),
+                HumanBytes(bytes as u64)
+            )
         }
         Some(bytes) if bytes < 0 => format!(
             "{}-{}",
@@ -358,7 +362,11 @@ fn compact_signed_magnitude(value: SignedByteEstimate) -> String {
 
 fn format_unsigned(value: ByteEstimate) -> String {
     match value.bytes {
-        Some(bytes) => format!("{}{}", confidence_prefix(value.confidence), HumanBytes(bytes)),
+        Some(bytes) => format!(
+            "{}{}",
+            confidence_prefix(value.confidence),
+            HumanBytes(bytes)
+        ),
         None => "unknown".to_string(),
     }
 }
@@ -367,7 +375,11 @@ fn format_signed(value: SignedByteEstimate) -> String {
     match value.bytes {
         Some(0) => format!("{}no change", confidence_prefix(value.confidence)),
         Some(bytes) if bytes > 0 => {
-            format!("{}{}", confidence_prefix(value.confidence), HumanBytes(bytes as u64))
+            format!(
+                "{}{}",
+                confidence_prefix(value.confidence),
+                HumanBytes(bytes as u64)
+            )
         }
         Some(bytes) => {
             format!(
@@ -383,7 +395,11 @@ fn format_signed(value: SignedByteEstimate) -> String {
 fn format_signed_delta(value: SignedByteEstimate) -> String {
     match value.bytes {
         Some(bytes) if bytes > 0 => {
-            format!("{}+{}", confidence_prefix(value.confidence), HumanBytes(bytes as u64))
+            format!(
+                "{}+{}",
+                confidence_prefix(value.confidence),
+                HumanBytes(bytes as u64)
+            )
         }
         Some(bytes) if bytes < 0 => format!(
             "{}-{}",
@@ -443,7 +459,10 @@ mod tests {
 
     #[test]
     fn signed_disk_impact_uses_label_context() {
-        assert_eq!(format_signed(SignedByteEstimate::estimated(5 * 1024 * 1024)), "~5.00 MiB");
+        assert_eq!(
+            format_signed(SignedByteEstimate::estimated(5 * 1024 * 1024)),
+            "~5.00 MiB"
+        );
         assert_eq!(
             format_signed(SignedByteEstimate::exact(-5 * 1024 * 1024)),
             "-5.00 MiB"
