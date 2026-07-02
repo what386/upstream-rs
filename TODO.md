@@ -12,6 +12,13 @@
 - [ ] feat: auto-desktop detection
       @created 2026-06-29 19:09
 
-- [ ] feat: better filesize estimates
+- [ ] behavior: upgrade now upserts package on complete instead of flushing at end
+      @created 2026-07-02 19:57
+
+
+## Completed
+
+- [x] feat: better filesize estimates
       @created 2026-07-02 19:52
+      @completed 2026-07-02 19:52
 
