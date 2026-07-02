@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-06-29*
+*Generated on 2026-07-02*
+
+## 2.10.4 — 2026-07-02
+
+### Changes
+
+- feat: better filesize estimates
+- behavior: upgrade now upserts package on complete instead of flushing at end
+
 
 ## 2.10.1 — 2026-06-29
 
