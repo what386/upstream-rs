@@ -191,8 +191,14 @@ mod tests {
         );
         assert_eq!(paths.dirs.cache_dir, paths.dirs.data_dir.join("cache"));
         assert_eq!(paths.dirs.state_dir, paths.dirs.data_dir.join("state"));
-        assert_eq!(paths.state.rollback_dir, paths.dirs.state_dir.join("rollback"));
-        assert_eq!(paths.state.symlinks_dir, paths.dirs.state_dir.join("symlinks"));
+        assert_eq!(
+            paths.state.rollback_dir,
+            paths.dirs.state_dir.join("rollback")
+        );
+        assert_eq!(
+            paths.state.symlinks_dir,
+            paths.dirs.state_dir.join("symlinks")
+        );
         assert_eq!(paths.state.icons_dir, paths.dirs.state_dir.join("icons"));
         assert_eq!(
             paths.integration.fish_completions_dir,

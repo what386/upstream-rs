@@ -512,11 +512,11 @@ fn extract_record_archive(
         ));
     }
 
-    let extract_dir = paths.state.rollback_dir.join(format!(
-        ".restore-{}-{}",
-        package_name,
-        std::process::id()
-    ));
+    let extract_dir =
+        paths
+            .state
+            .rollback_dir
+            .join(format!(".restore-{}-{}", package_name, std::process::id()));
     if extract_dir.exists() {
         fs::remove_dir_all(&extract_dir).context(format!(
             "Failed to clear rollback extraction directory '{}'",
@@ -640,7 +640,10 @@ fn delete_record_artifacts(
         }
         RollbackArtifactFormat::Tgz => {
             remove_file_or_dir_if_exists(
-                &paths.state.rollback_dir.join(&record.artifact_relative_path),
+                &paths
+                    .state
+                    .rollback_dir
+                    .join(&record.artifact_relative_path),
             )?;
         }
     }
