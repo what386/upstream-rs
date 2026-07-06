@@ -11,6 +11,7 @@ use crate::utils::static_paths::UpstreamPaths;
 impl Cli {
     pub async fn run(self) -> Result<()> {
         output::set_assume_yes(self.yes);
+        output::set_no_pager(self.no_pager);
         let command = self.command;
         let paths = UpstreamPaths::new()?;
         let _lock = if command.requires_lock() {
