@@ -1,9 +1,7 @@
-#[path = "v2.0.0.rs"]
 mod v2_0_0;
-#[path = "v2.3.0.rs"]
 mod v2_3_0;
-#[path = "v2.6.0.rs"]
 mod v2_6_0;
+mod v2_11_0;
 
 use anyhow::Result;
 
@@ -13,5 +11,6 @@ pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result
     v2_0_0::run(paths, report)?;
     v2_3_0::run(paths, report)?;
     v2_6_0::run(paths, report)?;
+    v2_11_0::run(paths, report)?;
     Ok(())
 }
