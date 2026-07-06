@@ -23,8 +23,8 @@ mod tests {
     use crate::models::upstream::Package;
     use crate::routines::migrate::MigrationReport;
     use crate::storage::database::PackageDatabase;
-    use crate::utils::test_support;
     use crate::utils::static_paths::UpstreamPaths;
+    use crate::utils::test_support;
     use std::path::{Path, PathBuf};
     use std::{fs, io};
 
