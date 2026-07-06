@@ -24,8 +24,21 @@ mod tests {
     use crate::routines::migrate::MigrationReport;
     use crate::storage::database::PackageDatabase;
     use crate::utils::test_support;
+    use crate::utils::static_paths::UpstreamPaths;
     use std::path::{Path, PathBuf};
     use std::{fs, io};
+
+    fn state_symlink_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
+        let link = paths.state.symlinks_dir.join(name);
+        #[cfg(windows)]
+        {
+            if link.extension().is_none() {
+                return link.with_extension("exe");
+            }
+        }
+
+        link
+    }
 
     fn temp_root(name: &str) -> PathBuf {
         test_support::temp_root("upstream-migrate-steps-test", name)
@@ -68,10 +81,10 @@ mod tests {
         run(&paths, &mut report).expect("run migration steps");
 
         assert!(!old_symlinks_dir.exists());
-        assert!(paths.state.symlinks_dir.join("tool").exists());
+        assert!(state_symlink_path(&paths, "tool").exists());
         #[cfg(unix)]
         assert_eq!(
-            fs::read_link(paths.state.symlinks_dir.join("tool")).expect("read refreshed symlink"),
+            fs::read_link(state_symlink_path(&paths, "tool")).expect("read refreshed symlink"),
             binary
         );
 
