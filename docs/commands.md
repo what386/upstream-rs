@@ -189,7 +189,6 @@ upstream doctor --migrate
 upstream config set key=value [key=value...]
 upstream config get key [key...]
 upstream config list
-upstream config verify
 upstream config edit
 upstream config reset
 

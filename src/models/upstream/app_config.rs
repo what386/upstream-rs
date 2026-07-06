@@ -11,7 +11,7 @@ const UPGRADE_CHECK_CONCURRENCY: usize = 8;
 const UPGRADE_INSTALL_CONCURRENCY: usize = 4;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct RollbackConfig {
     pub compression_level: CompressionLevel,
     pub stored_artifacts: u32,
@@ -27,7 +27,7 @@ impl Default for RollbackConfig {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct DownloadConfig {
     pub low_threshold_mb: u64,
     pub high_threshold_mb: u64,
@@ -57,7 +57,7 @@ impl DownloadConfig {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct UpgradeConfig {
     pub check_concurrency: usize,
     pub install_concurrency: usize,

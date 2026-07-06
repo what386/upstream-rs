@@ -167,7 +167,10 @@ mod tests {
             paths.config.config_file,
             paths.dirs.config_dir.join("config.toml")
         );
-        assert_eq!(paths.config.auth_file, paths.dirs.config_dir.join("auth.toml"));
+        assert_eq!(
+            paths.config.auth_file,
+            paths.dirs.config_dir.join("auth.toml")
+        );
         assert_eq!(
             paths.config.packages_file,
             paths.dirs.metadata_dir.join("packages.json")

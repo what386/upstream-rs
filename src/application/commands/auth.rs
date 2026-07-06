@@ -1,9 +1,7 @@
 use crate::output::Status;
 use crate::{
-    application::operations::auth_op::AuthUpdater,
-    output, output::pager,
-    storage::system::auth::AuthStorage,
-    utils::static_paths::UpstreamPaths,
+    application::operations::auth_op::AuthUpdater, output, output::pager,
+    storage::system::auth::AuthStorage, utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Result, anyhow};
 
@@ -107,6 +105,46 @@ pub fn run_reset() -> Result<()> {
     output::confirm_or_cancel("Reset all auth tokens to empty?", false)?;
     auth_storage.reset_to_defaults()?;
     println!("{}", output::success("Auth reset to defaults."));
+
+    Ok(())
+}
+
+pub fn run_edit() -> Result<()> {
+    let paths = UpstreamPaths::new()?;
+
+    let editor = std::env::var("EDITOR")
+        .or_else(|_| std::env::var("VISUAL"))
+        .unwrap_or_else(|_| {
+            if cfg!(target_os = "windows") {
+                "notepad".to_string()
+            } else {
+                "nano".to_string()
+            }
+        });
+
+    println!("{}", output::title("Auth edit"));
+    output::action_note(format!("Opening with {}", editor));
+
+    let status = std::process::Command::new(&editor)
+        .arg(&paths.config.auth_file)
+        .status()?;
+
+    if status.success() {
+        println!("{}", output::success("Editor closed."));
+
+        match AuthStorage::new(&paths.config.auth_file) {
+            Ok(_) => println!("{}", output::success("Auth file is valid.")),
+            Err(e) => {
+                println!(
+                    "{}",
+                    output::warning(format!("Auth file may have errors: {}", e))
+                );
+                output::action_note("Fix manually or run 'upstream auth reset'.");
+            }
+        }
+    } else {
+        println!("{}", output::warning("Editor exited with error."));
+    }
 
     Ok(())
 }
