@@ -9,6 +9,9 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
+- [ ] feat: auth subcommand
+      @created 2026-07-06 18:57
+
 
 ## Completed
 
