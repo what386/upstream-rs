@@ -7,6 +7,7 @@ use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 
 use crate::{
+    models::common::enums::Filetype,
     models::{
         provider::{Asset, Release},
         upstream::Package,
@@ -24,6 +25,7 @@ pub struct DotSlashAsset {
     pub size: u64,
     pub hash: String,
     pub digest: String,
+    pub filetype: Filetype,
     pub format: String,
     pub path: String,
 }
@@ -155,12 +157,13 @@ where
         ));
     }
 
-    Ok(Some(Asset::new(
+    Ok(Some(Asset::with_filetype(
         selected.url,
         descriptor.id,
         selected.filename,
         selected.size,
         descriptor.created_at,
+        selected.filetype,
     )))
 }
 
@@ -201,6 +204,7 @@ pub fn select_asset_for_architecture(
             size: entry.size,
             hash: entry.hash,
             digest: entry.digest,
+            filetype: parse_format_filetype(&entry.format)?,
             format: entry.format,
             path: entry.path,
         });
@@ -340,6 +344,20 @@ fn filename_from_url(url: &str) -> Result<String> {
     Ok(filename.to_string())
 }
 
+fn parse_format_filetype(format: &str) -> Result<Filetype> {
+    let normalized = format.trim().trim_start_matches('.');
+    if normalized.is_empty() {
+        return Err(anyhow!("DotSlash asset format is empty"));
+    }
+
+    let filetype = crate::utils::filename_parser::parse_filetype(&format!(".{normalized}"));
+    if filetype == Filetype::Binary && !matches!(normalized, "bin" | "binary" | "raw") {
+        return Err(anyhow!("Unsupported DotSlash asset format '{format}'"));
+    }
+
+    Ok(filetype)
+}
+
 fn os_key(os: &OSKind) -> &'static str {
     match os {
         OSKind::Windows => "windows",
@@ -430,6 +448,7 @@ mod tests {
             asset.url,
             "https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.gz"
         );
+        assert_eq!(asset.filetype, Filetype::Archive);
         assert_eq!(asset.path, "node-v18.19.0-linux-x64/bin/node");
     }
 
@@ -496,6 +515,52 @@ mod tests {
     }
 
     #[test]
+    fn uses_format_to_determine_filetype_instead_of_filename() {
+        let contents = r#"{
+  "name": "tool",
+  "platforms": {
+    "linux-x86_64": {
+      "size": 12,
+      "hash": "blake3",
+      "digest": "abc",
+      "format": "tar.gz",
+      "path": "tool/bin/tool",
+      "providers": [{ "url": "https://example.com/tool.bin" }]
+    }
+  }
+}"#;
+
+        let asset =
+            select_asset_for_architecture(contents, &architecture(OSKind::Linux, CpuArch::X86_64))
+                .expect("select asset");
+
+        assert_eq!(asset.filename, "tool.bin");
+        assert_eq!(asset.filetype, Filetype::Archive);
+    }
+
+    #[test]
+    fn errors_when_format_is_unsupported() {
+        let contents = r#"{
+  "name": "tool",
+  "platforms": {
+    "linux-x86_64": {
+      "size": 12,
+      "hash": "blake3",
+      "digest": "abc",
+      "format": "mystery",
+      "path": "tool/bin/tool",
+      "providers": [{ "url": "https://example.com/tool.bin" }]
+    }
+  }
+}"#;
+
+        let err = select_asset_for_architecture(contents, &architecture(OSKind::Linux, CpuArch::X86_64))
+            .expect_err("unsupported format");
+
+        assert!(err.to_string().contains("Unsupported DotSlash asset format"));
+    }
+
+    #[test]
     fn selects_url_provider_when_other_provider_variants_are_present() {
         let contents = r#"{
   "name": "codex",
@@ -529,6 +594,7 @@ mod tests {
             asset.filename,
             "codex-package-x86_64-unknown-linux-musl.tar.zst"
         );
+        assert_eq!(asset.filetype, Filetype::Archive);
         assert_eq!(
             asset.url,
             "https://github.com/openai/codex/releases/download/rust-v0.142.3/codex-package-x86_64-unknown-linux-musl.tar.zst"
