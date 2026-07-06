@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::utils::static_paths::{
-    AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, UpstreamPaths,
+    AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, StatePaths, UpstreamPaths,
 };
 
 pub fn temp_root(prefix: &str, name: &str) -> PathBuf {

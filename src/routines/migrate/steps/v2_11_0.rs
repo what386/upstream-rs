@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -355,7 +355,7 @@ mod tests {
                         "artifact_format": "tgz",
                         "artifact_entry_path": null,
                         "icon_entry_path": null,
-                        "source": "upgrade",
+                        "source": "Upgrade",
                         "created_at": "2026-07-06T00:00:00Z"
                     }]
                 }

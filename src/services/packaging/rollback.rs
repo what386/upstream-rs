@@ -501,7 +501,7 @@ fn extract_record_archive(
     record: &RollbackRecord,
 ) -> Result<PathBuf> {
     let archive_path = paths
-        .install
+        .state
         .rollback_dir
         .join(&record.artifact_relative_path);
     if !archive_path.exists() {
@@ -577,7 +577,7 @@ fn record_artifact_source_path(
 ) -> Result<PathBuf> {
     match record.artifact_format {
         RollbackArtifactFormat::Raw => Ok(paths
-            .install
+            .state
             .rollback_dir
             .join(&record.artifact_relative_path)),
         RollbackArtifactFormat::Tgz => {
@@ -621,7 +621,7 @@ fn delete_record_artifacts(
     match record.artifact_format {
         RollbackArtifactFormat::Raw => {
             let artifact_path = paths
-                .install
+                .state
                 .rollback_dir
                 .join(&record.artifact_relative_path);
             remove_file_or_dir_if_exists(&artifact_path)?;
@@ -640,10 +640,7 @@ fn delete_record_artifacts(
         }
         RollbackArtifactFormat::Tgz => {
             remove_file_or_dir_if_exists(
-                &paths
-                    .install
-                    .rollback_dir
-                    .join(&record.artifact_relative_path),
+                &paths.state.rollback_dir.join(&record.artifact_relative_path),
             )?;
         }
     }
