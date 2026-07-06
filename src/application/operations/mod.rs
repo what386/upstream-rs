@@ -1,4 +1,5 @@
 pub mod build_op;
+pub mod auth_op;
 pub mod config_op;
 pub mod export_op;
 pub mod hooks_op;
