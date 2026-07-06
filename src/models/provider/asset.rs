@@ -27,6 +27,17 @@ impl Asset {
         created_at: DateTime<Utc>,
     ) -> Self {
         let filetype = parse_filetype(&name);
+        Self::with_filetype(download_url, id, name, size, created_at, filetype)
+    }
+
+    pub fn with_filetype(
+        download_url: String,
+        id: u64,
+        name: String,
+        size: u64,
+        created_at: DateTime<Utc>,
+        filetype: Filetype,
+    ) -> Self {
         let os = parse_os(&name);
         let arch = parse_arch(&name);
         Self {
