@@ -554,10 +554,14 @@ mod tests {
   }
 }"#;
 
-        let err = select_asset_for_architecture(contents, &architecture(OSKind::Linux, CpuArch::X86_64))
-            .expect_err("unsupported format");
+        let err =
+            select_asset_for_architecture(contents, &architecture(OSKind::Linux, CpuArch::X86_64))
+                .expect_err("unsupported format");
 
-        assert!(err.to_string().contains("Unsupported DotSlash asset format"));
+        assert!(
+            err.to_string()
+                .contains("Unsupported DotSlash asset format")
+        );
     }
 
     #[test]

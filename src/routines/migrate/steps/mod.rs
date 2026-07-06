@@ -1,8 +1,8 @@
 mod v2_0_0;
-mod v2_3_0;
-mod v2_6_0;
 #[path = "v2.11.0.rs"]
 mod v2_11_0;
+mod v2_3_0;
+mod v2_6_0;
 
 use anyhow::Result;
 

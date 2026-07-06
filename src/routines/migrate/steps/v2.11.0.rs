@@ -89,10 +89,11 @@ fn move_legacy_state_dir(src: &Path, dst: &Path, report: &mut MigrationReport) -
 }
 
 fn merge_directory_contents(src: &Path, dst: &Path, report: &mut MigrationReport) -> Result<()> {
-    for entry in
-        fs::read_dir(src).with_context(|| format!("Failed to read directory '{}'", src.display()))?
+    for entry in fs::read_dir(src)
+        .with_context(|| format!("Failed to read directory '{}'", src.display()))?
     {
-        let entry = entry.with_context(|| format!("Failed to read entry in '{}'", src.display()))?;
+        let entry =
+            entry.with_context(|| format!("Failed to read entry in '{}'", src.display()))?;
         let from = entry.path();
         let to = dst.join(entry.file_name());
         let file_type = entry
@@ -148,19 +149,19 @@ fn paths_are_equivalent(src: &Path, dst: &Path) -> Result<bool> {
         .with_context(|| format!("Failed to inspect '{}'", dst.display()))?;
 
     if src_metadata.file_type().is_symlink() || dst_metadata.file_type().is_symlink() {
-        return Ok(
-            src_metadata.file_type().is_symlink()
-                && dst_metadata.file_type().is_symlink()
-                && fs::read_link(src).with_context(|| {
-                    format!("Failed to read symlink '{}'", src.display())
-                })? == fs::read_link(dst)
-                    .with_context(|| format!("Failed to read symlink '{}'", dst.display()))?,
-        );
+        return Ok(src_metadata.file_type().is_symlink()
+            && dst_metadata.file_type().is_symlink()
+            && fs::read_link(src)
+                .with_context(|| format!("Failed to read symlink '{}'", src.display()))?
+                == fs::read_link(dst)
+                    .with_context(|| format!("Failed to read symlink '{}'", dst.display()))?);
     }
 
     if src_metadata.is_file() && dst_metadata.is_file() {
-        return Ok(fs::read(src).with_context(|| format!("Failed to read '{}'", src.display()))?
-            == fs::read(dst).with_context(|| format!("Failed to read '{}'", dst.display()))?);
+        return Ok(
+            fs::read(src).with_context(|| format!("Failed to read '{}'", src.display()))?
+                == fs::read(dst).with_context(|| format!("Failed to read '{}'", dst.display()))?,
+        );
     }
 
     Ok(false)
@@ -173,8 +174,9 @@ fn remove_file_or_dir(path: &Path) -> Result<()> {
         fs::remove_file(path)
             .with_context(|| format!("Failed to remove duplicate path '{}'", path.display()))?;
     } else if metadata.is_dir() {
-        fs::remove_dir_all(path)
-            .with_context(|| format!("Failed to remove duplicate directory '{}'", path.display()))?;
+        fs::remove_dir_all(path).with_context(|| {
+            format!("Failed to remove duplicate directory '{}'", path.display())
+        })?;
     }
     Ok(())
 }
@@ -221,7 +223,11 @@ fn rewrite_package_database_icons(
     Ok(())
 }
 
-fn rewrite_package_icon_path(package: &mut Package, old_icons_dir: &Path, new_icons_dir: &Path) -> bool {
+fn rewrite_package_icon_path(
+    package: &mut Package,
+    old_icons_dir: &Path,
+    new_icons_dir: &Path,
+) -> bool {
     let Some(icon_path) = package.icon_path.as_ref() else {
         return false;
     };
@@ -263,7 +269,11 @@ fn rewrite_rollback_storage(
     let mut updated_records = 0;
     for records in storage.records.values_mut() {
         for record in records {
-            if rewrite_package_icon_path(&mut record.package_snapshot, old_icons_dir, &paths.state.icons_dir) {
+            if rewrite_package_icon_path(
+                &mut record.package_snapshot,
+                old_icons_dir,
+                &paths.state.icons_dir,
+            ) {
                 changed = true;
                 updated_records += 1;
             }
@@ -415,7 +425,8 @@ mod tests {
             .expect("seed database");
 
         let rollback_file = paths.dirs.metadata_dir.join("rollback.json");
-        fs::create_dir_all(rollback_file.parent().expect("rollback parent")).expect("create rollback parent");
+        fs::create_dir_all(rollback_file.parent().expect("rollback parent"))
+            .expect("create rollback parent");
         fs::write(
             &rollback_file,
             serde_json::to_vec_pretty(&json!({
@@ -437,7 +448,8 @@ mod tests {
         )
         .expect("write rollback");
 
-        fs::create_dir_all(paths.config.paths_file.parent().expect("paths parent")).expect("create paths parent");
+        fs::create_dir_all(paths.config.paths_file.parent().expect("paths parent"))
+            .expect("create paths parent");
         fs::write(
             &paths.config.paths_file,
             format!("export PATH=\"{}:$PATH\"\n", old_symlinks_dir.display()),
@@ -445,14 +457,20 @@ mod tests {
         .expect("write paths.sh");
         fs::write(
             &paths.config.paths_nu_file,
-            format!("$env.PATH = ($env.PATH | prepend '{}')\n", old_symlinks_dir.display()),
+            format!(
+                "$env.PATH = ($env.PATH | prepend '{}')\n",
+                old_symlinks_dir.display()
+            ),
         )
         .expect("write paths.nu");
 
         fs::create_dir_all(&paths.integration.xdg_applications_dir).expect("create desktop dir");
         fs::write(
             paths.integration.xdg_applications_dir.join("tool.desktop"),
-            format!("[Desktop Entry]\nIcon={}\n", old_icons_dir.join("tool.png").display()),
+            format!(
+                "[Desktop Entry]\nIcon={}\n",
+                old_icons_dir.join("tool.png").display()
+            ),
         )
         .expect("write desktop entry");
 
@@ -486,7 +504,9 @@ mod tests {
         );
         let migrated_rollback = fs::read_to_string(&rollback_file).expect("read rollback");
         assert!(migrated_rollback.contains(&paths.state.icons_dir.display().to_string()));
-        let migrated_desktop = fs::read_to_string(paths.integration.xdg_applications_dir.join("tool.desktop")).expect("read desktop");
+        let migrated_desktop =
+            fs::read_to_string(paths.integration.xdg_applications_dir.join("tool.desktop"))
+                .expect("read desktop");
         assert!(migrated_desktop.contains(&paths.state.icons_dir.display().to_string()));
 
         cleanup(&root).expect("cleanup");
