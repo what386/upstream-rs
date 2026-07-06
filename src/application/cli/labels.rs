@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::application::cli::arguments::{Commands, ConfigAction, HooksAction, PackageAction};
+use crate::application::cli::arguments::{AuthAction, Commands, ConfigAction, HooksAction, PackageAction};
 
 impl fmt::Display for Commands {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -29,6 +29,7 @@ impl fmt::Display for Commands {
             Commands::Config { action } => write!(f, "{action}"),
             Commands::Package { action } => write!(f, "{action}"),
             Commands::Hooks { action } => write!(f, "{action}"),
+            Commands::Auth { action } => write!(f, "{action}"),
             Commands::Import { .. } => write!(f, "import"),
             Commands::Export { .. } => write!(f, "export"),
             Commands::Doctor { migrate, .. } if *migrate => write!(f, "doctor --migrate"),
@@ -46,6 +47,17 @@ impl fmt::Display for ConfigAction {
             ConfigAction::Verify => write!(f, "config verify"),
             ConfigAction::Edit => write!(f, "config edit"),
             ConfigAction::Reset => write!(f, "config reset"),
+        }
+    }
+}
+
+impl fmt::Display for AuthAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AuthAction::Set { .. } => write!(f, "auth set"),
+            AuthAction::Get { .. } => write!(f, "auth get"),
+            AuthAction::List => write!(f, "auth list"),
+            AuthAction::Reset => write!(f, "auth reset"),
         }
     }
 }

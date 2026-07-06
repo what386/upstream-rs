@@ -23,7 +23,7 @@ pub enum BuildProfile {
     upstream find terminal emulator --limit 20\n  \
     upstream probe neovim/neovim\n  \
     upstream upgrade --check\n  \
-    upstream config set github.api_token=ghp_xxx"
+    upstream auth set github.api_token=ghp_xxx"
 )]
 #[command(
     version,
@@ -622,9 +622,10 @@ pub enum Commands {
     #[command(long_about = "View, edit, and validate config.toml.\n\n\
         Config values are stored in TOML under upstream's data directory. Missing keys \
         use built-in defaults. Use verify to find missing default-backed keys and unused \
-        keys left behind by old versions or manual edits.\n\n\
+        keys left behind by old versions or manual edits. Provider API tokens live in \
+        auth.toml and are managed with `upstream auth`.\n\n\
         EXAMPLES:\n  \
-        upstream config set github.api_token=ghp_xxx\n  \
+        upstream config set download.low_threads=2\n  \
         upstream config get download.high_threads\n  \
         upstream config list\n  \
         upstream config verify\n  \
@@ -632,6 +633,21 @@ pub enum Commands {
     Config {
         #[command(subcommand)]
         action: ConfigAction,
+    },
+
+    /// View, edit, and validate auth.toml
+    #[command(long_about = "View, edit, and validate auth.toml.\n\n\
+        Provider API tokens are stored separately from config.toml so secrets can be \
+        managed without mixing them into public config exports. Use auth set/get/list/reset \
+        to inspect or update provider tokens.\n\n\
+        EXAMPLES:\n  \
+        upstream auth set github.api_token=ghp_xxx\n  \
+        upstream auth get github.api_token\n  \
+        upstream auth list\n  \
+        upstream auth reset")]
+    Auth {
+        #[command(subcommand)]
+        action: AuthAction,
     },
 
     /// Manage installed package records and launcher entries
@@ -670,7 +686,8 @@ pub enum Commands {
     /// Import config, trust keys, packages, or a profile
     #[command(long_about = "Import config, trust keys, packages, or a profile.\n\n\
         Package and profile imports reinstall release packages from exported references. \
-        They do not contain installed artifacts, rollback data, or cache contents.\n\n\
+        They do not contain installed artifacts, rollback data, cache contents, or auth \
+        tokens.\n\n\
         EXAMPLES:\n  \
         upstream import config ./config.toml\n  \
         upstream import keys ./minisign.pub\n  \
@@ -687,7 +704,7 @@ pub enum Commands {
     #[command(long_about = "Export config, trust keys, packages, or a profile.\n\n\
         Package exports contain reinstallable release-package references, not installed \
         artifacts. Profile exports combine config, trust keys, and package references for \
-        backup or transfer.\n\n\
+        backup or transfer. Auth tokens are intentionally excluded and remain in auth.toml.\n\n\
         EXAMPLES:\n  \
         upstream export config ./config.toml\n  \
         upstream export keys ./keys.json\n  \
@@ -765,6 +782,7 @@ impl Commands {
                 action,
                 ConfigAction::Get { .. } | ConfigAction::List | ConfigAction::Verify
             ),
+            Commands::Auth { action } => !matches!(action, AuthAction::Get { .. } | AuthAction::List),
             Commands::Install { .. }
             | Commands::Build { .. }
             | Commands::Remove { .. }
@@ -948,9 +966,8 @@ pub enum ConfigAction {
         Values are parsed as TOML literals where possible, so strings, booleans, and numbers \
         can be set without editing the file manually.\n\n\
         EXAMPLES:\n  \
-        upstream config set github.api_token=ghp_xxx\n  \
         upstream config set download.low_threads=2\n  \
-        upstream config set gitlab.api_token=glpat_xxx")]
+        upstream config set download.high_threads=4")]
     Set {
         /// Configuration assignments (format: key.path=value)
         #[arg(required = true)]
@@ -963,7 +980,7 @@ pub enum ConfigAction {
         when multiple keys are requested.\n\n\
         EXAMPLES:\n  \
         upstream config get download.high_threads\n  \
-        upstream config get github.api_token gitlab.api_token")]
+        upstream config get download.low_threads download.high_threads")]
     Get {
         /// Configuration keys to retrieve (format: key.path)
         #[arg(required = true)]
@@ -1001,6 +1018,52 @@ pub enum ConfigAction {
         rollback data, and caches are not removed.\n\n\
         EXAMPLE:\n  \
         upstream config reset")]
+    Reset,
+}
+
+#[derive(Subcommand)]
+pub enum AuthAction {
+    /// Set provider API tokens
+    #[command(long_about = "Set one or more provider API tokens.\n\n\
+        Use dot notation for provider keys. Multiple key=value pairs can be set at once. \
+        Values are parsed as TOML literals where possible, so strings can be written \
+        without editing auth.toml manually.\n\n\
+        EXAMPLES:\n  \
+        upstream auth set github.api_token=ghp_xxx\n  \
+        upstream auth set gitlab.api_token=glpat_xxx")]
+    Set {
+        /// Auth assignments (format: key.path=value)
+        #[arg(required = true)]
+        keys: Vec<String>,
+    },
+
+    /// Get provider API tokens
+    #[command(long_about = "Retrieve one or more provider API tokens.\n\n\
+        Use dot notation to access nested keys. Missing keys are reported individually \
+        when multiple keys are requested.\n\n\
+        EXAMPLES:\n  \
+        upstream auth get github.api_token\n  \
+        upstream auth get gitlab.api_token gitea.api_token")]
+    Get {
+        /// Auth keys to retrieve (format: key.path)
+        #[arg(required = true)]
+        keys: Vec<String>,
+    },
+
+    /// List current provider API tokens
+    #[command(long_about = "List current provider API tokens.\n\n\
+        Values are flattened to dot-notation keys and shown through the configured pager \
+        when output is long.\n\n\
+        EXAMPLE:\n  \
+        upstream auth list")]
+    List,
+
+    /// Reset auth.toml to defaults
+    #[command(long_about = "Reset auth.toml to upstream defaults.\n\n\
+        This clears configured provider API tokens after confirmation. It does not \
+        affect package metadata, trust keys, or installed files.\n\n\
+        EXAMPLE:\n  \
+        upstream auth reset")]
     Reset,
 }
 
