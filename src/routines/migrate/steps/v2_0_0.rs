@@ -69,13 +69,14 @@ fn create_required_dirs(paths: &UpstreamPaths, report: &mut MigrationReport) -> 
         paths.dirs.packages_dir.as_path(),
         paths.dirs.cache_dir.as_path(),
         paths.dirs.metadata_dir.as_path(),
+        paths.dirs.state_dir.as_path(),
         paths.install.appimages_dir.as_path(),
         paths.install.binaries_dir.as_path(),
         paths.install.archives_dir.as_path(),
-        paths.install.rollback_dir.as_path(),
         paths.install.tmp_dir.as_path(),
-        paths.integration.icons_dir.as_path(),
-        paths.integration.symlinks_dir.as_path(),
+        paths.state.rollback_dir.as_path(),
+        paths.state.icons_dir.as_path(),
+        paths.state.symlinks_dir.as_path(),
     ] {
         if !dir.exists() {
             report.created_dirs += 1;
@@ -320,7 +321,7 @@ fn refresh_symlinks(
     packages: &[Package],
     report: &mut MigrationReport,
 ) -> Result<()> {
-    let symlink_manager = SymlinkManager::new(&paths.integration.symlinks_dir);
+    let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
 
     for package in packages {
         let target = package.exec_path.as_ref().or(package.install_path.as_ref());
@@ -394,8 +395,8 @@ mod tests {
 
         #[cfg(unix)]
         {
-            fs::create_dir_all(&paths.integration.symlinks_dir).expect("create symlinks");
-            std::os::unix::fs::symlink(&old_binary, paths.integration.symlinks_dir.join("tool"))
+            fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks");
+            std::os::unix::fs::symlink(&old_binary, paths.state.symlinks_dir.join("tool"))
                 .expect("create old symlink");
         }
 
@@ -454,7 +455,7 @@ mod tests {
 
         #[cfg(unix)]
         assert_eq!(
-            fs::read_link(paths.integration.symlinks_dir.join("tool")).expect("read symlink"),
+            fs::read_link(paths.state.symlinks_dir.join("tool")).expect("read symlink"),
             new_binary
         );
 
