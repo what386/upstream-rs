@@ -6,6 +6,7 @@ pub struct AppDirs {
     pub user_dir: PathBuf,
     pub config_dir: PathBuf,
     pub data_dir: PathBuf,
+    pub state_dir: PathBuf,
     pub packages_dir: PathBuf,
     pub cache_dir: PathBuf,
     pub metadata_dir: PathBuf,
@@ -26,14 +27,17 @@ impl AppDirs {
             .join("upstream");
 
         let data_dir = user_dir.join(".upstream");
+        let state_dir = data_dir.join("state");
+
         let packages_dir = data_dir.join("packages");
-        let cache_dir = data_dir.join("cache");
         let metadata_dir = data_dir.join("metadata");
+        let cache_dir = data_dir.join("cache");
 
         Ok(Self {
             user_dir,
             config_dir,
             data_dir,
+            state_dir,
             packages_dir,
             cache_dir,
             metadata_dir,
@@ -69,7 +73,6 @@ pub struct InstallPaths {
     pub appimages_dir: PathBuf,
     pub binaries_dir: PathBuf,
     pub archives_dir: PathBuf,
-    pub rollback_dir: PathBuf,
     pub tmp_dir: PathBuf,
 }
 
@@ -79,17 +82,31 @@ impl InstallPaths {
             appimages_dir: dirs.packages_dir.join("appimages"),
             binaries_dir: dirs.packages_dir.join("binaries"),
             archives_dir: dirs.packages_dir.join("archives"),
-            rollback_dir: dirs.data_dir.join("rollback"),
             tmp_dir: dirs.data_dir.join("temp"),
         }
     }
 }
 
-/// Paths for system integration (symlinks, XDG dirs)
-pub struct IntegrationPaths {
+/// Paths for persistent app state.
+pub struct StatePaths {
+    pub rollback_dir: PathBuf,
     pub symlinks_dir: PathBuf,
-    pub xdg_applications_dir: PathBuf,
     pub icons_dir: PathBuf,
+}
+
+impl StatePaths {
+    pub fn new(dirs: &AppDirs) -> Self {
+        Self {
+            rollback_dir: dirs.state_dir.join("rollback"),
+            symlinks_dir: dirs.state_dir.join("symlinks"),
+            icons_dir: dirs.state_dir.join("icons"),
+        }
+    }
+}
+
+/// Paths for system integration (XDG dirs and shell completions)
+pub struct IntegrationPaths {
+    pub xdg_applications_dir: PathBuf,
     pub bash_completions_dir: PathBuf,
     pub fish_completions_dir: PathBuf,
     pub zsh_completions_dir: PathBuf,
@@ -98,8 +115,6 @@ pub struct IntegrationPaths {
 impl IntegrationPaths {
     pub fn new(dirs: &AppDirs) -> Self {
         Self {
-            symlinks_dir: dirs.data_dir.join("symlinks"),
-            icons_dir: dirs.data_dir.join("icons"),
             xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
             bash_completions_dir: dirs
                 .user_dir
@@ -115,6 +130,7 @@ pub struct UpstreamPaths {
     pub dirs: AppDirs,
     pub config: ConfigPaths,
     pub install: InstallPaths,
+    pub state: StatePaths,
     pub integration: IntegrationPaths,
 }
 
@@ -130,6 +146,7 @@ impl UpstreamPaths {
         Ok(Self {
             config: ConfigPaths::new(&dirs),
             install: InstallPaths::new(&dirs),
+            state: StatePaths::new(&dirs),
             integration: IntegrationPaths::new(&dirs),
             dirs,
         })
@@ -173,17 +190,13 @@ mod tests {
             paths.dirs.data_dir.join("packages")
         );
         assert_eq!(paths.dirs.cache_dir, paths.dirs.data_dir.join("cache"));
-        assert_eq!(
-            paths.integration.symlinks_dir,
-            paths.dirs.data_dir.join("symlinks")
-        );
+        assert_eq!(paths.dirs.state_dir, paths.dirs.data_dir.join("state"));
+        assert_eq!(paths.state.rollback_dir, paths.dirs.state_dir.join("rollback"));
+        assert_eq!(paths.state.symlinks_dir, paths.dirs.state_dir.join("symlinks"));
+        assert_eq!(paths.state.icons_dir, paths.dirs.state_dir.join("icons"));
         assert_eq!(
             paths.integration.fish_completions_dir,
             paths.dirs.user_dir.join(".config/fish/completions")
-        );
-        assert_eq!(
-            paths.install.rollback_dir,
-            paths.dirs.data_dir.join("rollback")
         );
         assert_eq!(paths.install.tmp_dir, paths.dirs.data_dir.join("temp"));
     }

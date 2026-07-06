@@ -53,7 +53,7 @@ pub fn run_rename(old_name: String, new_name: String) -> Result<()> {
     }
 
     if let Some(exec_path) = package_before.exec_path.as_ref() {
-        let symlink_manager = SymlinkManager::new(&paths.integration.symlinks_dir);
+        let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
         let mut created_new = false;
 
         if let Err(err) = symlink_manager.add_link(exec_path, &new_name) {

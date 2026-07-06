@@ -56,7 +56,7 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
 
     let expected_line = format!(
         "export PATH=\"{}:$PATH\"",
-        paths.integration.symlinks_dir.display()
+        paths.state.symlinks_dir.display()
     );
 
     match fs::read_to_string(&paths.config.paths_file) {
@@ -91,7 +91,7 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
         return;
     }
 
-    let expected_nushell_path = paths.integration.symlinks_dir.display().to_string();
+    let expected_nushell_path = paths.state.symlinks_dir.display().to_string();
 
     match fs::read_to_string(&paths.config.paths_nu_file) {
         Ok(content) => {
@@ -118,7 +118,7 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
 #[cfg(unix)]
 fn fix_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
     let manager = ShellManager::new(&paths.config.paths_file);
-    if let Err(err) = manager.add_to_paths(&paths.integration.symlinks_dir) {
+    if let Err(err) = manager.add_to_paths(&paths.state.symlinks_dir) {
         report.line(
             Level::Warn,
             format!("Failed to repair PATH integration file: {}", err),

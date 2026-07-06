@@ -392,7 +392,7 @@ impl<'a> BundleHandler<'a> {
             exec_path.display()
         );
 
-        SymlinkManager::new(&self.paths.integration.symlinks_dir)
+        SymlinkManager::new(&self.paths.state.symlinks_dir)
             .add_link(&exec_path, &package.name)
             .context(format!("Failed to create symlink for '{}'", package.name))?;
 

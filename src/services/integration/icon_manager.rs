@@ -74,7 +74,7 @@ impl<'a> IconManager<'a> {
         let filename = icon_path
             .file_name()
             .ok_or_else(|| anyhow!("Invalid icon path"))?;
-        let output_path = self.paths.integration.icons_dir.join(filename);
+        let output_path = self.paths.state.icons_dir.join(filename);
         fs::copy(icon_path, &output_path)?;
         Ok(output_path)
     }

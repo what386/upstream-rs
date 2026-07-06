@@ -454,7 +454,7 @@ mod tests {
             .expect("remove package");
 
         assert!(!install_path.exists());
-        assert!(!paths.install.rollback_dir.join("tool").exists());
+        assert!(!paths.state.rollback_dir.join("tool").exists());
         assert!(!paths.dirs.metadata_dir.join("rollback.json").exists());
 
         cleanup(&root).expect("cleanup");

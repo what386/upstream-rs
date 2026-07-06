@@ -20,11 +20,10 @@ fn required_directory_checks(paths: &UpstreamPaths) -> Vec<(&'static str, &Path)
         ("packages directory", paths.dirs.packages_dir.as_path()),
         ("cache directory", paths.dirs.cache_dir.as_path()),
         ("metadata directory", paths.dirs.metadata_dir.as_path()),
-        (
-            "symlinks directory",
-            paths.integration.symlinks_dir.as_path(),
-        ),
-        ("icons directory", paths.integration.icons_dir.as_path()),
+        ("state directory", paths.dirs.state_dir.as_path()),
+        ("rollback directory", paths.state.rollback_dir.as_path()),
+        ("symlinks directory", paths.state.symlinks_dir.as_path()),
+        ("icons directory", paths.state.icons_dir.as_path()),
         ("appimages directory", paths.install.appimages_dir.as_path()),
         ("binaries directory", paths.install.binaries_dir.as_path()),
         ("archives directory", paths.install.archives_dir.as_path()),
@@ -241,7 +240,7 @@ pub(in crate::routines::doctor) fn check_untracked_package_artifacts(
 ) {
     let installed_names: HashSet<String> = all_packages.iter().map(|p| p.name.clone()).collect();
 
-    let stale_links = find_stale_symlink_names(&paths.integration.symlinks_dir, &installed_names);
+    let stale_links = find_stale_symlink_names(&paths.state.symlinks_dir, &installed_names);
     if stale_links.is_empty() {
         report.line(Level::Ok, "No stale symlinks detected");
     } else {
@@ -255,7 +254,7 @@ pub(in crate::routines::doctor) fn check_untracked_package_artifacts(
         );
         report.hint(format!(
             "Remove stale symlinks from '{}' or run package removals with --purge.",
-            paths.integration.symlinks_dir.display()
+            paths.state.symlinks_dir.display()
         ));
     }
 

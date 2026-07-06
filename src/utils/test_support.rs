@@ -18,6 +18,7 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
         user_dir: root.to_path_buf(),
         config_dir: root.join("config"),
         data_dir: root.join("data"),
+        state_dir: root.join("data/state"),
         packages_dir: root.join("data/packages"),
         cache_dir: root.join("data/cache"),
         metadata_dir: root.join("data/metadata"),
@@ -36,13 +37,15 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
             appimages_dir: dirs.packages_dir.join("appimages"),
             binaries_dir: dirs.packages_dir.join("binaries"),
             archives_dir: dirs.packages_dir.join("archives"),
-            rollback_dir: dirs.data_dir.join("rollback"),
             tmp_dir: dirs.data_dir.join("tmp"),
         },
+        state: StatePaths {
+            rollback_dir: dirs.state_dir.join("rollback"),
+            symlinks_dir: dirs.state_dir.join("symlinks"),
+            icons_dir: dirs.state_dir.join("icons"),
+        },
         integration: IntegrationPaths {
-            symlinks_dir: dirs.data_dir.join("symlinks"),
             xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
-            icons_dir: dirs.data_dir.join("icons"),
             bash_completions_dir: dirs
                 .user_dir
                 .join(".local/share/bash-completion/completions"),
