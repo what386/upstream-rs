@@ -48,6 +48,7 @@ impl AppDirs {
 /// Paths to configuration and metadata files
 pub struct ConfigPaths {
     pub config_file: PathBuf,
+    pub auth_file: PathBuf,
     pub packages_file: PathBuf,
     pub packages_database_file: PathBuf,
     pub trust_file: PathBuf,
@@ -59,6 +60,7 @@ impl ConfigPaths {
     pub fn new(dirs: &AppDirs) -> Self {
         Self {
             config_file: dirs.config_dir.join("config.toml"),
+            auth_file: dirs.config_dir.join("auth.toml"),
             packages_file: dirs.metadata_dir.join("packages.json"),
             packages_database_file: dirs.metadata_dir.join("packages.db"),
             trust_file: dirs.metadata_dir.join("trust.json"),
@@ -165,6 +167,7 @@ mod tests {
             paths.config.config_file,
             paths.dirs.config_dir.join("config.toml")
         );
+        assert_eq!(paths.config.auth_file, paths.dirs.config_dir.join("auth.toml"));
         assert_eq!(
             paths.config.packages_file,
             paths.dirs.metadata_dir.join("packages.json")

@@ -5,7 +5,7 @@ use crate::{
     services::packaging::OperationProgressEvent,
     storage::{
         database::PackageDatabase,
-        system::{config::ConfigStorage, trust::TrustStorage},
+        system::{auth::AuthStorage, config::ConfigStorage, trust::TrustStorage},
     },
     utils::static_paths::UpstreamPaths,
 };
@@ -109,10 +109,11 @@ pub fn run_import_config(path: PathBuf) -> Result<()> {
 pub async fn run_import_profile(path: PathBuf, skip_failed: bool, latest: bool) -> Result<()> {
     let paths = UpstreamPaths::new()?;
     let profile_config = ImportOperation::read_profile_config(&path)?;
+    let auth = AuthStorage::new(&paths.config.auth_file)?;
     let provider_manager = ProviderManager::new(
-        profile_config.github.api_token.as_deref(),
-        profile_config.gitlab.api_token.as_deref(),
-        profile_config.gitea.api_token.as_deref(),
+        auth.get_auth().github.api_token.as_deref(),
+        auth.get_auth().gitlab.api_token.as_deref(),
+        auth.get_auth().gitea.api_token.as_deref(),
         profile_config.download,
     )?;
     let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;

@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use crate::{
     models::{
         common::enums::Provider,
-        upstream::{AppConfig, Package},
+        upstream::{AuthenticationConfig, Package},
     },
     providers::{
         gitea::GiteaClient, github::GithubClient, gitlab::GitlabClient, http::http_status,
@@ -133,13 +133,13 @@ async fn validate_gitea_token(token: &str, base_url: Option<&str>) -> TokenValid
 }
 
 pub(in crate::routines::doctor) async fn check_provider_tokens(
-    config: &AppConfig,
+    auth: &AuthenticationConfig,
     packages: &[Package],
     report: &mut DoctorReport,
 ) {
     let mut configured = 0_u32;
 
-    match config.github.api_token.as_deref().map(str::trim) {
+    match auth.github.api_token.as_deref().map(str::trim) {
         Some("") => {
             configured += 1;
             report.line(Level::Fail, "GitHub API token is configured but empty");
@@ -156,7 +156,7 @@ pub(in crate::routines::doctor) async fn check_provider_tokens(
     }
 
     for base_url in configured_provider_targets(packages, Provider::Gitlab) {
-        match config.gitlab.api_token.as_deref().map(str::trim) {
+        match auth.gitlab.api_token.as_deref().map(str::trim) {
             Some("") => {
                 configured += 1;
                 report.line(Level::Fail, "GitLab API token is configured but empty");
@@ -175,7 +175,7 @@ pub(in crate::routines::doctor) async fn check_provider_tokens(
     }
 
     for base_url in configured_provider_targets(packages, Provider::Gitea) {
-        match config.gitea.api_token.as_deref().map(str::trim) {
+        match auth.gitea.api_token.as_deref().map(str::trim) {
             Some("") => {
                 configured += 1;
                 report.line(Level::Fail, "Gitea API token is configured but empty");

@@ -495,7 +495,7 @@ mod tests {
 
         let config = ImportOperation::read_profile_config(&path).expect("read profile config");
 
-        assert!(config.github.api_token.is_none());
+        assert_eq!(config.download.low_threads, 2);
         let _ = fs::remove_file(path);
     }
 }
