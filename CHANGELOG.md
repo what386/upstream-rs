@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-07-02*
+*Generated on 2026-07-06*
+
+## 2.11.0 — 2026-07-06
+
+### Changes
+
+- BREAKING: move 'stateful' directories to state/
+
 
 ## 2.10.4 — 2026-07-02
 
