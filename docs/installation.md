@@ -77,9 +77,10 @@ Upstream stores data in user-owned locations:
 | `$HOME/.upstream/cache/build/` | Cached git workspaces for source builds |
 | `$HOME/.upstream/cache/source-archives/` | Cached source archive workspaces |
 | `$HOME/.upstream/tmp/` | Temporary staging for package operations |
-| `$HOME/.upstream/symlinks/` | Runtime command links |
-| `$HOME/.upstream/icons/` | Stored desktop icons |
-| `$HOME/.upstream/rollback/` | Rollback artifacts |
+| `$HOME/.upstream/state/` | Persistent app state |
+| `$HOME/.upstream/state/symlinks/` | Runtime command links |
+| `$HOME/.upstream/state/icons/` | Stored desktop icons |
+| `$HOME/.upstream/state/rollback/` | Rollback artifacts |
 
 Desktop entries are written to `$HOME/.local/share/applications` on Linux. Shell completions are installed directly into shell-specific user completion directories when supported.
 
