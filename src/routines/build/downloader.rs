@@ -35,7 +35,7 @@ impl<'a> SourceDownloader<'a> {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         let cache_dir = paths.dirs.cache_dir.join("build");
-        let source_archive_cache_dir = paths.dirs.cache_dir.join("source-archives");
+        let source_archive_cache_dir = paths.dirs.cache_dir.join("source");
         let archive_cache_dir = std::env::temp_dir().join(format!("upstream-build-{nonce}"));
         std::fs::create_dir_all(&cache_dir).context(format!(
             "Failed to create build cache '{}'",
