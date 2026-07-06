@@ -69,6 +69,10 @@ fn refresh_symlinks(
     packages: &[crate::models::upstream::Package],
     report: &mut MigrationReport,
 ) -> Result<()> {
+    if paths.dirs.data_dir.join("symlinks").exists() {
+        return Ok(());
+    }
+
     let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
 
     for package in packages {
