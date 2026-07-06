@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-07-02
+@modified: 2026-07-06
 
 
 ## Tasks
@@ -11,4 +11,7 @@
 
 - [ ] feat: auto-desktop detection
       @created 2026-06-29 19:09
+
+- [ ] BREAKING: move 'stateful' directories to state/
+      @created 2026-07-06 15:27
 
