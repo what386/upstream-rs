@@ -503,7 +503,18 @@ mod tests {
             Some(expected_icon_path.as_path())
         );
         let migrated_rollback = fs::read_to_string(&rollback_file).expect("read rollback");
-        assert!(migrated_rollback.contains(&paths.state.icons_dir.display().to_string()));
+        let migrated_rollback: serde_json::Value =
+            serde_json::from_str(&migrated_rollback).expect("parse rollback");
+        let rollback_icon_path = migrated_rollback
+            .get("records")
+            .and_then(|records| records.get("tool"))
+            .and_then(|records| records.as_array())
+            .and_then(|records| records.first())
+            .and_then(|record| record.get("package_snapshot"))
+            .and_then(|snapshot| snapshot.get("icon_path"))
+            .and_then(|icon_path| icon_path.as_str())
+            .expect("rollback icon path");
+        assert!(rollback_icon_path.contains(&paths.state.icons_dir.display().to_string()));
         let migrated_desktop =
             fs::read_to_string(paths.integration.xdg_applications_dir.join("tool.desktop"))
                 .expect("read desktop");
