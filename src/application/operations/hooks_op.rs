@@ -633,6 +633,7 @@ mod tests {
         UpstreamPaths {
             config: ConfigPaths {
                 config_file: dirs.config_dir.join("config.toml"),
+                auth_file: dirs.config_dir.join("auth.toml"),
                 packages_file: dirs.metadata_dir.join("packages.json"),
                 packages_database_file: dirs.metadata_dir.join("packages.db"),
                 trust_file: dirs.metadata_dir.join("trust.json"),

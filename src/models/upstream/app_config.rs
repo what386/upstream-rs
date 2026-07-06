@@ -10,12 +10,6 @@ const HIGH_PARALLEL_DOWNLOADS: usize = 4;
 const UPGRADE_CHECK_CONCURRENCY: usize = 8;
 const UPGRADE_INSTALL_CONCURRENCY: usize = 4;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(default)]
-pub struct ProviderConfig {
-    pub api_token: Option<String>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RollbackConfig {
@@ -91,9 +85,6 @@ impl UpgradeConfig {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AppConfig {
-    pub github: ProviderConfig,
-    pub gitlab: ProviderConfig,
-    pub gitea: ProviderConfig,
     pub download: DownloadConfig,
     pub upgrade: UpgradeConfig,
     pub rollback: RollbackConfig,

@@ -1,9 +1,10 @@
-use crate::storage::system::config::ConfigStorage;
+use crate::storage::system::{auth::AuthStorage, config::ConfigStorage};
 use anyhow::Result;
 use toml;
 
 pub struct ConfigUpdater<'a> {
     config_storage: &'a mut ConfigStorage,
+    auth_storage: &'a mut AuthStorage,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,8 +26,26 @@ pub struct ConfigBulkGetResult {
 }
 
 impl<'a> ConfigUpdater<'a> {
-    pub fn new(config_storage: &'a mut ConfigStorage) -> Self {
-        Self { config_storage }
+    pub fn new(config_storage: &'a mut ConfigStorage, auth_storage: &'a mut AuthStorage) -> Self {
+        Self {
+            config_storage,
+            auth_storage,
+        }
+    }
+
+    fn is_auth_key(key_path: &str) -> bool {
+        AuthStorage::is_auth_key(key_path)
+    }
+
+    fn try_set_auth_value(&mut self, key_path: &str, value: &str) -> Result<()> {
+        self.auth_storage.try_set_value(key_path, value).map(|_| ())
+    }
+
+    fn try_get_auth_value<T>(&self, key_path: &str) -> Result<T>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        self.auth_storage.try_get_value(key_path)
     }
 
     /// Sets a configuration value using dot-notation key path.
@@ -34,7 +53,11 @@ impl<'a> ConfigUpdater<'a> {
     pub fn set_key(&mut self, set_key: &str) -> Result<ConfigSetResult> {
         let (key_path, value) = Self::parse_set_key(set_key)?;
 
-        self.config_storage.try_set_value(&key_path, &value)?;
+        if Self::is_auth_key(&key_path) {
+            self.try_set_auth_value(&key_path, &value)?;
+        } else {
+            self.config_storage.try_set_value(&key_path, &value)?;
+        }
 
         Ok(ConfigSetResult {
             key: key_path,
@@ -51,7 +74,11 @@ impl<'a> ConfigUpdater<'a> {
             return Err(anyhow::anyhow!("Key path cannot be empty"));
         }
 
-        let value: toml::Value = self.config_storage.try_get_value(key_path)?;
+        let value: toml::Value = if Self::is_auth_key(key_path) {
+            self.try_get_auth_value(key_path)?
+        } else {
+            self.config_storage.try_get_value(key_path)?
+        };
 
         Ok(Self::format_value(&value))
     }
@@ -127,7 +154,7 @@ impl<'a> ConfigUpdater<'a> {
 #[cfg(test)]
 mod tests {
     use super::ConfigUpdater;
-    use crate::storage::system::config::ConfigStorage;
+    use crate::storage::system::{auth::AuthStorage, config::ConfigStorage};
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -144,7 +171,11 @@ mod tests {
 
     fn cleanup(path: &Path) -> io::Result<()> {
         if let Some(parent) = path.parent() {
-            fs::remove_dir_all(parent)?;
+            match fs::remove_dir_all(parent) {
+                Ok(()) => {}
+                Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+                Err(err) => return Err(err),
+            }
         }
         Ok(())
     }
@@ -161,13 +192,18 @@ mod tests {
         let config_file = temp_config_file("roundtrip");
         fs::create_dir_all(config_file.parent().expect("config parent")).expect("create parent");
         let mut storage = ConfigStorage::new(&config_file).expect("create storage");
-        let mut updater = ConfigUpdater::new(&mut storage);
+        let auth_file = config_file.with_file_name("auth.toml");
+        let mut auth_storage = AuthStorage::new(&auth_file).expect("create auth storage");
+        let mut updater = ConfigUpdater::new(&mut storage, &mut auth_storage);
 
+        updater.set_key("download.low_threads=7").expect("set key");
+        let value = updater.get_key("download.low_threads").expect("get key");
+        assert_eq!(value, "7");
         updater
             .set_key("github.api_token=ghp_abc")
-            .expect("set key");
-        let value = updater.get_key("github.api_token").expect("get key");
-        assert_eq!(value, "ghp_abc");
+            .expect("set auth key");
+        let token = updater.get_key("github.api_token").expect("get auth key");
+        assert_eq!(token, "ghp_abc");
 
         cleanup(&config_file).expect("cleanup");
     }
@@ -177,9 +213,11 @@ mod tests {
         let config_file = temp_config_file("bulk");
         fs::create_dir_all(config_file.parent().expect("config parent")).expect("create parent");
         let mut storage = ConfigStorage::new(&config_file).expect("create storage");
-        let mut updater = ConfigUpdater::new(&mut storage);
+        let auth_file = config_file.with_file_name("auth.toml");
+        let mut auth_storage = AuthStorage::new(&auth_file).expect("create auth storage");
+        let mut updater = ConfigUpdater::new(&mut storage, &mut auth_storage);
         let keys = vec![
-            "github.api_token=ghp_abc".to_string(),
+            "download.low_threads=7".to_string(),
             "badformat".to_string(),
             "gitlab.api_token=glpat_abc".to_string(),
         ];
@@ -187,9 +225,9 @@ mod tests {
         let result = updater.set_bulk(&keys);
         assert_eq!(result.applied.len(), 2);
         assert_eq!(result.failures.len(), 1);
-        let github = updater.get_key("github.api_token").expect("github key");
+        let download = updater.get_key("download.low_threads").expect("download key");
         let gitlab = updater.get_key("gitlab.api_token").expect("gitlab key");
-        assert_eq!(github, "ghp_abc");
+        assert_eq!(download, "7");
         assert_eq!(gitlab, "glpat_abc");
 
         cleanup(&config_file).expect("cleanup");

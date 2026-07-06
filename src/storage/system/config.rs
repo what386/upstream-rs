@@ -12,15 +12,9 @@ use crate::utils::filesystem::atomic_ops::write_atomic;
 use std::os::unix::fs::PermissionsExt;
 
 const ALLOWED_TOP_LEVEL_KEYS: &[&str] = &[
-    "github", "gitlab", "gitea", "download", "upgrade", "rollback",
+    "download", "upgrade", "rollback",
 ];
 const EXPECTED_CONFIG_PATHS: &[&str] = &[
-    "github",
-    "github.api_token",
-    "gitlab",
-    "gitlab.api_token",
-    "gitea",
-    "gitea.api_token",
     "download",
     "download.low_threshold_mb",
     "download.high_threshold_mb",
@@ -128,7 +122,7 @@ impl ConfigStorage {
         self.save_config()
     }
 
-    /// Sets a configuration value at the given key path (e.g., "github.api_token").
+    /// Sets a configuration value at the given key path (e.g., "download.low_threads").
     pub fn try_set_value(&mut self, key_path: &str, value: &str) -> Result<()> {
         let key_path = key_path.trim();
 
@@ -423,8 +417,6 @@ mod tests {
 
         let storage = ConfigStorage::new(&path).expect("create storage");
         assert!(!path.exists());
-        assert!(storage.get_config().github.api_token.is_none());
-        assert!(storage.get_config().gitlab.api_token.is_none());
         assert_eq!(storage.get_config().download.low_threshold_mb, 16);
         assert_eq!(storage.get_config().download.high_threshold_mb, 64);
         assert_eq!(storage.get_config().download.low_threads, 2);
@@ -444,12 +436,6 @@ mod tests {
         let mut storage = ConfigStorage::new(&path).expect("create storage");
 
         storage
-            .try_set_value("github.api_token", "\"ghp_abc\"")
-            .expect("set github token");
-        storage
-            .try_set_value("gitlab.api_token", "\"abc\"")
-            .expect("set string literal");
-        storage
             .try_set_value("download.low_threshold_mb", "8")
             .expect("set low threshold");
         storage
@@ -459,12 +445,6 @@ mod tests {
             .try_set_value("upgrade.check_concurrency", "3")
             .expect("set check concurrency");
 
-        let github_token: Option<String> = storage
-            .try_get_value("github.api_token")
-            .expect("read github token");
-        let token: Option<String> = storage
-            .try_get_value("gitlab.api_token")
-            .expect("read token");
         let low_threshold: u64 = storage
             .try_get_value("download.low_threshold_mb")
             .expect("read low threshold");
@@ -475,8 +455,6 @@ mod tests {
             .try_get_value("upgrade.check_concurrency")
             .expect("read check concurrency");
 
-        assert_eq!(github_token.as_deref(), Some("ghp_abc"));
-        assert_eq!(token.as_deref(), Some("abc"));
         assert_eq!(low_threshold, 8);
         assert_eq!(high_threads, 6);
         assert_eq!(check_concurrency, 3);
@@ -500,18 +478,15 @@ mod tests {
     }
 
     #[test]
-    fn load_accepts_unversioned_config() {
+    fn load_accepts_minimal_config() {
         let path = temp_config_file("unversioned");
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
-        fs::write(&path, "[github]\napi_token = \"ghp_abc\"\n").expect("write config");
+        fs::write(&path, "[download]\nlow_threads = 6\n").expect("write config");
 
-        let storage = ConfigStorage::new(&path).expect("unversioned config should load");
-        assert_eq!(
-            storage.get_config().github.api_token.as_deref(),
-            Some("ghp_abc")
-        );
+        let storage = ConfigStorage::new(&path).expect("config should load");
+        assert_eq!(storage.get_config().download.low_threads, 6);
 
         cleanup(&path).expect("cleanup");
     }
@@ -547,19 +522,15 @@ mod tests {
     }
 
     #[test]
-    fn load_rejects_config_with_unsupported_trust_table() {
+    fn load_rejects_config_with_unsupported_auth_table() {
         let path = temp_config_file("unsupported-trust");
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
-        fs::write(
-            &path,
-            "[trust]\nminisign_public_keys = []\ncosign_public_keys = []\n",
-        )
-        .expect("write config");
+        fs::write(&path, "[github]\napi_token = \"ghp_abc\"\n").expect("write config");
 
-        let err = ConfigStorage::new(&path).expect_err("trust config should be rejected");
-        assert!(err.to_string().contains("Unsupported config key 'trust'"));
+        let err = ConfigStorage::new(&path).expect_err("auth config should be rejected");
+        assert!(err.to_string().contains("Unsupported config key 'github'"));
 
         cleanup(&path).expect("cleanup");
     }
@@ -611,12 +582,9 @@ mod tests {
             fs::create_dir_all(parent).expect("create parent");
         }
         let mut storage = ConfigStorage::new(&path).expect("create storage");
-        storage
-            .try_set_value("github.api_token", "\"ghp_abc\"")
-            .expect("set override");
         storage.reset_to_defaults().expect("reset defaults");
 
-        assert!(storage.get_config().github.api_token.is_none());
+        assert_eq!(storage.get_config().download.low_threads, 2);
 
         cleanup(&path).expect("cleanup");
     }

@@ -1,7 +1,8 @@
 use crate::output::Status;
 use crate::{
     application::operations::config_op::ConfigUpdater, output, output::pager,
-    storage::system::config::ConfigStorage, utils::static_paths::UpstreamPaths,
+    storage::system::{auth::AuthStorage, config::ConfigStorage},
+    utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Result, anyhow};
 
@@ -12,7 +13,8 @@ pub fn run_set(set_keys: Vec<String>) -> Result<()> {
 
     let paths = UpstreamPaths::new()?;
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
-    let mut config_updater = ConfigUpdater::new(&mut config_storage);
+    let mut auth_storage = AuthStorage::new(&paths.config.auth_file)?;
+    let mut config_updater = ConfigUpdater::new(&mut config_storage, &mut auth_storage);
 
     println!("{}", output::title("Config set"));
 
@@ -48,7 +50,8 @@ pub fn run_get(get_keys: Vec<String>) -> Result<()> {
 
     let paths = UpstreamPaths::new()?;
     let mut config_storage = ConfigStorage::new(&paths.config.config_file)?;
-    let config_updater = ConfigUpdater::new(&mut config_storage);
+    let mut auth_storage = AuthStorage::new(&paths.config.auth_file)?;
+    let config_updater = ConfigUpdater::new(&mut config_storage, &mut auth_storage);
 
     println!("{}", output::title("Config get"));
 
