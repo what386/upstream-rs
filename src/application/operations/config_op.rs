@@ -188,7 +188,9 @@ mod tests {
         let result = updater.set_bulk(&keys);
         assert_eq!(result.applied.len(), 2);
         assert_eq!(result.failures.len(), 1);
-        let download = updater.get_key("download.low_threads").expect("download key");
+        let download = updater
+            .get_key("download.low_threads")
+            .expect("download key");
         assert_eq!(download, "7");
 
         cleanup(&config_file).expect("cleanup");

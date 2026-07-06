@@ -1,8 +1,7 @@
 use anyhow::Result;
 
 use crate::application::cli::arguments::{
-    AuthAction, Cli, Commands, ConfigAction, ExportAction, HooksAction, ImportAction,
-    PackageAction,
+    AuthAction, Cli, Commands, ConfigAction, ExportAction, HooksAction, ImportAction, PackageAction,
 };
 use crate::application::commands;
 use crate::output;
@@ -257,7 +256,6 @@ impl Cli {
                 ConfigAction::Set { keys } => commands::config::run_set(keys),
                 ConfigAction::Get { keys } => commands::config::run_get(keys),
                 ConfigAction::List => commands::config::run_list(),
-                ConfigAction::Verify => commands::config::run_verify(),
                 ConfigAction::Edit => commands::config::run_edit(),
                 ConfigAction::Reset => commands::config::run_reset(),
             },
@@ -266,6 +264,7 @@ impl Cli {
                 AuthAction::Set { keys } => commands::auth::run_set(keys),
                 AuthAction::Get { keys } => commands::auth::run_get(keys),
                 AuthAction::List => commands::auth::run_list(),
+                AuthAction::Edit => commands::auth::run_edit(),
                 AuthAction::Reset => commands::auth::run_reset(),
             },
 

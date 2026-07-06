@@ -35,8 +35,7 @@ impl AuthStorage {
             return Ok(());
         }
 
-        let toml_str =
-            fs::read_to_string(&self.auth_file).context("Failed to load auth file")?;
+        let toml_str = fs::read_to_string(&self.auth_file).context("Failed to load auth file")?;
         self.auth = toml::from_str(&toml_str).context("Tried to parse an invalid auth file")?;
         Ok(())
     }
@@ -265,6 +264,23 @@ mod tests {
 
         assert_eq!(github.as_deref(), Some("ghp_abc"));
         assert_eq!(gitlab.as_deref(), Some("glpat_abc"));
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn load_rejects_unknown_auth_keys() {
+        let path = temp_auth_file("unknown-key");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        fs::write(&path, "[github]\napi_token = \"ghp_abc\"\nextra = true\n").expect("write auth");
+
+        let err = AuthStorage::new(&path).expect_err("auth config should be rejected");
+        assert!(
+            err.to_string()
+                .contains("Tried to parse an invalid auth file")
+        );
 
         cleanup(&path).expect("cleanup");
     }

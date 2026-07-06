@@ -129,59 +129,10 @@ pub(in crate::routines::doctor) fn check_local_layout(
 
 pub(in crate::routines::doctor) fn check_app_config(
     paths: &UpstreamPaths,
-    fix: bool,
+    _fix: bool,
     report: &mut DoctorReport,
 ) -> Option<AppConfig> {
     if paths.config.config_file.exists() {
-        match ConfigStorage::verify_file(&paths.config.config_file) {
-            Ok(verification) => {
-                if !verification.unused_keys.is_empty() {
-                    if fix {
-                        match ConfigStorage::remove_unused_keys(&paths.config.config_file) {
-                            Ok(removed) => {
-                                report.line(
-                                    Level::Ok,
-                                    format!("Removed unused config key(s): {}", removed.join(", ")),
-                                );
-                            }
-                            Err(err) => {
-                                report.line(
-                                    Level::Fail,
-                                    format!("Failed to remove unused config keys: {err}"),
-                                );
-                                return None;
-                            }
-                        }
-                    } else {
-                        report.line(
-                            Level::Fail,
-                            format!(
-                                "Config contains unused key(s): {}",
-                                verification.unused_keys.join(", ")
-                            ),
-                        );
-                        report.hint("Run `upstream doctor --fix` to remove unused config keys.");
-                        return None;
-                    }
-                }
-
-                if !verification.missing_keys.is_empty() {
-                    report.line(
-                        Level::Warn,
-                        format!(
-                            "Config missing key(s) that will use defaults: {}",
-                            verification.missing_keys.join(", ")
-                        ),
-                    );
-                }
-            }
-            Err(err) => {
-                report.line(Level::Fail, format!("Config file is invalid: {err}"));
-                report.hint("Run `upstream config verify` for config diagnostics.");
-                return None;
-            }
-        }
-
         match ConfigStorage::new(&paths.config.config_file) {
             Ok(storage) => {
                 report.line(Level::Ok, "Config file exists");
@@ -189,7 +140,7 @@ pub(in crate::routines::doctor) fn check_app_config(
             }
             Err(err) => {
                 report.line(Level::Fail, format!("Config file is invalid: {err}"));
-                report.hint("Run `upstream config verify` for config diagnostics.");
+                report.hint("Fix unknown keys directly in config.toml.");
                 None
             }
         }
@@ -375,8 +326,8 @@ mod tests {
     }
 
     #[test]
-    fn check_app_config_reports_unused_keys_without_fix() {
-        let root = test_support::temp_root("upstream-doctor-test", "config-unused");
+    fn check_app_config_reports_invalid_config_without_fix() {
+        let root = test_support::temp_root("upstream-doctor-test", "config-invalid");
         let paths = test_support::upstream_paths(&root);
         fs::create_dir_all(paths.config.config_file.parent().expect("config parent"))
             .expect("create config parent");
@@ -394,7 +345,7 @@ mod tests {
             report
                 .failures
                 .iter()
-                .any(|failure| failure.contains("Config contains unused key(s): version"))
+                .any(|failure| failure.contains("Config file is invalid"))
         );
         assert!(
             fs::read_to_string(&paths.config.config_file)
@@ -406,8 +357,8 @@ mod tests {
     }
 
     #[test]
-    fn check_app_config_fix_removes_unused_keys() {
-        let root = test_support::temp_root("upstream-doctor-test", "config-fix-unused");
+    fn check_app_config_reports_invalid_config_with_fix() {
+        let root = test_support::temp_root("upstream-doctor-test", "config-fix-invalid");
         let paths = test_support::upstream_paths(&root);
         fs::create_dir_all(paths.config.config_file.parent().expect("config parent"))
             .expect("create config parent");
@@ -418,19 +369,18 @@ mod tests {
         .expect("write config");
         let mut report = DoctorReport::new();
 
-        let config = check_app_config(&paths, true, &mut report).expect("load fixed config");
+        let config = check_app_config(&paths, true, &mut report);
 
-        assert_eq!(config.download.high_threads, 6);
+        assert!(config.is_none());
         assert!(
             report
-                .findings
+                .failures
                 .iter()
-                .any(|finding| finding.message.contains("Removed unused config key(s):"))
+                .any(|failure| failure.contains("Config file is invalid"))
         );
         let content = fs::read_to_string(&paths.config.config_file).expect("read config");
-        assert!(!content.contains("version"));
-        assert!(!content.contains("[extra]"));
-        assert!(content.contains("high_threads = 6"));
+        assert!(content.contains("version = 2"));
+        assert!(content.contains("[extra]"));
 
         cleanup(&root).expect("cleanup");
     }

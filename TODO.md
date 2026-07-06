@@ -9,9 +9,6 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
-- [ ] BREAKING: verify is no longer a subcommand for 'config' nor 'auth'. foreign keys are rejected on config load
-      @created 2026-07-06 19:09
-
 
 ## Completed
 
@@ -26,4 +23,8 @@
 - [x] feat: auth subcommand
       @created 2026-07-06 18:57
       @completed 2026-07-06 18:57
+
+- [x] BREAKING: verify is no longer a subcommand for 'config' nor 'auth'. foreign keys are rejected on config load
+      @created 2026-07-06 19:09
+      @completed 2026-07-06 19:09
 

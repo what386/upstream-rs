@@ -1,6 +1,8 @@
 use std::fmt;
 
-use crate::application::cli::arguments::{AuthAction, Commands, ConfigAction, HooksAction, PackageAction};
+use crate::application::cli::arguments::{
+    AuthAction, Commands, ConfigAction, HooksAction, PackageAction,
+};
 
 impl fmt::Display for Commands {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -44,7 +46,6 @@ impl fmt::Display for ConfigAction {
             ConfigAction::Set { .. } => write!(f, "config set"),
             ConfigAction::Get { .. } => write!(f, "config get"),
             ConfigAction::List => write!(f, "config list"),
-            ConfigAction::Verify => write!(f, "config verify"),
             ConfigAction::Edit => write!(f, "config edit"),
             ConfigAction::Reset => write!(f, "config reset"),
         }
@@ -57,6 +58,7 @@ impl fmt::Display for AuthAction {
             AuthAction::Set { .. } => write!(f, "auth set"),
             AuthAction::Get { .. } => write!(f, "auth get"),
             AuthAction::List => write!(f, "auth list"),
+            AuthAction::Edit => write!(f, "auth edit"),
             AuthAction::Reset => write!(f, "auth reset"),
         }
     }

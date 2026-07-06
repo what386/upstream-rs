@@ -618,32 +618,31 @@ pub enum Commands {
         dry_run: bool,
     },
 
-    /// View, edit, and validate config.toml
-    #[command(long_about = "View, edit, and validate config.toml.\n\n\
+    /// View and edit config.toml
+    #[command(long_about = "View and edit config.toml.\n\n\
         Config values are stored in TOML under upstream's data directory. Missing keys \
-        use built-in defaults. Use verify to find missing default-backed keys and unused \
-        keys left behind by old versions or manual edits. Provider API tokens live in \
+        use built-in defaults. Unknown keys are rejected when config.toml is loaded. Provider API tokens live in \
         auth.toml and are managed with `upstream auth`.\n\n\
         EXAMPLES:\n  \
         upstream config set download.low_threads=2\n  \
         upstream config get download.high_threads\n  \
         upstream config list\n  \
-        upstream config verify\n  \
         upstream config edit")]
     Config {
         #[command(subcommand)]
         action: ConfigAction,
     },
 
-    /// View, edit, and validate auth.toml
-    #[command(long_about = "View, edit, and validate auth.toml.\n\n\
+    /// View and edit auth.toml
+    #[command(long_about = "View and edit auth.toml.\n\n\
         Provider API tokens are stored separately from config.toml so secrets can be \
-        managed without mixing them into public config exports. Use auth set/get/list/reset \
+        managed without mixing them into public config exports. Unknown keys are rejected when auth.toml is loaded. Use auth set/get/list/edit/reset \
         to inspect or update provider tokens.\n\n\
         EXAMPLES:\n  \
         upstream auth set github.api_token=ghp_xxx\n  \
         upstream auth get github.api_token\n  \
         upstream auth list\n  \
+        upstream auth edit\n  \
         upstream auth reset")]
     Auth {
         #[command(subcommand)]
@@ -778,11 +777,12 @@ impl Commands {
             Commands::Rollback { list: true, .. } => false,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
             Commands::Package { .. } => true,
-            Commands::Config { action } => !matches!(
-                action,
-                ConfigAction::Get { .. } | ConfigAction::List | ConfigAction::Verify
-            ),
-            Commands::Auth { action } => !matches!(action, AuthAction::Get { .. } | AuthAction::List),
+            Commands::Config { action } => {
+                !matches!(action, ConfigAction::Get { .. } | ConfigAction::List)
+            }
+            Commands::Auth { action } => {
+                !matches!(action, AuthAction::Get { .. } | AuthAction::List)
+            }
             Commands::Install { .. }
             | Commands::Build { .. }
             | Commands::Remove { .. }
@@ -995,15 +995,6 @@ pub enum ConfigAction {
         upstream config list")]
     List,
 
-    /// Check config.toml for missing or unused keys
-    #[command(long_about = "Check config.toml for missing or unused keys.\n\n\
-        Missing supported keys are warnings because upstream will use built-in defaults. \
-        Unused keys are failures because this version of upstream does not read them. \
-        Run `upstream doctor --fix` to remove unused keys automatically.\n\n\
-        EXAMPLE:\n  \
-        upstream config verify")]
-    Verify,
-
     /// Open config.toml in your default editor
     #[command(long_about = "Open config.toml in your default editor.\n\n\
         Uses EDITOR, then VISUAL, then a platform default. After the editor exits, \
@@ -1057,6 +1048,14 @@ pub enum AuthAction {
         EXAMPLE:\n  \
         upstream auth list")]
     List,
+
+    /// Open auth.toml in your default editor
+    #[command(long_about = "Open auth.toml in your default editor.\n\n\
+        Uses EDITOR, then VISUAL, then a platform default. After the editor exits, \
+        upstream reloads auth.toml and reports whether it can still be parsed.\n\n\
+        EXAMPLE:\n  \
+        upstream auth edit")]
+    Edit,
 
     /// Reset auth.toml to defaults
     #[command(long_about = "Reset auth.toml to upstream defaults.\n\n\

@@ -7,11 +7,11 @@ mod style;
 mod table;
 
 pub use markdown::MarkdownRenderer;
+pub use pager::set_no_pager;
 pub use prompt::{
     assume_yes, confirm_or_cancel, prompt_text, select_from_list, select_from_table,
     select_from_table_with_preview, set_assume_yes,
 };
-pub use pager::set_no_pager;
 pub use status::error_summary_with_limit;
 pub use status::{
     Status, error_summary, status_cell, status_label, status_line, status_line_text,

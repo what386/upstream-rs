@@ -92,10 +92,7 @@ fn migrate_legacy_auth_config(paths: &UpstreamPaths) -> Result<()> {
     })?;
 
     #[cfg(unix)]
-    fs::set_permissions(
-        &paths.config.config_file,
-        fs::Permissions::from_mode(0o600),
-    )?;
+    fs::set_permissions(&paths.config.config_file, fs::Permissions::from_mode(0o600))?;
 
     Ok(())
 }
@@ -137,10 +134,7 @@ mod tests {
         assert!(migrated_config.contains("[download]"));
 
         let auth = AuthStorage::new(&paths.config.auth_file).expect("load auth");
-        assert_eq!(
-            auth.get_auth().github.api_token.as_deref(),
-            Some("ghp_abc")
-        );
+        assert_eq!(auth.get_auth().github.api_token.as_deref(), Some("ghp_abc"));
 
         cleanup(&root).expect("cleanup");
     }

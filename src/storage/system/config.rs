@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, anyhow};
 use serde::de::DeserializeOwned;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use toml;
@@ -10,46 +10,6 @@ use crate::utils::filesystem::atomic_ops::write_atomic;
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-
-const ALLOWED_TOP_LEVEL_KEYS: &[&str] = &[
-    "download", "upgrade", "rollback",
-];
-const EXPECTED_CONFIG_PATHS: &[&str] = &[
-    "download",
-    "download.low_threshold_mb",
-    "download.high_threshold_mb",
-    "download.low_threads",
-    "download.high_threads",
-    "upgrade",
-    "upgrade.check_concurrency",
-    "upgrade.install_concurrency",
-    "rollback",
-    "rollback.compression_level",
-    "rollback.stored_artifacts",
-];
-const DEFAULTED_CONFIG_KEYS: &[&str] = &[
-    "download.low_threshold_mb",
-    "download.high_threshold_mb",
-    "download.low_threads",
-    "download.high_threads",
-    "upgrade.check_concurrency",
-    "upgrade.install_concurrency",
-    "rollback.compression_level",
-    "rollback.stored_artifacts",
-];
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConfigVerification {
-    pub config_file_exists: bool,
-    pub missing_keys: Vec<String>,
-    pub unused_keys: Vec<String>,
-}
-
-impl ConfigVerification {
-    pub fn has_issues(&self) -> bool {
-        !self.missing_keys.is_empty() || !self.unused_keys.is_empty()
-    }
-}
 
 #[derive(Debug)]
 pub struct ConfigStorage {
@@ -78,24 +38,7 @@ impl ConfigStorage {
         let toml_str =
             fs::read_to_string(&self.config_file).context("Failed to load config file")?;
 
-        let value: toml::Value =
-            toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
-
-        if let Some(table) = value.as_table() {
-            for key in table.keys() {
-                if !ALLOWED_TOP_LEVEL_KEYS.contains(&key.as_str()) {
-                    return Err(anyhow!(
-                        "Unsupported config key '{}' in '{}'; run `upstream config verify` to inspect unused keys.",
-                        key,
-                        self.config_file.display()
-                    ));
-                }
-            }
-        }
-
-        self.config = value
-            .try_into()
-            .context("Tried to parse an invalid config")?;
+        self.config = toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
         Ok(())
     }
 
@@ -186,76 +129,6 @@ impl ConfigStorage {
         Self::flatten_value(&root, "", 10, 0)
     }
 
-    pub fn verify_file(config_file: &Path) -> Result<ConfigVerification> {
-        if !config_file.exists() {
-            return Ok(ConfigVerification {
-                config_file_exists: false,
-                missing_keys: DEFAULTED_CONFIG_KEYS
-                    .iter()
-                    .map(|key| (*key).to_string())
-                    .collect(),
-                unused_keys: Vec::new(),
-            });
-        }
-
-        let toml_str = fs::read_to_string(config_file).context("Failed to load config file")?;
-        let value: toml::Value =
-            toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
-        let mut all_paths = BTreeSet::new();
-        let mut leaf_paths = BTreeSet::new();
-        collect_config_paths(&value, "", &mut all_paths, &mut leaf_paths);
-
-        let expected_paths: BTreeSet<&str> = EXPECTED_CONFIG_PATHS.iter().copied().collect();
-        let unused_keys = all_paths
-            .iter()
-            .filter(|path| !expected_paths.contains(path.as_str()))
-            .cloned()
-            .collect();
-        let missing_keys = DEFAULTED_CONFIG_KEYS
-            .iter()
-            .filter(|key| !leaf_paths.contains(**key))
-            .map(|key| (*key).to_string())
-            .collect();
-
-        let mut normalized = value;
-        remove_unused_config_paths(&mut normalized, "");
-        let _config: AppConfig = normalized
-            .try_into()
-            .context("Tried to parse known config keys")?;
-
-        Ok(ConfigVerification {
-            config_file_exists: true,
-            missing_keys,
-            unused_keys,
-        })
-    }
-
-    pub fn remove_unused_keys(config_file: &Path) -> Result<Vec<String>> {
-        if !config_file.exists() {
-            return Ok(Vec::new());
-        }
-
-        let verification = Self::verify_file(config_file)?;
-        if verification.unused_keys.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let toml_str = fs::read_to_string(config_file).context("Failed to load config file")?;
-        let mut value: toml::Value =
-            toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
-        remove_unused_config_paths(&mut value, "");
-
-        let rendered =
-            toml::to_string_pretty(&value).context("Failed to serialize cleaned config")?;
-        write_atomic(config_file, rendered.as_bytes())
-            .with_context(|| format!("Failed to save config to '{}'", config_file.display()))?;
-
-        #[cfg(unix)]
-        set_config_permissions(config_file)?;
-
-        Ok(verification.unused_keys)
-    }
-
     /// Resets all configuration to defaults.
     pub fn reset_to_defaults(&mut self) -> Result<()> {
         self.config = AppConfig::default();
@@ -328,60 +201,6 @@ fn set_config_permissions(config_file: &Path) -> Result<()> {
     fs::set_permissions(config_file, fs::Permissions::from_mode(0o600))?;
 
     Ok(())
-}
-
-fn collect_config_paths(
-    value: &toml::Value,
-    prefix: &str,
-    all_paths: &mut BTreeSet<String>,
-    leaf_paths: &mut BTreeSet<String>,
-) {
-    match value {
-        toml::Value::Table(table) => {
-            if !prefix.is_empty() {
-                all_paths.insert(prefix.to_string());
-            }
-            for (key, value) in table {
-                let next = if prefix.is_empty() {
-                    key.clone()
-                } else {
-                    format!("{prefix}.{key}")
-                };
-                collect_config_paths(value, &next, all_paths, leaf_paths);
-            }
-        }
-        _ => {
-            if !prefix.is_empty() {
-                all_paths.insert(prefix.to_string());
-                leaf_paths.insert(prefix.to_string());
-            }
-        }
-    }
-}
-
-fn remove_unused_config_paths(value: &mut toml::Value, prefix: &str) {
-    let Some(table) = value.as_table_mut() else {
-        return;
-    };
-
-    table.retain(|key, child| {
-        let path = if prefix.is_empty() {
-            key.to_string()
-        } else {
-            format!("{prefix}.{key}")
-        };
-        if !is_expected_config_path_or_parent(&path) {
-            return false;
-        }
-        remove_unused_config_paths(child, &path);
-        true
-    });
-}
-
-fn is_expected_config_path_or_parent(path: &str) -> bool {
-    EXPECTED_CONFIG_PATHS
-        .iter()
-        .any(|expected| *expected == path || expected.starts_with(&format!("{path}.")))
 }
 
 #[cfg(test)]
@@ -500,7 +319,7 @@ mod tests {
         fs::write(&path, "version = 999\n\n[download]\nhigh_threads = 6\n").expect("write config");
 
         let err = ConfigStorage::new(&path).expect_err("legacy version should be rejected");
-        assert!(err.to_string().contains("Unsupported config key 'version'"));
+        assert!(err.to_string().contains("Tried to parse an invalid config"));
 
         cleanup(&path).expect("cleanup");
     }
@@ -530,47 +349,7 @@ mod tests {
         fs::write(&path, "[github]\napi_token = \"ghp_abc\"\n").expect("write config");
 
         let err = ConfigStorage::new(&path).expect_err("auth config should be rejected");
-        assert!(err.to_string().contains("Unsupported config key 'github'"));
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
-    fn verify_reports_missing_and_unused_keys() {
-        let path = temp_config_file("verify");
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("create parent");
-        }
-        fs::write(
-            &path,
-            "version = 2\n\n[download]\nlow_threads = 3\n\n[extra]\nvalue = true\n",
-        )
-        .expect("write config");
-
-        let verification = ConfigStorage::verify_file(&path).expect("verify config");
-        assert!(verification.config_file_exists);
-        assert!(verification.unused_keys.contains(&"version".to_string()));
-        assert!(verification.unused_keys.contains(&"extra".to_string()));
-        assert!(
-            verification
-                .unused_keys
-                .contains(&"extra.value".to_string())
-        );
-        assert!(
-            verification
-                .missing_keys
-                .contains(&"download.high_threads".to_string())
-        );
-        assert!(
-            verification
-                .missing_keys
-                .contains(&"rollback.compression_level".to_string())
-        );
-        assert!(
-            verification
-                .missing_keys
-                .contains(&"upgrade.check_concurrency".to_string())
-        );
+        assert!(err.to_string().contains("Tried to parse an invalid config"));
 
         cleanup(&path).expect("cleanup");
     }

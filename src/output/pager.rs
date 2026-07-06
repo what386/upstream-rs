@@ -109,15 +109,15 @@ fn no_pager() -> bool {
 
 pub fn should_page(line_count: usize) -> bool {
     let term = Term::stdout();
-    should_page_with(line_count, term.is_term(), no_pager(), PagerConfig::from_term(&term))
+    should_page_with(
+        line_count,
+        term.is_term(),
+        no_pager(),
+        PagerConfig::from_term(&term),
+    )
 }
 
-fn should_page_with(
-    line_count: usize,
-    is_term: bool,
-    no_pager: bool,
-    config: PagerConfig,
-) -> bool {
+fn should_page_with(line_count: usize, is_term: bool, no_pager: bool, config: PagerConfig) -> bool {
     !no_pager && is_term && line_count > config.visible_rows()
 }
 
