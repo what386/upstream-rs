@@ -12,3 +12,10 @@
 - [ ] feat: auto-desktop detection
       @created 2026-06-29 19:09
 
+
+## Completed
+
+- [x] BREAKING: move 'stateful' directories to state/
+      @created 2026-07-06 16:45
+      @completed 2026-07-06 16:45
+
