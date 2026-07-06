@@ -69,7 +69,7 @@ fn refresh_symlinks(
     packages: &[crate::models::upstream::Package],
     report: &mut MigrationReport,
 ) -> Result<()> {
-    let symlink_manager = SymlinkManager::new(&paths.integration.symlinks_dir);
+    let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
 
     for package in packages {
         let target = package.exec_path.as_ref().or(package.install_path.as_ref());
@@ -184,7 +184,7 @@ mod tests {
             .expect("serialize packages"),
         )
         .expect("write packages");
-        fs::create_dir_all(&paths.integration.symlinks_dir).expect("create symlinks");
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks");
         PackageDatabase::open(&paths.config.packages_database_file).expect("create empty db");
         let mut report = MigrationReport::default();
 
