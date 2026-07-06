@@ -34,7 +34,7 @@ pub struct Cli {
     #[arg(short = 'y', long, global = true, default_value_t = false)]
     pub yes: bool,
 
-    /// Prevent paging for long outputs
+    /// Prevent paging long command outputs
     #[arg(long, global = true, default_value_t = false)]
     pub no_pager: bool,
 
