@@ -12,3 +12,6 @@
 - [ ] feat: auto-desktop detection
       @created 2026-06-29 19:09
 
+- [ ] feat: --no-pager flag
+      @created 2026-07-06 17:12
+
