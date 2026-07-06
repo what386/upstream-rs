@@ -408,7 +408,7 @@ impl<'a> UpgradeOperation<'a> {
                     .estimate_active_size(&package)
                     .unwrap_or(0);
                 let existing_rollback =
-                    estimate_path_size(&self.paths.install.rollback_dir.join(&package.name))
+                    estimate_path_size(&self.paths.state.rollback_dir.join(&package.name))
                         .unwrap_or(0);
                 SignedByteEstimate::exact(
                     i128::from(active_size).saturating_sub(i128::from(existing_rollback)),

@@ -153,7 +153,7 @@ impl<'a> RollbackManager<'a> {
                 artifact_path.display()
             )
         })?;
-        let package_rollback_dir = paths.install.rollback_dir.join(&package.name);
+        let package_rollback_dir = paths.state.rollback_dir.join(&package.name);
         fs::create_dir_all(&package_rollback_dir).context(format!(
             "Failed to create rollback directory '{}'",
             package_rollback_dir.display()
@@ -190,13 +190,13 @@ impl<'a> RollbackManager<'a> {
             return Ok(RollbackRecord {
                 package_snapshot: package.clone(),
                 artifact_relative_path: path_relative_to(
-                    &paths.install.rollback_dir,
+                    &paths.state.rollback_dir,
                     &rollback_artifact,
                 )?,
                 icon_relative_path: icon_entry_path
                     .as_ref()
                     .map(|entry| {
-                        path_relative_to(&paths.install.rollback_dir, &capture_dir.join(entry))
+                        path_relative_to(&paths.state.rollback_dir, &capture_dir.join(entry))
                     })
                     .transpose()?,
                 artifact_format: RollbackArtifactFormat::Raw,
@@ -216,7 +216,7 @@ impl<'a> RollbackManager<'a> {
 
         Ok(RollbackRecord {
             package_snapshot: package.clone(),
-            artifact_relative_path: path_relative_to(&paths.install.rollback_dir, &archive_path)?,
+            artifact_relative_path: path_relative_to(&paths.state.rollback_dir, &archive_path)?,
             icon_relative_path: None,
             artifact_format: RollbackArtifactFormat::Tgz,
             artifact_entry_path: Some(artifact_entry_path),
@@ -371,7 +371,7 @@ impl<'a> RollbackManager<'a> {
     pub fn estimate_prune_impact(&self, package_name: &str) -> Option<DiskImpact> {
         self.rollback_storage.get_record(package_name)?;
         let rollback_dir_size =
-            estimate_path_size(&self.paths.install.rollback_dir.join(package_name)).unwrap_or(0);
+            estimate_path_size(&self.paths.state.rollback_dir.join(package_name)).unwrap_or(0);
 
         Some(DiskImpact {
             download: ByteEstimate::exact(0),
@@ -436,7 +436,7 @@ fn capture_icon(
         icon_backup.display()
     ))?;
 
-    path_relative_to(&paths.install.rollback_dir, &icon_backup)?;
+    path_relative_to(&paths.state.rollback_dir, &icon_backup)?;
     Ok(Some(icon_entry_path))
 }
 
@@ -512,7 +512,7 @@ fn extract_record_archive(
         ));
     }
 
-    let extract_dir = paths.install.rollback_dir.join(format!(
+    let extract_dir = paths.state.rollback_dir.join(format!(
         ".restore-{}-{}",
         package_name,
         std::process::id()
@@ -601,7 +601,7 @@ fn record_icon_source_path(
         RollbackArtifactFormat::Raw => Ok(record
             .icon_relative_path
             .as_ref()
-            .map(|path| paths.install.rollback_dir.join(path))),
+            .map(|path| paths.state.rollback_dir.join(path))),
         RollbackArtifactFormat::Tgz => {
             let Some(entry) = record.icon_entry_path.as_ref() else {
                 return Ok(None);
@@ -626,15 +626,15 @@ fn delete_record_artifacts(
                 .join(&record.artifact_relative_path);
             remove_file_or_dir_if_exists(&artifact_path)?;
             if let Some(icon_path) = record.icon_relative_path.as_ref() {
-                let icon_path = paths.install.rollback_dir.join(icon_path);
+                let icon_path = paths.state.rollback_dir.join(icon_path);
                 remove_file_or_dir_if_exists(&icon_path)?;
                 cleanup_empty_rollback_ancestors(
-                    &paths.install.rollback_dir.join(package_name),
+                    &paths.state.rollback_dir.join(package_name),
                     icon_path.parent(),
                 )?;
             }
             cleanup_empty_rollback_ancestors(
-                &paths.install.rollback_dir.join(package_name),
+                &paths.state.rollback_dir.join(package_name),
                 artifact_path.parent(),
             )?;
         }
@@ -677,7 +677,7 @@ fn cleanup_empty_rollback_ancestors(package_dir: &Path, start: Option<&Path>) ->
 }
 
 fn cleanup_empty_package_rollback_dir(paths: &UpstreamPaths, package_name: &str) -> Result<()> {
-    let package_dir = paths.install.rollback_dir.join(package_name);
+    let package_dir = paths.state.rollback_dir.join(package_name);
     if package_dir.exists()
         && package_dir
             .read_dir()
@@ -795,7 +795,7 @@ mod tests {
                 .is_some_and(|extension| extension == "tgz")
         }));
         assert_eq!(
-            fs::read_dir(paths.install.rollback_dir.join("tool"))
+            fs::read_dir(paths.state.rollback_dir.join("tool"))
                 .expect("rollback package dir")
                 .count(),
             2

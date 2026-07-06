@@ -919,7 +919,7 @@ impl<'a> PackageInstaller<'a> {
             path_to_add.display()
         );
 
-        let symlink_manager = SymlinkManager::new(&self.paths.integration.symlinks_dir);
+        let symlink_manager = SymlinkManager::new(&self.paths.state.symlinks_dir);
 
         symlink_manager
             .add_link(&exec_path, &package.name)
@@ -1234,7 +1234,7 @@ impl<'a> PackageInstaller<'a> {
             }
         }
 
-        SymlinkManager::new(&self.paths.integration.symlinks_dir)
+        SymlinkManager::new(&self.paths.state.symlinks_dir)
             .add_link(&out_path, &package.name)
             .context(format!("Failed to create symlink for '{}'", package.name))?;
 
@@ -1281,7 +1281,7 @@ impl<'a> PackageInstaller<'a> {
 
         message!(message_callback, "Made '{}' executable", filename.display());
 
-        SymlinkManager::new(&self.paths.integration.symlinks_dir)
+        SymlinkManager::new(&self.paths.state.symlinks_dir)
             .add_link(&out_path, &package.name)
             .context(format!("Failed to create symlink for '{}'", package.name))?;
 

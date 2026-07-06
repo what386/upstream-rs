@@ -10,7 +10,7 @@ use crate::utils::filesystem::atomic_ops::write_atomic;
 
 pub const MANIFEST_FILE_NAME: &str = "migration.json";
 pub const MANIFEST_STORAGE_VERSION: u32 = 1;
-pub const CURRENT_LAYOUT_VERSION: u32 = 3;
+pub const CURRENT_LAYOUT_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlatformInfo {

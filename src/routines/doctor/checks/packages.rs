@@ -174,7 +174,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
     fix: bool,
     report: &mut DoctorReport,
 ) -> Result<()> {
-    let symlink_manager = SymlinkManager::new(&paths.integration.symlinks_dir);
+    let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
 
     for package in selected {
         let package_name = package.name.clone();
@@ -279,7 +279,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
         }
 
         if resolved_exec_path.is_some() {
-            let link_path = expected_link_path(&paths.integration.symlinks_dir, &package.name);
+            let link_path = expected_link_path(&paths.state.symlinks_dir, &package.name);
             #[cfg(unix)]
             {
                 let Some(exec_path) = &resolved_exec_path else {

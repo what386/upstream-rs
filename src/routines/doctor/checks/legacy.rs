@@ -32,9 +32,13 @@ pub fn current_package_layout_incomplete(paths: &UpstreamPaths) -> bool {
     [
         paths.dirs.packages_dir.as_path(),
         paths.dirs.cache_dir.as_path(),
+        paths.dirs.state_dir.as_path(),
         paths.install.appimages_dir.as_path(),
         paths.install.binaries_dir.as_path(),
         paths.install.archives_dir.as_path(),
+        paths.state.rollback_dir.as_path(),
+        paths.state.symlinks_dir.as_path(),
+        paths.state.icons_dir.as_path(),
     ]
     .iter()
     .any(|path| !path.exists())

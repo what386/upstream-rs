@@ -108,7 +108,7 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
         ("config directory", &paths.dirs.config_dir),
         ("data directory", &paths.dirs.data_dir),
         ("metadata directory", &paths.dirs.metadata_dir),
-        ("symlinks directory", &paths.integration.symlinks_dir),
+        ("symlinks directory", &paths.state.symlinks_dir),
         ("appimages directory", &paths.install.appimages_dir),
         ("binaries directory", &paths.install.binaries_dir),
         ("archives directory", &paths.install.archives_dir),
@@ -208,7 +208,7 @@ fn add_to_windows_path(paths: &UpstreamPaths) -> Result<()> {
         .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
         .context("Failed to open registry key")?;
 
-    let symlinks_path = paths.integration.symlinks_dir.display().to_string();
+    let symlinks_path = paths.state.symlinks_dir.display().to_string();
     let symlinks_norm = normalize_windows_path(&symlinks_path);
 
     // Get current PATH
@@ -272,8 +272,9 @@ fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
     fs::create_dir_all(&paths.install.binaries_dir)?;
     fs::create_dir_all(&paths.install.archives_dir)?;
     fs::create_dir_all(&paths.install.tmp_dir)?;
-    fs::create_dir_all(&paths.integration.icons_dir)?;
-    fs::create_dir_all(&paths.integration.symlinks_dir)?;
+    fs::create_dir_all(&paths.state.rollback_dir)?;
+    fs::create_dir_all(&paths.state.icons_dir)?;
+    fs::create_dir_all(&paths.state.symlinks_dir)?;
     for (_shell, dir) in CompletionManager::new(paths).installed_shell_completion_dirs() {
         fs::create_dir_all(dir)?;
     }
@@ -295,7 +296,7 @@ fn create_metadata_files(paths: &UpstreamPaths) -> io::Result<()> {
     if !paths.config.paths_file.exists() {
         let export_line = format!(
             r#"export PATH="{}:$PATH""#,
-            paths.integration.symlinks_dir.display()
+            paths.state.symlinks_dir.display()
         );
         fs::write(
             &paths.config.paths_file,
@@ -308,7 +309,7 @@ fn create_metadata_files(paths: &UpstreamPaths) -> io::Result<()> {
     if !paths.config.paths_nu_file.exists() {
         fs::write(
             &paths.config.paths_nu_file,
-            render_nushell_paths_file(&[paths.integration.symlinks_dir.display().to_string()]),
+            render_nushell_paths_file(&[paths.state.symlinks_dir.display().to_string()]),
         )?;
     }
     Ok(())
@@ -352,7 +353,7 @@ fn update_shell_profiles(paths: &UpstreamPaths) -> io::Result<()> {
 fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -> io::Result<()> {
     let expected_line = format!(
         r#"export PATH="{}:$PATH""#,
-        paths.integration.symlinks_dir.display()
+        paths.state.symlinks_dir.display()
     );
 
     if !paths.config.paths_file.exists() {
@@ -384,7 +385,7 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
         }
     }
 
-    let expected_nushell_path = paths.integration.symlinks_dir.display().to_string();
+    let expected_nushell_path = paths.state.symlinks_dir.display().to_string();
 
     if !paths.config.paths_nu_file.exists() {
         check_fail(
@@ -548,7 +549,7 @@ fn remove_from_windows_path(paths: &UpstreamPaths) -> Result<()> {
         .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
         .context("Failed to open registry key")?;
 
-    let symlinks_path = paths.integration.symlinks_dir.display().to_string();
+    let symlinks_path = paths.state.symlinks_dir.display().to_string();
     let symlinks_norm = normalize_windows_path(&symlinks_path);
 
     // Get current PATH
@@ -582,7 +583,7 @@ fn check_windows_integration(paths: &UpstreamPaths, report: &mut InitCheckReport
         .open_subkey_with_flags("Environment", KEY_READ)
         .context("Failed to open PATH")?;
 
-    let symlinks_path = paths.integration.symlinks_dir.display().to_string();
+    let symlinks_path = paths.state.symlinks_dir.display().to_string();
     let symlinks_norm = normalize_windows_path(&symlinks_path);
     let current_path: String = env_key.get_value("Path").unwrap_or_else(|_| String::new());
 
@@ -604,7 +605,7 @@ mod tests {
     use super::purge_data;
     use crate::storage::manifest::{CURRENT_LAYOUT_VERSION, MANIFEST_FILE_NAME};
     use crate::utils::static_paths::{
-        AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, UpstreamPaths,
+        AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, StatePaths, UpstreamPaths,
     };
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -623,6 +624,7 @@ mod tests {
             user_dir: root.to_path_buf(),
             config_dir: root.join("config"),
             data_dir: root.join(".upstream"),
+            state_dir: root.join(".upstream/state"),
             packages_dir: root.join(".upstream/packages"),
             cache_dir: root.join(".upstream/cache"),
             metadata_dir: root.join(".upstream/metadata"),
@@ -641,13 +643,15 @@ mod tests {
                 appimages_dir: dirs.packages_dir.join("appimages"),
                 binaries_dir: dirs.packages_dir.join("binaries"),
                 archives_dir: dirs.packages_dir.join("archives"),
-                rollback_dir: dirs.data_dir.join("rollback"),
                 tmp_dir: dirs.data_dir.join("tmp"),
             },
+            state: StatePaths {
+                rollback_dir: dirs.state_dir.join("rollback"),
+                symlinks_dir: dirs.state_dir.join("symlinks"),
+                icons_dir: dirs.state_dir.join("icons"),
+            },
             integration: IntegrationPaths {
-                symlinks_dir: dirs.data_dir.join("symlinks"),
                 xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
-                icons_dir: dirs.data_dir.join("icons"),
                 bash_completions_dir: dirs
                     .user_dir
                     .join(".local/share/bash-completion/completions"),
@@ -781,13 +785,13 @@ mod tests {
 
         let posix_content = fs::read_to_string(&paths.config.paths_file).expect("read paths.sh");
         assert!(posix_content.contains("export PATH="));
-        assert!(posix_content.contains(&paths.integration.symlinks_dir.display().to_string()));
+        assert!(posix_content.contains(&paths.state.symlinks_dir.display().to_string()));
 
         let nushell_content =
             fs::read_to_string(&paths.config.paths_nu_file).expect("read paths.nu");
         assert!(nushell_content.contains("let upstream_paths = ["));
         assert!(nushell_content.contains("$env.PATH = ($upstream_paths ++ $env.PATH)"));
-        assert!(nushell_content.contains(&paths.integration.symlinks_dir.display().to_string()));
+        assert!(nushell_content.contains(&paths.state.symlinks_dir.display().to_string()));
 
         cleanup(&root).expect("cleanup");
     }

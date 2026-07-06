@@ -838,7 +838,7 @@ mod tests {
     }
 
     fn expected_symlink_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
-        let base = paths.integration.symlinks_dir.join(name);
+        let base = paths.state.symlinks_dir.join(name);
         #[cfg(windows)]
         {
             return base.with_extension("exe");
@@ -903,7 +903,7 @@ mod tests {
         let paths = test_paths(&root);
         fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
         fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
-        fs::create_dir_all(&paths.integration.symlinks_dir).expect("create symlinks dir");
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
 
         let install_path = paths.install.binaries_dir.join("tool");
         let backup_path = paths.install.tmp_dir.join("tool.old");
@@ -956,7 +956,7 @@ mod tests {
         let paths = test_paths(&root);
         fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
         fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
-        fs::create_dir_all(&paths.integration.symlinks_dir).expect("create symlinks dir");
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
 
         let install_path = paths.install.binaries_dir.join("tool");
         let backup_path = paths.install.tmp_dir.join("tool.old");
@@ -1007,7 +1007,7 @@ mod tests {
         let paths = test_paths(&root);
         fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
         fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
-        fs::create_dir_all(&paths.integration.symlinks_dir).expect("create symlinks dir");
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
 
         let install_path = paths.install.binaries_dir.join("tool");
         fs::write(&install_path, b"old").expect("write installed binary");

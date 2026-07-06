@@ -78,7 +78,7 @@ impl<'a> PackageRemover<'a> {
         if let Some(icon_path) = package.icon_path.as_ref() {
             paths.push(icon_path.clone());
         }
-        paths.push(self.paths.integration.symlinks_dir.join(&package.name));
+        paths.push(self.paths.state.symlinks_dir.join(&package.name));
         paths.push(
             self.paths
                 .integration
@@ -256,7 +256,7 @@ impl<'a> PackageRemover<'a> {
         }
 
         message!(message_callback, "Removing symlink for '{}'", package.name);
-        SymlinkManager::new(&self.paths.integration.symlinks_dir)
+        SymlinkManager::new(&self.paths.state.symlinks_dir)
             .remove_link(&package.name)
             .context(format!("Failed to remove symlink for '{}'", package.name))?;
 
@@ -304,7 +304,7 @@ impl<'a> PackageRemover<'a> {
             && exec_path.exists()
         {
             message!(message_callback, "Restoring symlink for '{}'", package.name);
-            SymlinkManager::new(&self.paths.integration.symlinks_dir)
+            SymlinkManager::new(&self.paths.state.symlinks_dir)
                 .add_link(exec_path, &package.name)
                 .context(format!("Failed to restore symlink for '{}'", package.name))?;
         }
@@ -356,7 +356,7 @@ impl<'a> PackageRemover<'a> {
     where
         H: FnMut(&str),
     {
-        let icons_dir = &self.paths.integration.icons_dir;
+        let icons_dir = &self.paths.state.icons_dir;
         if !icons_dir.exists() {
             return Ok(());
         }
@@ -431,8 +431,8 @@ mod tests {
     fn remove_path_if_exists_deletes_file_and_directory() {
         let root = temp_root("remove-path");
         let paths = test_paths(&root);
-        fs::create_dir_all(&paths.integration.icons_dir).expect("create icons dir");
-        let file = paths.integration.icons_dir.join("pkg.png");
+        fs::create_dir_all(&paths.state.icons_dir).expect("create icons dir");
+        let file = paths.state.icons_dir.join("pkg.png");
         fs::write(&file, b"icon").expect("write icon");
         let nested_dir = root.join("to-remove");
         fs::create_dir_all(nested_dir.join("x")).expect("create nested dir");
@@ -601,7 +601,7 @@ mod tests {
         let root = temp_root("impact-with-rollback");
         let paths = test_paths(&root);
         let install_path = paths.install.binaries_dir.join("tool");
-        let rollback_path = paths.install.rollback_dir.join("tool").join("old-tool");
+        let rollback_path = paths.state.rollback_dir.join("tool").join("old-tool");
         fs::create_dir_all(install_path.parent().expect("parent")).expect("create install parent");
         fs::create_dir_all(rollback_path.parent().expect("parent")).expect("create rollback dir");
         fs::write(&install_path, vec![0_u8; 12]).expect("write binary");
