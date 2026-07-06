@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::upstream::Package;
 use crate::routines::migrate::MigrationReport;
+use crate::services::integration::SymlinkManager;
 use crate::storage::database::PackageDatabase;
 use crate::storage::rollback::RollbackRecord;
 use crate::utils::filesystem::atomic_ops::write_atomic;
@@ -42,6 +43,7 @@ pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result
     rewrite_package_database_icons(paths, &old_icons_dir, report)?;
     rewrite_rollback_storage(paths, &old_icons_dir, report)?;
     rewrite_desktop_entries(paths, &old_icons_dir, &paths.state.icons_dir)?;
+    refresh_symlinks(paths, report)?;
 
     Ok(())
 }
@@ -103,6 +105,10 @@ fn merge_directory_contents(src: &Path, dst: &Path, report: &mut MigrationReport
                 remove_dir_if_empty(&from)?;
                 continue;
             }
+            if paths_are_equivalent(&from, &to)? {
+                remove_file_or_dir(&from)?;
+                continue;
+            }
             return Err(anyhow::anyhow!(
                 "Refusing to overwrite existing migrated path '{}'",
                 to.display()
@@ -133,6 +139,44 @@ fn same_location(src: &Path, dst: &Path) -> Result<bool> {
         return Ok(false);
     }
     Ok(fs::canonicalize(src)? == fs::canonicalize(dst)?)
+}
+
+fn paths_are_equivalent(src: &Path, dst: &Path) -> Result<bool> {
+    let src_metadata = fs::symlink_metadata(src)
+        .with_context(|| format!("Failed to inspect '{}'", src.display()))?;
+    let dst_metadata = fs::symlink_metadata(dst)
+        .with_context(|| format!("Failed to inspect '{}'", dst.display()))?;
+
+    if src_metadata.file_type().is_symlink() || dst_metadata.file_type().is_symlink() {
+        return Ok(
+            src_metadata.file_type().is_symlink()
+                && dst_metadata.file_type().is_symlink()
+                && fs::read_link(src).with_context(|| {
+                    format!("Failed to read symlink '{}'", src.display())
+                })? == fs::read_link(dst)
+                    .with_context(|| format!("Failed to read symlink '{}'", dst.display()))?,
+        );
+    }
+
+    if src_metadata.is_file() && dst_metadata.is_file() {
+        return Ok(fs::read(src).with_context(|| format!("Failed to read '{}'", src.display()))?
+            == fs::read(dst).with_context(|| format!("Failed to read '{}'", dst.display()))?);
+    }
+
+    Ok(false)
+}
+
+fn remove_file_or_dir(path: &Path) -> Result<()> {
+    let metadata = fs::symlink_metadata(path)
+        .with_context(|| format!("Failed to inspect '{}'", path.display()))?;
+    if metadata.file_type().is_symlink() || metadata.is_file() {
+        fs::remove_file(path)
+            .with_context(|| format!("Failed to remove duplicate path '{}'", path.display()))?;
+    } else if metadata.is_dir() {
+        fs::remove_dir_all(path)
+            .with_context(|| format!("Failed to remove duplicate directory '{}'", path.display()))?;
+    }
+    Ok(())
 }
 
 fn rewrite_paths_file(path: &Path, old_path: &Path, new_path: &Path) -> Result<()> {
@@ -277,6 +321,35 @@ fn rewrite_desktop_entries(
     Ok(())
 }
 
+fn refresh_symlinks(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
+    if !paths.config.packages_database_file.exists() {
+        return Ok(());
+    }
+
+    let database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let packages = database.list_packages()?;
+    let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
+
+    for package in packages {
+        let target = package.exec_path.as_ref().or(package.install_path.as_ref());
+        let Some(target) = target else {
+            report.skipped_symlinks += 1;
+            continue;
+        };
+        if !target.exists() {
+            report.skipped_symlinks += 1;
+            continue;
+        }
+
+        symlink_manager
+            .add_link(target, &package.name)
+            .with_context(|| format!("Failed to refresh symlink for '{}'", package.name))?;
+        report.refreshed_symlinks += 1;
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::run;
@@ -415,6 +488,29 @@ mod tests {
         assert!(migrated_rollback.contains(&paths.state.icons_dir.display().to_string()));
         let migrated_desktop = fs::read_to_string(paths.integration.xdg_applications_dir.join("tool.desktop")).expect("read desktop");
         assert!(migrated_desktop.contains(&paths.state.icons_dir.display().to_string()));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn migrate_treats_existing_equivalent_state_entries_as_already_moved() {
+        let root = temp_root("duplicate-state-entry");
+        let paths = test_support::upstream_paths(&root);
+        let old_symlinks_dir = paths.dirs.data_dir.join("symlinks");
+        fs::create_dir_all(&old_symlinks_dir).expect("create old symlinks");
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create state symlinks");
+        fs::write(old_symlinks_dir.join("tool"), b"same target").expect("write old link");
+        fs::write(paths.state.symlinks_dir.join("tool"), b"same target")
+            .expect("write refreshed link");
+
+        let mut report = MigrationReport::default();
+        run(&paths, &mut report).expect("run migration");
+
+        assert!(!old_symlinks_dir.exists());
+        assert_eq!(
+            fs::read(paths.state.symlinks_dir.join("tool")).expect("read kept link"),
+            b"same target"
+        );
 
         cleanup(&root).expect("cleanup");
     }
