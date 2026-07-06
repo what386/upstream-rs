@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use console::{Key, Term, style};
@@ -7,6 +8,8 @@ use super::style::truncate_visible;
 
 const MIN_VISIBLE_ROWS: usize = 1;
 const FOOTER_ROWS: usize = 1;
+
+static NO_PAGER: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PagerConfig {
@@ -96,12 +99,34 @@ impl PagerState {
     }
 }
 
+pub fn set_no_pager(value: bool) {
+    NO_PAGER.store(value, Ordering::Relaxed);
+}
+
+fn no_pager() -> bool {
+    NO_PAGER.load(Ordering::Relaxed)
+}
+
 pub fn should_page(line_count: usize) -> bool {
     let term = Term::stdout();
-    term.is_term() && line_count > PagerConfig::from_term(&term).visible_rows()
+    should_page_with(line_count, term.is_term(), no_pager(), PagerConfig::from_term(&term))
+}
+
+fn should_page_with(
+    line_count: usize,
+    is_term: bool,
+    no_pager: bool,
+    config: PagerConfig,
+) -> bool {
+    !no_pager && is_term && line_count > config.visible_rows()
 }
 
 pub fn page_text(title: Option<&str>, text: &str) -> Result<()> {
+    if no_pager() {
+        print_without_pager(title, text)?;
+        return Ok(());
+    }
+
     let term = Term::stdout();
     if !term.is_term() {
         print_without_pager(title, text)?;
@@ -233,7 +258,10 @@ fn action_for_key(key: Key) -> PagerAction {
 
 #[cfg(test)]
 mod tests {
-    use super::{PagerAction, PagerState, action_for_key, footer_text, page_text, visible_lines};
+    use super::{
+        PagerAction, PagerConfig, PagerState, action_for_key, footer_text, page_text,
+        should_page_with, visible_lines,
+    };
     use console::Key;
 
     fn lines(count: usize) -> Vec<String> {
@@ -315,5 +343,15 @@ mod tests {
         }
 
         page_text(Some("Manual pager smoke test"), &text).expect("pager should run");
+    }
+
+    #[test]
+    fn should_page_short_circuits_when_no_pager_is_active() {
+        let config = PagerConfig { rows: 24, cols: 80 };
+
+        assert!(!should_page_with(100, true, true, config));
+        assert!(should_page_with(100, true, false, config));
+        assert!(!should_page_with(10, true, false, config));
+        assert!(!should_page_with(100, false, false, config));
     }
 }
