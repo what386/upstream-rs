@@ -15,3 +15,6 @@
 - [ ] feat: --no-pager flag
       @created 2026-07-06 17:12
 
+- [ ] behavior: auth is now stored in its own file seperate from config.toml
+      @created 2026-07-06 18:16
+
