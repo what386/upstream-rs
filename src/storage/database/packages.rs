@@ -9,7 +9,7 @@ use crate::models::upstream::Package;
 use super::mapping::{
     PACKAGE_COLUMNS, bool_to_db, enum_to_db, optional_path_to_db, row_to_package,
 };
-use super::patterns::{load_patterns, replace_patterns};
+use super::patterns::{load_patterns, load_patterns_for_packages, replace_patterns};
 
 #[derive(Debug)]
 pub struct PackageConnection {
@@ -81,20 +81,15 @@ impl PackageConnection {
             .prepare(&list_packages_query())
             .context("Failed to prepare package list query")?;
 
-        let packages = stmt
+        let mut packages = stmt
             .query_map([], row_to_package)
             .context("Failed to list packages")?
             .collect::<rusqlite::Result<Vec<_>>>()
             .context("Failed to decode package rows")?;
         drop(stmt);
 
-        packages
-            .into_iter()
-            .map(|mut package| {
-                load_patterns(&self.conn, &mut package)?;
-                Ok(package)
-            })
-            .collect()
+        load_patterns_for_packages(&self.conn, &mut packages)?;
+        Ok(packages)
     }
 
     pub fn list_path_entries(&self) -> Result<Vec<PathBuf>> {
@@ -150,11 +145,16 @@ impl PackageConnection {
             return Ok(true);
         }
 
-        tx.execute("UPDATE path_entries SET position = position + 1", [])
-            .context("Failed to shift PATH entry positions")?;
+        let position = tx
+            .query_row(
+                "SELECT COALESCE(MIN(position), 0) - 1 FROM path_entries",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .context("Failed to determine PATH entry position")?;
         tx.execute(
-            "INSERT INTO path_entries (package_name, path, position) VALUES (?1, ?2, 0)",
-            params![package_name, path],
+            "INSERT INTO path_entries (package_name, path, position) VALUES (?1, ?2, ?3)",
+            params![package_name, path, position],
         )
         .with_context(|| format!("Failed to add PATH entry for '{}'", package_name))?;
         tx.commit()
@@ -168,33 +168,15 @@ impl PackageConnection {
             .transaction()
             .context("Failed to start PATH entry removal transaction")?;
 
-        let position = tx
-            .query_row(
-                "SELECT position FROM path_entries WHERE package_name = ?1",
+        let affected = tx
+            .execute(
+                "DELETE FROM path_entries WHERE package_name = ?1",
                 [package_name],
-                |row| row.get::<_, i64>(0),
             )
-            .optional()
-            .with_context(|| format!("Failed to load PATH entry for '{}'", package_name))?;
-        let Some(position) = position else {
-            tx.commit()
-                .context("Failed to commit unchanged PATH entry transaction")?;
-            return Ok(false);
-        };
-
-        tx.execute(
-            "DELETE FROM path_entries WHERE package_name = ?1",
-            [package_name],
-        )
-        .with_context(|| format!("Failed to remove PATH entry for '{}'", package_name))?;
-        tx.execute(
-            "UPDATE path_entries SET position = position - 1 WHERE position > ?1",
-            [position],
-        )
-        .context("Failed to compact PATH entry positions")?;
+            .with_context(|| format!("Failed to remove PATH entry for '{}'", package_name))?;
         tx.commit()
             .with_context(|| format!("Failed to commit PATH entry removal '{}'", package_name))?;
-        Ok(true)
+        Ok(affected > 0)
     }
 
     pub fn replace_all_path_entries(&mut self, entries: &[(String, PathBuf)]) -> Result<()> {
@@ -458,6 +440,91 @@ mod tests {
     }
 
     #[test]
+    fn open_migrates_schema_v4_path_entries_in_place() {
+        let conn = Connection::open_in_memory().expect("open sqlite");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE packages (
+                name TEXT PRIMARY KEY NOT NULL,
+                repo_slug TEXT NOT NULL,
+                filetype TEXT NOT NULL,
+                version_major INTEGER NOT NULL,
+                version_minor INTEGER NOT NULL,
+                version_patch INTEGER NOT NULL,
+                version_is_prerelease INTEGER NOT NULL,
+                version_tag_template TEXT,
+                channel TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                base_url TEXT,
+                install_type TEXT NOT NULL,
+                build_branch TEXT,
+                build_commit TEXT,
+                is_pinned INTEGER NOT NULL,
+                icon_path TEXT,
+                install_path TEXT,
+                exec_path TEXT,
+                last_upgraded TEXT NOT NULL
+            );
+            CREATE TABLE patterns (
+                package_name TEXT NOT NULL,
+                kind TEXT NOT NULL CHECK (kind IN ('match', 'exclude')),
+                position INTEGER NOT NULL CHECK (position >= 0),
+                pattern TEXT NOT NULL,
+                PRIMARY KEY (package_name, kind, position),
+                FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
+            );
+            CREATE TABLE path_entries (
+                package_name TEXT PRIMARY KEY NOT NULL,
+                path TEXT NOT NULL,
+                position INTEGER NOT NULL CHECK (position >= 0),
+                FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
+            );
+            INSERT INTO packages (
+                name, repo_slug, filetype, version_major, version_minor, version_patch,
+                version_is_prerelease, version_tag_template, channel, provider, base_url,
+                install_type, build_branch, build_commit, is_pinned, icon_path, install_path,
+                exec_path, last_upgraded
+            ) VALUES
+                ('first', 'owner/first', 'Archive', 1, 0, 0, 0, NULL, 'Stable', 'Github', NULL,
+                 'Release', NULL, NULL, 0, NULL, '/packages/first', '/packages/first/bin/first',
+                 '2026-06-21T12:30:00Z'),
+                ('second', 'owner/second', 'Archive', 1, 0, 0, 0, NULL, 'Stable', 'Github', NULL,
+                 'Release', NULL, NULL, 0, NULL, '/packages/second', '/packages/second/bin/second',
+                 '2026-06-21T12:31:00Z');
+            INSERT INTO path_entries (package_name, path, position) VALUES
+                ('first', '/first/bin', 0),
+                ('second', '/second/bin', 1);
+            PRAGMA user_version = 4;
+            "#,
+        )
+        .expect("create v4 schema");
+
+        let mut db = PackageConnection::from_connection(conn).expect("migrate v4 schema");
+
+        assert_eq!(
+            db.schema_version().expect("schema version"),
+            PACKAGE_DB_SCHEMA_VERSION
+        );
+        assert_eq!(
+            db.list_path_entries().expect("list migrated path entries"),
+            vec![PathBuf::from("/first/bin"), PathBuf::from("/second/bin")]
+        );
+
+        db.upsert_package(&test_package("third"))
+            .expect("seed third package");
+        db.add_path_entry("third", &PathBuf::from("/third/bin"))
+            .expect("add sparse path entry");
+        assert_eq!(
+            db.list_path_entries().expect("list sparse path entries"),
+            vec![
+                PathBuf::from("/third/bin"),
+                PathBuf::from("/first/bin"),
+                PathBuf::from("/second/bin"),
+            ]
+        );
+    }
+
+    #[test]
     fn upsert_and_get_package_round_trips_all_fields() {
         let mut db = PackageConnection::open_in_memory().expect("open db");
         let package = test_package("tool");
@@ -529,6 +596,26 @@ mod tests {
     }
 
     #[test]
+    fn replace_all_path_entries_preserves_supplied_order() {
+        let mut db = PackageConnection::open_in_memory().expect("open db");
+        db.upsert_package(&test_package("first"))
+            .expect("seed first package");
+        db.upsert_package(&test_package("second"))
+            .expect("seed second package");
+
+        db.replace_all_path_entries(&[
+            ("second".to_string(), PathBuf::from("/second/bin")),
+            ("first".to_string(), PathBuf::from("/first/bin")),
+        ])
+        .expect("replace path entries");
+
+        assert_eq!(
+            db.list_path_entries().expect("list path entries"),
+            vec![PathBuf::from("/second/bin"), PathBuf::from("/first/bin")]
+        );
+    }
+
+    #[test]
     fn upsert_replaces_package_and_patterns() {
         let mut db = PackageConnection::open_in_memory().expect("open db");
         let mut package = test_package("tool");
@@ -553,17 +640,26 @@ mod tests {
         let mut db = PackageConnection::open_in_memory().expect("open db");
         db.upsert_package(&test_package("zulu"))
             .expect("upsert zulu");
-        db.upsert_package(&test_package("alpha"))
-            .expect("upsert alpha");
+        let mut alpha = test_package("alpha");
+        alpha.match_pattern = PatternTable::from_patterns(["alpha", "linux"]);
+        alpha.exclude_pattern = PatternTable::from_patterns(["debug"]);
+        db.upsert_package(&alpha).expect("upsert alpha");
 
-        let names = db
-            .list_packages()
-            .expect("list packages")
-            .into_iter()
-            .map(|package| package.name)
+        let packages = db.list_packages().expect("list packages");
+        let names = packages
+            .iter()
+            .map(|package| package.name.as_str())
             .collect::<Vec<_>>();
 
         assert_eq!(names, vec!["alpha", "zulu"]);
+        assert_eq!(
+            packages[0].match_pattern.as_slice(),
+            &["alpha".to_string(), "linux".to_string()]
+        );
+        assert_eq!(
+            packages[0].exclude_pattern.as_slice(),
+            &["debug".to_string()]
+        );
     }
 
     #[test]
