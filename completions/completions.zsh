@@ -17,6 +17,7 @@ _upstream() {
     _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '-V[Print version]' \
@@ -51,6 +52,7 @@ _arguments "${_arguments_options[@]}" : \
 '--dry-run[Preview install resolution without downloading, installing, or writing metadata]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':repo_slug -- Repository identifier or direct download URL:_default' \
@@ -73,6 +75,7 @@ _arguments "${_arguments_options[@]}" : \
 '--dry-run[Preview build resolution without compiling, installing, or writing metadata]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':repo_slug -- Repository identifier or git URL:_default' \
@@ -86,6 +89,7 @@ _arguments "${_arguments_options[@]}" : \
 '--dry-run[Preview removal actions without deleting files or metadata]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Names of packages to remove:_default' \
@@ -98,6 +102,7 @@ _arguments "${_arguments_options[@]}" : \
 '--dry-run[Preview removal actions without deleting files or metadata]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Names of packages to remove:_default' \
@@ -110,6 +115,7 @@ _arguments "${_arguments_options[@]}" : \
 '--dry-run[Preview rollback restore or prune actions without modifying files or metadata]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Package names to restore:_default' \
@@ -122,6 +128,7 @@ _arguments "${_arguments_options[@]}" : \
 '--dry-run[Preview reinstall resolution without removing, installing, or writing metadata]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Installed package names to reinstall:_default' \
@@ -137,6 +144,7 @@ _arguments "${_arguments_options[@]}" : \
 '--dry-run[Preview upgrade resolution without downloading, installing, or writing metadata]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Installed package names to upgrade (all packages if omitted):_default' \
@@ -147,6 +155,7 @@ _arguments "${_arguments_options[@]}" : \
 '--json[Print package list as JSON]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '::filter -- Package name substring to filter the list:_default' \
@@ -157,6 +166,7 @@ _arguments "${_arguments_options[@]}" : \
 '--json[Print raw package metadata as JSON]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':query -- Package name or unique substring for detailed information:_default' \
@@ -169,6 +179,7 @@ _arguments "${_arguments_options[@]}" : \
 '(--from --to)--for=[Show release notes for exactly one release tag]:FOR_TAG:_default' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Installed package name:_default' \
@@ -180,6 +191,7 @@ _arguments "${_arguments_options[@]}" : \
 '(--fetch)--offline[Use only the cached README and skip network fetching]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '::name -- Installed package name to search, unless --fetch is refreshing all docs:_default' \
@@ -205,6 +217,7 @@ _arguments "${_arguments_options[@]}" : \
 '--dry-run[Run the normal interactive selection and preview flow, then stop before installation]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':repo_slug -- Repository identifier or download page URL to inspect:_default' \
@@ -227,6 +240,7 @@ _arguments "${_arguments_options[@]}" : \
 '--json[Print repository search results as JSON]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::query_words -- Optional query words:_default' \
@@ -260,6 +274,7 @@ _arguments "${_arguments_options[@]}" : \
 '--dry-run[Preview install resolution without downloading, installing, or writing metadata]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::query_words -- Query words:_default' \
@@ -269,6 +284,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__config_commands" \
@@ -285,6 +301,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::keys -- Configuration assignments (format\: key.path=value):_default' \
@@ -294,6 +311,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::keys -- Configuration keys to retrieve (format\: key.path):_default' \
@@ -303,14 +321,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-&& ret=0
-;;
-(verify)
-_arguments "${_arguments_options[@]}" : \
-'-y[Accept confirmation prompts automatically]' \
-'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
@@ -319,6 +330,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
@@ -327,6 +339,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
@@ -355,7 +368,111 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(verify)
+(edit)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(reset)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(auth)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+":: :_upstream__subcmd__auth_commands" \
+"*::: :->auth" \
+&& ret=0
+
+    case $state in
+    (auth)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-auth-command-$line[1]:"
+        case $line[1] in
+            (set)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'*::keys -- Auth assignments (format\: key.path=value):_default' \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'*::keys -- Auth keys to retrieve (format\: key.path):_default' \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
+(edit)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
+(reset)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_upstream__subcmd__auth__subcmd__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-auth-help-command-$line[1]:"
+        case $line[1] in
+            (set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(list)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -383,6 +500,7 @@ esac
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__package_commands" \
@@ -399,6 +517,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name of package to pin:_default' \
@@ -408,6 +527,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Name of package to unpin:_default' \
@@ -417,6 +537,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':old_name -- Existing package alias:_default' \
@@ -427,6 +548,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Installed package name:_default' \
@@ -436,6 +558,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':name -- Installed package name:_default' \
@@ -489,6 +612,7 @@ esac
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__hooks_commands" \
@@ -505,6 +629,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
@@ -513,6 +638,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
@@ -521,6 +647,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
@@ -529,6 +656,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
@@ -577,6 +705,7 @@ esac
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__import_commands" \
@@ -593,6 +722,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Path to an upstream config TOML file:_files' \
@@ -602,6 +732,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Path to a minisign or cosign public key file:_files' \
@@ -613,6 +744,7 @@ _arguments "${_arguments_options[@]}" : \
 '--latest[Ignore exported version tags and install latest releases]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Path to an upstream packages export:_files' \
@@ -624,6 +756,7 @@ _arguments "${_arguments_options[@]}" : \
 '--latest[Ignore exported package version tags and install latest releases]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Path to an upstream profile export:_files' \
@@ -673,6 +806,7 @@ esac
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ":: :_upstream__subcmd__export_commands" \
@@ -689,6 +823,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Output path for the config export:_files' \
@@ -698,6 +833,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Output path for the keys export:_files' \
@@ -707,6 +843,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Output path for the packages export:_files' \
@@ -716,6 +853,7 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':path -- Output path for the profile export:_files' \
@@ -765,10 +903,10 @@ esac
 _arguments "${_arguments_options[@]}" : \
 '--verbose[Print each check result line in addition to summary output]' \
 '--fix[Attempt automatic repairs for detected issues]' \
-'(--verbose --fix --json)--migrate[Migrate local upstream data after breaking layout or metadata changes]' \
 '--json[Print diagnostic report as JSON]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::names -- Package names to check (all installed packages if omitted):_default' \
@@ -862,7 +1000,39 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(verify)
+(edit)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(reset)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(auth)
+_arguments "${_arguments_options[@]}" : \
+":: :_upstream__subcmd__help__subcmd__auth_commands" \
+"*::: :->auth" \
+&& ret=0
+
+    case $state in
+    (auth)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-help-auth-command-$line[1]:"
+        case $line[1] in
+            (set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(list)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -1044,7 +1214,8 @@ _upstream_commands() {
 'probe:Inspect releases, choose an asset, and install it' \
 'search:Search provider repositories without installing' \
 'find:Search repositories interactively and install one' \
-'config:View, edit, and validate config.toml' \
+'config:View and edit config.toml' \
+'auth:View and edit auth.toml' \
 'package:Manage installed package records and launcher entries' \
 'hooks:Manage shell PATH hooks and local upstream data' \
 'import:Import config, trust keys, packages, or a profile' \
@@ -1053,6 +1224,85 @@ _upstream_commands() {
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth_commands] )) ||
+_upstream__subcmd__auth_commands() {
+    local commands; commands=(
+'set:Set provider API tokens' \
+'get:Get provider API tokens' \
+'list:List current provider API tokens' \
+'edit:Open auth.toml in your default editor' \
+'reset:Reset auth.toml to defaults' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'upstream auth commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__edit_commands] )) ||
+_upstream__subcmd__auth__subcmd__edit_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream auth edit commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__get_commands] )) ||
+_upstream__subcmd__auth__subcmd__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream auth get commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__help_commands] )) ||
+_upstream__subcmd__auth__subcmd__help_commands() {
+    local commands; commands=(
+'set:Set provider API tokens' \
+'get:Get provider API tokens' \
+'list:List current provider API tokens' \
+'edit:Open auth.toml in your default editor' \
+'reset:Reset auth.toml to defaults' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'upstream auth help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__help__subcmd__edit_commands] )) ||
+_upstream__subcmd__auth__subcmd__help__subcmd__edit_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream auth help edit commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__help__subcmd__get_commands] )) ||
+_upstream__subcmd__auth__subcmd__help__subcmd__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream auth help get commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__help__subcmd__help_commands] )) ||
+_upstream__subcmd__auth__subcmd__help__subcmd__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream auth help help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__help__subcmd__list_commands] )) ||
+_upstream__subcmd__auth__subcmd__help__subcmd__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream auth help list commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__help__subcmd__reset_commands] )) ||
+_upstream__subcmd__auth__subcmd__help__subcmd__reset_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream auth help reset commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__help__subcmd__set_commands] )) ||
+_upstream__subcmd__auth__subcmd__help__subcmd__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream auth help set commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__list_commands] )) ||
+_upstream__subcmd__auth__subcmd__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream auth list commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__reset_commands] )) ||
+_upstream__subcmd__auth__subcmd__reset_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream auth reset commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__auth__subcmd__set_commands] )) ||
+_upstream__subcmd__auth__subcmd__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream auth set commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__build_commands] )) ||
 _upstream__subcmd__build_commands() {
@@ -1070,7 +1320,6 @@ _upstream__subcmd__config_commands() {
 'set:Set configuration values' \
 'get:Get configuration values' \
 'list:List current configuration values' \
-'verify:Check config.toml for missing or unused keys' \
 'edit:Open config.toml in your default editor' \
 'reset:Reset config.toml to defaults' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -1093,7 +1342,6 @@ _upstream__subcmd__config__subcmd__help_commands() {
 'set:Set configuration values' \
 'get:Get configuration values' \
 'list:List current configuration values' \
-'verify:Check config.toml for missing or unused keys' \
 'edit:Open config.toml in your default editor' \
 'reset:Reset config.toml to defaults' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -1130,11 +1378,6 @@ _upstream__subcmd__config__subcmd__help__subcmd__set_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config help set commands' commands "$@"
 }
-(( $+functions[_upstream__subcmd__config__subcmd__help__subcmd__verify_commands] )) ||
-_upstream__subcmd__config__subcmd__help__subcmd__verify_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream config help verify commands' commands "$@"
-}
 (( $+functions[_upstream__subcmd__config__subcmd__list_commands] )) ||
 _upstream__subcmd__config__subcmd__list_commands() {
     local commands; commands=()
@@ -1149,11 +1392,6 @@ _upstream__subcmd__config__subcmd__reset_commands() {
 _upstream__subcmd__config__subcmd__set_commands() {
     local commands; commands=()
     _describe -t commands 'upstream config set commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__config__subcmd__verify_commands] )) ||
-_upstream__subcmd__config__subcmd__verify_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream config verify commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__docs_commands] )) ||
 _upstream__subcmd__docs_commands() {
@@ -1253,7 +1491,8 @@ _upstream__subcmd__help_commands() {
 'probe:Inspect releases, choose an asset, and install it' \
 'search:Search provider repositories without installing' \
 'find:Search repositories interactively and install one' \
-'config:View, edit, and validate config.toml' \
+'config:View and edit config.toml' \
+'auth:View and edit auth.toml' \
 'package:Manage installed package records and launcher entries' \
 'hooks:Manage shell PATH hooks and local upstream data' \
 'import:Import config, trust keys, packages, or a profile' \
@@ -1262,6 +1501,42 @@ _upstream__subcmd__help_commands() {
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__auth_commands] )) ||
+_upstream__subcmd__help__subcmd__auth_commands() {
+    local commands; commands=(
+'set:Set provider API tokens' \
+'get:Get provider API tokens' \
+'list:List current provider API tokens' \
+'edit:Open auth.toml in your default editor' \
+'reset:Reset auth.toml to defaults' \
+    )
+    _describe -t commands 'upstream help auth commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__auth__subcmd__edit_commands] )) ||
+_upstream__subcmd__help__subcmd__auth__subcmd__edit_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help auth edit commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__auth__subcmd__get_commands] )) ||
+_upstream__subcmd__help__subcmd__auth__subcmd__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help auth get commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__auth__subcmd__list_commands] )) ||
+_upstream__subcmd__help__subcmd__auth__subcmd__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help auth list commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__auth__subcmd__reset_commands] )) ||
+_upstream__subcmd__help__subcmd__auth__subcmd__reset_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help auth reset commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__auth__subcmd__set_commands] )) ||
+_upstream__subcmd__help__subcmd__auth__subcmd__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help auth set commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__build_commands] )) ||
 _upstream__subcmd__help__subcmd__build_commands() {
@@ -1279,7 +1554,6 @@ _upstream__subcmd__help__subcmd__config_commands() {
 'set:Set configuration values' \
 'get:Get configuration values' \
 'list:List current configuration values' \
-'verify:Check config.toml for missing or unused keys' \
 'edit:Open config.toml in your default editor' \
 'reset:Reset config.toml to defaults' \
     )
@@ -1309,11 +1583,6 @@ _upstream__subcmd__help__subcmd__config__subcmd__reset_commands() {
 _upstream__subcmd__help__subcmd__config__subcmd__set_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help config set commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__help__subcmd__config__subcmd__verify_commands] )) ||
-_upstream__subcmd__help__subcmd__config__subcmd__verify_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help config verify commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__docs_commands] )) ||
 _upstream__subcmd__help__subcmd__docs_commands() {
