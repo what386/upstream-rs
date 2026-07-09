@@ -81,6 +81,9 @@ impl<'a> ShellManager<'a> {
         package_database: &mut PackageDatabase,
         install_path: &Path,
     ) -> Result<()> {
+        #[cfg(not(unix))]
+        let _ = package_database;
+
         if !install_path.is_dir() {
             anyhow::bail!(
                 "Package install directory not found: {}",
@@ -113,6 +116,9 @@ impl<'a> ShellManager<'a> {
         package_database: &mut PackageDatabase,
         install_path: &Path,
     ) -> Result<()> {
+        #[cfg(not(unix))]
+        let _ = package_database;
+
         #[cfg(unix)]
         {
             let _guard = paths_file_lock()
@@ -441,10 +447,13 @@ fn dedupe_preserving_order(paths: Vec<String>) -> Vec<String> {
 mod tests {
     #[cfg(unix)]
     use super::{ShellManager, parse_nushell_paths_file};
+    #[cfg(unix)]
     use crate::models::common::enums::{Channel, Filetype, Provider};
+    #[cfg(unix)]
     use crate::models::upstream::Package;
     #[cfg(unix)]
     use crate::storage::database::PackageDatabase;
+    #[cfg(unix)]
     use crate::utils::test_support;
     #[cfg(unix)]
     use std::path::{Path, PathBuf};
