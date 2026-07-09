@@ -119,40 +119,50 @@ impl PackageConnection {
             .with_context(|| format!("Failed to commit package '{}'", package.name))
     }
 
-    pub fn add_path_entry(&mut self, path: &Path) -> Result<bool> {
+    pub fn add_path_entry(&mut self, package_name: &str, path: &Path) -> Result<bool> {
         let path = path_to_db(path)?;
         let tx = self
             .conn
             .transaction()
             .context("Failed to start PATH entry insert transaction")?;
 
-        let exists = tx
+        let existing_path = tx
             .query_row(
-                "SELECT EXISTS(SELECT 1 FROM path_entries WHERE path = ?1)",
-                [&path],
-                |row| row.get::<_, bool>(0),
+                "SELECT path FROM path_entries WHERE package_name = ?1",
+                [package_name],
+                |row| row.get::<_, String>(0),
             )
-            .with_context(|| format!("Failed to check PATH entry '{}'", path))?;
-        if exists {
+            .optional()
+            .with_context(|| format!("Failed to check PATH entry for '{}'", package_name))?;
+        if existing_path.as_deref() == Some(path.as_str()) {
             tx.commit()
                 .context("Failed to commit unchanged PATH entry transaction")?;
             return Ok(false);
+        }
+        if existing_path.is_some() {
+            tx.execute(
+                "UPDATE path_entries SET path = ?1 WHERE package_name = ?2",
+                params![path, package_name],
+            )
+            .with_context(|| format!("Failed to update PATH entry for '{}'", package_name))?;
+            tx.commit()
+                .with_context(|| format!("Failed to commit PATH entry '{}'", package_name))?;
+            return Ok(true);
         }
 
         tx.execute("UPDATE path_entries SET position = position + 1", [])
             .context("Failed to shift PATH entry positions")?;
         tx.execute(
-            "INSERT INTO path_entries (path, position) VALUES (?1, 0)",
-            [&path],
+            "INSERT INTO path_entries (package_name, path, position) VALUES (?1, ?2, 0)",
+            params![package_name, path],
         )
-        .with_context(|| format!("Failed to add PATH entry '{}'", path))?;
+        .with_context(|| format!("Failed to add PATH entry for '{}'", package_name))?;
         tx.commit()
-            .with_context(|| format!("Failed to commit PATH entry '{}'", path))?;
+            .with_context(|| format!("Failed to commit PATH entry '{}'", package_name))?;
         Ok(true)
     }
 
-    pub fn remove_path_entry(&mut self, path: &Path) -> Result<bool> {
-        let path = path_to_db(path)?;
+    pub fn remove_path_entry(&mut self, package_name: &str) -> Result<bool> {
         let tx = self
             .conn
             .transaction()
@@ -160,42 +170,45 @@ impl PackageConnection {
 
         let position = tx
             .query_row(
-                "SELECT position FROM path_entries WHERE path = ?1",
-                [&path],
+                "SELECT position FROM path_entries WHERE package_name = ?1",
+                [package_name],
                 |row| row.get::<_, i64>(0),
             )
             .optional()
-            .with_context(|| format!("Failed to load PATH entry '{}'", path))?;
+            .with_context(|| format!("Failed to load PATH entry for '{}'", package_name))?;
         let Some(position) = position else {
             tx.commit()
                 .context("Failed to commit unchanged PATH entry transaction")?;
             return Ok(false);
         };
 
-        tx.execute("DELETE FROM path_entries WHERE path = ?1", [&path])
-            .with_context(|| format!("Failed to remove PATH entry '{}'", path))?;
+        tx.execute(
+            "DELETE FROM path_entries WHERE package_name = ?1",
+            [package_name],
+        )
+        .with_context(|| format!("Failed to remove PATH entry for '{}'", package_name))?;
         tx.execute(
             "UPDATE path_entries SET position = position - 1 WHERE position > ?1",
             [position],
         )
         .context("Failed to compact PATH entry positions")?;
         tx.commit()
-            .with_context(|| format!("Failed to commit PATH entry removal '{}'", path))?;
+            .with_context(|| format!("Failed to commit PATH entry removal '{}'", package_name))?;
         Ok(true)
     }
 
-    pub fn replace_all_path_entries(&mut self, paths: &[PathBuf]) -> Result<()> {
+    pub fn replace_all_path_entries(&mut self, entries: &[(String, PathBuf)]) -> Result<()> {
         let tx = self
             .conn
             .transaction()
             .context("Failed to start PATH entry replacement transaction")?;
         tx.execute("DELETE FROM path_entries", [])
             .context("Failed to clear PATH entries")?;
-        for (position, path) in paths.iter().enumerate() {
+        for (position, (package_name, path)) in entries.iter().enumerate() {
             let path = path_to_db(path)?;
             tx.execute(
-                "INSERT INTO path_entries (path, position) VALUES (?1, ?2)",
-                params![path, position as i64],
+                "INSERT INTO path_entries (package_name, path, position) VALUES (?1, ?2, ?3)",
+                params![package_name, path, position as i64],
             )
             .context("Failed to insert PATH entry")?;
         }
@@ -239,8 +252,13 @@ impl PackageConnection {
             .transaction()
             .context("Failed to start package update transaction")?;
         if package.name != name {
-            tx.execute("DELETE FROM packages WHERE name = ?1", [name])
-                .with_context(|| format!("Failed to remove renamed package '{}'", name))?;
+            tx.execute(
+                "UPDATE packages SET name = ?1 WHERE name = ?2",
+                params![package.name, name],
+            )
+            .with_context(|| {
+                format!("Failed to rename package '{}' to '{}'", name, package.name)
+            })?;
         }
         write_package(&tx, &package)?;
         tx.commit()
@@ -483,19 +501,25 @@ mod tests {
         let second = PathBuf::from("/second/bin");
         let third = PathBuf::from("/third/bin");
 
-        assert!(db.add_path_entry(&first).expect("add first"));
-        assert!(db.add_path_entry(&second).expect("add second"));
-        assert!(db.add_path_entry(&third).expect("add third"));
-        assert!(!db.add_path_entry(&second).expect("dedupe second"));
+        db.upsert_package(&test_package("first"))
+            .expect("seed first package");
+        db.upsert_package(&test_package("second"))
+            .expect("seed second package");
+        db.upsert_package(&test_package("third"))
+            .expect("seed third package");
+        assert!(db.add_path_entry("first", &first).expect("add first"));
+        assert!(db.add_path_entry("second", &second).expect("add second"));
+        assert!(db.add_path_entry("third", &third).expect("add third"));
+        assert!(!db.add_path_entry("second", &second).expect("dedupe second"));
 
         assert_eq!(
             db.list_path_entries().expect("list path entries"),
             vec![third.clone(), second.clone(), first.clone()]
         );
 
-        assert!(db.remove_path_entry(&second).expect("remove second"));
+        assert!(db.remove_path_entry("second").expect("remove second"));
         assert!(
-            !db.remove_path_entry(&second)
+            !db.remove_path_entry("second")
                 .expect("remove missing second")
         );
         assert_eq!(
@@ -589,6 +613,29 @@ mod tests {
 
         assert!(db.get_package("old").expect("load old").is_none());
         assert!(db.get_package("new").expect("load new").is_some());
+    }
+
+    #[test]
+    fn rename_package_cascades_path_entries() {
+        let mut db = PackageConnection::open_in_memory().expect("open db");
+        let path = PathBuf::from("/old/bin");
+        db.upsert_package(&test_package("old"))
+            .expect("upsert package");
+        db.add_path_entry("old", &path).expect("add path entry");
+
+        db.update_package("old", |package| {
+            package.name = "new".to_string();
+            Ok(())
+        })
+        .expect("rename package");
+
+        assert!(!db.remove_path_entry("old").expect("remove old entry"));
+        assert!(db.remove_path_entry("new").expect("remove new entry"));
+        assert!(
+            db.list_path_entries()
+                .expect("list path entries")
+                .is_empty()
+        );
     }
 
     #[test]
