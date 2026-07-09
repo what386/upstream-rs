@@ -34,7 +34,6 @@ impl fmt::Display for Commands {
             Commands::Auth { action } => write!(f, "{action}"),
             Commands::Import { .. } => write!(f, "import"),
             Commands::Export { .. } => write!(f, "export"),
-            Commands::Doctor { migrate, .. } if *migrate => write!(f, "doctor --migrate"),
             Commands::Doctor { .. } => write!(f, "doctor"),
         }
     }

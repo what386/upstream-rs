@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::super::{DoctorReport, Level};
-use super::legacy::{MIGRATE_DIR_HINT, legacy_package_metadata_exists, looks_like_legacy_layout};
+use super::legacy::{legacy_package_metadata_exists, looks_like_legacy_layout};
 
 const HOOKS_INIT_DIR_HINT: &str =
     "Run `upstream hooks init` to create missing upstream directories and metadata files.";
@@ -107,7 +107,6 @@ pub(in crate::routines::doctor) fn check_local_layout(
     let legacy_layout_detected = looks_like_legacy_layout(paths);
     if legacy_layout_detected {
         report.line(Level::Warn, "legacy upstream data layout detected");
-        report.hint(MIGRATE_DIR_HINT);
     }
 
     for (label, path) in required_directory_checks(paths) {
@@ -118,11 +117,7 @@ pub(in crate::routines::doctor) fn check_local_layout(
                 Level::Fail,
                 format!("{} missing: {}", label, path.display()),
             );
-            report.hint(if legacy_layout_detected {
-                MIGRATE_DIR_HINT
-            } else {
-                HOOKS_INIT_DIR_HINT
-            });
+            report.hint(HOOKS_INIT_DIR_HINT);
         }
     }
 }
@@ -171,7 +166,7 @@ pub(in crate::routines::doctor) fn check_package_metadata_file(
                 paths.config.packages_file.display()
             ),
         );
-        report.hint(MIGRATE_DIR_HINT);
+        report.hint("Run `upstream hooks init` to create package metadata storage.");
     } else {
         report.line(
             Level::Warn,
@@ -256,7 +251,6 @@ mod tests {
         find_stale_symlink_names,
     };
     use crate::routines::doctor::DoctorReport;
-    use crate::routines::doctor::checks::legacy::MIGRATE_DIR_HINT;
     use crate::routines::doctor::checks::packages::expected_link_path;
     use crate::utils::test_support;
 
@@ -321,7 +315,6 @@ mod tests {
 
     #[test]
     fn directory_hints_are_easy_to_distinguish() {
-        assert!(MIGRATE_DIR_HINT.contains("upstream doctor --migrate"));
         assert!(HOOKS_INIT_DIR_HINT.contains("upstream hooks init"));
     }
 

@@ -6,8 +6,6 @@ use serde::Deserialize;
 use crate::models::upstream::Package;
 use crate::utils::static_paths::UpstreamPaths;
 
-pub const MIGRATE_DIR_HINT: &str =
-    "Run `upstream doctor --migrate` to update local data for the current upstream layout.";
 pub const LEGACY_PACKAGE_STORAGE_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Deserialize)]

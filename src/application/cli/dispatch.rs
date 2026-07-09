@@ -9,11 +9,10 @@ use crate::storage::system::lock::LockStorage;
 use crate::utils::static_paths::UpstreamPaths;
 
 impl Cli {
-    pub async fn run(self) -> Result<()> {
+    pub async fn run(self, paths: UpstreamPaths) -> Result<()> {
         output::set_assume_yes(self.yes);
         output::set_no_pager(self.no_pager);
         let command = self.command;
-        let paths = UpstreamPaths::new()?;
         let _lock = if command.requires_lock() {
             let operation = command.to_string();
             Some(LockStorage::acquire(&paths, &operation)?)
@@ -302,9 +301,8 @@ impl Cli {
                 names,
                 verbose,
                 fix,
-                migrate,
                 json,
-            } => commands::doctor::run(names, verbose, fix, migrate, json).await,
+            } => commands::doctor::run(names, verbose, fix, json).await,
         }
     }
 }
