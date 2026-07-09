@@ -12,3 +12,6 @@
 - [ ] perf: reduce refetching of package patterns
       @created 2026-07-09 21:30
 
+- [ ] make package name universal key in db
+      @created 2026-07-09 21:30
+
