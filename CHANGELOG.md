@@ -12,6 +12,9 @@
 - BREAKING: verify is no longer a subcommand for 'config' nor 'auth'. foreign keys are rejected on config load
 - feat: path files are now generated from package db
 
+WARNING:
+Old migration steps for "v2.0.0" will be removed in the next non-patch release.
+Be sure to have updated to at least v2.11.0 before upgrading.
 
 ## 2.11.0 — 2026-07-06
 
