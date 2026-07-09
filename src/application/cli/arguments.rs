@@ -722,14 +722,12 @@ pub enum Commands {
         Reports a compact summary by default and includes actionable hints. \
         Use --verbose to print each individual check result. Use --fix to repair \
         supported issues such as PATH hooks, missing symlinks, executable bits, \
-        executable metadata, and unused config keys. Use --migrate after \
-        upgrading across breaking local data changes when diagnostics or release notes \
-        ask for a data migration.\n\n\
+        executable metadata, and unused config keys. Local data migrations are \
+        applied automatically on startup.\n\n\
         EXAMPLES:\n  \
         upstream doctor\n  \
         upstream doctor --verbose\n  \
         upstream doctor --fix\n  \
-        upstream doctor --migrate\n  \
         upstream doctor nvim ripgrep\n  \
         upstream doctor --json"
     )]
@@ -744,14 +742,6 @@ pub enum Commands {
         /// Attempt automatic repairs for detected issues
         #[arg(long, default_value_t = false)]
         fix: bool,
-
-        /// Migrate local upstream data after breaking layout or metadata changes
-        #[arg(
-            long,
-            default_value_t = false,
-            conflicts_with_all = ["names", "verbose", "fix", "json"]
-        )]
-        migrate: bool,
 
         /// Print diagnostic report as JSON
         #[arg(long, default_value_t = false)]
@@ -771,7 +761,7 @@ impl Commands {
             Commands::Info { .. } => false,
             Commands::Changelog { .. } => false,
             Commands::Docs { .. } => false,
-            Commands::Doctor { fix, migrate, .. } => *fix || *migrate,
+            Commands::Doctor { fix, .. } => *fix,
             Commands::Search { .. } => false,
             Commands::Find { .. } => true,
             Commands::Rollback { list: true, .. } => false,
