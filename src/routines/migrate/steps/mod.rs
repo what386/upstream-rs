@@ -2,6 +2,11 @@ use anyhow::Result;
 
 use crate::{routines::migrate::MigrationReport, utils::static_paths::UpstreamPaths};
 
+// Each migration should be keyed as "v0_0_0.rs",
+// with the semver triplet of the breaking version
+// as the step filename, seperated by underscores.
+// they would then be run from oldest to newest.
+
 pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
     Ok(())
 }
