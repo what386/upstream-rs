@@ -20,6 +20,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand -V 'Print version'
@@ -38,7 +39,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand probe 'Inspect releases, choose an asset, and install it'
             cand search 'Search provider repositories without installing'
             cand find 'Search repositories interactively and install one'
-            cand config 'View, edit, and validate config.toml'
+            cand config 'View and edit config.toml'
+            cand auth 'View and edit auth.toml'
             cand package 'Manage installed package records and launcher entries'
             cand hooks 'Manage shell PATH hooks and local upstream data'
             cand import 'Import config, trust keys, packages, or a profile'
@@ -66,6 +68,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --dry-run 'Preview install resolution without downloading, installing, or writing metadata'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -84,6 +87,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --dry-run 'Preview build resolution without compiling, installing, or writing metadata'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -93,6 +97,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --dry-run 'Preview removal actions without deleting files or metadata'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -102,6 +107,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --dry-run 'Preview removal actions without deleting files or metadata'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -111,6 +117,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --dry-run 'Preview rollback restore or prune actions without modifying files or metadata'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -120,6 +127,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --dry-run 'Preview reinstall resolution without removing, installing, or writing metadata'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -132,6 +140,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --dry-run 'Preview upgrade resolution without downloading, installing, or writing metadata'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -139,6 +148,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --json 'Print package list as JSON'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -146,6 +156,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --json 'Print raw package metadata as JSON'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -155,6 +166,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --for 'Show release notes for exactly one release tag'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -163,6 +175,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --offline 'Use only the cached README and skip network fetching'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -184,6 +197,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --dry-run 'Run the normal interactive selection and preview flow, then stop before installation'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -202,6 +216,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --json 'Print repository search results as JSON'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -232,18 +247,19 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --dry-run 'Preview install resolution without downloading, installing, or writing metadata'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand set 'Set configuration values'
             cand get 'Get configuration values'
             cand list 'List current configuration values'
-            cand verify 'Check config.toml for missing or unused keys'
             cand edit 'Open config.toml in your default editor'
             cand reset 'Reset config.toml to defaults'
             cand help 'Print this message or the help of the given subcommand(s)'
@@ -251,36 +267,35 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;config;set'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config;get'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config;list'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
-        }
-        &'upstream;config;verify'= {
-            cand -y 'Accept confirmation prompts automatically'
-            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config;edit'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;config;reset'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -288,7 +303,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand set 'Set configuration values'
             cand get 'Get configuration values'
             cand list 'List current configuration values'
-            cand verify 'Check config.toml for missing or unused keys'
             cand edit 'Open config.toml in your default editor'
             cand reset 'Reset config.toml to defaults'
             cand help 'Print this message or the help of the given subcommand(s)'
@@ -299,17 +313,84 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;config;help;list'= {
         }
-        &'upstream;config;help;verify'= {
-        }
         &'upstream;config;help;edit'= {
         }
         &'upstream;config;help;reset'= {
         }
         &'upstream;config;help;help'= {
         }
+        &'upstream;auth'= {
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand set 'Set provider API tokens'
+            cand get 'Get provider API tokens'
+            cand list 'List current provider API tokens'
+            cand edit 'Open auth.toml in your default editor'
+            cand reset 'Reset auth.toml to defaults'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;auth;set'= {
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;auth;get'= {
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;auth;list'= {
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;auth;edit'= {
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;auth;reset'= {
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
+        &'upstream;auth;help'= {
+            cand set 'Set provider API tokens'
+            cand get 'Get provider API tokens'
+            cand list 'List current provider API tokens'
+            cand edit 'Open auth.toml in your default editor'
+            cand reset 'Reset auth.toml to defaults'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;auth;help;set'= {
+        }
+        &'upstream;auth;help;get'= {
+        }
+        &'upstream;auth;help;list'= {
+        }
+        &'upstream;auth;help;edit'= {
+        }
+        &'upstream;auth;help;reset'= {
+        }
+        &'upstream;auth;help;help'= {
+        }
         &'upstream;package'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand pin 'Mark an installed package as pinned'
@@ -322,30 +403,35 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;package;pin'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;unpin'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;rename'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;add-entry'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;rm-entry'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -372,6 +458,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;hooks'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand init 'Install shell PATH hooks'
@@ -383,24 +470,28 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;hooks;init'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;hooks;check'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;hooks;clean'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;hooks;purge'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -424,6 +515,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;import'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand config 'Replace config.toml from an export'
@@ -435,12 +527,14 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;import;config'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;import;keys'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -449,6 +543,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --latest 'Ignore exported version tags and install latest releases'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -457,6 +552,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --latest 'Ignore exported package version tags and install latest releases'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -480,6 +576,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;export'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
             cand config 'Export config.toml'
@@ -491,24 +588,28 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;export;config'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;export;keys'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;export;packages'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;export;profile'= {
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -532,10 +633,10 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;doctor'= {
             cand --verbose 'Print each check result line in addition to summary output'
             cand --fix 'Attempt automatic repairs for detected issues'
-            cand --migrate 'Migrate local upstream data after breaking layout or metadata changes'
             cand --json 'Print diagnostic report as JSON'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
         }
@@ -553,7 +654,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand probe 'Inspect releases, choose an asset, and install it'
             cand search 'Search provider repositories without installing'
             cand find 'Search repositories interactively and install one'
-            cand config 'View, edit, and validate config.toml'
+            cand config 'View and edit config.toml'
+            cand auth 'View and edit auth.toml'
             cand package 'Manage installed package records and launcher entries'
             cand hooks 'Manage shell PATH hooks and local upstream data'
             cand import 'Import config, trust keys, packages, or a profile'
@@ -591,7 +693,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand set 'Set configuration values'
             cand get 'Get configuration values'
             cand list 'List current configuration values'
-            cand verify 'Check config.toml for missing or unused keys'
             cand edit 'Open config.toml in your default editor'
             cand reset 'Reset config.toml to defaults'
         }
@@ -601,11 +702,26 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;help;config;list'= {
         }
-        &'upstream;help;config;verify'= {
-        }
         &'upstream;help;config;edit'= {
         }
         &'upstream;help;config;reset'= {
+        }
+        &'upstream;help;auth'= {
+            cand set 'Set provider API tokens'
+            cand get 'Get provider API tokens'
+            cand list 'List current provider API tokens'
+            cand edit 'Open auth.toml in your default editor'
+            cand reset 'Reset auth.toml to defaults'
+        }
+        &'upstream;help;auth;set'= {
+        }
+        &'upstream;help;auth;get'= {
+        }
+        &'upstream;help;auth;list'= {
+        }
+        &'upstream;help;auth;edit'= {
+        }
+        &'upstream;help;auth;reset'= {
         }
         &'upstream;help;package'= {
             cand pin 'Mark an installed package as pinned'
