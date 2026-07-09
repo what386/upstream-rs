@@ -1,7 +1,7 @@
 use crate::{
     output::{self, Status},
-    services::packaging::disk_impact::DiskImpact,
     services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover},
+    services::{integration::ShellManager, packaging::disk_impact::DiskImpact},
     storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
@@ -306,6 +306,14 @@ impl<'a> RemoveOperation<'a> {
             .remove_package(package_name)
             .context(format!(
                 "Failed to remove '{}' from package storage",
+                package_name
+            ))?;
+
+        let paths = self.remover.paths();
+        ShellManager::new(&paths.config.paths_file)
+            .regenerate_paths(self.package_database, paths)
+            .context(format!(
+                "Failed to regenerate PATH integration after removing '{}'",
                 package_name
             ))?;
 

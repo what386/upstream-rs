@@ -8,6 +8,7 @@ use crate::{
         ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_path_size,
     },
     services::{
+        integration::ShellManager,
         packaging::{
             PackageChecker, PackageInstaller, PackageProgressEvent, PackageRemover,
             PackageUpgrader, ResolvedUpgradeTarget,
@@ -743,7 +744,10 @@ impl<'a> UpgradeOperation<'a> {
             let transfer = format_transfer(downloaded, bytes_total);
             match result {
                 Ok(Some(updated)) => {
-                    if let Err(err) = self.package_database.upsert_package(&updated) {
+                    let persist_result = self.package_database.upsert_package(&updated);
+                    let persist_result = persist_result
+                        .and_then(|()| refresh_shell_paths(self.paths, self.package_database));
+                    if let Err(err) = persist_result {
                         message!(
                             message_callback,
                             "{}",
@@ -912,6 +916,7 @@ impl<'a> UpgradeOperation<'a> {
                     match result {
                         Ok(updated) => {
                             match persist_upgrade_and_emit_complete(
+                                self.paths,
                                 self.package_database,
                                 progress_callback,
                                 name.clone(),
@@ -998,6 +1003,7 @@ impl<'a> UpgradeOperation<'a> {
 
         if let Some(updated) = upgraded {
             self.package_database.upsert_package(&updated)?;
+            refresh_shell_paths(self.paths, self.package_database)?;
             Ok(true)
         } else {
             Ok(false)
@@ -1104,7 +1110,15 @@ fn format_transfer(downloaded: u64, total: u64) -> String {
     }
 }
 
+fn refresh_shell_paths(
+    paths: &UpstreamPaths,
+    package_database: &mut PackageDatabase,
+) -> Result<()> {
+    ShellManager::new(&paths.config.paths_file).regenerate_paths(package_database, paths)
+}
+
 fn persist_upgrade_and_emit_complete<P>(
+    paths: &UpstreamPaths,
     package_database: &mut PackageDatabase,
     progress_callback: &mut Option<P>,
     name: String,
@@ -1115,6 +1129,7 @@ where
     P: FnMut(UpgradeProgressEvent),
 {
     package_database.upsert_package(updated)?;
+    refresh_shell_paths(paths, package_database)?;
     if let Some(cb) = progress_callback.as_mut() {
         cb(UpgradeProgressEvent::Complete {
             name,
@@ -1135,10 +1150,10 @@ mod tests {
     use crate::models::upstream::Package;
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
     use crate::storage::database::PackageDatabase;
+    use crate::utils::test_support;
     use std::collections::BTreeMap;
+    use std::fs;
     use std::sync::{Arc, Mutex};
-    use std::time::{SystemTime, UNIX_EPOCH};
-    use std::{fs, io, path::Path};
 
     fn test_package(name: &str, channel: Channel) -> Package {
         Package::with_defaults(
@@ -1151,23 +1166,6 @@ mod tests {
             Provider::Github,
             None,
         )
-    }
-
-    fn temp_database_path(name: &str) -> std::path::PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        std::env::temp_dir()
-            .join(format!("upstream-upgrade-op-test-{name}-{nanos}"))
-            .join("packages.db")
-    }
-
-    fn cleanup(path: &Path) -> io::Result<()> {
-        if let Some(parent) = path.parent() {
-            fs::remove_dir_all(parent)?;
-        }
-        Ok(())
     }
 
     #[test]
@@ -1323,10 +1321,9 @@ mod tests {
 
     #[test]
     fn upgrade_completion_callback_observes_persisted_package_state() {
-        let path = temp_database_path("completion-order");
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("create parent");
-        }
+        let root = test_support::temp_root("upstream-upgrade-op-test", "completion-order");
+        let paths = test_support::upstream_paths(&root);
+        let path = paths.config.packages_database_file.clone();
 
         let mut database = PackageDatabase::open(&path).expect("open database");
         let mut stored = test_package("tool", Channel::Stable);
@@ -1352,6 +1349,7 @@ mod tests {
             });
 
             persist_upgrade_and_emit_complete(
+                &paths,
                 &mut database,
                 &mut callback,
                 "tool".to_string(),
@@ -1367,6 +1365,6 @@ mod tests {
             UpgradePackageResult::Upgraded { version } if version == &updated_version
         ));
 
-        cleanup(&path).expect("cleanup");
+        fs::remove_dir_all(root).expect("cleanup");
     }
 }

@@ -1,5 +1,5 @@
 #[cfg(unix)]
-use crate::services::integration::{nushell_paths_file_contains_path, render_nushell_paths_file};
+use crate::services::integration::{ShellManager, nushell_paths_file_contains_path};
 #[cfg(unix)]
 use crate::utils::platform::shells::installed_shell_commands;
 use crate::utils::static_paths::UpstreamPaths;
@@ -293,26 +293,11 @@ fn create_default_config_file(paths: &UpstreamPaths) -> Result<()> {
 
 #[cfg(unix)]
 fn create_metadata_files(paths: &UpstreamPaths) -> io::Result<()> {
-    if !paths.config.paths_file.exists() {
-        let export_line = format!(
-            r#"export PATH="{}:$PATH""#,
-            paths.state.symlinks_dir.display()
-        );
-        fs::write(
-            &paths.config.paths_file,
-            format!(
-                "#!/bin/bash\n# Upstream managed PATH additions\n{}\n",
-                export_line
-            ),
-        )?;
-    }
-    if !paths.config.paths_nu_file.exists() {
-        fs::write(
-            &paths.config.paths_nu_file,
-            render_nushell_paths_file(&[paths.state.symlinks_dir.display().to_string()]),
-        )?;
-    }
-    Ok(())
+    let mut package_database =
+        PackageDatabase::open(&paths.config.packages_database_file).map_err(io::Error::other)?;
+    ShellManager::new(&paths.config.paths_file)
+        .regenerate_paths(&mut package_database, paths)
+        .map_err(io::Error::other)
 }
 
 #[cfg(windows)]
@@ -734,13 +719,11 @@ mod tests {
         fs::create_dir_all(&paths.dirs.data_dir).expect("create data dir");
         super::create_manifest_file(&paths).expect("create manifest");
         let present_report = super::check(&paths).expect("check present manifest");
-        assert!(
-            present_report
-                .messages
-                .iter()
-                .map(|message| console::strip_ansi_codes(message).to_string())
-                .any(|message| message.contains("[ok]") && message.contains("manifest file exists"))
-        );
+        assert!(present_report
+            .messages
+            .iter()
+            .map(|message| console::strip_ansi_codes(message).to_string())
+            .any(|message| message.contains("[ok]") && message.contains("manifest file exists")));
 
         cleanup(&root).expect("cleanup");
     }

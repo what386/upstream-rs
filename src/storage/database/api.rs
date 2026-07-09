@@ -44,8 +44,24 @@ impl PackageDatabase {
         self.connection()?.list_packages()
     }
 
+    pub fn list_path_entries(&self) -> Result<Vec<PathBuf>> {
+        self.connection()?.list_path_entries()
+    }
+
     pub fn upsert_package(&mut self, package: &Package) -> Result<()> {
         self.connection()?.upsert_package(package)
+    }
+
+    pub fn add_path_entry(&mut self, path: &Path) -> Result<bool> {
+        self.connection()?.add_path_entry(path)
+    }
+
+    pub fn remove_path_entry(&mut self, path: &Path) -> Result<bool> {
+        self.connection()?.remove_path_entry(path)
+    }
+
+    pub fn replace_all_path_entries(&mut self, paths: &[PathBuf]) -> Result<()> {
+        self.connection()?.replace_all_path_entries(paths)
     }
 
     pub fn replace_all_packages(&mut self, packages: &[Package]) -> Result<()> {

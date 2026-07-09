@@ -45,3 +45,8 @@ CREATE TABLE IF NOT EXISTS patterns (
 
 CREATE INDEX IF NOT EXISTS idx_patterns_package_kind_position
     ON patterns(package_name, kind, position);
+
+CREATE TABLE IF NOT EXISTS path_entries (
+    path TEXT PRIMARY KEY NOT NULL,
+    position INTEGER NOT NULL CHECK (position >= 0)
+);

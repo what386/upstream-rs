@@ -1,7 +1,6 @@
 use crate::{
-    models::common::enums::Filetype,
     models::upstream::Package,
-    services::integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
+    services::integration::{CompletionManager, DesktopManager, SymlinkManager},
     services::packaging::disk_impact::{
         ByteEstimate, DiskImpact, SignedByteEstimate, estimate_existing_paths,
     },
@@ -25,12 +24,21 @@ pub struct PackageRemover<'a> {
 }
 
 impl<'a> PackageRemover<'a> {
+    pub fn new(paths: &'a UpstreamPaths) -> Self {
+        Self { paths }
+    }
+
+    pub fn paths(&self) -> &UpstreamPaths {
+        self.paths
+    }
+
+    #[cfg(test)]
     fn managed_path_entry(
         &self,
         package: &Package,
         install_path: &Path,
     ) -> Option<std::path::PathBuf> {
-        if package.filetype != Filetype::Archive
+        if package.filetype != crate::models::common::enums::Filetype::Archive
             || !install_path.starts_with(&self.paths.install.archives_dir)
         {
             return None;
@@ -50,10 +58,6 @@ impl<'a> PackageRemover<'a> {
             .as_ref()
             .and_then(|exec_path| exec_path.parent().map(Path::to_path_buf))
             .or_else(|| Some(install_path.to_path_buf()))
-    }
-
-    pub fn new(paths: &'a UpstreamPaths) -> Self {
-        Self { paths }
     }
 
     pub fn estimate_remove_impact(&self, package: &Package, purge_option: bool) -> DiskImpact {
@@ -235,25 +239,10 @@ impl<'a> PackageRemover<'a> {
     where
         H: FnMut(&str),
     {
-        let install_path = package
+        let _ = package
             .install_path
             .as_ref()
             .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
-
-        if let Some(path_entry) = self.managed_path_entry(package, install_path) {
-            message!(
-                message_callback,
-                "Removing '{}' from PATH ...",
-                path_entry.display()
-            );
-
-            ShellManager::new(&self.paths.config.paths_file)
-                .remove_from_paths(&path_entry)
-                .context(format!(
-                    "Failed to remove '{}' from PATH configuration",
-                    path_entry.display()
-                ))?;
-        }
 
         message!(message_callback, "Removing symlink for '{}'", package.name);
         SymlinkManager::new(&self.paths.state.symlinks_dir)
@@ -279,26 +268,10 @@ impl<'a> PackageRemover<'a> {
     where
         H: FnMut(&str),
     {
-        let install_path = package
+        let _ = package
             .install_path
             .as_ref()
             .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
-
-        if let Some(path_entry) = self.managed_path_entry(package, install_path)
-            && path_entry.is_dir()
-        {
-            message!(
-                message_callback,
-                "Restoring '{}' to PATH ...",
-                path_entry.display()
-            );
-            ShellManager::new(&self.paths.config.paths_file)
-                .add_to_paths(&path_entry)
-                .context(format!(
-                    "Failed to restore '{}' in PATH configuration",
-                    path_entry.display()
-                ))?;
-        }
 
         if let Some(exec_path) = package.exec_path.as_ref()
             && exec_path.exists()
