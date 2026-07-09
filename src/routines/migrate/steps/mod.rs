@@ -7,6 +7,7 @@ use crate::{routines::migrate::MigrationReport, utils::static_paths::UpstreamPat
 // as the step filename, seperated by underscores.
 // they would then be run from oldest to newest.
 
+#[allow(unused_variables)] // temporary
 pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
     Ok(())
 }
