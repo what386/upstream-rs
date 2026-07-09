@@ -18,6 +18,7 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
         user_dir: root.to_path_buf(),
         config_dir: root.join("config"),
         data_dir: root.join("data"),
+        generated_dir: root.join("data/generated"),
         state_dir: root.join("data/state"),
         packages_dir: root.join("data/packages"),
         cache_dir: root.join("data/cache"),
@@ -31,8 +32,8 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
             packages_file: dirs.metadata_dir.join("packages.json"),
             packages_database_file: dirs.metadata_dir.join("packages.db"),
             trust_file: dirs.metadata_dir.join("trust.json"),
-            paths_file: dirs.metadata_dir.join("paths.sh"),
-            paths_nu_file: dirs.metadata_dir.join("paths.nu"),
+            paths_file: dirs.generated_dir.join("paths.sh"),
+            paths_nu_file: dirs.generated_dir.join("paths.nu"),
         },
         install: InstallPaths {
             appimages_dir: dirs.packages_dir.join("appimages"),
