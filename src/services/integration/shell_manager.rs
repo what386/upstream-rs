@@ -594,7 +594,7 @@ mod tests {
         let paths = test_support::upstream_paths(&root);
         fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
         fs::create_dir_all(&paths.install.archives_dir).expect("create archives dir");
-        fs::create_dir_all(&paths.config.paths_file.parent().expect("paths parent"))
+        fs::create_dir_all(paths.config.paths_file.parent().expect("paths parent"))
             .expect("create paths parent");
         fs::write(&paths.config.paths_file, "").expect("create paths file");
         fs::write(&paths.config.paths_nu_file, "").expect("create paths nu");
