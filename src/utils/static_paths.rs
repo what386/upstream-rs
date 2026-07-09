@@ -6,6 +6,7 @@ pub struct AppDirs {
     pub user_dir: PathBuf,
     pub config_dir: PathBuf,
     pub data_dir: PathBuf,
+    pub generated_dir: PathBuf,
     pub state_dir: PathBuf,
     pub packages_dir: PathBuf,
     pub cache_dir: PathBuf,
@@ -27,6 +28,7 @@ impl AppDirs {
             .join("upstream");
 
         let data_dir = user_dir.join(".upstream");
+        let generated_dir = data_dir.join("generated");
         let state_dir = data_dir.join("state");
 
         let packages_dir = data_dir.join("packages");
@@ -37,6 +39,7 @@ impl AppDirs {
             user_dir,
             config_dir,
             data_dir,
+            generated_dir,
             state_dir,
             packages_dir,
             cache_dir,
@@ -64,8 +67,8 @@ impl ConfigPaths {
             packages_file: dirs.metadata_dir.join("packages.json"),
             packages_database_file: dirs.metadata_dir.join("packages.db"),
             trust_file: dirs.metadata_dir.join("trust.json"),
-            paths_file: dirs.metadata_dir.join("paths.sh"),
-            paths_nu_file: dirs.metadata_dir.join("paths.nu"),
+            paths_file: dirs.generated_dir.join("paths.sh"),
+            paths_nu_file: dirs.generated_dir.join("paths.nu"),
         }
     }
 }
@@ -185,7 +188,15 @@ mod tests {
         );
         assert_eq!(
             paths.config.paths_nu_file,
-            paths.dirs.metadata_dir.join("paths.nu")
+            paths.dirs.generated_dir.join("paths.nu")
+        );
+        assert_eq!(
+            paths.config.paths_file,
+            paths.dirs.generated_dir.join("paths.sh")
+        );
+        assert_eq!(
+            paths.dirs.generated_dir,
+            paths.dirs.data_dir.join("generated")
         );
         assert_eq!(
             paths.install.binaries_dir,

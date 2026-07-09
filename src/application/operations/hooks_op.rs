@@ -28,12 +28,12 @@ use std::path::Path;
 // Unix shell source lines
 #[cfg(unix)]
 const SOURCE_LINE_BASH: &str =
-    "[ -f $HOME/.upstream/metadata/paths.sh ] && source $HOME/.upstream/metadata/paths.sh";
+    "[ -f $HOME/.upstream/generated/paths.sh ] && source $HOME/.upstream/generated/paths.sh";
 #[cfg(unix)]
 const SOURCE_LINE_FISH: &str =
-    "test -f $HOME/.upstream/metadata/paths.sh; and source $HOME/.upstream/metadata/paths.sh";
+    "test -f $HOME/.upstream/generated/paths.sh; and source $HOME/.upstream/generated/paths.sh";
 #[cfg(unix)]
-const SOURCE_LINE_NUSHELL: &str = r#"const upstream_paths_nu = if ("~/.upstream/metadata/paths.nu" | path expand | path exists) { ("~/.upstream/metadata/paths.nu" | path expand) } else { null }; source-env $upstream_paths_nu"#;
+const SOURCE_LINE_NUSHELL: &str = r#"const upstream_paths_nu = if ("~/.upstream/generated/paths.nu" | path expand | path exists) { ("~/.upstream/generated/paths.nu" | path expand) } else { null }; source-env $upstream_paths_nu"#;
 
 pub struct InitCheckReport {
     pub ok: bool,
@@ -107,6 +107,7 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
     for (label, path) in [
         ("config directory", &paths.dirs.config_dir),
         ("data directory", &paths.dirs.data_dir),
+        ("generated directory", &paths.dirs.generated_dir),
         ("metadata directory", &paths.dirs.metadata_dir),
         ("symlinks directory", &paths.state.symlinks_dir),
         ("appimages directory", &paths.install.appimages_dir),
@@ -265,6 +266,7 @@ fn broadcast_environment_change() {
 fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
     fs::create_dir_all(&paths.dirs.config_dir)?;
     fs::create_dir_all(&paths.dirs.data_dir)?;
+    fs::create_dir_all(&paths.dirs.generated_dir)?;
     fs::create_dir_all(&paths.dirs.packages_dir)?;
     fs::create_dir_all(&paths.dirs.cache_dir)?;
     fs::create_dir_all(&paths.dirs.metadata_dir)?;
@@ -609,6 +611,7 @@ mod tests {
             user_dir: root.to_path_buf(),
             config_dir: root.join("config"),
             data_dir: root.join(".upstream"),
+            generated_dir: root.join(".upstream/generated"),
             state_dir: root.join(".upstream/state"),
             packages_dir: root.join(".upstream/packages"),
             cache_dir: root.join(".upstream/cache"),
@@ -622,8 +625,8 @@ mod tests {
                 packages_file: dirs.metadata_dir.join("packages.json"),
                 packages_database_file: dirs.metadata_dir.join("packages.db"),
                 trust_file: dirs.metadata_dir.join("trust.json"),
-                paths_file: dirs.metadata_dir.join("paths.sh"),
-                paths_nu_file: dirs.metadata_dir.join("paths.nu"),
+                paths_file: dirs.generated_dir.join("paths.sh"),
+                paths_nu_file: dirs.generated_dir.join("paths.nu"),
             },
             install: InstallPaths {
                 appimages_dir: dirs.packages_dir.join("appimages"),
