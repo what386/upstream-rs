@@ -9,9 +9,6 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
-- [ ] feat: path files are now generated from package db
-      @created 2026-07-09 17:29
-
 
 ## Completed
 
@@ -30,4 +27,8 @@
 - [x] BREAKING: verify is no longer a subcommand for 'config' nor 'auth'. foreign keys are rejected on config load
       @created 2026-07-06 19:09
       @completed 2026-07-06 19:09
+
+- [x] feat: path files are now generated from package db
+      @created 2026-07-09 17:29
+      @completed 2026-07-09 17:29
 
