@@ -1,3 +1,5 @@
+mod v2_11_0;
+
 use anyhow::Result;
 
 use crate::{routines::migrate::MigrationReport, utils::static_paths::UpstreamPaths};
@@ -9,5 +11,6 @@ use crate::{routines::migrate::MigrationReport, utils::static_paths::UpstreamPat
 
 #[allow(unused_variables)] // temporary
 pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
+    v2_11_0::run(paths, report)?;
     Ok(())
 }
