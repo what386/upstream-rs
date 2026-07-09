@@ -9,3 +9,6 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
+- [ ] perf: reduce refetching of package patterns
+      @created 2026-07-09 21:30
+
