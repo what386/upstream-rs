@@ -1,8 +1,7 @@
+use crate::storage::database::PackageDatabase;
 #[cfg(unix)]
 use crate::utils::filesystem::atomic_ops::write_atomic;
 use anyhow::{Context, Result};
-#[cfg(unix)]
-use std::fs;
 use std::path::Path;
 #[cfg(unix)]
 use std::path::PathBuf;
@@ -40,8 +39,48 @@ impl<'a> ShellManager<'a> {
         }
     }
 
+    #[cfg(unix)]
+    pub fn regenerate_paths(
+        &self,
+        package_database: &mut PackageDatabase,
+        paths: &crate::utils::static_paths::UpstreamPaths,
+    ) -> Result<()> {
+        let _guard = paths_file_lock()
+            .lock()
+            .ok()
+            .ok_or_else(|| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
+        let path_entries = derive_path_entries(package_database, paths)?;
+        package_database.replace_all_path_entries(&path_entries)?;
+
+        let posix_content = render_posix_paths_file(&path_entries);
+        write_atomic(self.paths_file, posix_content.as_bytes())
+            .context("Failed to write paths file")?;
+
+        let nushell_paths = path_entries
+            .iter()
+            .map(|path| path.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+        let nushell_content = render_nushell_paths_file(&nushell_paths);
+        write_atomic(&self.paths_nu_file, nushell_content.as_bytes())
+            .context("Failed to write Nushell paths file")?;
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    pub fn regenerate_paths(
+        &self,
+        _package_database: &mut PackageDatabase,
+        _paths: &crate::utils::static_paths::UpstreamPaths,
+    ) -> Result<()> {
+        Ok(())
+    }
+
     /// Adds a package's installation path to PATH
-    pub fn add_to_paths(&self, install_path: &Path) -> Result<()> {
+    pub fn add_to_paths(
+        &self,
+        package_database: &mut PackageDatabase,
+        install_path: &Path,
+    ) -> Result<()> {
         if !install_path.is_dir() {
             anyhow::bail!(
                 "Package install directory not found: {}",
@@ -55,30 +94,8 @@ impl<'a> ShellManager<'a> {
                 .lock()
                 .ok()
                 .ok_or_else(|| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
-            let mut content =
-                fs::read_to_string(self.paths_file).context("Failed to read paths file")?;
-            let escaped = install_path
-                .to_string_lossy()
-                .replace('$', "\\$")
-                .replace('"', "\\\"");
-            let export_line = format!("export PATH=\"{escaped}:$PATH\"");
-
-            if !content.contains(&export_line) {
-                content.push_str(&format!("{export_line}\n"));
-                write_atomic(self.paths_file, content.as_bytes())
-                    .context("Failed to write paths file")?;
-            }
-
-            let nushell_content = fs::read_to_string(&self.paths_nu_file).unwrap_or_default();
-            let mut nushell_paths = parse_nushell_paths_file(&nushell_content);
-            let install_path = install_path.to_string_lossy().to_string();
-
-            if !nushell_paths.contains(&install_path) {
-                nushell_paths.insert(0, install_path);
-                let rendered = render_nushell_paths_file(&nushell_paths);
-                write_atomic(&self.paths_nu_file, rendered.as_bytes())
-                    .context("Failed to write Nushell paths file")?;
-            }
+            package_database.add_path_entry(install_path)?;
+            self.regenerate_paths_files(package_database)?;
         }
 
         #[cfg(windows)]
@@ -91,40 +108,19 @@ impl<'a> ShellManager<'a> {
     }
 
     /// Removes a package's PATH entry
-    pub fn remove_from_paths(&self, install_path: &Path) -> Result<()> {
+    pub fn remove_from_paths(
+        &self,
+        package_database: &mut PackageDatabase,
+        install_path: &Path,
+    ) -> Result<()> {
         #[cfg(unix)]
         {
             let _guard = paths_file_lock()
                 .lock()
                 .ok()
                 .ok_or_else(|| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
-            let mut content =
-                fs::read_to_string(self.paths_file).context("Failed to read paths file")?;
-            let escaped = install_path
-                .to_string_lossy()
-                .replace('$', "\\$")
-                .replace('"', "\\\"");
-            let export_line = format!("export PATH=\"{escaped}:$PATH\"");
-
-            content = content.replace(&format!("{export_line}\n"), "");
-            content = content.replace(&export_line, "");
-            write_atomic(self.paths_file, content.as_bytes())
-                .context("Failed to write paths file")?;
-
-            if self.paths_nu_file.exists() {
-                let nushell_content = fs::read_to_string(&self.paths_nu_file)
-                    .context("Failed to read Nushell paths file")?;
-                let target = install_path.to_string_lossy().to_string();
-                let mut nushell_paths = parse_nushell_paths_file(&nushell_content);
-                let original_len = nushell_paths.len();
-                nushell_paths.retain(|path| path != &target);
-
-                if nushell_paths.len() != original_len {
-                    let rendered = render_nushell_paths_file(&nushell_paths);
-                    write_atomic(&self.paths_nu_file, rendered.as_bytes())
-                        .context("Failed to write Nushell paths file")?;
-                }
-            }
+            package_database.remove_path_entry(install_path)?;
+            self.regenerate_paths_files(package_database)?;
         }
 
         #[cfg(windows)]
@@ -133,6 +129,28 @@ impl<'a> ShellManager<'a> {
             self.remove_from_windows_registry(install_path)?;
         }
 
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    pub fn regenerate_paths_files(&self, package_database: &PackageDatabase) -> Result<()> {
+        let paths = package_database.list_path_entries()?;
+        let posix_content = render_posix_paths_file(&paths);
+        write_atomic(self.paths_file, posix_content.as_bytes())
+            .context("Failed to write paths file")?;
+
+        let nushell_paths = paths
+            .iter()
+            .map(|path| path.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+        let nushell_content = render_nushell_paths_file(&nushell_paths);
+        write_atomic(&self.paths_nu_file, nushell_content.as_bytes())
+            .context("Failed to write Nushell paths file")?;
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    pub fn regenerate_paths_files(&self, _package_database: &PackageDatabase) -> Result<()> {
         Ok(())
     }
 
@@ -238,6 +256,82 @@ impl<'a> ShellManager<'a> {
 #[cfg(unix)]
 fn escape_nushell_string(value: &str) -> String {
     value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+#[cfg(unix)]
+fn escape_posix_path(value: &str) -> String {
+    value.replace('$', "\\$").replace('"', "\\\"")
+}
+
+#[cfg(unix)]
+fn derive_path_entries(
+    package_database: &mut PackageDatabase,
+    paths: &crate::utils::static_paths::UpstreamPaths,
+) -> Result<Vec<PathBuf>> {
+    let mut packages = package_database.list_packages()?;
+    packages.sort_by(|left, right| {
+        right
+            .last_upgraded
+            .cmp(&left.last_upgraded)
+            .then_with(|| left.name.cmp(&right.name))
+    });
+
+    let mut entries = Vec::new();
+    push_unique_path(&mut entries, paths.state.symlinks_dir.clone());
+
+    for package in &packages {
+        if let Some(path_entry) = derive_package_path_entry(paths, package) {
+            push_unique_path(&mut entries, path_entry);
+        }
+    }
+
+    Ok(entries)
+}
+
+#[cfg(unix)]
+fn derive_package_path_entry(
+    paths: &crate::utils::static_paths::UpstreamPaths,
+    package: &crate::models::upstream::Package,
+) -> Option<PathBuf> {
+    let install_path = package.install_path.as_ref()?;
+
+    if package.filetype != crate::models::common::enums::Filetype::Archive
+        || !install_path.starts_with(&paths.install.archives_dir)
+    {
+        return None;
+    }
+
+    if install_path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("app"))
+        .unwrap_or(false)
+    {
+        return None;
+    }
+
+    package
+        .exec_path
+        .as_ref()
+        .and_then(|exec_path| exec_path.parent().map(Path::to_path_buf))
+        .or_else(|| Some(install_path.to_path_buf()))
+}
+
+#[cfg(unix)]
+fn push_unique_path(entries: &mut Vec<PathBuf>, path: PathBuf) {
+    if !entries.iter().any(|entry| entry == &path) {
+        entries.push(path);
+    }
+}
+
+#[cfg(unix)]
+pub fn render_posix_paths_file(paths: &[PathBuf]) -> String {
+    let mut content = String::from("#!/bin/bash\n# Upstream managed PATH additions\n");
+    for path in paths.iter().rev() {
+        let escaped = escape_posix_path(&path.to_string_lossy());
+        content.push_str(&format!("export PATH=\"{escaped}:$PATH\"\n"));
+    }
+    content
 }
 
 #[cfg(unix)]
@@ -347,6 +441,11 @@ fn dedupe_preserving_order(paths: Vec<String>) -> Vec<String> {
 mod tests {
     #[cfg(unix)]
     use super::{ShellManager, parse_nushell_paths_file};
+    use crate::models::common::enums::{Channel, Filetype, Provider};
+    use crate::models::upstream::Package;
+    #[cfg(unix)]
+    use crate::storage::database::PackageDatabase;
+    use crate::utils::test_support;
     #[cfg(unix)]
     use std::path::{Path, PathBuf};
     #[cfg(unix)]
@@ -379,9 +478,15 @@ mod tests {
         fs::write(&paths_file, "#!/usr/bin/env sh\n").expect("create paths file");
         fs::write(&paths_nu_file, "# Upstream managed PATH additions\n").expect("create paths.nu");
         let manager = ShellManager::new(&paths_file);
+        let mut package_database =
+            PackageDatabase::open(&root.join("packages.db")).expect("open package db");
 
-        manager.add_to_paths(&install_path).expect("first add");
-        manager.add_to_paths(&install_path).expect("second add");
+        manager
+            .add_to_paths(&mut package_database, &install_path)
+            .expect("first add");
+        manager
+            .add_to_paths(&mut package_database, &install_path)
+            .expect("second add");
 
         let content = fs::read_to_string(&paths_file).expect("read paths file");
         assert_eq!(content.matches("export PATH=").count(), 1);
@@ -412,10 +517,14 @@ mod tests {
         fs::write(&paths_file, "").expect("create paths file");
         fs::write(&paths_nu_file, "# Upstream managed PATH additions\n").expect("create paths.nu");
         let manager = ShellManager::new(&paths_file);
+        let mut package_database =
+            PackageDatabase::open(&root.join("packages.db")).expect("open package db");
 
-        manager.add_to_paths(&install_path).expect("add path");
         manager
-            .remove_from_paths(&install_path)
+            .add_to_paths(&mut package_database, &install_path)
+            .expect("add path");
+        manager
+            .remove_from_paths(&mut package_database, &install_path)
             .expect("remove path");
 
         let content = fs::read_to_string(&paths_file).expect("read paths file");
@@ -429,8 +538,8 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn add_to_paths_migrates_old_nushell_prepend_lines_to_managed_list() {
-        let root = temp_root("migrate-nu");
+    fn add_to_paths_renders_database_order() {
+        let root = temp_root("render-order");
         let first_path = root.join("first/bin");
         let second_path = root.join("second/bin");
         let new_path = root.join("new/bin");
@@ -440,20 +549,20 @@ mod tests {
         fs::create_dir_all(&second_path).expect("create second dir");
         fs::create_dir_all(&new_path).expect("create new dir");
         fs::write(&paths_file, "#!/usr/bin/env sh\n").expect("create paths file");
-        fs::write(
-            &paths_nu_file,
-            format!(
-                "# Upstream managed PATH additions\n\
-                 $env.PATH = ($env.PATH | prepend \"{}\")\n\
-                 $env.PATH = ($env.PATH | prepend \"{}\")\n",
-                first_path.display(),
-                second_path.display()
-            ),
-        )
-        .expect("create old paths.nu");
+        fs::write(&paths_nu_file, "# Upstream managed PATH additions\n").expect("create paths.nu");
         let manager = ShellManager::new(&paths_file);
+        let mut package_database =
+            PackageDatabase::open(&root.join("packages.db")).expect("open package db");
 
-        manager.add_to_paths(&new_path).expect("add path");
+        manager
+            .add_to_paths(&mut package_database, &first_path)
+            .expect("add first path");
+        manager
+            .add_to_paths(&mut package_database, &second_path)
+            .expect("add second path");
+        manager
+            .add_to_paths(&mut package_database, &new_path)
+            .expect("add new path");
 
         let nushell_content = fs::read_to_string(&paths_nu_file).expect("read paths.nu");
         assert!(!nushell_content.contains(" | prepend "));
@@ -463,6 +572,86 @@ mod tests {
                 new_path.to_string_lossy().to_string(),
                 second_path.to_string_lossy().to_string(),
                 first_path.to_string_lossy().to_string(),
+            ]
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn regenerate_paths_renders_from_packages_database() {
+        let root = temp_root("regen-db");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
+        fs::create_dir_all(&paths.install.archives_dir).expect("create archives dir");
+        fs::create_dir_all(&paths.config.paths_file.parent().expect("paths parent"))
+            .expect("create paths parent");
+        fs::write(&paths.config.paths_file, "").expect("create paths file");
+        fs::write(&paths.config.paths_nu_file, "").expect("create paths nu");
+
+        let mut package_database =
+            PackageDatabase::open(&paths.config.packages_database_file).expect("open db");
+
+        let older_install = paths.install.archives_dir.join("older/bin");
+        let newer_install = paths.install.archives_dir.join("newer/bin");
+        fs::create_dir_all(&older_install).expect("create older");
+        fs::create_dir_all(&newer_install).expect("create newer");
+
+        let mut older = Package::with_defaults(
+            "older".to_string(),
+            "owner/older".to_string(),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        older.install_path = Some(paths.install.archives_dir.join("older"));
+        older.exec_path = Some(older_install.clone());
+        older.last_upgraded = chrono::Utc::now() - chrono::Duration::days(1);
+
+        let mut newer = Package::with_defaults(
+            "newer".to_string(),
+            "owner/newer".to_string(),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        newer.install_path = Some(paths.install.archives_dir.join("newer"));
+        newer.exec_path = Some(newer_install.clone());
+        newer.last_upgraded = chrono::Utc::now();
+
+        package_database.upsert_package(&older).expect("seed older");
+        package_database.upsert_package(&newer).expect("seed newer");
+
+        let manager = ShellManager::new(&paths.config.paths_file);
+        manager
+            .regenerate_paths(&mut package_database, &paths)
+            .expect("regenerate paths");
+
+        let nushell_content =
+            fs::read_to_string(&paths.config.paths_nu_file).expect("read paths.nu");
+        assert_eq!(
+            parse_nushell_paths_file(&nushell_content),
+            vec![
+                paths.state.symlinks_dir.display().to_string(),
+                paths
+                    .install
+                    .archives_dir
+                    .join("newer")
+                    .to_string_lossy()
+                    .to_string(),
+                paths
+                    .install
+                    .archives_dir
+                    .join("older")
+                    .to_string_lossy()
+                    .to_string(),
             ]
         );
 

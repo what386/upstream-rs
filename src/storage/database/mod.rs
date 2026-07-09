@@ -8,7 +8,7 @@ mod patterns;
 
 pub use api::PackageDatabase;
 
-pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 2;
+pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 3;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 
@@ -24,22 +24,63 @@ fn initialize(conn: &Connection) -> Result<()> {
         return Ok(());
     }
 
-    validate_schema_version(current_version)?;
+    migrate_schema(conn, current_version)?;
     conn.execute_batch(SCHEMA_SQL)
         .context("Failed to initialize package database schema")?;
     Ok(())
 }
 
-fn validate_schema_version(current_version: u32) -> Result<()> {
+fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
+    if current_version > PACKAGE_DB_SCHEMA_VERSION {
+        bail!(
+            "Unsupported package database schema version {}. Expected version {} or earlier.",
+            current_version,
+            PACKAGE_DB_SCHEMA_VERSION
+        );
+    }
+
+    while current_version < PACKAGE_DB_SCHEMA_VERSION {
+        match current_version {
+            1 => {
+                conn.execute_batch(
+                    "
+                    BEGIN;
+                    ALTER TABLE packages ADD COLUMN version_tag_template TEXT;
+                    PRAGMA user_version = 2;
+                    COMMIT;
+                    ",
+                )
+                .context("Failed to migrate package database schema from version 1 to 2")?;
+                current_version = 2;
+            }
+            2 => {
+                conn.execute_batch(
+                    "
+                    BEGIN;
+                    CREATE TABLE IF NOT EXISTS path_entries (
+                        path TEXT PRIMARY KEY NOT NULL,
+                        position INTEGER NOT NULL CHECK (position >= 0)
+                    );
+                    PRAGMA user_version = 3;
+                    COMMIT;
+                    ",
+                )
+                .context("Failed to migrate package database schema from version 2 to 3")?;
+                current_version = 3;
+            }
+            version => bail!(
+                "Unsupported package database schema version {}. Expected version {} or earlier.",
+                version,
+                PACKAGE_DB_SCHEMA_VERSION
+            ),
+        }
+    }
+
     if current_version == PACKAGE_DB_SCHEMA_VERSION {
         return Ok(());
     }
 
-    bail!(
-        "Unsupported package database schema version {}. Expected version {}. Run `upstream doctor --migrate` to update package metadata.",
-        current_version,
-        PACKAGE_DB_SCHEMA_VERSION
-    )
+    unreachable!("schema migration loop should finish at the current schema version")
 }
 
 fn record_schema_version(conn: &Connection) -> Result<()> {

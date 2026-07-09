@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
@@ -97,6 +97,18 @@ impl PackageConnection {
             .collect()
     }
 
+    pub fn list_path_entries(&self) -> Result<Vec<PathBuf>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT path FROM path_entries ORDER BY position")
+            .context("Failed to prepare PATH entry list query")?;
+
+        stmt.query_map([], |row| row.get::<_, String>(0).map(PathBuf::from))
+            .context("Failed to list PATH entries")?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .context("Failed to decode PATH entry rows")
+    }
+
     pub fn upsert_package(&mut self, package: &Package) -> Result<()> {
         let tx = self
             .conn
@@ -105,6 +117,90 @@ impl PackageConnection {
         write_package(&tx, package)?;
         tx.commit()
             .with_context(|| format!("Failed to commit package '{}'", package.name))
+    }
+
+    pub fn add_path_entry(&mut self, path: &Path) -> Result<bool> {
+        let path = path_to_db(path)?;
+        let tx = self
+            .conn
+            .transaction()
+            .context("Failed to start PATH entry insert transaction")?;
+
+        let exists = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM path_entries WHERE path = ?1)",
+                [&path],
+                |row| row.get::<_, bool>(0),
+            )
+            .with_context(|| format!("Failed to check PATH entry '{}'", path))?;
+        if exists {
+            tx.commit()
+                .context("Failed to commit unchanged PATH entry transaction")?;
+            return Ok(false);
+        }
+
+        tx.execute("UPDATE path_entries SET position = position + 1", [])
+            .context("Failed to shift PATH entry positions")?;
+        tx.execute(
+            "INSERT INTO path_entries (path, position) VALUES (?1, 0)",
+            [&path],
+        )
+        .with_context(|| format!("Failed to add PATH entry '{}'", path))?;
+        tx.commit()
+            .with_context(|| format!("Failed to commit PATH entry '{}'", path))?;
+        Ok(true)
+    }
+
+    pub fn remove_path_entry(&mut self, path: &Path) -> Result<bool> {
+        let path = path_to_db(path)?;
+        let tx = self
+            .conn
+            .transaction()
+            .context("Failed to start PATH entry removal transaction")?;
+
+        let position = tx
+            .query_row(
+                "SELECT position FROM path_entries WHERE path = ?1",
+                [&path],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()
+            .with_context(|| format!("Failed to load PATH entry '{}'", path))?;
+        let Some(position) = position else {
+            tx.commit()
+                .context("Failed to commit unchanged PATH entry transaction")?;
+            return Ok(false);
+        };
+
+        tx.execute("DELETE FROM path_entries WHERE path = ?1", [&path])
+            .with_context(|| format!("Failed to remove PATH entry '{}'", path))?;
+        tx.execute(
+            "UPDATE path_entries SET position = position - 1 WHERE position > ?1",
+            [position],
+        )
+        .context("Failed to compact PATH entry positions")?;
+        tx.commit()
+            .with_context(|| format!("Failed to commit PATH entry removal '{}'", path))?;
+        Ok(true)
+    }
+
+    pub fn replace_all_path_entries(&mut self, paths: &[PathBuf]) -> Result<()> {
+        let tx = self
+            .conn
+            .transaction()
+            .context("Failed to start PATH entry replacement transaction")?;
+        tx.execute("DELETE FROM path_entries", [])
+            .context("Failed to clear PATH entries")?;
+        for (position, path) in paths.iter().enumerate() {
+            let path = path_to_db(path)?;
+            tx.execute(
+                "INSERT INTO path_entries (path, position) VALUES (?1, ?2)",
+                params![path, position as i64],
+            )
+            .context("Failed to insert PATH entry")?;
+        }
+        tx.commit()
+            .context("Failed to commit PATH entry replacement transaction")
     }
 
     pub fn replace_all_packages(&mut self, packages: &[Package]) -> Result<()> {
@@ -154,6 +250,12 @@ impl PackageConnection {
     fn initialize(&mut self) -> Result<()> {
         super::initialize(&self.conn)
     }
+}
+
+fn path_to_db(path: &Path) -> Result<String> {
+    path.to_str()
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| anyhow!("Path '{}' is not valid UTF-8", path.display()))
 }
 
 fn select_package_by_name_query() -> String {
@@ -292,7 +394,7 @@ mod tests {
     }
 
     #[test]
-    fn open_rejects_schema_v1_without_runtime_migration() {
+    fn open_migrates_schema_v1_in_place() {
         let conn = Connection::open_in_memory().expect("open sqlite");
         conn.execute_batch(
             r#"
@@ -328,13 +430,13 @@ mod tests {
         )
         .expect("create v1 schema");
 
-        let err = PackageConnection::from_connection(conn).expect_err("reject v1 schema");
+        let db = PackageConnection::from_connection(conn).expect("migrate v1 schema");
 
-        assert!(
-            err.to_string()
-                .contains("Unsupported package database schema version 1")
+        assert_eq!(
+            db.schema_version().expect("schema version"),
+            PACKAGE_DB_SCHEMA_VERSION
         );
-        assert!(err.to_string().contains("doctor --migrate"));
+        assert!(!db.package_exists("missing").expect("exists check"));
     }
 
     #[test]
@@ -372,6 +474,34 @@ mod tests {
         assert_eq!(stored.install_path, package.install_path);
         assert_eq!(stored.exec_path, package.exec_path);
         assert_eq!(stored.last_upgraded, package.last_upgraded);
+    }
+
+    #[test]
+    fn path_entries_are_ordered_by_newest_entry_first() {
+        let mut db = PackageConnection::open_in_memory().expect("open db");
+        let first = PathBuf::from("/first/bin");
+        let second = PathBuf::from("/second/bin");
+        let third = PathBuf::from("/third/bin");
+
+        assert!(db.add_path_entry(&first).expect("add first"));
+        assert!(db.add_path_entry(&second).expect("add second"));
+        assert!(db.add_path_entry(&third).expect("add third"));
+        assert!(!db.add_path_entry(&second).expect("dedupe second"));
+
+        assert_eq!(
+            db.list_path_entries().expect("list path entries"),
+            vec![third.clone(), second.clone(), first.clone()]
+        );
+
+        assert!(db.remove_path_entry(&second).expect("remove second"));
+        assert!(
+            !db.remove_path_entry(&second)
+                .expect("remove missing second")
+        );
+        assert_eq!(
+            db.list_path_entries().expect("list path entries"),
+            vec![third, first]
+        );
     }
 
     #[test]

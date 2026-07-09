@@ -10,6 +10,7 @@ use crate::{
     },
     providers::provider_manager::ProviderManager,
     services::{
+        integration::ShellManager,
         packaging::{InstallPreview, PackageInstaller, PackagePhase, PackageProgressEvent},
         trust::TrustedSignatureKeys,
     },
@@ -190,6 +191,15 @@ impl<'a> InstallOperation<'a> {
                 installed_package.name
             ))
         {
+            return self.fail_after_metadata_error(installed_package, err, message_callback);
+        }
+
+        if let Err(err) = ShellManager::new(&self.installer.paths().config.paths_file)
+            .regenerate_paths(self.package_database, self.installer.paths())
+        {
+            let _ = self
+                .package_database
+                .remove_package(&installed_package.name);
             return self.fail_after_metadata_error(installed_package, err, message_callback);
         }
 

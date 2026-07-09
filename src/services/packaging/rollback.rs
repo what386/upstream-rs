@@ -10,6 +10,7 @@ use tar::{Archive, Builder};
 use crate::models::common::enums::CompressionLevel;
 use crate::models::upstream::Package;
 use crate::models::upstream::app_config::RollbackConfig;
+use crate::services::integration::ShellManager;
 use crate::services::packaging::PackageRemover;
 use crate::services::packaging::disk_impact::{
     ByteEstimate, DiskImpact, SignedByteEstimate, estimate_path_size,
@@ -313,6 +314,8 @@ impl<'a> RollbackManager<'a> {
             .upsert_package(&record.package_snapshot)?;
         let remover = PackageRemover::new(self.paths);
         remover.restore_runtime_integrations(&record.package_snapshot, message_callback)?;
+        ShellManager::new(&self.paths.config.paths_file)
+            .regenerate_paths(self.package_database, self.paths)?;
 
         self.rollback_storage.remove_record(package_name)?;
         delete_record_artifacts(self.paths, package_name, &record)?;

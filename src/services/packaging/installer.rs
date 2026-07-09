@@ -8,7 +8,7 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         artifact::{compression_handler, dotslash_parser, permission_handler},
-        integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
+        integration::{CompletionManager, DesktopManager, SymlinkManager},
         packaging::{
             PackagePhase, PackageProgressEvent, PackageRemover,
             bundles::BundleHandler,
@@ -68,6 +68,10 @@ pub struct InstallPreview {
 }
 
 impl<'a> PackageInstaller<'a> {
+    pub fn paths(&self) -> &UpstreamPaths {
+        self.paths
+    }
+
     fn package_cache_key(package_name: &str) -> String {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -870,8 +874,6 @@ impl<'a> PackageInstaller<'a> {
             out_path.display()
         ))?;
 
-        let shell_manager = ShellManager::new(&self.paths.config.paths_file);
-
         message!(message_callback, "Searching for executable ...");
 
         let Some(exec_path) = permission_handler::find_executable(&out_path, &package.name) else {
@@ -880,11 +882,6 @@ impl<'a> PackageInstaller<'a> {
                 "{}",
                 style("Could not automatically locate executable").yellow()
             );
-            // Fallback: add out_path to PATH
-            shell_manager
-                .add_to_paths(&out_path)
-                .context(format!("Failed to add '{}' to PATH", out_path.display()))?;
-            message!(message_callback, "Added '{}' to PATH", out_path.display());
             package.exec_path = None;
             package.install_path = Some(out_path);
             package.last_upgraded = Utc::now();
@@ -903,20 +900,6 @@ impl<'a> PackageInstaller<'a> {
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| exec_path.display().to_string())
-        );
-
-        let path_to_add = exec_path
-            .parent()
-            .ok_or_else(|| anyhow!("Executable has no parent directory"))?;
-
-        shell_manager
-            .add_to_paths(path_to_add)
-            .context(format!("Failed to add '{}' to PATH", path_to_add.display()))?;
-
-        message!(
-            message_callback,
-            "Added '{}' to PATH",
-            path_to_add.display()
         );
 
         let symlink_manager = SymlinkManager::new(&self.paths.state.symlinks_dir);

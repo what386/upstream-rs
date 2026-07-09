@@ -1,5 +1,7 @@
 #[cfg(unix)]
 use crate::services::integration::{ShellManager, nushell_paths_file_contains_path};
+#[cfg(unix)]
+use crate::storage::database::PackageDatabase;
 use crate::{services::integration::CompletionManager, utils::static_paths::UpstreamPaths};
 #[cfg(unix)]
 use std::fs;
@@ -118,7 +120,9 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
 #[cfg(unix)]
 fn fix_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
     let manager = ShellManager::new(&paths.config.paths_file);
-    if let Err(err) = manager.add_to_paths(&paths.state.symlinks_dir) {
+    let result = PackageDatabase::open(&paths.config.packages_database_file)
+        .and_then(|mut package_database| manager.regenerate_paths(&mut package_database, paths));
+    if let Err(err) = result {
         report.line(
             Level::Warn,
             format!("Failed to repair PATH integration file: {}", err),
