@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::upstream::Package;
 use crate::routines::migrate::MigrationReport;
+use crate::routines::migrate::step::Step;
 use crate::storage::database::PackageDatabase;
 use crate::storage::rollback::RollbackRecord;
 use crate::utils::filesystem::atomic_ops::write_atomic;
@@ -19,7 +20,43 @@ struct RollbackStorageFile {
     records: HashMap<String, Vec<RollbackRecord>>,
 }
 
+pub struct V2_11_0;
+
 pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
+    V2_11_0::run(paths, report)
+}
+
+impl Step for V2_11_0 {
+    fn check(paths: &UpstreamPaths) -> Result<bool> {
+        let old_rollback_dir = paths.dirs.data_dir.join("rollback");
+        let old_symlinks_dir = paths.dirs.data_dir.join("symlinks");
+        let old_icons_dir = paths.dirs.data_dir.join("icons");
+
+        if legacy_state_dir_needs_migration(&old_rollback_dir, &paths.state.rollback_dir)?
+            || legacy_state_dir_needs_migration(&old_symlinks_dir, &paths.state.symlinks_dir)?
+            || legacy_state_dir_needs_migration(&old_icons_dir, &paths.state.icons_dir)?
+        {
+            return Ok(true);
+        }
+
+        if file_contains_path(&paths.config.paths_file, &old_symlinks_dir)?
+            || file_contains_path(&paths.config.paths_nu_file, &old_symlinks_dir)?
+            || package_database_contains_icon_path(paths, &old_icons_dir)?
+            || rollback_storage_contains_icon_path(paths, &old_icons_dir)?
+            || desktop_entries_contain_icon_path(paths, &old_icons_dir)?
+        {
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    fn apply(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
+        apply(paths, report)
+    }
+}
+
+fn apply(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
     let old_rollback_dir = paths.dirs.data_dir.join("rollback");
     let old_symlinks_dir = paths.dirs.data_dir.join("symlinks");
     let old_icons_dir = paths.dirs.data_dir.join("icons");
@@ -44,6 +81,69 @@ pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result
     rewrite_desktop_entries(paths, &old_icons_dir, &paths.state.icons_dir)?;
 
     Ok(())
+}
+
+fn legacy_state_dir_needs_migration(old_path: &Path, new_path: &Path) -> Result<bool> {
+    Ok(old_path.exists() && !same_location(old_path, new_path)?)
+}
+
+fn file_contains_path(path: &Path, target: &Path) -> Result<bool> {
+    if !path.exists() {
+        return Ok(false);
+    }
+
+    let contents = fs::read_to_string(path)
+        .with_context(|| format!("Failed to read migration candidate '{}'", path.display()))?;
+    Ok(contents.contains(&target.display().to_string()))
+}
+
+fn package_database_contains_icon_path(
+    paths: &UpstreamPaths,
+    old_icons_dir: &Path,
+) -> Result<bool> {
+    if !paths.config.packages_database_file.exists() {
+        return Ok(false);
+    }
+
+    let database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    Ok(database.list_packages()?.iter().any(|package| {
+        package
+            .icon_path
+            .as_ref()
+            .is_some_and(|icon_path| icon_path.starts_with(old_icons_dir))
+    }))
+}
+
+fn rollback_storage_contains_icon_path(
+    paths: &UpstreamPaths,
+    old_icons_dir: &Path,
+) -> Result<bool> {
+    let rollback_file = paths.dirs.metadata_dir.join("rollback.json");
+    file_contains_path(&rollback_file, old_icons_dir)
+}
+
+fn desktop_entries_contain_icon_path(paths: &UpstreamPaths, old_icons_dir: &Path) -> Result<bool> {
+    let applications_dir = &paths.integration.xdg_applications_dir;
+    if !applications_dir.exists() {
+        return Ok(false);
+    }
+
+    for entry in fs::read_dir(applications_dir).with_context(|| {
+        format!(
+            "Failed to read desktop entry directory '{}'",
+            applications_dir.display()
+        )
+    })? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|ext| ext.to_str()) == Some("desktop")
+            && file_contains_path(&path, old_icons_dir)?
+        {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
 }
 
 fn create_state_directories(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
@@ -87,10 +187,11 @@ fn move_legacy_state_dir(src: &Path, dst: &Path, report: &mut MigrationReport) -
 }
 
 fn merge_directory_contents(src: &Path, dst: &Path, report: &mut MigrationReport) -> Result<()> {
-    for entry in
-        fs::read_dir(src).with_context(|| format!("Failed to read directory '{}'", src.display()))?
+    for entry in fs::read_dir(src)
+        .with_context(|| format!("Failed to read directory '{}'", src.display()))?
     {
-        let entry = entry.with_context(|| format!("Failed to read entry in '{}'", src.display()))?;
+        let entry =
+            entry.with_context(|| format!("Failed to read entry in '{}'", src.display()))?;
         let from = entry.path();
         let to = dst.join(entry.file_name());
         let file_type = entry
@@ -287,10 +388,11 @@ fn rewrite_desktop_entries(
 
 #[cfg(test)]
 mod tests {
-    use super::run;
+    use super::{V2_11_0, run};
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use crate::routines::migrate::MigrationReport;
+    use crate::routines::migrate::step::Step;
     use crate::storage::database::PackageDatabase;
     use crate::utils::test_support;
     use serde_json::json;
@@ -319,6 +421,30 @@ mod tests {
         package.install_path = Some(install_path);
         package.exec_path = Some(exec_path);
         package
+    }
+
+    #[test]
+    fn check_detects_legacy_state_layout() {
+        let root = temp_root("check-legacy");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(paths.dirs.data_dir.join("symlinks")).expect("create legacy symlinks");
+
+        assert!(V2_11_0::check(&paths).expect("check migration"));
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn check_skips_current_layout_without_legacy_references() {
+        let root = temp_root("check-current");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(&paths.state.rollback_dir).expect("create rollback");
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks");
+        fs::create_dir_all(&paths.state.icons_dir).expect("create icons");
+
+        assert!(!V2_11_0::check(&paths).expect("check migration"));
+
+        cleanup(&root).expect("cleanup");
     }
 
     #[test]
@@ -382,14 +508,20 @@ mod tests {
         .expect("write paths.sh");
         fs::write(
             &paths.config.paths_nu_file,
-            format!("$env.PATH = ($env.PATH | prepend '{}')\n", old_symlinks_dir.display()),
+            format!(
+                "$env.PATH = ($env.PATH | prepend '{}')\n",
+                old_symlinks_dir.display()
+            ),
         )
         .expect("write paths.nu");
 
         fs::create_dir_all(&paths.integration.xdg_applications_dir).expect("create desktop dir");
         fs::write(
             paths.integration.xdg_applications_dir.join("tool.desktop"),
-            format!("[Desktop Entry]\nIcon={}\n", old_icons_dir.join("tool.png").display()),
+            format!(
+                "[Desktop Entry]\nIcon={}\n",
+                old_icons_dir.join("tool.png").display()
+            ),
         )
         .expect("write desktop entry");
 
@@ -423,8 +555,9 @@ mod tests {
         );
         let migrated_rollback = fs::read_to_string(&rollback_file).expect("read rollback");
         assert!(migrated_rollback.contains(&paths.state.icons_dir.display().to_string()));
-        let migrated_desktop = fs::read_to_string(paths.integration.xdg_applications_dir.join("tool.desktop"))
-            .expect("read desktop");
+        let migrated_desktop =
+            fs::read_to_string(paths.integration.xdg_applications_dir.join("tool.desktop"))
+                .expect("read desktop");
         assert!(migrated_desktop.contains(&paths.state.icons_dir.display().to_string()));
 
         cleanup(&root).expect("cleanup");
