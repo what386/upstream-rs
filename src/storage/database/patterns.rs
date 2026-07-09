@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{Context, Result};
 use rusqlite::{Connection, Transaction, params};
 
@@ -19,6 +21,55 @@ pub(super) fn load_patterns(conn: &Connection, package: &mut Package) -> Result<
     package.match_pattern = load_pattern_kind(conn, &package.name, "match")?;
     package.exclude_pattern = load_pattern_kind(conn, &package.name, "exclude")?;
     Ok(())
+}
+
+pub(super) fn load_patterns_for_packages(
+    conn: &Connection,
+    packages: &mut [Package],
+) -> Result<()> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT package_name, kind, pattern
+             FROM patterns
+             ORDER BY package_name, kind, position ASC",
+        )
+        .context("Failed to prepare bulk pattern query")?;
+
+    let mut patterns_by_package: HashMap<String, PackagePatterns> = HashMap::new();
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .context("Failed to load package patterns")?;
+
+    for row in rows {
+        let (package_name, kind, pattern) = row.context("Failed to decode package pattern row")?;
+        let patterns = patterns_by_package.entry(package_name).or_default();
+        match kind.as_str() {
+            "match" => patterns.match_patterns.push(pattern),
+            "exclude" => patterns.exclude_patterns.push(pattern),
+            _ => {}
+        }
+    }
+
+    for package in packages {
+        if let Some(patterns) = patterns_by_package.remove(&package.name) {
+            package.match_pattern = PatternTable::from_patterns(patterns.match_patterns);
+            package.exclude_pattern = PatternTable::from_patterns(patterns.exclude_patterns);
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(Default)]
+struct PackagePatterns {
+    match_patterns: Vec<String>,
+    exclude_patterns: Vec<String>,
 }
 
 fn write_patterns(

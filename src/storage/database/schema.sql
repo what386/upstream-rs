@@ -49,6 +49,9 @@ CREATE INDEX IF NOT EXISTS idx_patterns_package_kind_position
 CREATE TABLE IF NOT EXISTS path_entries (
     package_name TEXT PRIMARY KEY NOT NULL,
     path TEXT NOT NULL,
-    position INTEGER NOT NULL CHECK (position >= 0),
+    position INTEGER NOT NULL,
     FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_path_entries_position
+    ON path_entries(position);
