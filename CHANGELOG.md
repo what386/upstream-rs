@@ -1,6 +1,17 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-07-06*
+*Generated on 2026-07-09*
+
+## 2.12.0 — 2026-07-09
+
+### Changes
+
+- behavior: auth is now stored in its own file seperate from config.toml
+- feat: --no-pager flag
+- feat: auth subcommand
+- BREAKING: verify is no longer a subcommand for 'config' nor 'auth'. foreign keys are rejected on config load
+- feat: path files are now generated from package db
+
 
 ## 2.11.0 — 2026-07-06
 
