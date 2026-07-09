@@ -52,16 +52,16 @@ impl PackageDatabase {
         self.connection()?.upsert_package(package)
     }
 
-    pub fn add_path_entry(&mut self, path: &Path) -> Result<bool> {
-        self.connection()?.add_path_entry(path)
+    pub fn add_path_entry(&mut self, package_name: &str, path: &Path) -> Result<bool> {
+        self.connection()?.add_path_entry(package_name, path)
     }
 
-    pub fn remove_path_entry(&mut self, path: &Path) -> Result<bool> {
-        self.connection()?.remove_path_entry(path)
+    pub fn remove_path_entry(&mut self, package_name: &str) -> Result<bool> {
+        self.connection()?.remove_path_entry(package_name)
     }
 
-    pub fn replace_all_path_entries(&mut self, paths: &[PathBuf]) -> Result<()> {
-        self.connection()?.replace_all_path_entries(paths)
+    pub fn replace_all_path_entries(&mut self, entries: &[(String, PathBuf)]) -> Result<()> {
+        self.connection()?.replace_all_path_entries(entries)
     }
 
     pub fn replace_all_packages(&mut self, packages: &[Package]) -> Result<()> {

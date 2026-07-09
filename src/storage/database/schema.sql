@@ -40,13 +40,15 @@ CREATE TABLE IF NOT EXISTS patterns (
     position INTEGER NOT NULL CHECK (position >= 0),
     pattern TEXT NOT NULL,
     PRIMARY KEY (package_name, kind, position),
-    FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE
+    FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_patterns_package_kind_position
     ON patterns(package_name, kind, position);
 
 CREATE TABLE IF NOT EXISTS path_entries (
-    path TEXT PRIMARY KEY NOT NULL,
-    position INTEGER NOT NULL CHECK (position >= 0)
+    package_name TEXT PRIMARY KEY NOT NULL,
+    path TEXT NOT NULL,
+    position INTEGER NOT NULL CHECK (position >= 0),
+    FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
 );

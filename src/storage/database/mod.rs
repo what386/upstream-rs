@@ -8,7 +8,7 @@ mod patterns;
 
 pub use api::PackageDatabase;
 
-pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 3;
+pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 4;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 
@@ -67,6 +67,41 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
                 )
                 .context("Failed to migrate package database schema from version 2 to 3")?;
                 current_version = 3;
+            }
+            3 => {
+                conn.execute_batch(
+                    "
+                    BEGIN;
+                    CREATE TABLE patterns_new (
+                        package_name TEXT NOT NULL,
+                        kind TEXT NOT NULL CHECK (kind IN ('match', 'exclude')),
+                        position INTEGER NOT NULL CHECK (position >= 0),
+                        pattern TEXT NOT NULL,
+                        PRIMARY KEY (package_name, kind, position),
+                        FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
+                    );
+                    INSERT INTO patterns_new (package_name, kind, position, pattern)
+                        SELECT patterns.package_name, patterns.kind, patterns.position, patterns.pattern
+                        FROM patterns
+                        INNER JOIN packages ON packages.name = patterns.package_name;
+                    DROP TABLE patterns;
+                    ALTER TABLE patterns_new RENAME TO patterns;
+                    CREATE INDEX IF NOT EXISTS idx_patterns_package_kind_position
+                        ON patterns(package_name, kind, position);
+
+                    DROP TABLE IF EXISTS path_entries;
+                    CREATE TABLE path_entries (
+                        package_name TEXT PRIMARY KEY NOT NULL,
+                        path TEXT NOT NULL,
+                        position INTEGER NOT NULL CHECK (position >= 0),
+                        FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
+                    );
+                    PRAGMA user_version = 4;
+                    COMMIT;
+                    ",
+                )
+                .context("Failed to migrate package database schema from version 3 to 4")?;
+                current_version = 4;
             }
             version => bail!(
                 "Unsupported package database schema version {}. Expected version {} or earlier.",

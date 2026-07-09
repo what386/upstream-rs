@@ -52,11 +52,12 @@ impl<'a> ShellManager<'a> {
         let path_entries = derive_path_entries(package_database, paths)?;
         package_database.replace_all_path_entries(&path_entries)?;
 
-        let posix_content = render_posix_paths_file(&path_entries);
+        let rendered_paths = render_path_entries(&paths.state.symlinks_dir, &path_entries);
+        let posix_content = render_posix_paths_file(&rendered_paths);
         write_atomic(self.paths_file, posix_content.as_bytes())
             .context("Failed to write paths file")?;
 
-        let nushell_paths = path_entries
+        let nushell_paths = rendered_paths
             .iter()
             .map(|path| path.to_string_lossy().to_string())
             .collect::<Vec<_>>();
@@ -79,6 +80,7 @@ impl<'a> ShellManager<'a> {
     pub fn add_to_paths(
         &self,
         package_database: &mut PackageDatabase,
+        package_name: &str,
         install_path: &Path,
     ) -> Result<()> {
         #[cfg(not(unix))]
@@ -97,7 +99,7 @@ impl<'a> ShellManager<'a> {
                 .lock()
                 .ok()
                 .ok_or_else(|| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
-            package_database.add_path_entry(install_path)?;
+            package_database.add_path_entry(package_name, install_path)?;
             self.regenerate_paths_files(package_database)?;
         }
 
@@ -114,10 +116,13 @@ impl<'a> ShellManager<'a> {
     pub fn remove_from_paths(
         &self,
         package_database: &mut PackageDatabase,
+        package_name: &str,
         install_path: &Path,
     ) -> Result<()> {
         #[cfg(not(unix))]
         let _ = package_database;
+        #[cfg(unix)]
+        let _ = install_path;
 
         #[cfg(unix)]
         {
@@ -125,7 +130,7 @@ impl<'a> ShellManager<'a> {
                 .lock()
                 .ok()
                 .ok_or_else(|| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
-            package_database.remove_path_entry(install_path)?;
+            package_database.remove_path_entry(package_name)?;
             self.regenerate_paths_files(package_database)?;
         }
 
@@ -273,7 +278,7 @@ fn escape_posix_path(value: &str) -> String {
 fn derive_path_entries(
     package_database: &mut PackageDatabase,
     paths: &crate::utils::static_paths::UpstreamPaths,
-) -> Result<Vec<PathBuf>> {
+) -> Result<Vec<(String, PathBuf)>> {
     let mut packages = package_database.list_packages()?;
     packages.sort_by(|left, right| {
         right
@@ -283,11 +288,10 @@ fn derive_path_entries(
     });
 
     let mut entries = Vec::new();
-    push_unique_path(&mut entries, paths.state.symlinks_dir.clone());
 
     for package in &packages {
         if let Some(path_entry) = derive_package_path_entry(paths, package) {
-            push_unique_path(&mut entries, path_entry);
+            push_unique_package_path(&mut entries, package.name.clone(), path_entry);
         }
     }
 
@@ -324,10 +328,25 @@ fn derive_package_path_entry(
 }
 
 #[cfg(unix)]
-fn push_unique_path(entries: &mut Vec<PathBuf>, path: PathBuf) {
-    if !entries.iter().any(|entry| entry == &path) {
-        entries.push(path);
+fn push_unique_package_path(
+    entries: &mut Vec<(String, PathBuf)>,
+    package_name: String,
+    path: PathBuf,
+) {
+    if !entries.iter().any(|(_, entry)| entry == &path) {
+        entries.push((package_name, path));
     }
+}
+
+#[cfg(unix)]
+fn render_path_entries(symlinks_dir: &Path, package_entries: &[(String, PathBuf)]) -> Vec<PathBuf> {
+    let mut entries = vec![symlinks_dir.to_path_buf()];
+    for (_, path) in package_entries {
+        if !entries.iter().any(|entry| entry == path) {
+            entries.push(path.clone());
+        }
+    }
+    entries
 }
 
 #[cfg(unix)]
@@ -477,6 +496,23 @@ mod tests {
     }
 
     #[cfg(unix)]
+    fn seed_package(package_database: &mut PackageDatabase, name: &str) {
+        let package = Package::with_defaults(
+            name.to_string(),
+            format!("owner/{name}"),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package_database
+            .upsert_package(&package)
+            .expect("seed package");
+    }
+
+    #[cfg(unix)]
     #[test]
     fn add_to_paths_is_idempotent_and_escapes_special_characters() {
         let root = temp_root("add-idempotent");
@@ -489,12 +525,13 @@ mod tests {
         let manager = ShellManager::new(&paths_file);
         let mut package_database =
             PackageDatabase::open(&root.join("packages.db")).expect("open package db");
+        seed_package(&mut package_database, "tool");
 
         manager
-            .add_to_paths(&mut package_database, &install_path)
+            .add_to_paths(&mut package_database, "tool", &install_path)
             .expect("first add");
         manager
-            .add_to_paths(&mut package_database, &install_path)
+            .add_to_paths(&mut package_database, "tool", &install_path)
             .expect("second add");
 
         let content = fs::read_to_string(&paths_file).expect("read paths file");
@@ -528,12 +565,13 @@ mod tests {
         let manager = ShellManager::new(&paths_file);
         let mut package_database =
             PackageDatabase::open(&root.join("packages.db")).expect("open package db");
+        seed_package(&mut package_database, "tool");
 
         manager
-            .add_to_paths(&mut package_database, &install_path)
+            .add_to_paths(&mut package_database, "tool", &install_path)
             .expect("add path");
         manager
-            .remove_from_paths(&mut package_database, &install_path)
+            .remove_from_paths(&mut package_database, "tool", &install_path)
             .expect("remove path");
 
         let content = fs::read_to_string(&paths_file).expect("read paths file");
@@ -562,15 +600,18 @@ mod tests {
         let manager = ShellManager::new(&paths_file);
         let mut package_database =
             PackageDatabase::open(&root.join("packages.db")).expect("open package db");
+        seed_package(&mut package_database, "first");
+        seed_package(&mut package_database, "second");
+        seed_package(&mut package_database, "new");
 
         manager
-            .add_to_paths(&mut package_database, &first_path)
+            .add_to_paths(&mut package_database, "first", &first_path)
             .expect("add first path");
         manager
-            .add_to_paths(&mut package_database, &second_path)
+            .add_to_paths(&mut package_database, "second", &second_path)
             .expect("add second path");
         manager
-            .add_to_paths(&mut package_database, &new_path)
+            .add_to_paths(&mut package_database, "new", &new_path)
             .expect("add new path");
 
         let nushell_content = fs::read_to_string(&paths_nu_file).expect("read paths.nu");
