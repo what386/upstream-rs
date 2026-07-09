@@ -179,12 +179,19 @@ fn remove_legacy_paths_files(paths: &UpstreamPaths) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{V2_12_0, run};
+    use super::V2_12_0;
+    #[cfg(unix)]
+    use super::run;
+    #[cfg(unix)]
     use crate::models::common::enums::{Channel, Filetype, Provider};
+    #[cfg(unix)]
     use crate::models::upstream::Package;
+    #[cfg(unix)]
     use crate::routines::migrate::MigrationReport;
     use crate::routines::migrate::step::Step;
+    #[cfg(unix)]
     use crate::storage::database::PackageDatabase;
+    #[cfg(unix)]
     use crate::utils::platform::shells::installed_shell_commands;
     use crate::utils::test_support;
     use std::path::{Path, PathBuf};
@@ -198,6 +205,7 @@ mod tests {
         fs::remove_dir_all(path)
     }
 
+    #[cfg(unix)]
     fn test_package(name: &str, install_path: PathBuf, exec_path: PathBuf) -> Package {
         let mut package = Package::with_defaults(
             name.to_string(),
@@ -243,6 +251,7 @@ mod tests {
         cleanup(&root).expect("cleanup");
     }
 
+    #[cfg(unix)]
     #[test]
     fn migrate_regenerates_paths_files_and_updates_shell_profiles() {
         let root = temp_root("regen-paths");
