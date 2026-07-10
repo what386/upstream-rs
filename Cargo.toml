@@ -17,6 +17,7 @@ exclude = [
 
 [features]
 default = []
+testing_donotuseinrelease = []
 shell-completions = ["dep:clap_complete"]
 
 [dependencies]
