@@ -7,7 +7,7 @@ pub mod platform;
 #[path = "../../tests/metadata/test_paths.rs"]
 pub mod static_paths;
 
-//#[cfg(not(feature = "testing_donotuseinrelease"))]
+#[cfg(not(feature = "testing_donotuseinrelease"))]
 pub mod static_paths;
 
 
