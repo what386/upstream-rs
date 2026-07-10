@@ -26,7 +26,7 @@ It installs binaries, archives, AppImages, and other release artifacts from sour
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.bash | bash
 ```
 
-#### MacOS
+#### macOS
 ```zsh
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.zsh | zsh
 ```
@@ -96,8 +96,6 @@ Search interactively and install a selected result:
 upstream find ripgrep
 ```
 
-`find` prompts for the package name after selection and defaults to the selected repository name.
-
 Probe releases, choose an asset, and install it:
 
 ```bash
@@ -121,6 +119,12 @@ Check for available updates:
 
 ```bash
 upstream upgrade --check
+```
+
+Check for updates in a script-friendly format:
+
+```bash
+upstream upgrade --check --machine-readable
 ```
 
 List installed packages:
@@ -147,6 +151,13 @@ Run diagnostics:
 upstream doctor
 ```
 
+Search installed package documentation:
+
+```bash
+upstream docs rg usage
+upstream docs rg --offline usage
+```
+
 ## API Tokens
 
 Provider API tokens are optional, but they help avoid anonymous rate limits and are required for private repositories.
@@ -154,14 +165,18 @@ Provider API tokens are optional, but they help avoid anonymous rate limits and 
 Set a GitHub token with:
 
 ```bash
-upstream config set github.api_token=github_pat_xxx
+upstream auth set github.api_token=github_pat_xxx
 ```
 
 For GitHub, open your profile menu, then go to **Settings > Developer settings > Personal access tokens**.
 
-Both of these will work:
-A fine-grained personal access token with public repository access.
-A classic personal access token with `read:project` permissions.
+Tokens are stored separately in `auth.toml`, not included in config or profile
+exports, and can be inspected with `upstream auth list` or `upstream auth get`.
+
+Both of these token types work:
+
+* A fine-grained personal access token with public repository access.
+* A classic personal access token with `read:project` permissions.
 
 Run `upstream doctor` after configuring tokens to verify that they work.
 
@@ -244,7 +259,8 @@ upstream package add-entry nvim
 upstream package rm-entry nvim
 ```
 
-Rollback is package-name-specific. After upgrading across breaking local data changes, run `upstream doctor --migrate` when release notes or `doctor` recommend it.
+Rollback is package-name-specific. Local data migrations are applied automatically
+when Upstream starts.
 
 ### Import and export
 
@@ -254,13 +270,20 @@ upstream import config ./config.toml
 
 upstream export packages ./packages.json
 upstream import packages ./packages.json
+upstream import packages ./packages.json --latest
 
 upstream export keys ./keys.json
 upstream import keys ./keys.json
 
 upstream export profile ./profile.json
 upstream import profile ./profile.json
+upstream import profile ./profile.json --latest
 ```
+
+Package and profile exports contain reinstallable release-package references, not
+installed files, rollback artifacts, or cache contents. Use `--latest` to ignore
+recorded version tags during import, or `--skip-failed` to continue after an
+individual package fails.
 
 ## Command Overview
 
@@ -274,18 +297,21 @@ upstream import profile ./profile.json
 | `rollback`  | Manage rollback artifacts            |
 | `list`      | Show installed packages              |
 | `changelog` | Show upstream release notes          |
-| `docs`      | Search package documentation         |
+| `docs`      | Search cached or fetched package documentation |
 | `search`    | Search provider repositories         |
 | `find`      | Pick and install a search result     |
 | `probe`     | Pick and install a release asset     |
 | `config`    | Manage configuration                 |
+| `auth`      | Manage provider API tokens           |
 | `package`   | Pin, unpin, or rename packages       |
 | `hooks`     | Manage shell integration             |
 | `import`    | Import config, trusted keys, or exported packages |
 | `export`    | Export config, trusted keys, or installed packages |
 | `doctor`    | Check installation health            |
 
-Use `-y` or `--yes` to accept confirmation prompts automatically.
+Use `-y` or `--yes` to accept confirmation prompts automatically. Use
+`--no-pager` to prevent long output from opening a pager. Most commands that
+change package state also support `--dry-run`.
 
 ## Documentation
 
