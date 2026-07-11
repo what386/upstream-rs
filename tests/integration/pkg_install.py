@@ -29,7 +29,7 @@ def main() -> None:
 
     listed = package_from_list(PACKAGE)
     assert listed["repo_slug"] == REPO, listed
-    assert listed["filetype"] == "Binary", listed
+    assert listed["filetype"] == "Archive", listed
     assert listed["version"] == {
         "major": 15,
         "minor": 1,
