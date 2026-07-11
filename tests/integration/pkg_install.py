@@ -12,7 +12,7 @@ from common import package_from_list, package_path, reset_fakehome, run_upstream
 
 REPO = "BurntSushi/ripgrep"
 PACKAGE = "rg"
-TAG = "v14.1.1"
+TAG = "v15.1.0"
 
 
 def main() -> None:
@@ -35,9 +35,9 @@ def main() -> None:
     assert listed["repo_slug"] == REPO, listed
     assert listed["filetype"] == "Binary", listed
     assert listed["version"] == {
-        "major": 14,
+        "major": 15,
         "minor": 1,
-        "patch": 1,
+        "patch": 0,
         "is_prerelease": False,
     }, listed
 
@@ -52,7 +52,7 @@ def main() -> None:
         text=True,
         capture_output=True,
     )
-    assert version.stdout.startswith("ripgrep 14.1.1"), version.stdout
+    assert version.stdout.startswith("ripgrep 15.1.0"), version.stdout
 
     with tempfile.TemporaryDirectory() as directory:
         input_file = Path(directory) / "input.txt"
