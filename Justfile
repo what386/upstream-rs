@@ -18,6 +18,9 @@ test:
 run *args:
     cargo run --bin "upstream" -- {{args}}
 
+testbin *args:
+    ./tests/fakehome/.upstream/state/symlinks/upstream {{args}}
+
 prepare version:
     scripts/release/prepare.sh {{version}}
 
