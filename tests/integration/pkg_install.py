@@ -12,7 +12,7 @@ from common import package_from_list, package_path, reset_fakehome, run_upstream
 
 REPO = "BurntSushi/ripgrep"
 PACKAGE = "rg"
-TAG = "v15.1.0"
+TAG = "15.1.0"
 
 
 def main() -> None:
