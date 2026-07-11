@@ -3,13 +3,8 @@
 
 from __future__ import annotations
 
-from common import (
-    package_from_list,
-    package_path,
-    run_upstream,
-    run_upstream_json,
-    run_upstream_result,
-)
+from framework.commands import run_upstream, run_upstream_json, run_upstream_result
+from framework.packages import package_from_list, package_path
 
 
 PACKAGE = "rg"

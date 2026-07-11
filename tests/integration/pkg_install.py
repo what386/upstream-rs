@@ -7,7 +7,9 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from common import package_from_list, package_path, reset_fakehome, run_upstream, run_upstream_json
+from framework.commands import run_upstream, run_upstream_json
+from framework.environment import reset_fakehome
+from framework.packages import package_from_list, package_path
 
 
 REPO = "BurntSushi/ripgrep"
