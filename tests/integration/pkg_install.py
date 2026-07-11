@@ -24,10 +24,6 @@ def main() -> None:
         PACKAGE,
         "--tag",
         TAG,
-        "--kind",
-        "binary",
-        "--trust",
-        "none",
         "--yes",
     )
 
