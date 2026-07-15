@@ -9,6 +9,10 @@
 - [ ] consider: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
 
-- [ ] move defaul config dir to .upstream/ (old path still works)
+
+## Completed
+
+- [x] move default config dir to .upstream/ (old path still works)
       @created 2026-07-15 22:30
+      @completed 2026-07-15 22:37
 
