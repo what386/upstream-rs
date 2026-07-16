@@ -18,7 +18,9 @@ pub fn success(text: impl fmt::Display) -> StyledObject<String> {
 }
 
 pub fn warning(text: impl fmt::Display) -> StyledObject<String> {
-    style(text.to_string()).yellow()
+    let text = text.to_string();
+    super::logger::warning(text.clone());
+    style(text).yellow()
 }
 
 pub fn kv(label: &str, value: impl fmt::Display) {

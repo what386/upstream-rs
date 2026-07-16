@@ -1,5 +1,6 @@
 pub mod pager;
 
+mod logger;
 mod markdown;
 mod prompt;
 mod status;
@@ -26,3 +27,23 @@ pub use table::{
     print_disk_impact_with_size_rows, print_transaction_table,
     print_transaction_table_with_size_rows, print_transaction_table_without_size,
 };
+
+pub fn init_logger(path: impl AsRef<std::path::Path>) {
+    logger::init(path.as_ref());
+}
+
+pub fn configure_logger(config: crate::models::upstream::LoggingConfig) {
+    logger::configure(config.enabled, config.vacuum);
+}
+
+pub fn set_log_command(command: impl Into<String>) {
+    logger::set_command(command);
+}
+
+pub fn log_error(message: impl Into<String>) {
+    logger::error(message);
+}
+
+pub fn log_command_result(success: bool, message: Option<String>) {
+    logger::command_result(success, message);
+}
