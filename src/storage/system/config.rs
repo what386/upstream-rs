@@ -242,6 +242,13 @@ mod tests {
         assert_eq!(storage.get_config().download.high_threads, 4);
         assert_eq!(storage.get_config().upgrade.check_concurrency, 8);
         assert_eq!(storage.get_config().upgrade.install_concurrency, 4);
+        assert!(storage.get_config().logging.enabled);
+        assert_eq!(
+            storage.get_config().logging.level,
+            crate::models::upstream::LoggingLevel::Info
+        );
+        assert_eq!(storage.get_config().logging.vacuum, 10_000);
+        assert_eq!(storage.get_config().logging.max_size_mb, 10);
 
         cleanup(&path).expect("cleanup");
     }
@@ -306,6 +313,30 @@ mod tests {
 
         let storage = ConfigStorage::new(&path).expect("config should load");
         assert_eq!(storage.get_config().download.low_threads, 6);
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn load_accepts_logging_config() {
+        let path = temp_config_file("logging");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        fs::write(
+            &path,
+            "[logging]\nenabled = false\nlevel = 'error'\nvacuum = 50000\nmax_size_mb = 25\n",
+        )
+        .expect("write config");
+
+        let storage = ConfigStorage::new(&path).expect("config should load");
+        assert!(!storage.get_config().logging.enabled);
+        assert_eq!(
+            storage.get_config().logging.level,
+            crate::models::upstream::LoggingLevel::Error
+        );
+        assert_eq!(storage.get_config().logging.vacuum, 50000);
+        assert_eq!(storage.get_config().logging.max_size_mb, 25);
 
         cleanup(&path).expect("cleanup");
     }

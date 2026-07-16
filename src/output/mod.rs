@@ -33,7 +33,7 @@ pub fn init_logger(path: impl AsRef<std::path::Path>) {
 }
 
 pub fn configure_logger(config: crate::models::upstream::LoggingConfig) {
-    logger::configure(config.enabled, config.vacuum);
+    logger::configure(config);
 }
 
 pub fn set_log_command(command: impl Into<String>) {

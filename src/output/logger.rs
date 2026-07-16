@@ -1,19 +1,29 @@
+use crate::models::upstream::{LoggingConfig, LoggingLevel};
 use chrono::Utc;
 use serde::Serialize;
 use std::{
     fs::{self, File, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
-    sync::{
-        Mutex, OnceLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Mutex, OnceLock},
 };
+
+impl LoggingLevel {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Error => "error",
+            Self::Warn => "warn",
+            Self::Info => "info",
+            Self::Debug => "debug",
+        }
+    }
+}
 
 #[derive(Debug, Serialize)]
 struct LogEvent {
     timestamp: String,
     event: String,
+    level: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     command: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -32,7 +42,26 @@ struct Logger {
     file: Mutex<File>,
     path: PathBuf,
     command: Mutex<Option<String>>,
-    enabled: AtomicBool,
+    config: Mutex<LoggerConfig>,
+}
+
+#[derive(Clone, Copy)]
+struct LoggerConfig {
+    enabled: bool,
+    level: LoggingLevel,
+    vacuum: usize,
+    max_size_bytes: u64,
+}
+
+impl From<LoggingConfig> for LoggerConfig {
+    fn from(config: LoggingConfig) -> Self {
+        Self {
+            enabled: config.enabled,
+            level: config.level,
+            vacuum: config.vacuum,
+            max_size_bytes: config.max_size_mb.saturating_mul(1024 * 1024),
+        }
+    }
 }
 
 impl Logger {
@@ -41,32 +70,43 @@ impl Logger {
             fs::create_dir_all(parent)?;
         }
 
-        vacuum_file(path, 200);
+        vacuum_file(path, 10_000, 10 * 1024 * 1024);
 
         Ok(Self {
             file: Mutex::new(OpenOptions::new().create(true).append(true).open(path)?),
             path: path.to_path_buf(),
             command: Mutex::new(None),
-            enabled: AtomicBool::new(true),
+            config: Mutex::new(LoggerConfig {
+                enabled: true,
+                level: LoggingLevel::Info,
+                vacuum: 10_000,
+                max_size_bytes: 10 * 1024 * 1024,
+            }),
         })
     }
 
     fn write(
         &self,
         event: impl Into<String>,
+        level: LoggingLevel,
         subject: Option<String>,
         status: Option<String>,
         message: Option<String>,
         success: Option<bool>,
     ) {
-        if !self.enabled.load(Ordering::Relaxed) {
+        let Ok(config) = self.config.lock() else {
+            return;
+        };
+        if !config.enabled || level > config.level {
             return;
         }
+        let config = *config;
 
         let command = self.command.lock().ok().and_then(|command| command.clone());
         let record = LogEvent {
             timestamp: Utc::now().to_rfc3339(),
             event: event.into(),
+            level: level.as_str().to_string(),
             command,
             subject,
             status,
@@ -81,6 +121,14 @@ impl Logger {
             return;
         };
         let _ = writeln!(file, "{line}");
+        let oversized = config.max_size_bytes > 0
+            && file
+                .metadata()
+                .is_ok_and(|metadata| metadata.len() > config.max_size_bytes);
+        drop(file);
+        if oversized {
+            vacuum_file(&self.path, config.vacuum, config.max_size_bytes);
+        }
     }
 }
 
@@ -90,18 +138,28 @@ fn with_logger(action: impl FnOnce(&Logger)) {
     }
 }
 
-fn vacuum_file(path: &Path, limit: usize) {
+fn vacuum_file(path: &Path, limit: usize, max_size_bytes: u64) {
     let Ok(content) = fs::read_to_string(path) else {
         return;
     };
 
     let lines: Vec<&str> = content.lines().collect();
-    let retained = if limit == 0 {
-        &lines[lines.len()..]
+    let mut first = if limit == 0 {
+        lines.len()
     } else {
-        &lines[lines.len().saturating_sub(limit)..]
+        lines.len().saturating_sub(limit)
     };
-    let mut output = retained.join("\n");
+    while first < lines.len() && max_size_bytes > 0 {
+        let bytes = lines[first..]
+            .iter()
+            .map(|line| line.len() + 1)
+            .sum::<usize>();
+        if bytes as u64 <= max_size_bytes {
+            break;
+        }
+        first += 1;
+    }
+    let mut output = lines[first..].join("\n");
     if !output.is_empty() {
         output.push('\n');
     }
@@ -112,11 +170,14 @@ pub fn init(path: &Path) {
     let _ = LOGGER.set(Logger::new(path).ok());
 }
 
-pub fn configure(enabled: bool, vacuum: usize) {
+pub fn configure(config: LoggingConfig) {
     with_logger(|logger| {
-        logger.enabled.store(enabled, Ordering::Relaxed);
-        if enabled {
-            vacuum_file(&logger.path, vacuum);
+        let config = LoggerConfig::from(config);
+        if config.enabled {
+            vacuum_file(&logger.path, config.vacuum, config.max_size_bytes);
+        }
+        if let Ok(mut current) = logger.config.lock() {
+            *current = config;
         }
     });
 }
@@ -130,15 +191,31 @@ pub fn set_command(command: impl Into<String>) {
 }
 
 pub fn warning(message: impl Into<String>) {
-    with_logger(|logger| logger.write("warning", None, None, Some(message.into()), None));
+    with_logger(|logger| {
+        logger.write(
+            "warning",
+            LoggingLevel::Warn,
+            None,
+            None,
+            Some(message.into()),
+            None,
+        )
+    });
 }
 
 pub fn status(subject: impl Into<String>, status: impl Into<String>, message: impl Into<String>) {
+    let status = status.into();
+    let level = match status.as_str() {
+        "fail" => LoggingLevel::Error,
+        "warn" => LoggingLevel::Warn,
+        _ => LoggingLevel::Info,
+    };
     with_logger(|logger| {
         logger.write(
             "status",
+            level,
             Some(subject.into()),
-            Some(status.into()),
+            Some(status),
             Some(message.into()),
             None,
         )
@@ -146,23 +223,50 @@ pub fn status(subject: impl Into<String>, status: impl Into<String>, message: im
 }
 
 pub fn error(message: impl Into<String>) {
-    with_logger(|logger| logger.write("error", None, None, Some(message.into()), None));
+    with_logger(|logger| {
+        logger.write(
+            "error",
+            LoggingLevel::Error,
+            None,
+            None,
+            Some(message.into()),
+            None,
+        )
+    });
 }
 
 pub fn command_result(success: bool, message: Option<String>) {
-    with_logger(|logger| logger.write("command_finished", None, None, message, Some(success)));
+    with_logger(|logger| {
+        logger.write(
+            "command_finished",
+            if success {
+                LoggingLevel::Info
+            } else {
+                LoggingLevel::Error
+            },
+            None,
+            None,
+            message,
+            Some(success),
+        )
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::{LogEvent, vacuum_file};
-    use std::{fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
+    use std::{
+        fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
 
     #[test]
     fn serializes_one_json_record_without_optional_fields() {
         let event = LogEvent {
             timestamp: "2026-01-01T00:00:00Z".to_string(),
             event: "warning".to_string(),
+            level: "warn".to_string(),
             command: None,
             subject: None,
             status: None,
@@ -187,7 +291,7 @@ mod tests {
         let path = PathBuf::from(std::env::temp_dir()).join(format!("upstream-log-{nonce}.jsonl"));
         fs::write(&path, "one\ntwo\nthree\n").expect("write log");
 
-        vacuum_file(&path, 2);
+        vacuum_file(&path, 2, 0);
 
         assert_eq!(fs::read_to_string(&path).expect("read log"), "two\nthree\n");
         fs::remove_file(path).expect("cleanup log");

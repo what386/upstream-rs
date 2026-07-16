@@ -52,6 +52,10 @@ Unknown keys are rejected when `config.toml` is loaded.
 | `upgrade.install_concurrency` | integer | `4` | Packages upgraded in parallel after confirmation |
 | `rollback.compression_level` | `none`, `low`, `high` | `high` | Compression level for rollback artifacts |
 | `rollback.stored_artifacts` | integer | `1` | Number of rollback artifacts to keep per package |
+| `logging.enabled` | boolean | `true` | Enable JSONL audit logging |
+| `logging.level` | `error`, `warn`, `info`, `debug` | `info` | Minimum severity to write |
+| `logging.vacuum` | integer | `10000` | Maximum number of log records retained during vacuuming |
+| `logging.max_size_mb` | integer | `10` | Maximum JSONL log size; `0` disables the size limit |
 
 ## Provider Tokens
 
