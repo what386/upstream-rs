@@ -284,7 +284,8 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        let path = PathBuf::from(std::env::temp_dir()).join(format!("upstream-log-{nonce}.jsonl"));
+        let path = std::env::temp_dir().join(format!("upstream-log-{nonce}.jsonl"));
+
         fs::write(&path, "one\ntwo\nthree\n").expect("write log");
 
         vacuum_file(&path, 2, 0);
