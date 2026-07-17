@@ -1,6 +1,16 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-07-09*
+*Generated on 2026-07-17*
+
+## 2.13.0 — 2026-07-17
+
+### Changes
+
+- move default config dir to .upstream/ (old path still works)
+- feat: checksums now have progress callbacks
+- feat: ndjson logfile for audit/debugging/history
+- feat: import UI update (now more like upgrade)
+
 
 ## 2.12.1 — 2026-07-09
 
