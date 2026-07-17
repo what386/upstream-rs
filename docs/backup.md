@@ -41,6 +41,8 @@ Package imports install release packages at the version tags recorded in the exp
 upstream import packages ./packages.json --latest
 ```
 
+Package installs run concurrently and use `upgrade.install_concurrency` (default `4`) as their limit. Profile imports use the same limit after applying the profile's config.
+
 Build-installed packages are recorded in the export, but build imports are not currently installed automatically.
 
 ## Export Trusted Keys

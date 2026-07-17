@@ -1,12 +1,12 @@
 use crate::{
-    application::operations::install_op::{InstallOperation, ReleaseInstallRequest},
     models::{
         common::enums::TrustMode,
-        upstream::{InstallType, PackageReference, config::AppConfig},
+        upstream::{InstallType, Package, PackageReference, config::AppConfig},
     },
     providers::provider_manager::ProviderManager,
     services::{
-        packaging::{OperationPhase, OperationProgressEvent, PackageProgressEvent},
+        integration::ShellManager,
+        packaging::{OperationPhase, PackageInstaller, PackageProgressEvent},
         trust::{CosignPublicKey, MinisignPublicKey, TrustedSignatureKeys},
     },
     storage::{
@@ -15,15 +15,64 @@ use crate::{
     },
     utils::static_paths::UpstreamPaths,
 };
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
+use futures_util::stream::{FuturesUnordered, StreamExt};
 use minisign_verify::PublicKey;
 use p256::ecdsa::VerifyingKey;
 use p256::pkcs8::DecodePublicKey;
 use serde::Deserialize;
-use std::{fs, path::Path};
+use std::{
+    collections::{BTreeMap, HashSet},
+    fs,
+    path::Path,
+    sync::{Arc, Mutex},
+};
+use tokio::time::{self, Duration};
 
 pub const PACKAGES_EXPORT_VERSION: u32 = 2;
 pub const PROFILE_EXPORT_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ImportPackageResult {
+    Installed { version: String },
+    Failed { error: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ImportProgressEvent {
+    Phase(OperationPhase),
+    Detail(String),
+    Started {
+        package_width: usize,
+    },
+    Overall {
+        completed: u32,
+        total: u32,
+    },
+    Package {
+        name: String,
+        event: PackageProgressEvent,
+    },
+    Warning {
+        name: String,
+        message: String,
+    },
+    Complete {
+        name: String,
+        result: ImportPackageResult,
+    },
+    Clear,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ImportSummary {
+    pub installed: u32,
+    pub skipped: u32,
+    pub failed: u32,
+}
+
+type ProgressState = Arc<Mutex<BTreeMap<String, PackageProgressEvent>>>;
+type WarningState = Arc<Mutex<Vec<(String, String)>>>;
 
 #[derive(Debug, Deserialize)]
 pub struct ImportPackages {
@@ -53,6 +102,7 @@ pub struct ImportOperation<'a> {
     package_database: &'a mut PackageDatabase,
     paths: &'a UpstreamPaths,
     trusted_keys: TrustedSignatureKeys,
+    install_concurrency: usize,
 }
 
 impl<'a> ImportOperation<'a> {
@@ -61,12 +111,14 @@ impl<'a> ImportOperation<'a> {
         package_database: &'a mut PackageDatabase,
         paths: &'a UpstreamPaths,
         trusted_keys: TrustedSignatureKeys,
+        install_concurrency: usize,
     ) -> Self {
         Self {
             provider_manager,
             package_database,
             paths,
             trusted_keys,
+            install_concurrency: install_concurrency.max(1),
         }
     }
 
@@ -76,9 +128,9 @@ impl<'a> ImportOperation<'a> {
         skip_failed: bool,
         latest: bool,
         progress_callback: &mut Option<P>,
-    ) -> Result<()>
+    ) -> Result<ImportSummary>
     where
-        P: FnMut(OperationProgressEvent),
+        P: FnMut(ImportProgressEvent),
     {
         let packages = Self::read_packages(path)?;
         self.import_packages_from_export(packages, skip_failed, latest, progress_callback)
@@ -87,7 +139,7 @@ impl<'a> ImportOperation<'a> {
 
     pub fn import_keys<P>(&self, path: &Path, progress_callback: &mut Option<P>) -> Result<()>
     where
-        P: FnMut(OperationProgressEvent),
+        P: FnMut(ImportProgressEvent),
     {
         let (minisign_keys, cosign_keys) = match Self::read_keys_export(path) {
             Ok(keys) => (keys.minisign_public_keys, keys.cosign_public_keys),
@@ -106,11 +158,12 @@ impl<'a> ImportOperation<'a> {
         skip_failed: bool,
         latest: bool,
         progress_callback: &mut Option<P>,
-    ) -> Result<()>
+    ) -> Result<ImportSummary>
     where
-        P: FnMut(OperationProgressEvent),
+        P: FnMut(ImportProgressEvent),
     {
         let profile = Self::read_profile(path)?;
+        self.install_concurrency = profile.config.upgrade.install_concurrency();
         self.import_config_value(profile.config, progress_callback)?;
         self.import_key_values(
             profile.keys.minisign_public_keys,
@@ -193,98 +246,202 @@ impl<'a> ImportOperation<'a> {
         skip_failed: bool,
         latest: bool,
         progress_callback: &mut Option<P>,
-    ) -> Result<()>
+    ) -> Result<ImportSummary>
     where
-        P: FnMut(OperationProgressEvent),
+        P: FnMut(ImportProgressEvent),
     {
         let total = export.packages.len() as u32;
+        let mut summary = ImportSummary::default();
         let mut completed = 0_u32;
-        let mut imported = 0_u32;
-        let mut skipped = 0_u32;
         emit_phase(progress_callback, OperationPhase::ImportingPackages);
 
+        let mut queued_names = HashSet::new();
+        let mut eligible = Vec::new();
         for reference in export.packages {
+            let mut skipped = false;
             if self.package_database.package_exists(&reference.name)? {
-                skipped += 1;
+                summary.skipped += 1;
+                skipped = true;
                 emit_warning(
                     progress_callback,
-                    format!("Package '{}' already exists; skipping", reference.name),
+                    &reference.name,
+                    "already exists; skipping",
                 );
             } else if reference.install_type != InstallType::Release {
-                skipped += 1;
+                summary.skipped += 1;
+                skipped = true;
                 emit_warning(
                     progress_callback,
-                    format!(
-                        "Package '{}' is a build package; build imports are not supported",
-                        reference.name
-                    ),
+                    &reference.name,
+                    "is a build package; build imports are not supported",
+                );
+            } else if !queued_names.insert(reference.name.clone()) {
+                summary.skipped += 1;
+                skipped = true;
+                emit_warning(
+                    progress_callback,
+                    &reference.name,
+                    "is duplicated in the export; skipping",
                 );
             } else {
-                let package_name = reference.name.clone();
                 let version = if latest {
                     None
                 } else {
                     reference.version_tag.clone()
                 };
-                let result = {
-                    let mut install_operation = InstallOperation::new(
-                        self.provider_manager,
-                        self.package_database,
-                        self.paths,
-                        self.trusted_keys.clone(),
-                    )?;
-                    let mut no_download_progress: Option<fn(u64, u64)> = None;
-                    let mut ignored_messages = Some(|_: &str| {});
-                    let mut package_progress = None::<fn(PackageProgressEvent)>;
-                    install_operation
-                        .install_release(
-                            ReleaseInstallRequest {
-                                package: reference.into_package(),
-                                version,
-                                add_entry: false,
-                                trust_mode: TrustMode::BestEffort,
-                            },
-                            &mut no_download_progress,
-                            &mut ignored_messages,
-                            &mut package_progress,
-                        )
-                        .await
-                };
+                eligible.push((reference.into_package(), version));
+            }
+            if skipped {
+                completed += 1;
+                emit_overall(progress_callback, completed, total);
+            }
+        }
 
-                if let Err(err) = result {
-                    if skip_failed {
-                        skipped += 1;
-                        emit_warning(
-                            progress_callback,
-                            format!("Failed to import package '{}': {err}", package_name),
-                        );
-                    } else {
-                        return Err(err).with_context(|| {
-                            format!("Failed to import package '{}'", package_name)
-                        });
+        emit_overall(progress_callback, completed, total);
+
+        let installer = PackageInstaller::new(self.provider_manager, self.paths)?;
+        if let Some(cb) = progress_callback.as_mut() {
+            cb(ImportProgressEvent::Started {
+                package_width: eligible
+                    .iter()
+                    .map(|(package, _)| package.name.chars().count())
+                    .max()
+                    .unwrap_or(0),
+            });
+        }
+        let progress_state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
+        let warning_state: WarningState = Arc::new(Mutex::new(Vec::new()));
+        let mut last_progress_events = BTreeMap::new();
+        let mut pending = FuturesUnordered::new();
+        let mut packages = eligible.into_iter();
+        let mut stop_scheduling = false;
+        let mut first_error = None;
+
+        for _ in 0..self.install_concurrency {
+            let Some((package, version)) = packages.next() else {
+                break;
+            };
+            pending.push(import_package(
+                &installer,
+                self.trusted_keys.clone(),
+                package,
+                version,
+                Arc::clone(&progress_state),
+                Arc::clone(&warning_state),
+            ));
+        }
+
+        let mut ticker = time::interval(Duration::from_millis(100));
+        ticker.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+        while !pending.is_empty() {
+            tokio::select! {
+                maybe_result = pending.next() => {
+                    let Some((name, result)) = maybe_result else { break };
+                    emit_progress_updates(&progress_state, &warning_state, &mut last_progress_events, progress_callback);
+                    if let Ok(mut state) = progress_state.lock() {
+                        state.remove(&name);
                     }
-                } else {
-                    imported += 1;
+                    last_progress_events.remove(&name);
+
+                    match result.and_then(|package| self.persist_imported_package(&installer, &package).map(|()| package)) {
+                        Ok(package) => {
+                            summary.installed += 1;
+                            emit_complete(progress_callback, name, ImportPackageResult::Installed { version: package.version.to_string() });
+                        }
+                        Err(err) => {
+                            summary.failed += 1;
+                            emit_complete(progress_callback, name.clone(), ImportPackageResult::Failed { error: crate::output::error_summary(&err) });
+                            if !skip_failed && first_error.is_none() {
+                                stop_scheduling = true;
+                                first_error = Some(err.context(format!("Failed to import package '{name}'")));
+                            }
+                        }
+                    }
+                    completed += 1;
+                    emit_overall(progress_callback, completed, total);
+
+                    if !stop_scheduling {
+                        if let Some((package, version)) = packages.next() {
+                            pending.push(import_package(
+                                &installer,
+                                self.trusted_keys.clone(),
+                                package,
+                                version,
+                                Arc::clone(&progress_state),
+                                Arc::clone(&warning_state),
+                            ));
+                        }
+                    }
+                }
+                _ = ticker.tick() => {
+                    emit_progress_updates(&progress_state, &warning_state, &mut last_progress_events, progress_callback);
                 }
             }
+        }
 
-            completed += 1;
-            if let Some(cb) = progress_callback.as_mut() {
-                cb(OperationProgressEvent::Count {
-                    done: completed.into(),
-                    total: total.into(),
-                });
-            }
+        emit_progress_updates(
+            &progress_state,
+            &warning_state,
+            &mut last_progress_events,
+            progress_callback,
+        );
+        if let Some(cb) = progress_callback.as_mut() {
+            cb(ImportProgressEvent::Clear);
+        }
+        if let Some(err) = first_error {
+            return Err(err);
         }
 
         emit_detail(
             progress_callback,
             format!(
-                "Packages import complete: {} installed, {} skipped",
-                imported, skipped
+                "Packages import complete: {} installed, {} skipped, {} failed",
+                summary.installed, summary.skipped, summary.failed
             ),
         );
+        Ok(summary)
+    }
+
+    fn persist_imported_package(
+        &mut self,
+        installer: &PackageInstaller<'_>,
+        installed_package: &Package,
+    ) -> Result<()> {
+        if let Err(err) = self.package_database.upsert_package(installed_package) {
+            return self.cleanup_after_metadata_error(installer, installed_package, err);
+        }
+
+        if let Err(err) = ShellManager::new(&self.paths.config.paths_file)
+            .regenerate_paths(self.package_database, self.paths)
+        {
+            let _ = self
+                .package_database
+                .remove_package(&installed_package.name);
+            return self.cleanup_after_metadata_error(installer, installed_package, err);
+        }
+
         Ok(())
+    }
+
+    fn cleanup_after_metadata_error(
+        &self,
+        installer: &PackageInstaller<'_>,
+        installed_package: &Package,
+        err: anyhow::Error,
+    ) -> Result<()> {
+        let mut ignored_messages = Some(|_: &str| {});
+        match installer.cleanup_partial_install(installed_package, &mut ignored_messages) {
+            Ok(()) => Err(err.context(format!(
+                "Rolled back partial install for '{}'",
+                installed_package.name
+            ))),
+            Err(cleanup_err) => Err(anyhow!(
+                "{}. Additionally failed to roll back partial install for '{}': {}",
+                err,
+                installed_package.name,
+                cleanup_err
+            )),
+        }
     }
 
     fn import_key_values<P>(
@@ -294,7 +451,7 @@ impl<'a> ImportOperation<'a> {
         progress_callback: &mut Option<P>,
     ) -> Result<()>
     where
-        P: FnMut(OperationProgressEvent),
+        P: FnMut(ImportProgressEvent),
     {
         emit_phase(progress_callback, OperationPhase::ImportingKeys);
         let mut trust_storage = TrustStorage::new(&self.paths.config.trust_file)?;
@@ -320,7 +477,7 @@ impl<'a> ImportOperation<'a> {
         progress_callback: &mut Option<P>,
     ) -> Result<()>
     where
-        P: FnMut(OperationProgressEvent),
+        P: FnMut(ImportProgressEvent),
     {
         emit_phase(progress_callback, OperationPhase::ImportingConfig);
         let mut target = ConfigStorage::new(&self.paths.config.config_file)?;
@@ -386,37 +543,151 @@ impl<'a> ImportOperation<'a> {
 
 fn emit_phase<P>(progress_callback: &mut Option<P>, phase: OperationPhase)
 where
-    P: FnMut(OperationProgressEvent),
+    P: FnMut(ImportProgressEvent),
 {
     if let Some(cb) = progress_callback.as_mut() {
-        cb(OperationProgressEvent::Phase(phase));
+        cb(ImportProgressEvent::Phase(phase));
     }
 }
 
-fn emit_warning<P>(progress_callback: &mut Option<P>, message: impl Into<String>)
+fn emit_warning<P>(progress_callback: &mut Option<P>, name: &str, message: impl Into<String>)
 where
-    P: FnMut(OperationProgressEvent),
+    P: FnMut(ImportProgressEvent),
 {
     if let Some(cb) = progress_callback.as_mut() {
-        cb(OperationProgressEvent::Warning(message.into()));
+        cb(ImportProgressEvent::Warning {
+            name: name.to_string(),
+            message: message.into(),
+        });
     }
 }
 
 fn emit_detail<P>(progress_callback: &mut Option<P>, message: impl Into<String>)
 where
-    P: FnMut(OperationProgressEvent),
+    P: FnMut(ImportProgressEvent),
 {
     if let Some(cb) = progress_callback.as_mut() {
-        cb(OperationProgressEvent::Detail(message.into()));
+        cb(ImportProgressEvent::Detail(message.into()));
     }
+}
+
+fn emit_overall<P>(progress_callback: &mut Option<P>, completed: u32, total: u32)
+where
+    P: FnMut(ImportProgressEvent),
+{
+    if let Some(cb) = progress_callback.as_mut() {
+        cb(ImportProgressEvent::Overall { completed, total });
+    }
+}
+
+fn emit_complete<P>(progress_callback: &mut Option<P>, name: String, result: ImportPackageResult)
+where
+    P: FnMut(ImportProgressEvent),
+{
+    if let Some(cb) = progress_callback.as_mut() {
+        cb(ImportProgressEvent::Complete { name, result });
+    }
+}
+
+fn record_progress_event(
+    progress_state: &ProgressState,
+    warning_state: &WarningState,
+    name: &str,
+    event: PackageProgressEvent,
+) {
+    if let PackageProgressEvent::Warning(message) = event {
+        if let Ok(mut warnings) = warning_state.lock() {
+            warnings.push((name.to_string(), message));
+        }
+        return;
+    }
+    if let Ok(mut state) = progress_state.lock() {
+        state.insert(name.to_string(), event);
+    }
+}
+
+fn emit_progress_updates<P>(
+    progress_state: &ProgressState,
+    warning_state: &WarningState,
+    last_progress_events: &mut BTreeMap<String, PackageProgressEvent>,
+    progress_callback: &mut Option<P>,
+) where
+    P: FnMut(ImportProgressEvent),
+{
+    let warnings = warning_state
+        .lock()
+        .map(|mut warnings| warnings.drain(..).collect::<Vec<_>>())
+        .unwrap_or_default();
+    if let Some(cb) = progress_callback.as_mut() {
+        for (name, message) in warnings {
+            cb(ImportProgressEvent::Warning { name, message });
+        }
+    }
+
+    let snapshot = progress_state
+        .lock()
+        .map(|state| state.clone())
+        .unwrap_or_default();
+    for (name, event) in &snapshot {
+        let changed = last_progress_events
+            .get(name)
+            .map(|previous| previous != event)
+            .unwrap_or(true);
+        if changed {
+            if let Some(cb) = progress_callback.as_mut() {
+                cb(ImportProgressEvent::Package {
+                    name: name.clone(),
+                    event: event.clone(),
+                });
+            }
+            last_progress_events.insert(name.clone(), event.clone());
+        }
+    }
+}
+
+async fn import_package(
+    installer: &PackageInstaller<'_>,
+    trusted_keys: TrustedSignatureKeys,
+    package: Package,
+    version: Option<String>,
+    progress_state: ProgressState,
+    warning_state: WarningState,
+) -> (String, Result<Package>) {
+    let name = package.name.clone();
+    let progress_name = name.clone();
+    let mut no_download_progress: Option<fn(u64, u64)> = None;
+    let mut ignored_messages = Some(|_: &str| {});
+    let mut progress_callback = Some(move |event: PackageProgressEvent| {
+        record_progress_event(&progress_state, &warning_state, &progress_name, event);
+    });
+    let result = installer
+        .install_release(
+            &trusted_keys,
+            package,
+            &version,
+            &false,
+            TrustMode::BestEffort,
+            &mut no_download_progress,
+            &mut ignored_messages,
+            &mut progress_callback,
+        )
+        .await
+        .context(format!("Failed to import package '{name}'"));
+    (name, result)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ImportOperation, PACKAGES_EXPORT_VERSION, PROFILE_EXPORT_VERSION};
+    use super::{
+        ImportOperation, ImportProgressEvent, PACKAGES_EXPORT_VERSION, PROFILE_EXPORT_VERSION,
+        ProgressState, WarningState, emit_progress_updates, record_progress_event,
+    };
+    use crate::services::packaging::{PackagePhase, PackageProgressEvent};
     use std::{
+        collections::BTreeMap,
         fs,
         path::PathBuf,
+        sync::{Arc, Mutex},
         time::{SystemTime, UNIX_EPOCH},
     };
 
@@ -497,5 +768,60 @@ mod tests {
 
         assert_eq!(config.download.low_threads, 2);
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn progress_updates_emit_each_latest_package_event_once() {
+        let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
+        let warnings: WarningState = Arc::new(Mutex::new(Vec::new()));
+        let mut last_render = BTreeMap::new();
+        let mut events = Vec::new();
+
+        record_progress_event(
+            &state,
+            &warnings,
+            "ripgrep",
+            PackageProgressEvent::Phase(PackagePhase::InstallingPackage),
+        );
+        {
+            let mut callback = Some(|event: ImportProgressEvent| events.push(event));
+            emit_progress_updates(&state, &warnings, &mut last_render, &mut callback);
+        }
+        assert!(events.iter().any(|event| matches!(
+            event,
+            ImportProgressEvent::Package {
+                name,
+                event: PackageProgressEvent::Phase(PackagePhase::InstallingPackage),
+            } if name == "ripgrep"
+        )));
+
+        {
+            let mut callback = Some(|event: ImportProgressEvent| events.push(event));
+            emit_progress_updates(&state, &warnings, &mut last_render, &mut callback);
+        }
+        assert_eq!(events.len(), 1);
+    }
+
+    #[test]
+    fn warning_progress_is_emitted_separately() {
+        let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
+        let warnings: WarningState = Arc::new(Mutex::new(Vec::new()));
+        let mut last_render = BTreeMap::new();
+        let mut events = Vec::new();
+
+        record_progress_event(
+            &state,
+            &warnings,
+            "ripgrep",
+            PackageProgressEvent::Warning("signature unavailable".to_string()),
+        );
+        let mut callback = Some(|event: ImportProgressEvent| events.push(event));
+        emit_progress_updates(&state, &warnings, &mut last_render, &mut callback);
+
+        assert!(matches!(
+            events.as_slice(),
+            [ImportProgressEvent::Warning { name, message }]
+                if name == "ripgrep" && message == "signature unavailable"
+        ));
     }
 }

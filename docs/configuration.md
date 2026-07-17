@@ -137,7 +137,7 @@ upgrade.check_concurrency = 8
 upgrade.install_concurrency = 4
 ```
 
-`upgrade.check_concurrency` controls update checks used by `upstream upgrade --check` and by the preview step before applying upgrades. `upgrade.install_concurrency` controls how many packages are upgraded at once after confirmation. Values below `1` are treated as `1`.
+`upgrade.check_concurrency` controls update checks used by `upstream upgrade --check` and by the preview step before applying upgrades. `upgrade.install_concurrency` controls how many packages are upgraded at once after confirmation and how many release packages are installed concurrently during package/profile imports. Values below `1` are treated as `1`.
 
 Examples:
 
