@@ -32,7 +32,7 @@ promote:
 publish version:
     scripts/release/publish.sh {{version}}
     git switch dev
-    printf "ready" > scripts/release/state
+    printf "ready" > .release-state
 
 gen-completions:
     #!/usr/bin/env bash
