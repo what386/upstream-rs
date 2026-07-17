@@ -1,5 +1,5 @@
 target/
 tests/fakehome/*
-scripts/release/state
+.state
 __pycache__/
 *.py[cod]
