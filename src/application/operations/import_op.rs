@@ -353,8 +353,8 @@ impl<'a> ImportOperation<'a> {
                     completed += 1;
                     emit_overall(progress_callback, completed, total);
 
-                    if !stop_scheduling {
-                        if let Some((package, version)) = packages.next() {
+                    if !stop_scheduling
+                        && let Some((package, version)) = packages.next() {
                             pending.push(import_package(
                                 &installer,
                                 self.trusted_keys.clone(),
@@ -364,7 +364,6 @@ impl<'a> ImportOperation<'a> {
                                 Arc::clone(&warning_state),
                             ));
                         }
-                    }
                 }
                 _ = ticker.tick() => {
                     emit_progress_updates(&progress_state, &warning_state, &mut last_progress_events, progress_callback);

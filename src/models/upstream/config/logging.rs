@@ -7,18 +7,15 @@ const LOGGING_MAX_SIZE_MB: u64 = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum LoggingLevel {
     Error,
     Warn,
+    #[default]
     Info,
     Debug,
 }
 
-impl Default for LoggingLevel {
-    fn default() -> Self {
-        Self::Info
-    }
-}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
