@@ -6,9 +6,6 @@
 
 ## Tasks
 
-- [ ] feat: import UI update (now more like upgrade)
-      @created 2026-07-17 20:53
-
 
 ## Completed
 
@@ -23,4 +20,8 @@
 - [x] feat: ndjson logfile for audit/debugging/history
       @created 2026-06-27 00:27
       @completed 2026-07-17 16:30
+
+- [x] feat: import UI update (now more like upgrade)
+      @created 2026-07-17 20:53
+      @completed 2026-07-17 20:53
 
