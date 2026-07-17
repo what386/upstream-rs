@@ -16,7 +16,6 @@ pub enum LoggingLevel {
     Debug,
 }
 
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LoggingConfig {
