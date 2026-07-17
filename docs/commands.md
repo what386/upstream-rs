@@ -163,6 +163,7 @@ Pinning prevents upgrades. Renaming changes the local alias without reinstalling
 ```bash
 upstream list [filter] [--json]
 upstream info <query> [--json]
+upstream history [--package <name>] [--action <command>] [--status <status>] [--json]
 upstream changelog <name> [--for <tag>]
 upstream changelog <name> [--from <tag|current|latest>] [--to <tag|current|latest>]
 upstream docs <name> [--offline] [keywords...]
@@ -171,17 +172,17 @@ upstream search [query...] [-p <provider>] [--base-url <url>] [--limit <n>] [fil
 upstream find <query...> [-p <provider>] [--limit <n>] [filters] [--name <name>] [install options]
 upstream probe <repo-or-url> [name] [-p <provider>] [-k <kind>] [--channel <channel>] [--limit <n>] [--include-incompatible]
 upstream doctor [names...] [--verbose] [--fix]
-upstream doctor --migrate
 ```
 
 - `list` shows installed packages. Provide `[filter]` to show only package names that contain that string.
 - `info` shows detailed metadata for one installed package. The query can be an exact package name or a unique substring.
+- `history` reads the JSONL audit log. Filter with `--package`, `--action`, or `--status`; use `--limit` to control the result count and `--json` for stored records.
 - `changelog` shows release notes for installed packages. Use `--for <tag>` to show one release. `--from` and `--to` accept release tags plus `current` for the installed version and `latest` for the tracked latest release. If `glow` is installed, changelog Markdown is rendered with glow's terminal styling.
 - `docs` fetches an installed package's upstream README, caches it under upstream's cache directory, parses Markdown sections, and opens ranked keyword matches in an interactive picker. If no keywords are provided, sections are shown in README order. If `glow` is installed, previews and selected sections use glow's terminal Markdown styling. If fetching fails and a cached README exists, upstream falls back to the cached copy. Use `--offline` to search only cached documentation. Use `--fetch [names...]` to refresh cached READMEs without opening the picker; omitting names refreshes all installed packages.
 - `search` searches provider repositories for software discovery. Use filters like `--language Rust`, `--topic cli`, `--min-stars 100`, `--max-stars 50000`, `--pushed-after 2026-01-01`, `--include-forks`, and `--include-archived` to narrow results.
 - `find` searches provider repositories with the same discovery filters as `search`, opens an interactive picker, prompts for the package name with an inferred default, and installs the selected result. Use `--name` to skip the prompt.
 - `probe` shows releases and compatible assets, opens an interactive asset picker, prompts for the package name with an inferred default when `[name]` is omitted, and installs the selected asset. When `-k/--kind` is omitted, `probe` shows all current-platform installable file types; pass `-k` to narrow the picker to one kind. Use `--include-incompatible` to show all release assets, or `--dry-run` to follow the same selection and preview flow but stop before confirmation, download, installation, or metadata changes. Use `--json` for structured output.
-- `doctor` checks paths, symlinks, hooks, completion directories, desktop entries, config, and package metadata. `--fix` repairs supported package and hook issues and removes unused config keys. Missing config keys are left omitted and continue to use defaults. `--migrate` runs local data migrations after breaking layout or metadata changes when release notes or diagnostics recommend it.
+- `doctor` checks paths, symlinks, hooks, completion directories, desktop entries, config, package metadata, and transaction journals. `--fix` repairs supported package and hook issues, removes unused config keys, and clears reviewed failed journals. Missing config keys are left omitted and continue to use defaults. Versioned local-data migrations run automatically at startup.
 
 ## Configuration, Import, and Export
 

@@ -52,8 +52,8 @@ upstream install owner/repo critical-tool --trust all
 
 ## Probing Before Installing
 
-Use `probe --verbose` to inspect releases and candidate assets before install:
+Use `probe --dry-run` to inspect releases and candidate assets before install:
 
 ```bash
-upstream probe owner/repo --verbose
+upstream probe owner/repo --dry-run
 ```

@@ -151,6 +151,14 @@ Run diagnostics:
 upstream doctor
 ```
 
+Inspect recent command and package history:
+
+```bash
+upstream history
+upstream history --package rg
+upstream history --status failed --json
+```
+
 Search installed package documentation:
 
 ```bash
@@ -202,8 +210,8 @@ upstream install owner/repo app --desktop
 Use `--match` and `--exclude` to guide asset selection:
 
 ```bash
-upstream install owner/repo app --match linux --exclude debug
-upstream install owner/repo app --match linux,x86_64 --exclude debug,symbols
+upstream install owner/repo app --match-pattern linux --exclude-pattern debug
+upstream install owner/repo app --match-pattern linux,x86_64 --exclude-pattern debug,symbols
 ```
 
 ### Build from source

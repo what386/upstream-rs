@@ -3,21 +3,23 @@
 Configuration is stored as TOML at:
 
 ```text
+$HOME/.upstream/config.toml
+```
+
+Existing installations that already use the legacy XDG path continue to load:
+
+```text
 $XDG_CONFIG_HOME/upstream/config.toml
 ```
 
-On many Linux systems this is:
-
-```text
-$HOME/.config/upstream/config.toml
-```
+Provider tokens are stored separately at `$HOME/.upstream/metadata/auth.toml`.
 
 ## Commands
 
 ```bash
 upstream config list
-upstream config get github.api_token
-upstream config set github.api_token=ghp_xxx
+upstream config get download.low_threads
+upstream config set download.low_threads=2
 upstream config edit
 upstream config reset
 ```
@@ -25,13 +27,12 @@ upstream config reset
 `config set` accepts multiple `key=value` pairs:
 
 ```bash
-upstream config set github.api_token=... gitlab.api_token=...
+upstream config set download.low_threads=2 concurrency.check_concurrency=4
 ```
 
 Values are parsed as TOML literals when possible. Use normal strings for simple values, or quote strings explicitly when needed:
 
 ```bash
-upstream config set github.api_token=ghp_xxx
 upstream config set rollback.compression_level=high rollback.stored_artifacts=2
 ```
 
@@ -41,9 +42,6 @@ Unknown keys are rejected when `config.toml` is loaded.
 
 | Key | Type | Default | Purpose |
 | --- | --- | --- | --- |
-| `github.api_token` | string | unset | GitHub API token |
-| `gitlab.api_token` | string | unset | GitLab API token |
-| `gitea.api_token` | string | unset | Gitea API token |
 | `download.low_threshold_mb` | integer | `16` | Minimum asset size for low parallel download worker count |
 | `download.high_threshold_mb` | integer | `64` | Minimum asset size for high parallel download worker count |
 | `download.low_threads` | integer | `2` | Parallel workers used at or above the low threshold |
@@ -69,12 +67,12 @@ gitea.api_token
 
 Tokens are used for API requests to the corresponding provider. They are useful for private repositories, self-hosted instances, or avoiding anonymous rate limits.
 
-Set tokens with `config set`:
+Set tokens with `auth set`:
 
 ```bash
-upstream config set github.api_token=github_pat_xxx
-upstream config set gitlab.api_token=glpat_xxx
-upstream config set gitea.api_token=token_xxx
+upstream auth set github.api_token=github_pat_xxx
+upstream auth set gitlab.api_token=glpat_xxx
+upstream auth set gitea.api_token=token_xxx
 ```
 
 After configuring tokens, run:
@@ -101,7 +99,7 @@ For public GitHub releases, use the smallest token that works:
 Store the copied token with:
 
 ```bash
-upstream config set github.api_token=github_pat_xxx
+upstream auth set github.api_token=github_pat_xxx
 ```
 
 ## Download Concurrency
@@ -197,15 +195,17 @@ Installed package metadata is separate from configuration:
 
 ```text
 $HOME/.upstream/migration.json
-$HOME/.upstream/metadata/packages.json
+$HOME/.upstream/metadata/packages.db
+$HOME/.upstream/metadata/auth.toml
 $HOME/.upstream/metadata/trust.json
-$HOME/.upstream/metadata/rollback.json
+$HOME/.upstream/state/rollback/
 ```
 
 - `migration.json` records the root data layout version and migration metadata.
-- `packages.json` tracks installed package source, version, file type, install paths, and provider metadata.
+- `packages.db` tracks installed package source, version, file type, install paths, and provider metadata.
+- `auth.toml` stores provider API tokens with restricted file permissions.
 - `trust.json` stores trusted minisign and cosign public keys.
-- `rollback.json` records rollback artifact metadata.
+- `state/rollback/` contains rollback artifact metadata and payloads.
 
 Do not hand-edit these files unless you are repairing a known issue. Use `package rename`, `package pin`, `package unpin`, `remove`, `reinstall`, and `rollback` where possible.
 

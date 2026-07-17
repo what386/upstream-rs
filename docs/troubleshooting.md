@@ -6,20 +6,16 @@ Start with diagnostics:
 upstream doctor
 upstream doctor --verbose
 upstream doctor --fix
-upstream doctor --migrate
 ```
 
-`doctor` checks installed package paths, symlinks, shell hooks, completion directories, desktop entries, icons, config, and metadata. Use `--verbose` when you need individual check lines. Use `--fix` to repair supported issues such as PATH hooks, missing symlinks, executable bits, executable metadata, and unused config keys. Use `--migrate` when local data needs a versioned layout or metadata migration.
+`doctor` checks installed package paths, symlinks, shell hooks, completion directories, desktop entries, icons, config, and metadata. Use `--verbose` when you need individual check lines. Use `--fix` to repair supported issues such as PATH hooks, missing symlinks, executable bits, executable metadata, and unused config keys. Versioned local-data migrations run automatically at startup.
 
 ## Migration
 
-If `doctor` reports that local data looks like an older layout, run:
-
-```bash
-upstream doctor --migrate
-```
-
-Migration creates missing current-layout directories, moves legacy package artifacts into `$HOME/.upstream/packages/`, and rewrites affected metadata paths.
+Startup migration creates missing current-layout directories, moves legacy
+package artifacts into `$HOME/.upstream/packages/`, and rewrites affected
+metadata paths. If a migration cannot complete, Upstream exits with the
+underlying error before running the requested command.
 
 ## Shell Hooks
 
@@ -33,8 +29,8 @@ upstream hooks init
 Restart the shell after initializing hooks. On Unix, Upstream writes managed PATH files at:
 
 ```text
-$HOME/.upstream/metadata/paths.sh
-$HOME/.upstream/metadata/paths.nu
+$HOME/.upstream/generated/paths.sh
+$HOME/.upstream/generated/paths.nu
 ```
 
 and sources the appropriate file from supported shell profiles.
@@ -71,14 +67,14 @@ Preview before installing:
 
 ```bash
 upstream install owner/repo app --dry-run
-upstream probe owner/repo --verbose
+upstream probe owner/repo --dry-run
 ```
 
 Guide selection with:
 
 ```bash
 upstream install owner/repo app --kind archive
-upstream install owner/repo app --match x86_64 --exclude debug
+upstream install owner/repo app --match-pattern x86_64 --exclude-pattern debug
 ```
 
 ## Upgrade Problems

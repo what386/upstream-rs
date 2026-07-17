@@ -63,36 +63,33 @@ Upstream stores data in user-owned locations:
 
 | Path | Purpose |
 | --- | --- |
-| `$XDG_CONFIG_HOME/upstream/config.toml` | Main configuration file |
+| `$HOME/.upstream/config.toml` | Main configuration file (legacy XDG config remains supported) |
 | `$HOME/.upstream/migration.json` | Root layout manifest used by init, doctor, and migration |
-| `$HOME/.upstream/metadata/packages.json` | Installed package metadata |
+| `$HOME/.upstream/metadata/auth.toml` | Provider API tokens |
+| `$HOME/.upstream/metadata/packages.db` | Installed package metadata |
 | `$HOME/.upstream/metadata/trust.json` | Trusted minisign and cosign public keys |
-| `$HOME/.upstream/metadata/rollback.json` | Rollback artifact metadata |
-| `$HOME/.upstream/metadata/paths.sh` | POSIX/fish PATH export managed by hooks |
-| `$HOME/.upstream/metadata/paths.nu` | Nushell PATH export managed by hooks |
+| `$HOME/.upstream/generated/paths.sh` | POSIX/fish PATH export managed by hooks |
+| `$HOME/.upstream/generated/paths.nu` | Nushell PATH export managed by hooks |
 | `$HOME/.upstream/packages/binaries/` | Installed binary artifacts |
 | `$HOME/.upstream/packages/appimages/` | Installed AppImage artifacts |
 | `$HOME/.upstream/packages/archives/` | Extracted archive installs |
 | `$HOME/.upstream/cache/` | Reusable package cache data |
 | `$HOME/.upstream/cache/build/` | Cached git workspaces for source builds |
 | `$HOME/.upstream/cache/source-archives/` | Cached source archive workspaces |
-| `$HOME/.upstream/tmp/` | Temporary staging for package operations |
+| `$HOME/.upstream/temp/` | Temporary staging for package operations |
 | `$HOME/.upstream/state/` | Persistent app state |
 | `$HOME/.upstream/state/symlinks/` | Runtime command links |
 | `$HOME/.upstream/state/icons/` | Stored desktop icons |
 | `$HOME/.upstream/state/rollback/` | Rollback artifacts |
+| `$HOME/.upstream/state/transactions/` | Interrupted or failed operation journals |
 
 Desktop entries are written to `$HOME/.local/share/applications` on Linux. Shell completions are installed directly into shell-specific user completion directories when supported.
 
 ## Migration
 
-After upgrading across breaking layout changes, run:
-
-```bash
-upstream doctor --migrate
-```
-
-`doctor` detects common legacy layouts and recommends `doctor --migrate` when local data appears to use an older format.
+Versioned local-data migrations run automatically when Upstream starts. Run
+`upstream doctor` after an upgrade to check the migrated layout and use
+`upstream doctor --fix` for supported integration repairs.
 
 ## Updating Upstream Itself
 

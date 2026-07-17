@@ -29,7 +29,7 @@ The default file type is `auto`. Upstream scores release assets using filename, 
 
 ```bash
 upstream install owner/repo app --kind archive
-upstream install owner/repo app --match linux --exclude debug
+upstream install owner/repo app --match-pattern linux --exclude-pattern debug
 ```
 
 `--match-pattern` increases preference for matching assets. `--exclude-pattern` filters out matching assets.
@@ -115,3 +115,7 @@ upstream package rm-entry <name>
 Pinned packages do not upgrade until unpinned. Rename changes the local alias and related metadata without reinstalling the package.
 
 Entry actions manually create or remove launcher integration for an installed package.
+
+`upstream info <name>` also reports provenance for new release installs:
+the exact release tag and asset, download URL, SHA-256 digest, requested trust
+mode, checksum/signature outcome, and installation timestamp.
