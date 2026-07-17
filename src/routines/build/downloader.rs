@@ -760,18 +760,10 @@ mod tests {
             .join(relative)
     }
 
-    fn copy_fixture_dir(src: &Path, dst: &Path) {
-        fs::create_dir_all(dst).expect("create fixture destination");
-        for entry in fs::read_dir(src).expect("read fixture directory") {
-            let entry = entry.expect("read fixture entry");
-            let src_path = entry.path();
-            let dst_path = dst.join(entry.file_name());
-            if src_path.is_dir() {
-                copy_fixture_dir(&src_path, &dst_path);
-            } else {
-                fs::copy(&src_path, &dst_path).expect("copy fixture file");
-            }
-        }
+    fn copy_fixture(relative: &str, destination: &Path) {
+        let parent = destination.parent().expect("fixture destination parent");
+        fs::create_dir_all(parent).expect("create fixture destination parent");
+        fs::copy(fixture_path(relative), destination).expect("copy fixture file");
     }
 
     #[test]
@@ -821,16 +813,22 @@ mod tests {
 
     #[test]
     fn resolve_workspace_root_uses_root_when_manifest_exists() {
-        let root = fixture_path("builder/rust-single");
+        let root = temp_root("rust-single");
+        copy_fixture("builder/rust-single.Cargo.toml", &root.join("Cargo.toml"));
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
         assert_eq!(resolved, root);
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn resolve_workspace_root_selects_single_child_repo() {
         let root = temp_root("single-child");
-        copy_fixture_dir(&fixture_path("builder/pax-noise"), &root);
+        copy_fixture(
+            "builder/pax-noise.Cargo.toml",
+            &root.join("child").join("Cargo.toml"),
+        );
+        fs::write(root.join("pax_global_header"), "").expect("write noise file");
         let child = root.join("child");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
@@ -840,32 +838,48 @@ mod tests {
 
     #[test]
     fn resolve_workspace_root_uses_go_root_when_manifest_exists() {
-        let root = fixture_path("builder/go-single");
+        let root = temp_root("go-single");
+        copy_fixture("builder/go-single.go.mod", &root.join("go.mod"));
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
         assert_eq!(resolved, root);
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn resolve_workspace_root_uses_zig_root_when_manifest_exists() {
-        let root = fixture_path("builder/zig-single");
+        let root = temp_root("zig-single");
+        copy_fixture("builder/zig-single.build.zig", &root.join("build.zig"));
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
         assert_eq!(resolved, root);
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn resolve_workspace_root_uses_cmake_root_when_manifest_exists() {
-        let root = fixture_path("builder/cmake-single");
+        let root = temp_root("cmake-single");
+        copy_fixture(
+            "builder/cmake-single.CMakeLists.txt",
+            &root.join("CMakeLists.txt"),
+        );
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
         assert_eq!(resolved, root);
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn resolve_workspace_root_errors_on_ambiguous_children() {
         let root = temp_root("ambiguous");
-        copy_fixture_dir(&fixture_path("builder/ambiguous-multi"), &root);
+        copy_fixture(
+            "builder/ambiguous-multi.go.mod",
+            &root.join("go").join("go.mod"),
+        );
+        copy_fixture(
+            "builder/ambiguous-multi.Cargo.toml",
+            &root.join("rust").join("Cargo.toml"),
+        );
 
         let err = SourceDownloader::resolve_workspace_root(&root).expect_err("must be ambiguous");
         assert!(err.to_string().contains("ambiguous"));

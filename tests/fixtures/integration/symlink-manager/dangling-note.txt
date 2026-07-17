@@ -1,1 +1,0 @@
-dangling symlink fixtures can be created by tests at runtime
