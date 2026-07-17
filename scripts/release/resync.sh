@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-printf "promoting" > .release-state
-
 readonly RED="\033[0;31m"
 readonly GREEN="\033[0;32m"
 readonly BLUE="\033[0;34m"
@@ -30,3 +28,4 @@ git push gitea main
 
 echo -e "${GREEN}Promoted dev to main.${NC}"
 
+git switch dev
