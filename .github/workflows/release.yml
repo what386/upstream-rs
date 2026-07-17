@@ -5,6 +5,8 @@ on:
       - "v*"
 permissions:
   contents: write
+  id-token: write
+  actions: read
 jobs:
   build:
     name: Build (${{ matrix.os }})
@@ -71,10 +73,26 @@ jobs:
           cp completions/completions.zsh dist/completions.zsh
           cp completions/completions.ps1 dist/completions.ps1
           cp completions/completions.elvish dist/completions.elvish
+      - name: Generate release SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: dist/upstream.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
       - name: Generate checksums
         run: |
           cd dist
-          sha256sum **/* > SHA256SUMS.txt
+          find . -type f ! -name SHA256SUMS.txt -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > SHA256SUMS.txt
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.1
+        with:
+          cosign-release: v3.0.6
+      - name: Sign checksum manifest
+        run: cosign sign-blob --yes --bundle dist/SHA256SUMS.txt.sigstore.json dist/SHA256SUMS.txt
       - name: Read changelog section for tag
         id: release_notes
         run: |
