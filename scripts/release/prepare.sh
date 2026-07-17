@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "$(cat state)" != "ready" ]]; then
+if [[ "$(cat ./state)" != "ready" ]]; then
     echo -e "${RED}Invalid release state: should be 'ready'${NC}"
 fi
 
