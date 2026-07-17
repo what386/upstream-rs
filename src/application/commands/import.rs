@@ -29,10 +29,10 @@ fn render_import_progress(
         .saturating_sub(completed)
         .saturating_sub(active_rows.len() as u32);
     if active_rows.is_empty() {
-        return format!(" ({queued} queued)");
+        return format!("Importing {completed}/{total} packages ({queued} queued)");
     }
     format!(
-        " ({queued} queued)\n{}",
+        "Importing {completed}/{total} packages ({queued} queued)\n{}",
         active_rows.values().cloned().collect::<Vec<_>>().join("\n")
     )
 }
@@ -314,7 +314,7 @@ mod tests {
 
         assert_eq!(
             render_import_progress(&active, 1, 4),
-            " (2 queued)\ngitui Downloading..."
+            "Importing 1/4 packages (2 queued)\ngitui Downloading..."
         );
     }
 }

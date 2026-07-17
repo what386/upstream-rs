@@ -63,7 +63,9 @@ impl PackageReference {
 }
 
 fn release_version_tag(package: &Package) -> Option<String> {
-    if package.install_type != InstallType::Release || package.version.is_unknown() {
+    if package.version.is_unknown()
+        || (package.install_type == InstallType::Build && package.build_branch.is_some())
+    {
         return None;
     }
 
@@ -144,5 +146,17 @@ mod tests {
         assert_eq!(reference.build_commit.as_deref(), Some("0123456789abcdef"));
         assert_eq!(reference.match_pattern.to_string(), "linux");
         assert_eq!(reference.exclude_pattern.to_string(), "symbols");
+    }
+
+    #[test]
+    fn from_package_keeps_release_tag_for_release_backed_builds() {
+        let mut package = reference().into_package();
+        package.build_branch = None;
+        package.version = Version::new(1, 2, 3, false);
+        package.version_tag_template = Some("v{}".to_string());
+
+        let reference = PackageReference::from_package(package);
+
+        assert_eq!(reference.version_tag.as_deref(), Some("v1.2.3"));
     }
 }

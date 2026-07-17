@@ -72,6 +72,10 @@ impl<'a> PackageInstaller<'a> {
         self.paths
     }
 
+    pub fn provider_manager(&self) -> &ProviderManager {
+        self.provider_manager
+    }
+
     fn package_cache_key(package_name: &str) -> String {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)

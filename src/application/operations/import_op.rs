@@ -4,9 +4,10 @@ use crate::{
         upstream::{InstallType, Package, PackageReference, config::AppConfig},
     },
     providers::provider_manager::ProviderManager,
+    routines::build::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         integration::ShellManager,
-        packaging::{OperationPhase, PackageInstaller, PackageProgressEvent},
+        packaging::{OperationPhase, PackageInstaller, PackagePhase, PackageProgressEvent},
         trust::{CosignPublicKey, MinisignPublicKey, TrustedSignatureKeys},
     },
     storage::{
@@ -266,14 +267,6 @@ impl<'a> ImportOperation<'a> {
                     progress_callback,
                     &reference.name,
                     "already exists; skipping",
-                );
-            } else if reference.install_type != InstallType::Release {
-                summary.skipped += 1;
-                skipped = true;
-                emit_warning(
-                    progress_callback,
-                    &reference.name,
-                    "is a build package; build imports are not supported",
                 );
             } else if !queued_names.insert(reference.name.clone()) {
                 summary.skipped += 1;
@@ -655,25 +648,93 @@ async fn import_package(
 ) -> (String, Result<Package>) {
     let name = package.name.clone();
     let progress_name = name.clone();
-    let mut no_download_progress: Option<fn(u64, u64)> = None;
-    let mut ignored_messages = Some(|_: &str| {});
     let mut progress_callback = Some(move |event: PackageProgressEvent| {
         record_progress_event(&progress_state, &warning_state, &progress_name, event);
     });
-    let result = installer
-        .install_release(
-            &trusted_keys,
+    let result = match package.install_type {
+        InstallType::Release => {
+            let mut no_download_progress: Option<fn(u64, u64)> = None;
+            let mut ignored_messages = Some(|_: &str| {});
+            installer
+                .install_release(
+                    &trusted_keys,
+                    package,
+                    &version,
+                    &false,
+                    TrustMode::BestEffort,
+                    &mut no_download_progress,
+                    &mut ignored_messages,
+                    &mut progress_callback,
+                )
+                .await
+        }
+        InstallType::Build => {
+            import_build_package(installer, package, version, &mut progress_callback).await
+        }
+    }
+    .context(format!("Failed to import package '{name}'"));
+    (name, result)
+}
+
+async fn import_build_package<P>(
+    installer: &PackageInstaller<'_>,
+    mut package: Package,
+    version_tag: Option<String>,
+    progress_callback: &mut Option<P>,
+) -> Result<Package>
+where
+    P: FnMut(PackageProgressEvent),
+{
+    if let Some(cb) = progress_callback.as_mut() {
+        cb(PackageProgressEvent::Phase(
+            PackagePhase::RebuildingFromSource,
+        ));
+    }
+    let worker = BuildWorker::new(installer.provider_manager(), installer.paths());
+    let mut ignored_build_lines = Some(|_: &str| {});
+    let output = worker
+        .build(
+            build_request_for_import(&package, version_tag),
+            package.channel.clone(),
+            &mut ignored_build_lines,
+        )
+        .await?;
+    package.build_branch = output.branch.clone();
+    package.build_commit = output.commit.clone();
+    package.version_tag_template = if package.build_branch.is_some() {
+        None
+    } else {
+        Package::version_tag_template_from_tag(&output.release.tag, &output.version)
+    };
+
+    let mut ignored_messages = Some(|_: &str| {});
+    installer
+        .install_local_artifact(
             package,
-            &version,
+            &output.artifact_path,
+            output.version,
             &false,
-            TrustMode::BestEffort,
-            &mut no_download_progress,
             &mut ignored_messages,
-            &mut progress_callback,
+            progress_callback,
         )
         .await
-        .context(format!("Failed to import package '{name}'"));
-    (name, result)
+}
+
+fn build_request_for_import(package: &Package, version_tag: Option<String>) -> BuildRequest {
+    BuildRequest {
+        name: package.name.clone(),
+        repo_slug: package.repo_slug.clone(),
+        provider: package.provider.clone(),
+        base_url: package.base_url.clone(),
+        version_tag: if package.build_branch.is_some() {
+            None
+        } else {
+            version_tag
+        },
+        branch: package.build_branch.clone(),
+        requested_profile: None,
+        script_action: BuildScriptAction::Install,
+    }
 }
 
 #[cfg(test)]
@@ -683,6 +744,13 @@ mod tests {
         ProgressState, WarningState, emit_progress_updates, record_progress_event,
     };
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
+    use crate::{
+        models::{
+            common::enums::{Channel, Filetype, Provider},
+            upstream::{InstallType, Package},
+        },
+        routines::build::scripts::BuildScriptAction,
+    };
     use std::{
         collections::BTreeMap,
         fs,
@@ -823,5 +891,30 @@ mod tests {
             [ImportProgressEvent::Warning { name, message }]
                 if name == "ripgrep" && message == "signature unavailable"
         ));
+    }
+
+    #[test]
+    fn build_import_uses_exported_release_tag_or_branch() {
+        let mut package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_type = InstallType::Build;
+
+        let release_request = super::build_request_for_import(&package, Some("v1.2.3".to_string()));
+        assert_eq!(release_request.version_tag.as_deref(), Some("v1.2.3"));
+        assert!(release_request.branch.is_none());
+        assert_eq!(release_request.script_action, BuildScriptAction::Install);
+
+        package.build_branch = Some("main".to_string());
+        let branch_request = super::build_request_for_import(&package, Some("v1.2.3".to_string()));
+        assert!(branch_request.version_tag.is_none());
+        assert_eq!(branch_request.branch.as_deref(), Some("main"));
     }
 }
