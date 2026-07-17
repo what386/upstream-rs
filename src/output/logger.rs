@@ -253,7 +253,6 @@ mod tests {
     use super::{LogEvent, vacuum_file};
     use std::{
         fs,
-        path::PathBuf,
         time::{SystemTime, UNIX_EPOCH},
     };
 
