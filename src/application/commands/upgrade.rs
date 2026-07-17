@@ -96,6 +96,18 @@ fn render_upgrade_progress_row(
             format!("Zsync upgrading {}", HumanBytes(downloaded))
         }
         PackageProgressEvent::Zsync { .. } => "Zsync upgrading...".to_string(),
+        PackageProgressEvent::Checksum { checked, total } if total > 0 => {
+            format!(
+                "Checksumming {} {} / {}",
+                output::progress_bar(checked, total, UPGRADE_PROGRESS_BAR_WIDTH),
+                HumanBytes(checked),
+                HumanBytes(total)
+            )
+        }
+        PackageProgressEvent::Checksum { checked, .. } if checked > 0 => {
+            format!("Checksumming {}", HumanBytes(checked))
+        }
+        PackageProgressEvent::Checksum { .. } => "Checksumming...".to_string(),
         PackageProgressEvent::Warning(message) => output::truncate_end(&message, 96),
     };
     format!("{name:<name_width$} {detail}")
@@ -890,6 +902,18 @@ mod tests {
         );
         assert!(download.starts_with("gitui Downloading [=======>      ]"));
         assert!(download.contains('/'));
+
+        let checksum = render_upgrade_progress_row(
+            "gitui",
+            PackageProgressEvent::Checksum {
+                checked: 512,
+                total: 1024,
+            },
+            5,
+        );
+        assert!(checksum.starts_with("gitui Checksumming [=======>      ]"));
+        assert!(checksum.contains('/'));
+        assert!(!checksum.contains("Downloading"));
 
         let zsync = render_upgrade_progress_row(
             "gitui",

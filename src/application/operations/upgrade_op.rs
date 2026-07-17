@@ -171,6 +171,24 @@ impl<'a> UpgradeOperation<'a> {
         );
     }
 
+    fn record_checksum_progress(
+        progress_state: &ProgressState,
+        name: &str,
+        checked: u64,
+        total: u64,
+    ) {
+        let Ok(mut state) = progress_state.lock() else {
+            return;
+        };
+
+        state.insert(
+            name.to_string(),
+            ProgressEntry {
+                event: PackageProgressEvent::Checksum { checked, total },
+            },
+        );
+    }
+
     fn record_status_progress(
         progress_state: &ProgressState,
         name: &str,
@@ -200,6 +218,9 @@ impl<'a> UpgradeOperation<'a> {
             }
             PackageProgressEvent::Zsync { downloaded, total } => {
                 Self::record_zsync_progress(progress_state, name, downloaded, total)
+            }
+            PackageProgressEvent::Checksum { checked, total } => {
+                Self::record_checksum_progress(progress_state, name, checked, total)
             }
             PackageProgressEvent::Warning(message) => {
                 if let Ok(mut warnings) = warning_state.lock() {
