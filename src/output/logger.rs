@@ -70,18 +70,18 @@ impl Logger {
             fs::create_dir_all(parent)?;
         }
 
-        vacuum_file(path, 10_000, 10 * 1024 * 1024);
+        let default_config = LoggerConfig::from(LoggingConfig::default());
+        vacuum_file(
+            path,
+            default_config.vacuum,
+            default_config.max_size_bytes,
+        );
 
         Ok(Self {
             file: Mutex::new(OpenOptions::new().create(true).append(true).open(path)?),
             path: path.to_path_buf(),
             command: Mutex::new(None),
-            config: Mutex::new(LoggerConfig {
-                enabled: true,
-                level: LoggingLevel::Info,
-                vacuum: 10_000,
-                max_size_bytes: 10 * 1024 * 1024,
-            }),
+            config: Mutex::new(default_config),
         })
     }
 
