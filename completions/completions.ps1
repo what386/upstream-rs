@@ -660,7 +660,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Export config.toml')
             [CompletionResult]::new('keys', 'keys', [CompletionResultType]::ParameterValue, 'Export trusted minisign and cosign public keys')
-            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Export installed release-package references')
+            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Export installed package references')
             [CompletionResult]::new('profile', 'profile', [CompletionResultType]::ParameterValue, 'Export config, trust keys, and package references')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
@@ -700,7 +700,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         'upstream;export;help' {
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Export config.toml')
             [CompletionResult]::new('keys', 'keys', [CompletionResultType]::ParameterValue, 'Export trusted minisign and cosign public keys')
-            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Export installed release-package references')
+            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Export installed package references')
             [CompletionResult]::new('profile', 'profile', [CompletionResultType]::ParameterValue, 'Export config, trust keys, and package references')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
@@ -904,7 +904,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         'upstream;help;export' {
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Export config.toml')
             [CompletionResult]::new('keys', 'keys', [CompletionResultType]::ParameterValue, 'Export trusted minisign and cosign public keys')
-            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Export installed release-package references')
+            [CompletionResult]::new('packages', 'packages', [CompletionResultType]::ParameterValue, 'Export installed package references')
             [CompletionResult]::new('profile', 'profile', [CompletionResultType]::ParameterValue, 'Export config, trust keys, and package references')
             break
         }

@@ -1408,7 +1408,7 @@ _upstream__subcmd__export_commands() {
     local commands; commands=(
 'config:Export config.toml' \
 'keys:Export trusted minisign and cosign public keys' \
-'packages:Export installed release-package references' \
+'packages:Export installed package references' \
 'profile:Export config, trust keys, and package references' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1424,7 +1424,7 @@ _upstream__subcmd__export__subcmd__help_commands() {
     local commands; commands=(
 'config:Export config.toml' \
 'keys:Export trusted minisign and cosign public keys' \
-'packages:Export installed release-package references' \
+'packages:Export installed package references' \
 'profile:Export config, trust keys, and package references' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1599,7 +1599,7 @@ _upstream__subcmd__help__subcmd__export_commands() {
     local commands; commands=(
 'config:Export config.toml' \
 'keys:Export trusted minisign and cosign public keys' \
-'packages:Export installed release-package references' \
+'packages:Export installed package references' \
 'profile:Export config, trust keys, and package references' \
     )
     _describe -t commands 'upstream help export commands' commands "$@"
