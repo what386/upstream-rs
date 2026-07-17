@@ -1,7 +1,7 @@
 use crate::{
     models::common::enums::{Channel, Provider, TrustMode},
     models::provider::Release,
-    models::upstream::UpgradeConfig,
+    models::upstream::config::UpgradeConfig,
     output::{self, Status},
     providers::provider_manager::ProviderManager,
     services::packaging::disk_impact::{

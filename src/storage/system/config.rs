@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use toml;
 
-use crate::models::upstream::AppConfig;
+use crate::models::upstream::config::AppConfig;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 
 #[cfg(unix)]
@@ -206,6 +206,7 @@ fn set_config_permissions(config_file: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::ConfigStorage;
+    use crate::models::upstream::config::LoggingLevel;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -245,7 +246,7 @@ mod tests {
         assert!(storage.get_config().logging.enabled);
         assert_eq!(
             storage.get_config().logging.level,
-            crate::models::upstream::LoggingLevel::Info
+            LoggingLevel::Info
         );
         assert_eq!(storage.get_config().logging.vacuum, 10_000);
         assert_eq!(storage.get_config().logging.max_size_mb, 10);
@@ -333,7 +334,7 @@ mod tests {
         assert!(!storage.get_config().logging.enabled);
         assert_eq!(
             storage.get_config().logging.level,
-            crate::models::upstream::LoggingLevel::Error
+            LoggingLevel::Error
         );
         assert_eq!(storage.get_config().logging.vacuum, 50000);
         assert_eq!(storage.get_config().logging.max_size_mb, 25);

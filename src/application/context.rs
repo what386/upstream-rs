@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    models::upstream::AppConfig,
+    models::upstream::config::AppConfig,
     providers::provider_manager::ProviderManager,
     services::trust::TrustedSignatureKeys,
     storage::{

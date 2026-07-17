@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use crate::models::common::enums::Filetype;
-use crate::models::upstream::DownloadConfig;
+use crate::models::upstream::config::DownloadConfig;
 use crate::providers::download_handler;
 use crate::utils::filename_parser::parse_filetype;
 

@@ -9,7 +9,7 @@ use tar::{Archive, Builder};
 
 use crate::models::common::enums::CompressionLevel;
 use crate::models::upstream::Package;
-use crate::models::upstream::app_config::RollbackConfig;
+use crate::models::upstream::config::RollbackConfig;
 use crate::services::integration::ShellManager;
 use crate::services::packaging::PackageRemover;
 use crate::services::packaging::disk_impact::{

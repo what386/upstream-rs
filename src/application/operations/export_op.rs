@@ -1,6 +1,6 @@
 use crate::{
     application::operations::import_op::{PACKAGES_EXPORT_VERSION, PROFILE_EXPORT_VERSION},
-    models::upstream::{AppConfig, PackageReference},
+    models::upstream::{PackageReference, config::AppConfig},
     services::{
         packaging::{OperationPhase, OperationProgressEvent},
         trust::{CosignPublicKey, MinisignPublicKey},

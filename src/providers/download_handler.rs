@@ -12,7 +12,7 @@ use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
-use crate::models::upstream::DownloadConfig;
+use crate::models::upstream::config::DownloadConfig;
 use crate::providers::http::http_status;
 
 #[derive(Debug, Clone, Copy)]
@@ -553,7 +553,7 @@ async fn move_temp_file(temp_path: &Path, destination: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::download_file;
-    use crate::models::upstream::DownloadConfig;
+    use crate::models::upstream::config::DownloadConfig;
     use reqwest::Client;
     use std::collections::HashMap;
     use std::io::{BufRead, BufReader, Write};

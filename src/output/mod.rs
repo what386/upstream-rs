@@ -32,7 +32,7 @@ pub fn init_logger(path: impl AsRef<std::path::Path>) {
     logger::init(path.as_ref());
 }
 
-pub fn configure_logger(config: crate::models::upstream::LoggingConfig) {
+pub fn configure_logger(config: crate::models::upstream::config::LoggingConfig) {
     logger::configure(config);
 }
 

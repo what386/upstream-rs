@@ -2,7 +2,7 @@ use crate::{
     application::operations::install_op::{InstallOperation, ReleaseInstallRequest},
     models::{
         common::enums::TrustMode,
-        upstream::{AppConfig, InstallType, PackageReference},
+        upstream::{InstallType, PackageReference, config::AppConfig},
     },
     providers::provider_manager::ProviderManager,
     services::{

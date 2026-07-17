@@ -7,7 +7,7 @@ use crate::models::common::{
     enums::{Channel, Provider},
 };
 use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
-use crate::models::upstream::{DownloadConfig, Package};
+use crate::models::upstream::{Package, config::DownloadConfig};
 use crate::providers::asset_selector::{AssetCandidate, AssetSelector};
 use crate::providers::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::github::{GithubAdapter, GithubClient};

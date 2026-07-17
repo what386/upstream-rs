@@ -1,4 +1,4 @@
-use crate::models::upstream::{LoggingConfig, LoggingLevel};
+use crate::models::upstream::config::{LoggingConfig, LoggingLevel};
 use chrono::Utc;
 use serde::Serialize;
 use std::{
@@ -59,7 +59,7 @@ impl From<LoggingConfig> for LoggerConfig {
             enabled: config.enabled,
             level: config.level,
             vacuum: config.vacuum,
-            max_size_bytes: config.max_size_mb.saturating_mul(1024 * 1024),
+            max_size_bytes: config.max_size_bytes(),
         }
     }
 }
