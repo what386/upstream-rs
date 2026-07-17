@@ -48,8 +48,8 @@ Unknown keys are rejected when `config.toml` is loaded.
 | `download.high_threshold_mb` | integer | `64` | Minimum asset size for high parallel download worker count |
 | `download.low_threads` | integer | `2` | Parallel workers used at or above the low threshold |
 | `download.high_threads` | integer | `4` | Parallel workers used at or above the high threshold |
-| `upgrade.check_concurrency` | integer | `8` | Packages checked in parallel during `upgrade --check` and upgrade previews |
-| `upgrade.install_concurrency` | integer | `4` | Packages upgraded in parallel after confirmation |
+| `concurrency.check_concurrency` | integer | `8` | Packages checked in parallel during `upgrade --check` and upgrade previews |
+| `concurrency.install_concurrency` | integer | `4` | Packages upgraded or imported in parallel |
 | `rollback.compression_level` | `none`, `low`, `high` | `high` | Compression level for rollback artifacts |
 | `rollback.stored_artifacts` | integer | `1` | Number of rollback artifacts to keep per package |
 | `logging.enabled` | boolean | `true` | Enable JSONL audit logging |
@@ -126,24 +126,24 @@ upstream config set download.low_threshold_mb=32
 upstream config set download.high_threshold_mb=128 download.high_threads=6
 ```
 
-## Upgrade Concurrency
+## Concurrency
 
-Upgrade checks and bulk upgrade application can run several packages in parallel.
+Upgrade checks, bulk upgrades, and package imports can run several packages in parallel.
 
-Default upgrade concurrency keys:
+Default concurrency keys:
 
 ```text
-upgrade.check_concurrency = 8
-upgrade.install_concurrency = 4
+concurrency.check_concurrency = 8
+concurrency.install_concurrency = 4
 ```
 
-`upgrade.check_concurrency` controls update checks used by `upstream upgrade --check` and by the preview step before applying upgrades. `upgrade.install_concurrency` controls how many packages are upgraded at once after confirmation and how many release packages are installed concurrently during package/profile imports. Values below `1` are treated as `1`.
+`concurrency.check_concurrency` controls update checks used by `upstream upgrade --check` and by the preview step before applying upgrades. `concurrency.install_concurrency` controls how many packages are upgraded at once after confirmation and how many release or build packages are installed concurrently during package/profile imports. Values below `1` are treated as `1`.
 
 Examples:
 
 ```bash
-upstream config set upgrade.check_concurrency=4
-upstream config set upgrade.install_concurrency=2
+upstream config set concurrency.check_concurrency=4
+upstream config set concurrency.install_concurrency=2
 ```
 
 ## Rollback
