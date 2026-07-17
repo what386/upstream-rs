@@ -684,7 +684,7 @@ pub enum Commands {
 
     /// Import config, trust keys, packages, or a profile
     #[command(long_about = "Import config, trust keys, packages, or a profile.\n\n\
-        Package and profile imports reinstall release packages from exported references. \
+        Package and profile imports reinstall release and build packages from exported references. \
         They do not contain installed artifacts, rollback data, cache contents, or auth \
         tokens.\n\n\
         EXAMPLES:\n  \
@@ -701,7 +701,7 @@ pub enum Commands {
 
     /// Export config, trust keys, packages, or a profile
     #[command(long_about = "Export config, trust keys, packages, or a profile.\n\n\
-        Package exports contain reinstallable release-package references, not installed \
+        Package exports contain reinstallable package references, not installed \
         artifacts. Profile exports combine config, trust keys, and package references for \
         backup or transfer. Auth tokens are intentionally excluded and remain in auth.toml.\n\n\
         EXAMPLES:\n  \
@@ -813,7 +813,7 @@ pub enum ImportAction {
 
     /// Install packages from an exported package list
     #[command(long_about = "Install packages from an exported package list.\n\n\
-        Package exports contain release-package references, not installed files. By \
+        Package exports contain package references, not installed files. By \
         default, upstream installs each package at the version tag recorded in the export. \
         Use --latest to ignore recorded tags and install current releases instead.\n\n\
         EXAMPLES:\n  \
@@ -879,11 +879,11 @@ pub enum ExportAction {
         path: std::path::PathBuf,
     },
 
-    /// Export installed release-package references
-    #[command(long_about = "Export installed release-package references.\n\n\
+    /// Export installed package references
+    #[command(long_about = "Export installed package references.\n\n\
         The output records enough source and version information for `upstream import \
-        packages` to reinstall release packages. It does not include installed files, \
-        build-only package artifacts, rollback data, or cache contents.\n\n\
+        packages` to reinstall release and build packages. It does not include installed files, \
+        build artifacts, rollback data, or cache contents.\n\n\
         EXAMPLE:\n  \
         upstream export packages ./packages.json")]
     Packages {

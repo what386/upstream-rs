@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use toml;
 
-use crate::models::upstream::AppConfig;
+use crate::models::upstream::config::AppConfig;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 
 #[cfg(unix)]
@@ -110,6 +110,7 @@ impl ConfigStorage {
     }
 
     fn get_value(&self, key_path: &str) -> Result<toml::Value> {
+        let key_path = key_path.trim();
         let root = public_config_value(&self.config).context("Failed to serialize config")?;
 
         let mut current = &root;
@@ -206,6 +207,7 @@ fn set_config_permissions(config_file: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::ConfigStorage;
+    use crate::models::upstream::config::LoggingLevel;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -240,8 +242,12 @@ mod tests {
         assert_eq!(storage.get_config().download.high_threshold_mb, 64);
         assert_eq!(storage.get_config().download.low_threads, 2);
         assert_eq!(storage.get_config().download.high_threads, 4);
-        assert_eq!(storage.get_config().upgrade.check_concurrency, 8);
-        assert_eq!(storage.get_config().upgrade.install_concurrency, 4);
+        assert_eq!(storage.get_config().concurrency.check_concurrency, 8);
+        assert_eq!(storage.get_config().concurrency.install_concurrency, 4);
+        assert!(storage.get_config().logging.enabled);
+        assert_eq!(storage.get_config().logging.level, LoggingLevel::Info);
+        assert_eq!(storage.get_config().logging.vacuum, 10_000);
+        assert_eq!(storage.get_config().logging.max_size_mb, 10);
 
         cleanup(&path).expect("cleanup");
     }
@@ -261,7 +267,7 @@ mod tests {
             .try_set_value("download.high_threads", "6")
             .expect("set high threads");
         storage
-            .try_set_value("upgrade.check_concurrency", "3")
+            .try_set_value("concurrency.check_concurrency", "3")
             .expect("set check concurrency");
 
         let low_threshold: u64 = storage
@@ -271,7 +277,7 @@ mod tests {
             .try_get_value("download.high_threads")
             .expect("read high threads");
         let check_concurrency: usize = storage
-            .try_get_value("upgrade.check_concurrency")
+            .try_get_value("concurrency.check_concurrency")
             .expect("read check concurrency");
 
         assert_eq!(low_threshold, 8);
@@ -306,6 +312,27 @@ mod tests {
 
         let storage = ConfigStorage::new(&path).expect("config should load");
         assert_eq!(storage.get_config().download.low_threads, 6);
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn load_accepts_logging_config() {
+        let path = temp_config_file("logging");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        fs::write(
+            &path,
+            "[logging]\nenabled = false\nlevel = 'error'\nvacuum = 50000\nmax_size_mb = 25\n",
+        )
+        .expect("write config");
+
+        let storage = ConfigStorage::new(&path).expect("config should load");
+        assert!(!storage.get_config().logging.enabled);
+        assert_eq!(storage.get_config().logging.level, LoggingLevel::Error);
+        assert_eq!(storage.get_config().logging.vacuum, 50000);
+        assert_eq!(storage.get_config().logging.max_size_mb, 25);
 
         cleanup(&path).expect("cleanup");
     }

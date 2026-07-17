@@ -61,8 +61,20 @@ pub struct ConfigPaths {
 
 impl ConfigPaths {
     pub fn new(dirs: &AppDirs) -> Self {
+        let preferred_config = dirs.data_dir.join("config.toml");
+        let fallback_config = dirs.config_dir.join("config.toml");
+
+        let config_file = if preferred_config.is_file() {
+            preferred_config
+        } else if fallback_config.is_file() {
+            fallback_config
+        } else {
+            // Neither exists yet- use the preferred location for creation.
+            preferred_config
+        };
+
         Self {
-            config_file: dirs.config_dir.join("config.toml"),
+            config_file,
             auth_file: dirs.metadata_dir.join("auth.toml"),
             packages_file: dirs.metadata_dir.join("packages.json"),
             packages_database_file: dirs.metadata_dir.join("packages.db"),

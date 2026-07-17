@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "$(cat .release-state)" != "promoted" ]]; then
+    echo -e "${RED}Invalid release state: should be 'promoted'${NC}"
+fi
+
+printf "publishing" > .release-state
+
 readonly RED="\033[0;31m"
 readonly GREEN="\033[0;32m"
 readonly BLUE="\033[0;34m"
@@ -32,5 +38,7 @@ echo -e "${GREEN}Published on GitHub${NC}"
 echo -e "${BLUE}Publishing on crates.io...${NC}"
 cargo publish
 echo -e "${GREEN}Published on crates.io${NC}"
+
+printf "published" > .release-state
 
 echo -e "${GREEN}${version} published successfully.${NC}"

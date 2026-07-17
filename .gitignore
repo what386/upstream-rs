@@ -1,2 +1,6 @@
 target/
 tests/fakehome/*
+tests/metadata/fakehome-template/.upstream/state/symlinks/upstream
+.release-state
+__pycache__/
+*.py[cod]

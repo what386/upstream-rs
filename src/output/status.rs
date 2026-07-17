@@ -34,6 +34,7 @@ pub fn status_line_text(
     detail: impl fmt::Display,
 ) -> String {
     let subject = subject.to_string();
+    let detail = detail.to_string();
     status_line_text_with_width(
         status,
         &subject,
@@ -48,12 +49,26 @@ pub fn status_line_text_with_width(
     detail: impl fmt::Display,
     subject_width: usize,
 ) -> String {
+    let subject = subject.to_string();
+    let detail = detail.to_string();
+    if let Some(status_name) = log_status_name(status) {
+        super::logger::status(subject.clone(), status_name, detail.clone());
+    }
     format!(
         "{} {:<subject_width$} {}",
         status_cell(status),
-        subject.to_string(),
+        subject,
         detail
     )
+}
+
+fn log_status_name(status: Status) -> Option<&'static str> {
+    match status {
+        Status::Ok => Some("ok"),
+        Status::Warn => Some("warn"),
+        Status::Fail => Some("fail"),
+        Status::Plan | Status::Skip => None,
+    }
 }
 
 pub fn status_subject_width<'a>(subjects: impl IntoIterator<Item = &'a str>) -> usize {

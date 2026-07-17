@@ -1,0 +1,13 @@
+[download]
+low_threshold_mb = 16
+high_threshold_mb = 64
+low_threads = 2
+high_threads = 4
+
+[concurrency]
+check_concurrency = 8
+install_concurrency = 4
+
+[rollback]
+compression_level = "low"
+stored_artifacts = 1

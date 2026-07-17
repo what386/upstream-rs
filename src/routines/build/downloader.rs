@@ -821,7 +821,7 @@ mod tests {
 
     #[test]
     fn resolve_workspace_root_uses_root_when_manifest_exists() {
-        let root = fixture_path("builder/workspace-roots/rust-single");
+        let root = fixture_path("builder/rust-single");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
         assert_eq!(resolved, root);
@@ -830,7 +830,7 @@ mod tests {
     #[test]
     fn resolve_workspace_root_selects_single_child_repo() {
         let root = temp_root("single-child");
-        copy_fixture_dir(&fixture_path("builder/workspace-roots/pax-noise"), &root);
+        copy_fixture_dir(&fixture_path("builder/pax-noise"), &root);
         let child = root.join("child");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve child root");
@@ -840,7 +840,7 @@ mod tests {
 
     #[test]
     fn resolve_workspace_root_uses_go_root_when_manifest_exists() {
-        let root = fixture_path("builder/workspace-roots/go-single");
+        let root = fixture_path("builder/go-single");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
         assert_eq!(resolved, root);
@@ -848,7 +848,7 @@ mod tests {
 
     #[test]
     fn resolve_workspace_root_uses_zig_root_when_manifest_exists() {
-        let root = fixture_path("builder/workspace-roots/zig-single");
+        let root = fixture_path("builder/zig-single");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
         assert_eq!(resolved, root);
@@ -856,7 +856,7 @@ mod tests {
 
     #[test]
     fn resolve_workspace_root_uses_cmake_root_when_manifest_exists() {
-        let root = fixture_path("builder/workspace-roots/cmake-single");
+        let root = fixture_path("builder/cmake-single");
 
         let resolved = SourceDownloader::resolve_workspace_root(&root).expect("resolve root");
         assert_eq!(resolved, root);
@@ -865,10 +865,7 @@ mod tests {
     #[test]
     fn resolve_workspace_root_errors_on_ambiguous_children() {
         let root = temp_root("ambiguous");
-        copy_fixture_dir(
-            &fixture_path("builder/workspace-roots/ambiguous-multi"),
-            &root,
-        );
+        copy_fixture_dir(&fixture_path("builder/ambiguous-multi"), &root);
 
         let err = SourceDownloader::resolve_workspace_root(&root).expect_err("must be ambiguous");
         assert!(err.to_string().contains("ambiguous"));

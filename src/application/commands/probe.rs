@@ -298,6 +298,20 @@ fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) ->
             };
             format!(" {:<28} {}", name, detail)
         }
+        PackageProgressEvent::Checksum { checked, total } => {
+            let detail = if total > 0 {
+                format!(
+                    "Checksumming {} {}",
+                    output::progress_bar(checked, total, 14),
+                    HumanBytes(checked)
+                )
+            } else if checked > 0 {
+                format!("Checksumming {}", HumanBytes(checked))
+            } else {
+                "Checksumming...".to_string()
+            };
+            format!(" {:<28} {}", name, detail)
+        }
         PackageProgressEvent::Warning(message) => {
             format!(" {:<28} {}", name, message)
         }

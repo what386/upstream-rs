@@ -18,6 +18,9 @@ test:
 run *args:
     cargo run --bin "upstream" -- {{args}}
 
+testbin *args:
+    ./tests/fakehome/.upstream/state/symlinks/upstream {{args}}
+
 prepare version:
     scripts/release/prepare.sh {{version}}
 
@@ -29,6 +32,7 @@ promote:
 publish version:
     scripts/release/publish.sh {{version}}
     git switch dev
+    printf "ready" > scripts/release/state
 
 gen-completions:
     #!/usr/bin/env bash

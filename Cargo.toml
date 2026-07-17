@@ -1,6 +1,6 @@
 [package]
 name = "upstream-rs"
-version = "2.12.1"
+version = "2.13.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -17,6 +17,7 @@ exclude = [
 
 [features]
 default = []
+testing_donotuseinrelease = []
 shell-completions = ["dep:clap_complete"]
 
 [dependencies]

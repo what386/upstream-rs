@@ -5,7 +5,7 @@ use crate::{
     },
     providers::provider_manager::ProviderManager,
 };
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -17,6 +17,7 @@ enum HashAlgo {
     Sha512,
 }
 
+#[derive(Clone)]
 struct ChecksumEntry {
     algo: HashAlgo,
     filename: String,
@@ -83,15 +84,17 @@ impl<'a> ChecksumVerifier<'a> {
         }
     }
 
-    pub async fn try_verify_file<F>(
+    pub async fn try_verify_file<F, C>(
         &self,
         asset_path: &Path,
         release: &Release,
         provider: &Provider,
         dl_progress: &mut Option<F>,
+        checksum_progress: &mut Option<C>,
     ) -> Result<ChecksumVerificationResult>
     where
         F: FnMut(u64, u64),
+        C: FnMut(u64, u64),
     {
         let asset_filename = asset_path
             .file_name()
@@ -154,7 +157,7 @@ impl<'a> ChecksumVerifier<'a> {
                 })?
         };
 
-        if Self::verify_checksum(asset_path, checksum_entry)? {
+        if Self::verify_checksum_async(asset_path, checksum_entry, checksum_progress).await? {
             return Ok(ChecksumVerificationResult::Verified(
                 VerifiedChecksumAsset {
                     name: checksum_path.name,
@@ -164,6 +167,46 @@ impl<'a> ChecksumVerifier<'a> {
         }
 
         Err(anyhow!("Checksum mismatch for asset '{}'", asset_filename))
+    }
+
+    async fn verify_checksum_async<C>(
+        asset_path: &Path,
+        checksum: &ChecksumEntry,
+        progress: &mut Option<C>,
+    ) -> Result<bool>
+    where
+        C: FnMut(u64, u64),
+    {
+        let asset_path = asset_path.to_path_buf();
+        let checksum = checksum.clone();
+        let (progress_tx, mut progress_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut task = tokio::task::spawn_blocking(move || {
+            Self::verify_checksum_with_progress(&asset_path, &checksum, |checked, total| {
+                let _ = progress_tx.send((checked, total));
+            })
+        });
+
+        loop {
+            tokio::select! {
+                result = &mut task => {
+                    let result = result.context("Checksum worker failed to join")?;
+                    while let Ok((checked, total)) = progress_rx.try_recv() {
+                        if let Some(callback) = progress.as_mut() {
+                            callback(checked, total);
+                        }
+                    }
+                    return result;
+                }
+                update = progress_rx.recv() => {
+                    let Some((checked, total)) = update else {
+                        continue;
+                    };
+                    if let Some(callback) = progress.as_mut() {
+                        callback(checked, total);
+                    }
+                }
+            }
+        }
     }
 
     /// Locate and download a checksum asset, if the release exposes one.
@@ -515,7 +558,19 @@ impl<'a> ChecksumVerifier<'a> {
     }
 
     /// Stream-hash an asset and compare it with the expected digest.
+    #[cfg(test)]
     fn verify_checksum(asset_path: &Path, checksum: &ChecksumEntry) -> Result<bool> {
+        Self::verify_checksum_with_progress(asset_path, checksum, |_, _| {})
+    }
+
+    fn verify_checksum_with_progress<C>(
+        asset_path: &Path,
+        checksum: &ChecksumEntry,
+        mut progress: C,
+    ) -> Result<bool>
+    where
+        C: FnMut(u64, u64),
+    {
         use std::io::{BufReader, Read};
 
         if !asset_path.exists() {
@@ -526,8 +581,10 @@ impl<'a> ChecksumVerifier<'a> {
         }
 
         let file = fs::File::open(asset_path)?;
+        let total = file.metadata().map(|metadata| metadata.len()).unwrap_or(0);
         let mut reader = BufReader::new(file);
         let mut buffer = [0u8; 8192]; // 8KB buffer
+        let mut checked = 0;
 
         let computed_digest = match checksum.algo {
             HashAlgo::Sha256 => {
@@ -538,6 +595,8 @@ impl<'a> ChecksumVerifier<'a> {
                     if n == 0 {
                         break;
                     }
+                    checked += n as u64;
+                    progress(checked, total);
                     hasher.update(&buffer[..n]);
                 }
                 let digest = hasher.finalize();
@@ -551,6 +610,8 @@ impl<'a> ChecksumVerifier<'a> {
                     if n == 0 {
                         break;
                     }
+                    checked += n as u64;
+                    progress(checked, total);
                     hasher.update(&buffer[..n]);
                 }
                 let digest = hasher.finalize();
@@ -725,6 +786,7 @@ mod tests {
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
         let verifier = ChecksumVerifier::new(&manager, &root);
         let mut progress: Option<fn(u64, u64)> = None;
+        let mut checksum_progress: Option<fn(u64, u64)> = None;
 
         let verified = verifier
             .try_verify_file(
@@ -732,12 +794,35 @@ mod tests {
                 &empty_release(),
                 &Provider::Github,
                 &mut progress,
+                &mut checksum_progress,
             )
             .await
             .expect("verify without checksum");
         assert!(matches!(verified, ChecksumVerificationResult::Missing));
 
         cleanup(&root).expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn checksum_worker_reports_byte_progress() {
+        let asset_path = fixture_path("trust/checksums/valid-asset.bin");
+        let checksum = fixture_string("trust/checksums/valid-checksums.txt");
+        let entry =
+            ChecksumVerifier::parse_standard_format(&checksum).expect("parse checksum entry");
+        let mut updates = Vec::new();
+        let mut progress = Some(|checked: u64, total: u64| updates.push((checked, total)));
+
+        let verified = ChecksumVerifier::verify_checksum_async(&asset_path, &entry, &mut progress)
+            .await
+            .expect("verify checksum");
+
+        assert!(verified);
+        assert!(!updates.is_empty());
+        assert!(updates.windows(2).all(|pair| pair[0].0 <= pair[1].0));
+        assert_eq!(
+            updates.last().expect("final progress").0,
+            asset_path.metadata().expect("asset metadata").len()
+        );
     }
 
     #[test]

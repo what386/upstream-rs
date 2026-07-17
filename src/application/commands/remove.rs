@@ -49,6 +49,7 @@ fn render_remove_progress_row(name: &str, event: PackageProgressEvent) -> String
         PackageProgressEvent::Phase(phase) => phase.label().to_string(),
         PackageProgressEvent::Download { .. } => "Downloading package ...".to_string(),
         PackageProgressEvent::Zsync { .. } => "Zsync upgrading ...".to_string(),
+        PackageProgressEvent::Checksum { .. } => "Checksumming package ...".to_string(),
         PackageProgressEvent::Warning(message) => message,
     };
     format!(" {:<28} {}", name, status)

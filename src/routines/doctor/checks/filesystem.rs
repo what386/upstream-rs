@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    models::upstream::{AppConfig, Package},
+    models::upstream::{Package, config::AppConfig},
     storage::system::config::ConfigStorage,
     utils::static_paths::UpstreamPaths,
 };

@@ -1,7 +1,7 @@
 use crate::{
     models::common::enums::{Channel, Provider, TrustMode},
     models::provider::Release,
-    models::upstream::UpgradeConfig,
+    models::upstream::config::ConcurrencyConfig,
     output::{self, Status},
     providers::provider_manager::ProviderManager,
     services::packaging::disk_impact::{
@@ -72,7 +72,7 @@ pub struct UpgradeOperation<'a> {
     provider_manager: &'a ProviderManager,
     paths: &'a UpstreamPaths,
     package_database: &'a mut PackageDatabase,
-    upgrade_config: UpgradeConfig,
+    concurrency_config: ConcurrencyConfig,
 }
 
 pub enum UpdateCheckStatus {
@@ -171,6 +171,24 @@ impl<'a> UpgradeOperation<'a> {
         );
     }
 
+    fn record_checksum_progress(
+        progress_state: &ProgressState,
+        name: &str,
+        checked: u64,
+        total: u64,
+    ) {
+        let Ok(mut state) = progress_state.lock() else {
+            return;
+        };
+
+        state.insert(
+            name.to_string(),
+            ProgressEntry {
+                event: PackageProgressEvent::Checksum { checked, total },
+            },
+        );
+    }
+
     fn record_status_progress(
         progress_state: &ProgressState,
         name: &str,
@@ -200,6 +218,9 @@ impl<'a> UpgradeOperation<'a> {
             }
             PackageProgressEvent::Zsync { downloaded, total } => {
                 Self::record_zsync_progress(progress_state, name, downloaded, total)
+            }
+            PackageProgressEvent::Checksum { checked, total } => {
+                Self::record_checksum_progress(progress_state, name, checked, total)
             }
             PackageProgressEvent::Warning(message) => {
                 if let Ok(mut warnings) = warning_state.lock() {
@@ -298,7 +319,7 @@ impl<'a> UpgradeOperation<'a> {
         let mut package_iter = packages.into_iter().enumerate();
         let mut pending = FuturesUnordered::new();
 
-        for _ in 0..self.upgrade_config.check_concurrency() {
+        for _ in 0..self.concurrency_config.check_concurrency() {
             let Some((idx, pkg)) = package_iter.next() else {
                 break;
             };
@@ -375,7 +396,7 @@ impl<'a> UpgradeOperation<'a> {
         package_database: &'a mut PackageDatabase,
         paths: &'a UpstreamPaths,
         trusted_keys: TrustedSignatureKeys,
-        upgrade_config: UpgradeConfig,
+        concurrency_config: ConcurrencyConfig,
     ) -> Result<Self> {
         let installer = PackageInstaller::new(provider_manager, paths)?;
         let remover = PackageRemover::new(paths);
@@ -391,7 +412,7 @@ impl<'a> UpgradeOperation<'a> {
             provider_manager,
             paths,
             package_database,
-            upgrade_config,
+            concurrency_config,
         })
     }
 
@@ -491,7 +512,7 @@ impl<'a> UpgradeOperation<'a> {
         let mut package_iter = packages.into_iter().enumerate();
         let mut pending = FuturesUnordered::new();
 
-        for _ in 0..self.upgrade_config.check_concurrency() {
+        for _ in 0..self.concurrency_config.check_concurrency() {
             let Some((idx, package)) = package_iter.next() else {
                 break;
             };
@@ -732,7 +753,7 @@ impl<'a> UpgradeOperation<'a> {
                 .context(format!("Failed to upgrade package '{}'", name));
             (name, channel, provider, downloaded, bytes_total, result)
         }))
-        .buffer_unordered(self.upgrade_config.install_concurrency());
+        .buffer_unordered(self.concurrency_config.install_concurrency());
 
         while completed < total {
             let Some((name, channel, provider, downloaded, bytes_total, result)) =
@@ -893,7 +914,7 @@ impl<'a> UpgradeOperation<'a> {
                 (name, new_version, downloaded, bytes_total, result)
             }
         }))
-        .buffer_unordered(self.upgrade_config.install_concurrency());
+        .buffer_unordered(self.concurrency_config.install_concurrency());
 
         let mut ticker = time::interval(Duration::from_millis(100));
         ticker.set_missed_tick_behavior(time::MissedTickBehavior::Delay);

@@ -35,13 +35,15 @@ Import it on another machine:
 upstream import packages ./packages.json
 ```
 
-Package imports install release packages at the version tags recorded in the export. Use `--latest` to ignore stored version tags and install each package's latest release:
+Package imports install release packages at the version tags recorded in the export and rebuild build packages from their recorded release tag or branch. Use `--latest` to ignore stored release version tags and install each release package's latest release:
 
 ```bash
 upstream import packages ./packages.json --latest
 ```
 
-Build-installed packages are recorded in the export, but build imports are not currently installed automatically.
+Package installs run concurrently and use `concurrency.install_concurrency` (default `4`) as their limit. Profile imports use the same limit after applying the profile's config.
+
+Build-installed packages are rebuilt from their recorded release tag or branch during import. Build artifacts themselves are not exported.
 
 ## Export Trusted Keys
 
@@ -69,7 +71,7 @@ Import a profile on another machine:
 upstream import profile ./profile.json
 ```
 
-Profile imports apply config first, merge trusted keys second, and install release packages last. Use `--latest` to ignore stored package version tags:
+Profile imports apply config first, merge trusted keys second, and install release and build packages last. Use `--latest` to ignore stored package version tags:
 
 ```bash
 upstream import profile ./profile.json --latest

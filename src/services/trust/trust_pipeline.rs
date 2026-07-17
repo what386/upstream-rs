@@ -78,11 +78,26 @@ impl<'a> TrustVerifier<'a> {
                 cb(PackageProgressEvent::Phase(
                     PackagePhase::ChecksummingPackage,
                 ));
+                let total = std::fs::metadata(asset_path)
+                    .map(|metadata| metadata.len())
+                    .unwrap_or(0);
+                cb(PackageProgressEvent::Checksum { checked: 0, total });
             }
 
+            let mut checksum_progress = Some(|checked: u64, total: u64| {
+                if let Some(cb) = progress_callback.as_mut() {
+                    cb(PackageProgressEvent::Checksum { checked, total });
+                }
+            });
             let checksum_result = self
                 .checksum_verifier
-                .try_verify_file(asset_path, release, provider, dl_progress)
+                .try_verify_file(
+                    asset_path,
+                    release,
+                    provider,
+                    dl_progress,
+                    &mut checksum_progress,
+                )
                 .await?;
             match checksum_result {
                 ChecksumVerificationResult::Verified(info) => {

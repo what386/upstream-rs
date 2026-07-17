@@ -4,7 +4,7 @@ use serde::Deserialize;
 use std::path::Path;
 
 use crate::{
-    models::upstream::DownloadConfig,
+    models::upstream::config::DownloadConfig,
     providers::{download_handler, http::http_status},
 };
 
