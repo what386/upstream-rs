@@ -10,7 +10,6 @@ pub mod static_paths;
 #[cfg(not(feature = "testing_donotuseinrelease"))]
 pub mod static_paths;
 
-
 /// shared test helpers
 #[cfg(test)]
 pub mod test_support;

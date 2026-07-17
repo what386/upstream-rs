@@ -865,10 +865,7 @@ mod tests {
     #[test]
     fn resolve_workspace_root_errors_on_ambiguous_children() {
         let root = temp_root("ambiguous");
-        copy_fixture_dir(
-            &fixture_path("builder/ambiguous-multi"),
-            &root,
-        );
+        copy_fixture_dir(&fixture_path("builder/ambiguous-multi"), &root);
 
         let err = SourceDownloader::resolve_workspace_root(&root).expect_err("must be ambiguous");
         assert!(err.to_string().contains("ambiguous"));

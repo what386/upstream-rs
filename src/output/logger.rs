@@ -71,11 +71,7 @@ impl Logger {
         }
 
         let default_config = LoggerConfig::from(LoggingConfig::default());
-        vacuum_file(
-            path,
-            default_config.vacuum,
-            default_config.max_size_bytes,
-        );
+        vacuum_file(path, default_config.vacuum, default_config.max_size_bytes);
 
         Ok(Self {
             file: Mutex::new(OpenOptions::new().create(true).append(true).open(path)?),
