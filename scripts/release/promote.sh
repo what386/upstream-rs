@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "$(cat state)" != "prepared" ]]; then
+if [[ "$(cat .release-state)" != "prepared" ]]; then
     echo -e "${RED}Invalid release state: should be 'prepared'${NC}"
 fi
 
-printf "promoting" > ./state
+printf "promoting" > .release-state
 
 readonly RED="\033[0;31m"
 readonly GREEN="\033[0;32m"
@@ -32,7 +32,7 @@ echo -e "${BLUE}Pushing main to remotes...${NC}"
 git push github main
 git push gitea main
 
-printf "promoted" > ./state
+printf "promoted" > .release-state
 
 echo -e "${GREEN}Promoted dev to main.${NC}"
 

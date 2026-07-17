@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "$(cat state)" != "ready" ]]; then
+if [[ "$(cat .release-state)" != "ready" ]]; then
     echo -e "${RED}Invalid release state: should be 'ready'${NC}"
 fi
 
-printf "prepared" > ./state
+printf "prepared" > .release-state
 
 readonly RED="\033[0;31m"
 readonly GREEN="\033[0;32m"
@@ -44,7 +44,7 @@ just gen-completions
 git add ./completions
 git commit -m "Release ${version}: Update shell completions" || true
 
-printf "prepared" > ./state
+printf "prepared" > .release-state
 
 echo -e "${GREEN}Release ${version} prepared.${NC}"
 
