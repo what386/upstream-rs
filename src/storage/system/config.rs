@@ -110,6 +110,7 @@ impl ConfigStorage {
     }
 
     fn get_value(&self, key_path: &str) -> Result<toml::Value> {
+        let key_path = key_path.trim();
         let root = public_config_value(&self.config).context("Failed to serialize config")?;
 
         let mut current = &root;
@@ -241,13 +242,10 @@ mod tests {
         assert_eq!(storage.get_config().download.high_threshold_mb, 64);
         assert_eq!(storage.get_config().download.low_threads, 2);
         assert_eq!(storage.get_config().download.high_threads, 4);
-        assert_eq!(storage.get_config().upgrade.check_concurrency, 8);
-        assert_eq!(storage.get_config().upgrade.install_concurrency, 4);
+        assert_eq!(storage.get_config().concurrency.check_concurrency, 8);
+        assert_eq!(storage.get_config().concurrency.install_concurrency, 4);
         assert!(storage.get_config().logging.enabled);
-        assert_eq!(
-            storage.get_config().logging.level,
-            LoggingLevel::Info
-        );
+        assert_eq!(storage.get_config().logging.level, LoggingLevel::Info);
         assert_eq!(storage.get_config().logging.vacuum, 10_000);
         assert_eq!(storage.get_config().logging.max_size_mb, 10);
 
@@ -269,7 +267,7 @@ mod tests {
             .try_set_value("download.high_threads", "6")
             .expect("set high threads");
         storage
-            .try_set_value("upgrade.check_concurrency", "3")
+            .try_set_value("concurrency.check_concurrency", "3")
             .expect("set check concurrency");
 
         let low_threshold: u64 = storage
@@ -279,7 +277,7 @@ mod tests {
             .try_get_value("download.high_threads")
             .expect("read high threads");
         let check_concurrency: usize = storage
-            .try_get_value("upgrade.check_concurrency")
+            .try_get_value("concurrency.check_concurrency")
             .expect("read check concurrency");
 
         assert_eq!(low_threshold, 8);
@@ -332,10 +330,7 @@ mod tests {
 
         let storage = ConfigStorage::new(&path).expect("config should load");
         assert!(!storage.get_config().logging.enabled);
-        assert_eq!(
-            storage.get_config().logging.level,
-            LoggingLevel::Error
-        );
+        assert_eq!(storage.get_config().logging.level, LoggingLevel::Error);
         assert_eq!(storage.get_config().logging.vacuum, 50000);
         assert_eq!(storage.get_config().logging.max_size_mb, 25);
 

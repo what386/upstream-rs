@@ -1,25 +1,25 @@
 use serde::{Deserialize, Serialize};
 
-const UPGRADE_CHECK_CONCURRENCY: usize = 8;
-const UPGRADE_INSTALL_CONCURRENCY: usize = 4;
+const CHECK_CONCURRENCY: usize = 8;
+const INSTALL_CONCURRENCY: usize = 4;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct UpgradeConfig {
+pub struct ConcurrencyConfig {
     pub check_concurrency: usize,
     pub install_concurrency: usize,
 }
 
-impl Default for UpgradeConfig {
+impl Default for ConcurrencyConfig {
     fn default() -> Self {
         Self {
-            check_concurrency: UPGRADE_CHECK_CONCURRENCY,
-            install_concurrency: UPGRADE_INSTALL_CONCURRENCY,
+            check_concurrency: CHECK_CONCURRENCY,
+            install_concurrency: INSTALL_CONCURRENCY,
         }
     }
 }
 
-impl UpgradeConfig {
+impl ConcurrencyConfig {
     pub fn check_concurrency(self) -> usize {
         self.check_concurrency.max(1)
     }

@@ -88,7 +88,7 @@ pub async fn run_import_packages(path: PathBuf, skip_failed: bool, latest: bool)
         &mut package_database,
         &context.paths,
         trusted_keys,
-        context.app_config.upgrade.install_concurrency(),
+        context.app_config.concurrency.install_concurrency(),
     );
     let pb = new_import_progress_bar();
     let mut progress_callback = Some(new_import_progress_callback(&pb, 0));
@@ -114,7 +114,7 @@ pub fn run_import_keys(path: PathBuf) -> Result<()> {
         &mut package_database,
         &context.paths,
         trusted_keys,
-        context.app_config.upgrade.install_concurrency(),
+        context.app_config.concurrency.install_concurrency(),
     );
     let pb = new_import_progress_bar();
     let mut progress_callback = Some(new_import_progress_callback(&pb, 0));
@@ -172,7 +172,7 @@ pub async fn run_import_profile(path: PathBuf, skip_failed: bool, latest: bool) 
         &mut package_database,
         &paths,
         trusted_keys,
-        profile_config.upgrade.install_concurrency(),
+        profile_config.concurrency.install_concurrency(),
     );
     let pb = new_import_progress_bar();
     let mut progress_callback = Some(new_import_progress_callback(&pb, 0));

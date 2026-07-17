@@ -164,7 +164,7 @@ impl<'a> ImportOperation<'a> {
         P: FnMut(ImportProgressEvent),
     {
         let profile = Self::read_profile(path)?;
-        self.install_concurrency = profile.config.upgrade.install_concurrency();
+        self.install_concurrency = profile.config.concurrency.install_concurrency();
         self.import_config_value(profile.config, progress_callback)?;
         self.import_key_values(
             profile.keys.minisign_public_keys,
