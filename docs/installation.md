@@ -81,7 +81,6 @@ Upstream stores data in user-owned locations:
 | `$HOME/.upstream/state/symlinks/` | Runtime command links |
 | `$HOME/.upstream/state/icons/` | Stored desktop icons |
 | `$HOME/.upstream/state/rollback/` | Rollback artifacts |
-| `$HOME/.upstream/state/transactions/` | Interrupted or failed operation journals |
 
 Desktop entries are written to `$HOME/.local/share/applications` on Linux. Shell completions are installed directly into shell-specific user completion directories when supported.
 

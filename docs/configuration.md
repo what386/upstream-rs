@@ -202,7 +202,7 @@ $HOME/.upstream/state/rollback/
 ```
 
 - `migration.json` records the root data layout version and migration metadata.
-- `packages.db` tracks installed package source, version, file type, install paths, and provider metadata.
+- `packages.db` tracks installed package source, version, file type, install paths, provider metadata, and extensible per-package settings.
 - `auth.toml` stores provider API tokens with restricted file permissions.
 - `trust.json` stores trusted minisign and cosign public keys.
 - `state/rollback/` contains rollback artifact metadata and payloads.
