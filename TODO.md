@@ -18,3 +18,6 @@
 - [ ] more consistent dry run behavior
       @created 2026-07-18 01:13
 
+- [ ] feat: failed items in bulk operations now return nonzero exit code
+      @created 2026-07-18 01:14
+
