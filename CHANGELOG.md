@@ -1,6 +1,18 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-07-17*
+*Generated on 2026-07-18*
+
+## 2.14.0 — 2026-07-18
+
+### Changes
+
+- feat: package settings table (only stores trust mode for now)
+- feat: history subcommand
+- behavior: better logging
+- more consistent dry run behavior
+- feat: failed items in bulk operations now return nonzero exit code
+- CTRL-C support (first is graceful, next kills immediately)
+
 
 ## 2.13.0 — 2026-07-17
 
