@@ -3,6 +3,7 @@ use console::style;
 
 use upstream_rs::application::cancellation;
 use upstream_rs::application::cli::arguments::Cli;
+use upstream_rs::application::operations::history_op::{self, LogLevel, Outcome};
 use upstream_rs::output;
 use upstream_rs::routines::migrate;
 use upstream_rs::storage::system::config::ConfigStorage;
@@ -58,20 +59,44 @@ async fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let paths = UpstreamPaths::new()?;
     output::init_logger(paths.dirs.data_dir.join("log.jsonl"));
-    output::set_log_command(cli.command.to_string());
+    history_op::begin(cli.command.to_string(), cli.command.records_history());
 
     if let Err(err) = run_startup_migrations(&paths) {
-        output::log_command_result(false, Some(output::error_summary(&err)));
+        history_op::finish(
+            Outcome::Failure,
+            LogLevel::Error,
+            Some(output::error_summary(&err)),
+        );
         return Err(err);
     }
 
-    let config = ConfigStorage::new(&paths.config.config_file)?;
+    let config = match ConfigStorage::new(&paths.config.config_file) {
+        Ok(config) => config,
+        Err(err) => {
+            history_op::finish(
+                Outcome::Failure,
+                LogLevel::Error,
+                Some(output::error_summary(&err)),
+            );
+            return Err(err);
+        }
+    };
     output::configure_logger(config.get_config().logging);
 
     match cli.run(paths).await {
-        Ok(()) => output::log_command_result(true, None),
+        Ok(()) => history_op::finish(Outcome::Success, LogLevel::Info, None),
         Err(err) => {
-            output::log_command_result(false, Some(output::error_summary(&err)));
+            let outcome = if cancellation::is_requested() {
+                Outcome::Cancelled
+            } else {
+                Outcome::Failure
+            };
+            let level = if outcome == Outcome::Cancelled {
+                LogLevel::Warning
+            } else {
+                LogLevel::Error
+            };
+            history_op::finish(outcome, level, Some(output::error_summary(&err)));
             return Err(err);
         }
     }

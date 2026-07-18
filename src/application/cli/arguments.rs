@@ -714,15 +714,18 @@ pub enum Commands {
         action: ExportAction,
     },
 
-    /// Show recent command and package audit history
+    /// Show recent grouped operation history
     #[command(
-        long_about = "Show recent records from upstream's JSONL audit log.\n\n\
-        Filter by package, command action, or status. Human output is newest-first; \
-        --json returns the stored structured records.\n\n\
+        long_about = "Show recent grouped operations from upstream's JSONL history.\n\n\
+        Successful read-only commands are hidden by default. Filter by package, action, \
+        status, relative age, or the local calendar day. Human output is grouped by day; \
+        --json returns one operation object with nested items.\n\n\
         EXAMPLES:\n  \
         upstream history\n  \
         upstream history --package ripgrep\n  \
         upstream history --action upgrade --status failed\n  \
+        upstream history --since 2d\n  \
+        upstream history --today\n  \
         upstream history --json"
     )]
     History {
@@ -730,17 +733,25 @@ pub enum Commands {
         #[arg(long)]
         package: Option<String>,
 
-        /// Only show records whose command begins with this action
+        /// Only show operations whose action begins with this value
         #[arg(long)]
         action: Option<String>,
 
-        /// Only show this status (for example: ok, warn, fail, success, failed)
+        /// Only show this status (success, failed, warning, or cancelled)
         #[arg(long)]
         status: Option<String>,
 
-        /// Maximum number of matching records to show
-        #[arg(long, default_value_t = 50)]
+        /// Maximum number of matching operations to show
+        #[arg(long, default_value_t = 20)]
         limit: usize,
+
+        /// Only show operations newer than a duration such as 2d, 12h, or 30m
+        #[arg(long, conflicts_with = "today")]
+        since: Option<String>,
+
+        /// Only show operations from the local calendar day
+        #[arg(long, default_value_t = false, conflicts_with = "since")]
+        today: bool,
 
         /// Print matching records as JSON
         #[arg(long, default_value_t = false)]
@@ -788,6 +799,48 @@ fn parse_search_date(raw: &str) -> Result<NaiveDate, String> {
 }
 
 impl Commands {
+    pub fn records_history(&self) -> bool {
+        match self {
+            Commands::Install { dry_run, .. }
+            | Commands::Build { dry_run, .. }
+            | Commands::Remove { dry_run, .. }
+            | Commands::Reinstall { dry_run, .. }
+            | Commands::Probe { dry_run, .. } => !dry_run,
+            Commands::Upgrade { check, dry_run, .. } => !check && !dry_run,
+            Commands::Rollback { list, dry_run, .. } => !list && !dry_run,
+            Commands::Doctor { fix, .. } => *fix,
+            Commands::Find { .. }
+            | Commands::Import { .. }
+            | Commands::Export { .. }
+            | Commands::Package { .. }
+            | Commands::Hooks {
+                action: HooksAction::Init | HooksAction::Clean | HooksAction::Purge,
+            }
+            | Commands::Config {
+                action: ConfigAction::Set { .. } | ConfigAction::Edit | ConfigAction::Reset,
+            }
+            | Commands::Auth {
+                action: AuthAction::Set { .. } | AuthAction::Edit | AuthAction::Reset,
+            }
+            | Commands::Docs { fetch: Some(_), .. } => true,
+            Commands::List { .. }
+            | Commands::Info { .. }
+            | Commands::History { .. }
+            | Commands::Changelog { .. }
+            | Commands::Docs { fetch: None, .. }
+            | Commands::Search { .. }
+            | Commands::Config {
+                action: ConfigAction::Get { .. } | ConfigAction::List,
+            }
+            | Commands::Auth {
+                action: AuthAction::Get { .. } | AuthAction::List,
+            }
+            | Commands::Hooks {
+                action: HooksAction::Check,
+            } => false,
+        }
+    }
+
     pub fn requires_lock(&self) -> bool {
         match self {
             Commands::List { .. } => false,

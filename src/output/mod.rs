@@ -7,7 +7,8 @@ mod status;
 mod style;
 mod table;
 
-pub use logger::{LogEvent, read_events as read_log_events};
+pub use crate::application::operations::history_op::HistoryRecord;
+pub use logger::{read_events as read_log_events, write_operation};
 pub use markdown::MarkdownRenderer;
 pub use pager::set_no_pager;
 pub use prompt::{
@@ -20,8 +21,8 @@ pub use status::{
     status_line_text_with_width, status_subject_width, summary_line,
 };
 pub use style::{
-    action_note, divider, kv, meta, progress_bar, section, success, title, truncate_end,
-    truncate_middle, warning,
+    action_note, divider, kv, meta, progress_bar, section, status_marker, success, title,
+    truncate_end, truncate_middle, warning,
 };
 pub use table::{
     SizeImpactRow, TransactionRow, TransactionTableLayout, print_disk_impact,
@@ -37,14 +38,6 @@ pub fn configure_logger(config: crate::models::upstream::config::LoggingConfig) 
     logger::configure(config);
 }
 
-pub fn set_log_command(command: impl Into<String>) {
-    logger::set_command(command);
-}
-
 pub fn log_error(message: impl Into<String>) {
     logger::error(message);
-}
-
-pub fn log_command_result(success: bool, message: Option<String>) {
-    logger::command_result(success, message);
 }

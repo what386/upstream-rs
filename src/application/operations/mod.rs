@@ -2,6 +2,7 @@ pub mod auth_op;
 pub mod build_op;
 pub mod config_op;
 pub mod export_op;
+pub mod history_op;
 pub mod hooks_op;
 pub mod import_op;
 pub mod install_op;

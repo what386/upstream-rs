@@ -23,6 +23,17 @@ pub fn warning(text: impl fmt::Display) -> StyledObject<String> {
     style(text).yellow()
 }
 
+/// Styles a compact status marker.
+pub fn status_marker(icon: char) -> StyledObject<char> {
+    match icon {
+        '✓' => style(icon).green(),
+        '✗' => style(icon).red(),
+        '!' => style(icon).yellow(),
+        '−' => style(icon).dim(),
+        _ => style(icon),
+    }
+}
+
 pub fn kv(label: &str, value: impl fmt::Display) {
     println!("  {:<13} {}", meta(format!("{label}:")), value);
 }

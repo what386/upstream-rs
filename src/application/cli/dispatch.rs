@@ -135,8 +135,10 @@ impl Cli {
                 action,
                 status,
                 limit,
+                since,
+                today,
                 json,
-            } => commands::history::run(package, action, status, limit, json),
+            } => commands::history::run(package, action, status, limit, since, today, json),
 
             Commands::Changelog {
                 name,
