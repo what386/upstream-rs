@@ -6,3 +6,6 @@
 
 ## Tasks
 
+- [ ] history subcommand improvements
+      @created 2026-07-18 22:58
+
