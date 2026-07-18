@@ -157,6 +157,8 @@ Inspect recent command and package history:
 upstream history
 upstream history --package rg
 upstream history --status failed --json
+upstream history --since 2d
+upstream history --today
 ```
 
 Search installed package documentation:
