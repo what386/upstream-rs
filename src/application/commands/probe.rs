@@ -269,6 +269,7 @@ fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) ->
         PackageProgressEvent::Phase(phase) => {
             format!(" {:<28} {}", name, phase.label())
         }
+        PackageProgressEvent::Detail(message) => format!(" {:<28} {}", name, message),
         PackageProgressEvent::Download { downloaded, total } => {
             let detail = if total > 0 {
                 format!(

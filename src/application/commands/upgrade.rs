@@ -1,6 +1,7 @@
 use crate::{
     application::commands::changelog::changelog_text_for_package,
     application::context::CommandContext,
+    application::operations::history_op,
     application::operations::upgrade_op::{
         UpdateCheckRow, UpdateCheckStatus, UpgradeOperation, UpgradePackageResult,
         UpgradePreviewEvent, UpgradeProgressEvent,
@@ -72,6 +73,7 @@ fn render_upgrade_progress_row(
 ) -> String {
     let detail = match event {
         PackageProgressEvent::Phase(phase) => phase_label_for_progress(phase),
+        PackageProgressEvent::Detail(message) => output::truncate_end(&message, 96),
         PackageProgressEvent::Download { downloaded, total } if total > 0 => {
             format!(
                 "Downloading {} {} / {}",
@@ -267,12 +269,20 @@ pub async fn run(
                 active_progress_rows.remove(&name);
                 let row = match result {
                     UpgradePackageResult::Upgraded { version } => {
-                        output::status_line_text_with_width(
+                        let row = output::status_line_text_with_width(
                             Status::Ok,
                             &name,
                             format!("upgraded to {version}"),
                             completion_subject_width,
-                        )
+                        );
+                        if let Some(preview) = preview_rows.iter().find(|row| row.name == name) {
+                            history_op::record_version_item(
+                                name.clone(),
+                                preview.old_version.clone(),
+                                version,
+                            );
+                        }
+                        row
                     }
                     UpgradePackageResult::Failed { error } => output::status_line_text_with_width(
                         Status::Fail,
@@ -952,6 +962,15 @@ mod tests {
         );
         assert!(zsync.starts_with("gitui Zsync upgrading [=======>      ]"));
         assert!(zsync.contains('/'));
+
+        assert_eq!(
+            render_upgrade_progress_row(
+                "zsync",
+                PackageProgressEvent::Detail("go build -o <artifact> ./cmd/zsync ...".to_string()),
+                5,
+            ),
+            "zsync go build -o <artifact> ./cmd/zsync ..."
+        );
 
         assert_eq!(
             render_upgrade_progress_row(

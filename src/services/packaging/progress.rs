@@ -50,9 +50,20 @@ impl PackagePhase {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PackageProgressEvent {
     Phase(PackagePhase),
-    Download { downloaded: u64, total: u64 },
-    Zsync { downloaded: u64, total: u64 },
-    Checksum { checked: u64, total: u64 },
+    /// Transient command output shown in the active progress row.
+    Detail(String),
+    Download {
+        downloaded: u64,
+        total: u64,
+    },
+    Zsync {
+        downloaded: u64,
+        total: u64,
+    },
+    Checksum {
+        checked: u64,
+        total: u64,
+    },
     Warning(String),
 }
 

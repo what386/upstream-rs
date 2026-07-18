@@ -566,7 +566,7 @@ impl<'a> PackageUpgrader<'a> {
                     if !line.is_empty() {
                         progress!(
                             progress_callback,
-                            PackageProgressEvent::Warning(line.to_string())
+                            PackageProgressEvent::Detail(line.to_string())
                         );
                     }
                 });
@@ -609,7 +609,7 @@ impl<'a> PackageUpgrader<'a> {
                         if !line.is_empty() {
                             progress!(
                                 progress_callback,
-                                PackageProgressEvent::Warning(line.to_string())
+                                PackageProgressEvent::Detail(line.to_string())
                             );
                             message!(message_callback, "{}", line);
                         }

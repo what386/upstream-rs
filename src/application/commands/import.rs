@@ -44,6 +44,7 @@ fn render_import_progress_row(
 ) -> String {
     let detail = match event {
         PackageProgressEvent::Phase(phase) => phase.label().replace(" ...", "..."),
+        PackageProgressEvent::Detail(message) => output::truncate_end(&message, 96),
         PackageProgressEvent::Download { downloaded, total } if total > 0 => format!(
             "Downloading {} {} / {}",
             output::progress_bar(downloaded, total, IMPORT_PROGRESS_BAR_WIDTH),

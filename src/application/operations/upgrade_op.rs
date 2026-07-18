@@ -214,6 +214,11 @@ impl<'a> UpgradeOperation<'a> {
                 name,
                 PackageProgressEvent::Phase(phase),
             ),
+            PackageProgressEvent::Detail(message) => Self::record_status_progress(
+                progress_state,
+                name,
+                PackageProgressEvent::Detail(message),
+            ),
             PackageProgressEvent::Download { downloaded, total } => {
                 Self::record_download_progress(progress_state, name, downloaded, total)
             }
@@ -1231,6 +1236,18 @@ mod tests {
             state.lock().expect("state")["ripgrep"].event,
             PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot)
         );
+
+        UpgradeOperation::record_progress_event(
+            &state,
+            &warnings,
+            "ripgrep",
+            PackageProgressEvent::Detail("go build -o <artifact> ./cmd/ripgrep".to_string()),
+        );
+        assert_eq!(
+            state.lock().expect("state")["ripgrep"].event,
+            PackageProgressEvent::Detail("go build -o <artifact> ./cmd/ripgrep".to_string())
+        );
+        assert!(warnings.lock().expect("warnings").is_empty());
 
         UpgradeOperation::record_download_progress(&state, "ripgrep", 128, 256);
         assert_eq!(
