@@ -43,6 +43,9 @@ _upstream() {
             upstream,help)
                 cmd="upstream__subcmd__help"
                 ;;
+            upstream,history)
+                cmd="upstream__subcmd__history"
+                ;;
             upstream,hooks)
                 cmd="upstream__subcmd__hooks"
                 ;;
@@ -210,6 +213,9 @@ _upstream() {
                 ;;
             upstream__subcmd__help,help)
                 cmd="upstream__subcmd__help__subcmd__help"
+                ;;
+            upstream__subcmd__help,history)
+                cmd="upstream__subcmd__help__subcmd__history"
                 ;;
             upstream__subcmd__help,hooks)
                 cmd="upstream__subcmd__help__subcmd__hooks"
@@ -431,7 +437,7 @@ _upstream() {
 
     case "${cmd}" in
         upstream)
-            opts="-y -h -V --yes --no-pager --help --version install build remove uninstall rollback reinstall upgrade list info changelog docs probe search find config auth package hooks import export doctor help"
+            opts="-y -h -V --yes --no-pager --help --version install build remove uninstall rollback reinstall upgrade list info changelog docs probe search find config auth package hooks import export history doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1161,7 +1167,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help)
-            opts="install build remove rollback reinstall upgrade list info changelog docs probe search find config auth package hooks import export doctor help"
+            opts="install build remove rollback reinstall upgrade list info changelog docs probe search find config auth package hooks import export history doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1483,6 +1489,20 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__history)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1839,6 +1859,36 @@ _upstream() {
                 return 0
             fi
             case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__history)
+            opts="-y -h --package --action --status --limit --json --yes --no-pager --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --package)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --action)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --status)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --limit)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;

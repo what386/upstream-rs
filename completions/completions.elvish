@@ -45,6 +45,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand hooks 'Manage shell PATH hooks and local upstream data'
             cand import 'Import config, trust keys, packages, or a profile'
             cand export 'Export config, trust keys, packages, or a profile'
+            cand history 'Show recent command and package audit history'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
@@ -630,6 +631,18 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;export;help;help'= {
         }
+        &'upstream;history'= {
+            cand --package 'Only show records for this package'
+            cand --action 'Only show records whose command begins with this action'
+            cand --status 'Only show this status (for example: ok, warn, fail, success, failed)'
+            cand --limit 'Maximum number of matching records to show'
+            cand --json 'Print matching records as JSON'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+        }
         &'upstream;doctor'= {
             cand --verbose 'Print each check result line in addition to summary output'
             cand --fix 'Attempt automatic repairs for detected issues'
@@ -660,6 +673,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand hooks 'Manage shell PATH hooks and local upstream data'
             cand import 'Import config, trust keys, packages, or a profile'
             cand export 'Export config, trust keys, packages, or a profile'
+            cand history 'Show recent command and package audit history'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
@@ -781,6 +795,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;export;packages'= {
         }
         &'upstream;help;export;profile'= {
+        }
+        &'upstream;help;history'= {
         }
         &'upstream;help;doctor'= {
         }

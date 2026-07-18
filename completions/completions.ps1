@@ -48,6 +48,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell PATH hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import config, trust keys, packages, or a profile')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export config, trust keys, packages, or a profile')
+            [CompletionResult]::new('history', 'history', [CompletionResultType]::ParameterValue, 'Show recent command and package audit history')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
@@ -720,6 +721,19 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         'upstream;export;help;help' {
             break
         }
+        'upstream;history' {
+            [CompletionResult]::new('--package', '--package', [CompletionResultType]::ParameterName, 'Only show records for this package')
+            [CompletionResult]::new('--action', '--action', [CompletionResultType]::ParameterName, 'Only show records whose command begins with this action')
+            [CompletionResult]::new('--status', '--status', [CompletionResultType]::ParameterName, 'Only show this status (for example: ok, warn, fail, success, failed)')
+            [CompletionResult]::new('--limit', '--limit', [CompletionResultType]::ParameterName, 'Maximum number of matching records to show')
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Print matching records as JSON')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            break
+        }
         'upstream;doctor' {
             [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Print each check result line in addition to summary output')
             [CompletionResult]::new('--fix', '--fix', [CompletionResultType]::ParameterName, 'Attempt automatic repairs for detected issues')
@@ -751,6 +765,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell PATH hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import config, trust keys, packages, or a profile')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export config, trust keys, packages, or a profile')
+            [CompletionResult]::new('history', 'history', [CompletionResultType]::ParameterValue, 'Show recent command and package audit history')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
@@ -918,6 +933,9 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;export;profile' {
+            break
+        }
+        'upstream;help;history' {
             break
         }
         'upstream;help;doctor' {

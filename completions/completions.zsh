@@ -899,6 +899,20 @@ esac
     ;;
 esac
 ;;
+(history)
+_arguments "${_arguments_options[@]}" : \
+'--package=[Only show records for this package]:PACKAGE:_default' \
+'--action=[Only show records whose command begins with this action]:ACTION:_default' \
+'--status=[Only show this status (for example\: ok, warn, fail, success, failed)]:STATUS:_default' \
+'--limit=[Maximum number of matching records to show]:LIMIT:_default' \
+'--json[Print matching records as JSON]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
 (doctor)
 _arguments "${_arguments_options[@]}" : \
 '--verbose[Print each check result line in addition to summary output]' \
@@ -1180,6 +1194,10 @@ _arguments "${_arguments_options[@]}" : \
     ;;
 esac
 ;;
+(history)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (doctor)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -1220,6 +1238,7 @@ _upstream_commands() {
 'hooks:Manage shell PATH hooks and local upstream data' \
 'import:Import config, trust keys, packages, or a profile' \
 'export:Export config, trust keys, packages, or a profile' \
+'history:Show recent command and package audit history' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1497,6 +1516,7 @@ _upstream__subcmd__help_commands() {
 'hooks:Manage shell PATH hooks and local upstream data' \
 'import:Import config, trust keys, packages, or a profile' \
 'export:Export config, trust keys, packages, or a profile' \
+'history:Show recent command and package audit history' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1633,6 +1653,11 @@ _upstream__subcmd__help__subcmd__find_commands() {
 _upstream__subcmd__help__subcmd__help_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__history_commands] )) ||
+_upstream__subcmd__help__subcmd__history_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help history commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__hooks_commands] )) ||
 _upstream__subcmd__help__subcmd__hooks_commands() {
@@ -1774,6 +1799,11 @@ _upstream__subcmd__help__subcmd__search_commands() {
 _upstream__subcmd__help__subcmd__upgrade_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help upgrade commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__history_commands] )) ||
+_upstream__subcmd__history_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream history commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__hooks_commands] )) ||
 _upstream__subcmd__hooks_commands() {
