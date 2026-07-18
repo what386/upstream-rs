@@ -6,9 +6,6 @@
 
 ## Tasks
 
-- [ ] CTRL-C support (first is graceful, next kills immediately)
-      @created 2026-07-18 01:19
-
 
 ## Completed
 
@@ -31,4 +28,8 @@
 - [x] feat: failed items in bulk operations now return nonzero exit code
       @created 2026-07-18 01:14
       @completed 2026-07-18 01:15
+
+- [x] CTRL-C support (first is graceful, next kills immediately)
+      @created 2026-07-18 01:19
+      @completed 2026-07-18 01:32
 
