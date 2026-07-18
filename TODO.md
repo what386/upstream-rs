@@ -12,3 +12,6 @@
 - [ ] feat: history subcommand
       @created 2026-07-18 01:13
 
+- [ ] behavior: better logging
+      @created 2026-07-18 01:13
+
