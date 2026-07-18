@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from pathlib import Path
 
 from .environment import FAKEHOME, ROOT, upstream_binary
 
@@ -38,3 +39,10 @@ def run_upstream_json(*args: str) -> object:
         return json.loads(result.stdout)
     except json.JSONDecodeError as error:
         raise AssertionError(f"expected JSON from upstream {args!r}: {result.stdout!r}") from error
+
+
+def read_json(path: Path) -> object:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise AssertionError(f"expected a JSON file at {path}") from error
