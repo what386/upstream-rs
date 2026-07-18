@@ -84,7 +84,7 @@ impl<'a> ShellManager<'a> {
         install_path: &Path,
     ) -> Result<()> {
         #[cfg(not(unix))]
-        let _ = package_database;
+        let _ = (package_database, package_name);
 
         if !install_path.is_dir() {
             anyhow::bail!(
@@ -120,7 +120,7 @@ impl<'a> ShellManager<'a> {
         install_path: &Path,
     ) -> Result<()> {
         #[cfg(not(unix))]
-        let _ = package_database;
+        let _ = (package_database, package_name);
         #[cfg(unix)]
         let _ = install_path;
 
