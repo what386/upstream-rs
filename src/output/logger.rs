@@ -1,6 +1,6 @@
 use crate::models::upstream::config::{LoggingConfig, LoggingLevel};
 use chrono::Utc;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, File, OpenOptions},
     io::Write,
@@ -19,21 +19,21 @@ impl LoggingLevel {
     }
 }
 
-#[derive(Debug, Serialize)]
-struct LogEvent {
-    timestamp: String,
-    event: String,
-    level: String,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogEvent {
+    pub timestamp: String,
+    pub event: String,
+    pub level: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    command: Option<String>,
+    pub command: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    subject: Option<String>,
+    pub subject: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    status: Option<String>,
+    pub status: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    message: Option<String>,
+    pub message: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    success: Option<bool>,
+    pub success: Option<bool>,
 }
 
 static LOGGER: OnceLock<Option<Logger>> = OnceLock::new();
@@ -246,6 +246,18 @@ pub fn command_result(success: bool, message: Option<String>) {
             Some(success),
         )
     });
+}
+
+pub fn read_events(path: &Path) -> std::io::Result<Vec<LogEvent>> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = fs::read_to_string(path)?;
+    Ok(content
+        .lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect())
 }
 
 #[cfg(test)]

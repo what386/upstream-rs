@@ -7,6 +7,7 @@ mod status;
 mod style;
 mod table;
 
+pub use logger::{LogEvent, read_events as read_log_events};
 pub use markdown::MarkdownRenderer;
 pub use pager::set_no_pager;
 pub use prompt::{
