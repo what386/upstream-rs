@@ -12,7 +12,13 @@ from .environment import FAKEHOME, ROOT, upstream_binary
 
 def run_upstream_result(*args: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
+    host_home = env.get("HOME")
     env["HOME"] = str(FAKEHOME)
+    # Keep the caller's Rust toolchain and Cargo registry available to build
+    # integration packages. Upstream itself still uses FAKEHOME for all state.
+    if host_home:
+        env.setdefault("RUSTUP_HOME", str(Path(host_home) / ".rustup"))
+        env.setdefault("CARGO_HOME", str(Path(host_home) / ".cargo"))
     return subprocess.run(
         [str(upstream_binary()), "--no-pager", *args],
         cwd=ROOT,
