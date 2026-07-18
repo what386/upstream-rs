@@ -59,12 +59,14 @@ pub struct PackageInstaller<'a> {
     extract_cache: PathBuf,
 }
 
-pub struct InstallPreview {
+pub struct InstallPlan {
     pub release_name: String,
     pub release_tag: String,
     pub asset_name: String,
     pub resolved_filetype: Filetype,
     pub disk_impact: DiskImpact,
+    pub release: Release,
+    pub asset: Asset,
 }
 
 impl<'a> PackageInstaller<'a> {
@@ -315,7 +317,7 @@ impl<'a> PackageInstaller<'a> {
         &self,
         package: &Package,
         version: &Option<String>,
-    ) -> Result<InstallPreview> {
+    ) -> Result<InstallPlan> {
         if package.install_path.is_some() {
             return Err(anyhow!("Package '{}' is already installed", package.name));
         }
@@ -358,12 +360,14 @@ impl<'a> PackageInstaller<'a> {
             package.filetype
         };
 
-        Ok(InstallPreview {
-            release_name: release.name,
-            release_tag: release.tag,
+        Ok(InstallPlan {
+            release_name: release.name.clone(),
+            release_tag: release.tag.clone(),
             asset_name: best_asset.name.clone(),
             resolved_filetype,
             disk_impact: install_impact_from_download(asset_size_estimate(best_asset.size)),
+            release,
+            asset: best_asset.clone(),
         })
     }
 

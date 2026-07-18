@@ -8,7 +8,7 @@ pub mod rollback;
 pub mod upgrader;
 
 pub use checker::PackageChecker;
-pub use installer::{InstallPreview, PackageInstaller};
+pub use installer::{InstallPlan, PackageInstaller};
 pub use progress::{OperationPhase, OperationProgressEvent, PackagePhase, PackageProgressEvent};
 pub use remover::PackageRemover;
 pub use rollback::RollbackManager;
