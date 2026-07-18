@@ -37,6 +37,16 @@ def package_version(package: dict[str, object]) -> tuple[int, int, int]:
     return (version["major"], version["minor"], version["patch"])
 
 
+def release_version(tag: str) -> tuple[int, int, int]:
+    parts = tag.split(".")
+    if len(parts) < 3:
+        raise AssertionError(f"expected a semantic release tag, got {tag!r}")
+    try:
+        return tuple(int(part) for part in parts[:3])
+    except ValueError as error:
+        raise AssertionError(f"expected a semantic release tag, got {tag!r}") from error
+
+
 def assert_executable_version(package: dict[str, object], expected_prefix: str) -> None:
     executable = package_path(package)
     assert executable.is_file(), executable
