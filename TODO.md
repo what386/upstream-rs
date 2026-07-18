@@ -6,18 +6,26 @@
 
 ## Tasks
 
-- [ ] feat: package settings table (only stores trust mode for now)
-      @created 2026-07-18 01:13
 
-- [ ] feat: history subcommand
-      @created 2026-07-18 01:13
+## Completed
 
-- [ ] behavior: better logging
+- [x] feat: package settings table (only stores trust mode for now)
       @created 2026-07-18 01:13
+      @completed 2026-07-18 01:15
 
-- [ ] more consistent dry run behavior
+- [x] feat: history subcommand
       @created 2026-07-18 01:13
+      @completed 2026-07-18 01:15
 
-- [ ] feat: failed items in bulk operations now return nonzero exit code
+- [x] behavior: better logging
+      @created 2026-07-18 01:13
+      @completed 2026-07-18 01:15
+
+- [x] more consistent dry run behavior
+      @created 2026-07-18 01:13
+      @completed 2026-07-18 01:15
+
+- [x] feat: failed items in bulk operations now return nonzero exit code
       @created 2026-07-18 01:14
+      @completed 2026-07-18 01:15
 
