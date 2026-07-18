@@ -1,4 +1,5 @@
 use crate::{
+    application::cancellation,
     models::{
         common::enums::TrustMode,
         upstream::{InstallType, Package, PackageReference, config::AppConfig},
@@ -259,6 +260,7 @@ impl<'a> ImportOperation<'a> {
         let mut queued_names = HashSet::new();
         let mut eligible = Vec::new();
         for reference in export.packages {
+            cancellation::check()?;
             let mut skipped = false;
             if self.package_database.package_exists(&reference.name)? {
                 summary.skipped += 1;
@@ -327,6 +329,7 @@ impl<'a> ImportOperation<'a> {
         let mut ticker = time::interval(Duration::from_millis(100));
         ticker.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
         while !pending.is_empty() {
+            cancellation::check()?;
             tokio::select! {
                 maybe_result = pending.next() => {
                     let Some((name, result)) = maybe_result else { break };

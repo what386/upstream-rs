@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, anyhow};
 
+use crate::application::cancellation;
 use crate::models::common::{enums::Channel, version::Version};
 use crate::providers::provider_manager::ProviderManager;
 use crate::routines::build::determine::determine_profile;
@@ -34,6 +35,7 @@ impl<'a> BuildWorker<'a> {
     where
         H: FnMut(&str),
     {
+        cancellation::check()?;
         Self::emit_status(line_callback, "Preparing source checkout ...");
         let downloader = SourceDownloader::new(self.provider_manager, self.paths)?;
         let source = {
@@ -54,6 +56,7 @@ impl<'a> BuildWorker<'a> {
         };
 
         Self::emit_status(line_callback, "Detecting build profile ...");
+        cancellation::check()?;
         let profile_handlers = handlers();
         let profile = determine_profile(
             &source.workspace_path,
@@ -66,6 +69,7 @@ impl<'a> BuildWorker<'a> {
             line_callback,
             format!("Building with {profile:?} profile ..."),
         );
+        cancellation::check()?;
         let (build_tx, mut build_rx) = tokio::sync::mpsc::unbounded_channel();
         let workspace_path = source.workspace_path.clone();
         let package_name = request.name.clone();
@@ -84,6 +88,10 @@ impl<'a> BuildWorker<'a> {
         });
 
         let artifact = loop {
+            if cancellation::is_requested() {
+                build_handle.abort();
+                cancellation::check()?;
+            }
             tokio::select! {
                 Some(line) = build_rx.recv() => {
                     Self::emit_status(line_callback, line);
@@ -97,6 +105,7 @@ impl<'a> BuildWorker<'a> {
             }
         };
         if scripts::script_for(request.script_action, &source.workspace_path).is_some() {
+            cancellation::check()?;
             Self::emit_status(line_callback, "Running build scripts ...");
             let build_script_callback = line_callback
                 .as_mut()
@@ -108,6 +117,7 @@ impl<'a> BuildWorker<'a> {
             )?;
         }
         Self::emit_status(line_callback, "Staging built artifact ...");
+        cancellation::check()?;
         let persisted_artifact = Self::persist_artifact(&artifact)?;
 
         let version = if source.release.version == Version::new(0, 0, 0, false) {

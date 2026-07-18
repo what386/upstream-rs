@@ -1,4 +1,5 @@
 use crate::{
+    application::cancellation,
     output::{self, Status},
     services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover},
     services::{integration::ShellManager, packaging::disk_impact::DiskImpact},
@@ -62,6 +63,7 @@ impl<'a> RemoveOperation<'a> {
         }
 
         for package_name in package_names {
+            cancellation::check()?;
             progress!(
                 progress_callback,
                 package_name,

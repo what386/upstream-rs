@@ -1,11 +1,13 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::process::Stdio;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
 use indicatif::HumanBytes;
 
+use crate::application::cancellation;
 use crate::models::{
     common::enums::{Channel, Provider},
     provider::{Asset, Release},
@@ -700,7 +702,7 @@ fn run_git<const N: usize>(cwd: Option<&Path>, args: [&str; N]) -> Result<()> {
         command.current_dir(cwd);
     }
 
-    let output = command.output().context("Failed to execute git")?;
+    let output = run_command_output(&mut command).context("Failed to execute git")?;
     if output.status.success() {
         return Ok(());
     }
@@ -724,7 +726,7 @@ fn git_output<const N: usize>(cwd: Option<&Path>, args: [&str; N]) -> Result<Str
         command.current_dir(cwd);
     }
 
-    let output = command.output().context("Failed to execute git")?;
+    let output = run_command_output(&mut command).context("Failed to execute git")?;
     if output.status.success() {
         return Ok(String::from_utf8_lossy(&output.stdout).to_string());
     }
@@ -734,6 +736,28 @@ fn git_output<const N: usize>(cwd: Option<&Path>, args: [&str; N]) -> Result<Str
         output.status,
         String::from_utf8_lossy(&output.stderr).trim()
     ))
+}
+
+fn run_command_output(command: &mut Command) -> Result<std::process::Output> {
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut child = command.spawn().context("Failed to execute command")?;
+    loop {
+        if cancellation::is_requested() {
+            let _ = child.kill();
+            let _ = child.wait();
+            anyhow::bail!("Operation interrupted by CTRL-C");
+        }
+
+        if let Some(status) = child.try_wait()? {
+            let output = child
+                .wait_with_output()
+                .context("Failed to collect command output")?;
+            debug_assert_eq!(output.status, status);
+            return Ok(output);
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
 }
 
 #[cfg(test)]

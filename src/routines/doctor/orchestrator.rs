@@ -12,6 +12,7 @@ pub async fn run(names: Vec<String>, fix: bool) -> Result<DoctorReport> {
 
     let mut report = DoctorReport::new();
     checks::check_local_layout(&paths, &mut report);
+    checks::check_interrupted_transactions(&paths, &mut report);
     checks::check_completion_directories(&paths, &mut report);
     let app_config = checks::check_app_config(&paths, fix, &mut report);
     let auth = AuthStorage::new(&paths.config.auth_file)?;

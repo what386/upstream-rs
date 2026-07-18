@@ -27,7 +27,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rusqlite = { version = "0.40.1", features = ["bundled"] }
 sevenz-rust2 = { version = "0.21.0", default-features = false, features = ["util", "bzip2", "ppmd"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "io-util", "process", "sync", "time"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "io-util", "process", "sync", "time", "signal"] }
 futures-util = "0.3"
 anyhow = "1.0"
 dirs = "6.0"

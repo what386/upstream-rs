@@ -1,4 +1,5 @@
 use crate::{
+    application::cancellation,
     models::{
         common::enums::TrustMode,
         provider::{Asset, Release},
@@ -9,7 +10,7 @@ use crate::{
     routines::build::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         artifact::zsync_handler,
-        integration::{CompletionManager, DesktopManager},
+        integration::{CompletionManager, DesktopManager, SymlinkManager},
         packaging::RollbackManager,
         packaging::{PackageInstaller, PackagePhase, PackageProgressEvent, PackageRemover},
         trust::TrustedSignatureKeys,
@@ -61,6 +62,8 @@ struct UpgradeRollbackGuard {
     partially_installed_package: Option<Package>,
     original_install_path: PathBuf,
     backup_path: PathBuf,
+    symlinks_dir: Option<PathBuf>,
+    armed: bool,
 }
 
 impl UpgradeRollbackGuard {
@@ -74,11 +77,53 @@ impl UpgradeRollbackGuard {
             partially_installed_package: None,
             original_install_path,
             backup_path,
+            symlinks_dir: None,
+            armed: true,
         }
+    }
+
+    fn attach_paths(&mut self, paths: &UpstreamPaths) {
+        self.symlinks_dir = Some(paths.state.symlinks_dir.clone());
     }
 
     fn set_partial_package(&mut self, package: Package) {
         self.partially_installed_package = Some(package);
+    }
+
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for UpgradeRollbackGuard {
+    fn drop(&mut self) {
+        if !self.armed || !self.backup_path.exists() {
+            return;
+        }
+
+        // This is the cancellation fallback. The normal error path below also
+        // restores integrations and reports detailed errors; Drop must remain
+        // best-effort because it cannot return a Result.
+        let _ = if let Some(partial) = &self.partially_installed_package {
+            // The normal error path performs the full package cleanup. Here
+            // we only need to remove the replacement path before restoring
+            // the snapshot.
+            PackageUpgrader::remove_path_if_exists(
+                partial
+                    .install_path
+                    .as_deref()
+                    .unwrap_or(&self.original_install_path),
+            )
+        } else {
+            PackageUpgrader::remove_path_if_exists(&self.original_install_path)
+        };
+        let _ = fs::rename(&self.backup_path, &self.original_install_path);
+        if let (Some(symlinks_dir), Some(exec_path)) =
+            (&self.symlinks_dir, self.previous_package.exec_path.as_ref())
+        {
+            let _ =
+                SymlinkManager::new(symlinks_dir).add_link(exec_path, &self.previous_package.name);
+        }
     }
 }
 
@@ -440,6 +485,7 @@ impl<'a> PackageUpgrader<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        cancellation::check()?;
         if package.is_pinned {
             bail!("Package '{}' is pinned", package.name);
         }
@@ -460,6 +506,12 @@ impl<'a> PackageUpgrader<'a> {
             })?
             .clone();
         let backup_path = Self::backup_path(self.paths, &original_install_path)?;
+        let mut rollback_guard = UpgradeRollbackGuard::new(
+            package.clone(),
+            original_install_path.clone(),
+            backup_path.clone(),
+        );
+        rollback_guard.attach_paths(self.paths);
 
         Self::remove_path_if_exists(&backup_path)?;
 
@@ -472,6 +524,7 @@ impl<'a> PackageUpgrader<'a> {
             original_install_path.display(),
             backup_path.display()
         ))?;
+        cancellation::check()?;
 
         // Remove runtime integrations (PATH/symlink) but keep desktop assets
         progress!(
@@ -561,16 +614,54 @@ impl<'a> PackageUpgrader<'a> {
                             message!(message_callback, "{}", line);
                         }
                     });
-                    self.installer.install_local_artifact_files(
+                    let install_result = self.installer.install_local_artifact_files(
                         install_pkg,
                         &output.artifact_path,
                         output.version,
                         &mut install_message_callback,
-                    )
+                    );
+                    match install_result {
+                        Ok(updated) => {
+                            rollback_guard.set_partial_package(updated.clone());
+                            if cancellation::is_requested() {
+                                self.rollback_failed_upgrade(
+                                    rollback_guard,
+                                    anyhow::anyhow!("Operation interrupted by CTRL-C"),
+                                    "Upgrade interrupted",
+                                    message_callback,
+                                )
+                            } else {
+                                if let Err(err) = Self::capture_successful_upgrade_rollback(
+                                    self.paths,
+                                    package,
+                                    &backup_path,
+                                ) {
+                                    let _ = Self::remove_path_if_exists(&backup_path);
+                                    rollback_guard.disarm();
+                                    Err(err).context(format!(
+                                        "Failed to capture rollback for '{}'",
+                                        package.name
+                                    ))
+                                } else {
+                                    rollback_guard.disarm();
+                                    Ok(updated)
+                                }
+                            }
+                        }
+                        Err(err) => self.rollback_failed_upgrade(
+                            rollback_guard,
+                            err,
+                            "Failed to install rebuilt version",
+                            message_callback,
+                        ),
+                    }
                 }
-                Err(e) => {
-                    Err(e).context(format!("Failed to rebuild '{}' from source", package.name))
-                }
+                Err(e) => self.rollback_failed_upgrade(
+                    rollback_guard,
+                    e.context(format!("Failed to rebuild '{}' from source", package.name)),
+                    "Failed to rebuild package",
+                    message_callback,
+                ),
             }
         } else {
             let ResolvedUpgradeTarget::Release(release) = &target else {
@@ -579,11 +670,6 @@ impl<'a> PackageUpgrader<'a> {
                     package.name
                 );
             };
-            let mut rollback_guard = UpgradeRollbackGuard::new(
-                package.clone(),
-                original_install_path.clone(),
-                backup_path.clone(),
-            );
             let selected_asset = match self
                 .installer
                 .resolve_release_asset(package, release, message_callback.as_mut())
@@ -646,6 +732,14 @@ impl<'a> PackageUpgrader<'a> {
                     Ok(updated_package)
                 }
                 Err(err) => {
+                    if cancellation::is_requested() {
+                        return self.rollback_failed_upgrade(
+                            rollback_guard,
+                            anyhow::anyhow!("Operation interrupted by CTRL-C"),
+                            "Upgrade interrupted",
+                            message_callback,
+                        );
+                    }
                     let summary = output::error_summary(&err);
                     let warning = format!("zsync failed, fallback: {summary}");
                     progress!(
@@ -692,6 +786,15 @@ impl<'a> PackageUpgrader<'a> {
                 }
             };
 
+            if cancellation::is_requested() {
+                return self.rollback_failed_upgrade(
+                    rollback_guard,
+                    anyhow::anyhow!("Operation interrupted by CTRL-C"),
+                    "Upgrade interrupted",
+                    message_callback,
+                );
+            }
+
             // Restore desktop integration if it existed before
             if had_desktop_integration {
                 progress!(
@@ -729,7 +832,7 @@ impl<'a> PackageUpgrader<'a> {
                 Self::remove_path_if_exists(&backup_path)
                     .context(format!("Failed to remove backup for '{}'", package.name))?;
             }
-
+            rollback_guard.disarm();
             Ok(updated_package)
         }
     }
@@ -764,7 +867,7 @@ impl<'a> PackageUpgrader<'a> {
 
     fn rollback_failed_upgrade<H>(
         &self,
-        rollback: UpgradeRollbackGuard,
+        mut rollback: UpgradeRollbackGuard,
         failure: anyhow::Error,
         failure_context: &'static str,
         message_callback: &mut Option<H>,
@@ -772,9 +875,9 @@ impl<'a> PackageUpgrader<'a> {
     where
         H: FnMut(&str),
     {
-        let cleanup_result = if let Some(partial) = rollback.partially_installed_package {
-            self.remover
-                .remove_package_files(&partial, message_callback)
+        rollback.disarm();
+        let cleanup_result = if let Some(partial) = rollback.partially_installed_package.as_ref() {
+            self.remover.remove_package_files(partial, message_callback)
         } else {
             Self::remove_path_if_exists(&rollback.original_install_path)
         };
@@ -932,6 +1035,8 @@ mod tests {
                     partially_installed_package: Some(partial),
                     original_install_path: install_path.clone(),
                     backup_path: backup_path.clone(),
+                    symlinks_dir: None,
+                    armed: true,
                 },
                 anyhow::anyhow!("desktop failed"),
                 "Failed to restore desktop integration",
@@ -983,6 +1088,8 @@ mod tests {
                     partially_installed_package: None,
                     original_install_path: install_path.clone(),
                     backup_path: backup_path.clone(),
+                    symlinks_dir: None,
+                    armed: true,
                 },
                 anyhow::anyhow!("already installed"),
                 "Failed to install new version",

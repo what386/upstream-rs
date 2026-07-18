@@ -1,6 +1,7 @@
 use clap::Parser;
 use console::style;
 
+use upstream_rs::application::cancellation;
 use upstream_rs::application::cli::arguments::Cli;
 use upstream_rs::output;
 use upstream_rs::routines::migrate;
@@ -10,10 +11,46 @@ use upstream_rs::utils::static_paths::UpstreamPaths;
 
 #[tokio::main]
 async fn main() {
-    if let Err(err) = run().await {
-        output::log_error(output::error_summary(&err));
-        print_error(&err);
-        std::process::exit(1);
+    let mut command = Box::pin(run());
+    let result = tokio::select! {
+        result = &mut command => result.map(|_| 0),
+        signal = tokio::signal::ctrl_c() => {
+            match signal {
+                Ok(()) => {
+                    cancellation::request();
+                    eprintln!("CTRL-C received; cleaning up...");
+
+                    tokio::select! {
+                        result = &mut command => result.map(|_| 0),
+                        second_signal = tokio::signal::ctrl_c() => {
+                            if second_signal.is_ok() {
+                                eprintln!("Second CTRL-C received; exiting immediately.");
+                            }
+                            std::process::exit(130);
+                        }
+                    }
+                }
+                Err(err) => Err(anyhow::anyhow!("Failed to install CTRL-C handler: {err}")),
+            }
+        }
+    };
+
+    match result {
+        Ok(code) => {
+            if cancellation::is_requested() {
+                std::process::exit(130);
+            }
+            std::process::exit(code);
+        }
+        Err(err) if cancellation::is_requested() => {
+            eprintln!("Interrupted: {}", output::error_summary(&err));
+            std::process::exit(130);
+        }
+        Err(err) => {
+            output::log_error(output::error_summary(&err));
+            print_error(&err);
+            std::process::exit(1);
+        }
     }
 }
 

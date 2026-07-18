@@ -9,6 +9,7 @@ use std::{
 
 use anyhow::{Context, Result};
 
+use crate::application::cancellation;
 use crate::routines::build::BuildProfile;
 
 pub mod cmake;
@@ -72,6 +73,12 @@ pub fn run_command_with_line_callback(
     drop(tx);
 
     loop {
+        if cancellation::is_requested() {
+            let _ = child.kill();
+            let _ = child.wait();
+            anyhow::bail!("Operation interrupted by CTRL-C");
+        }
+
         match rx.recv_timeout(Duration::from_millis(50)) {
             Ok(line) => {
                 if let Some(callback) = line_callback.as_deref_mut() {

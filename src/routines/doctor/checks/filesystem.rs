@@ -122,6 +122,41 @@ pub(in crate::routines::doctor) fn check_local_layout(
     }
 }
 
+pub(in crate::routines::doctor) fn check_interrupted_transactions(
+    paths: &UpstreamPaths,
+    report: &mut DoctorReport,
+) {
+    let Ok(entries) = fs::read_dir(&paths.install.tmp_dir) else {
+        return;
+    };
+
+    let leftovers: Vec<_> = entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.ends_with(".old"))
+        })
+        .collect();
+
+    if leftovers.is_empty() {
+        report.line(Level::Ok, "no interrupted upgrade backups detected");
+    } else {
+        report.line(
+            Level::Warn,
+            format!(
+                "{} interrupted upgrade backup(s) remain in {}",
+                leftovers.len(),
+                paths.install.tmp_dir.display()
+            ),
+        );
+        report.hint(
+            "Run `upstream doctor` and inspect the temp directory before removing leftovers.",
+        );
+    }
+}
+
 pub(in crate::routines::doctor) fn check_app_config(
     paths: &UpstreamPaths,
     _fix: bool,

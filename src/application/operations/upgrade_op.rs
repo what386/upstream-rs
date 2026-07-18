@@ -1,4 +1,5 @@
 use crate::{
+    application::cancellation,
     models::common::enums::{Channel, Provider, TrustMode},
     models::provider::Release,
     models::upstream::config::ConcurrencyConfig,
@@ -710,6 +711,7 @@ impl<'a> UpgradeOperation<'a> {
         G: FnMut(u32, u32),
         H: FnMut(&str),
     {
+        cancellation::check()?;
         let total = names.len() as u32;
         let mut completed = 0;
         let mut failures = 0;
@@ -756,6 +758,7 @@ impl<'a> UpgradeOperation<'a> {
         .buffer_unordered(self.concurrency_config.install_concurrency());
 
         while completed < total {
+            cancellation::check()?;
             let Some((name, channel, provider, downloaded, bytes_total, result)) =
                 pending.next().await
             else {
@@ -857,6 +860,7 @@ impl<'a> UpgradeOperation<'a> {
     where
         P: FnMut(UpgradeProgressEvent),
     {
+        cancellation::check()?;
         let total = rows.len() as u32;
         let upgrader = &self.upgrader;
         let packages = rows
@@ -920,6 +924,7 @@ impl<'a> UpgradeOperation<'a> {
         ticker.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
 
         while completed < total {
+            cancellation::check()?;
             tokio::select! {
                 maybe_item = pending.next() => {
                     let Some((name, new_version, _downloaded, _bytes_total, result)) = maybe_item else {
@@ -1006,6 +1011,7 @@ impl<'a> UpgradeOperation<'a> {
         F: FnMut(u64, u64),
         H: FnMut(&str),
     {
+        cancellation::check()?;
         let package = self
             .package_database
             .get_package(package_name)?

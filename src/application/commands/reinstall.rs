@@ -3,6 +3,7 @@ use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
+    application::cancellation,
     application::context::CommandContext,
     application::operations::{
         install_op::{InstallOperation, LocalArtifactInstallRequest, ReleaseInstallRequest},
@@ -105,6 +106,7 @@ pub async fn run(
     let completion_subject_width = output::status_subject_width(names.iter().map(String::as_str));
 
     for name in &names {
+        cancellation::check()?;
         let package_name = name.clone();
         let progress_pb = pb.clone();
         let mut msg = Some(move |line: &str| {

@@ -12,6 +12,7 @@ use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
+use crate::application::cancellation;
 use crate::models::upstream::config::DownloadConfig;
 use crate::providers::http::http_status;
 
@@ -54,11 +55,13 @@ pub async fn download_file<F>(
 where
     F: FnMut(u64, u64),
 {
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .context(format!("Failed to download from {}", url))?;
+    cancellation::check()?;
+    let response = client.get(url);
+    let response = tokio::select! {
+        response = response.send() => response,
+        _ = wait_for_cancellation() => return Err(anyhow::anyhow!("Operation interrupted by CTRL-C")),
+    }
+    .context(format!("Failed to download from {}", url))?;
 
     http_status::error_for_status(&response, "Download server", url)?;
 
@@ -86,6 +89,12 @@ where
     }
 
     write_single_response(response, destination, total_bytes, progress).await
+}
+
+async fn wait_for_cancellation() {
+    while !cancellation::is_requested() {
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
 }
 
 fn parallel_worker_count(
@@ -127,11 +136,13 @@ async fn download_single_request<F>(
 where
     F: FnMut(u64, u64),
 {
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .context(format!("Failed to download from {}", url))?;
+    cancellation::check()?;
+    let response = client.get(url).send();
+    let response = tokio::select! {
+        response = response => response,
+        _ = wait_for_cancellation() => return Err(anyhow::anyhow!("Operation interrupted by CTRL-C")),
+    }
+    .context(format!("Failed to download from {}", url))?;
 
     http_status::error_for_status(&response, "Download server", url)?;
 
@@ -156,6 +167,7 @@ where
     let mut total_read: u64 = 0;
 
     while let Some(chunk) = stream.next().await {
+        cancellation::check()?;
         let chunk = chunk.context("Failed to read download chunk")?;
 
         file.write_all(&chunk)
@@ -270,6 +282,11 @@ where
 
     while completed_tasks < ranges.len() {
         tokio::select! {
+            _ = wait_for_cancellation() => {
+                tasks.abort_all();
+                while tasks.join_next().await.is_some() {}
+                return Err(anyhow::anyhow!("Operation interrupted by CTRL-C"));
+            }
             maybe_joined = tasks.join_next() => {
                 let joined = maybe_joined.ok_or_else(|| anyhow!("Parallel download worker set ended early"))?;
                 match joined.context("Parallel download worker failed to join")? {
@@ -335,6 +352,7 @@ async fn write_initial_range(
     let mut total_read = 0_u64;
 
     while total_read < range.len() {
+        cancellation::check()?;
         let chunk = stream
             .next()
             .await
@@ -372,9 +390,12 @@ async fn download_range(
             header::RANGE,
             format!("bytes={}-{}", range.start, range.end),
         )
-        .send()
-        .await
-        .context(format!("Failed to download range from {}", url))?;
+        .send();
+    let response = tokio::select! {
+        response = response => response,
+        _ = wait_for_cancellation() => return Err(anyhow::anyhow!("Operation interrupted by CTRL-C")),
+    }
+    .context(format!("Failed to download range from {}", url))?;
 
     if response.status() != StatusCode::PARTIAL_CONTENT {
         if let Some(message) = http_status::rate_limit_message(
@@ -410,6 +431,7 @@ async fn download_range(
     let mut total_read = 0_u64;
 
     while let Some(chunk) = stream.next().await {
+        cancellation::check()?;
         let chunk = chunk.context("Failed to read download chunk")?;
         let next_total = total_read + chunk.len() as u64;
         if next_total > range.len() {

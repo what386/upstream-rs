@@ -3,6 +3,7 @@ use std::path::Path;
 use anyhow::{Context, Result, anyhow};
 
 use crate::{
+    application::cancellation,
     models::{
         common::{enums::TrustMode, version::Version},
         provider::{Asset, Release},
@@ -89,6 +90,7 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        cancellation::check()?;
         self.ensure_package_name_available(&request.package.name)?;
         let installed_package = self
             .installer
@@ -119,6 +121,7 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        cancellation::check()?;
         self.ensure_package_name_available(&request.package.name)?;
         match self
             .installer
@@ -153,6 +156,7 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        cancellation::check()?;
         self.ensure_package_name_available(&request.package.name)?;
         match self
             .installer
@@ -186,6 +190,7 @@ impl<'a> InstallOperation<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        cancellation::check()?;
         self.ensure_package_name_available(&request.package.name)?;
         match self
             .installer
