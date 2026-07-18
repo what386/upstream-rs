@@ -6,6 +6,9 @@
 
 ## Tasks
 
+- [ ] CTRL-C support (first is graceful, next kills immediately)
+      @created 2026-07-18 01:19
+
 
 ## Completed
 
