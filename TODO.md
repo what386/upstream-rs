@@ -15,3 +15,6 @@
 - [ ] behavior: better logging
       @created 2026-07-18 01:13
 
+- [ ] more consistent dry run behavior
+      @created 2026-07-18 01:13
+
