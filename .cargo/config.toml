@@ -1,0 +1,4 @@
+# this is to fix the stack overflowing (????)
+# on debug xwin builds running in WINE
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "link-arg=/STACK:8388608"]
