@@ -656,6 +656,17 @@ fn json_check_rows(rows: Vec<UpdateCheckRow>) -> Vec<JsonUpdateCheckRow> {
         .collect()
 }
 
+fn check_failure_count(rows: &[UpdateCheckRow]) -> usize {
+    rows.iter()
+        .filter(|row| {
+            matches!(
+                row.status,
+                UpdateCheckStatus::Failed { .. } | UpdateCheckStatus::NotInstalled
+            )
+        })
+        .count()
+}
+
 async fn run_check(
     package_upgrade: UpgradeOperation<'_>,
     names: Option<Vec<String>>,
@@ -667,18 +678,24 @@ async fn run_check(
             None => package_upgrade.check_all_detailed().await,
             Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
         };
+        let failed = check_failure_count(&rows);
         println!("{}", serde_json::to_string_pretty(&json_check_rows(rows))?);
+        if failed > 0 {
+            anyhow::bail!("{failed} update check(s) failed");
+        }
     } else if machine_readable {
-        let updates = match names {
-            None => package_upgrade.check_all_machine_readable().await,
-            Some(name_vec) => {
-                package_upgrade
-                    .check_selected_machine_readable(&name_vec)
-                    .await
-            }
+        let rows = match names {
+            None => package_upgrade.check_all_detailed().await,
+            Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
         };
-        for (name, oldver, newver) in updates {
-            println!("{name} {oldver} {newver}");
+        let failed = check_failure_count(&rows);
+        for row in &rows {
+            if let UpdateCheckStatus::UpdateAvailable { current, latest } = &row.status {
+                println!("{} {current} {latest}", row.name);
+            }
+        }
+        if failed > 0 {
+            anyhow::bail!("{failed} update check(s) failed");
         }
     } else {
         let check_pb = new_check_progress_bar();
@@ -699,6 +716,10 @@ async fn run_check(
         };
         check_pb.finish_and_clear();
         render_check_table(&rows);
+        let failed = check_failure_count(&rows);
+        if failed > 0 {
+            anyhow::bail!("{failed} update check(s) failed");
+        }
     }
 
     Ok(())
@@ -860,6 +881,12 @@ async fn run_dry_run(
             would_upgrade, up_to_date, failed, not_installed
         ),
     );
+    if failed > 0 || not_installed > 0 {
+        anyhow::bail!(
+            "{} upgrade preview(s) failed",
+            failed.saturating_add(not_installed)
+        );
+    }
     Ok(())
 }
 

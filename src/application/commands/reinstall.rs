@@ -193,6 +193,10 @@ pub async fn run(
         );
     }
 
+    if failed > 0 {
+        return Err(anyhow!("{failed} package reinstall(s) failed"));
+    }
+
     Ok(())
 }
 
@@ -350,6 +354,9 @@ async fn run_dry_run(
         "summary",
         format!("{planned} planned, {failed} failed"),
     );
+    if failed > 0 {
+        return Err(anyhow!("{failed} package reinstall preview(s) failed"));
+    }
     Ok(())
 }
 

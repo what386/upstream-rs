@@ -236,6 +236,7 @@ pub async fn run(
                 "{}",
                 output::warning("Install complete: 0 installed, 1 failed.")
             );
+            return Err(err.context(format!("Failed to install '{install_name}'")));
         }
     }
 

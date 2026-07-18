@@ -714,6 +714,39 @@ pub enum Commands {
         action: ExportAction,
     },
 
+    /// Show recent command and package audit history
+    #[command(
+        long_about = "Show recent records from upstream's JSONL audit log.\n\n\
+        Filter by package, command action, or status. Human output is newest-first; \
+        --json returns the stored structured records.\n\n\
+        EXAMPLES:\n  \
+        upstream history\n  \
+        upstream history --package ripgrep\n  \
+        upstream history --action upgrade --status failed\n  \
+        upstream history --json"
+    )]
+    History {
+        /// Only show records for this package
+        #[arg(long)]
+        package: Option<String>,
+
+        /// Only show records whose command begins with this action
+        #[arg(long)]
+        action: Option<String>,
+
+        /// Only show this status (for example: ok, warn, fail, success, failed)
+        #[arg(long)]
+        status: Option<String>,
+
+        /// Maximum number of matching records to show
+        #[arg(long, default_value_t = 50)]
+        limit: usize,
+
+        /// Print matching records as JSON
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+
     /// Run diagnostics to detect installation and integration issues
     #[command(
         long_about = "Inspect upstream installation health and package state.\n\n\
@@ -759,6 +792,7 @@ impl Commands {
         match self {
             Commands::List { .. } => false,
             Commands::Info { .. } => false,
+            Commands::History { .. } => false,
             Commands::Changelog { .. } => false,
             Commands::Docs { .. } => false,
             Commands::Doctor { fix, .. } => *fix,

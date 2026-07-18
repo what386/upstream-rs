@@ -206,6 +206,10 @@ fn run_restore(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperat
         );
     }
 
+    if outcome.failed > 0 {
+        anyhow::bail!("{} package rollback(s) failed", outcome.failed);
+    }
+
     Ok(())
 }
 

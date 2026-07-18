@@ -189,6 +189,10 @@ pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Resul
         );
     }
 
+    if failed > 0 {
+        anyhow::bail!("{failed} package removal(s) failed");
+    }
+
     Ok(())
 }
 
@@ -210,50 +214,37 @@ fn run_dry_run(
     println!();
 
     let mut message_callback = Some(|_: &str| {});
-    if names.len() > 1 {
-        let mut planned = 0_u32;
-        let mut failed = 0_u32;
-        for name in &names {
-            match package_remover.preview_single(name, &purge, &mut message_callback) {
-                Ok(_) => {
-                    planned += 1;
-                    output::status_line(
-                        Status::Plan,
-                        name,
-                        if purge {
-                            "remove package files + purge app-owned data"
-                        } else {
-                            "remove package files"
-                        },
-                    );
-                }
-                Err(err) => {
-                    failed += 1;
-                    output::status_line(Status::Fail, name, output::error_summary(&err));
-                }
+    let mut planned = 0_u32;
+    let mut failed = 0_u32;
+    for name in &names {
+        match package_remover.preview_single(name, &purge, &mut message_callback) {
+            Ok(_) => {
+                planned += 1;
+                output::status_line(
+                    Status::Plan,
+                    name,
+                    if purge {
+                        "remove package files + purge app-owned data"
+                    } else {
+                        "remove package files"
+                    },
+                );
+            }
+            Err(err) => {
+                failed += 1;
+                output::status_line(Status::Fail, name, output::error_summary(&err));
             }
         }
-        println!();
-        let status = if failed > 0 { Status::Warn } else { Status::Ok };
-        output::status_line(
-            status,
-            "summary",
-            format!("{planned} planned, {failed} failed"),
-        );
-        return Ok(());
     }
-
-    package_remover.preview_single(&names[0], &purge, &mut message_callback)?;
-    output::status_line(
-        Status::Plan,
-        &names[0],
-        if purge {
-            "remove package files + purge app-owned data"
-        } else {
-            "remove package files"
-        },
-    );
     println!();
-    output::status_line(Status::Ok, "summary", "1 planned, 0 failed");
+    let status = if failed > 0 { Status::Warn } else { Status::Ok };
+    output::status_line(
+        status,
+        "summary",
+        format!("{planned} planned, {failed} failed"),
+    );
+    if failed > 0 {
+        anyhow::bail!("{failed} package removal preview(s) failed");
+    }
     Ok(())
 }

@@ -101,7 +101,11 @@ pub async fn run_import_packages(path: PathBuf, skip_failed: bool, latest: bool)
 
     pb.finish_and_clear();
     let summary = result?;
+    let failed = summary.failed;
     print_import_summary("Package import", summary);
+    if failed > 0 {
+        bail!("{failed} package import(s) failed");
+    }
     Ok(())
 }
 
@@ -185,7 +189,11 @@ pub async fn run_import_profile(path: PathBuf, skip_failed: bool, latest: bool) 
 
     pb.finish_and_clear();
     let summary = result?;
+    let failed = summary.failed;
     print_import_summary("Profile import", summary);
+    if failed > 0 {
+        bail!("{failed} profile package import(s) failed");
+    }
     Ok(())
 }
 

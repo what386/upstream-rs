@@ -13,8 +13,8 @@ impl Cli {
         output::set_assume_yes(self.yes);
         output::set_no_pager(self.no_pager);
         let command = self.command;
+        let operation = command.to_string();
         let _lock = if command.requires_lock() {
-            let operation = command.to_string();
             Some(LockStorage::acquire(&paths, &operation)?)
         } else {
             None
@@ -129,6 +129,14 @@ impl Cli {
             Commands::List { filter, json } => commands::list::run(filter, json),
 
             Commands::Info { query, json } => commands::info::run(query, json),
+
+            Commands::History {
+                package,
+                action,
+                status,
+                limit,
+                json,
+            } => commands::history::run(package, action, status, limit, json),
 
             Commands::Changelog {
                 name,

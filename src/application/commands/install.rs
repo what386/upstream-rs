@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::{
     application::context::CommandContext,
-    application::operations::install_op::{InstallOperation, ReleaseInstallRequest},
+    application::operations::install_op::{InstallOperation, PlannedReleaseInstallRequest},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::Package,
@@ -198,10 +198,10 @@ pub async fn run(
     let mut ignored_messages = Some(|_: &str| {});
 
     let install_result = install_operation
-        .install_release(
-            ReleaseInstallRequest {
+        .install_release_plan(
+            PlannedReleaseInstallRequest {
                 package,
-                version,
+                plan: preview,
                 add_entry: create_entry,
                 trust_mode,
             },
@@ -237,6 +237,7 @@ pub async fn run(
                 "{}",
                 output::warning("Install complete: 0 installed, 1 failed.")
             );
+            return Err(err.context(format!("Failed to install '{install_name}'")));
         }
     }
 

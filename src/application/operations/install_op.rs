@@ -11,7 +11,7 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         integration::ShellManager,
-        packaging::{InstallPreview, PackageInstaller, PackagePhase, PackageProgressEvent},
+        packaging::{InstallPlan, PackageInstaller, PackagePhase, PackageProgressEvent},
         trust::TrustedSignatureKeys,
     },
     storage::database::PackageDatabase,
@@ -21,6 +21,13 @@ use crate::{
 pub struct ReleaseInstallRequest {
     pub package: Package,
     pub version: Option<String>,
+    pub add_entry: bool,
+    pub trust_mode: TrustMode,
+}
+
+pub struct PlannedReleaseInstallRequest {
+    pub package: Package,
+    pub plan: InstallPlan,
     pub add_entry: bool,
     pub trust_mode: TrustMode,
 }
@@ -64,10 +71,40 @@ impl<'a> InstallOperation<'a> {
         &self,
         package: &Package,
         version: &Option<String>,
-    ) -> Result<InstallPreview> {
+    ) -> Result<InstallPlan> {
         self.installer
             .preview_single_install(package, version)
             .await
+    }
+
+    pub async fn install_release_plan<F, H, P>(
+        &mut self,
+        request: PlannedReleaseInstallRequest,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        self.ensure_package_name_available(&request.package.name)?;
+        let installed_package = self
+            .installer
+            .install_selected_asset(
+                &self.trusted_keys,
+                request.package,
+                &request.plan.release,
+                &request.plan.asset,
+                &request.add_entry,
+                request.trust_mode,
+                download_progress_callback,
+                message_callback,
+                progress_callback,
+            )
+            .await?;
+        self.save_installed_package(installed_package, message_callback, progress_callback)
     }
 
     pub async fn install_release<F, H, P>(
