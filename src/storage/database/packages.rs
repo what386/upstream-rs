@@ -7,9 +7,11 @@ use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use crate::models::upstream::Package;
 
 use super::mapping::{
-    PACKAGE_COLUMNS, bool_to_db, enum_to_db, optional_path_to_db, row_to_package,
+    PACKAGE_COLUMNS, bool_to_db, enum_from_db_value, enum_to_db, optional_path_to_db,
+    row_to_package,
 };
 use super::patterns::{load_patterns, load_patterns_for_packages, replace_patterns};
+use super::settings::PackageSettings;
 
 #[derive(Debug)]
 pub struct PackageConnection {
@@ -102,6 +104,51 @@ impl PackageConnection {
             .context("Failed to list PATH entries")?
             .collect::<rusqlite::Result<Vec<_>>>()
             .context("Failed to decode PATH entry rows")
+    }
+
+    pub fn get_package_settings(&self, package_name: &str) -> Result<Option<PackageSettings>> {
+        self.conn
+            .query_row(
+                "
+                SELECT package_name, trust_mode
+                FROM package_settings
+                WHERE package_name = ?1
+                ",
+                [package_name],
+                |row| {
+                    let trust_mode = row
+                        .get::<_, Option<String>>(1)?
+                        .map(|value| enum_from_db_value(value, 1))
+                        .transpose()?;
+                    Ok(PackageSettings {
+                        package_name: row.get(0)?,
+                        trust_mode,
+                    })
+                },
+            )
+            .optional()
+            .with_context(|| format!("Failed to load settings for package '{package_name}'"))
+    }
+
+    pub fn upsert_package_settings(&mut self, settings: &PackageSettings) -> Result<()> {
+        let trust_mode = settings.trust_mode.as_ref().map(enum_to_db).transpose()?;
+        self.conn
+            .execute(
+                "
+                INSERT INTO package_settings (package_name, trust_mode)
+                VALUES (?1, ?2)
+                ON CONFLICT(package_name) DO UPDATE SET
+                    trust_mode = excluded.trust_mode
+                ",
+                params![settings.package_name, trust_mode],
+            )
+            .with_context(|| {
+                format!(
+                    "Failed to save settings for package '{}'",
+                    settings.package_name
+                )
+            })?;
+        Ok(())
     }
 
     pub fn upsert_package(&mut self, package: &Package) -> Result<()> {
@@ -343,12 +390,12 @@ mod tests {
     use crate::models::{
         common::{
             Version,
-            enums::{Channel, Filetype, Provider},
+            enums::{Channel, Filetype, Provider, TrustMode},
         },
         upstream::{InstallType, Package},
     };
     use crate::providers::pattern_matcher::PatternTable;
-    use crate::storage::database::PACKAGE_DB_SCHEMA_VERSION;
+    use crate::storage::database::{PACKAGE_DB_SCHEMA_VERSION, PackageSettings};
     use chrono::{TimeZone, Utc};
     use rusqlite::Connection;
     use std::path::PathBuf;
@@ -521,6 +568,39 @@ mod tests {
                 PathBuf::from("/first/bin"),
                 PathBuf::from("/second/bin"),
             ]
+        );
+    }
+
+    #[test]
+    fn open_migrates_schema_v5_package_settings_in_place() {
+        let conn = Connection::open_in_memory().expect("open sqlite");
+        conn.execute_batch(crate::storage::database::SCHEMA_SQL)
+            .expect("create current schema");
+        conn.execute_batch(
+            "
+            DROP TABLE package_settings;
+            PRAGMA user_version = 5;
+            ",
+        )
+        .expect("mark schema as v5");
+
+        let mut db = PackageConnection::from_connection(conn).expect("migrate v5 schema");
+        db.upsert_package(&test_package("tool"))
+            .expect("seed package");
+        let mut settings = PackageSettings::new("tool");
+        settings.trust_mode = Some(TrustMode::Checksum);
+        db.upsert_package_settings(&settings)
+            .expect("store settings");
+
+        assert_eq!(
+            db.schema_version().expect("schema version"),
+            PACKAGE_DB_SCHEMA_VERSION
+        );
+        assert_eq!(
+            db.get_package_settings("tool")
+                .expect("load settings")
+                .expect("settings exist"),
+            settings
         );
     }
 
@@ -731,6 +811,49 @@ mod tests {
             db.list_path_entries()
                 .expect("list path entries")
                 .is_empty()
+        );
+    }
+
+    #[test]
+    fn package_settings_round_trip_and_follow_package_lifecycle() {
+        let mut db = PackageConnection::open_in_memory().expect("open db");
+        db.upsert_package(&test_package("old"))
+            .expect("seed package");
+
+        let mut settings = PackageSettings::new("old");
+        settings.trust_mode = Some(TrustMode::Signature);
+        db.upsert_package_settings(&settings)
+            .expect("store settings");
+        assert_eq!(
+            db.get_package_settings("old")
+                .expect("load settings")
+                .expect("settings exist"),
+            settings
+        );
+
+        db.update_package("old", |package| {
+            package.name = "new".to_string();
+            Ok(())
+        })
+        .expect("rename package");
+
+        assert!(
+            db.get_package_settings("old")
+                .expect("load old settings")
+                .is_none()
+        );
+        let renamed = db
+            .get_package_settings("new")
+            .expect("load renamed settings")
+            .expect("renamed settings exist");
+        assert_eq!(renamed.package_name, "new");
+        assert_eq!(renamed.trust_mode, Some(TrustMode::Signature));
+
+        assert!(db.remove_package("new").expect("remove package"));
+        assert!(
+            db.get_package_settings("new")
+                .expect("load removed settings")
+                .is_none()
         );
     }
 

@@ -5,6 +5,7 @@ use anyhow::{Result, anyhow};
 use crate::models::upstream::Package;
 
 use super::packages::PackageConnection;
+use super::settings::PackageSettings;
 
 #[derive(Debug, Clone)]
 pub struct PackageDatabase {
@@ -46,6 +47,14 @@ impl PackageDatabase {
 
     pub fn list_path_entries(&self) -> Result<Vec<PathBuf>> {
         self.connection()?.list_path_entries()
+    }
+
+    pub fn get_package_settings(&self, package_name: &str) -> Result<Option<PackageSettings>> {
+        self.connection()?.get_package_settings(package_name)
+    }
+
+    pub fn upsert_package_settings(&mut self, settings: &PackageSettings) -> Result<()> {
+        self.connection()?.upsert_package_settings(settings)
     }
 
     pub fn upsert_package(&mut self, package: &Package) -> Result<()> {

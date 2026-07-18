@@ -90,7 +90,7 @@ pub(super) fn bool_to_db(value: bool) -> i64 {
     if value { 1 } else { 0 }
 }
 
-fn enum_from_db_value<T>(value: String, column: usize) -> rusqlite::Result<T>
+pub(super) fn enum_from_db_value<T>(value: String, column: usize) -> rusqlite::Result<T>
 where
     T: DeserializeOwned,
 {

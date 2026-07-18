@@ -5,10 +5,12 @@ mod api;
 mod mapping;
 mod packages;
 mod patterns;
+mod settings;
 
 pub use api::PackageDatabase;
+pub use settings::PackageSettings;
 
-pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 5;
+pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 6;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 
@@ -128,6 +130,30 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
                 )
                 .context("Failed to migrate package database schema from version 4 to 5")?;
                 current_version = 5;
+            }
+            5 => {
+                conn.execute_batch(
+                    "
+                    BEGIN;
+                    CREATE TABLE IF NOT EXISTS package_settings (
+                        package_name TEXT PRIMARY KEY NOT NULL,
+                        trust_mode TEXT CHECK (
+                            trust_mode IS NULL OR trust_mode IN (
+                                'None',
+                                'BestEffort',
+                                'Checksum',
+                                'Signature',
+                                'All'
+                            )
+                        ),
+                        FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
+                    );
+                    PRAGMA user_version = 6;
+                    COMMIT;
+                    ",
+                )
+                .context("Failed to migrate package database schema from version 5 to 6")?;
+                current_version = 6;
             }
             version => bail!(
                 "Unsupported package database schema version {}. Expected version {} or earlier.",

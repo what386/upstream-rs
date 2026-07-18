@@ -55,3 +55,17 @@ CREATE TABLE IF NOT EXISTS path_entries (
 
 CREATE INDEX IF NOT EXISTS idx_path_entries_position
     ON path_entries(position);
+
+CREATE TABLE IF NOT EXISTS package_settings (
+    package_name TEXT PRIMARY KEY NOT NULL,
+    trust_mode TEXT CHECK (
+        trust_mode IS NULL OR trust_mode IN (
+            'None',
+            'BestEffort',
+            'Checksum',
+            'Signature',
+            'All'
+        )
+    ),
+    FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
+);
