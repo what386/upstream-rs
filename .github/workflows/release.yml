@@ -88,46 +88,6 @@ jobs:
             | sort -z \
             | xargs -0 sha256sum > "$checksum_file"
           mv "$checksum_file" SHA256SUMS.txt
-      - name: Install Minisign
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y expect minisign
-      - name: Sign release assets
-        env:
-          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
-          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          test -n "$MINISIGN_SECRET_KEY"
-          key="$RUNNER_TEMP/minisign.key"
-          trap 'rm -f "$key"' EXIT
-          printf '%s\n' "$MINISIGN_SECRET_KEY" > "$key"
-          chmod 600 "$key"
-
-          if grep -q 'encrypted secret key' "$key"; then
-            test -n "$MINISIGN_PASSWORD"
-          fi
-
-          find dist -type f ! -name '*.minisig' -print0 \
-            | while IFS= read -r -d '' file; do
-                export MINISIGN_KEY="$key"
-                export MINISIGN_FILE="$file"
-                expect <<'EOF'
-          set timeout -1
-          spawn minisign -S -s $env(MINISIGN_KEY) -m $env(MINISIGN_FILE) -x ${env(MINISIGN_FILE)}.minisig
-          expect {
-            -re "(?i)password:" {
-              send -- "$env(MINISIGN_PASSWORD)\r"
-              exp_continue
-            }
-            eof
-          }
-          set result [wait]
-          exit [lindex $result 3]
-          EOF
-              done
       - name: Read changelog section for tag
         id: release_notes
         run: |
