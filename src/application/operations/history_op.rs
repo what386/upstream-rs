@@ -487,7 +487,8 @@ mod tests {
 
     #[test]
     fn renders_parent_and_nested_item_rows() {
-        let output = render_records(&[record("upgrade", "upstream", Outcome::Success)]);
+        let rendered = render_records(&[record("upgrade", "upstream", Outcome::Success)]);
+        let output = console::strip_ansi_codes(&rendered);
         assert!(output.contains("✓ upgrade"));
         assert!(output.contains("└─ upstream"));
         assert!(output.contains("detail"));
