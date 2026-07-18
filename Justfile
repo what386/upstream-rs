@@ -14,6 +14,15 @@ test:
     cargo nextest run --all
     cargo xwin test --all --target x86_64-pc-windows-msvc
 
+integration-tests:
+    python3 tests/integration/pkg_build.py
+    python3 tests/integration/pkg_upgrade.py
+    python3 tests/integration/pkg_rollback.py
+    python3 tests/integration/state_mutations.py
+    python3 tests/integration/pkg_export_import.py
+    python3 tests/integration/pkg_install.py
+    python3 tests/integration/pkg_remove.py
+
 
 run *args:
     cargo run --bin "upstream" -- {{args}}
