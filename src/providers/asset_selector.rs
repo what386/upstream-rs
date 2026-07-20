@@ -281,6 +281,12 @@ impl AssetSelector {
         score += Self::asset_role_score(&name, &package_name);
         score += Self::auxiliary_asset_penalty(&name);
 
+        if let Some(target_os) = &asset.target_os
+            && *target_os == self.architecture_info.os_kind
+        {
+            score += 80;
+        }
+
         if let Some(target_arch) = &asset.target_arch {
             if *target_arch == self.architecture_info.cpu_arch {
                 score += 80;
@@ -944,6 +950,57 @@ mod tests {
             .expect("best asset");
 
         assert_eq!(best.name, "tool-static.tar.bz2");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn auto_prefers_explicit_matching_os_over_generic_archive() {
+        let selector = AssetSelector::new();
+        let package = Package::with_defaults(
+            "yt-dlp".to_string(),
+            "owner/yt-dlp".to_string(),
+            Filetype::Auto,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        let release = make_release(
+            vec![
+                Asset::new(
+                    "https://example.invalid/yt-dlp.tar.gz".to_string(),
+                    1,
+                    "yt-dlp.tar.gz".to_string(),
+                    5_740_000,
+                    Utc::now(),
+                ),
+                Asset::new(
+                    "https://example.invalid/yt-dlp_linux.zip".to_string(),
+                    2,
+                    "yt-dlp_linux.zip".to_string(),
+                    38_130_000,
+                    Utc::now(),
+                ),
+            ],
+            false,
+            "2026.07.04",
+        );
+
+        let candidates = selector
+            .get_candidate_assets(&release, &package)
+            .expect("candidates");
+
+        assert_eq!(candidates[0].asset.name, "yt-dlp_linux.zip");
+        assert_eq!(candidates[0].score, 195);
+        assert_eq!(
+            candidates
+                .iter()
+                .find(|candidate| candidate.asset.name == "yt-dlp.tar.gz")
+                .expect("generic archive")
+                .score,
+            130
+        );
     }
 
     #[cfg(target_os = "linux")]
