@@ -163,10 +163,24 @@ impl ProviderManager {
     }
 
     pub async fn check_for_updates(&self, package: &Package) -> Result<Option<Release>> {
-        let resolved = self.resolve_provider(&package.provider, package.base_url.as_deref())?;
-        resolved
-            .get_latest_release_if_modified_since(&package.repo_slug, Some(package.last_upgraded))
-            .await
+        if matches!(package.provider, Provider::Direct | Provider::WebScraper) {
+            let resolved = self.resolve_provider(&package.provider, package.base_url.as_deref())?;
+            return resolved
+                .get_latest_release_if_modified_since(
+                    &package.repo_slug,
+                    Some(package.last_upgraded),
+                )
+                .await;
+        }
+
+        self.get_latest_release(
+            &package.repo_slug,
+            &package.provider,
+            &package.channel,
+            package.base_url.as_deref(),
+        )
+        .await
+        .map(Some)
     }
 
     pub fn is_nightly_release(tag: &str) -> bool {
@@ -448,9 +462,50 @@ impl ProviderManager {
 #[cfg(test)]
 mod tests {
     use super::ProviderManager;
-    use crate::models::common::{Version, enums::Channel};
+    use crate::models::common::{
+        Version,
+        enums::{Channel, Filetype, Provider},
+    };
     use crate::models::provider::Release;
+    use crate::models::upstream::{Package, config::DownloadConfig};
     use chrono::Utc;
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpListener;
+    use std::sync::mpsc;
+    use std::thread;
+
+    fn spawn_gitea_release_server() -> String {
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || {
+            let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
+            tx.send(listener.local_addr().expect("resolve test server address"))
+                .expect("send test server address");
+
+            let (mut stream, _) = listener.accept().expect("accept request");
+            let mut reader = BufReader::new(stream.try_clone().expect("clone stream"));
+            let mut request_line = String::new();
+            reader
+                .read_line(&mut request_line)
+                .expect("read request line");
+            let path = request_line.split_whitespace().nth(1).unwrap_or("/");
+
+            let body = if path.ends_with("/releases/latest") {
+                r#"{"id":1,"tag_name":"v2.0.0","name":"stable","prerelease":false,"draft":false,"published_at":"2026-01-01T00:00:00Z","assets":[]}"#
+            } else {
+                r#"[{"id":2,"tag_name":"v2.1.0-rc1","name":"preview","prerelease":true,"draft":false,"published_at":"2026-02-01T00:00:00Z","assets":[]}]"#
+            };
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("write response");
+        });
+
+        format!("http://{}", rx.recv().expect("receive test server address"))
+    }
 
     fn make_release(prerelease: bool, tag: &str) -> Release {
         Release {
@@ -495,5 +550,31 @@ mod tests {
 
         assert_eq!(matches.len(), 2);
         assert!(matches.iter().all(|release| !release.is_prerelease));
+    }
+
+    #[tokio::test]
+    async fn update_checks_select_latest_release_from_package_channel() {
+        let base_url = spawn_gitea_release_server();
+        let manager = ProviderManager::new(None, None, None, DownloadConfig::default())
+            .expect("create provider manager");
+        let package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Preview,
+            Provider::Gitea,
+            Some(base_url),
+        );
+
+        let release = manager
+            .check_for_updates(&package)
+            .await
+            .expect("check for updates")
+            .expect("forge checks always return a candidate");
+
+        assert_eq!(release.tag, "v2.1.0-rc1");
+        assert!(release.is_prerelease);
     }
 }
