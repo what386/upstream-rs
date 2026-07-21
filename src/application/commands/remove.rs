@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    application::operations::remove_op::RemoveOperation,
+    application::operations::remove_op::{RemoveOperation, RemovePreviewStatus},
     output::{self, Status, TransactionRow},
     services::packaging::{
         PackageProgressEvent,
@@ -56,16 +56,20 @@ fn render_remove_progress_row(name: &str, event: PackageProgressEvent) -> String
     format!(" {:<28} {}", name, status)
 }
 
-pub fn run(names: Vec<String>, purge: bool, force: bool, dry_run: bool) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
-
+pub fn run(
+    names: Vec<String>,
+    purge: bool,
+    force: bool,
+    dry_run: bool,
+    paths: &UpstreamPaths,
+) -> Result<()> {
     let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
 
     if names.is_empty() {
         return Err(anyhow::anyhow!("At least one package name is required"));
     }
 
-    let mut package_remover = RemoveOperation::new(&mut package_database, &paths);
+    let mut package_remover = RemoveOperation::new(&mut package_database, paths);
 
     if dry_run {
         return run_dry_run(names, purge, &mut package_remover);
@@ -204,8 +208,13 @@ fn run_dry_run(
 ) -> Result<()> {
     println!("{}", output::title("Remove preview"));
     output::kv("Purge", if purge { "yes" } else { "no" });
-    let (impact, _, estimate_failed) = package_remover.estimate_bulk_impact(&names, purge);
-    output::print_disk_impact_with_size_rows(&impact, &[], false);
+    let preview = package_remover.preview_bulk(&names, purge);
+    output::print_disk_impact_with_size_rows(&preview.impact, &[], false);
+    let estimate_failed = preview
+        .items
+        .iter()
+        .filter(|item| matches!(&item.status, RemovePreviewStatus::Failed { .. }))
+        .count();
     if estimate_failed > 0 {
         output::action_note(format!(
             "{estimate_failed} package(s) could not be included in disk estimate"
@@ -214,16 +223,15 @@ fn run_dry_run(
     output::action_note("resolve only (no remove, no purge, no metadata changes)");
     println!();
 
-    let mut message_callback = Some(|_: &str| {});
     let mut planned = 0_u32;
     let mut failed = 0_u32;
-    for name in &names {
-        match package_remover.preview_single(name, &purge, &mut message_callback) {
-            Ok(_) => {
+    for item in preview.items {
+        match item.status {
+            RemovePreviewStatus::Planned => {
                 planned += 1;
                 output::status_line(
                     Status::Plan,
-                    name,
+                    &item.name,
                     if purge {
                         "remove package files + purge app-owned data"
                     } else {
@@ -231,9 +239,9 @@ fn run_dry_run(
                     },
                 );
             }
-            Err(err) => {
+            RemovePreviewStatus::Failed { error } => {
                 failed += 1;
-                output::status_line(Status::Fail, name, output::error_summary(&err));
+                output::status_line(Status::Fail, &item.name, error);
             }
         }
     }

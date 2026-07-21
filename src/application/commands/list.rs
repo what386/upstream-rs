@@ -9,8 +9,7 @@ use anyhow::Result;
 use console::Term;
 use std::{fmt::Write as _, path::Path};
 
-pub fn run(filter: Option<String>, json: bool) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
+pub fn run(filter: Option<String>, json: bool, paths: &UpstreamPaths) -> Result<()> {
     let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
 
     if json {

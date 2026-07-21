@@ -81,9 +81,10 @@ async fn run() -> anyhow::Result<()> {
             return Err(err);
         }
     };
-    output::configure_logger(config.get_config().logging);
+    let app_config = config.get_config().clone();
+    output::configure_logger(app_config.logging);
 
-    match cli.run(paths).await {
+    match cli.run(&paths, &app_config).await {
         Ok(()) => history_op::finish(Outcome::Success, LogLevel::Info, None),
         Err(err) => {
             let outcome = if cancellation::is_requested() {

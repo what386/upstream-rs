@@ -7,7 +7,7 @@ use crate::{
     application::operations::install_op::{InstallOperation, PlannedReleaseInstallRequest},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
-        upstream::Package,
+        upstream::{Package, config::AppConfig},
     },
     output::{self, Status, TransactionRow},
     providers::{
@@ -18,6 +18,7 @@ use crate::{
         provider_manager::ProviderManager,
     },
     services::packaging::PackageProgressEvent,
+    utils::static_paths::UpstreamPaths,
 };
 
 const INSTALL_PROGRESS_BAR_WIDTH: usize = 14;
@@ -111,8 +112,10 @@ pub async fn run(
     create_entry: bool,
     trust_mode: TrustMode,
     dry_run: bool,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
 ) -> Result<()> {
-    let context = CommandContext::new()?;
+    let context = CommandContext::new(paths, app_config)?;
     let mut package_database = context.package_database()?;
     let trusted_keys = context.trusted_keys()?;
     let name = resolve_package_name(name, &repo_slug, provider.as_ref(), base_url.as_deref())?;
@@ -133,7 +136,7 @@ pub async fn run(
     let mut install_operation = InstallOperation::new(
         &context.provider_manager,
         &mut package_database,
-        &context.paths,
+        context.paths,
         trusted_keys,
     )?;
 

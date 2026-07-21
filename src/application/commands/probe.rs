@@ -9,10 +9,14 @@ use crate::{
     application::operations::probe_op::{
         ProbeAssetChoice, ProbeOperation, ProbeRequest, ProbeResult, ProbeRow,
     },
-    models::common::enums::{Channel, Filetype, Provider, TrustMode},
+    models::{
+        common::enums::{Channel, Filetype, Provider, TrustMode},
+        upstream::config::AppConfig,
+    },
     output::{self, Status, TransactionRow},
     providers::discovery::infer_package_name,
     services::packaging::PackageProgressEvent,
+    utils::static_paths::UpstreamPaths,
 };
 
 const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
@@ -32,8 +36,10 @@ pub async fn run(
     create_entry: bool,
     trust_mode: TrustMode,
     dry_run: bool,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
 ) -> Result<()> {
-    let context = CommandContext::new()?;
+    let context = CommandContext::new(paths, app_config)?;
     let probe_operation = ProbeOperation::new(&context.provider_manager);
     let probe_result = probe_operation
         .probe(ProbeRequest {
@@ -163,7 +169,7 @@ pub async fn run(
     let mut install_operation = InstallOperation::new(
         &context.provider_manager,
         &mut package_database,
-        &context.paths,
+        context.paths,
         trusted_keys,
     )?;
 

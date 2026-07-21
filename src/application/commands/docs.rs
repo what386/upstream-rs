@@ -7,10 +7,11 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{
     application::context::CommandContext,
-    models::upstream::Package,
+    models::upstream::{Package, config::AppConfig},
     output,
     output::pager,
     routines::docs::{self, DocsSearchResult, DocsSectionMatch, ProjectReadmeSource},
+    utils::static_paths::UpstreamPaths,
 };
 
 const DOCS_FETCH_CONCURRENCY: usize = 8;
@@ -21,8 +22,10 @@ pub async fn run(
     keywords: Vec<String>,
     offline: bool,
     fetch: Option<Vec<String>>,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
 ) -> Result<()> {
-    let context = CommandContext::new()?;
+    let context = CommandContext::new(paths, app_config)?;
     let package_database = context.package_database()?;
     if let Some(fetch_names) = fetch {
         let packages = package_database.list_packages()?;
@@ -37,7 +40,7 @@ pub async fn run(
     let query = keywords.join(" ").trim().to_string();
     let result = docs::run(
         &context.provider_manager,
-        &context.paths,
+        context.paths,
         &package,
         &query,
         offline,
@@ -80,7 +83,7 @@ pub async fn run(
 }
 
 async fn run_fetch_readmes(
-    context: &CommandContext,
+    context: &CommandContext<'_>,
     packages: &[Package],
     leading_name: Option<String>,
     keywords: Vec<String>,
@@ -163,7 +166,7 @@ async fn run_fetch_readmes(
 }
 
 fn fetch_readme_task<'a>(
-    context: &'a CommandContext,
+    context: &'a CommandContext<'_>,
     package: Package,
 ) -> LocalBoxFuture<'a, (Package, Result<()>)> {
     async move {

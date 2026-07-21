@@ -7,9 +7,11 @@ use crate::{
     models::{
         common::enums::Provider,
         provider::{RepositorySearchFilters, RepositorySearchResult},
+        upstream::config::AppConfig,
     },
     output,
     output::pager,
+    utils::static_paths::UpstreamPaths,
 };
 use std::fmt::Write as _;
 
@@ -36,6 +38,8 @@ pub async fn run(
     include_forks: bool,
     include_archived: bool,
     json: bool,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
 ) -> Result<()> {
     let query = query_words.join(" ").trim().to_string();
     let filters = RepositorySearchFilters::new(
@@ -48,7 +52,8 @@ pub async fn run(
         include_archived,
     );
 
-    let search = search_repositories(query, provider, base_url, limit, filters).await?;
+    let search =
+        search_repositories(query, provider, base_url, limit, filters, paths, app_config).await?;
     let query = search.query;
     let effective_provider = search.provider;
     let base_url = search.base_url;
@@ -101,8 +106,10 @@ pub async fn search_repositories(
     base_url: Option<String>,
     limit: u32,
     filters: RepositorySearchFilters,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
 ) -> Result<SearchResults> {
-    let context = CommandContext::new()?;
+    let context = CommandContext::new(paths, app_config)?;
     let effective_provider = provider.unwrap_or(Provider::Github);
     let effective_limit = limit.max(1);
 

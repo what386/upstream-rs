@@ -5,11 +5,12 @@ use crate::{
     models::{
         common::{enums::Channel, version::Version},
         provider::Release,
-        upstream::Package,
+        upstream::{Package, config::AppConfig},
     },
     output,
     output::pager,
     providers::provider_manager::ProviderManager,
+    utils::static_paths::UpstreamPaths,
 };
 
 pub async fn run(
@@ -17,8 +18,10 @@ pub async fn run(
     from_tag: Option<String>,
     to_tag: Option<String>,
     for_tag: Option<String>,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
 ) -> Result<()> {
-    let context = CommandContext::new()?;
+    let context = CommandContext::new(paths, app_config)?;
     let package_database = context.package_database()?;
     let package = package_database
         .get_package(&name)?

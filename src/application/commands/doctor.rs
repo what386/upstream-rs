@@ -5,6 +5,7 @@ use serde::Serialize;
 use crate::{
     output::{self, Status},
     routines::doctor::{self, DoctorReport, Level},
+    utils::static_paths::UpstreamPaths,
 };
 
 fn status_for_level(level: Level) -> Status {
@@ -56,9 +57,15 @@ fn print_hints(report: &DoctorReport) {
     }
 }
 
-pub async fn run(names: Vec<String>, verbose: bool, fix: bool, json: bool) -> Result<()> {
+pub async fn run(
+    names: Vec<String>,
+    verbose: bool,
+    fix: bool,
+    json: bool,
+    paths: &UpstreamPaths,
+) -> Result<()> {
     if json {
-        let report = doctor::run(names, fix).await?;
+        let report = doctor::run(names, fix, paths).await?;
         println!(
             "{}",
             serde_json::to_string_pretty(&json_doctor_report(&report))?
@@ -74,7 +81,7 @@ pub async fn run(names: Vec<String>, verbose: bool, fix: bool, json: bool) -> Re
 
     println!("{}", style("Running upstream doctor...").cyan());
 
-    let report = doctor::run(names, fix).await?;
+    let report = doctor::run(names, fix, paths).await?;
     if verbose {
         print_verbose_findings(&report);
     }

@@ -1,26 +1,8 @@
 use crate::storage::database::PackageDatabase;
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 pub struct MetadataManager<'a> {
     package_database: &'a mut PackageDatabase,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MetadataSetResult {
-    pub key: String,
-    pub value: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MetadataBulkSetResult {
-    pub applied: Vec<MetadataSetResult>,
-    pub failures: Vec<(String, String)>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MetadataBulkGetResult {
-    pub values: Vec<(String, String)>,
-    pub failures: Vec<(String, String)>,
 }
 
 impl<'a> MetadataManager<'a> {
@@ -52,15 +34,6 @@ impl<'a> MetadataManager<'a> {
         Ok(())
     }
 
-    /// Removes package metadata for a package without touching runtime artifacts.
-    pub fn remove_package(&mut self, name: &str) -> Result<()> {
-        if !self.package_database.remove_package(name)? {
-            return Err(anyhow::anyhow!("Package '{}' not found", name));
-        }
-
-        Ok(())
-    }
-
     /// Renames a package alias without changing provider/repo/version metadata.
     pub fn rename_package(&mut self, old_name: &str, new_name: &str) -> Result<bool> {
         let old_name = old_name.trim();
@@ -81,220 +54,6 @@ impl<'a> MetadataManager<'a> {
         self.package_database.rename_package(old_name, new_name)?;
 
         Ok(true)
-    }
-
-    /// Sets a package metadata field using dot-notation key path.
-    /// Example: "is_pinned=true" or "pattern=.*x86_64.*"
-    pub fn set_key(&mut self, name: &str, set_key: &str) -> Result<MetadataSetResult> {
-        let (key_path, value) = Self::parse_set_key(set_key)?;
-
-        // Get the package
-        let package = self
-            .package_database
-            .get_package(name)?
-            .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
-
-        // Serialize to JSON for manipulation
-        let mut json_value = serde_json::to_value(package)?;
-
-        // Navigate to the field and set it
-        Self::set_nested_value(&mut json_value, &key_path, &value)?;
-
-        // Deserialize back to Package
-        let updated_package: crate::models::upstream::Package =
-            serde_json::from_value(json_value).context("Failed to deserialize updated package")?;
-
-        // Update in storage
-        self.package_database.upsert_package(&updated_package)?;
-
-        Ok(MetadataSetResult {
-            key: key_path,
-            value,
-        })
-    }
-
-    /// Gets a package metadata field using dot-notation key path.
-    /// Example: "is_pinned" or "version"
-    pub fn get_key(&self, name: &str, get_key: &str) -> Result<String> {
-        let key_path = get_key.trim();
-        if key_path.is_empty() {
-            return Err(anyhow::anyhow!("Key path cannot be empty"));
-        }
-
-        // Get the package
-        let package = self
-            .package_database
-            .get_package(name)?
-            .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
-
-        // Serialize to JSON for field access
-        let json_value = serde_json::to_value(package)?;
-
-        // Navigate to the field
-        let value = Self::get_nested_value(&json_value, key_path)?;
-
-        let value_str = Self::format_value(&value);
-
-        Ok(value_str)
-    }
-
-    /// Sets multiple package metadata fields in bulk.
-    pub fn set_bulk(&mut self, name: &str, set_keys: &[String]) -> MetadataBulkSetResult {
-        let mut applied = Vec::new();
-        let mut failures = Vec::new();
-
-        for set_key in set_keys {
-            match self.set_key(name, set_key) {
-                Ok(result) => applied.push(result),
-                Err(err) => failures.push((set_key.clone(), err.to_string())),
-            }
-        }
-
-        MetadataBulkSetResult { applied, failures }
-    }
-
-    /// Gets multiple package metadata fields in bulk.
-    pub fn get_bulk(&self, name: &str, get_keys: &[String]) -> MetadataBulkGetResult {
-        let mut values = Vec::new();
-        let mut failures = Vec::new();
-
-        for get_key in get_keys {
-            match self.get_key(name, get_key) {
-                Ok(value) => {
-                    values.push((get_key.clone(), value));
-                }
-                Err(err) => failures.push((get_key.clone(), err.to_string())),
-            }
-        }
-
-        MetadataBulkGetResult { values, failures }
-    }
-
-    /// Parses a set_key string in the format "key=value" into (key_path, value).
-    fn parse_set_key(set_key: &str) -> Result<(String, String)> {
-        let parts: Vec<&str> = set_key.splitn(2, '=').collect();
-        if parts.len() != 2 {
-            return Err(anyhow::anyhow!(
-                "Invalid set_key format. Expected 'key=value', got '{}'",
-                set_key
-            ));
-        }
-
-        let key_path = parts[0].trim();
-        let value = parts[1].trim();
-
-        if key_path.is_empty() {
-            return Err(anyhow::anyhow!("Key path cannot be empty"));
-        }
-
-        Ok((key_path.to_string(), value.to_string()))
-    }
-
-    /// Gets a nested value from JSON using dot notation.
-    fn get_nested_value(json: &serde_json::Value, path: &str) -> Result<serde_json::Value> {
-        let keys: Vec<&str> = path.split('.').collect();
-        let mut current = json;
-
-        for key in keys {
-            current = current
-                .get(key)
-                .ok_or_else(|| anyhow::anyhow!("Field '{}' not found", key))?;
-        }
-
-        Ok(current.clone())
-    }
-
-    /// Sets a nested value in JSON using dot notation.
-    fn set_nested_value(json: &mut serde_json::Value, path: &str, value: &str) -> Result<()> {
-        let keys: Vec<&str> = path.split('.').collect();
-
-        if keys.is_empty() {
-            return Err(anyhow::anyhow!("Empty path"));
-        }
-
-        let mut current = json;
-
-        // Navigate to the parent of the target field
-        for key in &keys[..keys.len() - 1] {
-            current = current
-                .get_mut(key)
-                .ok_or_else(|| anyhow::anyhow!("Field '{}' not found", key))?;
-        }
-
-        // Set the final field
-        let final_key = keys[keys.len() - 1];
-        let target = current
-            .get_mut(final_key)
-            .ok_or_else(|| anyhow::anyhow!("Field '{}' not found", final_key))?;
-
-        // Parse the value based on the target type
-        *target = Self::parse_value_for_type(target, value)?;
-
-        Ok(())
-    }
-
-    /// Parses a string value into the appropriate JSON type based on the existing field type.
-    fn parse_value_for_type(
-        existing: &serde_json::Value,
-        value_str: &str,
-    ) -> Result<serde_json::Value> {
-        match existing {
-            serde_json::Value::Bool(_) => {
-                let bool_val = value_str
-                    .parse::<bool>()
-                    .with_context(|| format!("Expected boolean value, got '{}'", value_str))?;
-                Ok(serde_json::Value::Bool(bool_val))
-            }
-            serde_json::Value::Number(_) => {
-                if let Ok(int_val) = value_str.parse::<i64>() {
-                    Ok(serde_json::json!(int_val))
-                } else if let Ok(float_val) = value_str.parse::<f64>() {
-                    Ok(serde_json::json!(float_val))
-                } else {
-                    Err(anyhow::anyhow!(
-                        "Expected numeric value, got '{}'",
-                        value_str
-                    ))
-                }
-            }
-            serde_json::Value::String(_) => Ok(serde_json::Value::String(value_str.to_string())),
-            serde_json::Value::Null => {
-                if value_str == "null" {
-                    Ok(serde_json::Value::Null)
-                } else {
-                    // Try to infer type
-                    if let Ok(bool_val) = value_str.parse::<bool>() {
-                        Ok(serde_json::Value::Bool(bool_val))
-                    } else if let Ok(int_val) = value_str.parse::<i64>() {
-                        Ok(serde_json::json!(int_val))
-                    } else {
-                        Ok(serde_json::Value::String(value_str.to_string()))
-                    }
-                }
-            }
-            _ => {
-                // For objects/arrays, try to parse as JSON
-                serde_json::from_str(value_str).with_context(|| {
-                    format!(
-                        "Cannot set complex type from string. Expected JSON, got '{}'",
-                        value_str
-                    )
-                })
-            }
-        }
-    }
-
-    /// Formats a JSON value as a string for display.
-    fn format_value(value: &serde_json::Value) -> String {
-        match value {
-            serde_json::Value::String(s) => s.clone(),
-            serde_json::Value::Null => "null".to_string(),
-            serde_json::Value::Bool(b) => b.to_string(),
-            serde_json::Value::Number(n) => n.to_string(),
-            serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-                serde_json::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string())
-            }
-        }
     }
 }
 
@@ -339,13 +98,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_set_key_requires_key_value_pair() {
-        assert!(MetadataManager::parse_set_key("is_pinned=true").is_ok());
-        assert!(MetadataManager::parse_set_key("invalid").is_err());
-        assert!(MetadataManager::parse_set_key("=value").is_err());
-    }
-
-    #[test]
     fn pin_and_unpin_update_package_state() {
         let path = temp_packages_file("pin");
         fs::create_dir_all(path.parent().expect("parent")).expect("create parent");
@@ -372,34 +124,6 @@ mod tests {
                 .expect("load package")
                 .expect("package")
                 .is_pinned
-        );
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
-    fn set_key_and_get_key_support_nested_and_typed_values() {
-        let path = temp_packages_file("set-get");
-        fs::create_dir_all(path.parent().expect("parent")).expect("create parent");
-        let mut storage = PackageDatabase::open(&path).expect("create storage");
-        let package = test_package("rg");
-        storage.upsert_package(&package).expect("store package");
-        let mut manager = MetadataManager::new(&mut storage);
-
-        manager
-            .set_key("rg", "is_pinned=true")
-            .expect("set bool key");
-        manager
-            .set_key("rg", "version.major=12")
-            .expect("set nested numeric key");
-
-        assert_eq!(
-            manager.get_key("rg", "is_pinned").expect("get bool"),
-            "true"
-        );
-        assert_eq!(
-            manager.get_key("rg", "version.major").expect("get nested"),
-            "12"
         );
 
         cleanup(&path).expect("cleanup");
@@ -434,34 +158,6 @@ mod tests {
                 .expect("load old")
                 .is_none()
         );
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
-    fn remove_package_deletes_metadata_and_errors_when_missing() {
-        let path = temp_packages_file("remove");
-        fs::create_dir_all(path.parent().expect("parent")).expect("create parent");
-        let mut storage = PackageDatabase::open(&path).expect("create storage");
-        let package = test_package("fd");
-        storage.upsert_package(&package).expect("store package");
-        let mut manager = MetadataManager::new(&mut storage);
-
-        manager
-            .remove_package("fd")
-            .expect("remove package metadata");
-        assert!(
-            manager
-                .package_database
-                .get_package("fd")
-                .expect("load removed")
-                .is_none()
-        );
-
-        let err = manager
-            .remove_package("fd")
-            .expect_err("missing package should error");
-        assert!(err.to_string().contains("Package 'fd' not found"));
 
         cleanup(&path).expect("cleanup");
     }

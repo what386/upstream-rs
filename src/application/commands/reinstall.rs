@@ -12,7 +12,7 @@ use crate::{
     models::{
         common::enums::TrustMode,
         provider::Release,
-        upstream::{InstallType, Package},
+        upstream::{InstallType, Package, config::AppConfig},
     },
     output::{self, Status},
     providers::provider_manager::ProviderManager,
@@ -65,12 +65,14 @@ pub async fn run(
     trust_mode: TrustMode,
     force: bool,
     dry_run: bool,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
 ) -> Result<()> {
     if names.is_empty() {
         return Err(anyhow!("At least one package name is required"));
     }
 
-    let context = CommandContext::new()?;
+    let context = CommandContext::new(paths, app_config)?;
     let mut package_database = context.package_database()?;
     let trusted_keys = context.trusted_keys()?;
 
@@ -80,7 +82,7 @@ pub async fn run(
             trust_mode,
             &package_database,
             &context.provider_manager,
-            &context.paths,
+            context.paths,
         )
         .await;
     }
@@ -89,7 +91,7 @@ pub async fn run(
         &names,
         &package_database,
         &context.provider_manager,
-        &context.paths,
+        context.paths,
     )
     .await;
     output::print_disk_impact_with_size_rows(&impact, &[], true);
@@ -134,7 +136,7 @@ pub async fn run(
         if let Err(err) = reinstall_one(
             &context.provider_manager,
             &mut package_database,
-            &context.paths,
+            context.paths,
             package,
             trust_mode,
             force,

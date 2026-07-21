@@ -7,8 +7,10 @@ use crate::{
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         provider::{RepositorySearchFilters, RepositorySearchResult},
+        upstream::config::AppConfig,
     },
     output,
+    utils::static_paths::UpstreamPaths,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -32,6 +34,8 @@ pub async fn run(
     desktop: bool,
     trust_mode: TrustMode,
     dry_run: bool,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
 ) -> Result<()> {
     let query = query_words.join(" ").trim().to_string();
     if query.is_empty() {
@@ -53,6 +57,8 @@ pub async fn run(
             include_forks,
             include_archived,
         ),
+        paths,
+        app_config,
     )
     .await?;
     if search.results.is_empty() {
@@ -93,6 +99,8 @@ pub async fn run(
         desktop,
         trust_mode,
         dry_run,
+        paths,
+        app_config,
     )
     .await
 }

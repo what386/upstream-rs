@@ -6,9 +6,8 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
-pub fn run_hooks_init() -> Result<()> {
-    let paths = UpstreamPaths::new()?;
-    initialize(&paths)?;
+pub fn run_hooks_init(paths: &UpstreamPaths) -> Result<()> {
+    initialize(paths)?;
     println!(
         "{}",
         output::success("Hooks complete: shell integration initialized.")
@@ -16,9 +15,8 @@ pub fn run_hooks_init() -> Result<()> {
     Ok(())
 }
 
-pub fn run_hooks_check() -> Result<()> {
-    let paths = UpstreamPaths::new()?;
-    let report = check(&paths)?;
+pub fn run_hooks_check(paths: &UpstreamPaths) -> Result<()> {
+    let report = check(paths)?;
     println!("{}", output::title("Hooks check"));
     for line in &report.messages {
         println!("  {line}");
@@ -32,9 +30,8 @@ pub fn run_hooks_check() -> Result<()> {
     Err(anyhow!("Hook check failed"))
 }
 
-pub fn run_hooks_clean() -> Result<()> {
-    let paths = UpstreamPaths::new()?;
-    cleanup(&paths)?;
+pub fn run_hooks_clean(paths: &UpstreamPaths) -> Result<()> {
+    cleanup(paths)?;
     println!(
         "{}",
         output::success("Hooks complete: shell integration removed.")
@@ -42,8 +39,7 @@ pub fn run_hooks_clean() -> Result<()> {
     Ok(())
 }
 
-pub fn run_hooks_purge() -> Result<()> {
-    let paths = UpstreamPaths::new()?;
+pub fn run_hooks_purge(paths: &UpstreamPaths) -> Result<()> {
     output::confirm_or_cancel(
         format!(
             "Delete upstream data directory '{}' and remove shell hooks?",
@@ -52,8 +48,8 @@ pub fn run_hooks_purge() -> Result<()> {
         false,
     )?;
 
-    cleanup(&paths)?;
-    purge_data(&paths)?;
+    cleanup(paths)?;
+    purge_data(paths)?;
     println!("{}", output::success("Hooks purge complete."));
     output::action_note(format!("Deleted '{}'", paths.dirs.data_dir.display()));
     Ok(())

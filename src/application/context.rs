@@ -6,23 +6,20 @@ use crate::{
     services::trust::TrustedSignatureKeys,
     storage::{
         database::PackageDatabase,
-        system::{auth::AuthStorage, config::ConfigStorage, trust::TrustStorage},
+        system::{auth::AuthStorage, trust::TrustStorage},
     },
     utils::static_paths::UpstreamPaths,
 };
 
-pub struct CommandContext {
-    pub paths: UpstreamPaths,
+pub struct CommandContext<'a> {
+    pub paths: &'a UpstreamPaths,
     pub provider_manager: ProviderManager,
-    pub app_config: AppConfig,
+    pub app_config: &'a AppConfig,
 }
 
-impl CommandContext {
-    pub fn new() -> Result<Self> {
-        let paths = UpstreamPaths::new()?;
-        let config = ConfigStorage::new(&paths.config.config_file)?;
+impl<'a> CommandContext<'a> {
+    pub fn new(paths: &'a UpstreamPaths, app_config: &'a AppConfig) -> Result<Self> {
         let auth = AuthStorage::new(&paths.config.auth_file)?;
-        let app_config = config.get_config().clone();
         let provider_manager = ProviderManager::new(
             auth.get_auth().github.api_token.as_deref(),
             auth.get_auth().gitlab.api_token.as_deref(),

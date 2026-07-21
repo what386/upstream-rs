@@ -6,6 +6,7 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     package: Option<String>,
     action: Option<String>,
@@ -14,8 +15,8 @@ pub fn run(
     since: Option<String>,
     today: bool,
     json: bool,
+    paths: &UpstreamPaths,
 ) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
     let since = since
         .as_deref()
         .map(history_op::parse_since)

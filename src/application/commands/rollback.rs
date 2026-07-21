@@ -9,6 +9,7 @@ use crate::{
     },
     output::{self, Status, TransactionRow},
     storage::rollback::RollbackSource,
+    utils::static_paths::UpstreamPaths,
 };
 
 fn restore_phase_label(message: &str) -> &'static str {
@@ -75,8 +76,9 @@ pub fn run(
     list: bool,
     prune: Option<Vec<String>>,
     dry_run: bool,
+    paths: &UpstreamPaths,
 ) -> Result<()> {
-    let mut operation = RollbackOperation::new()?;
+    let mut operation = RollbackOperation::new(paths)?;
 
     match rollback_mode(names, list, prune)? {
         RollbackMode::List => run_list(&mut operation),

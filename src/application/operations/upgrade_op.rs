@@ -3,7 +3,7 @@ use crate::{
     models::common::enums::{Channel, Provider, TrustMode},
     models::provider::Release,
     models::upstream::config::ConcurrencyConfig,
-    output::{self, Status},
+    output,
     providers::provider_manager::ProviderManager,
     services::packaging::disk_impact::{
         ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_path_size,
@@ -32,14 +32,6 @@ struct ProgressEntry {
 }
 type ProgressState = Arc<Mutex<BTreeMap<String, ProgressEntry>>>;
 type WarningState = Arc<Mutex<Vec<(String, String)>>>;
-
-macro_rules! message {
-    ($cb:expr, $($arg:tt)*) => {{
-        if let Some(cb) = $cb.as_mut() {
-            cb(&format!($($arg)*));
-        }
-    }};
-}
 
 fn build_ref_version(label: impl AsRef<str>, commit: Option<&str>) -> String {
     let label = label.as_ref();
@@ -445,51 +437,7 @@ impl<'a> UpgradeOperation<'a> {
             .fold(SignedByteEstimate::exact(0), |total, impact| total + impact)
     }
 
-    pub async fn estimate_upgrade_impact(
-        &self,
-        names: Option<&[String]>,
-        force: bool,
-    ) -> DiskImpact {
-        let mut ignored_messages = Some(|_: &str| {});
-        let Ok(rows) = self
-            .preview_upgrade_with_messages(names, force, &mut ignored_messages)
-            .await
-        else {
-            return DiskImpact::unknown();
-        };
-        rows.into_iter()
-            .fold(DiskImpact::empty(), |total, row| total + row.disk_impact)
-    }
-
-    pub async fn preview_upgrade(
-        &self,
-        names: Option<&[String]>,
-        force: bool,
-    ) -> Result<Vec<UpgradePreviewRow>> {
-        let mut ignored_messages = Some(|_: &str| {});
-        self.preview_upgrade_with_messages(names, force, &mut ignored_messages)
-            .await
-    }
-
-    pub async fn preview_upgrade_with_messages<H>(
-        &self,
-        names: Option<&[String]>,
-        force: bool,
-        message_callback: &mut Option<H>,
-    ) -> Result<Vec<UpgradePreviewRow>>
-    where
-        H: FnMut(&str),
-    {
-        self.preview_upgrade_with_events(names, force, &mut |event| match event {
-            UpgradePreviewEvent::Checking { name } => {
-                message!(message_callback, "checking for updates: {}", name);
-            }
-            UpgradePreviewEvent::Started { .. } | UpgradePreviewEvent::Row(_) => {}
-        })
-        .await
-    }
-
-    pub async fn preview_upgrade_with_events<H>(
+    pub async fn preview_upgrade<H>(
         &self,
         names: Option<&[String]>,
         force: bool,
@@ -671,191 +619,6 @@ impl<'a> UpgradeOperation<'a> {
         }
     }
 
-    pub async fn upgrade_all<F, G, H>(
-        &mut self,
-        force_option: &bool,
-        trust_mode: TrustMode,
-        download_progress: &mut Option<F>,
-        overall_progress: &mut Option<G>,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        F: FnMut(u64, u64),
-        G: FnMut(u32, u32),
-        H: FnMut(&str),
-    {
-        let names: Vec<String> = self
-            .package_database
-            .list_packages()?
-            .iter()
-            .map(|p| p.name.clone())
-            .collect();
-
-        self.upgrade_bulk(
-            &names,
-            force_option,
-            trust_mode,
-            download_progress,
-            overall_progress,
-            message_callback,
-        )
-        .await
-    }
-
-    pub async fn upgrade_bulk<F, G, H>(
-        &mut self,
-        names: &[String],
-        force_option: &bool,
-        trust_mode: TrustMode,
-        download_progress: &mut Option<F>,
-        overall_progress: &mut Option<G>,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        F: FnMut(u64, u64),
-        G: FnMut(u32, u32),
-        H: FnMut(&str),
-    {
-        cancellation::check()?;
-        let total = names.len() as u32;
-        let mut completed = 0;
-        let mut failures = 0;
-        let mut upgraded = 0;
-        let force = *force_option;
-        let upgrader = &self.upgrader;
-        let completion_subject_width =
-            output::status_subject_width(names.iter().map(String::as_str));
-
-        let packages: Vec<_> = names
-            .iter()
-            .map(|name| {
-                self.package_database
-                    .get_package(name)?
-                    .ok_or_else(|| anyhow!("Package '{}' is not installed", name))
-            })
-            .collect::<Result<Vec<_>>>()?;
-
-        let mut pending = stream::iter(packages.into_iter().map(|package| async move {
-            let name = package.name.clone();
-            let channel = package.channel.clone();
-            let provider = package.provider.clone();
-
-            let mut downloaded: u64 = 0;
-            let mut bytes_total: u64 = 0;
-            let mut download_cb = Some(|d: u64, t: u64| {
-                downloaded = d;
-                bytes_total = t;
-            });
-            let mut ignored_messages = Some(|_: &str| {});
-
-            let result = upgrader
-                .upgrade(
-                    &package,
-                    force,
-                    trust_mode,
-                    &mut download_cb,
-                    &mut ignored_messages,
-                )
-                .await
-                .context(format!("Failed to upgrade package '{}'", name));
-            (name, channel, provider, downloaded, bytes_total, result)
-        }))
-        .buffer_unordered(self.concurrency_config.install_concurrency());
-
-        while completed < total {
-            cancellation::check()?;
-            let Some((name, channel, provider, downloaded, bytes_total, result)) =
-                pending.next().await
-            else {
-                break;
-            };
-
-            let transfer = format_transfer(downloaded, bytes_total);
-            match result {
-                Ok(Some(updated)) => {
-                    let persist_result = self.package_database.upsert_package(&updated);
-                    let persist_result = persist_result
-                        .and_then(|()| refresh_shell_paths(self.paths, self.package_database));
-                    if let Err(err) = persist_result {
-                        message!(
-                            message_callback,
-                            "{}",
-                            output::status_line_text_with_width(
-                                Status::Fail,
-                                &name,
-                                format!(
-                                    "{:<10} {:<3} {:<10} {}",
-                                    channel.to_string().to_lowercase(),
-                                    "!",
-                                    provider.to_string(),
-                                    output::error_summary_with_limit(&err, 96)
-                                ),
-                                completion_subject_width
-                            )
-                        );
-                        failures += 1;
-                    } else {
-                        message!(
-                            message_callback,
-                            "{}",
-                            output::status_line_text_with_width(
-                                Status::Ok,
-                                &name,
-                                format!(
-                                    "{:<10} {:<3} {:<10} {}",
-                                    channel.to_string().to_lowercase(),
-                                    "u",
-                                    provider.to_string(),
-                                    transfer
-                                ),
-                                completion_subject_width
-                            )
-                        );
-                        upgraded += 1;
-                    }
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    message!(
-                        message_callback,
-                        "{}",
-                        output::status_line_text_with_width(
-                            Status::Fail,
-                            &name,
-                            format!(
-                                "{:<10} {:<3} {:<10} {}",
-                                channel.to_string().to_lowercase(),
-                                "!",
-                                provider.to_string(),
-                                output::error_summary_with_limit(&e, 96)
-                            ),
-                            completion_subject_width
-                        )
-                    );
-                    failures += 1;
-                }
-            }
-
-            completed += 1;
-            if let Some(cb) = overall_progress.as_mut() {
-                cb(completed, total);
-            }
-        }
-
-        // Bulk mode uses per-package workers; a single shared download progress bar is noisy.
-        let _ = download_progress;
-
-        message!(
-            message_callback,
-            "Completed: {} upgraded, {} up-to-date, {} failed",
-            upgraded,
-            total - upgraded - failures,
-            failures
-        );
-
-        Ok(())
-    }
-
     pub async fn upgrade_resolved_bulk<P>(
         &mut self,
         rows: &[UpgradePreviewRow],
@@ -1004,82 +767,18 @@ impl<'a> UpgradeOperation<'a> {
         Ok((upgraded, failures))
     }
 
-    pub async fn upgrade_single<F, H>(
-        &mut self,
-        package_name: &str,
-        force_option: &bool,
-        trust_mode: TrustMode,
-        download_progress: &mut Option<F>,
-        message_callback: &mut Option<H>,
-    ) -> Result<bool>
-    where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
-    {
-        cancellation::check()?;
-        let package = self
-            .package_database
-            .get_package(package_name)?
-            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
-
-        let upgraded = self
-            .upgrader
-            .upgrade(
-                &package,
-                *force_option,
-                trust_mode,
-                download_progress,
-                message_callback,
-            )
-            .await?;
-
-        if let Some(updated) = upgraded {
-            self.package_database.upsert_package(&updated)?;
-            refresh_shell_paths(self.paths, self.package_database)?;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    pub async fn check_all_detailed(&self) -> Vec<UpdateCheckRow> {
-        let mut ignored_callback = |_: &str| {};
-        self.check_all_detailed_with_callback(&mut ignored_callback)
-            .await
-    }
-
-    pub async fn check_all_detailed_with_callback(
+    pub async fn check_detailed(
         &self,
+        package_names: Option<&[String]>,
         checking_callback: &mut dyn FnMut(&str),
     ) -> Vec<UpdateCheckRow> {
-        let packages = self.package_database.list_packages().unwrap_or_default();
-        self.check_installed_packages_detailed_with_callback(packages, checking_callback)
-            .await
-    }
+        let Some(package_names) = package_names else {
+            let packages = self.package_database.list_packages().unwrap_or_default();
+            return self
+                .check_installed_packages_detailed_with_callback(packages, checking_callback)
+                .await;
+        };
 
-    pub async fn check_all_machine_readable(&self) -> Vec<(String, String, String)> {
-        let rows = self.check_all_detailed().await;
-        rows.into_iter()
-            .filter_map(|row| match row.status {
-                UpdateCheckStatus::UpdateAvailable { current, latest } => {
-                    Some((row.name, current, latest))
-                }
-                _ => None,
-            })
-            .collect()
-    }
-
-    pub async fn check_selected_detailed(&self, package_names: &[String]) -> Vec<UpdateCheckRow> {
-        let mut ignored_callback = |_: &str| {};
-        self.check_selected_detailed_with_callback(package_names, &mut ignored_callback)
-            .await
-    }
-
-    pub async fn check_selected_detailed_with_callback(
-        &self,
-        package_names: &[String],
-        checking_callback: &mut dyn FnMut(&str),
-    ) -> Vec<UpdateCheckRow> {
         let mut rows: Vec<Option<UpdateCheckRow>> =
             (0..package_names.len()).map(|_| None).collect();
         let mut selected_packages = Vec::new();
@@ -1110,35 +809,6 @@ impl<'a> UpgradeOperation<'a> {
         }
 
         rows.into_iter().flatten().collect()
-    }
-
-    pub async fn check_selected_machine_readable(
-        &self,
-        package_names: &[String],
-    ) -> Vec<(String, String, String)> {
-        let rows = self.check_selected_detailed(package_names).await;
-        rows.into_iter()
-            .filter_map(|row| match row.status {
-                UpdateCheckStatus::UpdateAvailable { current, latest } => {
-                    Some((row.name, current, latest))
-                }
-                _ => None,
-            })
-            .collect()
-    }
-}
-
-fn format_transfer(downloaded: u64, total: u64) -> String {
-    if total > 0 {
-        format!(
-            "{} / {}",
-            indicatif::HumanBytes(downloaded),
-            indicatif::HumanBytes(total)
-        )
-    } else if downloaded > 0 {
-        format!("{}", indicatif::HumanBytes(downloaded))
-    } else {
-        "-".to_string()
     }
 }
 
@@ -1176,7 +846,7 @@ where
 mod tests {
     use super::{
         ProgressState, UpgradeOperation, UpgradePackageResult, UpgradeProgressEvent,
-        format_transfer, persist_upgrade_and_emit_complete, preview_package_width,
+        persist_upgrade_and_emit_complete, preview_package_width,
     };
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
@@ -1211,14 +881,6 @@ mod tests {
             preview_package_width(&packages),
             "nightly/longer-package".len()
         );
-    }
-
-    #[test]
-    fn format_transfer_handles_known_unknown_and_empty_sizes() {
-        assert_eq!(format_transfer(0, 0), "-");
-        assert!(format_transfer(42, 0).contains("42"));
-        let known_total = format_transfer(1024, 2048);
-        assert!(known_total.contains('/'));
     }
 
     #[test]

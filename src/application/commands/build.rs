@@ -4,9 +4,11 @@ use crate::application::cli::arguments::BuildProfile as CliBuildProfile;
 use crate::application::context::CommandContext;
 use crate::application::operations::build_op::{BuildCommandInput, BuildOperation};
 use crate::models::common::enums::{Channel, Provider};
+use crate::models::upstream::config::AppConfig;
 use crate::output;
 use crate::providers::discovery::infer_package_name;
 use crate::routines::build::BuildProfile;
+use crate::utils::static_paths::UpstreamPaths;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
@@ -21,14 +23,16 @@ pub async fn run(
     desktop: bool,
     build_profile: Option<CliBuildProfile>,
     dry_run: bool,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
 ) -> Result<()> {
-    let context = CommandContext::new()?;
+    let context = CommandContext::new(paths, app_config)?;
     let mut package_database = context.package_database()?;
     let name = resolve_package_name(name, &repo_slug, provider.as_ref(), base_url.as_deref())?;
     let mut operation = BuildOperation::new(
         &context.provider_manager,
         &mut package_database,
-        &context.paths,
+        context.paths,
     );
 
     operation

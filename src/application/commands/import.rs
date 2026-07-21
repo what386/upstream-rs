@@ -5,6 +5,7 @@ use crate::{
             ImportOperation, ImportPackageResult, ImportProgressEvent, ImportSummary,
         },
     },
+    models::upstream::config::AppConfig,
     output::{self, Status},
     providers::provider_manager::ProviderManager,
     services::packaging::{OperationPhase, PackageProgressEvent},
@@ -80,14 +81,20 @@ fn render_import_progress_row(
     format!("{name:<name_width$} {detail}")
 }
 
-pub async fn run_import_packages(path: PathBuf, skip_failed: bool, latest: bool) -> Result<()> {
-    let context = CommandContext::new()?;
+pub async fn run_import_packages(
+    path: PathBuf,
+    skip_failed: bool,
+    latest: bool,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
+) -> Result<()> {
+    let context = CommandContext::new(paths, app_config)?;
     let mut package_database = context.package_database()?;
     let trusted_keys = context.trusted_keys()?;
     let mut import_op = ImportOperation::new(
         &context.provider_manager,
         &mut package_database,
-        &context.paths,
+        context.paths,
         trusted_keys,
         context.app_config.concurrency.install_concurrency(),
     );
@@ -110,14 +117,14 @@ pub async fn run_import_packages(path: PathBuf, skip_failed: bool, latest: bool)
     Ok(())
 }
 
-pub fn run_import_keys(path: PathBuf) -> Result<()> {
-    let context = CommandContext::new()?;
+pub fn run_import_keys(path: PathBuf, paths: &UpstreamPaths, app_config: &AppConfig) -> Result<()> {
+    let context = CommandContext::new(paths, app_config)?;
     let mut package_database = context.package_database()?;
     let trusted_keys = context.trusted_keys()?;
     let import_op = ImportOperation::new(
         &context.provider_manager,
         &mut package_database,
-        &context.paths,
+        context.paths,
         trusted_keys,
         context.app_config.concurrency.install_concurrency(),
     );
@@ -133,8 +140,7 @@ pub fn run_import_keys(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub fn run_import_config(path: PathBuf) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
+pub fn run_import_config(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
     let pb = new_import_progress_bar();
     let mut progress_callback = Some(new_import_progress_callback(&pb, 0));
 
@@ -160,8 +166,12 @@ pub fn run_import_config(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub async fn run_import_profile(path: PathBuf, skip_failed: bool, latest: bool) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
+pub async fn run_import_profile(
+    path: PathBuf,
+    skip_failed: bool,
+    latest: bool,
+    paths: &UpstreamPaths,
+) -> Result<()> {
     let profile_config = ImportOperation::read_profile_config(&path)?;
     let auth = AuthStorage::new(&paths.config.auth_file)?;
     let provider_manager = ProviderManager::new(
@@ -175,7 +185,7 @@ pub async fn run_import_profile(path: PathBuf, skip_failed: bool, latest: bool) 
     let mut import_op = ImportOperation::new(
         &provider_manager,
         &mut package_database,
-        &paths,
+        paths,
         trusted_keys,
         profile_config.concurrency.install_concurrency(),
     );

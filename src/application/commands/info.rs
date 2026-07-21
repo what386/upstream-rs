@@ -8,8 +8,7 @@ use crate::{
 use anyhow::{Result, anyhow};
 use std::{fmt::Write as _, path::Path};
 
-pub fn run(query: String, json: bool) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
+pub fn run(query: String, json: bool, paths: &UpstreamPaths) -> Result<()> {
     let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
 
     if json {

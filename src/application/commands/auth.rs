@@ -5,12 +5,11 @@ use crate::{
 };
 use anyhow::{Result, anyhow};
 
-pub fn run_set(set_keys: Vec<String>) -> Result<()> {
+pub fn run_set(set_keys: Vec<String>, paths: &UpstreamPaths) -> Result<()> {
     if set_keys.is_empty() {
         return Err(anyhow!("At least one auth assignment is required"));
     }
 
-    let paths = UpstreamPaths::new()?;
     let mut auth_storage = AuthStorage::new(&paths.config.auth_file)?;
     let mut auth_updater = AuthUpdater::new(&mut auth_storage);
 
@@ -41,12 +40,11 @@ pub fn run_set(set_keys: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-pub fn run_get(get_keys: Vec<String>) -> Result<()> {
+pub fn run_get(get_keys: Vec<String>, paths: &UpstreamPaths) -> Result<()> {
     if get_keys.is_empty() {
         return Err(anyhow!("At least one auth key is required"));
     }
 
-    let paths = UpstreamPaths::new()?;
     let mut auth_storage = AuthStorage::new(&paths.config.auth_file)?;
     let auth_updater = AuthUpdater::new(&mut auth_storage);
 
@@ -73,8 +71,7 @@ pub fn run_get(get_keys: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-pub fn run_list() -> Result<()> {
-    let paths = UpstreamPaths::new()?;
+pub fn run_list(paths: &UpstreamPaths) -> Result<()> {
     let auth_storage = AuthStorage::new(&paths.config.auth_file)?;
 
     let flattened = auth_storage.get_flattened_auth();
@@ -98,8 +95,7 @@ pub fn run_list() -> Result<()> {
     Ok(())
 }
 
-pub fn run_reset() -> Result<()> {
-    let paths = UpstreamPaths::new()?;
+pub fn run_reset(paths: &UpstreamPaths) -> Result<()> {
     let mut auth_storage = AuthStorage::new(&paths.config.auth_file)?;
 
     output::confirm_or_cancel("Reset all auth tokens to empty?", false)?;
@@ -109,9 +105,7 @@ pub fn run_reset() -> Result<()> {
     Ok(())
 }
 
-pub fn run_edit() -> Result<()> {
-    let paths = UpstreamPaths::new()?;
-
+pub fn run_edit(paths: &UpstreamPaths) -> Result<()> {
     let editor = std::env::var("EDITOR")
         .or_else(|_| std::env::var("VISUAL"))
         .unwrap_or_else(|_| {

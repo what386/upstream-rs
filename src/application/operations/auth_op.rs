@@ -80,10 +80,6 @@ impl<'a> AuthUpdater<'a> {
         AuthBulkGetResult { values, failures }
     }
 
-    pub fn reset_to_defaults(&mut self) -> Result<()> {
-        self.auth_storage.reset_to_defaults()
-    }
-
     fn parse_set_key(set_key: &str) -> Result<(String, String)> {
         let parts: Vec<&str> = set_key.splitn(2, '=').collect();
 

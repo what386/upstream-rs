@@ -4,9 +4,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::{
-    application::{context::CommandContext, operations::export_op::ExportOperation},
-    output,
-    services::packaging::OperationProgressEvent,
+    application::operations::export_op::ExportOperation, output,
+    services::packaging::OperationProgressEvent, storage::database::PackageDatabase,
+    utils::static_paths::UpstreamPaths,
 };
 
 fn render_export_progress(event: OperationProgressEvent) -> String {
@@ -19,10 +19,9 @@ fn render_export_progress(event: OperationProgressEvent) -> String {
     }
 }
 
-pub fn run_export_packages(path: PathBuf) -> Result<()> {
-    let context = CommandContext::new()?;
-    let package_database = context.package_database()?;
-    let export_op = ExportOperation::new(&package_database, &context.paths);
+pub fn run_export_packages(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
+    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let export_op = ExportOperation::new(&package_database, paths);
     let pb = new_export_progress_bar();
     let progress_pb = pb.clone();
     let mut progress_callback = Some(move |event: OperationProgressEvent| {
@@ -41,10 +40,9 @@ pub fn run_export_packages(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub fn run_export_keys(path: PathBuf) -> Result<()> {
-    let context = CommandContext::new()?;
-    let package_database = context.package_database()?;
-    let export_op = ExportOperation::new(&package_database, &context.paths);
+pub fn run_export_keys(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
+    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let export_op = ExportOperation::new(&package_database, paths);
     let pb = new_export_progress_bar();
     let progress_pb = pb.clone();
     let mut progress_callback = Some(move |event: OperationProgressEvent| {
@@ -63,10 +61,9 @@ pub fn run_export_keys(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub fn run_export_config(path: PathBuf) -> Result<()> {
-    let context = CommandContext::new()?;
-    let package_database = context.package_database()?;
-    let export_op = ExportOperation::new(&package_database, &context.paths);
+pub fn run_export_config(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
+    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let export_op = ExportOperation::new(&package_database, paths);
     let pb = new_export_progress_bar();
     let progress_pb = pb.clone();
     let mut progress_callback = Some(move |event: OperationProgressEvent| {
@@ -85,10 +82,9 @@ pub fn run_export_config(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub fn run_export_profile(path: PathBuf) -> Result<()> {
-    let context = CommandContext::new()?;
-    let package_database = context.package_database()?;
-    let export_op = ExportOperation::new(&package_database, &context.paths);
+pub fn run_export_profile(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
+    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let export_op = ExportOperation::new(&package_database, paths);
     let pb = new_export_progress_bar();
     let progress_pb = pb.clone();
     let mut progress_callback = Some(move |event: OperationProgressEvent| {

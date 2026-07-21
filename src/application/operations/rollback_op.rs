@@ -13,8 +13,8 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
-pub struct RollbackOperation {
-    paths: UpstreamPaths,
+pub struct RollbackOperation<'a> {
+    paths: &'a UpstreamPaths,
     package_database: PackageDatabase,
     rollback_storage: RollbackStorage,
 }
@@ -77,11 +77,10 @@ pub struct RollbackPruneOutcome {
     pub packages: Vec<RollbackPackageOutcome>,
 }
 
-impl RollbackOperation {
-    pub fn new() -> Result<Self> {
-        let paths = UpstreamPaths::new()?;
+impl<'a> RollbackOperation<'a> {
+    pub fn new(paths: &'a UpstreamPaths) -> Result<Self> {
         let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
-        let rollback_file = RollbackManager::rollback_file_path(&paths);
+        let rollback_file = RollbackManager::rollback_file_path(paths);
         let rollback_storage = RollbackStorage::new(&rollback_file)?;
 
         Ok(Self {
@@ -93,7 +92,7 @@ impl RollbackOperation {
 
     fn manager(&mut self) -> RollbackManager<'_> {
         RollbackManager::new(
-            &self.paths,
+            self.paths,
             &mut self.package_database,
             &mut self.rollback_storage,
         )

@@ -6,10 +6,11 @@ use crate::{
         UpdateCheckRow, UpdateCheckStatus, UpgradeOperation, UpgradePackageResult,
         UpgradePreviewEvent, UpgradeProgressEvent,
     },
-    models::common::enums::TrustMode,
+    models::{common::enums::TrustMode, upstream::config::AppConfig},
     output::{self, SizeImpactRow, Status, TransactionRow, TransactionTableLayout},
     providers::provider_manager::ProviderManager,
     services::packaging::{PackagePhase, PackageProgressEvent},
+    utils::static_paths::UpstreamPaths,
 };
 use anyhow::Result;
 use indicatif::{HumanBytes, ProgressBar, ProgressDrawTarget, ProgressStyle};
@@ -115,6 +116,7 @@ fn render_upgrade_progress_row(
     format!("{name:<name_width$} {detail}")
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     names: Option<Vec<String>>,
     force_option: bool,
@@ -123,14 +125,16 @@ pub async fn run(
     json: bool,
     trust_mode: TrustMode,
     dry_run: bool,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
 ) -> Result<()> {
-    let context = CommandContext::new()?;
+    let context = CommandContext::new(paths, app_config)?;
     let trusted_keys = context.trusted_keys()?;
     let mut package_database = context.package_database()?;
     let mut package_upgrade = UpgradeOperation::new(
         &context.provider_manager,
         &mut package_database,
-        &context.paths,
+        context.paths,
         trusted_keys,
         context.app_config.concurrency,
     )?;
@@ -147,7 +151,7 @@ pub async fn run(
     let mut check_pb: Option<ProgressBar> = None;
     let mut printed_live_row = false;
     let preview_result = package_upgrade
-        .preview_upgrade_with_events(names.as_deref(), force_option, &mut |event| match event {
+        .preview_upgrade(names.as_deref(), force_option, &mut |event| match event {
             UpgradePreviewEvent::Started { package_width } => {
                 let layout = TransactionTableLayout::upgrade_preview(package_width);
                 live_layout = Some(layout);
@@ -685,20 +689,18 @@ async fn run_check(
     json: bool,
 ) -> Result<()> {
     if json {
-        let rows = match names {
-            None => package_upgrade.check_all_detailed().await,
-            Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
-        };
+        let rows = package_upgrade
+            .check_detailed(names.as_deref(), &mut |_| {})
+            .await;
         let failed = check_failure_count(&rows);
         println!("{}", serde_json::to_string_pretty(&json_check_rows(rows))?);
         if failed > 0 {
             anyhow::bail!("{failed} update check(s) failed");
         }
     } else if machine_readable {
-        let rows = match names {
-            None => package_upgrade.check_all_detailed().await,
-            Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
-        };
+        let rows = package_upgrade
+            .check_detailed(names.as_deref(), &mut |_| {})
+            .await;
         let failed = check_failure_count(&rows);
         for row in &rows {
             if let UpdateCheckStatus::UpdateAvailable { current, latest } = &row.status {
@@ -713,18 +715,9 @@ async fn run_check(
         let mut checking_callback = |name: &str| {
             check_pb.set_message(format!("checking for updates: {name}"));
         };
-        let rows = match names {
-            None => {
-                package_upgrade
-                    .check_all_detailed_with_callback(&mut checking_callback)
-                    .await
-            }
-            Some(name_vec) => {
-                package_upgrade
-                    .check_selected_detailed_with_callback(&name_vec, &mut checking_callback)
-                    .await
-            }
-        };
+        let rows = package_upgrade
+            .check_detailed(names.as_deref(), &mut checking_callback)
+            .await;
         check_pb.finish_and_clear();
         render_check_table(&rows);
         let failed = check_failure_count(&rows);
@@ -745,7 +738,7 @@ async fn run_dry_run(
     println!("{}", output::title("Upgrade preview"));
     output::kv("Trust", trust_mode);
     let preview_rows = package_upgrade
-        .preview_upgrade(names.as_deref(), force_option)
+        .preview_upgrade(names.as_deref(), force_option, &mut |_| {})
         .await;
     let (impact, rollback_impact) = match &preview_rows {
         Ok(rows) => {
@@ -767,10 +760,9 @@ async fn run_dry_run(
     output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
     output::action_note("resolve only (no download, no install, no metadata changes)");
     println!();
-    let rows = match names {
-        None => package_upgrade.check_all_detailed().await,
-        Some(name_vec) => package_upgrade.check_selected_detailed(&name_vec).await,
-    };
+    let rows = package_upgrade
+        .check_detailed(names.as_deref(), &mut |_| {})
+        .await;
 
     if rows.is_empty() {
         println!("{}", output::warning("No installed packages to check."));

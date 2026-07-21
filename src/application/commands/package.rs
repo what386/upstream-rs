@@ -10,8 +10,7 @@ use crate::{
 };
 use anyhow::{Context, Result};
 
-pub fn run_pin(name: String) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
+pub fn run_pin(name: String, paths: &UpstreamPaths) -> Result<()> {
     let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
     let mut package_manager = MetadataManager::new(&mut package_database);
 
@@ -23,8 +22,7 @@ pub fn run_pin(name: String) -> Result<()> {
     Ok(())
 }
 
-pub fn run_unpin(name: String) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
+pub fn run_unpin(name: String, paths: &UpstreamPaths) -> Result<()> {
     let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
     let mut package_manager = MetadataManager::new(&mut package_database);
 
@@ -36,8 +34,7 @@ pub fn run_unpin(name: String) -> Result<()> {
     Ok(())
 }
 
-pub fn run_rename(old_name: String, new_name: String) -> Result<()> {
-    let paths = UpstreamPaths::new()?;
+pub fn run_rename(old_name: String, new_name: String, paths: &UpstreamPaths) -> Result<()> {
     let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
     let package_before = package_database
         .get_package(&old_name)?
@@ -86,15 +83,15 @@ pub fn run_rename(old_name: String, new_name: String) -> Result<()> {
     Ok(())
 }
 
-pub async fn run_add_entry(name: String) -> Result<()> {
-    let (paths, mut package_database, mut package) = load_installed_package(&name)?;
+pub async fn run_add_entry(name: String, paths: &UpstreamPaths) -> Result<()> {
+    let (mut package_database, mut package) = load_installed_package(&name, paths)?;
 
     #[cfg(target_os = "linux")]
     let appimage_extractor =
         AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
 
     #[cfg(target_os = "linux")]
-    let desktop_manager = DesktopManager::new(&paths, &appimage_extractor);
+    let desktop_manager = DesktopManager::new(paths, &appimage_extractor);
     #[cfg(not(target_os = "linux"))]
     let desktop_manager = DesktopManager::new(&paths);
 
@@ -111,15 +108,15 @@ pub async fn run_add_entry(name: String) -> Result<()> {
     Ok(())
 }
 
-pub async fn run_rm_entry(name: String) -> Result<()> {
-    let (paths, mut package_database, mut package) = load_installed_package(&name)?;
+pub async fn run_rm_entry(name: String, paths: &UpstreamPaths) -> Result<()> {
+    let (mut package_database, mut package) = load_installed_package(&name, paths)?;
 
     #[cfg(target_os = "linux")]
     let appimage_extractor =
         AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
 
     #[cfg(target_os = "linux")]
-    let desktop_manager = DesktopManager::new(&paths, &appimage_extractor);
+    let desktop_manager = DesktopManager::new(paths, &appimage_extractor);
     #[cfg(not(target_os = "linux"))]
     let desktop_manager = DesktopManager::new(&paths);
 
@@ -134,14 +131,13 @@ pub async fn run_rm_entry(name: String) -> Result<()> {
     Ok(())
 }
 
-fn load_installed_package(name: &str) -> Result<(UpstreamPaths, PackageDatabase, Package)> {
-    let paths = UpstreamPaths::new()?;
+fn load_installed_package(name: &str, paths: &UpstreamPaths) -> Result<(PackageDatabase, Package)> {
     let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
     let package = package_database
         .get_package(name)?
         .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;
 
-    Ok((paths, package_database, package))
+    Ok((package_database, package))
 }
 
 fn save_package(package_database: &mut PackageDatabase, package: &Package) -> Result<()> {
