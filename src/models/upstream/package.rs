@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::common::{
     enums::{Channel, Filetype, Provider},
-    version::Version,
+    version::{Version, VersionTagTemplate},
 };
 use crate::models::provider::Release;
 use crate::providers::pattern_matcher::PatternTable;
@@ -23,6 +23,11 @@ pub struct Package {
 
     pub filetype: Filetype,
     pub version: Version,
+    #[serde(default)]
+    pub release_tag: Option<String>,
+    #[serde(default)]
+    pub release_published_at: Option<DateTime<Utc>>,
+    /// Legacy fallback for metadata written before exact release tags were stored.
     #[serde(default)]
     pub version_tag_template: Option<String>,
     pub channel: Channel,
@@ -62,6 +67,8 @@ impl Package {
 
             filetype,
             version: Version::new(0, 0, 0, false),
+            release_tag: None,
+            release_published_at: None,
             version_tag_template: None,
             channel,
             provider,
@@ -90,43 +97,56 @@ impl Package {
     }
 
     pub fn is_update_available(&self, release: &Release) -> bool {
-        if self.channel == Channel::Nightly {
-            return release.published_at > self.last_upgraded;
+        if self
+            .release_tag
+            .as_deref()
+            .is_some_and(|installed| installed == release.tag)
+        {
+            return false;
         }
 
-        if release.version.is_unknown() {
-            return release.published_at > self.last_upgraded;
+        match release.version.partial_cmp(&self.version) {
+            Some(std::cmp::Ordering::Greater) => true,
+            Some(_) => false,
+            None => match self.release_published_at {
+                Some(installed_at) if release.published_at != DateTime::<Utc>::MIN_UTC => {
+                    release.published_at > installed_at
+                }
+                _ if self.release_tag.is_some() => true,
+                _ => release.published_at > self.last_upgraded,
+            },
         }
+    }
 
-        release.version.is_newer_than(&self.version)
+    pub fn record_release(&mut self, release: &Release) {
+        self.version = release.version.clone();
+        if matches!(
+            self.provider,
+            Provider::Github | Provider::Gitlab | Provider::Gitea
+        ) {
+            self.release_tag = Some(release.tag.clone());
+            self.release_published_at =
+                (release.published_at != DateTime::<Utc>::MIN_UTC).then_some(release.published_at);
+        } else {
+            self.release_tag = None;
+            self.release_published_at = None;
+        }
+        self.version_tag_template = None;
+    }
+
+    pub fn installed_release_tag(&self) -> Option<String> {
+        self.release_tag
+            .clone()
+            .or_else(|| self.version_tag_from_template())
     }
 
     pub fn version_tag_from_template(&self) -> Option<String> {
         let template = self.version_tag_template.as_ref()?;
-        if !template.contains("{}") {
-            return None;
-        }
-
-        Some(template.replacen("{}", &self.version_core_string(), 1))
+        VersionTagTemplate::parse(template.clone()).map(|template| template.render(&self.version))
     }
 
     pub fn version_tag_template_from_tag(tag: &str, version: &Version) -> Option<String> {
-        if version.is_unknown() {
-            return None;
-        }
-
-        let version_text = Self::version_core_string_for(version);
-        let index = tag.find(&version_text)?;
-        let suffix_start = index + version_text.len();
-        Some(format!("{}{{}}{}", &tag[..index], &tag[suffix_start..]))
-    }
-
-    fn version_core_string(&self) -> String {
-        Self::version_core_string_for(&self.version)
-    }
-
-    fn version_core_string_for(version: &Version) -> String {
-        format!("{}.{}.{}", version.major, version.minor, version.patch)
+        VersionTagTemplate::from_tag(tag, version).map(|template| template.as_str().to_string())
     }
 }
 
@@ -193,7 +213,7 @@ mod tests {
             Some("https://api.github.com".to_string()),
         );
         let mut b = a.clone();
-        b.version.major = 99;
+        b.version = Version::new(99, 0, 0, false);
         b.is_pinned = true;
         b.install_type = InstallType::Build;
         b.match_pattern = PatternTable::from_patterns(["x86_64"]);
@@ -232,17 +252,69 @@ mod tests {
     }
 
     #[test]
-    fn nightly_release_uses_published_timestamp() {
+    fn nightly_release_uses_structural_version_when_known() {
         let package = update_test_package(Version::new(9, 9, 9, false), Channel::Nightly);
 
-        assert!(package.is_update_available(&update_test_release(
+        assert!(!package.is_update_available(&update_test_release(
             Version::new(1, 0, 0, false),
             Duration::seconds(1)
         )));
-        assert!(!package.is_update_available(&update_test_release(
+        assert!(package.is_update_available(&update_test_release(
             Version::new(99, 0, 0, false),
             Duration::seconds(0)
         )));
+    }
+
+    #[test]
+    fn datetime_updates_use_timestamp_and_publication_fallback() {
+        let installed = Version::parse("20240203-110809-5046fc22").expect("installed");
+        let package = update_test_package(installed, Channel::Stable);
+
+        assert!(package.is_update_available(&update_test_release(
+            Version::parse("20240204-000000-aaaaaaaa").expect("later timestamp"),
+            Duration::seconds(-1),
+        )));
+        assert!(!package.is_update_available(&update_test_release(
+            Version::parse("20240202-235959-bbbbbbbb").expect("earlier timestamp"),
+            Duration::days(1),
+        )));
+        assert!(package.is_update_available(&update_test_release(
+            Version::parse("20240203-110809-cccccccc").expect("revision collision"),
+            Duration::seconds(1),
+        )));
+    }
+
+    #[test]
+    fn exact_and_opaque_release_tags_control_update_identity() {
+        let mut package = update_test_package(Version::new(0, 0, 0, false), Channel::Stable);
+        package.release_tag = Some("snapshot-alpha".to_string());
+
+        let same = update_test_release(Version::new(0, 0, 0, false), Duration::days(1));
+        assert!(!package.is_update_available(&Release {
+            tag: "snapshot-alpha".to_string(),
+            ..same.clone()
+        }));
+
+        let changed_without_timestamp = Release {
+            tag: "snapshot-beta".to_string(),
+            published_at: chrono::DateTime::<Utc>::MIN_UTC,
+            ..same
+        };
+        assert!(package.is_update_available(&changed_without_timestamp));
+    }
+
+    #[test]
+    fn record_release_keeps_exact_tag_and_publication_time_for_forges() {
+        let mut package = update_test_package(Version::new(1, 0, 0, false), Channel::Stable);
+        let release = update_test_release(Version::new(1, 2, 3, false), Duration::days(2));
+
+        package.record_release(&Release {
+            tag: "rust-v1.2.3".to_string(),
+            ..release.clone()
+        });
+        assert_eq!(package.release_tag.as_deref(), Some("rust-v1.2.3"));
+        assert_eq!(package.release_published_at, Some(release.published_at));
+        assert!(package.version_tag_template.is_none());
     }
 
     #[test]
@@ -267,6 +339,20 @@ mod tests {
         assert_eq!(
             package.version_tag_from_template().as_deref(),
             Some("rust-v1.2.3-beta.4")
+        );
+    }
+
+    #[test]
+    fn datetime_tag_template_preserves_wrappers() {
+        let version = Version::parse("20240203-110809-5046fc22").expect("datetime");
+        let mut package = update_test_package(version.clone(), Channel::Stable);
+        package.version_tag_template =
+            Package::version_tag_template_from_tag("v20240203-110809-5046fc22-linux", &version);
+
+        assert_eq!(package.version_tag_template.as_deref(), Some("v{}-linux"));
+        assert_eq!(
+            package.version_tag_from_template().as_deref(),
+            Some("v20240203-110809-5046fc22-linux")
         );
     }
 }

@@ -47,12 +47,12 @@ pub async fn run(
         return Ok(());
     }
 
-    let from_version = match from_tag.as_deref() {
+    let (from_version, from_published_at) = match from_tag.as_deref() {
         Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Current) => {
-            package.version.clone()
+            (package.version.clone(), package.last_upgraded)
         }
         Some(tag) if is_changelog_endpoint(tag, ChangelogEndpoint::Latest) => {
-            context
+            let release = context
                 .provider_manager
                 .get_latest_release(
                     &package.repo_slug,
@@ -66,11 +66,11 @@ pub async fn run(
                         "Failed to fetch latest {} release for '{}'",
                         package.channel, package.repo_slug
                     )
-                })?
-                .version
+                })?;
+            (release.version, release.published_at)
         }
         Some(tag) => {
-            context
+            let release = context
                 .provider_manager
                 .get_release_by_tag(
                     &package.repo_slug,
@@ -84,10 +84,10 @@ pub async fn run(
                         "Failed to fetch starting release '{}' for '{}'",
                         tag, package.repo_slug
                     )
-                })?
-                .version
+                })?;
+            (release.version, release.published_at)
         }
-        None => package.version.clone(),
+        None => (package.version.clone(), package.last_upgraded),
     };
 
     let to_release = match to_tag.as_deref() {
@@ -145,6 +145,7 @@ pub async fn run(
         &context.provider_manager,
         &package,
         &from_version,
+        from_published_at,
         &to_release,
         explicit_to_endpoint(to_tag.as_deref()),
     )
@@ -187,14 +188,18 @@ fn explicit_to_endpoint(raw: Option<&str>) -> bool {
 fn current_package_release(package: &Package) -> Release {
     Release {
         id: 0,
-        tag: package.version.to_string(),
+        tag: package
+            .installed_release_tag()
+            .unwrap_or_else(|| package.version.to_string()),
         name: format!("current ({})", package.version),
         body: String::new(),
         is_draft: false,
-        is_prerelease: package.version.is_prerelease,
+        is_prerelease: package.version.is_prerelease(),
         assets: Vec::new(),
         version: package.version.clone(),
-        published_at: package.last_upgraded,
+        published_at: package
+            .release_published_at
+            .unwrap_or(package.last_upgraded),
     }
 }
 
@@ -202,6 +207,7 @@ pub async fn changelog_text_for_package(
     provider_manager: &ProviderManager,
     package: &Package,
     from_version: &Version,
+    from_published_at: chrono::DateTime<chrono::Utc>,
     to_release: &Release,
     explicit_to: bool,
 ) -> Result<Option<String>> {
@@ -210,14 +216,21 @@ pub async fn changelog_text_for_package(
             &package.repo_slug,
             &package.provider,
             from_version,
+            from_published_at,
             None,
             package.base_url.as_deref(),
         )
         .await
         .with_context(|| format!("Failed to fetch releases for '{}'", package.repo_slug))?;
 
-    let releases =
-        select_changelog_releases(releases, package, from_version, to_release, explicit_to);
+    let releases = select_changelog_releases(
+        releases,
+        package,
+        from_version,
+        from_published_at,
+        to_release,
+        explicit_to,
+    );
 
     Ok(changelog_text_from_releases(
         package,
@@ -297,6 +310,7 @@ fn select_changelog_releases(
     releases: Vec<Release>,
     package: &Package,
     from_version: &Version,
+    from_published_at: chrono::DateTime<chrono::Utc>,
     to_release: &Release,
     explicit_to: bool,
 ) -> Vec<Release> {
@@ -304,19 +318,20 @@ fn select_changelog_releases(
         .into_iter()
         .filter(|release| !release.is_draft)
         .filter(|release| explicit_to || release_matches_channel(release, &package.channel))
-        .filter(|release| release.version > *from_version && release.version <= to_release.version)
+        .filter(|release| release.is_newer_than(from_version, from_published_at))
+        .filter(|release| !release.is_newer_than(&to_release.version, to_release.published_at))
         .collect();
 
     if !selected
         .iter()
         .any(|release| release.tag.eq_ignore_ascii_case(&to_release.tag))
-        && to_release.version > *from_version
+        && to_release.is_newer_than(from_version, from_published_at)
         && (explicit_to || release_matches_channel(to_release, &package.channel))
     {
         selected.push(to_release.clone());
     }
 
-    selected.sort_by(|a, b| a.version.cmp(&b.version));
+    selected.sort_by(Release::cmp_version_then_published);
     selected.dedup_by(|a, b| a.tag.eq_ignore_ascii_case(&b.tag));
     selected
 }
@@ -396,6 +411,7 @@ mod tests {
             ],
             &package,
             &package.version,
+            package.last_upgraded,
             &to,
             false,
         );
@@ -419,6 +435,7 @@ mod tests {
             ],
             &package,
             &package.version,
+            package.last_upgraded,
             &to,
             false,
         );
@@ -434,8 +451,14 @@ mod tests {
     fn select_changelog_releases_allows_explicit_to_outside_channel() {
         let package = package(Channel::Stable);
         let to = release("v1.1.0-rc1", true);
-        let selected =
-            select_changelog_releases(vec![to.clone()], &package, &package.version, &to, true);
+        let selected = select_changelog_releases(
+            vec![to.clone()],
+            &package,
+            &package.version,
+            package.last_upgraded,
+            &to,
+            true,
+        );
 
         assert_eq!(selected[0].tag, "v1.1.0-rc1");
     }

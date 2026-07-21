@@ -28,6 +28,7 @@ pub struct BuildCommandInput {
     pub name: String,
     pub repo_slug: String,
     pub tag: Option<String>,
+    pub semver: Option<String>,
     pub branch: Option<String>,
     pub provider: Option<Provider>,
     pub base_url: Option<String>,
@@ -50,7 +51,7 @@ impl<'a> BuildOperation<'a> {
         }
     }
 
-    pub async fn build_and_install(&mut self, input: BuildCommandInput) -> Result<()> {
+    pub async fn build_and_install(&mut self, mut input: BuildCommandInput) -> Result<()> {
         let (resolved_repo_slug, resolved_provider, resolved_base_url) = if let Some(selected) =
             input.provider.as_ref()
         {
@@ -97,6 +98,28 @@ impl<'a> BuildOperation<'a> {
             Provider::Github | Provider::Gitlab | Provider::Gitea
         ) {
             bail!("Build supports forge providers only (github/gitlab/gitea)");
+        }
+
+        if let Some(semver) = input.semver.as_deref() {
+            let requested = crate::models::common::Version::parse(semver)
+                .with_context(|| format!("Invalid semantic version '{semver}'"))?;
+            let release = self
+                .provider_manager
+                .get_release_by_semver(
+                    &resolved_repo_slug,
+                    &requested,
+                    &resolved_provider,
+                    &input.channel,
+                    resolved_base_url.as_deref(),
+                )
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to resolve semantic version '{}' for '{}'",
+                        semver, resolved_repo_slug
+                    )
+                })?;
+            input.tag = Some(release.tag);
         }
 
         if input.dry_run {
@@ -251,11 +274,9 @@ impl<'a> BuildOperation<'a> {
         package.install_type = InstallType::Build;
         package.build_branch = build_result.branch.clone();
         package.build_commit = build_result.commit.clone();
-        package.version_tag_template = if package.build_branch.is_some() {
-            None
-        } else {
-            Package::version_tag_template_from_tag(&build_result.release.tag, &build_result.version)
-        };
+        if package.build_branch.is_none() {
+            package.record_release(&build_result.release);
+        }
 
         let mut install_operation = InstallOperation::new(
             self.provider_manager,

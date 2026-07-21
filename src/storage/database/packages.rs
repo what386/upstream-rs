@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
+use crate::models::common::Version;
 use crate::models::upstream::Package;
 
 use super::mapping::{
@@ -314,6 +315,16 @@ fn list_packages_query() -> String {
 }
 
 fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
+    let (version_major, version_minor, version_patch, version_is_prerelease) = package
+        .version
+        .semver_components()
+        .unwrap_or((0, 0, 0, false));
+    let (version_kind, version_value) = match &package.version {
+        Version::Unknown => ("Unknown", None),
+        Version::Semver { .. } => ("Semver", None),
+        Version::Datetime { .. } => ("Datetime", Some(package.version.core_string())),
+    };
+    let release_tag = package.installed_release_tag();
     tx.execute(
         "INSERT INTO packages (
             name,
@@ -323,6 +334,10 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             version_minor,
             version_patch,
             version_is_prerelease,
+            version_kind,
+            version_value,
+            release_tag,
+            release_published_at,
             version_tag_template,
             channel,
             provider,
@@ -336,7 +351,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             exec_path,
             last_upgraded
         ) VALUES (
-            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19
+            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23
         )
         ON CONFLICT(name) DO UPDATE SET
             repo_slug = excluded.repo_slug,
@@ -345,6 +360,10 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             version_minor = excluded.version_minor,
             version_patch = excluded.version_patch,
             version_is_prerelease = excluded.version_is_prerelease,
+            version_kind = excluded.version_kind,
+            version_value = excluded.version_value,
+            release_tag = excluded.release_tag,
+            release_published_at = excluded.release_published_at,
             version_tag_template = excluded.version_tag_template,
             channel = excluded.channel,
             provider = excluded.provider,
@@ -361,10 +380,14 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             package.name,
             package.repo_slug,
             enum_to_db(&package.filetype)?,
-            package.version.major,
-            package.version.minor,
-            package.version.patch,
-            bool_to_db(package.version.is_prerelease),
+            version_major,
+            version_minor,
+            version_patch,
+            bool_to_db(version_is_prerelease),
+            version_kind,
+            version_value,
+            release_tag,
+            package.release_published_at.map(|value| value.to_rfc3339()),
             package.version_tag_template,
             enum_to_db(&package.channel)?,
             enum_to_db(&package.provider)?,
@@ -412,6 +435,12 @@ mod tests {
             Some("https://api.github.com".to_string()),
         );
         package.version = Version::new(1, 2, 3, true);
+        package.release_tag = Some("rust-v1.2.3-beta.4".to_string());
+        package.release_published_at = Some(
+            Utc.with_ymd_and_hms(2026, 6, 20, 10, 0, 0)
+                .single()
+                .expect("valid release timestamp"),
+        );
         package.version_tag_template = Some("rust-v{}-beta.4".to_string());
         package.install_type = InstallType::Build;
         package.build_branch = Some("main".to_string());
@@ -605,6 +634,40 @@ mod tests {
     }
 
     #[test]
+    fn open_migrates_schema_v7_and_backfills_exact_release_tag() {
+        let conn = Connection::open_in_memory().expect("open sqlite");
+        conn.execute_batch(crate::storage::database::SCHEMA_SQL)
+            .expect("create current schema");
+        conn.execute_batch(
+            "
+            INSERT INTO packages (
+                name, repo_slug, filetype, version_major, version_minor, version_patch,
+                version_is_prerelease, version_kind, version_value, release_tag,
+                release_published_at, version_tag_template, channel, provider, base_url,
+                install_type, build_branch, build_commit, is_pinned, icon_path, install_path,
+                exec_path, last_upgraded
+            ) VALUES (
+                'tool', 'owner/tool', 'Archive', 1, 2, 3, 0, 'Semver', NULL, NULL, NULL,
+                'rust-v{}-linux', 'Stable', 'Github', NULL, 'Release', NULL, NULL, 0, NULL,
+                '/packages/tool', '/packages/tool/tool', '2026-06-21T12:30:00Z'
+            );
+            PRAGMA user_version = 7;
+            ",
+        )
+        .expect("create v7 package");
+
+        let db = PackageConnection::from_connection(conn).expect("migrate v7 schema");
+        let package = db
+            .get_package("tool")
+            .expect("load package")
+            .expect("package exists");
+
+        assert_eq!(package.release_tag.as_deref(), Some("rust-v1.2.3-linux"));
+        assert!(package.release_published_at.is_none());
+        assert_eq!(db.schema_version().expect("schema version"), 8);
+    }
+
+    #[test]
     fn upsert_and_get_package_round_trips_all_fields() {
         let mut db = PackageConnection::open_in_memory().expect("open db");
         let package = test_package("tool");
@@ -619,6 +682,8 @@ mod tests {
         assert_eq!(stored.repo_slug, package.repo_slug);
         assert_eq!(stored.filetype, package.filetype);
         assert_eq!(stored.version, package.version);
+        assert_eq!(stored.release_tag, package.release_tag);
+        assert_eq!(stored.release_published_at, package.release_published_at);
         assert_eq!(stored.version_tag_template, package.version_tag_template);
         assert_eq!(stored.channel, package.channel);
         assert_eq!(stored.provider, package.provider);
@@ -639,6 +704,26 @@ mod tests {
         assert_eq!(stored.install_path, package.install_path);
         assert_eq!(stored.exec_path, package.exec_path);
         assert_eq!(stored.last_upgraded, package.last_upgraded);
+    }
+
+    #[test]
+    fn upsert_and_get_package_round_trips_datetime_version() {
+        let mut db = PackageConnection::open_in_memory().expect("open db");
+        let mut package = test_package("datetime-tool");
+        package.version = Version::parse("20240203-110809-5046fc22").expect("datetime version");
+        package.version_tag_template = Some("v{}-linux".to_string());
+
+        db.upsert_package(&package).expect("store datetime package");
+        let stored = db
+            .get_package("datetime-tool")
+            .expect("load datetime package")
+            .expect("datetime package exists");
+
+        assert_eq!(stored.version, package.version);
+        assert_eq!(
+            stored.version_tag_from_template().as_deref(),
+            Some("v20240203-110809-5046fc22-linux")
+        );
     }
 
     #[test]

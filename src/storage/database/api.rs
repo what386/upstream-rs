@@ -123,6 +123,7 @@ impl PackageDatabase {
 #[cfg(test)]
 mod tests {
     use super::PackageDatabase;
+    use crate::models::common::Version;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use std::path::{Path, PathBuf};
@@ -198,11 +199,11 @@ mod tests {
         let mut db = PackageDatabase::open(&path).expect("open database");
 
         let mut first = test_package("tool");
-        first.version.major = 1;
+        first.version = Version::new(1, 0, 0, false);
         db.upsert_package(&first).expect("store first");
 
         let mut second = first.clone();
-        second.version.major = 2;
+        second.version = Version::new(2, 0, 0, false);
         second.repo_slug = "owner/renamed-repo".to_string();
         db.upsert_package(&second).expect("store update");
 
@@ -210,7 +211,7 @@ mod tests {
             .get_package("tool")
             .expect("load package")
             .expect("stored package");
-        assert_eq!(package.version.major, 2);
+        assert_eq!(package.version, Version::new(2, 0, 0, false));
         assert_eq!(package.repo_slug, "owner/renamed-repo");
 
         cleanup(&path).expect("cleanup");
@@ -228,7 +229,7 @@ mod tests {
 
         let changed = db
             .update_package("tool", |package| {
-                package.version.major = 3;
+                package.version = Version::new(3, 0, 0, false);
                 Ok(true)
             })
             .expect("update package");
@@ -240,9 +241,8 @@ mod tests {
                 .get_package("tool")
                 .expect("load package")
                 .expect("updated package")
-                .version
-                .major,
-            3
+                .version,
+            Version::new(3, 0, 0, false)
         );
 
         cleanup(&path).expect("cleanup");
@@ -337,17 +337,17 @@ mod tests {
         let mut db = PackageDatabase::open(&path).expect("open database");
 
         let mut first = test_package("tool");
-        first.version.major = 1;
+        first.version = Version::new(1, 0, 0, false);
         db.upsert_package(&first).expect("save first");
 
         let mut second = test_package("tool");
-        second.version.major = 2;
+        second.version = Version::new(2, 0, 0, false);
         db.upsert_package(&second).expect("save second");
 
         let reloaded = PackageDatabase::open(&path).expect("reload database");
         let packages = reloaded.list_packages().expect("list packages");
         assert_eq!(packages.len(), 1);
-        assert_eq!(packages[0].version.major, 2);
+        assert_eq!(packages[0].version, Version::new(2, 0, 0, false));
 
         cleanup(&path).expect("cleanup");
     }

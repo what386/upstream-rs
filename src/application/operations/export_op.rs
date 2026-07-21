@@ -232,7 +232,7 @@ mod tests {
             None,
         );
         package.version = Version::new(1, 2, 3, false);
-        package.version_tag_template = Some("v{}".to_string());
+        package.release_tag = Some("rust-v1.2.3-linux".to_string());
         package.install_path = Some(paths.install.binaries_dir.join("tool"));
         storage
             .upsert_package(&package)
@@ -249,7 +249,7 @@ mod tests {
         assert!(content.contains(&format!("\"version\": {PACKAGES_EXPORT_VERSION}")));
         assert!(content.contains("\"name\": \"tool\""));
         assert!(content.contains("\"repo_slug\": \"owner/tool\""));
-        assert!(content.contains("\"version_tag\": \"v1.2.3\""));
+        assert!(content.contains("\"version_tag\": \"rust-v1.2.3-linux\""));
 
         cleanup(&root).expect("cleanup");
     }

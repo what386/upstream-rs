@@ -14,6 +14,19 @@ pub struct WebScraperAdapter {
 }
 
 impl WebScraperAdapter {
+    fn is_better_version(
+        candidate: &Version,
+        candidate_published_at: Option<DateTime<Utc>>,
+        current: &Version,
+        current_published_at: Option<DateTime<Utc>>,
+    ) -> bool {
+        match candidate.partial_cmp(current) {
+            Some(std::cmp::Ordering::Greater) => true,
+            Some(_) => false,
+            None => candidate_published_at > current_published_at,
+        }
+    }
+
     fn parse_version_from_filename(filename: &str) -> Option<Version> {
         Version::from_filename(filename).ok()
     }
@@ -59,7 +72,7 @@ impl WebScraperAdapter {
             .filter(|info| Self::is_extensionless_file(info));
         let filtered = infos.iter().filter(|info| {
             Self::parse_version_from_filename(&info.name)
-                .map(|v| v.cmp(target_version).is_eq())
+                .map(|v| v == *target_version)
                 .unwrap_or_else(|| Self::is_unversioned_download_asset(info))
         });
 
@@ -122,12 +135,18 @@ impl WebScraperAdapter {
             ConditionalDiscoveryResult::Assets(infos) => infos,
         };
 
-        let mut best_version: Option<Version> = None;
+        let mut best_version: Option<(Version, Option<DateTime<Utc>>)> = None;
         for info in &infos {
             if let Some(version) = Self::parse_version_from_filename(&info.name) {
                 match &best_version {
-                    Some(prev) if prev.cmp(&version).is_ge() => {}
-                    _ => best_version = Some(version),
+                    Some((prev, published_at))
+                        if !Self::is_better_version(
+                            &version,
+                            info.last_modified,
+                            prev,
+                            *published_at,
+                        ) => {}
+                    _ => best_version = Some((version, info.last_modified)),
                 }
             }
         }
@@ -153,14 +172,23 @@ impl WebScraperAdapter {
                 if let Some(last_modified) = info.last_modified {
                     let version = Self::version_from_last_modified(last_modified);
                     match &best_version {
-                        Some(prev) if prev.cmp(&version).is_ge() => {}
-                        _ => best_version = Some(version),
+                        Some((prev, published_at))
+                            if !Self::is_better_version(
+                                &version,
+                                Some(last_modified),
+                                prev,
+                                *published_at,
+                            ) => {}
+                        _ => best_version = Some((version, Some(last_modified))),
                     }
                 }
             }
         }
 
-        let selected_infos = Self::select_infos_for_best_version(&infos, best_version.as_ref());
+        let selected_infos = Self::select_infos_for_best_version(
+            &infos,
+            best_version.as_ref().map(|(version, _)| version),
+        );
 
         let published_at = selected_infos
             .iter()
@@ -182,7 +210,9 @@ impl WebScraperAdapter {
             })
             .collect();
 
-        let version = best_version.unwrap_or_else(|| Version::new(0, 0, 0, false));
+        let version = best_version
+            .map(|(version, _)| version)
+            .unwrap_or_else(|| Version::new(0, 0, 0, false));
         let release_name = if assets.len() == 1 {
             let info = &selected_infos[0];
             if let Some(etag) = &info.etag {
@@ -343,9 +373,7 @@ mod tests {
     fn parse_version_from_filename_extracts_semver_triplet() {
         let version = WebScraperAdapter::parse_version_from_filename("tool-v1.4.9-linux.tar.gz")
             .expect("parsed version");
-        assert_eq!(version.major, 1);
-        assert_eq!(version.minor, 4);
-        assert_eq!(version.patch, 9);
+        assert_eq!(version, Version::new(1, 4, 9, false));
     }
 
     fn test_asset(name: &str) -> HttpAssetInfo {
@@ -413,9 +441,7 @@ mod tests {
             .await
             .expect("latest release");
 
-        assert_eq!(release.version.major, 1);
-        assert_eq!(release.version.minor, 10);
-        assert_eq!(release.version.patch, 0);
+        assert_eq!(release.version, Version::new(1, 10, 0, false));
         assert_eq!(release.assets.len(), 1);
         assert!(release.assets[0].name.contains("1.10.0"));
     }

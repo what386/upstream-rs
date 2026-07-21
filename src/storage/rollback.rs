@@ -243,6 +243,8 @@ mod tests {
         let path = temp_rollback_file("roundtrip");
         let mut storage = RollbackStorage::new(&path).expect("create storage");
         let mut record = test_record("tool", RollbackSource::Upgrade);
+        record.package_snapshot.release_tag = Some("opaque-release".to_string());
+        record.package_snapshot.release_published_at = Some(Utc::now());
         record.icon_relative_path = Some(PathBuf::from("tool/icon.png"));
         storage
             .upsert_record("tool", record.clone())
@@ -251,6 +253,14 @@ mod tests {
         let reloaded = RollbackStorage::new(&path).expect("reload");
         let loaded = reloaded.get_record("tool").expect("record");
         assert_eq!(loaded.package_snapshot.name, "tool");
+        assert_eq!(
+            loaded.package_snapshot.release_tag.as_deref(),
+            Some("opaque-release")
+        );
+        assert_eq!(
+            loaded.package_snapshot.release_published_at,
+            record.package_snapshot.release_published_at
+        );
         assert_eq!(loaded.artifact_relative_path, record.artifact_relative_path);
         assert!(loaded.icon_relative_path.is_some());
 

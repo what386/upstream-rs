@@ -69,7 +69,7 @@ fn release_version_tag(package: &Package) -> Option<String> {
         return None;
     }
 
-    package.version_tag_from_template()
+    package.installed_release_tag()
 }
 
 #[cfg(test)]
@@ -158,5 +158,21 @@ mod tests {
         let reference = PackageReference::from_package(package);
 
         assert_eq!(reference.version_tag.as_deref(), Some("v1.2.3"));
+    }
+
+    #[test]
+    fn from_package_prefers_exact_release_tag_over_legacy_template() {
+        let mut package = reference().into_package();
+        package.build_branch = None;
+        package.version = Version::new(1, 2, 3, false);
+        package.release_tag = Some("custom-release-name".to_string());
+        package.version_tag_template = Some("v{}".to_string());
+
+        let reference = PackageReference::from_package(package);
+
+        assert_eq!(
+            reference.version_tag.as_deref(),
+            Some("custom-release-name")
+        );
     }
 }

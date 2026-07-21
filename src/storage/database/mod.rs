@@ -10,7 +10,7 @@ mod settings;
 pub use api::PackageDatabase;
 pub use settings::PackageSettings;
 
-pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 6;
+pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 8;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 
@@ -155,6 +155,67 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
                 .context("Failed to migrate package database schema from version 5 to 6")?;
                 current_version = 6;
             }
+            6 => {
+                let has_kind = table_has_column(conn, "packages", "version_kind")?;
+                let has_value = table_has_column(conn, "packages", "version_value")?;
+                let additions = match (has_kind, has_value) {
+                    (false, false) => {
+                        "
+                        ALTER TABLE packages ADD COLUMN version_kind TEXT NOT NULL DEFAULT 'Semver'
+                            CHECK (version_kind IN ('Unknown', 'Semver', 'Datetime'));
+                        ALTER TABLE packages ADD COLUMN version_value TEXT;
+                    "
+                    }
+                    (false, true) => {
+                        "
+                        ALTER TABLE packages ADD COLUMN version_kind TEXT NOT NULL DEFAULT 'Semver'
+                            CHECK (version_kind IN ('Unknown', 'Semver', 'Datetime'));
+                    "
+                    }
+                    (true, false) => "ALTER TABLE packages ADD COLUMN version_value TEXT;",
+                    (true, true) => "",
+                };
+                conn.execute_batch(&format!(
+                    "BEGIN; {additions} PRAGMA user_version = 7; COMMIT;"
+                ))
+                .context("Failed to migrate package database schema from version 6 to 7")?;
+                current_version = 7;
+            }
+            7 => {
+                let has_tag = table_has_column(conn, "packages", "release_tag")?;
+                let has_published = table_has_column(conn, "packages", "release_published_at")?;
+                let additions = match (has_tag, has_published) {
+                    (false, false) => {
+                        "
+                        ALTER TABLE packages ADD COLUMN release_tag TEXT;
+                        ALTER TABLE packages ADD COLUMN release_published_at TEXT;
+                    "
+                    }
+                    (false, true) => "ALTER TABLE packages ADD COLUMN release_tag TEXT;",
+                    (true, false) => "ALTER TABLE packages ADD COLUMN release_published_at TEXT;",
+                    (true, true) => "",
+                };
+                conn.execute_batch(&format!(
+                    "
+                    BEGIN;
+                    {additions}
+                    UPDATE packages
+                    SET release_tag = replace(
+                        version_tag_template,
+                        '{{}}',
+                        version_major || '.' || version_minor || '.' || version_patch
+                    )
+                    WHERE release_tag IS NULL
+                      AND version_tag_template IS NOT NULL
+                      AND instr(version_tag_template, '{{}}') > 0
+                      AND NOT (version_major = 0 AND version_minor = 0 AND version_patch = 0);
+                    PRAGMA user_version = 8;
+                    COMMIT;
+                    "
+                ))
+                .context("Failed to migrate package database schema from version 7 to 8")?;
+                current_version = 8;
+            }
             version => bail!(
                 "Unsupported package database schema version {}. Expected version {} or earlier.",
                 version,
@@ -173,6 +234,21 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
 fn record_schema_version(conn: &Connection) -> Result<()> {
     conn.pragma_update(None, "user_version", PACKAGE_DB_SCHEMA_VERSION)
         .context("Failed to record package database schema version")
+}
+
+fn table_has_column(conn: &Connection, table: &str, column: &str) -> Result<bool> {
+    let mut statement = conn
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .with_context(|| format!("Failed to inspect table '{table}'"))?;
+    let names = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .with_context(|| format!("Failed to inspect columns for table '{table}'"))?;
+    for name in names {
+        if name? == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn schema_version(conn: &Connection) -> Result<u32> {

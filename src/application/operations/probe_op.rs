@@ -79,7 +79,7 @@ impl<'a> ProbeOperation<'a> {
         let mut releases = self
             .fetch_releases(&repo_slug, &provider, base_url.as_deref(), &request)
             .await?;
-        releases.sort_by(|a, b| b.version.cmp(&a.version));
+        releases.sort_by(|a, b| b.cmp_version_then_published(a));
 
         let probe_package = Package::with_defaults(
             String::new(),

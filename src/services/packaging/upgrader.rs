@@ -291,8 +291,7 @@ impl<'a> PackageUpgrader<'a> {
             install_pkg.install_path = None;
             install_pkg.exec_path = None;
             install_pkg.version = release.version.clone();
-            install_pkg.version_tag_template =
-                Package::version_tag_template_from_tag(&release.tag, &release.version);
+            install_pkg.record_release(release);
 
             self.installer
                 .install_local_artifact_files(
@@ -595,11 +594,13 @@ impl<'a> PackageUpgrader<'a> {
                     install_pkg.exec_path = None;
                     install_pkg.build_branch = output.branch.clone();
                     install_pkg.build_commit = output.commit.or(branch_head_commit.clone());
-                    install_pkg.version_tag_template = if install_pkg.build_branch.is_some() {
-                        None
+                    if install_pkg.build_branch.is_some() {
+                        install_pkg.release_tag = None;
+                        install_pkg.release_published_at = None;
+                        install_pkg.version_tag_template = None;
                     } else {
-                        Package::version_tag_template_from_tag(&output.release.tag, &output.version)
-                    };
+                        install_pkg.record_release(&output.release);
+                    }
                     progress!(
                         progress_callback,
                         PackageProgressEvent::Phase(PackagePhase::InstallingPackage)

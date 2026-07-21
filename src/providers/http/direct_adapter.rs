@@ -150,6 +150,7 @@ impl ReleaseProvider for DirectAdapter {
 #[cfg(test)]
 mod tests {
     use super::DirectAdapter;
+    use crate::models::common::Version;
     use crate::providers::http::HttpClient;
     use chrono::Utc;
     use std::io::{BufRead, BufReader, Write};
@@ -215,9 +216,7 @@ mod tests {
     fn parse_version_from_filename_extracts_semver_triplet() {
         let version = DirectAdapter::parse_version_from_filename("tool-v1.2.3-linux-x86_64.tar.gz")
             .expect("parsed version");
-        assert_eq!(version.major, 1);
-        assert_eq!(version.minor, 2);
-        assert_eq!(version.patch, 3);
+        assert_eq!(version, Version::new(1, 2, 3, false));
     }
 
     #[tokio::test]
@@ -243,9 +242,7 @@ mod tests {
             .expect("release");
 
         assert_eq!(release.assets.len(), 1);
-        assert_eq!(release.version.major, 2);
-        assert_eq!(release.version.minor, 3);
-        assert_eq!(release.version.patch, 4);
+        assert_eq!(release.version, Version::new(2, 3, 4, false));
         assert!(release.name.contains("etag-value"));
     }
 

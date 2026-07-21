@@ -1,6 +1,6 @@
 use clap::{Parser, error::ErrorKind};
 use std::{fs, path::Path};
-use upstream_rs::application::cli::arguments::Cli;
+use upstream_rs::application::cli::arguments::{Cli, Commands};
 
 const DOCUMENTS: &[&str] = &[
     "README.md",
@@ -54,4 +54,65 @@ fn documented_example_commands_parse() {
         "documented commands that no longer parse:\n\n{}",
         failures.join("\n\n")
     );
+}
+
+#[test]
+fn semantic_version_flags_parse_for_install_and_build() {
+    let install = Cli::try_parse_from(["upstream", "install", "owner/tool", "tool", "-v", "1.2.4"])
+        .expect("install semver");
+    assert!(matches!(
+        install.command,
+        Commands::Install {
+            semver: Some(value),
+            ..
+        } if value == "1.2.4"
+    ));
+
+    let build = Cli::try_parse_from([
+        "upstream",
+        "build",
+        "owner/tool",
+        "tool",
+        "--semver",
+        "1.2.4",
+    ])
+    .expect("build semver");
+    assert!(matches!(
+        build.command,
+        Commands::Build {
+            semver: Some(value),
+            ..
+        } if value == "1.2.4"
+    ));
+}
+
+#[test]
+fn semantic_version_conflicts_with_exact_refs() {
+    let install = Cli::try_parse_from([
+        "upstream",
+        "install",
+        "owner/tool",
+        "tool",
+        "--tag",
+        "v1.2.4",
+        "--semver",
+        "1.2.4",
+    ])
+    .err()
+    .expect("tag conflict");
+    assert_eq!(install.kind(), ErrorKind::ArgumentConflict);
+
+    let build = Cli::try_parse_from([
+        "upstream",
+        "build",
+        "owner/tool",
+        "tool",
+        "--branch",
+        "main",
+        "--semver",
+        "1.2.4",
+    ])
+    .err()
+    .expect("branch conflict");
+    assert_eq!(build.kind(), ErrorKind::ArgumentConflict);
 }

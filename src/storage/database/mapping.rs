@@ -17,6 +17,10 @@ pub const PACKAGE_COLUMNS: &str = "
     version_minor,
     version_patch,
     version_is_prerelease,
+    version_kind,
+    version_value,
+    release_tag,
+    release_published_at,
     version_tag_template,
     channel,
     provider,
@@ -35,32 +39,70 @@ pub(super) fn row_to_package(row: &Row<'_>) -> rusqlite::Result<Package> {
     let version_minor: u32 = row.get(4)?;
     let version_patch: u32 = row.get(5)?;
     let version_is_prerelease: bool = db_bool(row.get(6)?);
-    let last_upgraded: String = row.get(18)?;
+    let version_kind: String = row.get(7)?;
+    let version_value: Option<String> = row.get(8)?;
+    let release_published_at: Option<String> = row.get(10)?;
+    let last_upgraded: String = row.get(22)?;
 
-    Ok(Package {
-        name: row.get(0)?,
-        repo_slug: row.get(1)?,
-        filetype: enum_from_db_value(row.get::<_, String>(2)?, 2)?,
-        version: Version::new(
+    let version = match version_kind.as_str() {
+        "Unknown" => Version::new(0, 0, 0, false),
+        "Semver" => Version::new(
             version_major,
             version_minor,
             version_patch,
             version_is_prerelease,
         ),
-        version_tag_template: row.get(7)?,
-        channel: enum_from_db_value(row.get::<_, String>(8)?, 8)?,
-        provider: enum_from_db_value(row.get::<_, String>(9)?, 9)?,
-        base_url: row.get(10)?,
-        install_type: enum_from_db_value(row.get::<_, String>(11)?, 11)?,
-        build_branch: row.get(12)?,
-        build_commit: row.get(13)?,
-        is_pinned: db_bool(row.get(14)?),
+        "Datetime" => {
+            let value = version_value.ok_or_else(|| {
+                rusqlite::Error::InvalidColumnType(
+                    8,
+                    "version_value".to_string(),
+                    rusqlite::types::Type::Null,
+                )
+            })?;
+            Version::parse(&value).map_err(|err| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    8,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        err.to_string(),
+                    )),
+                )
+            })?
+        }
+        _ => {
+            return Err(rusqlite::Error::InvalidColumnType(
+                7,
+                "version_kind".to_string(),
+                rusqlite::types::Type::Text,
+            ));
+        }
+    };
+
+    Ok(Package {
+        name: row.get(0)?,
+        repo_slug: row.get(1)?,
+        filetype: enum_from_db_value(row.get::<_, String>(2)?, 2)?,
+        version,
+        release_tag: row.get(9)?,
+        release_published_at: release_published_at
+            .map(|timestamp| parse_timestamp(timestamp, 10))
+            .transpose()?,
+        version_tag_template: row.get(11)?,
+        channel: enum_from_db_value(row.get::<_, String>(12)?, 12)?,
+        provider: enum_from_db_value(row.get::<_, String>(13)?, 13)?,
+        base_url: row.get(14)?,
+        install_type: enum_from_db_value(row.get::<_, String>(15)?, 15)?,
+        build_branch: row.get(16)?,
+        build_commit: row.get(17)?,
+        is_pinned: db_bool(row.get(18)?),
         match_pattern: PatternTable::empty(),
         exclude_pattern: PatternTable::empty(),
-        icon_path: optional_path_from_db(row.get(15)?),
-        install_path: optional_path_from_db(row.get(16)?),
-        exec_path: optional_path_from_db(row.get(17)?),
-        last_upgraded: parse_timestamp(last_upgraded, 18)?,
+        icon_path: optional_path_from_db(row.get(19)?),
+        install_path: optional_path_from_db(row.get(20)?),
+        exec_path: optional_path_from_db(row.get(21)?),
+        last_upgraded: parse_timestamp(last_upgraded, 22)?,
     })
 }
 

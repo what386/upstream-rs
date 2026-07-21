@@ -703,11 +703,9 @@ where
         .await?;
     package.build_branch = output.branch.clone();
     package.build_commit = output.commit.clone();
-    package.version_tag_template = if package.build_branch.is_some() {
-        None
-    } else {
-        Package::version_tag_template_from_tag(&output.release.tag, &output.version)
-    };
+    if package.build_branch.is_none() {
+        package.record_release(&output.release);
+    }
 
     let mut ignored_messages = Some(|_: &str| {});
     installer

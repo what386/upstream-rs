@@ -67,6 +67,10 @@ pub enum Commands {
         #[arg(short, long)]
         tag: Option<String>,
 
+        /// Semantic version to resolve to a release tag
+        #[arg(short = 'v', long, conflicts_with = "tag")]
+        semver: Option<String>,
+
         /// Asset kind to install
         #[arg(short, long, value_enum, default_value_t = Filetype::Auto)]
         kind: Filetype,
@@ -127,6 +131,10 @@ pub enum Commands {
         /// Release tag to build (defaults to latest matching the channel)
         #[arg(short, long, conflicts_with = "branch")]
         tag: Option<String>,
+
+        /// Semantic version to resolve to a release tag
+        #[arg(short = 'v', long, conflicts_with_all = ["tag", "branch"])]
+        semver: Option<String>,
 
         /// Branch to build from instead of a release tag
         #[arg(long, conflicts_with = "tag")]

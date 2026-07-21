@@ -79,6 +79,7 @@ impl GithubAdapter {
         &self,
         slug: &str,
         from_version: &Version,
+        from_published_at: DateTime<Utc>,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
         let per_page = per_page.unwrap_or(30);
@@ -94,12 +95,9 @@ impl GithubAdapter {
             let partial_page = batch.len() < per_page as usize;
             let mut reached_from_version = false;
             for dto in batch {
-                let parsed_version = Version::from_tag(&dto.tag_name).ok();
                 let release = self.convert_release(dto);
-                if parsed_version
-                    .as_ref()
-                    .is_some_and(|version| version <= from_version)
-                {
+                let is_newer = release.is_newer_than(from_version, from_published_at);
+                if !is_newer {
                     reached_from_version = true;
                     continue;
                 }
@@ -177,7 +175,7 @@ impl GithubAdapter {
             name: dto.name,
             body: String::new(),
             is_draft: false,
-            is_prerelease: version.is_prerelease,
+            is_prerelease: version.is_prerelease(),
             published_at: DateTime::<Utc>::MIN_UTC,
             assets: Vec::new(),
             version,
@@ -223,9 +221,17 @@ impl ReleaseProvider for GithubAdapter {
         &self,
         slug: &str,
         from_version: &Version,
+        from_published_at: DateTime<Utc>,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
-        GithubAdapter::get_releases_newer_than(self, slug, from_version, per_page).await
+        GithubAdapter::get_releases_newer_than(
+            self,
+            slug,
+            from_version,
+            from_published_at,
+            per_page,
+        )
+        .await
     }
 
     async fn get_release_by_tag(&self, slug: &str, tag: &str) -> Result<Release> {
@@ -326,6 +332,15 @@ mod tests {
             release.published_at,
             chrono::DateTime::<chrono::Utc>::MIN_UTC
         );
+    }
+
+    #[test]
+    fn convert_tag_parses_datetime_version() {
+        let release = GithubAdapter::convert_tag(GithubTagDto {
+            name: "v20240203-110809-5046fc22".to_string(),
+        });
+
+        assert_eq!(release.version.to_string(), "20240203-110809-5046fc22");
     }
 
     #[test]

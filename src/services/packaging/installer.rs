@@ -1,7 +1,7 @@
 use crate::{
     models::common::enums::TrustMode,
     models::{
-        common::enums::Filetype,
+        common::{Version, enums::Filetype},
         provider::{Asset, Release},
         upstream::Package,
     },
@@ -317,6 +317,7 @@ impl<'a> PackageInstaller<'a> {
         &self,
         package: &Package,
         version: &Option<String>,
+        semver: &Option<String>,
     ) -> Result<InstallPlan> {
         if package.install_path.is_some() {
             return Err(anyhow!("Package '{}' is already installed", package.name));
@@ -335,6 +336,24 @@ impl<'a> PackageInstaller<'a> {
                     "Failed to fetch release '{}' for '{}'. Verify the version tag exists",
                     version_tag, package.repo_slug
                 ))?
+        } else if let Some(semver) = semver {
+            let requested = Version::parse(semver)
+                .with_context(|| format!("Invalid semantic version '{semver}'"))?;
+            self.provider_manager
+                .get_release_by_semver(
+                    &package.repo_slug,
+                    &requested,
+                    &package.provider,
+                    &package.channel,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to resolve semantic version '{}' for '{}'",
+                        semver, package.repo_slug
+                    )
+                })?
         } else {
             self.provider_manager
                 .get_latest_release(
@@ -723,9 +742,7 @@ impl<'a> PackageInstaller<'a> {
             PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
         );
 
-        package.version = release.version.clone();
-        package.version_tag_template =
-            Package::version_tag_template_from_tag(&release.tag, &release.version);
+        package.record_release(release);
 
         match package.filetype {
             Filetype::AppImage => {

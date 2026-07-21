@@ -60,6 +60,7 @@ impl GiteaAdapter {
         &self,
         slug: &str,
         from_version: &Version,
+        from_published_at: DateTime<Utc>,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
         let per_page = per_page.unwrap_or(30).min(50);
@@ -75,12 +76,9 @@ impl GiteaAdapter {
             let partial_page = batch.len() < per_page as usize;
             let mut reached_from_version = false;
             for dto in batch {
-                let parsed_version = Version::from_tag(&dto.tag_name).ok();
                 let release = self.convert_release(dto);
-                if parsed_version
-                    .as_ref()
-                    .is_some_and(|version| version <= from_version)
-                {
+                let is_newer = release.is_newer_than(from_version, from_published_at);
+                if !is_newer {
                     reached_from_version = true;
                     continue;
                 }
@@ -161,9 +159,11 @@ impl ReleaseProvider for GiteaAdapter {
         &self,
         slug: &str,
         from_version: &Version,
+        from_published_at: DateTime<Utc>,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
-        GiteaAdapter::get_releases_newer_than(self, slug, from_version, per_page).await
+        GiteaAdapter::get_releases_newer_than(self, slug, from_version, from_published_at, per_page)
+            .await
     }
 
     async fn get_release_by_tag(&self, slug: &str, tag: &str) -> Result<Release> {

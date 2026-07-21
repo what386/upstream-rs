@@ -26,12 +26,13 @@ pub trait ReleaseProvider {
         &self,
         slug: &str,
         from_version: &Version,
+        from_published_at: DateTime<Utc>,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
         let releases = self.get_releases(slug, per_page, None).await?;
         Ok(releases
             .into_iter()
-            .filter(|release| release.version > *from_version)
+            .filter(|release| release.is_newer_than(from_version, from_published_at))
             .collect())
     }
 
@@ -94,10 +95,11 @@ where
         &self,
         slug: &str,
         from_version: &Version,
+        from_published_at: DateTime<Utc>,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
         (*self)
-            .get_releases_newer_than(slug, from_version, per_page)
+            .get_releases_newer_than(slug, from_version, from_published_at, per_page)
             .await
     }
 

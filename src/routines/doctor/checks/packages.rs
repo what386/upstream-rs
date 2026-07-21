@@ -138,6 +138,14 @@ pub(in crate::routines::doctor) async fn check_version_tag_templates(
             continue;
         }
 
+        if package.release_tag.is_some() {
+            report.line(
+                Level::Ok,
+                format!("package '{}' exact release tag exists", package.name),
+            );
+            continue;
+        }
+
         if package.version_tag_template.is_some() {
             report.line(
                 Level::Ok,

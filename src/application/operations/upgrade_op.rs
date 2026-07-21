@@ -1371,11 +1371,11 @@ mod tests {
 
         let mut database = PackageDatabase::open(&path).expect("open database");
         let mut stored = test_package("tool", Channel::Stable);
-        stored.version.major = 1;
+        stored.version = crate::models::common::Version::new(1, 0, 0, false);
         database.upsert_package(&stored).expect("seed package");
 
         let mut updated = stored.clone();
-        updated.version.major = 2;
+        updated.version = crate::models::common::Version::new(2, 0, 0, false);
         let updated_version = updated.version.to_string();
         let mut callback_state = Vec::new();
 
@@ -1388,7 +1388,10 @@ mod tests {
                         .get_package("tool")
                         .expect("read package in callback")
                         .expect("updated package");
-                    assert_eq!(package.version.major, 2);
+                    assert_eq!(
+                        package.version,
+                        crate::models::common::Version::new(2, 0, 0, false)
+                    );
                 }
             });
 

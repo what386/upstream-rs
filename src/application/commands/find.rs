@@ -84,6 +84,7 @@ pub async fn run(
         result.repo_slug.clone(),
         kind,
         None,
+        None,
         Some(search.provider),
         search.base_url,
         channel,

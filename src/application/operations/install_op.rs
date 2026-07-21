@@ -72,9 +72,10 @@ impl<'a> InstallOperation<'a> {
         &self,
         package: &Package,
         version: &Option<String>,
+        semver: &Option<String>,
     ) -> Result<InstallPlan> {
         self.installer
-            .preview_single_install(package, version)
+            .preview_single_install(package, version, semver)
             .await
     }
 

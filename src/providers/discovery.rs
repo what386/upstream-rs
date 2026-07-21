@@ -82,7 +82,7 @@ impl ProviderManager {
             .await?;
 
         releases = filter_releases_by_channel(releases, &request.channel);
-        releases.sort_by(|a, b| b.version.cmp(&a.version));
+        releases.sort_by(|a, b| b.cmp_version_then_published(a));
 
         let probe_package = Package::with_defaults(
             request.package_name,

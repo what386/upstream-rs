@@ -398,6 +398,7 @@ async fn show_upgrade_changelog(
             provider_manager,
             &row.package,
             &row.package.version,
+            row.package.last_upgraded,
             release,
             false,
         )

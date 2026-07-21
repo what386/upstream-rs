@@ -419,9 +419,10 @@ async fn resolve_reinstall_release(
     provider_manager: &ProviderManager,
     package: &Package,
 ) -> Result<Release> {
-    let tag = package.version_tag_from_template().ok_or_else(|| {
+    let tag = package.installed_release_tag().ok_or_else(|| {
         anyhow!(
-            "package '{}' is missing a version tag template; run `upstream doctor --fix` to repair package metadata",
+            "package '{}' is missing its installed release tag; run `upstream upgrade {} --force` to repair package metadata",
+            package.name,
             package.name
         )
     })?;

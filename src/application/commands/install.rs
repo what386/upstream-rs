@@ -102,6 +102,7 @@ pub async fn run(
     repo_slug: String,
     kind: Filetype,
     version: Option<String>,
+    semver: Option<String>,
     provider: Option<Provider>,
     base_url: Option<String>,
     channel: Channel,
@@ -137,7 +138,7 @@ pub async fn run(
     )?;
 
     let preview = install_operation
-        .preview_release_install(&package, &version)
+        .preview_release_install(&package, &version, &semver)
         .await?;
 
     if dry_run {

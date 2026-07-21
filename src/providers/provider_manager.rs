@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use crate::models::common::{
-    Version,
+    Version, VersionTagTemplate,
     enums::{Channel, Provider},
 };
 use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
@@ -177,6 +177,100 @@ impl ProviderManager {
         release.is_prerelease && !Self::is_nightly_release(&release.tag)
     }
 
+    pub fn release_matches_channel(release: &Release, channel: &Channel) -> bool {
+        match channel {
+            Channel::Stable => !release.is_prerelease && !Self::is_nightly_release(&release.tag),
+            Channel::Preview => Self::is_preview_release(release),
+            Channel::Nightly => Self::is_nightly_release(&release.tag),
+        }
+    }
+
+    pub async fn get_release_by_semver(
+        &self,
+        slug: &str,
+        requested: &Version,
+        provider: &Provider,
+        channel: &Channel,
+        base_url: Option<&str>,
+    ) -> Result<Release> {
+        if !matches!(requested, Version::Semver { .. }) {
+            return Err(anyhow!(
+                "Semantic version selection requires a semver value"
+            ));
+        }
+        if matches!(provider, Provider::Direct | Provider::WebScraper) {
+            return Err(anyhow!(
+                "Semantic version selection is not supported for {} sources",
+                provider
+            ));
+        }
+
+        let template_match = if let Ok(latest) = self
+            .get_latest_release(slug, provider, channel, base_url)
+            .await
+            && let Some(template) = VersionTagTemplate::from_tag(&latest.tag, &latest.version)
+        {
+            let candidate = template.render(requested);
+            if let Ok(release) = self
+                .get_release_by_tag(slug, &candidate, provider, base_url)
+                .await
+                && release.version == *requested
+                && Self::release_matches_channel(&release, channel)
+            {
+                Some(release)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let mut matches = Self::semver_matches(
+            self.get_releases(slug, provider, None, None, base_url)
+                .await?,
+            requested,
+            channel,
+        );
+        if let Some(release) = template_match {
+            matches.push(release);
+        }
+        matches.sort_by(|a, b| a.tag.cmp(&b.tag));
+        matches.dedup_by(|a, b| a.tag == b.tag);
+
+        match matches.len() {
+            0 => Err(anyhow!(
+                "No {} release matching semantic version {} was found for '{}'",
+                channel,
+                requested,
+                slug
+            )),
+            1 => Ok(matches.remove(0)),
+            _ => Err(anyhow!(
+                "Semantic version {} is ambiguous for '{}': {}. Use --tag with an exact tag",
+                requested,
+                slug,
+                matches
+                    .iter()
+                    .map(|release| release.tag.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )),
+        }
+    }
+
+    fn semver_matches(
+        releases: Vec<Release>,
+        requested: &Version,
+        channel: &Channel,
+    ) -> Vec<Release> {
+        releases
+            .into_iter()
+            .filter(|release| !release.is_draft)
+            .filter(|release| Self::release_matches_channel(release, channel))
+            .filter(|release| release.version == *requested)
+            .collect()
+    }
+
     pub async fn get_latest_nightly_release(
         &self,
         slug: &str,
@@ -191,7 +285,7 @@ impl ProviderManager {
             .into_iter()
             .filter(|r| !r.is_draft)
             .filter(|r| Self::is_nightly_release(&r.tag))
-            .max_by(|a, b| a.version.cmp(&b.version))
+            .max_by(Release::cmp_version_then_published)
             .ok_or_else(|| anyhow!("No nightly releases found for '{}'.", slug))
     }
 
@@ -209,7 +303,7 @@ impl ProviderManager {
             .into_iter()
             .filter(|r| !r.is_draft)
             .filter(Self::is_preview_release)
-            .max_by(|a, b| a.version.cmp(&b.version))
+            .max_by(Release::cmp_version_then_published)
             .ok_or_else(|| anyhow!("No preview releases found for '{}'.", slug))
     }
 
@@ -240,12 +334,13 @@ impl ProviderManager {
         slug: &str,
         provider: &Provider,
         from_version: &Version,
+        from_published_at: chrono::DateTime<chrono::Utc>,
         per_page: Option<u32>,
         base_url: Option<&str>,
     ) -> Result<Vec<Release>> {
         let resolved = self.resolve_provider(provider, base_url)?;
         resolved
-            .get_releases_newer_than(slug, from_version, per_page)
+            .get_releases_newer_than(slug, from_version, from_published_at, per_page)
             .await
     }
 
@@ -353,7 +448,7 @@ impl ProviderManager {
 #[cfg(test)]
 mod tests {
     use super::ProviderManager;
-    use crate::models::common::Version;
+    use crate::models::common::{Version, enums::Channel};
     use crate::models::provider::Release;
     use chrono::Utc;
 
@@ -378,5 +473,27 @@ mod tests {
 
         assert!(ProviderManager::is_preview_release(&preview));
         assert!(!ProviderManager::is_preview_release(&nightly));
+    }
+
+    #[test]
+    fn semantic_matches_filter_channel_and_keep_ambiguity_visible() {
+        let requested = Version::new(1, 2, 4, false);
+        let mut stable_a = make_release(false, "v1.2.4");
+        stable_a.version = requested.clone();
+        let mut stable_b = make_release(false, "release-1.2.4");
+        stable_b.version = requested.clone();
+        let mut preview = make_release(true, "v1.2.4-rc1");
+        preview.version = requested.clone();
+        let mut other = make_release(false, "v1.2.3");
+        other.version = Version::new(1, 2, 3, false);
+
+        let matches = ProviderManager::semver_matches(
+            vec![stable_a, stable_b, preview, other],
+            &requested,
+            &Channel::Stable,
+        );
+
+        assert_eq!(matches.len(), 2);
+        assert!(matches.iter().all(|release| !release.is_prerelease));
     }
 }

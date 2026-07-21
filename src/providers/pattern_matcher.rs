@@ -186,6 +186,14 @@ fn normalize_pattern(value: &str) -> String {
 }
 
 fn asset_pattern_tokens(value: &str) -> Vec<String> {
+    let value_without_datetime;
+    let value = match Version::from_filename(value) {
+        Ok(version @ Version::Datetime { .. }) => {
+            value_without_datetime = value.replacen(&version.core_string(), "", 1);
+            value_without_datetime.as_str()
+        }
+        _ => value,
+    };
     let mut tokens = Vec::new();
     for segment in value
         .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '.')
@@ -292,7 +300,9 @@ fn asset_platform_tokens(asset: &Asset) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{PatternTable, generate_patterns_for_asset, pattern_match_ratio};
+    use super::{
+        PatternTable, asset_pattern_tokens, generate_patterns_for_asset, pattern_match_ratio,
+    };
     #[cfg(target_os = "linux")]
     use crate::models::common::Version;
     #[cfg(target_os = "linux")]
@@ -524,5 +534,16 @@ mod tests {
             .find_recommended_asset(&future_release, &package)
             .expect("best asset");
         assert!(best.name.contains("musl"));
+    }
+
+    #[test]
+    fn datetime_version_components_are_not_generated_as_asset_patterns() {
+        let tokens = asset_pattern_tokens("tool-20240203-110809-5046fc22-linux-x86_64.tar.gz");
+
+        assert!(!tokens.contains(&"20240203".to_string()));
+        assert!(!tokens.contains(&"110809".to_string()));
+        assert!(!tokens.contains(&"5046fc22".to_string()));
+        assert!(tokens.contains(&"linux".to_string()));
+        assert!(tokens.contains(&"x86".to_string()));
     }
 }
