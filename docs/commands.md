@@ -24,6 +24,7 @@ Common options:
 | Option | Meaning |
 | --- | --- |
 | `-t, --tag <tag>` | Install a specific release tag |
+| `-v, --semver <version>` | Resolve a semantic version to its repository release tag |
 | `-k, --kind <kind>` | Select asset type: `auto`, `binary`, `archive`, `compressed`, `app-image`, `mac-app`, `mac-dmg`, `win-exe`, `checksum` |
 | `-p, --provider <provider>` | Use `github`, `gitlab`, `gitea`, `direct`, or `scraper` |
 | `--base-url <url>` | Custom provider root for self-hosted GitLab/Gitea/etc. |
@@ -41,6 +42,7 @@ upstream install BurntSushi/ripgrep rg -k binary
 upstream install BurntSushi/ripgrep
 upstream install bootandy/dust dust -k archive
 upstream install neovim/neovim nvim --tag v0.11.0
+upstream install sharkdp/bat bat --semver 0.25.0
 upstream install owner/repo app --desktop
 upstream install https://example.com/downloads tool -p scraper
 ```
@@ -59,6 +61,7 @@ Common options:
 | Option | Meaning |
 | --- | --- |
 | `-t, --tag <tag>` | Build a release tag |
+| `-v, --semver <version>` | Resolve and build a semantic release version |
 | `--branch <branch>` | Build the current head of a branch |
 | `-p, --provider <provider>` | Use a forge provider |
 | `--base-url <url>` | Custom provider root |
