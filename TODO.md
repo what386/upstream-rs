@@ -6,9 +6,6 @@
 
 ## Tasks
 
-- [ ] feat: datetime versioning support
-      @created 2026-07-21 19:28
-
 
 ## Completed
 
@@ -18,5 +15,9 @@
 
 - [x] behavior: os scoring now adds points
       @created 2026-07-20 18:38
+      @completed 2026-07-21 19:28
+
+- [x] feat: datetime versioning support
+      @created 2026-07-21 19:28
       @completed 2026-07-21 19:28
 
