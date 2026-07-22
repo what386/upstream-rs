@@ -1,6 +1,16 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-07-18*
+*Generated on 2026-07-22*
+
+## 2.15.0 — 2026-07-22
+
+### Changes
+
+- history subcommand improvements
+- behavior: os scoring now adds points
+- feat: datetime versioning support
+- feat: package registry (access using `add` subcommand)
+
 
 ## 2.14.0 — 2026-07-18
 
