@@ -3,9 +3,9 @@ use crate::{
     output,
     output::pager,
     storage::database::PackageDatabase,
-    utils::static_paths::UpstreamPaths,
+    utils::{name_match, static_paths::UpstreamPaths},
 };
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use console::Term;
 use std::{fmt::Write as _, path::Path};
 
@@ -21,14 +21,14 @@ pub fn run(filter: Option<String>, json: bool, paths: &UpstreamPaths) -> Result<
 
 fn print_list_json(storage: &PackageDatabase, filter: Option<&str>) -> Result<()> {
     let packages = storage.list_packages()?;
-    let packages = filter_packages_by_name(packages, filter);
+    let packages = filter_packages_by_name(packages, filter)?;
     println!("{}", serde_json::to_string_pretty(&packages)?);
     Ok(())
 }
 
 fn display_package_list(storage: &PackageDatabase, filter: Option<&str>) -> Result<()> {
     let packages = storage.list_packages()?;
-    let mut packages = filter_packages_by_name(packages, filter);
+    let mut packages = filter_packages_by_name(packages, filter)?;
 
     if packages.is_empty() {
         match filter {
@@ -55,16 +55,31 @@ fn display_package_list(storage: &PackageDatabase, filter: Option<&str>) -> Resu
     Ok(())
 }
 
-fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Vec<Package> {
+fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Result<Vec<Package>> {
     let Some(filter) = filter else {
-        return packages;
+        return Ok(packages);
     };
-    let filter = filter.to_lowercase();
 
-    packages
-        .into_iter()
-        .filter(|package| package.name.to_lowercase().contains(&filter))
-        .collect()
+    let filter_lower = filter.to_lowercase();
+    let filtered = packages
+        .iter()
+        .filter(|package| package.name.to_lowercase().contains(&filter_lower))
+        .cloned()
+        .collect::<Vec<_>>();
+    if !filtered.is_empty() {
+        return Ok(filtered);
+    }
+
+    let suggestions = name_match::suggestions(
+        packages.iter().map(|package| package.name.as_str()),
+        filter,
+        3,
+    );
+    Err(anyhow!(
+        "No installed packages match '{}'.{}",
+        filter,
+        name_match::did_you_mean(&suggestions)
+    ))
 }
 
 fn shorten_home_path(path: &str) -> String {
@@ -323,14 +338,23 @@ mod tests {
     }
 
     #[test]
-    fn package_list_filter_keeps_name_substring_matches() {
+    fn package_list_filter_keeps_substring_matches() {
         let packages = vec![package("codex"), package("ripgrep"), package("vscode")];
-        let filtered = filter_packages_by_name(packages, Some("code"));
+        let filtered = filter_packages_by_name(packages, Some("code")).expect("substring matches");
         let names = filtered
             .iter()
             .map(|package| package.name.as_str())
             .collect::<Vec<_>>();
-
         assert_eq!(names, vec!["codex", "vscode"]);
+    }
+
+    #[test]
+    fn package_list_filter_suggests_names_when_no_substring_matches() {
+        let packages = vec![package("ripgrep"), package("bat")];
+        let error = filter_packages_by_name(packages, Some("ripgerp")).expect_err("no substring");
+        assert_eq!(
+            error.to_string(),
+            "No installed packages match 'ripgerp'. Did you mean: ripgrep?"
+        );
     }
 }

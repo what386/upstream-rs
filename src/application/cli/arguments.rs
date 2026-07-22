@@ -336,8 +336,8 @@ pub enum Commands {
 
     /// Show details for one installed package
     #[command(long_about = "Show details for one installed package.\n\n\
-        The query can be an exact package name or a unique substring. Exact names \
-        take precedence over substring matches. Use --json to print the raw stored \
+        The query must be an exact package name. Close and substring matches are \
+        suggested without being selected. Use --json to print the raw stored \
         package record.\n\n\
         EXAMPLES:\n  \
         upstream info nvim  # Show details for nvim\n  \

@@ -3,7 +3,7 @@ use crate::{
     output,
     output::pager,
     storage::database::PackageDatabase,
-    utils::static_paths::UpstreamPaths,
+    utils::{name_match, static_paths::UpstreamPaths},
 };
 use anyhow::{Result, anyhow};
 use std::{fmt::Write as _, path::Path};
@@ -21,16 +21,16 @@ pub fn run(query: String, json: bool, paths: &UpstreamPaths) -> Result<()> {
 fn print_info_json(storage: &PackageDatabase, query: &str) -> Result<()> {
     let packages = storage.list_packages()?;
     let resolved = resolve_package_query(&packages, query)?;
-    println!("{}", serde_json::to_string_pretty(resolved.package)?);
+    println!("{}", serde_json::to_string_pretty(resolved)?);
     Ok(())
 }
 
 fn display_package_info(storage: &PackageDatabase, query: &str) -> Result<()> {
     let packages = storage.list_packages()?;
     let resolved = resolve_package_query(&packages, query)?;
-    let header = match_header(&resolved);
+    let header = format!("Exact match: {}", resolved.name);
 
-    pager::page_text(Some(&header), &format_package_details(resolved.package))?;
+    pager::page_text(Some(&header), &format_package_details(resolved))?;
     Ok(())
 }
 
@@ -67,70 +67,24 @@ fn write_detail_field(out: &mut String, label: &str, value: impl AsRef<str>) {
     writeln!(out, "{label:<10} {}", value.as_ref()).expect("write package detail field");
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PackageMatchKind {
-    Exact,
-    Fuzzy,
-}
-
-#[derive(Debug)]
-struct ResolvedPackage<'a> {
-    package: &'a Package,
-    query: &'a str,
-    kind: PackageMatchKind,
-}
-
-fn resolve_package_query<'a>(
-    packages: &'a [Package],
-    query: &'a str,
-) -> Result<ResolvedPackage<'a>> {
+fn resolve_package_query<'a>(packages: &'a [Package], query: &str) -> Result<&'a Package> {
     if let Some(package) = packages
         .iter()
         .find(|package| package.name.eq_ignore_ascii_case(query))
     {
-        return Ok(ResolvedPackage {
-            package,
-            query,
-            kind: PackageMatchKind::Exact,
-        });
+        return Ok(package);
     }
 
-    let query_lower = query.to_lowercase();
-    let mut matches: Vec<&Package> = packages
-        .iter()
-        .filter(|package| package.name.to_lowercase().contains(&query_lower))
-        .collect();
-    matches.sort_by_key(|package| package.name.to_lowercase());
-
-    match matches.as_slice() {
-        [package] => Ok(ResolvedPackage {
-            package,
-            query,
-            kind: PackageMatchKind::Fuzzy,
-        }),
-        [] => Err(anyhow!("No installed package matches '{}'.", query)),
-        _ => Err(anyhow!(
-            "Package query '{}' is ambiguous: {}",
-            query,
-            matches
-                .iter()
-                .map(|package| package.name.as_str())
-                .collect::<Vec<_>>()
-                .join(", ")
-        )),
-    }
-}
-
-fn match_header(resolved: &ResolvedPackage<'_>) -> String {
-    match resolved.kind {
-        PackageMatchKind::Exact => format!("Exact match: {}", resolved.package.name),
-        PackageMatchKind::Fuzzy => {
-            format!(
-                "Fuzzy match: {} -> {}",
-                resolved.query, resolved.package.name
-            )
-        }
-    }
+    let suggestions = name_match::suggestions(
+        packages.iter().map(|package| package.name.as_str()),
+        query,
+        3,
+    );
+    Err(anyhow!(
+        "No installed package matches '{}'.{}",
+        query,
+        name_match::did_you_mean(&suggestions)
+    ))
 }
 
 fn package_detail_heading(package: &Package) -> String {
@@ -258,7 +212,7 @@ fn package_ref_label(package: &Package) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{PackageMatchKind, resolve_package_query};
+    use super::resolve_package_query;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
 
@@ -276,13 +230,13 @@ mod tests {
     }
 
     #[test]
-    fn package_query_matches_unique_substring() {
+    fn package_query_suggests_unique_substring_without_selecting_it() {
         let packages = vec![package("codex"), package("ripgrep")];
-
-        let resolved = resolve_package_query(&packages, "code").expect("resolve package");
-
-        assert_eq!(resolved.package.name, "codex");
-        assert_eq!(resolved.kind, PackageMatchKind::Fuzzy);
+        let error = resolve_package_query(&packages, "code").expect_err("must remain exact");
+        assert_eq!(
+            error.to_string(),
+            "No installed package matches 'code'. Did you mean: codex?"
+        );
     }
 
     #[test]
@@ -291,18 +245,17 @@ mod tests {
 
         let resolved = resolve_package_query(&packages, "code").expect("resolve package");
 
-        assert_eq!(resolved.package.name, "code");
-        assert_eq!(resolved.kind, PackageMatchKind::Exact);
+        assert_eq!(resolved.name, "code");
     }
 
     #[test]
-    fn package_query_rejects_ambiguous_substring() {
+    fn package_query_lists_multiple_suggestions() {
         let packages = vec![package("codex"), package("vscode")];
         let error = resolve_package_query(&packages, "code").expect_err("ambiguous query");
 
         assert_eq!(
             error.to_string(),
-            "Package query 'code' is ambiguous: codex, vscode"
+            "No installed package matches 'code'. Did you mean: codex, vscode?"
         );
     }
 }
