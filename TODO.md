@@ -1,10 +1,13 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-07-21
+@modified: 2026-07-22
 
 
 ## Tasks
+
+- [ ] feat: package registry (access using `add` subcommand)
+      @created 2026-07-22 19:03
 
 
 ## Completed
