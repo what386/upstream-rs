@@ -96,7 +96,12 @@ pub fn run_clean(categories: Vec<CacheKind>, dry_run: bool, paths: &UpstreamPath
 
 fn selected_kinds(categories: &[CacheKind]) -> Result<Vec<CacheKind>> {
     if categories.is_empty() || categories == [CacheKind::All] {
-        return Ok(vec![CacheKind::Build, CacheKind::Source, CacheKind::Docs]);
+        return Ok(vec![
+            CacheKind::Build,
+            CacheKind::Source,
+            CacheKind::Docs,
+            CacheKind::Registry,
+        ]);
     }
     if categories.contains(&CacheKind::All) {
         bail!("Cache category 'all' cannot be combined with other categories");
@@ -113,7 +118,12 @@ fn selected_kinds(categories: &[CacheKind]) -> Result<Vec<CacheKind>> {
 fn inspect(paths: &UpstreamPaths) -> Result<CacheReport> {
     inspect_selected(
         paths,
-        &[CacheKind::Build, CacheKind::Source, CacheKind::Docs],
+        &[
+            CacheKind::Build,
+            CacheKind::Source,
+            CacheKind::Docs,
+            CacheKind::Registry,
+        ],
     )
 }
 
@@ -143,6 +153,7 @@ fn cache_path(paths: &UpstreamPaths, kind: CacheKind) -> (&'static str, PathBuf)
         CacheKind::Build => "build",
         CacheKind::Source => "source",
         CacheKind::Docs => "docs",
+        CacheKind::Registry => "registry",
         CacheKind::All => unreachable!("all is expanded before resolving paths"),
     };
     (child, paths.dirs.cache_dir.join(child))
@@ -200,7 +211,7 @@ mod tests {
 
         let report = inspect(&paths).expect("inspect cache");
 
-        assert_eq!(report.caches.len(), 3);
+        assert_eq!(report.caches.len(), 4);
         assert_eq!(report.total_bytes, 4);
         assert_eq!(report.caches[0].kind, "build");
         assert_eq!(report.caches[0].bytes, 4);
@@ -211,7 +222,12 @@ mod tests {
     fn category_selection_expands_all_and_rejects_mixed_all() {
         assert_eq!(
             selected_kinds(&[]).expect("default categories"),
-            vec![CacheKind::Build, CacheKind::Source, CacheKind::Docs]
+            vec![
+                CacheKind::Build,
+                CacheKind::Source,
+                CacheKind::Docs,
+                CacheKind::Registry,
+            ]
         );
         assert!(selected_kinds(&[CacheKind::All, CacheKind::Docs]).is_err());
         assert_eq!(

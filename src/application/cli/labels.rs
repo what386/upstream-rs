@@ -7,6 +7,7 @@ use crate::application::cli::arguments::{
 impl fmt::Display for Commands {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Commands::Add { .. } => write!(f, "add"),
             Commands::Install { .. } => write!(f, "install"),
             Commands::Build { .. } => write!(f, "build"),
             Commands::Remove { .. } => write!(f, "remove"),

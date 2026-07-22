@@ -36,6 +36,27 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Install a package from the configured registry
+    #[command(long_about = "Install a package from the configured registry.\n\n\
+        Uses the locally cached registry index and passes its package metadata through \
+        the normal release installation flow. Use --fetch to explicitly download or \
+        refresh the index. Without --fetch, a missing or mismatched cache is an error.\n\n\
+        EXAMPLES:\n  \
+        upstream add upstream\n  \
+        upstream add upstream --fetch")]
+    Add {
+        /// Package name in the registry
+        name: String,
+
+        /// Refresh the local registry index before resolving the package
+        #[arg(long, default_value_t = false)]
+        fetch: bool,
+
+        /// Preview resolution without downloading or installing the package
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+    },
+
     /// Install a release asset or direct download
     #[command(long_about = "Install a release asset or direct download.\n\n\
         Resolves a compatible asset from the selected provider, channel, and tag, \
@@ -819,6 +840,7 @@ fn parse_search_date(raw: &str) -> Result<NaiveDate, String> {
 impl Commands {
     pub fn records_history(&self) -> bool {
         match self {
+            Commands::Add { dry_run, .. } => !dry_run,
             Commands::Install { dry_run, .. }
             | Commands::Build { dry_run, .. }
             | Commands::Remove { dry_run, .. }
@@ -899,7 +921,8 @@ impl Commands {
             Commands::Auth { action } => {
                 !matches!(action, AuthAction::Get { .. } | AuthAction::List)
             }
-            Commands::Install { .. }
+            Commands::Add { .. }
+            | Commands::Install { .. }
             | Commands::Build { .. }
             | Commands::Remove { .. }
             | Commands::Rollback { .. }
@@ -917,6 +940,7 @@ pub enum CacheKind {
     Build,
     Source,
     Docs,
+    Registry,
     All,
 }
 

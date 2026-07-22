@@ -23,6 +23,11 @@ impl Cli {
         };
 
         match command {
+            Commands::Add {
+                name,
+                fetch,
+                dry_run,
+            } => commands::add::run(name, fetch, dry_run, paths, app_config).await,
             Commands::Hooks { action } => match action {
                 HooksAction::Init => commands::hooks::run_hooks_init(paths),
                 HooksAction::Check => commands::hooks::run_hooks_check(paths),

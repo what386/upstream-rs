@@ -1,13 +1,14 @@
 pub mod concurrency;
 pub mod download;
 pub mod logging;
+pub mod registry;
 pub mod rollback;
 
 use serde::{Deserialize, Serialize};
 
 pub use {
     concurrency::ConcurrencyConfig, download::DownloadConfig, logging::LoggingConfig,
-    logging::LoggingLevel, rollback::RollbackConfig,
+    logging::LoggingLevel, registry::RegistryConfig, rollback::RollbackConfig,
 };
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -17,4 +18,5 @@ pub struct AppConfig {
     pub concurrency: ConcurrencyConfig,
     pub rollback: RollbackConfig,
     pub logging: LoggingConfig,
+    pub registry: RegistryConfig,
 }
