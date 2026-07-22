@@ -48,6 +48,13 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(rendered["packages"]["upstream"]["revision"], 1)
         self.assertEqual(rendered["packages"]["upstream"]["provider"], "github")
 
+    def test_registry_validation_rejects_an_empty_registry_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(COMMON.RegistryValidationError) as raised:
+                COMMON.load_registry(Path(directory))
+
+            self.assertIn("no package TOML files", str(raised.exception))
+
     def test_invalid_entries_report_all_schema_errors(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             packages_dir = Path(directory)
@@ -278,6 +285,112 @@ class RegistryTests(unittest.TestCase):
             self.assertTrue(generated["desktop"])
             self.assertEqual(generated["trust"], "best-effort")
             self.assertFalse((packages_dir / "source-tool.toml").exists())
+
+    def test_list_import_bootstraps_an_empty_registry(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            packages_dir = root / "packages"
+            packages_dir.mkdir()
+            input_path = root / "packages.json"
+            input_path.write_text(
+                json.dumps(
+                    [
+                        {
+                            "name": "Tool",
+                            "repo_slug": "owner/tool",
+                            "provider": "Github",
+                            "install_type": "Release",
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = IMPORT_LIST.main(
+                [str(input_path), "--packages-dir", str(packages_dir)]
+            )
+
+            self.assertEqual(result, 0)
+            generated = tomllib.loads(
+                (packages_dir / "tool.toml").read_text(encoding="utf-8")
+            )
+            self.assertEqual(generated["binary"], "Tool")
+
+    def test_list_import_skips_an_existing_installed_name(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            packages_dir = root / "packages"
+            packages_dir.mkdir()
+            (packages_dir / "canonical-tool.toml").write_text(
+                "\n".join(
+                    [
+                        'name = "canonical-tool"',
+                        "revision = 1",
+                        'binary = "Tool App"',
+                        'repo = "https://github.com/owner/canonical-tool"',
+                        'provider = "github"',
+                        "desktop = false",
+                        'trust = "checksum"',
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            input_path = root / "packages.json"
+            input_path.write_text(
+                json.dumps(
+                    [
+                        {
+                            "name": "Tool App",
+                            "repo_slug": "owner/different-repository-name",
+                            "provider": "Github",
+                            "install_type": "Release",
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = IMPORT_LIST.main(
+                [str(input_path), "--packages-dir", str(packages_dir)]
+            )
+
+            self.assertEqual(result, 0)
+            self.assertFalse(
+                (packages_dir / "different-repository-name.toml").exists()
+            )
+
+    def test_list_import_rejects_same_batch_installed_name_collisions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            packages_dir = root / "packages"
+            packages_dir.mkdir()
+            input_path = root / "packages.json"
+            input_path.write_text(
+                json.dumps(
+                    [
+                        {
+                            "name": "Shared Binary",
+                            "repo_slug": "owner/first",
+                            "provider": "Github",
+                            "install_type": "Release",
+                        },
+                        {
+                            "name": "Shared Binary",
+                            "repo_slug": "owner/second",
+                            "provider": "Github",
+                            "install_type": "Release",
+                        },
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = IMPORT_LIST.main(
+                [str(input_path), "--packages-dir", str(packages_dir)]
+            )
+
+            self.assertEqual(result, 1)
+            self.assertEqual(list(packages_dir.glob("*.toml")), [])
 
 if __name__ == "__main__":
     unittest.main()

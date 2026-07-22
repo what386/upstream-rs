@@ -37,7 +37,9 @@ def is_safe_basename(value: str) -> bool:
     )
 
 
-def load_registry(packages_dir: Path) -> dict[str, dict[str, Any]]:
+def load_registry(
+    packages_dir: Path, *, allow_empty: bool = False
+) -> dict[str, dict[str, Any]]:
     """Load and validate every TOML entry, returning metadata keyed by name."""
     errors: list[str] = []
     packages: dict[str, dict[str, Any]] = {}
@@ -48,7 +50,7 @@ def load_registry(packages_dir: Path) -> dict[str, dict[str, Any]]:
         )
 
     paths = sorted(packages_dir.glob("*.toml"), key=lambda path: path.name)
-    if not paths:
+    if not paths and not allow_empty:
         raise RegistryValidationError([f"no package TOML files found in {packages_dir}"])
 
     for path in paths:

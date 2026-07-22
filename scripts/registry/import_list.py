@@ -173,7 +173,7 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
     try:
         records = read_records(args.input)
-        existing = load_registry(args.packages_dir)
+        existing = load_registry(args.packages_dir, allow_empty=True)
     except (ValueError, RegistryValidationError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
@@ -199,8 +199,12 @@ def main(argv: list[str]) -> int:
             skipped.append(f"{label}: registry package '{name}' already exists")
             continue
         installed_name = entry.get("binary", name)
-        conflict = existing_installed.get(installed_name) or pending_installed.get(installed_name)
-        if conflict:
+        if conflict := existing_installed.get(installed_name):
+            skipped.append(
+                f"{label}: installed name '{installed_name}' already belongs to registry package '{conflict}'"
+            )
+            continue
+        if conflict := pending_installed.get(installed_name):
             errors.append(
                 f"{label}: installed name '{installed_name}' conflicts with registry package '{conflict}'"
             )
