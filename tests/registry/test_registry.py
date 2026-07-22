@@ -46,7 +46,9 @@ class RegistryTests(unittest.TestCase):
         self.assertIn("upstream", rendered["packages"])
         self.assertNotIn("name", rendered["packages"]["upstream"])
         self.assertEqual(rendered["packages"]["upstream"]["revision"], 1)
-        self.assertEqual(rendered["packages"]["upstream"]["provider"], "github")
+        self.assertEqual(
+            rendered["packages"]["upstream"]["install"]["provider"], "github"
+        )
 
     def test_registry_validation_rejects_an_empty_registry_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -63,11 +65,13 @@ class RegistryTests(unittest.TestCase):
                     [
                         'name = "Bad"',
                         'revision = 0',
-                        'repo = "http://github.com/owner/repo?ref=main"',
-                        'provider = "unknown"',
                         'desktop = "false"',
                         'trust = "sometimes"',
                         'extra = true',
+                        "[install]",
+                        'type = "release"',
+                        'repo = "http://github.com/owner/repo?ref=main"',
+                        'provider = "unknown"',
                     ]
                 ),
                 encoding="utf-8",
@@ -80,7 +84,7 @@ class RegistryTests(unittest.TestCase):
             self.assertIn("unknown fields: extra", message)
             self.assertIn("must match filename", message)
             self.assertIn("canonical HTTPS", message)
-            self.assertIn("unsupported provider", message)
+            self.assertIn("unsupported install provider", message)
             self.assertIn("'desktop' must be a boolean", message)
             self.assertIn("unsupported trust mode", message)
 
@@ -117,10 +121,12 @@ class RegistryTests(unittest.TestCase):
                             f'name = "{name}"',
                             "revision = 1",
                             f'binary = "{binary}"',
-                            f'repo = "https://github.com/owner/{name}"',
-                            'provider = "github"',
                             "desktop = false",
                             'trust = "checksum"',
+                            "[install]",
+                            'type = "release"',
+                            f'repo = "https://github.com/owner/{name}"',
+                            'provider = "github"',
                         ]
                     ),
                     encoding="utf-8",
@@ -144,10 +150,12 @@ class RegistryTests(unittest.TestCase):
                         'name = "tool"',
                         "revision = 1",
                         'binary = "tool.exe"',
-                        'repo = "https://github.com/owner/tool"',
-                        'provider = "github"',
                         "desktop = false",
                         'trust = "checksum"',
+                        "[install]",
+                        'type = "release"',
+                        'repo = "https://github.com/owner/tool"',
+                        'provider = "github"',
                     ]
                 ),
                 encoding="utf-8",
@@ -167,10 +175,12 @@ class RegistryTests(unittest.TestCase):
                         'name = "Audacity Editor"',
                         "revision = 1",
                         'binary = "Audacity App"',
-                        'repo = "https://github.com/audacity/audacity"',
-                        'provider = "github"',
                         "desktop = true",
                         'trust = "checksum"',
+                        "[install]",
+                        'type = "release"',
+                        'repo = "https://github.com/audacity/audacity"',
+                        'provider = "github"',
                     ]
                 ),
                 encoding="utf-8",
@@ -216,7 +226,10 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(name, "ripgrep")
         self.assertEqual(rendered["name"], "ripgrep")
         self.assertEqual(rendered["binary"], "rg")
-        self.assertEqual(rendered["repo"], "https://github.com/BurntSushi/ripgrep")
+        self.assertEqual(
+            rendered["install"]["repo"], "https://github.com/BurntSushi/ripgrep"
+        )
+        self.assertEqual(rendered["install"]["type"], "release")
         self.assertEqual(rendered["match"], ["linux"])
         self.assertEqual(rendered["exclude"], ["debug"])
 
@@ -234,6 +247,29 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(name, "audacity-app")
         self.assertEqual(entry["binary"], "Audacity App")
 
+    def test_list_import_creates_direct_http_recipe(self) -> None:
+        record = {
+            "name": "Direct Tool",
+            "repo_slug": "https://downloads.example.com/tool-linux.tar.gz?latest=1",
+            "provider": "Direct",
+            "install_type": "Release",
+            "filetype": "Archive",
+            "icon_path": None,
+        }
+
+        name, entry = IMPORT_LIST.entry_from_record(record, "checksum")
+
+        self.assertEqual(name, "direct-tool")
+        self.assertEqual(entry["binary"], "Direct Tool")
+        self.assertEqual(
+            entry["install"],
+            {
+                "type": "http",
+                "url": "https://downloads.example.com/tool-linux.tar.gz?latest=1",
+                "filetype": "archive",
+            },
+        )
+
     def test_list_import_writes_only_missing_release_packages(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -244,10 +280,12 @@ class RegistryTests(unittest.TestCase):
                     [
                         'name = "existing"',
                         "revision = 1",
-                        'repo = "https://github.com/owner/existing"',
-                        'provider = "github"',
                         "desktop = false",
                         'trust = "checksum"',
+                        "[install]",
+                        'type = "release"',
+                        'repo = "https://github.com/owner/existing"',
+                        'provider = "github"',
                     ]
                 ),
                 encoding="utf-8",
@@ -284,7 +322,10 @@ class RegistryTests(unittest.TestCase):
             )
             self.assertTrue(generated["desktop"])
             self.assertEqual(generated["trust"], "best-effort")
-            self.assertFalse((packages_dir / "source-tool.toml").exists())
+            build_package = tomllib.loads(
+                (packages_dir / "source-tool.toml").read_text(encoding="utf-8")
+            )
+            self.assertEqual(build_package["install"]["type"], "build")
 
     def test_list_import_bootstraps_an_empty_registry(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -327,10 +368,12 @@ class RegistryTests(unittest.TestCase):
                         'name = "canonical-tool"',
                         "revision = 1",
                         'binary = "Tool App"',
-                        'repo = "https://github.com/owner/canonical-tool"',
-                        'provider = "github"',
                         "desktop = false",
                         'trust = "checksum"',
+                        "[install]",
+                        'type = "release"',
+                        'repo = "https://github.com/owner/canonical-tool"',
+                        'provider = "github"',
                     ]
                 ),
                 encoding="utf-8",

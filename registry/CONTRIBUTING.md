@@ -27,11 +27,13 @@ Most packages only need the following fields:
 ```toml
 name = "upstream"
 revision = 1
-repo = "https://github.com/what386/upstream-rs"
-provider = "github"
-
 desktop = false
 trust = "checksum"
+
+[install]
+type = "release"
+repo = "https://github.com/what386/upstream-rs"
+provider = "github"
 ```
 
 ### `name`
@@ -81,25 +83,60 @@ revision = 1
 
 Do not increment the revision when the package metadata is unchanged. CI compares changed entries with the pull request base and enforces the revision.
 
-### `repo`
+## Install recipes
 
-The canonical public repository URL.
+Every entry has an `[install]` table whose `type` selects how Upstream obtains the package.
+
+### Release installs
+
+Use `release` for prebuilt assets published by a supported forge:
+
 
 ```toml
+[install]
+type = "release"
 repo = "https://github.com/what386/upstream-rs"
-```
-
-Use an HTTPS URL rather than an SSH clone URL.
-
-### `provider`
-
-The service hosting the repository and its releases.
-
-```toml
 provider = "github"
 ```
 
-The provider must be supported by Upstream.
+`repo` is the canonical public HTTPS repository URL. `provider` must be `github`, `gitlab`, or
+`gitea`. Release installs support the package-level `match` and `exclude` asset-selection hints.
+
+### Build installs
+
+Use `build` when the package should be compiled from source:
+
+```toml
+[install]
+type = "build"
+repo = "https://github.com/owner/project"
+provider = "github"
+profile = "rust"
+```
+
+The optional `profile` may be `rust`, `dotnet`, `go`, `zig`, or `cmake`. Omit it to let Upstream
+detect the build system. An optional `branch` selects a branch instead of the latest stable release:
+
+```toml
+branch = "main"
+```
+
+Build installs do not support `match` or `exclude`.
+
+### Direct HTTP installs
+
+Use `http` for an artifact available at a direct HTTPS URL:
+
+```toml
+[install]
+type = "http"
+url = "https://downloads.example.com/example-tool-linux-amd64.tar.gz"
+filetype = "archive"
+```
+
+`filetype` defaults to `auto`. Supported explicit values are `appimage`, `mac-app`, `mac-dmg`,
+`archive`, `compressed`, `binary`, and `win-exe`. The URL may redirect, but it must not contain
+credentials or a fragment. Direct URLs should remain stable so upgrades can retrieve newer content.
 
 ### `desktop`
 
@@ -166,9 +203,6 @@ Keep overrides as narrow as possible.
 ```toml
 name = "upstream"
 revision = 1
-repo = "https://github.com/what386/upstream-rs"
-provider = "github"
-
 desktop = false
 trust = "checksum"
 
@@ -179,6 +213,11 @@ match = [
 exclude = [
     "completions",
 ]
+
+[install]
+type = "release"
+repo = "https://github.com/what386/upstream-rs"
+provider = "github"
 ```
 
 In this example, `match` and `exclude` are included only because the package requires additional guidance during asset selection.
@@ -191,9 +230,9 @@ Before opening a pull request, confirm that:
 * The package name uses lowercase, hyphen-separated words unless its established name requires otherwise.
 * `binary` is omitted unless the installed command differs from `name`.
 * New packages use `revision = 1`; modified packages increment their revision by one.
-* `repo` points to the canonical public repository.
-* `provider` matches the repository host.
-* The repository publishes prebuilt release artifacts.
+* `[install]` contains exactly the fields supported by its `type`.
+* Release and build repositories use canonical public HTTPS URLs and matching providers.
+* Direct HTTP URLs are stable HTTPS download locations.
 * The selected trust method is supported.
 * Automatic asset selection has been tested.
 * `match` and `exclude` are omitted unless they are necessary.

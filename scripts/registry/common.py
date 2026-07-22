@@ -10,11 +10,23 @@ import unicodedata
 from urllib.parse import urlsplit
 
 
-REQUIRED_FIELDS = {"name", "revision", "repo", "provider", "desktop", "trust"}
+REQUIRED_FIELDS = {"name", "revision", "desktop", "trust", "install"}
 OPTIONAL_FIELDS = {"binary", "match", "exclude"}
 ALLOWED_FIELDS = REQUIRED_FIELDS | OPTIONAL_FIELDS
 PROVIDERS = {"github", "gitlab", "gitea"}
 TRUST_MODES = {"none", "best-effort", "checksum", "signature", "all"}
+INSTALL_TYPES = {"release", "build", "http"}
+BUILD_PROFILES = {"rust", "dotnet", "go", "zig", "cmake"}
+FILETYPES = {
+    "appimage",
+    "mac-app",
+    "mac-dmg",
+    "archive",
+    "compressed",
+    "binary",
+    "win-exe",
+    "auto",
+}
 
 
 class RegistryValidationError(Exception):
@@ -75,12 +87,11 @@ def load_registry(
             for key in (
                 "revision",
                 "binary",
-                "repo",
-                "provider",
                 "desktop",
                 "trust",
                 "match",
                 "exclude",
+                "install",
             )
             if key in raw
         }
@@ -139,20 +150,6 @@ def validate_entry(path: Path, entry: object) -> list[str]:
         elif binary.endswith(".exe"):
             errors.append(f"{path}: 'binary' must not include a platform extension")
 
-    repo = entry.get("repo")
-    if not isinstance(repo, str):
-        errors.append(f"{path}: 'repo' must be a string")
-    else:
-        errors.extend(validate_repo(path, repo, entry.get("provider")))
-
-    provider = entry.get("provider")
-    if not isinstance(provider, str):
-        errors.append(f"{path}: 'provider' must be a string")
-    elif provider not in PROVIDERS:
-        errors.append(
-            f"{path}: unsupported provider '{provider}'; expected one of: {', '.join(sorted(PROVIDERS))}"
-        )
-
     desktop = entry.get("desktop")
     if not isinstance(desktop, bool):
         errors.append(f"{path}: 'desktop' must be a boolean")
@@ -169,10 +166,85 @@ def validate_entry(path: Path, entry: object) -> list[str]:
         if key in entry:
             errors.extend(validate_patterns(path, key, entry[key]))
 
+    errors.extend(validate_install(path, entry.get("install"), keys))
+
     return errors
 
 
-def validate_repo(path: Path, repo: str, provider: object) -> list[str]:
+def validate_install(path: Path, install: object, entry_keys: set[str]) -> list[str]:
+    if not isinstance(install, dict):
+        return [f"{path}: 'install' must be a table"]
+
+    install_type = install.get("type")
+    if not isinstance(install_type, str) or install_type not in INSTALL_TYPES:
+        return [
+            f"{path}: 'install.type' must be one of: {', '.join(sorted(INSTALL_TYPES))}"
+        ]
+
+    allowed = {
+        "release": {"type", "repo", "provider"},
+        "build": {"type", "repo", "provider", "profile", "branch"},
+        "http": {"type", "url", "filetype"},
+    }[install_type]
+    errors: list[str] = []
+    unknown = sorted(set(install) - allowed)
+    if unknown:
+        errors.append(
+            f"{path}: unknown fields for {install_type} install: {', '.join(unknown)}"
+        )
+
+    if install_type in {"release", "build"}:
+        repo = install.get("repo")
+        provider = install.get("provider")
+        if not isinstance(repo, str):
+            errors.append(f"{path}: 'install.repo' must be a string")
+        else:
+            errors.extend(validate_repo(path, repo, provider, key="install.repo"))
+        if not isinstance(provider, str):
+            errors.append(f"{path}: 'install.provider' must be a string")
+        elif provider not in PROVIDERS:
+            errors.append(
+                f"{path}: unsupported install provider '{provider}'; expected one of: {', '.join(sorted(PROVIDERS))}"
+            )
+
+    if install_type == "build":
+        profile = install.get("profile")
+        if profile is not None and (
+            not isinstance(profile, str) or profile not in BUILD_PROFILES
+        ):
+            errors.append(
+                f"{path}: 'install.profile' must be one of: {', '.join(sorted(BUILD_PROFILES))}"
+            )
+        branch = install.get("branch")
+        if branch is not None and (
+            not isinstance(branch, str) or not branch or branch != branch.strip()
+        ):
+            errors.append(f"{path}: 'install.branch' must be a non-empty trimmed string")
+        for key in ("match", "exclude"):
+            if key in entry_keys:
+                errors.append(f"{path}: '{key}' is not supported for build installs")
+
+    if install_type == "http":
+        url = install.get("url")
+        if not isinstance(url, str):
+            errors.append(f"{path}: 'install.url' must be a string")
+        else:
+            errors.extend(validate_http_url(path, url))
+        filetype = install.get("filetype", "auto")
+        if not isinstance(filetype, str) or filetype not in FILETYPES:
+            errors.append(
+                f"{path}: 'install.filetype' must be one of: {', '.join(sorted(FILETYPES))}"
+            )
+        for key in ("match", "exclude"):
+            if key in entry_keys:
+                errors.append(f"{path}: '{key}' is not supported for http installs")
+
+    return errors
+
+
+def validate_repo(
+    path: Path, repo: str, provider: object, *, key: str = "repo"
+) -> list[str]:
     errors: list[str] = []
     parsed = urlsplit(repo)
     if (
@@ -185,7 +257,7 @@ def validate_repo(path: Path, repo: str, provider: object) -> list[str]:
         or parsed.fragment
     ):
         errors.append(
-            f"{path}: 'repo' must be a canonical HTTPS repository URL without credentials, query, or fragment"
+            f"{path}: '{key}' must be a canonical HTTPS repository URL without credentials, query, or fragment"
         )
         return errors
 
@@ -197,6 +269,22 @@ def validate_repo(path: Path, repo: str, provider: object) -> list[str]:
             f"{path}: provider '{provider}' requires a repository hosted on {expected}"
         )
     return errors
+
+
+def validate_http_url(path: Path, url: str) -> list[str]:
+    parsed = urlsplit(url)
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or not parsed.path.strip("/")
+        or parsed.username
+        or parsed.password
+        or parsed.fragment
+    ):
+        return [
+            f"{path}: 'install.url' must be an HTTPS download URL without credentials or a fragment"
+        ]
+    return []
 
 
 def validate_patterns(path: Path, key: str, value: object) -> list[str]:

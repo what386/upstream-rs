@@ -3,10 +3,13 @@
   "packages": {
     "upstream": {
       "revision": 1,
-      "repo": "https://github.com/what386/upstream-rs",
-      "provider": "github",
       "desktop": false,
-      "trust": "checksum"
+      "trust": "checksum",
+      "install": {
+        "type": "release",
+        "repo": "https://github.com/what386/upstream-rs",
+        "provider": "github"
+      }
     }
   }
 }

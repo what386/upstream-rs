@@ -7,12 +7,13 @@ use reqwest::{StatusCode, header};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    application::commands::install,
+    application::commands::{build, install},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::config::AppConfig,
     },
     output::{self, Status},
+    routines::build::BuildProfile,
     utils::{filesystem::atomic_ops::write_atomic, static_paths::UpstreamPaths},
 };
 
@@ -31,14 +32,35 @@ struct RegistryPackage {
     revision: u64,
     #[serde(default)]
     binary: Option<String>,
-    repo: String,
-    provider: RegistryProvider,
     desktop: bool,
     trust: RegistryTrust,
     #[serde(default)]
     r#match: Vec<String>,
     #[serde(default)]
     exclude: Vec<String>,
+    install: RegistryInstall,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+enum RegistryInstall {
+    Release {
+        repo: String,
+        provider: RegistryProvider,
+    },
+    Build {
+        repo: String,
+        provider: RegistryProvider,
+        #[serde(default)]
+        profile: Option<RegistryBuildProfile>,
+        #[serde(default)]
+        branch: Option<String>,
+    },
+    Http {
+        url: String,
+        #[serde(default)]
+        filetype: RegistryFiletype,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,6 +79,30 @@ enum RegistryTrust {
     Checksum,
     Signature,
     All,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum RegistryBuildProfile {
+    Rust,
+    Dotnet,
+    Go,
+    Zig,
+    Cmake,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum RegistryFiletype {
+    Appimage,
+    MacApp,
+    MacDmg,
+    Archive,
+    Compressed,
+    Binary,
+    WinExe,
+    #[default]
+    Auto,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -104,24 +150,71 @@ pub async fn run(
     })?;
 
     let install_name = installed_name(&name, package);
-    install::run(
-        Some(install_name),
-        package.repo.clone(),
-        Filetype::Auto,
-        None,
-        None,
-        Some(package.provider.provider()),
-        None,
-        Channel::Stable,
-        joined_patterns(&package.r#match),
-        joined_patterns(&package.exclude),
-        package.desktop,
-        package.trust.trust_mode(),
-        dry_run,
-        paths,
-        app_config,
-    )
-    .await
+    match &package.install {
+        RegistryInstall::Release { repo, provider } => {
+            install::run(
+                Some(install_name),
+                repo.clone(),
+                Filetype::Auto,
+                None,
+                None,
+                Some(provider.provider()),
+                None,
+                Channel::Stable,
+                joined_patterns(&package.r#match),
+                joined_patterns(&package.exclude),
+                package.desktop,
+                package.trust.trust_mode(),
+                dry_run,
+                paths,
+                app_config,
+            )
+            .await
+        }
+        RegistryInstall::Build {
+            repo,
+            provider,
+            profile,
+            branch,
+        } => {
+            build::run(
+                Some(install_name),
+                repo.clone(),
+                None,
+                None,
+                branch.clone(),
+                Some(provider.provider()),
+                None,
+                Channel::Stable,
+                package.desktop,
+                profile.as_ref().map(RegistryBuildProfile::build_profile),
+                dry_run,
+                paths,
+                app_config,
+            )
+            .await
+        }
+        RegistryInstall::Http { url, filetype } => {
+            install::run(
+                Some(install_name),
+                url.clone(),
+                filetype.filetype(),
+                None,
+                None,
+                Some(Provider::Direct),
+                None,
+                Channel::Stable,
+                None,
+                None,
+                package.desktop,
+                package.trust.trust_mode(),
+                dry_run,
+                paths,
+                app_config,
+            )
+            .await
+        }
+    }
 }
 
 fn installed_name(registry_name: &str, package: &RegistryPackage) -> String {
@@ -341,13 +434,40 @@ impl RegistryTrust {
     }
 }
 
+impl RegistryBuildProfile {
+    fn build_profile(&self) -> BuildProfile {
+        match self {
+            Self::Rust => BuildProfile::Rust,
+            Self::Dotnet => BuildProfile::Dotnet,
+            Self::Go => BuildProfile::Go,
+            Self::Zig => BuildProfile::Zig,
+            Self::Cmake => BuildProfile::Cmake,
+        }
+    }
+}
+
+impl RegistryFiletype {
+    fn filetype(&self) -> Filetype {
+        match self {
+            Self::Appimage => Filetype::AppImage,
+            Self::MacApp => Filetype::MacApp,
+            Self::MacDmg => Filetype::MacDmg,
+            Self::Archive => Filetype::Archive,
+            Self::Compressed => Filetype::Compressed,
+            Self::Binary => Filetype::Binary,
+            Self::WinExe => Filetype::WinExe,
+            Self::Auto => Filetype::Auto,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
 
     use super::{
-        RegistryCacheMetadata, installed_name, joined_patterns, load_cached_index, parse_index,
-        write_cache_metadata,
+        RegistryCacheMetadata, RegistryInstall, installed_name, joined_patterns, load_cached_index,
+        parse_index, write_cache_metadata,
     };
     use crate::utils::test_support;
 
@@ -356,7 +476,7 @@ mod tests {
     #[test]
     fn parses_supported_index_and_package_metadata() {
         let index = parse_index(
-            br#"{"version":1,"packages":{"ripgrep":{"revision":2,"binary":"rg","repo":"https://github.com/BurntSushi/ripgrep","provider":"github","desktop":false,"trust":"best-effort","match":["linux","x86_64"]}}}"#,
+            br#"{"version":1,"packages":{"ripgrep":{"revision":2,"binary":"rg","desktop":false,"trust":"best-effort","match":["linux","x86_64"],"install":{"type":"release","repo":"https://github.com/BurntSushi/ripgrep","provider":"github"}}}}"#,
         )
         .expect("valid index");
         let package = index.packages.get("ripgrep").expect("ripgrep package");
@@ -384,7 +504,7 @@ mod tests {
     #[test]
     fn rejects_zero_package_revision() {
         let error = parse_index(
-            br#"{"version":1,"packages":{"tool":{"revision":0,"repo":"https://github.com/o/tool","provider":"github","desktop":false,"trust":"checksum"}}}"#,
+            br#"{"version":1,"packages":{"tool":{"revision":0,"desktop":false,"trust":"checksum","install":{"type":"release","repo":"https://github.com/o/tool","provider":"github"}}}}"#,
         )
         .expect_err("zero revision should fail");
         assert!(error.to_string().contains("invalid revision 0"));
@@ -393,7 +513,7 @@ mod tests {
     #[test]
     fn rejects_duplicate_installed_binary_names() {
         let error = parse_index(
-            br#"{"version":1,"packages":{"first":{"revision":1,"binary":"tool","repo":"https://github.com/o/first","provider":"github","desktop":false,"trust":"checksum"},"second":{"revision":1,"binary":"tool","repo":"https://github.com/o/second","provider":"github","desktop":false,"trust":"checksum"}}}"#,
+            br#"{"version":1,"packages":{"first":{"revision":1,"binary":"tool","desktop":false,"trust":"checksum","install":{"type":"release","repo":"https://github.com/o/first","provider":"github"}},"second":{"revision":1,"binary":"tool","desktop":false,"trust":"checksum","install":{"type":"release","repo":"https://github.com/o/second","provider":"github"}}}}"#,
         )
         .expect_err("duplicate binary should fail");
         assert!(error.to_string().contains("both install as 'tool'"));
@@ -402,7 +522,7 @@ mod tests {
     #[test]
     fn accepts_uppercase_and_spaces_in_installed_names() {
         let index = parse_index(
-            br#"{"version":1,"packages":{"audacity":{"revision":1,"binary":"Audacity App","repo":"https://github.com/audacity/audacity","provider":"github","desktop":true,"trust":"checksum"}}}"#,
+            br#"{"version":1,"packages":{"audacity":{"revision":1,"binary":"Audacity App","desktop":true,"trust":"checksum","install":{"type":"release","repo":"https://github.com/audacity/audacity","provider":"github"}}}}"#,
         )
         .expect("uppercase and spaces are valid in a binary basename");
 
@@ -413,9 +533,26 @@ mod tests {
     }
 
     #[test]
+    fn parses_build_and_http_install_recipes() {
+        let index = parse_index(
+            br#"{"version":1,"packages":{"source-tool":{"revision":1,"desktop":false,"trust":"best-effort","install":{"type":"build","repo":"https://github.com/o/source-tool","provider":"github","profile":"rust","branch":"main"}},"direct-tool":{"revision":1,"desktop":false,"trust":"checksum","install":{"type":"http","url":"https://example.com/tool.tar.gz","filetype":"archive"}}}}"#,
+        )
+        .expect("build and HTTP recipes should parse");
+
+        assert!(matches!(
+            index.packages["source-tool"].install,
+            RegistryInstall::Build { .. }
+        ));
+        assert!(matches!(
+            index.packages["direct-tool"].install,
+            RegistryInstall::Http { .. }
+        ));
+    }
+
+    #[test]
     fn rejects_binary_paths() {
         let error = parse_index(
-            br#"{"version":1,"packages":{"tool":{"revision":1,"binary":"../Tool","repo":"https://github.com/o/tool","provider":"github","desktop":false,"trust":"checksum"}}}"#,
+            br#"{"version":1,"packages":{"tool":{"revision":1,"binary":"../Tool","desktop":false,"trust":"checksum","install":{"type":"release","repo":"https://github.com/o/tool","provider":"github"}}}}"#,
         )
         .expect_err("binary paths must be rejected");
 

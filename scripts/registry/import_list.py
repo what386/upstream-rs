@@ -16,6 +16,16 @@ from common import TRUST_MODES, RegistryValidationError, is_safe_basename, load_
 
 ROOT = Path(__file__).resolve().parents[2]
 SUPPORTED_PROVIDERS = {"Github", "Gitlab", "Gitea"}
+FILETYPE_NAMES = {
+    "AppImage": "appimage",
+    "MacApp": "mac-app",
+    "MacDmg": "mac-dmg",
+    "Archive": "archive",
+    "Compressed": "compressed",
+    "Binary": "binary",
+    "WinExe": "win-exe",
+    "Auto": "auto",
+}
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -64,14 +74,18 @@ def read_records(input_name: str) -> list[dict[str, Any]]:
     return value
 
 
+def normalize_registry_name(source_name: str) -> str:
+    name = re.sub(r"[^a-z0-9]+", "-", source_name.lower()).strip("-")
+    if not name:
+        raise ValueError(f"cannot derive a valid registry name from '{source_name}'")
+    return name
+
+
 def repository_name(repo_slug: str) -> str:
     parsed = urlsplit(repo_slug)
     path = parsed.path if parsed.scheme else repo_slug
     source_name = path.strip("/").rsplit("/", 1)[-1].removesuffix(".git")
-    name = re.sub(r"[^a-z0-9]+", "-", source_name.lower()).strip("-")
-    if not name:
-        raise ValueError(f"cannot derive a valid registry name from repository '{repo_slug}'")
-    return name
+    return normalize_registry_name(source_name)
 
 
 def repository_url(record: dict[str, Any]) -> tuple[str, str]:
@@ -103,29 +117,50 @@ def repository_url(record: dict[str, Any]) -> tuple[str, str]:
 
 
 def entry_from_record(record: dict[str, Any], trust: str) -> tuple[str, dict[str, Any]]:
-    if record.get("install_type") != "Release":
-        raise ValueError("only release-installed packages can be imported")
-
-    provider, repo = repository_url(record)
-    name = repository_name(record["repo_slug"])
+    install_type = record.get("install_type")
+    source_provider = record.get("provider")
+    repo_slug = record.get("repo_slug")
+    if install_type not in {"Release", "Build"}:
+        raise ValueError(f"unsupported install type '{install_type}'")
+    if not isinstance(repo_slug, str):
+        raise ValueError("missing non-empty repo_slug")
     binary = record.get("name")
     if not isinstance(binary, str) or not is_safe_basename(binary):
         raise ValueError("installed package name is not registry-safe")
 
+    if source_provider == "Direct":
+        if install_type != "Release":
+            raise ValueError("direct HTTP build installs are not supported")
+        name = normalize_registry_name(binary)
+        filetype = FILETYPE_NAMES.get(record.get("filetype", "Auto"))
+        if filetype is None:
+            raise ValueError(f"unsupported filetype '{record.get('filetype')}'")
+        install = {"type": "http", "url": repo_slug, "filetype": filetype}
+    else:
+        provider, repo = repository_url(record)
+        name = repository_name(repo_slug)
+        install = {
+            "type": "build" if install_type == "Build" else "release",
+            "repo": repo,
+            "provider": provider,
+        }
+        if install_type == "Build" and record.get("build_branch"):
+            install["branch"] = record["build_branch"]
+
     entry: dict[str, Any] = {
         "name": name,
         "revision": 1,
-        "repo": repo,
-        "provider": provider,
         "desktop": record.get("icon_path") is not None,
         "trust": trust,
+        "install": install,
     }
     if binary != name:
         entry["binary"] = binary
-    for source_key, target_key in (("match_pattern", "match"), ("exclude_pattern", "exclude")):
-        patterns = record.get(source_key)
-        if isinstance(patterns, list) and patterns:
-            entry[target_key] = patterns
+    if install["type"] == "release":
+        for source_key, target_key in (("match_pattern", "match"), ("exclude_pattern", "exclude")):
+            patterns = record.get(source_key)
+            if isinstance(patterns, list) and patterns:
+                entry[target_key] = patterns
     return name, entry
 
 
@@ -142,9 +177,6 @@ def render_entry(entry: dict[str, Any]) -> str:
         lines.append(f'binary = {toml_string(entry["binary"])}')
     lines.extend(
         [
-            f'repo = {toml_string(entry["repo"])}',
-            f'provider = {toml_string(entry["provider"])}',
-            "",
             f'desktop = {str(entry["desktop"]).lower()}',
             f'trust = {toml_string(entry["trust"])}',
         ]
@@ -159,6 +191,11 @@ def render_entry(entry: dict[str, Any]) -> str:
                     "]",
                 ]
             )
+    install = entry["install"]
+    lines.extend(["", "[install]", f'type = {toml_string(install["type"])}'])
+    for key in ("repo", "provider", "profile", "branch", "url", "filetype"):
+        if key in install:
+            lines.append(f"{key} = {toml_string(install[key])}")
     return "\n".join(lines) + "\n"
 
 
