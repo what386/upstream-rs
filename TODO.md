@@ -6,3 +6,6 @@
 
 ## Tasks
 
+- [ ] consider: crash recovery
+      @created 2026-07-22 23:44
+
