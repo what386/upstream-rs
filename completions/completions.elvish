@@ -25,6 +25,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
             cand -V 'Print version'
             cand --version 'Print version'
+            cand add 'Install a package from the configured registry'
             cand install 'Install a release asset or direct download'
             cand build 'Build and install a package from source'
             cand remove 'Remove installed package files and metadata'
@@ -42,16 +43,28 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand config 'View and edit config.toml'
             cand auth 'View and edit auth.toml'
             cand package 'Manage installed package records and launcher entries'
+            cand cache 'Inspect or remove reusable cached data'
             cand hooks 'Manage shell PATH hooks and local upstream data'
             cand import 'Import config, trust keys, packages, or a profile'
             cand export 'Export config, trust keys, packages, or a profile'
-            cand history 'Show recent command and package audit history'
+            cand history 'Show recent grouped operation history'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;add'= {
+            cand --fetch 'Refresh the local registry index before resolving the package'
+            cand --dry-run 'Preview resolution without downloading or installing the package'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;install'= {
             cand -t 'Release tag to install (defaults to latest matching the channel)'
             cand --tag 'Release tag to install (defaults to latest matching the channel)'
+            cand -v 'Semantic version to resolve to a release tag'
+            cand --semver 'Semantic version to resolve to a release tag'
             cand -k 'Asset kind to install'
             cand --kind 'Asset kind to install'
             cand -p 'Source provider hosting the repository. Defaults to auto-detection'
@@ -76,6 +89,8 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;build'= {
             cand -t 'Release tag to build (defaults to latest matching the channel)'
             cand --tag 'Release tag to build (defaults to latest matching the channel)'
+            cand -v 'Semantic version to resolve to a release tag'
+            cand --semver 'Semantic version to resolve to a release tag'
             cand --branch 'Branch to build from instead of a release tag'
             cand -p 'Source provider hosting the repository. Defaults to auto-detection'
             cand --provider 'Source provider hosting the repository. Defaults to auto-detection'
@@ -394,12 +409,37 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --no-pager 'Prevent paging long command outputs'
             cand -h 'Print help (see more with ''--help'')'
             cand --help 'Print help (see more with ''--help'')'
+            cand set 'Set user-controlled settings for an installed package'
+            cand get 'Show user-controlled settings for an installed package'
+            cand unset 'Clear user-controlled settings for an installed package'
             cand pin 'Mark an installed package as pinned'
             cand unpin 'Clear the pinned flag on an installed package'
             cand rename 'Rename an installed package record and aliases'
             cand add-entry 'Add a desktop launcher entry for an installed package'
             cand rm-entry 'Remove an upstream-managed desktop launcher entry'
             cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;package;set'= {
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'upstream;package;get'= {
+            cand --json 'Print settings as JSON'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'upstream;package;unset'= {
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help'
+            cand --help 'Print help'
         }
         &'upstream;package;pin'= {
             cand -y 'Accept confirmation prompts automatically'
@@ -437,12 +477,21 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;package;help'= {
+            cand set 'Set user-controlled settings for an installed package'
+            cand get 'Show user-controlled settings for an installed package'
+            cand unset 'Clear user-controlled settings for an installed package'
             cand pin 'Mark an installed package as pinned'
             cand unpin 'Clear the pinned flag on an installed package'
             cand rename 'Rename an installed package record and aliases'
             cand add-entry 'Add a desktop launcher entry for an installed package'
             cand rm-entry 'Remove an upstream-managed desktop launcher entry'
             cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;package;help;set'= {
+        }
+        &'upstream;package;help;get'= {
+        }
+        &'upstream;package;help;unset'= {
         }
         &'upstream;package;help;pin'= {
         }
@@ -455,6 +504,43 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;package;help;rm-entry'= {
         }
         &'upstream;package;help;help'= {
+        }
+        &'upstream;cache'= {
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help (see more with ''--help'')'
+            cand --help 'Print help (see more with ''--help'')'
+            cand list 'Show known cache categories and their disk usage'
+            cand clean 'Remove known cache categories'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;cache;list'= {
+            cand --json 'Print cache information as JSON'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'upstream;cache;clean'= {
+            cand --dry-run 'Preview cache cleanup without deleting anything'
+            cand -y 'Accept confirmation prompts automatically'
+            cand --yes 'Accept confirmation prompts automatically'
+            cand --no-pager 'Prevent paging long command outputs'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'upstream;cache;help'= {
+            cand list 'Show known cache categories and their disk usage'
+            cand clean 'Remove known cache categories'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;cache;help;list'= {
+        }
+        &'upstream;cache;help;clean'= {
+        }
+        &'upstream;cache;help;help'= {
         }
         &'upstream;hooks'= {
             cand -y 'Accept confirmation prompts automatically'
@@ -633,9 +719,11 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;history'= {
             cand --package 'Only show records for this package'
-            cand --action 'Only show records whose command begins with this action'
-            cand --status 'Only show this status (for example: ok, warn, fail, success, failed)'
-            cand --limit 'Maximum number of matching records to show'
+            cand --action 'Only show operations whose action begins with this value'
+            cand --status 'Only show this status (success, failed, warning, or cancelled)'
+            cand --limit 'Maximum number of matching operations to show'
+            cand --since 'Only show operations newer than a duration such as 2d, 12h, or 30m'
+            cand --today 'Only show operations from the local calendar day'
             cand --json 'Print matching records as JSON'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
@@ -654,6 +742,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;help'= {
+            cand add 'Install a package from the configured registry'
             cand install 'Install a release asset or direct download'
             cand build 'Build and install a package from source'
             cand remove 'Remove installed package files and metadata'
@@ -670,12 +759,15 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand config 'View and edit config.toml'
             cand auth 'View and edit auth.toml'
             cand package 'Manage installed package records and launcher entries'
+            cand cache 'Inspect or remove reusable cached data'
             cand hooks 'Manage shell PATH hooks and local upstream data'
             cand import 'Import config, trust keys, packages, or a profile'
             cand export 'Export config, trust keys, packages, or a profile'
-            cand history 'Show recent command and package audit history'
+            cand history 'Show recent grouped operation history'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'upstream;help;add'= {
         }
         &'upstream;help;install'= {
         }
@@ -738,11 +830,20 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;auth;reset'= {
         }
         &'upstream;help;package'= {
+            cand set 'Set user-controlled settings for an installed package'
+            cand get 'Show user-controlled settings for an installed package'
+            cand unset 'Clear user-controlled settings for an installed package'
             cand pin 'Mark an installed package as pinned'
             cand unpin 'Clear the pinned flag on an installed package'
             cand rename 'Rename an installed package record and aliases'
             cand add-entry 'Add a desktop launcher entry for an installed package'
             cand rm-entry 'Remove an upstream-managed desktop launcher entry'
+        }
+        &'upstream;help;package;set'= {
+        }
+        &'upstream;help;package;get'= {
+        }
+        &'upstream;help;package;unset'= {
         }
         &'upstream;help;package;pin'= {
         }
@@ -753,6 +854,14 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;package;add-entry'= {
         }
         &'upstream;help;package;rm-entry'= {
+        }
+        &'upstream;help;cache'= {
+            cand list 'Show known cache categories and their disk usage'
+            cand clean 'Remove known cache categories'
+        }
+        &'upstream;help;cache;list'= {
+        }
+        &'upstream;help;cache;clean'= {
         }
         &'upstream;help;hooks'= {
             cand init 'Install shell PATH hooks'

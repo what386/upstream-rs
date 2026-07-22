@@ -31,10 +31,24 @@ _upstream() {
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:upstream-command-$line[1]:"
         case $line[1] in
-            (install)
+            (add)
+_arguments "${_arguments_options[@]}" : \
+'--fetch[Refresh the local registry index before resolving the package]' \
+'--dry-run[Preview resolution without downloading or installing the package]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':name -- Package name in the registry:_default' \
+&& ret=0
+;;
+(install)
 _arguments "${_arguments_options[@]}" : \
 '-t+[Release tag to install (defaults to latest matching the channel)]:TAG:_default' \
 '--tag=[Release tag to install (defaults to latest matching the channel)]:TAG:_default' \
+'(-t --tag)-v+[Semantic version to resolve to a release tag]:SEMVER:_default' \
+'(-t --tag)--semver=[Semantic version to resolve to a release tag]:SEMVER:_default' \
 '-k+[Asset kind to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
 '--kind=[Asset kind to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
 '-p+[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
@@ -63,6 +77,8 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 '(--branch)-t+[Release tag to build (defaults to latest matching the channel)]:TAG:_default' \
 '(--branch)--tag=[Release tag to build (defaults to latest matching the channel)]:TAG:_default' \
+'(-t --tag --branch)-v+[Semantic version to resolve to a release tag]:SEMVER:_default' \
+'(-t --tag --branch)--semver=[Semantic version to resolve to a release tag]:SEMVER:_default' \
 '(-t --tag)--branch=[Branch to build from instead of a release tag]:BRANCH:_default' \
 '-p+[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
 '--provider=[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
@@ -513,7 +529,41 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:upstream-package-command-$line[1]:"
         case $line[1] in
-            (pin)
+            (set)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Installed package name:_default' \
+'*::settings -- Settings in key=value form:_default' \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+'--json[Print settings as JSON]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Installed package name:_default' \
+'*::keys -- Settings to show; omitting keys shows all settings:(match_pattern exclude_pattern trust_mode)' \
+&& ret=0
+;;
+(unset)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Installed package name:_default' \
+'*::keys -- Settings to clear:(match_pattern exclude_pattern trust_mode)' \
+&& ret=0
+;;
+(pin)
 _arguments "${_arguments_options[@]}" : \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
@@ -576,7 +626,19 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:upstream-package-help-command-$line[1]:"
         case $line[1] in
-            (pin)
+            (set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(unset)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(pin)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -593,6 +655,76 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (rm-entry)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(cache)
+_arguments "${_arguments_options[@]}" : \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+":: :_upstream__subcmd__cache_commands" \
+"*::: :->cache" \
+&& ret=0
+
+    case $state in
+    (cache)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-cache-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--json[Print cache information as JSON]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(clean)
+_arguments "${_arguments_options[@]}" : \
+'--dry-run[Preview cache cleanup without deleting anything]' \
+'-y[Accept confirmation prompts automatically]' \
+'--yes[Accept confirmation prompts automatically]' \
+'--no-pager[Prevent paging long command outputs]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'*::categories -- Cache categories to remove; omitting them removes all known categories:(build source docs registry all)' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_upstream__subcmd__cache__subcmd__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-cache-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(clean)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -902,9 +1034,11 @@ esac
 (history)
 _arguments "${_arguments_options[@]}" : \
 '--package=[Only show records for this package]:PACKAGE:_default' \
-'--action=[Only show records whose command begins with this action]:ACTION:_default' \
-'--status=[Only show this status (for example\: ok, warn, fail, success, failed)]:STATUS:_default' \
-'--limit=[Maximum number of matching records to show]:LIMIT:_default' \
+'--action=[Only show operations whose action begins with this value]:ACTION:_default' \
+'--status=[Only show this status (success, failed, warning, or cancelled)]:STATUS:_default' \
+'--limit=[Maximum number of matching operations to show]:LIMIT:_default' \
+'(--today)--since=[Only show operations newer than a duration such as 2d, 12h, or 30m]:SINCE:_default' \
+'(--since)--today[Only show operations from the local calendar day]' \
 '--json[Print matching records as JSON]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
@@ -938,7 +1072,11 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:upstream-help-command-$line[1]:"
         case $line[1] in
-            (install)
+            (add)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(install)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -1074,7 +1212,19 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:upstream-help-package-command-$line[1]:"
         case $line[1] in
-            (pin)
+            (set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(unset)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(pin)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -1091,6 +1241,30 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (rm-entry)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(cache)
+_arguments "${_arguments_options[@]}" : \
+":: :_upstream__subcmd__help__subcmd__cache_commands" \
+"*::: :->cache" \
+&& ret=0
+
+    case $state in
+    (cache)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:upstream-help-cache-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(clean)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -1218,6 +1392,7 @@ esac
 (( $+functions[_upstream_commands] )) ||
 _upstream_commands() {
     local commands; commands=(
+'add:Install a package from the configured registry' \
 'install:Install a release asset or direct download' \
 'build:Build and install a package from source' \
 'remove:Remove installed package files and metadata' \
@@ -1235,14 +1410,20 @@ _upstream_commands() {
 'config:View and edit config.toml' \
 'auth:View and edit auth.toml' \
 'package:Manage installed package records and launcher entries' \
+'cache:Inspect or remove reusable cached data' \
 'hooks:Manage shell PATH hooks and local upstream data' \
 'import:Import config, trust keys, packages, or a profile' \
 'export:Export config, trust keys, packages, or a profile' \
-'history:Show recent command and package audit history' \
+'history:Show recent grouped operation history' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__add_commands] )) ||
+_upstream__subcmd__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream add commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__auth_commands] )) ||
 _upstream__subcmd__auth_commands() {
@@ -1327,6 +1508,49 @@ _upstream__subcmd__auth__subcmd__set_commands() {
 _upstream__subcmd__build_commands() {
     local commands; commands=()
     _describe -t commands 'upstream build commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__cache_commands] )) ||
+_upstream__subcmd__cache_commands() {
+    local commands; commands=(
+'list:Show known cache categories and their disk usage' \
+'clean:Remove known cache categories' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'upstream cache commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__cache__subcmd__clean_commands] )) ||
+_upstream__subcmd__cache__subcmd__clean_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream cache clean commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__cache__subcmd__help_commands] )) ||
+_upstream__subcmd__cache__subcmd__help_commands() {
+    local commands; commands=(
+'list:Show known cache categories and their disk usage' \
+'clean:Remove known cache categories' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'upstream cache help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__cache__subcmd__help__subcmd__clean_commands] )) ||
+_upstream__subcmd__cache__subcmd__help__subcmd__clean_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream cache help clean commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__cache__subcmd__help__subcmd__help_commands] )) ||
+_upstream__subcmd__cache__subcmd__help__subcmd__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream cache help help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__cache__subcmd__help__subcmd__list_commands] )) ||
+_upstream__subcmd__cache__subcmd__help__subcmd__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream cache help list commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__cache__subcmd__list_commands] )) ||
+_upstream__subcmd__cache__subcmd__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream cache list commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__changelog_commands] )) ||
 _upstream__subcmd__changelog_commands() {
@@ -1497,6 +1721,7 @@ _upstream__subcmd__find_commands() {
 (( $+functions[_upstream__subcmd__help_commands] )) ||
 _upstream__subcmd__help_commands() {
     local commands; commands=(
+'add:Install a package from the configured registry' \
 'install:Install a release asset or direct download' \
 'build:Build and install a package from source' \
 'remove:Remove installed package files and metadata' \
@@ -1513,14 +1738,20 @@ _upstream__subcmd__help_commands() {
 'config:View and edit config.toml' \
 'auth:View and edit auth.toml' \
 'package:Manage installed package records and launcher entries' \
+'cache:Inspect or remove reusable cached data' \
 'hooks:Manage shell PATH hooks and local upstream data' \
 'import:Import config, trust keys, packages, or a profile' \
 'export:Export config, trust keys, packages, or a profile' \
-'history:Show recent command and package audit history' \
+'history:Show recent grouped operation history' \
 'doctor:Run diagnostics to detect installation and integration issues' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream help commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__add_commands] )) ||
+_upstream__subcmd__help__subcmd__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help add commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__auth_commands] )) ||
 _upstream__subcmd__help__subcmd__auth_commands() {
@@ -1562,6 +1793,24 @@ _upstream__subcmd__help__subcmd__auth__subcmd__set_commands() {
 _upstream__subcmd__help__subcmd__build_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help build commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__cache_commands] )) ||
+_upstream__subcmd__help__subcmd__cache_commands() {
+    local commands; commands=(
+'list:Show known cache categories and their disk usage' \
+'clean:Remove known cache categories' \
+    )
+    _describe -t commands 'upstream help cache commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__cache__subcmd__clean_commands] )) ||
+_upstream__subcmd__help__subcmd__cache__subcmd__clean_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help cache clean commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__cache__subcmd__list_commands] )) ||
+_upstream__subcmd__help__subcmd__cache__subcmd__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help cache list commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__changelog_commands] )) ||
 _upstream__subcmd__help__subcmd__changelog_commands() {
@@ -1737,6 +1986,9 @@ _upstream__subcmd__help__subcmd__list_commands() {
 (( $+functions[_upstream__subcmd__help__subcmd__package_commands] )) ||
 _upstream__subcmd__help__subcmd__package_commands() {
     local commands; commands=(
+'set:Set user-controlled settings for an installed package' \
+'get:Show user-controlled settings for an installed package' \
+'unset:Clear user-controlled settings for an installed package' \
 'pin:Mark an installed package as pinned' \
 'unpin:Clear the pinned flag on an installed package' \
 'rename:Rename an installed package record and aliases' \
@@ -1749,6 +2001,11 @@ _upstream__subcmd__help__subcmd__package_commands() {
 _upstream__subcmd__help__subcmd__package__subcmd__add-entry_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package add-entry commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__get_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help package get commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__pin_commands] )) ||
 _upstream__subcmd__help__subcmd__package__subcmd__pin_commands() {
@@ -1765,10 +2022,20 @@ _upstream__subcmd__help__subcmd__package__subcmd__rm-entry_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package rm-entry commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__set_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help package set commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__unpin_commands] )) ||
 _upstream__subcmd__help__subcmd__package__subcmd__unpin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help package unpin commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__help__subcmd__package__subcmd__unset_commands] )) ||
+_upstream__subcmd__help__subcmd__package__subcmd__unset_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream help package unset commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__probe_commands] )) ||
 _upstream__subcmd__help__subcmd__probe_commands() {
@@ -1957,6 +2224,9 @@ _upstream__subcmd__list_commands() {
 (( $+functions[_upstream__subcmd__package_commands] )) ||
 _upstream__subcmd__package_commands() {
     local commands; commands=(
+'set:Set user-controlled settings for an installed package' \
+'get:Show user-controlled settings for an installed package' \
+'unset:Clear user-controlled settings for an installed package' \
 'pin:Mark an installed package as pinned' \
 'unpin:Clear the pinned flag on an installed package' \
 'rename:Rename an installed package record and aliases' \
@@ -1971,9 +2241,17 @@ _upstream__subcmd__package__subcmd__add-entry_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package add-entry commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__package__subcmd__get_commands] )) ||
+_upstream__subcmd__package__subcmd__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package get commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__package__subcmd__help_commands] )) ||
 _upstream__subcmd__package__subcmd__help_commands() {
     local commands; commands=(
+'set:Set user-controlled settings for an installed package' \
+'get:Show user-controlled settings for an installed package' \
+'unset:Clear user-controlled settings for an installed package' \
 'pin:Mark an installed package as pinned' \
 'unpin:Clear the pinned flag on an installed package' \
 'rename:Rename an installed package record and aliases' \
@@ -1987,6 +2265,11 @@ _upstream__subcmd__package__subcmd__help_commands() {
 _upstream__subcmd__package__subcmd__help__subcmd__add-entry_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help add-entry commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__get_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package help get commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__help_commands] )) ||
 _upstream__subcmd__package__subcmd__help__subcmd__help_commands() {
@@ -2008,10 +2291,20 @@ _upstream__subcmd__package__subcmd__help__subcmd__rm-entry_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help rm-entry commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__set_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package help set commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__unpin_commands] )) ||
 _upstream__subcmd__package__subcmd__help__subcmd__unpin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package help unpin commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__package__subcmd__help__subcmd__unset_commands] )) ||
+_upstream__subcmd__package__subcmd__help__subcmd__unset_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package help unset commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__package__subcmd__pin_commands] )) ||
 _upstream__subcmd__package__subcmd__pin_commands() {
@@ -2028,10 +2321,20 @@ _upstream__subcmd__package__subcmd__rm-entry_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package rm-entry commands' commands "$@"
 }
+(( $+functions[_upstream__subcmd__package__subcmd__set_commands] )) ||
+_upstream__subcmd__package__subcmd__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package set commands' commands "$@"
+}
 (( $+functions[_upstream__subcmd__package__subcmd__unpin_commands] )) ||
 _upstream__subcmd__package__subcmd__unpin_commands() {
     local commands; commands=()
     _describe -t commands 'upstream package unpin commands' commands "$@"
+}
+(( $+functions[_upstream__subcmd__package__subcmd__unset_commands] )) ||
+_upstream__subcmd__package__subcmd__unset_commands() {
+    local commands; commands=()
+    _describe -t commands 'upstream package unset commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__probe_commands] )) ||
 _upstream__subcmd__probe_commands() {

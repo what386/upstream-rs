@@ -16,11 +16,17 @@ _upstream() {
             ",$1")
                 cmd="upstream"
                 ;;
+            upstream,add)
+                cmd="upstream__subcmd__add"
+                ;;
             upstream,auth)
                 cmd="upstream__subcmd__auth"
                 ;;
             upstream,build)
                 cmd="upstream__subcmd__build"
+                ;;
+            upstream,cache)
+                cmd="upstream__subcmd__cache"
                 ;;
             upstream,changelog)
                 cmd="upstream__subcmd__changelog"
@@ -121,6 +127,24 @@ _upstream() {
             upstream__subcmd__auth__subcmd__help,set)
                 cmd="upstream__subcmd__auth__subcmd__help__subcmd__set"
                 ;;
+            upstream__subcmd__cache,clean)
+                cmd="upstream__subcmd__cache__subcmd__clean"
+                ;;
+            upstream__subcmd__cache,help)
+                cmd="upstream__subcmd__cache__subcmd__help"
+                ;;
+            upstream__subcmd__cache,list)
+                cmd="upstream__subcmd__cache__subcmd__list"
+                ;;
+            upstream__subcmd__cache__subcmd__help,clean)
+                cmd="upstream__subcmd__cache__subcmd__help__subcmd__clean"
+                ;;
+            upstream__subcmd__cache__subcmd__help,help)
+                cmd="upstream__subcmd__cache__subcmd__help__subcmd__help"
+                ;;
+            upstream__subcmd__cache__subcmd__help,list)
+                cmd="upstream__subcmd__cache__subcmd__help__subcmd__list"
+                ;;
             upstream__subcmd__config,edit)
                 cmd="upstream__subcmd__config__subcmd__edit"
                 ;;
@@ -187,11 +211,17 @@ _upstream() {
             upstream__subcmd__export__subcmd__help,profile)
                 cmd="upstream__subcmd__export__subcmd__help__subcmd__profile"
                 ;;
+            upstream__subcmd__help,add)
+                cmd="upstream__subcmd__help__subcmd__add"
+                ;;
             upstream__subcmd__help,auth)
                 cmd="upstream__subcmd__help__subcmd__auth"
                 ;;
             upstream__subcmd__help,build)
                 cmd="upstream__subcmd__help__subcmd__build"
+                ;;
+            upstream__subcmd__help,cache)
+                cmd="upstream__subcmd__help__subcmd__cache"
                 ;;
             upstream__subcmd__help,changelog)
                 cmd="upstream__subcmd__help__subcmd__changelog"
@@ -268,6 +298,12 @@ _upstream() {
             upstream__subcmd__help__subcmd__auth,set)
                 cmd="upstream__subcmd__help__subcmd__auth__subcmd__set"
                 ;;
+            upstream__subcmd__help__subcmd__cache,clean)
+                cmd="upstream__subcmd__help__subcmd__cache__subcmd__clean"
+                ;;
+            upstream__subcmd__help__subcmd__cache,list)
+                cmd="upstream__subcmd__help__subcmd__cache__subcmd__list"
+                ;;
             upstream__subcmd__help__subcmd__config,edit)
                 cmd="upstream__subcmd__help__subcmd__config__subcmd__edit"
                 ;;
@@ -322,6 +358,9 @@ _upstream() {
             upstream__subcmd__help__subcmd__package,add-entry)
                 cmd="upstream__subcmd__help__subcmd__package__subcmd__add__subcmd__entry"
                 ;;
+            upstream__subcmd__help__subcmd__package,get)
+                cmd="upstream__subcmd__help__subcmd__package__subcmd__get"
+                ;;
             upstream__subcmd__help__subcmd__package,pin)
                 cmd="upstream__subcmd__help__subcmd__package__subcmd__pin"
                 ;;
@@ -331,8 +370,14 @@ _upstream() {
             upstream__subcmd__help__subcmd__package,rm-entry)
                 cmd="upstream__subcmd__help__subcmd__package__subcmd__rm__subcmd__entry"
                 ;;
+            upstream__subcmd__help__subcmd__package,set)
+                cmd="upstream__subcmd__help__subcmd__package__subcmd__set"
+                ;;
             upstream__subcmd__help__subcmd__package,unpin)
                 cmd="upstream__subcmd__help__subcmd__package__subcmd__unpin"
+                ;;
+            upstream__subcmd__help__subcmd__package,unset)
+                cmd="upstream__subcmd__help__subcmd__package__subcmd__unset"
                 ;;
             upstream__subcmd__hooks,check)
                 cmd="upstream__subcmd__hooks__subcmd__check"
@@ -397,6 +442,9 @@ _upstream() {
             upstream__subcmd__package,add-entry)
                 cmd="upstream__subcmd__package__subcmd__add__subcmd__entry"
                 ;;
+            upstream__subcmd__package,get)
+                cmd="upstream__subcmd__package__subcmd__get"
+                ;;
             upstream__subcmd__package,help)
                 cmd="upstream__subcmd__package__subcmd__help"
                 ;;
@@ -409,11 +457,20 @@ _upstream() {
             upstream__subcmd__package,rm-entry)
                 cmd="upstream__subcmd__package__subcmd__rm__subcmd__entry"
                 ;;
+            upstream__subcmd__package,set)
+                cmd="upstream__subcmd__package__subcmd__set"
+                ;;
             upstream__subcmd__package,unpin)
                 cmd="upstream__subcmd__package__subcmd__unpin"
                 ;;
+            upstream__subcmd__package,unset)
+                cmd="upstream__subcmd__package__subcmd__unset"
+                ;;
             upstream__subcmd__package__subcmd__help,add-entry)
                 cmd="upstream__subcmd__package__subcmd__help__subcmd__add__subcmd__entry"
+                ;;
+            upstream__subcmd__package__subcmd__help,get)
+                cmd="upstream__subcmd__package__subcmd__help__subcmd__get"
                 ;;
             upstream__subcmd__package__subcmd__help,help)
                 cmd="upstream__subcmd__package__subcmd__help__subcmd__help"
@@ -427,8 +484,14 @@ _upstream() {
             upstream__subcmd__package__subcmd__help,rm-entry)
                 cmd="upstream__subcmd__package__subcmd__help__subcmd__rm__subcmd__entry"
                 ;;
+            upstream__subcmd__package__subcmd__help,set)
+                cmd="upstream__subcmd__package__subcmd__help__subcmd__set"
+                ;;
             upstream__subcmd__package__subcmd__help,unpin)
                 cmd="upstream__subcmd__package__subcmd__help__subcmd__unpin"
+                ;;
+            upstream__subcmd__package__subcmd__help,unset)
+                cmd="upstream__subcmd__package__subcmd__help__subcmd__unset"
                 ;;
             *)
                 ;;
@@ -437,8 +500,22 @@ _upstream() {
 
     case "${cmd}" in
         upstream)
-            opts="-y -h -V --yes --no-pager --help --version install build remove uninstall rollback reinstall upgrade list info changelog docs probe search find config auth package hooks import export history doctor help"
+            opts="-y -h -V --yes --no-pager --help --version add install build remove uninstall rollback reinstall upgrade list info changelog docs probe search find config auth package cache hooks import export history doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__add)
+            opts="-y -h --fetch --dry-run --yes --no-pager --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -633,7 +710,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__build)
-            opts="-t -p -c -d -y -h --tag --branch --provider --base-url --channel --desktop --build-profile --dry-run --yes --no-pager --help"
+            opts="-t -v -p -c -d -y -h --tag --semver --branch --provider --base-url --channel --desktop --build-profile --dry-run --yes --no-pager --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -644,6 +721,14 @@ _upstream() {
                     return 0
                     ;;
                 -t)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --semver)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -v)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -675,6 +760,104 @@ _upstream() {
                     COMPREPLY=($(compgen -W "rust dotnet go zig cmake" -- "${cur}"))
                     return 0
                     ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__cache)
+            opts="-y -h --yes --no-pager --help list clean help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__cache__subcmd__clean)
+            opts="-y -h --dry-run --yes --no-pager --help build source docs registry all"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__cache__subcmd__help)
+            opts="list clean help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__cache__subcmd__help__subcmd__clean)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__cache__subcmd__help__subcmd__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__cache__subcmd__help__subcmd__list)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__cache__subcmd__list)
+            opts="-y -h --json --yes --no-pager --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
                 *)
                     COMPREPLY=()
                     ;;
@@ -1167,8 +1350,22 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help)
-            opts="install build remove rollback reinstall upgrade list info changelog docs probe search find config auth package hooks import export history doctor help"
+            opts="add install build remove rollback reinstall upgrade list info changelog docs probe search find config auth package cache hooks import export history doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__add)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -1267,6 +1464,48 @@ _upstream() {
         upstream__subcmd__help__subcmd__build)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__cache)
+            opts="list clean"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__cache__subcmd__clean)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__cache__subcmd__list)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -1699,7 +1938,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__package)
-            opts="pin unpin rename add-entry rm-entry"
+            opts="set get unset pin unpin rename add-entry rm-entry"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1713,6 +1952,20 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__package__subcmd__add__subcmd__entry)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__package__subcmd__get)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1768,7 +2021,35 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        upstream__subcmd__help__subcmd__package__subcmd__set)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         upstream__subcmd__help__subcmd__package__subcmd__unpin)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__help__subcmd__package__subcmd__unset)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1867,7 +2148,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__history)
-            opts="-y -h --package --action --status --limit --json --yes --no-pager --help"
+            opts="-y -h --package --action --status --limit --since --today --json --yes --no-pager --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1886,6 +2167,10 @@ _upstream() {
                     return 0
                     ;;
                 --limit)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --since)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -2219,7 +2504,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__install)
-            opts="-t -k -p -c -m -e -d -y -h --tag --kind --provider --base-url --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --no-pager --help"
+            opts="-t -v -k -p -c -m -e -d -y -h --tag --semver --kind --provider --base-url --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --no-pager --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2230,6 +2515,14 @@ _upstream() {
                     return 0
                     ;;
                 -t)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --semver)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -v)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -2303,7 +2596,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__package)
-            opts="-y -h --yes --no-pager --help pin unpin rename add-entry rm-entry help"
+            opts="-y -h --yes --no-pager --help set get unset pin unpin rename add-entry rm-entry help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2330,8 +2623,22 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        upstream__subcmd__package__subcmd__get)
+            opts="-y -h --json --yes --no-pager --help match_pattern exclude_pattern trust_mode"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         upstream__subcmd__package__subcmd__help)
-            opts="pin unpin rename add-entry rm-entry help"
+            opts="set get unset pin unpin rename add-entry rm-entry help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2345,6 +2652,20 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__package__subcmd__help__subcmd__add__subcmd__entry)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__package__subcmd__help__subcmd__get)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -2414,7 +2735,35 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        upstream__subcmd__package__subcmd__help__subcmd__set)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         upstream__subcmd__package__subcmd__help__subcmd__unpin)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__package__subcmd__help__subcmd__unset)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -2470,8 +2819,36 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        upstream__subcmd__package__subcmd__set)
+            opts="-y -h --yes --no-pager --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         upstream__subcmd__package__subcmd__unpin)
             opts="-y -h --yes --no-pager --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        upstream__subcmd__package__subcmd__unset)
+            opts="-y -h --yes --no-pager --help match_pattern exclude_pattern trust_mode"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

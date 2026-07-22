@@ -28,6 +28,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
             [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
+            [CompletionResult]::new('add', 'add', [CompletionResultType]::ParameterValue, 'Install a package from the configured registry')
             [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a release asset or direct download')
             [CompletionResult]::new('build', 'build', [CompletionResultType]::ParameterValue, 'Build and install a package from source')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove installed package files and metadata')
@@ -45,17 +46,30 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'View and edit config.toml')
             [CompletionResult]::new('auth', 'auth', [CompletionResultType]::ParameterValue, 'View and edit auth.toml')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage installed package records and launcher entries')
+            [CompletionResult]::new('cache', 'cache', [CompletionResultType]::ParameterValue, 'Inspect or remove reusable cached data')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell PATH hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import config, trust keys, packages, or a profile')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export config, trust keys, packages, or a profile')
-            [CompletionResult]::new('history', 'history', [CompletionResultType]::ParameterValue, 'Show recent command and package audit history')
+            [CompletionResult]::new('history', 'history', [CompletionResultType]::ParameterValue, 'Show recent grouped operation history')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;add' {
+            [CompletionResult]::new('--fetch', '--fetch', [CompletionResultType]::ParameterName, 'Refresh the local registry index before resolving the package')
+            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview resolution without downloading or installing the package')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
         }
         'upstream;install' {
             [CompletionResult]::new('-t', '-t', [CompletionResultType]::ParameterName, 'Release tag to install (defaults to latest matching the channel)')
             [CompletionResult]::new('--tag', '--tag', [CompletionResultType]::ParameterName, 'Release tag to install (defaults to latest matching the channel)')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Semantic version to resolve to a release tag')
+            [CompletionResult]::new('--semver', '--semver', [CompletionResultType]::ParameterName, 'Semantic version to resolve to a release tag')
             [CompletionResult]::new('-k', '-k', [CompletionResultType]::ParameterName, 'Asset kind to install')
             [CompletionResult]::new('--kind', '--kind', [CompletionResultType]::ParameterName, 'Asset kind to install')
             [CompletionResult]::new('-p', '-p', [CompletionResultType]::ParameterName, 'Source provider hosting the repository. Defaults to auto-detection')
@@ -81,6 +95,8 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         'upstream;build' {
             [CompletionResult]::new('-t', '-t', [CompletionResultType]::ParameterName, 'Release tag to build (defaults to latest matching the channel)')
             [CompletionResult]::new('--tag', '--tag', [CompletionResultType]::ParameterName, 'Release tag to build (defaults to latest matching the channel)')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Semantic version to resolve to a release tag')
+            [CompletionResult]::new('--semver', '--semver', [CompletionResultType]::ParameterName, 'Semantic version to resolve to a release tag')
             [CompletionResult]::new('--branch', '--branch', [CompletionResultType]::ParameterName, 'Branch to build from instead of a release tag')
             [CompletionResult]::new('-p', '-p', [CompletionResultType]::ParameterName, 'Source provider hosting the repository. Defaults to auto-detection')
             [CompletionResult]::new('--provider', '--provider', [CompletionResultType]::ParameterName, 'Source provider hosting the repository. Defaults to auto-detection')
@@ -438,12 +454,40 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('set', 'set', [CompletionResultType]::ParameterValue, 'Set user-controlled settings for an installed package')
+            [CompletionResult]::new('get', 'get', [CompletionResultType]::ParameterValue, 'Show user-controlled settings for an installed package')
+            [CompletionResult]::new('unset', 'unset', [CompletionResultType]::ParameterValue, 'Clear user-controlled settings for an installed package')
             [CompletionResult]::new('pin', 'pin', [CompletionResultType]::ParameterValue, 'Mark an installed package as pinned')
             [CompletionResult]::new('unpin', 'unpin', [CompletionResultType]::ParameterValue, 'Clear the pinned flag on an installed package')
             [CompletionResult]::new('rename', 'rename', [CompletionResultType]::ParameterValue, 'Rename an installed package record and aliases')
             [CompletionResult]::new('add-entry', 'add-entry', [CompletionResultType]::ParameterValue, 'Add a desktop launcher entry for an installed package')
             [CompletionResult]::new('rm-entry', 'rm-entry', [CompletionResultType]::ParameterValue, 'Remove an upstream-managed desktop launcher entry')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;package;set' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'upstream;package;get' {
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Print settings as JSON')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'upstream;package;unset' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break
         }
         'upstream;package;pin' {
@@ -487,12 +531,24 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;package;help' {
+            [CompletionResult]::new('set', 'set', [CompletionResultType]::ParameterValue, 'Set user-controlled settings for an installed package')
+            [CompletionResult]::new('get', 'get', [CompletionResultType]::ParameterValue, 'Show user-controlled settings for an installed package')
+            [CompletionResult]::new('unset', 'unset', [CompletionResultType]::ParameterValue, 'Clear user-controlled settings for an installed package')
             [CompletionResult]::new('pin', 'pin', [CompletionResultType]::ParameterValue, 'Mark an installed package as pinned')
             [CompletionResult]::new('unpin', 'unpin', [CompletionResultType]::ParameterValue, 'Clear the pinned flag on an installed package')
             [CompletionResult]::new('rename', 'rename', [CompletionResultType]::ParameterValue, 'Rename an installed package record and aliases')
             [CompletionResult]::new('add-entry', 'add-entry', [CompletionResultType]::ParameterValue, 'Add a desktop launcher entry for an installed package')
             [CompletionResult]::new('rm-entry', 'rm-entry', [CompletionResultType]::ParameterValue, 'Remove an upstream-managed desktop launcher entry')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;package;help;set' {
+            break
+        }
+        'upstream;package;help;get' {
+            break
+        }
+        'upstream;package;help;unset' {
             break
         }
         'upstream;package;help;pin' {
@@ -511,6 +567,50 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;package;help;help' {
+            break
+        }
+        'upstream;cache' {
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'Show known cache categories and their disk usage')
+            [CompletionResult]::new('clean', 'clean', [CompletionResultType]::ParameterValue, 'Remove known cache categories')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;cache;list' {
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Print cache information as JSON')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'upstream;cache;clean' {
+            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview cache cleanup without deleting anything')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
+            [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'upstream;cache;help' {
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'Show known cache categories and their disk usage')
+            [CompletionResult]::new('clean', 'clean', [CompletionResultType]::ParameterValue, 'Remove known cache categories')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;cache;help;list' {
+            break
+        }
+        'upstream;cache;help;clean' {
+            break
+        }
+        'upstream;cache;help;help' {
             break
         }
         'upstream;hooks' {
@@ -723,9 +823,11 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         }
         'upstream;history' {
             [CompletionResult]::new('--package', '--package', [CompletionResultType]::ParameterName, 'Only show records for this package')
-            [CompletionResult]::new('--action', '--action', [CompletionResultType]::ParameterName, 'Only show records whose command begins with this action')
-            [CompletionResult]::new('--status', '--status', [CompletionResultType]::ParameterName, 'Only show this status (for example: ok, warn, fail, success, failed)')
-            [CompletionResult]::new('--limit', '--limit', [CompletionResultType]::ParameterName, 'Maximum number of matching records to show')
+            [CompletionResult]::new('--action', '--action', [CompletionResultType]::ParameterName, 'Only show operations whose action begins with this value')
+            [CompletionResult]::new('--status', '--status', [CompletionResultType]::ParameterName, 'Only show this status (success, failed, warning, or cancelled)')
+            [CompletionResult]::new('--limit', '--limit', [CompletionResultType]::ParameterName, 'Maximum number of matching operations to show')
+            [CompletionResult]::new('--since', '--since', [CompletionResultType]::ParameterName, 'Only show operations newer than a duration such as 2d, 12h, or 30m')
+            [CompletionResult]::new('--today', '--today', [CompletionResultType]::ParameterName, 'Only show operations from the local calendar day')
             [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Print matching records as JSON')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
@@ -746,6 +848,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help' {
+            [CompletionResult]::new('add', 'add', [CompletionResultType]::ParameterValue, 'Install a package from the configured registry')
             [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a release asset or direct download')
             [CompletionResult]::new('build', 'build', [CompletionResultType]::ParameterValue, 'Build and install a package from source')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove installed package files and metadata')
@@ -762,12 +865,16 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'View and edit config.toml')
             [CompletionResult]::new('auth', 'auth', [CompletionResultType]::ParameterValue, 'View and edit auth.toml')
             [CompletionResult]::new('package', 'package', [CompletionResultType]::ParameterValue, 'Manage installed package records and launcher entries')
+            [CompletionResult]::new('cache', 'cache', [CompletionResultType]::ParameterValue, 'Inspect or remove reusable cached data')
             [CompletionResult]::new('hooks', 'hooks', [CompletionResultType]::ParameterValue, 'Manage shell PATH hooks and local upstream data')
             [CompletionResult]::new('import', 'import', [CompletionResultType]::ParameterValue, 'Import config, trust keys, packages, or a profile')
             [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Export config, trust keys, packages, or a profile')
-            [CompletionResult]::new('history', 'history', [CompletionResultType]::ParameterValue, 'Show recent command and package audit history')
+            [CompletionResult]::new('history', 'history', [CompletionResultType]::ParameterValue, 'Show recent grouped operation history')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'upstream;help;add' {
             break
         }
         'upstream;help;install' {
@@ -856,11 +963,23 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;package' {
+            [CompletionResult]::new('set', 'set', [CompletionResultType]::ParameterValue, 'Set user-controlled settings for an installed package')
+            [CompletionResult]::new('get', 'get', [CompletionResultType]::ParameterValue, 'Show user-controlled settings for an installed package')
+            [CompletionResult]::new('unset', 'unset', [CompletionResultType]::ParameterValue, 'Clear user-controlled settings for an installed package')
             [CompletionResult]::new('pin', 'pin', [CompletionResultType]::ParameterValue, 'Mark an installed package as pinned')
             [CompletionResult]::new('unpin', 'unpin', [CompletionResultType]::ParameterValue, 'Clear the pinned flag on an installed package')
             [CompletionResult]::new('rename', 'rename', [CompletionResultType]::ParameterValue, 'Rename an installed package record and aliases')
             [CompletionResult]::new('add-entry', 'add-entry', [CompletionResultType]::ParameterValue, 'Add a desktop launcher entry for an installed package')
             [CompletionResult]::new('rm-entry', 'rm-entry', [CompletionResultType]::ParameterValue, 'Remove an upstream-managed desktop launcher entry')
+            break
+        }
+        'upstream;help;package;set' {
+            break
+        }
+        'upstream;help;package;get' {
+            break
+        }
+        'upstream;help;package;unset' {
             break
         }
         'upstream;help;package;pin' {
@@ -876,6 +995,17 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;package;rm-entry' {
+            break
+        }
+        'upstream;help;cache' {
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'Show known cache categories and their disk usage')
+            [CompletionResult]::new('clean', 'clean', [CompletionResultType]::ParameterValue, 'Remove known cache categories')
+            break
+        }
+        'upstream;help;cache;list' {
+            break
+        }
+        'upstream;help;cache;clean' {
             break
         }
         'upstream;help;hooks' {
