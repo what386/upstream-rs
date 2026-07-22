@@ -23,16 +23,21 @@ SPEC.loader.exec_module(COMMON)
 class RegistryTests(unittest.TestCase):
     def test_repository_registry_is_valid_and_index_is_current(self) -> None:
         packages = COMMON.load_registry(ROOT / "registry" / "packages")
-        expected = COMMON.render_index(packages)
-        actual = (ROOT / "registry" / "index.json").read_text(encoding="utf-8")
-        self.assertEqual(actual, expected)
+        readable = (ROOT / "registry" / "index.json").read_text(encoding="utf-8")
+        minified = (ROOT / "registry" / "index.min.json").read_text(encoding="utf-8")
+        self.assertEqual(readable, COMMON.render_index(packages))
+        self.assertEqual(minified, COMMON.render_minified_index(packages))
+        self.assertEqual(json.loads(minified), json.loads(readable))
+        self.assertNotIn("\n", minified.rstrip("\n"))
 
     def test_index_is_keyed_by_package_name(self) -> None:
         packages = COMMON.load_registry(ROOT / "registry" / "packages")
         rendered = json.loads(COMMON.render_index(packages))
-        self.assertIn("upstream", rendered)
-        self.assertNotIn("name", rendered["upstream"])
-        self.assertEqual(rendered["upstream"]["provider"], "github")
+        self.assertEqual(rendered["version"], 1)
+        self.assertIn("upstream", rendered["packages"])
+        self.assertNotIn("name", rendered["packages"]["upstream"])
+        self.assertEqual(rendered["packages"]["upstream"]["revision"], 1)
+        self.assertEqual(rendered["packages"]["upstream"]["provider"], "github")
 
     def test_invalid_entries_report_all_schema_errors(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -41,6 +46,7 @@ class RegistryTests(unittest.TestCase):
                 '\n'.join(
                     [
                         'name = "Bad"',
+                        'revision = 0',
                         'repo = "http://github.com/owner/repo?ref=main"',
                         'provider = "unknown"',
                         'desktop = "false"',
@@ -69,6 +75,7 @@ class RegistryTests(unittest.TestCase):
                 '\n'.join(
                     [
                         'name = "tool"',
+                        'revision = 1',
                         'repo = "https://github.com/owner/tool"',
                         'provider = "github"',
                         'desktop = false',
@@ -84,6 +91,23 @@ class RegistryTests(unittest.TestCase):
 
             self.assertIn("duplicate pattern", str(raised.exception))
 
+    def test_revision_changes_are_enforced(self) -> None:
+        previous = {
+            "unchanged": {"revision": 4, "repo": "https://example.com/unchanged"},
+            "modified": {"revision": 2, "repo": "https://example.com/old"},
+        }
+        current = {
+            "unchanged": {"revision": 5, "repo": "https://example.com/unchanged"},
+            "modified": {"revision": 2, "repo": "https://example.com/new"},
+            "new": {"revision": 3, "repo": "https://example.com/new"},
+        }
+
+        errors = COMMON.validate_revision_changes(previous, current)
+
+        self.assertEqual(len(errors), 3)
+        self.assertTrue(any("unchanged package 'unchanged'" in error for error in errors))
+        self.assertTrue(any("modified package 'modified'" in error for error in errors))
+        self.assertTrue(any("new package 'new'" in error for error in errors))
 
 if __name__ == "__main__":
     unittest.main()

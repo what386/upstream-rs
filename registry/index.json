@@ -1,8 +1,12 @@
 {
-  "upstream": {
-    "desktop": false,
-    "provider": "github",
-    "repo": "https://github.com/what386/upstream-rs",
-    "trust": "checksum"
+  "version": 1,
+  "packages": {
+    "upstream": {
+      "revision": 1,
+      "repo": "https://github.com/what386/upstream-rs",
+      "provider": "github",
+      "desktop": false,
+      "trust": "checksum"
+    }
   }
 }

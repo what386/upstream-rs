@@ -27,6 +27,9 @@ registry-validate:
     python3 scripts/registry/validate.py
     python3 -m unittest discover -s tests/registry -p 'test_*.py'
 
+registry-validate-revisions base_ref:
+    python3 scripts/registry/validate_revisions.py {{base_ref}}
+
 registry-index:
     python3 scripts/registry/build_index.py
 

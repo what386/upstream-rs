@@ -1,6 +1,7 @@
 # packages/upstream.toml
 
 name = "upstream"
+revision = 1
 repo = "https://github.com/what386/upstream-rs"
 provider = "github"
 

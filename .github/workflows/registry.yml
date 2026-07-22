@@ -20,9 +20,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Validate registry packages
         run: python3 scripts/registry/validate.py
+
+      - name: Validate package revisions
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          REGISTRY_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: python3 scripts/registry/validate_revisions.py "$REGISTRY_BASE_REF"
 
       - name: Test registry tooling
         run: python3 -m unittest discover -s tests/registry -p 'test_*.py'
@@ -30,4 +38,4 @@ jobs:
       - name: Verify generated registry index
         run: |
           python3 scripts/registry/build_index.py
-          git diff --exit-code -- registry/index.json
+          git diff --exit-code -- registry/index.json registry/index.min.json

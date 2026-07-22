@@ -26,6 +26,7 @@ Most packages only need the following fields:
 
 ```toml
 name = "upstream"
+revision = 1
 repo = "https://github.com/what386/upstream-rs"
 provider = "github"
 
@@ -52,6 +53,16 @@ packages/example-cli.toml
 ```toml
 name = "example-cli"
 ```
+
+### `revision`
+
+Registry revisions start at `1` and must increase by exactly one whenever a package definition changes:
+
+```toml
+revision = 1
+```
+
+Do not increment the revision when the package metadata is unchanged. CI compares changed entries with the pull request base and enforces the revision.
 
 ### `repo`
 
@@ -137,6 +148,7 @@ Keep overrides as narrow as possible.
 
 ```toml
 name = "upstream"
+revision = 1
 repo = "https://github.com/what386/upstream-rs"
 provider = "github"
 
@@ -160,6 +172,7 @@ Before opening a pull request, confirm that:
 
 * The filename matches `name`.
 * The package name is lowercase.
+* New packages use `revision = 1`; modified packages increment their revision by one.
 * `repo` points to the canonical public repository.
 * `provider` matches the repository host.
 * The repository publishes prebuilt release artifacts.
@@ -175,7 +188,7 @@ Run the local validator before opening a pull request:
 just registry-validate
 ```
 
-The committed [`index.json`](index.json) is generated as a direct mapping from package name to package metadata. Rebuild it after changing package definitions:
+The committed [`index.json`](index.json) and [`index.min.json`](index.min.json) are generated from the package definitions. The minified index contains the same data without formatting whitespace and is intended for clients. Rebuild both after changing package definitions:
 
 ```bash
 just registry-index

@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 
 
 PACKAGE_NAME = re.compile(r"^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$")
-REQUIRED_FIELDS = {"name", "repo", "provider", "desktop", "trust"}
+REQUIRED_FIELDS = {"name", "revision", "repo", "provider", "desktop", "trust"}
 OPTIONAL_FIELDS = {"match", "exclude"}
 ALLOWED_FIELDS = REQUIRED_FIELDS | OPTIONAL_FIELDS
 PROVIDERS = {"github", "gitlab", "gitea"}
@@ -59,7 +59,15 @@ def load_registry(packages_dir: Path) -> dict[str, dict[str, Any]]:
 
         packages[name] = {
             key: raw[key]
-            for key in ("repo", "provider", "desktop", "trust", "match", "exclude")
+            for key in (
+                "revision",
+                "repo",
+                "provider",
+                "desktop",
+                "trust",
+                "match",
+                "exclude",
+            )
             if key in raw
         }
 
@@ -92,6 +100,12 @@ def validate_entry(path: Path, entry: object) -> list[str]:
             )
         if name != path.stem:
             errors.append(f"{path}: package name '{name}' must match filename '{path.stem}'")
+
+    revision = entry.get("revision")
+    if isinstance(revision, bool) or not isinstance(revision, int):
+        errors.append(f"{path}: 'revision' must be an integer")
+    elif revision < 1:
+        errors.append(f"{path}: 'revision' must be at least 1")
 
     repo = entry.get("repo")
     if not isinstance(repo, str):
@@ -176,13 +190,66 @@ def validate_patterns(path: Path, key: str, value: object) -> list[str]:
 
 
 def render_index(packages: dict[str, dict[str, Any]]) -> str:
-    """Serialize the direct name-to-metadata mapping deterministically."""
-    return json.dumps(packages, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    """Serialize the versioned name-to-metadata mapping deterministically."""
+    index = {"version": 1, "packages": packages}
+    return json.dumps(index, indent=2, ensure_ascii=False) + "\n"
 
 
-def write_index(packages_dir: Path, output: Path) -> None:
+def render_minified_index(packages: dict[str, dict[str, Any]]) -> str:
+    """Serialize the versioned index without insignificant whitespace."""
+    index = {"version": 1, "packages": packages}
+    return json.dumps(index, separators=(",", ":"), ensure_ascii=False) + "\n"
+
+
+def validate_revision_changes(
+    previous: dict[str, dict[str, Any]], current: dict[str, dict[str, Any]]
+) -> list[str]:
+    """Validate monotonic revisions for new and modified package metadata."""
+    errors: list[str] = []
+    for name, current_entry in sorted(current.items()):
+        current_revision = current_entry.get("revision")
+        previous_entry = previous.get(name)
+        if previous_entry is None:
+            if current_revision != 1:
+                errors.append(
+                    f"new package '{name}' must start at revision 1, got {current_revision}"
+                )
+            continue
+
+        if "revision" not in previous_entry:
+            if current_revision != 1:
+                errors.append(
+                    f"package '{name}' must initialize revision at 1, "
+                    f"got {current_revision}"
+                )
+            continue
+
+        previous_revision = previous_entry["revision"]
+        previous_metadata = {
+            key: value for key, value in previous_entry.items() if key != "revision"
+        }
+        current_metadata = {
+            key: value for key, value in current_entry.items() if key != "revision"
+        }
+        if current_metadata != previous_metadata:
+            expected = previous_revision + 1
+            if current_revision != expected:
+                errors.append(
+                    f"modified package '{name}' must increment revision from "
+                    f"{previous_revision} to {expected}, got {current_revision}"
+                )
+        elif current_revision != previous_revision:
+            errors.append(
+                f"unchanged package '{name}' must keep revision {previous_revision}, "
+                f"got {current_revision}"
+            )
+    return errors
+
+
+def write_index(packages_dir: Path, output: Path, *, minified: bool = False) -> None:
     packages = load_registry(packages_dir)
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(f".{output.name}.tmp")
-    temporary.write_text(render_index(packages), encoding="utf-8")
+    render = render_minified_index if minified else render_index
+    temporary.write_text(render(packages), encoding="utf-8")
     temporary.replace(output)
