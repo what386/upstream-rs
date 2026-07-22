@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::{Result, anyhow};
 
-use crate::models::common::enums::Filetype;
+use crate::models::common::enums::{Filetype, Provider};
 use crate::models::provider::{Asset, Release};
 use crate::models::upstream::Package;
 use crate::providers::pattern_matcher::{
@@ -343,18 +343,20 @@ impl AssetSelector {
     }
 
     fn package_identity(package: &Package) -> String {
-        let explicit_name = package.name.trim();
-        if !explicit_name.is_empty() {
-            return explicit_name.to_lowercase();
+        if matches!(
+            package.provider,
+            Provider::Github | Provider::Gitlab | Provider::Gitea
+        ) {
+            return package
+                .repo_slug
+                .rsplit('/')
+                .next()
+                .unwrap_or(package.repo_slug.as_str())
+                .trim_end_matches(".git")
+                .to_lowercase();
         }
 
-        package
-            .repo_slug
-            .rsplit('/')
-            .next()
-            .unwrap_or(package.repo_slug.as_str())
-            .trim_end_matches(".git")
-            .to_lowercase()
+        package.name.trim().to_lowercase()
     }
 
     fn primary_name_score(name: &str, package_name: &str) -> i32 {
@@ -655,6 +657,22 @@ mod tests {
             Provider::Github,
             None,
         )
+    }
+
+    #[test]
+    fn forge_asset_identity_uses_repository_name_instead_of_local_alias() {
+        let package = Package::with_defaults(
+            "rg".to_string(),
+            "BurntSushi/ripgrep".to_string(),
+            Filetype::Auto,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+
+        assert_eq!(AssetSelector::package_identity(&package), "ripgrep");
     }
 
     #[cfg(target_os = "linux")]

@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 
 PACKAGE_NAME = re.compile(r"^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$")
 REQUIRED_FIELDS = {"name", "revision", "repo", "provider", "desktop", "trust"}
-OPTIONAL_FIELDS = {"match", "exclude"}
+OPTIONAL_FIELDS = {"binary", "match", "exclude"}
 ALLOWED_FIELDS = REQUIRED_FIELDS | OPTIONAL_FIELDS
 PROVIDERS = {"github", "gitlab", "gitea"}
 TRUST_MODES = {"none", "best-effort", "checksum", "signature", "all"}
@@ -61,6 +61,7 @@ def load_registry(packages_dir: Path) -> dict[str, dict[str, Any]]:
             key: raw[key]
             for key in (
                 "revision",
+                "binary",
                 "repo",
                 "provider",
                 "desktop",
@@ -70,6 +71,17 @@ def load_registry(packages_dir: Path) -> dict[str, dict[str, Any]]:
             )
             if key in raw
         }
+
+    installed_names: dict[str, str] = {}
+    for name, package in packages.items():
+        installed_name = package.get("binary", name)
+        if previous_name := installed_names.get(installed_name):
+            errors.append(
+                f"{packages_dir / f'{name}.toml'}: installed name '{installed_name}' "
+                f"conflicts with package '{previous_name}'"
+            )
+        else:
+            installed_names[installed_name] = name
 
     if errors:
         raise RegistryValidationError(errors)
@@ -106,6 +118,17 @@ def validate_entry(path: Path, entry: object) -> list[str]:
         errors.append(f"{path}: 'revision' must be an integer")
     elif revision < 1:
         errors.append(f"{path}: 'revision' must be at least 1")
+
+    if "binary" in entry:
+        binary = entry["binary"]
+        if not isinstance(binary, str):
+            errors.append(f"{path}: 'binary' must be a string")
+        elif not PACKAGE_NAME.fullmatch(binary):
+            errors.append(
+                f"{path}: 'binary' must be lowercase and contain only letters, digits, '.', '_', or '-'"
+            )
+        elif binary.endswith(".exe"):
+            errors.append(f"{path}: 'binary' must not include a platform extension")
 
     repo = entry.get("repo")
     if not isinstance(repo, str):

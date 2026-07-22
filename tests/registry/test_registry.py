@@ -91,6 +91,57 @@ class RegistryTests(unittest.TestCase):
 
             self.assertIn("duplicate pattern", str(raised.exception))
 
+    def test_binary_is_indexed_and_installed_names_must_be_unique(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            packages_dir = Path(directory)
+            for name, binary in (("ripgrep", "rg"), ("rg-tools", "rg")):
+                (packages_dir / f"{name}.toml").write_text(
+                    "\n".join(
+                        [
+                            f'name = "{name}"',
+                            "revision = 1",
+                            f'binary = "{binary}"',
+                            f'repo = "https://github.com/owner/{name}"',
+                            'provider = "github"',
+                            "desktop = false",
+                            'trust = "checksum"',
+                        ]
+                    ),
+                    encoding="utf-8",
+                )
+
+            with self.assertRaises(COMMON.RegistryValidationError) as raised:
+                COMMON.load_registry(packages_dir)
+
+            self.assertIn("installed name 'rg' conflicts", str(raised.exception))
+
+            (packages_dir / "rg-tools.toml").unlink()
+            packages = COMMON.load_registry(packages_dir)
+            self.assertEqual(packages["ripgrep"]["binary"], "rg")
+
+    def test_binary_rejects_platform_extensions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            packages_dir = Path(directory)
+            (packages_dir / "tool.toml").write_text(
+                "\n".join(
+                    [
+                        'name = "tool"',
+                        "revision = 1",
+                        'binary = "tool.exe"',
+                        'repo = "https://github.com/owner/tool"',
+                        'provider = "github"',
+                        "desktop = false",
+                        'trust = "checksum"',
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaises(COMMON.RegistryValidationError) as raised:
+                COMMON.load_registry(packages_dir)
+
+            self.assertIn("must not include a platform extension", str(raised.exception))
+
     def test_revision_changes_are_enforced(self) -> None:
         previous = {
             "unchanged": {"revision": 4, "repo": "https://example.com/unchanged"},

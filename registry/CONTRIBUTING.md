@@ -54,6 +54,19 @@ packages/example-cli.toml
 name = "example-cli"
 ```
 
+### `binary`
+
+Use the optional `binary` field when the primary installed command differs from the registry name:
+
+```toml
+name = "ripgrep"
+binary = "rg"
+```
+
+With this entry, `upstream add ripgrep` installs and manages the package as `rg`. Commands such as `upstream upgrade rg` and `upstream remove rg` use the binary name. Omit `binary` when it is the same as `name`.
+
+The value must be a lowercase command basename without a directory or platform-specific extension such as `.exe`. Effective installed names must be unique across the registry.
+
 ### `revision`
 
 Registry revisions start at `1` and must increase by exactly one whenever a package definition changes:
@@ -172,6 +185,7 @@ Before opening a pull request, confirm that:
 
 * The filename matches `name`.
 * The package name is lowercase.
+* `binary` is omitted unless the installed command differs from `name`.
 * New packages use `revision = 1`; modified packages increment their revision by one.
 * `repo` points to the canonical public repository.
 * `provider` matches the repository host.

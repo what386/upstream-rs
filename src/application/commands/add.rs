@@ -29,6 +29,8 @@ struct RegistryIndex {
 #[derive(Debug, Deserialize)]
 struct RegistryPackage {
     revision: u64,
+    #[serde(default)]
+    binary: Option<String>,
     repo: String,
     provider: RegistryProvider,
     desktop: bool,
@@ -101,8 +103,9 @@ pub async fn run(
         )
     })?;
 
+    let install_name = installed_name(&name, package);
     install::run(
-        Some(name),
+        Some(install_name),
         package.repo.clone(),
         Filetype::Auto,
         None,
@@ -119,6 +122,13 @@ pub async fn run(
         app_config,
     )
     .await
+}
+
+fn installed_name(registry_name: &str, package: &RegistryPackage) -> String {
+    package
+        .binary
+        .clone()
+        .unwrap_or_else(|| registry_name.to_string())
 }
 
 async fn fetch_index(url: &str, cache_file: &Path, metadata_file: &Path) -> Result<FetchOutcome> {
@@ -278,7 +288,36 @@ fn parse_index(bytes: &[u8]) -> Result<RegistryIndex> {
     {
         bail!("Registry package '{name}' has invalid revision 0");
     }
+    let mut installed_names = BTreeMap::new();
+    for (name, package) in &index.packages {
+        let installed_name = package.binary.as_deref().unwrap_or(name);
+        validate_binary_name(installed_name)
+            .with_context(|| format!("Registry package '{name}' has an invalid binary name"))?;
+        if let Some(previous) = installed_names.insert(installed_name, name) {
+            bail!("Registry packages '{previous}' and '{name}' both install as '{installed_name}'");
+        }
+    }
     Ok(index)
+}
+
+fn validate_binary_name(name: &str) -> Result<()> {
+    let valid = !name.is_empty()
+        && name.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"._-".contains(&byte)
+        })
+        && name
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_alphanumeric)
+        && name
+            .as_bytes()
+            .last()
+            .is_some_and(u8::is_ascii_alphanumeric)
+        && !name.ends_with(".exe");
+    if !valid {
+        bail!("expected a lowercase command basename without a platform extension");
+    }
+    Ok(())
 }
 
 fn joined_patterns(patterns: &[String]) -> Option<String> {
@@ -312,7 +351,7 @@ mod tests {
     use std::fs;
 
     use super::{
-        RegistryCacheMetadata, joined_patterns, load_cached_index, parse_index,
+        RegistryCacheMetadata, installed_name, joined_patterns, load_cached_index, parse_index,
         write_cache_metadata,
     };
     use crate::utils::test_support;
@@ -322,11 +361,13 @@ mod tests {
     #[test]
     fn parses_supported_index_and_package_metadata() {
         let index = parse_index(
-            br#"{"version":1,"packages":{"tool":{"revision":2,"repo":"https://github.com/o/tool","provider":"github","desktop":false,"trust":"best-effort","match":["linux","x86_64"]}}}"#,
+            br#"{"version":1,"packages":{"ripgrep":{"revision":2,"binary":"rg","repo":"https://github.com/BurntSushi/ripgrep","provider":"github","desktop":false,"trust":"best-effort","match":["linux","x86_64"]}}}"#,
         )
         .expect("valid index");
-        let package = index.packages.get("tool").expect("tool package");
+        let package = index.packages.get("ripgrep").expect("ripgrep package");
         assert_eq!(package.revision, 2);
+        assert_eq!(package.binary.as_deref(), Some("rg"));
+        assert_eq!(installed_name("ripgrep", package), "rg");
         assert_eq!(
             joined_patterns(&package.r#match).as_deref(),
             Some("linux,x86_64")
@@ -352,6 +393,15 @@ mod tests {
         )
         .expect_err("zero revision should fail");
         assert!(error.to_string().contains("invalid revision 0"));
+    }
+
+    #[test]
+    fn rejects_duplicate_installed_binary_names() {
+        let error = parse_index(
+            br#"{"version":1,"packages":{"first":{"revision":1,"binary":"tool","repo":"https://github.com/o/first","provider":"github","desktop":false,"trust":"checksum"},"second":{"revision":1,"binary":"tool","repo":"https://github.com/o/second","provider":"github","desktop":false,"trust":"checksum"}}}"#,
+        )
+        .expect_err("duplicate binary should fail");
+        assert!(error.to_string().contains("both install as 'tool'"));
     }
 
     #[test]
