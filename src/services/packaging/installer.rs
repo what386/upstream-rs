@@ -59,7 +59,7 @@ pub struct PackageInstaller<'a> {
     extract_cache: PathBuf,
 }
 
-pub struct InstallPlan {
+pub struct ResolvedAssetInstall {
     pub release_name: String,
     pub release_tag: String,
     pub asset_name: String,
@@ -318,7 +318,7 @@ impl<'a> PackageInstaller<'a> {
         package: &Package,
         version: &Option<String>,
         semver: &Option<String>,
-    ) -> Result<InstallPlan> {
+    ) -> Result<ResolvedAssetInstall> {
         if package.install_path.is_some() {
             return Err(anyhow!("Package '{}' is already installed", package.name));
         }
@@ -379,7 +379,7 @@ impl<'a> PackageInstaller<'a> {
             package.filetype
         };
 
-        Ok(InstallPlan {
+        Ok(ResolvedAssetInstall {
             release_name: release.name.clone(),
             release_tag: release.tag.clone(),
             asset_name: best_asset.name.clone(),

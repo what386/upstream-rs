@@ -11,14 +11,7 @@ use crate::models::{
     provider::Release,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-pub enum BuildProfile {
-    Rust,
-    Dotnet,
-    Go,
-    Zig,
-    Cmake,
-}
+pub use crate::models::common::enums::BuildProfile;
 
 #[derive(Debug, Clone)]
 pub struct BuildRequest {
