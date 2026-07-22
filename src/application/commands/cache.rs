@@ -196,7 +196,7 @@ fn remove_path_without_following(path: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{inspect, remove_path_without_following, selected_kinds};
+    use super::{inspect, selected_kinds};
     use crate::{application::cli::arguments::CacheKind, utils::test_support};
     use std::fs;
 
@@ -239,6 +239,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn cleaning_a_symlink_does_not_remove_its_target() {
+        use super::remove_path_without_following;
         use std::os::unix::fs::symlink;
 
         let root = test_support::temp_root("cache-command", "symlink");
