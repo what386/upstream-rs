@@ -30,10 +30,10 @@ registry-validate:
 registry-validate-revisions base_ref:
     python3 scripts/registry/validate_revisions.py {{base_ref}}
 
-registry-index:
+registry-gen-index:
     python3 scripts/registry/build_index.py
 
-registry-import input="-":
+registry-import-pkg input="-":
     python3 scripts/registry/import_list.py {{input}}
 
 
