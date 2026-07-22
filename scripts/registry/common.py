@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import re
 import tomllib
 from typing import Any
+import unicodedata
 from urllib.parse import urlsplit
 
 
-PACKAGE_NAME = re.compile(r"^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$")
 REQUIRED_FIELDS = {"name", "revision", "repo", "provider", "desktop", "trust"}
 OPTIONAL_FIELDS = {"binary", "match", "exclude"}
 ALLOWED_FIELDS = REQUIRED_FIELDS | OPTIONAL_FIELDS
@@ -24,6 +23,18 @@ class RegistryValidationError(Exception):
     def __init__(self, errors: list[str]) -> None:
         self.errors = errors
         super().__init__("\n".join(errors))
+
+
+def is_safe_basename(value: str) -> bool:
+    """Return whether a registry or installed name is a single safe filename."""
+    return (
+        bool(value)
+        and value not in {".", ".."}
+        and value == value.strip()
+        and "/" not in value
+        and "\\" not in value
+        and not any(unicodedata.category(character).startswith("C") for character in value)
+    )
 
 
 def load_registry(packages_dir: Path) -> dict[str, dict[str, Any]]:
@@ -106,10 +117,8 @@ def validate_entry(path: Path, entry: object) -> list[str]:
     if not isinstance(name, str):
         errors.append(f"{path}: 'name' must be a string")
     else:
-        if not PACKAGE_NAME.fullmatch(name):
-            errors.append(
-                f"{path}: 'name' must be lowercase and contain only letters, digits, '.', '_', or '-'"
-            )
+        if not is_safe_basename(name):
+            errors.append(f"{path}: 'name' must be a safe filename without path separators")
         if name != path.stem:
             errors.append(f"{path}: package name '{name}' must match filename '{path.stem}'")
 
@@ -123,10 +132,8 @@ def validate_entry(path: Path, entry: object) -> list[str]:
         binary = entry["binary"]
         if not isinstance(binary, str):
             errors.append(f"{path}: 'binary' must be a string")
-        elif not PACKAGE_NAME.fullmatch(binary):
-            errors.append(
-                f"{path}: 'binary' must be lowercase and contain only letters, digits, '.', '_', or '-'"
-            )
+        elif not is_safe_basename(binary):
+            errors.append(f"{path}: 'binary' must be a safe basename without path separators")
         elif binary.endswith(".exe"):
             errors.append(f"{path}: 'binary' must not include a platform extension")
 

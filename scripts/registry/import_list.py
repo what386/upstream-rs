@@ -6,17 +6,12 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import re
 import sys
 from typing import Any
 from urllib.parse import urlsplit
 
-from common import (
-    PACKAGE_NAME,
-    TRUST_MODES,
-    RegistryValidationError,
-    load_registry,
-    validate_entry,
-)
+from common import TRUST_MODES, RegistryValidationError, is_safe_basename, load_registry, validate_entry
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -72,8 +67,9 @@ def read_records(input_name: str) -> list[dict[str, Any]]:
 def repository_name(repo_slug: str) -> str:
     parsed = urlsplit(repo_slug)
     path = parsed.path if parsed.scheme else repo_slug
-    name = path.strip("/").rsplit("/", 1)[-1].removesuffix(".git").lower()
-    if not PACKAGE_NAME.fullmatch(name):
+    source_name = path.strip("/").rsplit("/", 1)[-1].removesuffix(".git")
+    name = re.sub(r"[^a-z0-9]+", "-", source_name.lower()).strip("-")
+    if not name:
         raise ValueError(f"cannot derive a valid registry name from repository '{repo_slug}'")
     return name
 
@@ -113,7 +109,7 @@ def entry_from_record(record: dict[str, Any], trust: str) -> tuple[str, dict[str
     provider, repo = repository_url(record)
     name = repository_name(record["repo_slug"])
     binary = record.get("name")
-    if not isinstance(binary, str) or not PACKAGE_NAME.fullmatch(binary):
+    if not isinstance(binary, str) or not is_safe_basename(binary):
         raise ValueError("installed package name is not registry-safe")
 
     entry: dict[str, Any] = {

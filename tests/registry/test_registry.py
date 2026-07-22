@@ -151,6 +151,28 @@ class RegistryTests(unittest.TestCase):
 
             self.assertIn("must not include a platform extension", str(raised.exception))
 
+    def test_names_and_binaries_allow_spaces_and_uppercase(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            packages_dir = Path(directory)
+            (packages_dir / "Audacity Editor.toml").write_text(
+                "\n".join(
+                    [
+                        'name = "Audacity Editor"',
+                        "revision = 1",
+                        'binary = "Audacity App"',
+                        'repo = "https://github.com/audacity/audacity"',
+                        'provider = "github"',
+                        "desktop = true",
+                        'trust = "checksum"',
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            packages = COMMON.load_registry(packages_dir)
+
+            self.assertEqual(packages["Audacity Editor"]["binary"], "Audacity App")
+
     def test_revision_changes_are_enforced(self) -> None:
         previous = {
             "unchanged": {"revision": 4, "repo": "https://example.com/unchanged"},
@@ -190,6 +212,20 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(rendered["repo"], "https://github.com/BurntSushi/ripgrep")
         self.assertEqual(rendered["match"], ["linux"])
         self.assertEqual(rendered["exclude"], ["debug"])
+
+    def test_list_import_normalizes_name_and_preserves_binary(self) -> None:
+        record = {
+            "name": "Audacity App",
+            "repo_slug": "audacity/Audacity-App",
+            "provider": "Github",
+            "install_type": "Release",
+            "icon_path": "/icons/audacity.png",
+        }
+
+        name, entry = IMPORT_LIST.entry_from_record(record, "best-effort")
+
+        self.assertEqual(name, "audacity-app")
+        self.assertEqual(entry["binary"], "Audacity App")
 
     def test_list_import_writes_only_missing_release_packages(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -42,7 +42,9 @@ The package name used by the registry.
 name = "upstream"
 ```
 
-The name should be lowercase and should match the TOML filename.
+The name must match the TOML filename. Lowercase, hyphen-separated names are preferred for
+consistent lookup (for example, `visual-studio-code`), but uppercase letters and spaces are
+supported when the package's established name requires them.
 
 For example:
 
@@ -65,7 +67,9 @@ binary = "rg"
 
 With this entry, `upstream add ripgrep` installs and manages the package as `rg`. Commands such as `upstream upgrade rg` and `upstream remove rg` use the binary name. Omit `binary` when it is the same as `name`.
 
-The value must be a lowercase command basename without a directory or platform-specific extension such as `.exe`. Effective installed names must be unique across the registry.
+The value must be a command basename without a directory or platform-specific extension such as
+`.exe`. It may contain uppercase letters and spaces, matching the installed executable exactly.
+Effective installed names must be unique across the registry.
 
 ### `revision`
 
@@ -184,7 +188,7 @@ In this example, `match` and `exclude` are included only because the package req
 Before opening a pull request, confirm that:
 
 * The filename matches `name`.
-* The package name is lowercase.
+* The package name uses lowercase, hyphen-separated words unless its established name requires otherwise.
 * `binary` is omitted unless the installed command differs from `name`.
 * New packages use `revision = 1`; modified packages increment their revision by one.
 * `repo` points to the canonical public repository.

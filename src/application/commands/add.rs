@@ -302,20 +302,15 @@ fn parse_index(bytes: &[u8]) -> Result<RegistryIndex> {
 
 fn validate_binary_name(name: &str) -> Result<()> {
     let valid = !name.is_empty()
-        && name.bytes().all(|byte| {
-            byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"._-".contains(&byte)
-        })
-        && name
-            .as_bytes()
-            .first()
-            .is_some_and(u8::is_ascii_alphanumeric)
-        && name
-            .as_bytes()
-            .last()
-            .is_some_and(u8::is_ascii_alphanumeric)
-        && !name.ends_with(".exe");
+        && name != "."
+        && name != ".."
+        && name.trim() == name
+        && !name.contains('/')
+        && !name.contains('\\')
+        && !name.chars().any(char::is_control)
+        && !name.to_ascii_lowercase().ends_with(".exe");
     if !valid {
-        bail!("expected a lowercase command basename without a platform extension");
+        bail!("expected a safe command basename without path separators or a platform extension");
     }
     Ok(())
 }
@@ -402,6 +397,29 @@ mod tests {
         )
         .expect_err("duplicate binary should fail");
         assert!(error.to_string().contains("both install as 'tool'"));
+    }
+
+    #[test]
+    fn accepts_uppercase_and_spaces_in_installed_names() {
+        let index = parse_index(
+            br#"{"version":1,"packages":{"audacity":{"revision":1,"binary":"Audacity App","repo":"https://github.com/audacity/audacity","provider":"github","desktop":true,"trust":"checksum"}}}"#,
+        )
+        .expect("uppercase and spaces are valid in a binary basename");
+
+        assert_eq!(
+            index.packages["audacity"].binary.as_deref(),
+            Some("Audacity App")
+        );
+    }
+
+    #[test]
+    fn rejects_binary_paths() {
+        let error = parse_index(
+            br#"{"version":1,"packages":{"tool":{"revision":1,"binary":"../Tool","repo":"https://github.com/o/tool","provider":"github","desktop":false,"trust":"checksum"}}}"#,
+        )
+        .expect_err("binary paths must be rejected");
+
+        assert!(error.to_string().contains("invalid binary name"));
     }
 
     #[test]
