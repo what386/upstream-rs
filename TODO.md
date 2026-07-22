@@ -6,3 +6,6 @@
 
 ## Tasks
 
+- [ ] chore: update package registry to have proper trust rules
+      @created 2026-07-22 21:28
+
