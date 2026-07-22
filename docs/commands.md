@@ -47,6 +47,22 @@ upstream install owner/repo app --desktop
 upstream install https://example.com/downloads tool -p scraper
 ```
 
+## Add
+
+```bash
+upstream add <name> [--fetch] [--dry-run]
+```
+
+Installs a named package from the configured registry. The command normally uses the cached minified index at `$HOME/.upstream/cache/registry/index.min.json` without accessing the network. Pass `--fetch` to explicitly download or refresh the index. If no cache exists, the command reports that `--fetch` is required.
+
+```bash
+upstream add upstream
+upstream add upstream --fetch
+upstream add upstream --dry-run
+```
+
+The index URL defaults to Upstream's registry on GitHub and can be changed with `registry.index_url`.
+
 ## Build
 
 ```bash

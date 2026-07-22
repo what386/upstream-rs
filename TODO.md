@@ -6,9 +6,6 @@
 
 ## Tasks
 
-- [ ] feat: package registry (access using `add` subcommand)
-      @created 2026-07-22 19:03
-
 
 ## Completed
 
@@ -23,4 +20,8 @@
 - [x] feat: datetime versioning support
       @created 2026-07-21 19:28
       @completed 2026-07-21 19:28
+
+- [x] feat: package registry (access using `add` subcommand)
+      @created 2026-07-22 19:03
+      @completed 2026-07-22 19:09
 

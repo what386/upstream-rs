@@ -120,7 +120,11 @@ fn semantic_version_conflicts_with_exact_refs() {
 #[test]
 fn cache_and_package_settings_commands_parse() {
     for args in [
+        vec!["upstream", "add", "upstream"],
+        vec!["upstream", "add", "upstream", "--fetch"],
+        vec!["upstream", "add", "upstream", "--dry-run"],
         vec!["upstream", "cache", "list", "--json"],
+        vec!["upstream", "cache", "clean", "registry"],
         vec!["upstream", "cache", "clean", "build", "docs", "--dry-run"],
         vec![
             "upstream",

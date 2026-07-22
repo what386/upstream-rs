@@ -76,6 +76,7 @@ Upstream stores data in user-owned locations:
 | `$HOME/.upstream/cache/` | Reusable package cache data |
 | `$HOME/.upstream/cache/build/` | Cached git workspaces for source builds |
 | `$HOME/.upstream/cache/source/` | Cached source archive workspaces |
+| `$HOME/.upstream/cache/registry/` | Cached package registry index used by `upstream add` |
 | `$HOME/.upstream/temp/` | Temporary staging for package operations |
 | `$HOME/.upstream/state/` | Persistent app state |
 | `$HOME/.upstream/state/symlinks/` | Runtime command links |

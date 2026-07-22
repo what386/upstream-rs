@@ -54,6 +54,13 @@ Unknown keys are rejected when `config.toml` is loaded.
 | `logging.level` | `error`, `warn`, `info`, `debug` | `info` | Minimum severity to write |
 | `logging.vacuum` | integer | `10000` | Maximum number of log records retained during vacuuming |
 | `logging.max_size_mb` | integer | `10` | Maximum JSONL log size; `0` disables the size limit |
+| `registry.index_url` | string | Upstream's raw GitHub `index.min.json` URL | Registry index downloaded by `upstream add` |
+
+Override the registry index source when using a mirror or private registry:
+
+```bash
+upstream config set registry.index_url=https://example.com/upstream/index.min.json
+```
 
 ## Provider Tokens
 
