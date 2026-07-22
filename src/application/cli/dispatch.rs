@@ -1,7 +1,8 @@
 use anyhow::Result;
 
 use crate::application::cli::arguments::{
-    AuthAction, Cli, Commands, ConfigAction, ExportAction, HooksAction, ImportAction, PackageAction,
+    AuthAction, CacheAction, Cli, Commands, ConfigAction, ExportAction, HooksAction, ImportAction,
+    PackageAction,
 };
 use crate::application::commands;
 use crate::models::upstream::config::AppConfig;
@@ -297,6 +298,15 @@ impl Cli {
             },
 
             Commands::Package { action } => match action {
+                PackageAction::Set { name, settings } => {
+                    commands::package::run_set(name, settings, paths)
+                }
+                PackageAction::Get { name, keys, json } => {
+                    commands::package::run_get(name, keys, json, paths)
+                }
+                PackageAction::Unset { name, keys } => {
+                    commands::package::run_unset(name, keys, paths)
+                }
                 PackageAction::Pin { name } => commands::package::run_pin(name, paths),
                 PackageAction::Unpin { name } => commands::package::run_unpin(name, paths),
                 PackageAction::Rename { old_name, new_name } => {
@@ -308,6 +318,14 @@ impl Cli {
                 PackageAction::RmEntry { name } => {
                     commands::package::run_rm_entry(name, paths).await
                 }
+            },
+
+            Commands::Cache { action } => match action {
+                CacheAction::List { json } => commands::cache::run_list(json, paths),
+                CacheAction::Clean {
+                    categories,
+                    dry_run,
+                } => commands::cache::run_clean(categories, dry_run, paths),
             },
 
             Commands::Export { action } => match action {

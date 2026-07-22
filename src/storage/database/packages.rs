@@ -132,24 +132,39 @@ impl PackageConnection {
     }
 
     pub fn upsert_package_settings(&mut self, settings: &PackageSettings) -> Result<()> {
-        let trust_mode = settings.trust_mode.as_ref().map(enum_to_db).transpose()?;
-        self.conn
-            .execute(
-                "
-                INSERT INTO package_settings (package_name, trust_mode)
-                VALUES (?1, ?2)
-                ON CONFLICT(package_name) DO UPDATE SET
-                    trust_mode = excluded.trust_mode
-                ",
-                params![settings.package_name, trust_mode],
+        let tx = self
+            .conn
+            .transaction()
+            .context("Failed to start package settings transaction")?;
+        write_package_settings(&tx, settings)?;
+        tx.commit().with_context(|| {
+            format!(
+                "Failed to commit settings for package '{}'",
+                settings.package_name
             )
-            .with_context(|| {
-                format!(
-                    "Failed to save settings for package '{}'",
-                    settings.package_name
-                )
-            })?;
-        Ok(())
+        })
+    }
+
+    pub fn upsert_package_with_settings(
+        &mut self,
+        package: &Package,
+        settings: &PackageSettings,
+    ) -> Result<()> {
+        if package.name != settings.package_name {
+            return Err(anyhow!(
+                "Package settings name '{}' does not match package '{}'",
+                settings.package_name,
+                package.name
+            ));
+        }
+        let tx = self
+            .conn
+            .transaction()
+            .context("Failed to start package settings update transaction")?;
+        write_package(&tx, package)?;
+        write_package_settings(&tx, settings)?;
+        tx.commit()
+            .with_context(|| format!("Failed to commit settings for package '{}'", package.name))
     }
 
     pub fn upsert_package(&mut self, package: &Package) -> Result<()> {
@@ -298,6 +313,38 @@ impl PackageConnection {
     fn initialize(&mut self) -> Result<()> {
         super::initialize(&self.conn)
     }
+}
+
+fn write_package_settings(tx: &Transaction<'_>, settings: &PackageSettings) -> Result<()> {
+    let Some(trust_mode) = settings.trust_mode.as_ref() else {
+        tx.execute(
+            "DELETE FROM package_settings WHERE package_name = ?1",
+            [&settings.package_name],
+        )
+        .with_context(|| {
+            format!(
+                "Failed to clear settings for package '{}'",
+                settings.package_name
+            )
+        })?;
+        return Ok(());
+    };
+    let trust_mode = enum_to_db(trust_mode)?;
+    tx.execute(
+        "
+        INSERT INTO package_settings (package_name, trust_mode)
+        VALUES (?1, ?2)
+        ON CONFLICT(package_name) DO UPDATE SET trust_mode = excluded.trust_mode
+        ",
+        params![settings.package_name, trust_mode],
+    )
+    .with_context(|| {
+        format!(
+            "Failed to save settings for package '{}'",
+            settings.package_name
+        )
+    })?;
+    Ok(())
 }
 
 fn path_to_db(path: &Path) -> Result<String> {
@@ -938,6 +985,43 @@ mod tests {
         assert!(
             db.get_package_settings("new")
                 .expect("load removed settings")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn package_and_user_settings_update_together() {
+        let mut db = PackageConnection::open_in_memory().expect("open db");
+        let mut package = test_package("tool");
+        db.upsert_package(&package).expect("seed package");
+
+        package.match_pattern = PatternTable::from_patterns(["linux", "x86_64"]);
+        package.exclude_pattern = PatternTable::from_patterns(["debug"]);
+        let mut settings = PackageSettings::new("tool");
+        settings.trust_mode = Some(TrustMode::Checksum);
+        db.upsert_package_with_settings(&package, &settings)
+            .expect("update settings");
+
+        let loaded = db
+            .get_package("tool")
+            .expect("load package")
+            .expect("package");
+        assert_eq!(loaded.match_pattern.to_string(), "linux,x86_64");
+        assert_eq!(loaded.exclude_pattern.to_string(), "debug");
+        assert_eq!(
+            db.get_package_settings("tool")
+                .expect("load settings")
+                .expect("settings")
+                .trust_mode,
+            Some(TrustMode::Checksum)
+        );
+
+        settings.trust_mode = None;
+        db.upsert_package_with_settings(&loaded, &settings)
+            .expect("clear trust setting");
+        assert!(
+            db.get_package_settings("tool")
+                .expect("load cleared")
                 .is_none()
         );
     }

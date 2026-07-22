@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod build;
+pub mod cache;
 pub mod changelog;
 pub mod config;
 pub mod docs;

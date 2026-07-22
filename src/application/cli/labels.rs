@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::application::cli::arguments::{
-    AuthAction, Commands, ConfigAction, HooksAction, PackageAction,
+    AuthAction, CacheAction, Commands, ConfigAction, HooksAction, PackageAction,
 };
 
 impl fmt::Display for Commands {
@@ -31,11 +31,21 @@ impl fmt::Display for Commands {
             Commands::Find { .. } => write!(f, "find"),
             Commands::Config { action } => write!(f, "{action}"),
             Commands::Package { action } => write!(f, "{action}"),
+            Commands::Cache { action } => write!(f, "{action}"),
             Commands::Hooks { action } => write!(f, "{action}"),
             Commands::Auth { action } => write!(f, "{action}"),
             Commands::Import { .. } => write!(f, "import"),
             Commands::Export { .. } => write!(f, "export"),
             Commands::Doctor { .. } => write!(f, "doctor"),
+        }
+    }
+}
+
+impl fmt::Display for CacheAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CacheAction::List { .. } => write!(f, "cache list"),
+            CacheAction::Clean { .. } => write!(f, "cache clean"),
         }
     }
 }
@@ -78,6 +88,9 @@ impl fmt::Display for HooksAction {
 impl fmt::Display for PackageAction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            PackageAction::Set { .. } => write!(f, "package set"),
+            PackageAction::Get { .. } => write!(f, "package get"),
+            PackageAction::Unset { .. } => write!(f, "package unset"),
             PackageAction::Pin { .. } => write!(f, "package pin"),
             PackageAction::Unpin { .. } => write!(f, "package unpin"),
             PackageAction::Rename { .. } => write!(f, "package rename"),

@@ -46,6 +46,31 @@ def main() -> None:
     run_upstream("package", "unpin", PACKAGE)
     assert package_from_list(PACKAGE)["is_pinned"] is False
 
+    run_upstream(
+        "package",
+        "set",
+        PACKAGE,
+        "match_pattern=linux,x86_64,linux",
+        "exclude_pattern=debug",
+        "trust_mode=checksum",
+    )
+    settings = run_upstream_json("package", "get", PACKAGE)
+    assert settings["match_pattern"] == ["linux", "x86_64"], settings
+    assert settings["exclude_pattern"] == ["debug"], settings
+    assert settings["trust_mode"] == "Checksum", settings
+    run_upstream("package", "unset", PACKAGE, "exclude_pattern", "trust_mode")
+    settings = run_upstream_json("package", "get", PACKAGE)
+    assert settings["exclude_pattern"] == [], settings
+    assert settings["trust_mode"] is None, settings
+
+    docs_cache = FAKEHOME / ".upstream" / "cache" / "docs"
+    docs_cache.mkdir(parents=True, exist_ok=True)
+    (docs_cache / "fixture").write_text("cached", encoding="utf-8")
+    cache_report = run_upstream_json("cache", "list")
+    assert any(item["kind"] == "docs" for item in cache_report["caches"])
+    run_upstream("--yes", "cache", "clean", "docs")
+    assert not docs_cache.exists()
+
     run_upstream("package", "rename", PACKAGE, RENAMED_PACKAGE)
     assert package_from_list(RENAMED_PACKAGE)["name"] == RENAMED_PACKAGE
     assert not any(
@@ -55,7 +80,7 @@ def main() -> None:
     run_upstream("package", "rename", RENAMED_PACKAGE, PACKAGE)
     assert package_from_list(PACKAGE)["name"] == PACKAGE
 
-    print("config, auth, pin/unpin, and package rename mutations passed")
+    print("config, auth, package settings, cache, and package rename mutations passed")
 
 
 if __name__ == "__main__":

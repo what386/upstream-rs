@@ -1,6 +1,5 @@
 use anyhow::Result;
 
-use crate::application::cli::arguments::BuildProfile as CliBuildProfile;
 use crate::application::context::CommandContext;
 use crate::application::operations::build_op::{BuildCommandInput, BuildOperation};
 use crate::models::common::enums::{Channel, Provider};
@@ -21,7 +20,7 @@ pub async fn run(
     base_url: Option<String>,
     channel: Channel,
     desktop: bool,
-    build_profile: Option<CliBuildProfile>,
+    build_profile: Option<BuildProfile>,
     dry_run: bool,
     paths: &UpstreamPaths,
     app_config: &AppConfig,
@@ -46,13 +45,7 @@ pub async fn run(
             base_url,
             channel,
             desktop,
-            build_profile: build_profile.map(|profile| match profile {
-                CliBuildProfile::Rust => BuildProfile::Rust,
-                CliBuildProfile::Dotnet => BuildProfile::Dotnet,
-                CliBuildProfile::Go => BuildProfile::Go,
-                CliBuildProfile::Zig => BuildProfile::Zig,
-                CliBuildProfile::Cmake => BuildProfile::Cmake,
-            }),
+            build_profile,
             dry_run,
         })
         .await

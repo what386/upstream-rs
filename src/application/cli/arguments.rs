@@ -1,15 +1,7 @@
 use crate::models::common::enums::{Channel, Filetype, Provider, TrustMode};
+use crate::routines::build::BuildProfile;
 use chrono::NaiveDate;
 use clap::{Parser, Subcommand};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-pub enum BuildProfile {
-    Rust,
-    Dotnet,
-    Go,
-    Zig,
-    Cmake,
-}
 
 #[derive(Parser)]
 #[command(name = "upstream")]
@@ -243,8 +235,8 @@ pub enum Commands {
         names: Vec<String>,
 
         /// Trust verification mode for release-asset reinstalls
-        #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
-        trust_mode: TrustMode,
+        #[arg(long = "trust", value_enum)]
+        trust_mode: Option<TrustMode>,
 
         /// Continue reinstalling after uninstall cleanup errors
         #[arg(long, default_value_t = false)]
@@ -296,8 +288,8 @@ pub enum Commands {
         json: bool,
 
         /// Trust verification mode for downloaded assets
-        #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
-        trust_mode: TrustMode,
+        #[arg(long = "trust", value_enum)]
+        trust_mode: Option<TrustMode>,
 
         /// Preview upgrade resolution without downloading, installing, or writing metadata
         #[arg(long, default_value_t = false)]
@@ -661,18 +653,36 @@ pub enum Commands {
     #[command(
         long_about = "Manage installed package records and launcher entries.\n\n\
         Use these commands to update upstream's stored package metadata. Pin or \
-        unpin a package's upgrade state, rename a local package alias, or manually \
-        add/remove an upstream-managed desktop launcher entry.\n\n\
+        unpin a package's upgrade state, rename a local package alias, manage persistent \
+        selection/trust settings, or manually add/remove a desktop launcher entry.\n\n\
         EXAMPLES:\n  \
         upstream package pin nvim\n  \
         upstream package unpin nvim\n  \
         upstream package rename nvim neovim\n  \
+        upstream package set nvim match_pattern=linux,x86_64 trust_mode=checksum\n  \
+        upstream package get nvim\n  \
         upstream package add-entry nvim\n  \
         upstream package rm-entry nvim"
     )]
     Package {
         #[command(subcommand)]
         action: PackageAction,
+    },
+
+    /// Inspect or remove reusable cached data
+    #[command(long_about = "Inspect or remove reusable cached data.\n\n\
+        Upstream keeps source-build workspaces and fetched package documentation under \
+        its cache directory. Listing is read-only. Cleaning removes only known cache \
+        categories and never removes installed packages or rollback artifacts.\n\n\
+        EXAMPLES:\n  \
+        upstream cache list\n  \
+        upstream cache list --json\n  \
+        upstream cache clean docs\n  \
+        upstream cache clean build source --dry-run\n  \
+        upstream --yes cache clean")]
+    Cache {
+        #[command(subcommand)]
+        action: CacheAction,
     },
 
     /// Manage shell PATH hooks and local upstream data
@@ -820,7 +830,16 @@ impl Commands {
             Commands::Find { .. }
             | Commands::Import { .. }
             | Commands::Export { .. }
-            | Commands::Package { .. }
+            | Commands::Package {
+                action:
+                    PackageAction::Set { .. }
+                    | PackageAction::Unset { .. }
+                    | PackageAction::Pin { .. }
+                    | PackageAction::Unpin { .. }
+                    | PackageAction::Rename { .. }
+                    | PackageAction::AddEntry { .. }
+                    | PackageAction::RmEntry { .. },
+            }
             | Commands::Hooks {
                 action: HooksAction::Init | HooksAction::Clean | HooksAction::Purge,
             }
@@ -831,6 +850,9 @@ impl Commands {
                 action: AuthAction::Set { .. } | AuthAction::Edit | AuthAction::Reset,
             }
             | Commands::Docs { fetch: Some(_), .. } => true,
+            Commands::Cache {
+                action: CacheAction::Clean { dry_run, .. },
+            } => !dry_run,
             Commands::List { .. }
             | Commands::Info { .. }
             | Commands::History { .. }
@@ -842,6 +864,12 @@ impl Commands {
             }
             | Commands::Auth {
                 action: AuthAction::Get { .. } | AuthAction::List,
+            }
+            | Commands::Package {
+                action: PackageAction::Get { .. },
+            }
+            | Commands::Cache {
+                action: CacheAction::List { .. },
             }
             | Commands::Hooks {
                 action: HooksAction::Check,
@@ -861,7 +889,10 @@ impl Commands {
             Commands::Find { .. } => true,
             Commands::Rollback { list: true, .. } => false,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
-            Commands::Package { .. } => true,
+            Commands::Package { action } => !matches!(action, PackageAction::Get { .. }),
+            Commands::Cache { action } => {
+                matches!(action, CacheAction::Clean { dry_run: false, .. })
+            }
             Commands::Config { action } => {
                 !matches!(action, ConfigAction::Get { .. } | ConfigAction::List)
             }
@@ -879,6 +910,35 @@ impl Commands {
             | Commands::Export { .. } => true,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum CacheKind {
+    Build,
+    Source,
+    Docs,
+    All,
+}
+
+#[derive(Subcommand)]
+pub enum CacheAction {
+    /// Show known cache categories and their disk usage
+    List {
+        /// Print cache information as JSON
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+
+    /// Remove known cache categories
+    Clean {
+        /// Cache categories to remove; omitting them removes all known categories
+        #[arg(value_enum)]
+        categories: Vec<CacheKind>,
+
+        /// Preview cache cleanup without deleting anything
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1153,6 +1213,40 @@ pub enum AuthAction {
 
 #[derive(Subcommand)]
 pub enum PackageAction {
+    /// Set user-controlled settings for an installed package
+    Set {
+        /// Installed package name
+        name: String,
+
+        /// Settings in key=value form
+        #[arg(required = true)]
+        settings: Vec<String>,
+    },
+
+    /// Show user-controlled settings for an installed package
+    Get {
+        /// Installed package name
+        name: String,
+
+        /// Settings to show; omitting keys shows all settings
+        #[arg(value_enum)]
+        keys: Vec<PackageSettingKey>,
+
+        /// Print settings as JSON
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+
+    /// Clear user-controlled settings for an installed package
+    Unset {
+        /// Installed package name
+        name: String,
+
+        /// Settings to clear
+        #[arg(required = true, value_enum)]
+        keys: Vec<PackageSettingKey>,
+    },
+
     /// Mark an installed package as pinned
     #[command(long_about = "Mark an installed package as pinned.\n\n\
         This updates package metadata so the package is skipped during \
@@ -1213,4 +1307,14 @@ pub enum PackageAction {
         /// Installed package name
         name: String,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, clap::ValueEnum)]
+pub enum PackageSettingKey {
+    #[value(name = "match_pattern", alias = "match-pattern")]
+    MatchPattern,
+    #[value(name = "exclude_pattern", alias = "exclude-pattern")]
+    ExcludePattern,
+    #[value(name = "trust_mode", alias = "trust-mode")]
+    TrustMode,
 }

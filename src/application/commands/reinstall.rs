@@ -62,7 +62,7 @@ fn reinstall_phase_label(message: &str) -> String {
 
 pub async fn run(
     names: Vec<String>,
-    trust_mode: TrustMode,
+    trust_mode: Option<TrustMode>,
     force: bool,
     dry_run: bool,
     paths: &UpstreamPaths,
@@ -132,13 +132,18 @@ pub async fn run(
                 continue;
             }
         };
+        let package_settings = package_database
+            .get_package_settings(name)?
+            .unwrap_or_else(|| crate::storage::database::PackageSettings::new(name));
+        let effective_trust_mode = package_database.effective_trust_mode(name, trust_mode)?;
 
         if let Err(err) = reinstall_one(
             &context.provider_manager,
             &mut package_database,
             context.paths,
             package,
-            trust_mode,
+            effective_trust_mode,
+            package_settings,
             force,
             &trusted_keys,
             &mut msg,
@@ -206,13 +211,18 @@ pub async fn run(
 
 async fn run_dry_run(
     names: Vec<String>,
-    trust_mode: TrustMode,
+    trust_mode: Option<TrustMode>,
     package_database: &PackageDatabase,
     provider_manager: &ProviderManager,
     paths: &UpstreamPaths,
 ) -> Result<()> {
     println!("{}", output::title("Reinstall preview"));
-    output::kv("Trust", trust_mode);
+    output::kv(
+        "Trust",
+        trust_mode
+            .map(|mode| mode.to_string())
+            .unwrap_or_else(|| "per-package (default: best-effort)".to_string()),
+    );
     let impact = estimate_reinstall_impact(&names, package_database, provider_manager, paths).await;
     output::print_disk_impact_with_size_rows(&impact, &[], true);
     output::action_note(
@@ -447,6 +457,7 @@ async fn reinstall_one<H>(
     paths: &UpstreamPaths,
     package: Package,
     trust_mode: TrustMode,
+    package_settings: crate::storage::database::PackageSettings,
     force: bool,
     trusted_keys: &TrustedSignatureKeys,
     message_callback: &mut Option<H>,
@@ -554,6 +565,8 @@ where
                 .await?;
         }
     }
+
+    package_database.upsert_package_settings(&package_settings)?;
 
     Ok(())
 }

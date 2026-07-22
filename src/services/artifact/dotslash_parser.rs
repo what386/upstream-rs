@@ -62,10 +62,6 @@ pub fn select_asset(contents: &str) -> Result<DotSlashAsset> {
     select_asset_for_architecture(contents, &ArchitectureInfo::new())
 }
 
-pub fn select_asset_filename(contents: &str) -> Result<String> {
-    Ok(select_asset(contents)?.filename)
-}
-
 pub fn find_asset<'a>(release: &'a Release, package: &Package) -> Option<&'a Asset> {
     release
         .assets

@@ -622,7 +622,7 @@ impl<'a> UpgradeOperation<'a> {
     pub async fn upgrade_resolved_bulk<P>(
         &mut self,
         rows: &[UpgradePreviewRow],
-        trust_mode: TrustMode,
+        trust_mode: Option<TrustMode>,
         progress_callback: &mut Option<P>,
     ) -> Result<(u32, u32)>
     where
@@ -639,7 +639,10 @@ impl<'a> UpgradeOperation<'a> {
                     .get_package(&row.name)?
                     .ok_or_else(|| anyhow!("Package '{}' is not installed", row.name))?
                     .clone();
-                Ok((package, row.clone()))
+                let effective_trust_mode = self
+                    .package_database
+                    .effective_trust_mode(&row.name, trust_mode)?;
+                Ok((package, row.clone(), effective_trust_mode))
             })
             .collect::<Result<Vec<_>>>()?;
 
@@ -652,7 +655,7 @@ impl<'a> UpgradeOperation<'a> {
         if let Some(cb) = progress_callback.as_mut() {
             cb(UpgradeProgressEvent::Overall { completed, total });
         }
-        let mut pending = stream::iter(packages.into_iter().map(|(package, row)| {
+        let mut pending = stream::iter(packages.into_iter().map(|(package, row, trust_mode)| {
             let state_ref = Arc::clone(&progress_state);
             let warning_state_ref = Arc::clone(&warning_state);
             async move {

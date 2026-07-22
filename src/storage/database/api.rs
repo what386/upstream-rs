@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow};
 
+use crate::models::common::enums::TrustMode;
 use crate::models::upstream::Package;
 
 use super::packages::PackageConnection;
@@ -53,8 +54,31 @@ impl PackageDatabase {
         self.connection()?.get_package_settings(package_name)
     }
 
+    pub fn effective_trust_mode(
+        &self,
+        package_name: &str,
+        operation_override: Option<TrustMode>,
+    ) -> Result<TrustMode> {
+        if let Some(mode) = operation_override {
+            return Ok(mode);
+        }
+        Ok(self
+            .get_package_settings(package_name)?
+            .and_then(|settings| settings.trust_mode)
+            .unwrap_or(TrustMode::BestEffort))
+    }
+
     pub fn upsert_package_settings(&mut self, settings: &PackageSettings) -> Result<()> {
         self.connection()?.upsert_package_settings(settings)
+    }
+
+    pub fn upsert_package_with_settings(
+        &mut self,
+        package: &Package,
+        settings: &PackageSettings,
+    ) -> Result<()> {
+        self.connection()?
+            .upsert_package_with_settings(package, settings)
     }
 
     pub fn upsert_package(&mut self, package: &Package) -> Result<()> {
@@ -124,8 +148,9 @@ impl PackageDatabase {
 mod tests {
     use super::PackageDatabase;
     use crate::models::common::Version;
-    use crate::models::common::enums::{Channel, Filetype, Provider};
+    use crate::models::common::enums::{Channel, Filetype, Provider, TrustMode};
     use crate::models::upstream::Package;
+    use crate::storage::database::PackageSettings;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -348,6 +373,35 @@ mod tests {
         let packages = reloaded.list_packages().expect("list packages");
         assert_eq!(packages.len(), 1);
         assert_eq!(packages[0].version, Version::new(2, 0, 0, false));
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn effective_trust_mode_uses_override_then_stored_then_default() {
+        let path = temp_database_path("trust-precedence");
+        let mut db = PackageDatabase::open(&path).expect("open database");
+        db.upsert_package(&test_package("tool"))
+            .expect("store package");
+
+        assert_eq!(
+            db.effective_trust_mode("tool", None).expect("default"),
+            TrustMode::BestEffort
+        );
+
+        let mut settings = PackageSettings::new("tool");
+        settings.trust_mode = Some(TrustMode::Checksum);
+        db.upsert_package_settings(&settings)
+            .expect("store settings");
+        assert_eq!(
+            db.effective_trust_mode("tool", None).expect("stored"),
+            TrustMode::Checksum
+        );
+        assert_eq!(
+            db.effective_trust_mode("tool", Some(TrustMode::Signature))
+                .expect("override"),
+            TrustMode::Signature
+        );
 
         cleanup(&path).expect("cleanup");
     }

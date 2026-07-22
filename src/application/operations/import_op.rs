@@ -31,7 +31,7 @@ use std::{
 };
 use tokio::time::{self, Duration};
 
-pub const PACKAGES_EXPORT_VERSION: u32 = 2;
+pub const PACKAGES_EXPORT_VERSION: u32 = 3;
 pub const PROFILE_EXPORT_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -183,7 +183,7 @@ impl<'a> ImportOperation<'a> {
             .with_context(|| format!("Failed to read packages export from '{}'", path.display()))?;
         let packages: ImportPackages =
             serde_json::from_str(&content).context("Failed to parse packages export")?;
-        if packages.version != PACKAGES_EXPORT_VERSION {
+        if !matches!(packages.version, 2 | PACKAGES_EXPORT_VERSION) {
             bail!(
                 "Unsupported packages export version {}. Upgrade upstream and try again.",
                 packages.version
@@ -223,7 +223,7 @@ impl<'a> ImportOperation<'a> {
     }
 
     fn validate_packages(packages: &ImportPackages) -> Result<()> {
-        if packages.version != PACKAGES_EXPORT_VERSION {
+        if !matches!(packages.version, 2 | PACKAGES_EXPORT_VERSION) {
             bail!(
                 "Unsupported packages export version {}. Upgrade upstream and try again.",
                 packages.version
@@ -284,7 +284,8 @@ impl<'a> ImportOperation<'a> {
                 } else {
                     reference.version_tag.clone()
                 };
-                eligible.push((reference.into_package(), version));
+                let trust_mode = reference.trust_mode;
+                eligible.push((reference.into_package(), version, trust_mode));
             }
             if skipped {
                 completed += 1;
@@ -299,7 +300,7 @@ impl<'a> ImportOperation<'a> {
             cb(ImportProgressEvent::Started {
                 package_width: eligible
                     .iter()
-                    .map(|(package, _)| package.name.chars().count())
+                    .map(|(package, _, _)| package.name.chars().count())
                     .max()
                     .unwrap_or(0),
             });
@@ -313,7 +314,7 @@ impl<'a> ImportOperation<'a> {
         let mut first_error = None;
 
         for _ in 0..self.install_concurrency {
-            let Some((package, version)) = packages.next() else {
+            let Some((package, version, trust_mode)) = packages.next() else {
                 break;
             };
             pending.push(import_package(
@@ -321,6 +322,7 @@ impl<'a> ImportOperation<'a> {
                 self.trusted_keys.clone(),
                 package,
                 version,
+                trust_mode,
                 Arc::clone(&progress_state),
                 Arc::clone(&warning_state),
             ));
@@ -332,14 +334,14 @@ impl<'a> ImportOperation<'a> {
             cancellation::check()?;
             tokio::select! {
                 maybe_result = pending.next() => {
-                    let Some((name, result)) = maybe_result else { break };
+                    let Some((name, trust_mode, result)) = maybe_result else { break };
                     emit_progress_updates(&progress_state, &warning_state, &mut last_progress_events, progress_callback);
                     if let Ok(mut state) = progress_state.lock() {
                         state.remove(&name);
                     }
                     last_progress_events.remove(&name);
 
-                    match result.and_then(|package| self.persist_imported_package(&installer, &package).map(|()| package)) {
+                    match result.and_then(|package| self.persist_imported_package(&installer, &package, trust_mode).map(|()| package)) {
                         Ok(package) => {
                             summary.installed += 1;
                             emit_complete(progress_callback, name, ImportPackageResult::Installed { version: package.version.to_string() });
@@ -357,12 +359,13 @@ impl<'a> ImportOperation<'a> {
                     emit_overall(progress_callback, completed, total);
 
                     if !stop_scheduling
-                        && let Some((package, version)) = packages.next() {
+                        && let Some((package, version, trust_mode)) = packages.next() {
                             pending.push(import_package(
                                 &installer,
                                 self.trusted_keys.clone(),
                                 package,
                                 version,
+                                trust_mode,
                                 Arc::clone(&progress_state),
                                 Arc::clone(&warning_state),
                             ));
@@ -401,8 +404,14 @@ impl<'a> ImportOperation<'a> {
         &mut self,
         installer: &PackageInstaller<'_>,
         installed_package: &Package,
+        trust_mode: Option<TrustMode>,
     ) -> Result<()> {
-        if let Err(err) = self.package_database.upsert_package(installed_package) {
+        let mut settings = crate::storage::database::PackageSettings::new(&installed_package.name);
+        settings.trust_mode = trust_mode;
+        if let Err(err) = self
+            .package_database
+            .upsert_package_with_settings(installed_package, &settings)
+        {
             return self.cleanup_after_metadata_error(installer, installed_package, err);
         }
 
@@ -645,9 +654,10 @@ async fn import_package(
     trusted_keys: TrustedSignatureKeys,
     package: Package,
     version: Option<String>,
+    trust_mode: Option<TrustMode>,
     progress_state: ProgressState,
     warning_state: WarningState,
-) -> (String, Result<Package>) {
+) -> (String, Option<TrustMode>, Result<Package>) {
     let name = package.name.clone();
     let progress_name = name.clone();
     let mut progress_callback = Some(move |event: PackageProgressEvent| {
@@ -663,7 +673,7 @@ async fn import_package(
                     package,
                     &version,
                     &false,
-                    TrustMode::BestEffort,
+                    trust_mode.unwrap_or(TrustMode::BestEffort),
                     &mut no_download_progress,
                     &mut ignored_messages,
                     &mut progress_callback,
@@ -675,7 +685,7 @@ async fn import_package(
         }
     }
     .context(format!("Failed to import package '{name}'"));
-    (name, result)
+    (name, trust_mode, result)
 }
 
 async fn import_build_package<P>(
@@ -793,6 +803,17 @@ mod tests {
         let packages = ImportOperation::read_packages(&path).expect("read packages");
 
         assert_eq!(packages.version, PACKAGES_EXPORT_VERSION);
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn read_packages_accepts_legacy_version_two() {
+        let path = temp_file("version-two");
+        fs::write(&path, r#"{"version":2,"packages":[]}"#).expect("write packages");
+
+        let packages = ImportOperation::read_packages(&path).expect("read legacy packages");
+
+        assert_eq!(packages.version, 2);
         let _ = fs::remove_file(path);
     }
 

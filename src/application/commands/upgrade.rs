@@ -123,7 +123,7 @@ pub async fn run(
     check_option: bool,
     machine_readable: bool,
     json: bool,
-    trust_mode: TrustMode,
+    trust_mode: Option<TrustMode>,
     dry_run: bool,
     paths: &UpstreamPaths,
     app_config: &AppConfig,
@@ -733,10 +733,15 @@ async fn run_dry_run(
     package_upgrade: UpgradeOperation<'_>,
     names: Option<Vec<String>>,
     force_option: bool,
-    trust_mode: TrustMode,
+    trust_mode: Option<TrustMode>,
 ) -> Result<()> {
     println!("{}", output::title("Upgrade preview"));
-    output::kv("Trust", trust_mode);
+    output::kv(
+        "Trust",
+        trust_mode
+            .map(|mode| mode.to_string())
+            .unwrap_or_else(|| "per-package (default: best-effort)".to_string()),
+    );
     let preview_rows = package_upgrade
         .preview_upgrade(names.as_deref(), force_option, &mut |_| {})
         .await;

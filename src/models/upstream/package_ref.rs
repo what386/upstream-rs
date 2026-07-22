@@ -1,4 +1,4 @@
-use crate::models::common::enums::{Channel, Filetype, Provider};
+use crate::models::common::enums::{Channel, Filetype, Provider, TrustMode};
 use crate::models::upstream::{InstallType, Package};
 use crate::providers::pattern_matcher::PatternTable;
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,8 @@ pub struct PackageReference {
     pub match_pattern: PatternTable,
     #[serde(default)]
     pub exclude_pattern: PatternTable,
+    #[serde(default)]
+    pub trust_mode: Option<TrustMode>,
 }
 
 impl PackageReference {
@@ -58,6 +60,7 @@ impl PackageReference {
             build_commit: package.build_commit,
             match_pattern: package.match_pattern,
             exclude_pattern: package.exclude_pattern,
+            trust_mode: None,
         }
     }
 }
@@ -96,6 +99,7 @@ mod tests {
             build_commit: Some("abcdef123456".to_string()),
             match_pattern: PatternTable::from_patterns(["x86_64"]),
             exclude_pattern: PatternTable::from_patterns(["debug"]),
+            trust_mode: None,
         }
     }
 

@@ -107,11 +107,18 @@ impl<'a> ExportOperation<'a> {
 
     fn package_references(&self) -> Result<Vec<PackageReference>> {
         let packages = self.package_database.list_packages()?;
-        Ok(packages
+        packages
             .iter()
             .filter(|package| package.install_path.is_some())
-            .map(|package| PackageReference::from_package(package.clone()))
-            .collect())
+            .map(|package| {
+                let mut reference = PackageReference::from_package(package.clone());
+                reference.trust_mode = self
+                    .package_database
+                    .get_package_settings(&package.name)?
+                    .and_then(|settings| settings.trust_mode);
+                Ok(reference)
+            })
+            .collect()
     }
 
     fn keys_export(&self, exported_at: String) -> Result<KeysExport> {
@@ -178,9 +185,9 @@ mod tests {
     use super::ExportOperation;
     use crate::application::operations::import_op::PACKAGES_EXPORT_VERSION;
     use crate::models::common::Version;
-    use crate::models::common::enums::{Channel, Filetype, Provider};
+    use crate::models::common::enums::{Channel, Filetype, Provider, TrustMode};
     use crate::models::upstream::Package;
-    use crate::storage::database::PackageDatabase;
+    use crate::storage::database::{PackageDatabase, PackageSettings};
     use crate::storage::system::config::ConfigStorage;
     use crate::utils::test_support;
     use std::path::Path;
@@ -237,6 +244,11 @@ mod tests {
         storage
             .upsert_package(&package)
             .expect("store installed package");
+        let mut settings = PackageSettings::new("tool");
+        settings.trust_mode = Some(TrustMode::Checksum);
+        storage
+            .upsert_package_settings(&settings)
+            .expect("store package settings");
 
         let operation = ExportOperation::new(&storage, &paths);
         let output = root.join("packages.json");
@@ -250,6 +262,7 @@ mod tests {
         assert!(content.contains("\"name\": \"tool\""));
         assert!(content.contains("\"repo_slug\": \"owner/tool\""));
         assert!(content.contains("\"version_tag\": \"rust-v1.2.3-linux\""));
+        assert!(content.contains("\"trust_mode\": \"Checksum\""));
 
         cleanup(&root).expect("cleanup");
     }

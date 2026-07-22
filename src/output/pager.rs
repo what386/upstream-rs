@@ -26,10 +26,6 @@ impl PagerConfig {
         }
     }
 
-    fn visible_rows(&self) -> usize {
-        self.rows.saturating_sub(FOOTER_ROWS).max(MIN_VISIBLE_ROWS)
-    }
-
     fn content_rows(&self, has_title: bool) -> usize {
         let title_rows = usize::from(has_title);
         self.rows
@@ -105,20 +101,6 @@ pub fn set_no_pager(value: bool) {
 
 fn no_pager() -> bool {
     NO_PAGER.load(Ordering::Relaxed)
-}
-
-pub fn should_page(line_count: usize) -> bool {
-    let term = Term::stdout();
-    should_page_with(
-        line_count,
-        term.is_term(),
-        no_pager(),
-        PagerConfig::from_term(&term),
-    )
-}
-
-fn should_page_with(line_count: usize, is_term: bool, no_pager: bool, config: PagerConfig) -> bool {
-    !no_pager && is_term && line_count > config.visible_rows()
 }
 
 pub fn page_text(title: Option<&str>, text: &str) -> Result<()> {
@@ -258,10 +240,7 @@ fn action_for_key(key: Key) -> PagerAction {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        PagerAction, PagerConfig, PagerState, action_for_key, footer_text, page_text,
-        should_page_with, visible_lines,
-    };
+    use super::{PagerAction, PagerState, action_for_key, footer_text, page_text, visible_lines};
     use console::Key;
 
     fn lines(count: usize) -> Vec<String> {
@@ -343,15 +322,5 @@ mod tests {
         }
 
         page_text(Some("Manual pager smoke test"), &text).expect("pager should run");
-    }
-
-    #[test]
-    fn should_page_short_circuits_when_no_pager_is_active() {
-        let config = PagerConfig { rows: 24, cols: 80 };
-
-        assert!(!should_page_with(100, true, true, config));
-        assert!(should_page_with(100, true, false, config));
-        assert!(!should_page_with(10, true, false, config));
-        assert!(!should_page_with(100, false, false, config));
     }
 }

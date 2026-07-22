@@ -116,3 +116,22 @@ fn semantic_version_conflicts_with_exact_refs() {
     .expect("branch conflict");
     assert_eq!(build.kind(), ErrorKind::ArgumentConflict);
 }
+
+#[test]
+fn cache_and_package_settings_commands_parse() {
+    for args in [
+        vec!["upstream", "cache", "list", "--json"],
+        vec!["upstream", "cache", "clean", "build", "docs", "--dry-run"],
+        vec![
+            "upstream",
+            "package",
+            "set",
+            "rg",
+            "match_pattern=linux,x86_64",
+        ],
+        vec!["upstream", "package", "get", "rg", "trust_mode", "--json"],
+        vec!["upstream", "package", "unset", "rg", "exclude_pattern"],
+    ] {
+        Cli::try_parse_from(args).expect("new command should parse");
+    }
+}
