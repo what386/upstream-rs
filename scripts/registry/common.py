@@ -1,0 +1,188 @@
+"""Validation and deterministic index generation for the package registry."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import re
+import tomllib
+from typing import Any
+from urllib.parse import urlsplit
+
+
+PACKAGE_NAME = re.compile(r"^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$")
+REQUIRED_FIELDS = {"name", "repo", "provider", "desktop", "trust"}
+OPTIONAL_FIELDS = {"match", "exclude"}
+ALLOWED_FIELDS = REQUIRED_FIELDS | OPTIONAL_FIELDS
+PROVIDERS = {"github", "gitlab", "gitea"}
+TRUST_MODES = {"none", "best-effort", "checksum", "signature", "all"}
+
+
+class RegistryValidationError(Exception):
+    """Raised when one or more registry entries are invalid."""
+
+    def __init__(self, errors: list[str]) -> None:
+        self.errors = errors
+        super().__init__("\n".join(errors))
+
+
+def load_registry(packages_dir: Path) -> dict[str, dict[str, Any]]:
+    """Load and validate every TOML entry, returning metadata keyed by name."""
+    errors: list[str] = []
+    packages: dict[str, dict[str, Any]] = {}
+
+    if not packages_dir.is_dir():
+        raise RegistryValidationError(
+            [f"registry packages directory does not exist: {packages_dir}"]
+        )
+
+    paths = sorted(packages_dir.glob("*.toml"), key=lambda path: path.name)
+    if not paths:
+        raise RegistryValidationError([f"no package TOML files found in {packages_dir}"])
+
+    for path in paths:
+        try:
+            raw = tomllib.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
+            errors.append(f"{path}: invalid TOML: {error}")
+            continue
+
+        entry_errors = validate_entry(path, raw)
+        errors.extend(entry_errors)
+        if entry_errors:
+            continue
+
+        name = raw["name"]
+        if name in packages:
+            errors.append(f"{path}: duplicate package name '{name}'")
+            continue
+
+        packages[name] = {
+            key: raw[key]
+            for key in ("repo", "provider", "desktop", "trust", "match", "exclude")
+            if key in raw
+        }
+
+    if errors:
+        raise RegistryValidationError(errors)
+    return dict(sorted(packages.items()))
+
+
+def validate_entry(path: Path, entry: object) -> list[str]:
+    """Return all validation errors for one decoded TOML document."""
+    if not isinstance(entry, dict):
+        return [f"{path}: package entry must be a TOML table"]
+
+    errors: list[str] = []
+    keys = set(entry)
+    missing = sorted(REQUIRED_FIELDS - keys)
+    unknown = sorted(keys - ALLOWED_FIELDS)
+    if missing:
+        errors.append(f"{path}: missing required fields: {', '.join(missing)}")
+    if unknown:
+        errors.append(f"{path}: unknown fields: {', '.join(unknown)}")
+
+    name = entry.get("name")
+    if not isinstance(name, str):
+        errors.append(f"{path}: 'name' must be a string")
+    else:
+        if not PACKAGE_NAME.fullmatch(name):
+            errors.append(
+                f"{path}: 'name' must be lowercase and contain only letters, digits, '.', '_', or '-'"
+            )
+        if name != path.stem:
+            errors.append(f"{path}: package name '{name}' must match filename '{path.stem}'")
+
+    repo = entry.get("repo")
+    if not isinstance(repo, str):
+        errors.append(f"{path}: 'repo' must be a string")
+    else:
+        errors.extend(validate_repo(path, repo, entry.get("provider")))
+
+    provider = entry.get("provider")
+    if not isinstance(provider, str):
+        errors.append(f"{path}: 'provider' must be a string")
+    elif provider not in PROVIDERS:
+        errors.append(
+            f"{path}: unsupported provider '{provider}'; expected one of: {', '.join(sorted(PROVIDERS))}"
+        )
+
+    desktop = entry.get("desktop")
+    if not isinstance(desktop, bool):
+        errors.append(f"{path}: 'desktop' must be a boolean")
+
+    trust = entry.get("trust")
+    if not isinstance(trust, str):
+        errors.append(f"{path}: 'trust' must be a string")
+    elif trust not in TRUST_MODES:
+        errors.append(
+            f"{path}: unsupported trust mode '{trust}'; expected one of: {', '.join(sorted(TRUST_MODES))}"
+        )
+
+    for key in ("match", "exclude"):
+        if key in entry:
+            errors.extend(validate_patterns(path, key, entry[key]))
+
+    return errors
+
+
+def validate_repo(path: Path, repo: str, provider: object) -> list[str]:
+    errors: list[str] = []
+    parsed = urlsplit(repo)
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or not parsed.path.strip("/")
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+    ):
+        errors.append(
+            f"{path}: 'repo' must be a canonical HTTPS repository URL without credentials, query, or fragment"
+        )
+        return errors
+
+    hostname = parsed.hostname.lower()
+    expected_hosts = {"github": "github.com", "gitlab": "gitlab.com"}
+    expected = expected_hosts.get(provider)
+    if expected and hostname != expected:
+        errors.append(
+            f"{path}: provider '{provider}' requires a repository hosted on {expected}"
+        )
+    return errors
+
+
+def validate_patterns(path: Path, key: str, value: object) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{path}: '{key}' must be an array of strings"]
+    if not value:
+        return [f"{path}: '{key}' must not be empty; omit it when no override is needed"]
+
+    errors: list[str] = []
+    seen: set[str] = set()
+    for index, pattern in enumerate(value):
+        if not isinstance(pattern, str):
+            errors.append(f"{path}: '{key}[{index}]' must be a string")
+            continue
+        if not pattern or pattern != pattern.strip():
+            errors.append(f"{path}: '{key}[{index}]' must be a non-empty trimmed string")
+            continue
+        normalized = pattern.casefold()
+        if normalized in seen:
+            errors.append(f"{path}: '{key}' contains duplicate pattern '{pattern}'")
+        seen.add(normalized)
+    return errors
+
+
+def render_index(packages: dict[str, dict[str, Any]]) -> str:
+    """Serialize the direct name-to-metadata mapping deterministically."""
+    return json.dumps(packages, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+
+
+def write_index(packages_dir: Path, output: Path) -> None:
+    packages = load_registry(packages_dir)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output.with_name(f".{output.name}.tmp")
+    temporary.write_text(render_index(packages), encoding="utf-8")
+    temporary.replace(output)

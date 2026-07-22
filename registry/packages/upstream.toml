@@ -1,0 +1,8 @@
+# packages/upstream.toml
+
+name = "upstream"
+repo = "https://github.com/what386/upstream-rs"
+provider = "github"
+
+desktop = false
+trust = "checksum"

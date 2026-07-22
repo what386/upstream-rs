@@ -23,6 +23,13 @@ integration-tests:
     python3 tests/integration/pkg_install.py
     python3 tests/integration/pkg_remove.py
 
+registry-validate:
+    python3 scripts/registry/validate.py
+    python3 -m unittest discover -s tests/registry -p 'test_*.py'
+
+registry-index:
+    python3 scripts/registry/build_index.py
+
 
 run *args:
     cargo run --bin "upstream" -- {{args}}

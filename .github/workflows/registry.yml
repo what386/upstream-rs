@@ -1,0 +1,33 @@
+name: Registry
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+    paths:
+      - "registry/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "registry/**"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate registry packages
+        run: python3 scripts/registry/validate.py
+
+      - name: Test registry tooling
+        run: python3 -m unittest discover -s tests/registry -p 'test_*.py'
+
+      - name: Verify generated registry index
+        run: |
+          python3 scripts/registry/build_index.py
+          git diff --exit-code -- registry/index.json

@@ -1,0 +1,8 @@
+{
+  "upstream": {
+    "desktop": false,
+    "provider": "github",
+    "repo": "https://github.com/what386/upstream-rs",
+    "trust": "checksum"
+  }
+}
