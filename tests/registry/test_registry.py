@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import tomllib
 import unittest
 
 
@@ -18,6 +19,14 @@ assert SPEC and SPEC.loader
 COMMON = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = COMMON
 SPEC.loader.exec_module(COMMON)
+
+IMPORT_SPEC = importlib.util.spec_from_file_location(
+    "registry_import_list", REGISTRY_SCRIPTS / "import_list.py"
+)
+assert IMPORT_SPEC and IMPORT_SPEC.loader
+IMPORT_LIST = importlib.util.module_from_spec(IMPORT_SPEC)
+sys.modules[IMPORT_SPEC.name] = IMPORT_LIST
+IMPORT_SPEC.loader.exec_module(IMPORT_LIST)
 
 
 class RegistryTests(unittest.TestCase):
@@ -159,6 +168,80 @@ class RegistryTests(unittest.TestCase):
         self.assertTrue(any("unchanged package 'unchanged'" in error for error in errors))
         self.assertTrue(any("modified package 'modified'" in error for error in errors))
         self.assertTrue(any("new package 'new'" in error for error in errors))
+
+    def test_list_import_creates_registry_name_and_binary_alias(self) -> None:
+        record = {
+            "name": "rg",
+            "repo_slug": "BurntSushi/ripgrep",
+            "provider": "Github",
+            "install_type": "Release",
+            "base_url": None,
+            "icon_path": None,
+            "match_pattern": ["linux"],
+            "exclude_pattern": ["debug"],
+        }
+
+        name, entry = IMPORT_LIST.entry_from_record(record, "best-effort")
+        rendered = tomllib.loads(IMPORT_LIST.render_entry(entry))
+
+        self.assertEqual(name, "ripgrep")
+        self.assertEqual(rendered["name"], "ripgrep")
+        self.assertEqual(rendered["binary"], "rg")
+        self.assertEqual(rendered["repo"], "https://github.com/BurntSushi/ripgrep")
+        self.assertEqual(rendered["match"], ["linux"])
+        self.assertEqual(rendered["exclude"], ["debug"])
+
+    def test_list_import_writes_only_missing_release_packages(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            packages_dir = root / "packages"
+            packages_dir.mkdir()
+            (packages_dir / "existing.toml").write_text(
+                "\n".join(
+                    [
+                        'name = "existing"',
+                        "revision = 1",
+                        'repo = "https://github.com/owner/existing"',
+                        'provider = "github"',
+                        "desktop = false",
+                        'trust = "checksum"',
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            input_path = root / "packages.json"
+            input_path.write_text(
+                json.dumps(
+                    [
+                        {
+                            "name": "tool",
+                            "repo_slug": "owner/tool",
+                            "provider": "Github",
+                            "install_type": "Release",
+                            "icon_path": "/icons/tool.png",
+                        },
+                        {
+                            "name": "source-tool",
+                            "repo_slug": "owner/source-tool",
+                            "provider": "Github",
+                            "install_type": "Build",
+                        },
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = IMPORT_LIST.main(
+                [str(input_path), "--packages-dir", str(packages_dir)]
+            )
+
+            self.assertEqual(result, 0)
+            generated = tomllib.loads(
+                (packages_dir / "tool.toml").read_text(encoding="utf-8")
+            )
+            self.assertTrue(generated["desktop"])
+            self.assertEqual(generated["trust"], "best-effort")
+            self.assertFalse((packages_dir / "source-tool.toml").exists())
 
 if __name__ == "__main__":
     unittest.main()

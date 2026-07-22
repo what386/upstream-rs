@@ -33,6 +33,9 @@ registry-validate-revisions base_ref:
 registry-index:
     python3 scripts/registry/build_index.py
 
+registry-import input="-":
+    python3 scripts/registry/import_list.py {{input}}
+
 
 run *args:
     cargo run --bin "upstream" -- {{args}}
