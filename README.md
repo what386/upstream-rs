@@ -267,6 +267,11 @@ upstream package unpin nvim
 upstream package rename nvim neovim
 upstream package add-entry nvim
 upstream package rm-entry nvim
+upstream package set nvim match_pattern=linux,x86_64 trust_mode=checksum
+upstream package get nvim
+upstream package unset nvim exclude_pattern
+upstream cache list
+upstream cache clean docs
 ```
 
 Rollback is package-name-specific. Local data migrations are applied automatically
@@ -314,6 +319,7 @@ individual package fails.
 | `config`    | Manage configuration                 |
 | `auth`      | Manage provider API tokens           |
 | `package`   | Pin, unpin, or rename packages       |
+| `cache`     | Inspect or clean reusable cache data |
 | `hooks`     | Manage shell integration             |
 | `import`    | Import config, trusted keys, or exported packages |
 | `export`    | Export config, trusted keys, or installed packages |

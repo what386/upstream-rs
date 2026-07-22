@@ -45,6 +45,8 @@ Package installs run concurrently and use `concurrency.install_concurrency` (def
 
 Build-installed packages are rebuilt from their recorded release tag or branch during import. Build artifacts themselves are not exported.
 
+Package exports also preserve match/exclude selection patterns and an optional stored trust mode. During import, the stored trust mode verifies the package before it is persisted.
+
 ## Export Trusted Keys
 
 ```bash

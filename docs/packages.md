@@ -110,8 +110,14 @@ upstream package unpin <name>
 upstream package rename <old-name> <new-name>
 upstream package add-entry <name>
 upstream package rm-entry <name>
+upstream package set <name> match_pattern=linux,x86_64 exclude_pattern=debug
+upstream package set <name> trust_mode=checksum
+upstream package get <name>
+upstream package unset <name> trust_mode
 ```
 
 Pinned packages do not upgrade until unpinned. Rename changes the local alias and related metadata without reinstalling the package.
 
 Entry actions manually create or remove launcher integration for an installed package.
+
+`package set`, `get`, and `unset` manage persistent user-controlled selection patterns and trust mode. Operation-level `--trust` flags override a stored trust mode; otherwise the stored mode is used for upgrade and reinstall.

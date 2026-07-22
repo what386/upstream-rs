@@ -157,9 +157,23 @@ upstream package unpin <name>
 upstream package rename <old-name> <new-name>
 upstream package add-entry <name>
 upstream package rm-entry <name>
+upstream package set <name> <key=value>...
+upstream package get <name> [keys...] [--json]
+upstream package unset <name> [match_pattern|exclude_pattern|trust_mode]...
 ```
 
 Pinning prevents upgrades. Renaming changes the local alias without reinstalling. Entry actions manually create or remove launcher integration for an installed package.
+
+Package settings support `match_pattern`, `exclude_pattern`, and `trust_mode`. Patterns are comma-separated. An explicit `upgrade` or `reinstall --trust` value overrides the stored trust mode; otherwise the stored value applies, falling back to `best-effort`.
+
+## Cache
+
+```bash
+upstream cache list [--json]
+upstream cache clean [build|source|docs|all]... [--dry-run]
+```
+
+`cache list` reports known cache sizes and locations. `cache clean` removes selected categories after confirmation; with no category it selects all known caches. Global `--yes` skips confirmation and `--dry-run` previews cleanup. Installed packages and rollback artifacts are never cache-cleaning targets.
 
 ## Information Commands
 
