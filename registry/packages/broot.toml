@@ -1,0 +1,9 @@
+name = "broot"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/Canop/broot"
+provider = "github"

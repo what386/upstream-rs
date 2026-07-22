@@ -1,0 +1,10 @@
+name = "repgrep"
+revision = 1
+binary = "rgr"
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/acheronfail/repgrep"
+provider = "github"

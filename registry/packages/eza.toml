@@ -1,0 +1,9 @@
+name = "eza"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/eza-community/eza"
+provider = "github"

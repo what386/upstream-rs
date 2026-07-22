@@ -1,0 +1,10 @@
+name = "obsidian"
+revision = 1
+binary = "Obsidian"
+desktop = true
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/obsidianmd/obsidian-releases"
+provider = "github"

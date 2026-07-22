@@ -1,0 +1,10 @@
+name = "taskwarrior"
+revision = 1
+binary = "task"
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "build"
+repo = "https://github.com/GothenburgBitFactory/taskwarrior"
+provider = "github"

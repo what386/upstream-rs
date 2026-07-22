@@ -1,0 +1,10 @@
+name = "orcaslicer"
+revision = 1
+binary = "Orca Slicer"
+desktop = true
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/OrcaSlicer/OrcaSlicer"
+provider = "github"

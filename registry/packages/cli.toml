@@ -1,0 +1,10 @@
+name = "cli"
+revision = 1
+binary = "gh"
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/cli/cli"
+provider = "github"

@@ -1,0 +1,10 @@
+name = "bottom"
+revision = 1
+binary = "btm"
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/ClementTsang/bottom"
+provider = "github"

@@ -1,0 +1,10 @@
+name = "pear-desktop"
+revision = 1
+binary = "Pear Desktop"
+desktop = true
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/michei69/pear-desktop"
+provider = "github"

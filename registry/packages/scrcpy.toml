@@ -1,0 +1,9 @@
+name = "scrcpy"
+revision = 1
+desktop = true
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/Genymobile/scrcpy"
+provider = "github"

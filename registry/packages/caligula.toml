@@ -1,0 +1,9 @@
+name = "caligula"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/ifd3f/caligula"
+provider = "github"

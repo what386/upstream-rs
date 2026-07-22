@@ -1,0 +1,9 @@
+name = "dz6"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/mentebinaria/dz6"
+provider = "github"

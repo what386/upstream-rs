@@ -1,0 +1,10 @@
+name = "audacity"
+revision = 1
+binary = "Audacity"
+desktop = true
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/audacity/audacity"
+provider = "github"

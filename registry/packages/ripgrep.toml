@@ -1,0 +1,10 @@
+name = "ripgrep"
+revision = 1
+binary = "rg"
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/BurntSushi/ripgrep"
+provider = "github"

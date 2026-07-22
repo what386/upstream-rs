@@ -1,0 +1,13 @@
+name = "podman"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+match = [
+    "static",
+]
+
+[install]
+type = "release"
+repo = "https://github.com/containers/podman"
+provider = "github"

@@ -1,0 +1,9 @@
+name = "actionlint"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/rhysd/actionlint"
+provider = "github"

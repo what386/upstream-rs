@@ -1,0 +1,10 @@
+name = "freecad"
+revision = 1
+binary = "FreeCAD"
+desktop = true
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/FreeCAD/FreeCAD"
+provider = "github"

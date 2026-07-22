@@ -1,0 +1,9 @@
+name = "atuin"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/atuinsh/atuin"
+provider = "github"

@@ -1,0 +1,9 @@
+name = "just"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/casey/just"
+provider = "github"

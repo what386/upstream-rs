@@ -1,0 +1,9 @@
+name = "shellcheck"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/koalaman/shellcheck"
+provider = "github"

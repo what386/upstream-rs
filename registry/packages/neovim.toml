@@ -1,0 +1,10 @@
+name = "neovim"
+revision = 1
+binary = "nvim"
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/neovim/neovim"
+provider = "github"

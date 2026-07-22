@@ -1,0 +1,9 @@
+name = "chezmoi"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/twpayne/chezmoi"
+provider = "github"

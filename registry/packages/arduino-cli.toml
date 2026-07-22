@@ -1,0 +1,9 @@
+name = "arduino-cli"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/arduino/arduino-cli"
+provider = "github"

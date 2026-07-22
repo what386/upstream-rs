@@ -1,0 +1,10 @@
+name = "zsync"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "build"
+repo = "https://github.com/cph6/zsync"
+provider = "github"
+branch = "master"

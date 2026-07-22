@@ -1,0 +1,9 @@
+name = "rdr"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/iRootPro/rdr"
+provider = "github"

@@ -1,0 +1,9 @@
+name = "code"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/just-every/code"
+provider = "github"

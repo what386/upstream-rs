@@ -1,0 +1,9 @@
+name = "minisign"
+revision = 1
+desktop = false
+trust = "best-effort"
+
+[install]
+type = "release"
+repo = "https://github.com/jedisct1/minisign"
+provider = "github"
