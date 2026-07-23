@@ -28,7 +28,7 @@ fn print_list_json(storage: &PackageDatabase, filter: Option<&str>) -> Result<()
 
 fn display_package_list(storage: &PackageDatabase, filter: Option<&str>) -> Result<()> {
     let packages = storage.list_packages()?;
-    let mut packages = filter_packages_by_name(packages, filter)?;
+    let packages = filter_packages_by_name(packages, filter)?;
 
     if packages.is_empty() {
         match filter {
@@ -40,8 +40,6 @@ fn display_package_list(storage: &PackageDatabase, filter: Option<&str>) -> Resu
         }
         return Ok(());
     }
-
-    packages.sort_by_key(|p| p.name.to_lowercase());
 
     let title = match filter {
         Some(filter) => format!(
@@ -60,26 +58,21 @@ fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Resu
         return Ok(packages);
     };
 
-    let filter_lower = filter.to_lowercase();
-    let filtered = packages
-        .iter()
-        .filter(|package| package.name.to_lowercase().contains(&filter_lower))
-        .cloned()
-        .collect::<Vec<_>>();
-    if !filtered.is_empty() {
-        return Ok(filtered);
+    let matches =
+        name_match::ranked_matches(packages.iter().map(|package| package.name.as_str()), filter);
+    if !matches.is_empty() {
+        return Ok(matches
+            .into_iter()
+            .filter_map(|name| {
+                packages
+                    .iter()
+                    .find(|package| package.name == name)
+                    .cloned()
+            })
+            .collect());
     }
 
-    let suggestions = name_match::suggestions(
-        packages.iter().map(|package| package.name.as_str()),
-        filter,
-        3,
-    );
-    Err(anyhow!(
-        "No installed packages match '{}'.{}",
-        filter,
-        name_match::did_you_mean(&suggestions)
-    ))
+    Err(anyhow!("No installed packages match '{}'.", filter))
 }
 
 fn shorten_home_path(path: &str) -> String {
@@ -349,12 +342,21 @@ mod tests {
     }
 
     #[test]
-    fn package_list_filter_suggests_names_when_no_substring_matches() {
+    fn package_list_filter_includes_fuzzy_matches() {
         let packages = vec![package("ripgrep"), package("bat")];
-        let error = filter_packages_by_name(packages, Some("ripgerp")).expect_err("no substring");
-        assert_eq!(
-            error.to_string(),
-            "No installed packages match 'ripgerp'. Did you mean: ripgrep?"
-        );
+        let filtered = filter_packages_by_name(packages, Some("ripgerp")).expect("fuzzy match");
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].name, "ripgrep");
+    }
+
+    #[test]
+    fn package_list_filter_ranks_substrings_before_fuzzy_matches() {
+        let packages = vec![package("cope"), package("vscode"), package("codex")];
+        let filtered = filter_packages_by_name(packages, Some("code")).expect("ranked matches");
+        let names = filtered
+            .iter()
+            .map(|package| package.name.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(names, vec!["codex", "vscode", "cope"]);
     }
 }
