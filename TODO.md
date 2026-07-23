@@ -9,6 +9,9 @@
 - [ ] consider: crash recovery
       @created 2026-07-22 23:44
 
+- [ ] fix: remove old fetch behavior that required package name for add
+      @created 2026-07-23 23:32
+
 
 ## Completed
 
