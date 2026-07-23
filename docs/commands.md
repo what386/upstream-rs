@@ -207,7 +207,7 @@ upstream probe <repo-or-url> [name] [-p <provider>] [-k <kind>] [--channel <chan
 upstream doctor [names...] [--verbose] [--fix]
 ```
 
-- `list` shows installed packages. Provide `[filter]` to show only package names that contain that string.
+- `list` shows installed packages. Provide `[filter]` to rank exact and substring matches first, followed by close fuzzy matches.
 - `info` shows detailed metadata for one installed package. It requires an exact package name and suggests close or substring matches when lookup fails.
 - `history` shows the latest 20 grouped operations from the JSONL history. Successful read-only commands are hidden by default. Filter with `--package`, `--action`, `--status`, or `--since 2d`; use `--today` for the local calendar day, `--limit` to change the number of operations, and `--json` for nested operation records.
 - `changelog` shows release notes for installed packages. Use `--for <tag>` to show one release. `--from` and `--to` accept release tags plus `current` for the installed version and `latest` for the tracked latest release. If `glow` is installed, changelog Markdown is rendered with glow's terminal styling.
