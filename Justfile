@@ -56,6 +56,9 @@ publish version:
     git switch dev
     printf "ready" > .release-state
 
+resync:
+    scripts/release/resync.sh
+
 gen-completions:
     #!/usr/bin/env bash
     for shell in bash fish powershell zsh elvish; do
