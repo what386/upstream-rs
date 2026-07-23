@@ -43,7 +43,7 @@ pub enum Commands {
         refresh the index. Without --fetch, a missing or mismatched cache is an error.\n\n\
         EXAMPLES:\n  \
         upstream add upstream\n  \
-        upstream add upstream --fetch
+        upstream add upstream --fetch\n  \
         upstream add --fetch")]
     Add {
         /// Package name in the registry
