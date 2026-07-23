@@ -24,6 +24,11 @@ if [[ "$(git branch --show-current)" != "dev" ]]; then
     exit 1
 fi
 
+python3 scripts/registry/build_index.py
+
+git add registry/index.json registry/index.min.json
+git commit -m "Update registry index" || true
+
 cargo fmt
 
 git add src/
@@ -47,4 +52,3 @@ git commit -m "Release ${version}: Update shell completions" || true
 printf "prepared" > .release-state
 
 echo -e "${GREEN}Release ${version} prepared.${NC}"
-
