@@ -50,14 +50,15 @@ upstream install https://example.com/downloads tool -p scraper
 ## Add
 
 ```bash
-upstream add <name> [--fetch] [--dry-run]
+upstream add [<name>] [--fetch] [--dry-run]
 ```
 
-Installs a named package from the configured registry. The command normally uses the cached minified index at `$HOME/.upstream/cache/registry/index.min.json` without accessing the network. Pass `--fetch` to explicitly download or refresh the index. If no cache exists, the command reports that `--fetch` is required.
+Installs a named package from the configured registry. The command normally uses the cached minified index at `$HOME/.upstream/cache/registry/index.min.json` without accessing the network. Pass `--fetch` to explicitly download or refresh the index. With no package name, `--fetch` only refreshes the local registry index. If no cache exists, the command reports that `--fetch` is required.
 
 ```bash
 upstream add upstream
 upstream add upstream --fetch
+upstream add --fetch
 upstream add upstream --dry-run
 ```
 
@@ -207,8 +208,8 @@ upstream probe <repo-or-url> [name] [-p <provider>] [-k <kind>] [--channel <chan
 upstream doctor [names...] [--verbose] [--fix]
 ```
 
-- `list` shows installed packages. Provide `[filter]` to show only package names that contain that string.
-- `info` shows detailed metadata for one installed package. The query can be an exact package name or a unique substring.
+- `list` shows installed packages. Provide `[filter]` to rank exact and substring matches first, followed by close fuzzy matches.
+- `info` shows detailed metadata for one installed package. It requires an exact package name and suggests close or substring matches when lookup fails.
 - `history` shows the latest 20 grouped operations from the JSONL history. Successful read-only commands are hidden by default. Filter with `--package`, `--action`, `--status`, or `--since 2d`; use `--today` for the local calendar day, `--limit` to change the number of operations, and `--json` for nested operation records.
 - `changelog` shows release notes for installed packages. Use `--for <tag>` to show one release. `--from` and `--to` accept release tags plus `current` for the installed version and `latest` for the tracked latest release. If `glow` is installed, changelog Markdown is rendered with glow's terminal styling.
 - `docs` fetches an installed package's upstream README, caches it under upstream's cache directory, parses Markdown sections, and opens ranked keyword matches in an interactive picker. If no keywords are provided, sections are shown in README order. If `glow` is installed, previews and selected sections use glow's terminal Markdown styling. If fetching fails and a cached README exists, upstream falls back to the cached copy. Use `--offline` to search only cached documentation. Use `--fetch [names...]` to refresh cached READMEs without opening the picker; omitting names refreshes all installed packages.

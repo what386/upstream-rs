@@ -40,7 +40,7 @@ _arguments "${_arguments_options[@]}" : \
 '--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':name -- Package name in the registry:_default' \
+'::name -- Package name in the registry:_default' \
 && ret=0
 ;;
 (install)
@@ -174,7 +174,7 @@ _arguments "${_arguments_options[@]}" : \
 '--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-'::filter -- Package name substring to filter the list:_default' \
+'::filter -- Package name query used to filter and rank the list:_default' \
 && ret=0
 ;;
 (info)

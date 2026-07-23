@@ -12,7 +12,7 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         integration::ShellManager,
-        packaging::{InstallPlan, PackageInstaller, PackagePhase, PackageProgressEvent},
+        packaging::{PackageInstaller, PackagePhase, PackageProgressEvent, ResolvedAssetInstall},
         trust::TrustedSignatureKeys,
     },
     storage::database::PackageDatabase,
@@ -28,7 +28,7 @@ pub struct ReleaseInstallRequest {
 
 pub struct PlannedReleaseInstallRequest {
     pub package: Package,
-    pub plan: InstallPlan,
+    pub plan: ResolvedAssetInstall,
     pub add_entry: bool,
     pub trust_mode: TrustMode,
 }
@@ -73,7 +73,7 @@ impl<'a> InstallOperation<'a> {
         package: &Package,
         version: &Option<String>,
         semver: &Option<String>,
-    ) -> Result<InstallPlan> {
+    ) -> Result<ResolvedAssetInstall> {
         self.installer
             .preview_single_install(package, version, semver)
             .await

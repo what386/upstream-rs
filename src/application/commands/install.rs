@@ -3,11 +3,14 @@ use indicatif::{HumanBytes, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
-    application::context::CommandContext,
     application::operations::install_op::{InstallOperation, PlannedReleaseInstallRequest},
+    application::{commands::build, context::CommandContext},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
-        upstream::{Package, config::AppConfig},
+        upstream::{
+            HttpInstallSource, InstallPlan, InstallSource, Package, ReleaseInstallSource,
+            ReleaseSelector, config::AppConfig,
+        },
     },
     output::{self, Status, TransactionRow},
     providers::{
@@ -115,21 +118,104 @@ pub async fn run(
     paths: &UpstreamPaths,
     app_config: &AppConfig,
 ) -> Result<()> {
+    let name = resolve_package_name(name, &repo_slug, provider.as_ref(), base_url.as_deref())?;
+    let plan = InstallPlan {
+        name,
+        desktop: create_entry,
+        source: InstallSource::Release(ReleaseInstallSource {
+            source: repo_slug,
+            kind,
+            provider,
+            base_url,
+            channel,
+            selector: ReleaseSelector::from_options(version, semver),
+            match_pattern,
+            exclude_pattern,
+            trust_mode,
+        }),
+    };
+    run_plan(plan, dry_run, paths, app_config).await
+}
+
+pub async fn run_plan(
+    plan: InstallPlan,
+    dry_run: bool,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
+) -> Result<()> {
+    let InstallPlan {
+        name,
+        desktop,
+        source,
+    } = plan;
+    match source {
+        InstallSource::Build(source) => {
+            build::run_plan(
+                InstallPlan {
+                    name,
+                    desktop,
+                    source: InstallSource::Build(source),
+                },
+                dry_run,
+                paths,
+                app_config,
+            )
+            .await
+        }
+        InstallSource::Http(HttpInstallSource {
+            url,
+            kind,
+            trust_mode,
+        }) => {
+            run_release_plan(
+                name,
+                desktop,
+                ReleaseInstallSource {
+                    source: url,
+                    kind,
+                    provider: Some(Provider::Direct),
+                    base_url: None,
+                    channel: Channel::Stable,
+                    selector: ReleaseSelector::Latest,
+                    match_pattern: None,
+                    exclude_pattern: None,
+                    trust_mode,
+                },
+                dry_run,
+                paths,
+                app_config,
+            )
+            .await
+        }
+        InstallSource::Release(source) => {
+            run_release_plan(name, desktop, source, dry_run, paths, app_config).await
+        }
+    }
+}
+
+async fn run_release_plan(
+    name: String,
+    create_entry: bool,
+    source: ReleaseInstallSource,
+    dry_run: bool,
+    paths: &UpstreamPaths,
+    app_config: &AppConfig,
+) -> Result<()> {
+    let (version, semver) = source.selector.into_options();
+    let trust_mode = source.trust_mode;
     let context = CommandContext::new(paths, app_config)?;
     let mut package_database = context.package_database()?;
     let trusted_keys = context.trusted_keys()?;
-    let name = resolve_package_name(name, &repo_slug, provider.as_ref(), base_url.as_deref())?;
-
     let package = build_package(
         &context.provider_manager,
         name,
-        repo_slug,
-        kind,
-        provider,
-        base_url,
-        channel,
-        match_pattern,
-        exclude_pattern,
+        source.source,
+        source.kind,
+        source.provider,
+        source.base_url,
+        source.channel,
+        source.match_pattern,
+        source.exclude_pattern,
     )
     .await?;
 

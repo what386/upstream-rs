@@ -65,4 +65,4 @@ gen-completions:
     done
 
 inspect-db:
-    lazysql ~/.upstream/metadata/packages.db
+    lazysql ./tests/fakehome/.upstream/metadata/packages.db

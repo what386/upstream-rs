@@ -43,10 +43,11 @@ pub enum Commands {
         refresh the index. Without --fetch, a missing or mismatched cache is an error.\n\n\
         EXAMPLES:\n  \
         upstream add upstream\n  \
-        upstream add upstream --fetch")]
+        upstream add upstream --fetch
+        upstream add --fetch")]
     Add {
         /// Package name in the registry
-        name: String,
+        name: Option<String>,
 
         /// Refresh the local registry index before resolving the package
         #[arg(long, default_value_t = false)]
@@ -319,14 +320,14 @@ pub enum Commands {
 
     /// List installed packages
     #[command(long_about = "List installed packages.\n\n\
-        Without a filter, shows every installed package. Provide a filter to show only \
-        package names containing that string. Use --json for the full structured package \
+        Without a filter, shows every installed package. Provide a filter to rank installed \
+        package names by exact, substring, and fuzzy similarity. Use --json for the full structured package \
         records.\n\n\
         EXAMPLES:\n  \
         upstream list       # List all packages\n  \
         upstream list code  # List installed packages whose names contain code")]
     List {
-        /// Package name substring to filter the list
+        /// Package name query used to filter and rank the list
         filter: Option<String>,
 
         /// Print package list as JSON
@@ -336,8 +337,8 @@ pub enum Commands {
 
     /// Show details for one installed package
     #[command(long_about = "Show details for one installed package.\n\n\
-        The query can be an exact package name or a unique substring. Exact names \
-        take precedence over substring matches. Use --json to print the raw stored \
+        The query must be an exact package name. Close and substring matches are \
+        suggested without being selected. Use --json to print the raw stored \
         package record.\n\n\
         EXAMPLES:\n  \
         upstream info nvim  # Show details for nvim\n  \
