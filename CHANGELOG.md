@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-07-22*
+*Generated on 2026-07-23*
+
+## 2.15.2 — 2026-07-23
+
+### Changes
+
+- fix .desktop name override (prefer existing)
+- fix: remove old fetch behavior that required package name for add
+
 
 ## 2.15.0 — 2026-07-22
 
