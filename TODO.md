@@ -9,6 +9,10 @@
 - [ ] consider: crash recovery
       @created 2026-07-22 23:44
 
-- [ ] fix .desktop name override (prefer existing)
+
+## Completed
+
+- [x] fix .desktop name override (prefer existing)
       @created 2026-07-23 19:56
+      @completed 2026-07-23 19:56
 

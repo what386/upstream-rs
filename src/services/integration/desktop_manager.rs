@@ -243,6 +243,24 @@ impl<'a> DesktopManager<'a> {
         }
     }
 
+    #[cfg(target_os = "linux")]
+    fn merge_embedded_entry(
+        embedded: DesktopEntry,
+        generated: DesktopEntry,
+        fallback_name: &str,
+    ) -> DesktopEntry {
+        let embedded_name = embedded
+            .name
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .map(str::to_owned);
+        let mut merged = embedded.merge(generated).ensure_name(fallback_name);
+        if embedded_name.is_some() {
+            merged.name = embedded_name;
+        }
+        merged
+    }
+
     /// Build and write a Linux desktop entry.
     ///
     /// For AppImages, this attempts to merge metadata from an embedded
@@ -269,10 +287,10 @@ impl<'a> DesktopManager<'a> {
                 .extractor
                 .extract(&name, install_path, message_callback)
                 .await?;
-            self.find_and_parse_desktop_file(&squashfs_root, &name, message_callback)
-                .unwrap_or_default()
-                .merge(entry)
-                .ensure_name(&name)
+            let embedded = self
+                .find_and_parse_desktop_file(&squashfs_root, &name, message_callback)
+                .unwrap_or_default();
+            Self::merge_embedded_entry(embedded, entry, &name)
         } else {
             entry.ensure_name(&name)
         };
