@@ -22,14 +22,14 @@ use schema::{RegistryInstall, RegistryPackage};
 
 pub async fn resolve(
     name: String,
-    fetch: bool,
+    refresh: bool,
     paths: &UpstreamPaths,
     index_url: &str,
 ) -> Result<(InstallPlan, Option<FetchOutcome>)> {
     let cache_file = paths.dirs.cache_dir.join("registry/index.min.json");
     let metadata_file = paths.dirs.cache_dir.join("registry/metadata.json");
-    let fetch_outcome = if fetch {
-        Some(fetch_index(index_url, &cache_file, &metadata_file).await?)
+    let fetch_outcome = if refresh {
+        Some(fetch(paths, index_url).await?)
     } else {
         None
     };
@@ -85,6 +85,12 @@ pub async fn resolve(
         },
         fetch_outcome,
     ))
+}
+
+pub async fn fetch(paths: &UpstreamPaths, index_url: &str) -> Result<FetchOutcome> {
+    let cache_file = paths.dirs.cache_dir.join("registry/index.min.json");
+    let metadata_file = paths.dirs.cache_dir.join("registry/metadata.json");
+    fetch_index(index_url, &cache_file, &metadata_file).await
 }
 
 fn installed_name(registry_name: &str, package: &RegistryPackage) -> String {

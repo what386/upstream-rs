@@ -134,7 +134,7 @@ pub(super) fn load_cached_index(
     source_url: &str,
 ) -> Result<RegistryIndex> {
     if !cache_file.is_file() || !metadata_file.is_file() {
-        bail!("No cached registry index is available. Run 'upstream add <NAME> --fetch' first.");
+        bail!("No cached registry index is available. Run 'upstream add --fetch' first.");
     }
     let metadata: RegistryCacheMetadata = serde_json::from_slice(
         &fs::read(metadata_file)
@@ -148,7 +148,7 @@ pub(super) fn load_cached_index(
     })?;
     if metadata.source_url != source_url {
         bail!(
-            "The cached registry index came from '{}', but registry.index_url is '{}'. Run 'upstream add <NAME> --fetch' to refresh it.",
+            "The cached registry index came from '{}', but registry.index_url is '{}'. Run 'upstream add --fetch' to refresh it.",
             metadata.source_url,
             source_url
         );

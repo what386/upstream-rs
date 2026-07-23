@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 
 use crate::{
     application::commands::install,
@@ -9,14 +9,36 @@ use crate::{
 };
 
 pub async fn run(
-    name: String,
+    name: Option<String>,
     fetch: bool,
     dry_run: bool,
     paths: &UpstreamPaths,
     app_config: &AppConfig,
 ) -> Result<()> {
-    let (plan, outcome) =
-        registry::resolve(name, fetch, paths, &app_config.registry.index_url).await?;
+    if name.is_none() && !fetch {
+        bail!("Package name is required unless --fetch is used");
+    }
+
+    if name.is_none() {
+        let outcome = registry::fetch(paths, &app_config.registry.index_url).await?;
+        output::status_line(
+            Status::Ok,
+            "registry",
+            match outcome {
+                FetchOutcome::Updated => "index refreshed",
+                FetchOutcome::NotModified => "index already current",
+            },
+        );
+        return Ok(());
+    }
+
+    let (plan, outcome) = registry::resolve(
+        name.expect("name checked above"),
+        fetch,
+        paths,
+        &app_config.registry.index_url,
+    )
+    .await?;
     if let Some(outcome) = outcome {
         output::status_line(
             Status::Ok,
