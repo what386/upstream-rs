@@ -8,8 +8,8 @@ use crate::{
 };
 use anyhow::{Context, Result, anyhow};
 use dirs;
-use std::fs;
 use std::path::Path;
+use std::{fs, io};
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -150,7 +150,14 @@ impl<'a> PackageRemover<'a> {
 
         self.remove_runtime_integrations(package, message_callback)?;
 
-        if install_path.is_dir() {
+        let metadata = fs::symlink_metadata(install_path).with_context(|| {
+            format!(
+                "Failed to inspect installation path '{}' (it may have been manually removed)",
+                install_path.display()
+            )
+        })?;
+
+        if metadata.is_dir() {
             message!(
                 message_callback,
                 "Removing directory: {}",
@@ -160,7 +167,7 @@ impl<'a> PackageRemover<'a> {
                 "Failed to remove installation directory at '{}'",
                 install_path.display()
             ))?;
-        } else if install_path.is_file() {
+        } else if metadata.is_file() || metadata.file_type().is_symlink() {
             message!(
                 message_callback,
                 "Removing file: {}",
@@ -172,7 +179,7 @@ impl<'a> PackageRemover<'a> {
             ))?;
         } else {
             return Err(anyhow!(
-                "Install path '{}' is neither a file nor directory (may have been manually removed)",
+                "Install path '{}' has an unsupported file type",
                 install_path.display()
             ));
         }
@@ -244,10 +251,7 @@ impl<'a> PackageRemover<'a> {
             .as_ref()
             .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
 
-        message!(message_callback, "Removing symlink for '{}'", package.name);
-        SymlinkManager::new(&self.paths.state.symlinks_dir)
-            .remove_link(&package.name)
-            .context(format!("Failed to remove symlink for '{}'", package.name))?;
+        self.remove_runtime_link(package, message_callback)?;
 
         CompletionManager::new(self.paths)
             .remove_for_package(&package.name, message_callback)
@@ -257,6 +261,27 @@ impl<'a> PackageRemover<'a> {
             ))?;
 
         Ok(())
+    }
+
+    /// Remove only the package's executable link, preserving completions that
+    /// are still valid if a replacement install must be rolled back.
+    pub fn remove_runtime_link<H>(
+        &self,
+        package: &Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        let _ = package
+            .install_path
+            .as_ref()
+            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
+
+        message!(message_callback, "Removing symlink for '{}'", package.name);
+        SymlinkManager::new(&self.paths.state.symlinks_dir)
+            .remove_link(&package.name)
+            .context(format!("Failed to remove symlink for '{}'", package.name))
     }
 
     /// Restore PATH and symlink state for a previously installed package.
@@ -362,15 +387,20 @@ impl<'a> PackageRemover<'a> {
     where
         H: FnMut(&str),
     {
-        if !path.exists() {
-            return Ok(());
-        }
+        let metadata = match fs::symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(err) => {
+                return Err(err)
+                    .with_context(|| format!("Failed to inspect path '{}'", path.display()));
+            }
+        };
 
-        if path.is_dir() {
+        if metadata.is_dir() {
             message!(message_callback, "Purging directory: {}", path.display());
             fs::remove_dir_all(path)
                 .context(format!("Failed to remove directory '{}'", path.display()))?;
-        } else if path.is_file() {
+        } else if metadata.is_file() || metadata.file_type().is_symlink() {
             message!(message_callback, "Purging file: {}", path.display());
             fs::remove_file(path).context(format!("Failed to remove file '{}'", path.display()))?;
         }

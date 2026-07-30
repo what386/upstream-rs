@@ -4,6 +4,7 @@ pub mod disk_impact;
 pub mod installer;
 pub mod progress;
 pub mod remover;
+pub mod replacement;
 pub mod rollback;
 pub mod upgrader;
 
@@ -11,5 +12,6 @@ pub use checker::PackageChecker;
 pub use installer::{PackageInstaller, ResolvedAssetInstall};
 pub use progress::{OperationPhase, OperationProgressEvent, PackagePhase, PackageProgressEvent};
 pub use remover::PackageRemover;
+pub use replacement::PackageReplacer;
 pub use rollback::RollbackManager;
 pub use upgrader::{PackageUpgrader, ResolvedUpgradeTarget};

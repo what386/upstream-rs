@@ -183,10 +183,10 @@ pub async fn run(
             }
         })
         .await;
-    let preview_rows = preview_result?;
     if let Some(pb) = &check_pb {
         pb.finish_and_clear();
     }
+    let preview_rows = preview_result?;
     let impact = preview_rows.iter().fold(
         crate::services::packaging::disk_impact::DiskImpact::empty(),
         |total, row| total + row.disk_impact.clone(),
@@ -691,7 +691,7 @@ async fn run_check(
     if json {
         let rows = package_upgrade
             .check_detailed(names.as_deref(), &mut |_| {})
-            .await;
+            .await?;
         let failed = check_failure_count(&rows);
         println!("{}", serde_json::to_string_pretty(&json_check_rows(rows))?);
         if failed > 0 {
@@ -700,7 +700,7 @@ async fn run_check(
     } else if machine_readable {
         let rows = package_upgrade
             .check_detailed(names.as_deref(), &mut |_| {})
-            .await;
+            .await?;
         let failed = check_failure_count(&rows);
         for row in &rows {
             if let UpdateCheckStatus::UpdateAvailable { current, latest } = &row.status {
@@ -715,10 +715,11 @@ async fn run_check(
         let mut checking_callback = |name: &str| {
             check_pb.set_message(format!("checking for updates: {name}"));
         };
-        let rows = package_upgrade
+        let rows_result = package_upgrade
             .check_detailed(names.as_deref(), &mut checking_callback)
             .await;
         check_pb.finish_and_clear();
+        let rows = rows_result?;
         render_check_table(&rows);
         let failed = check_failure_count(&rows);
         if failed > 0 {
@@ -767,7 +768,7 @@ async fn run_dry_run(
     println!();
     let rows = package_upgrade
         .check_detailed(names.as_deref(), &mut |_| {})
-        .await;
+        .await?;
 
     if rows.is_empty() {
         println!("{}", output::warning("No installed packages to check."));

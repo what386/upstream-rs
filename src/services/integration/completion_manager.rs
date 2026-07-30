@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -6,7 +6,10 @@ use walkdir::WalkDir;
 use crate::{
     models::{common::enums::Provider, provider::Release},
     providers::provider_manager::ProviderManager,
-    utils::{platform::shells::installed_shell_commands, static_paths::UpstreamPaths},
+    utils::{
+        filesystem::path_exists_no_follow, platform::shells::installed_shell_commands,
+        static_paths::UpstreamPaths,
+    },
 };
 
 macro_rules! message {
@@ -57,6 +60,41 @@ struct CompletionCandidate {
     shell: CompletionShell,
     path: PathBuf,
     priority: u8,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CompletionSnapshot {
+    destinations: Vec<PathBuf>,
+    files: Vec<(PathBuf, Vec<u8>)>,
+}
+
+impl CompletionSnapshot {
+    pub fn restore(&self) -> Result<()> {
+        for path in &self.destinations {
+            if path_exists_no_follow(path)? {
+                fs::remove_file(path).with_context(|| {
+                    format!(
+                        "Failed to remove replacement completion file '{}'",
+                        path.display()
+                    )
+                })?;
+            }
+        }
+        for (path, contents) in &self.files {
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).with_context(|| {
+                    format!(
+                        "Failed to create completion directory '{}'",
+                        parent.display()
+                    )
+                })?;
+            }
+            fs::write(path, contents).with_context(|| {
+                format!("Failed to restore completion file '{}'", path.display())
+            })?;
+        }
+        Ok(())
+    }
 }
 
 pub struct CompletionManager<'a> {
@@ -253,7 +291,7 @@ impl<'a> CompletionManager<'a> {
 
         let mut removed = 0_usize;
         for path in candidates {
-            if !path.exists() {
+            if !path_exists_no_follow(&path)? {
                 continue;
             }
             fs::remove_file(&path).with_context(|| {
@@ -263,6 +301,94 @@ impl<'a> CompletionManager<'a> {
         }
 
         Ok(removed)
+    }
+
+    pub fn snapshot_for_package(&self, package_name: &str) -> Result<CompletionSnapshot> {
+        let candidates = [
+            self.completion_path(package_name, CompletionShell::Bash),
+            self.completion_path(package_name, CompletionShell::Fish),
+            self.completion_path(package_name, CompletionShell::Zsh),
+        ];
+        let mut files = Vec::new();
+        for path in &candidates {
+            if !path_exists_no_follow(path)? {
+                continue;
+            }
+            let contents = fs::read(path).with_context(|| {
+                format!("Failed to snapshot completion file '{}'", path.display())
+            })?;
+            files.push((path.clone(), contents));
+        }
+        Ok(CompletionSnapshot {
+            destinations: candidates.into(),
+            files,
+        })
+    }
+
+    pub fn restore_snapshot(&self, snapshot: &CompletionSnapshot) -> Result<()> {
+        snapshot.restore()
+    }
+
+    pub fn rename_for_package(&self, old_name: &str, new_name: &str) -> Result<bool> {
+        let pairs = [
+            (
+                self.completion_path(old_name, CompletionShell::Bash),
+                self.completion_path(new_name, CompletionShell::Bash),
+            ),
+            (
+                self.completion_path(old_name, CompletionShell::Fish),
+                self.completion_path(new_name, CompletionShell::Fish),
+            ),
+            (
+                self.completion_path(old_name, CompletionShell::Zsh),
+                self.completion_path(new_name, CompletionShell::Zsh),
+            ),
+        ];
+
+        for (source, destination) in &pairs {
+            if path_exists_no_follow(destination)? {
+                return Err(anyhow!(
+                    "Refusing to claim existing completion file '{}' while renaming '{}'",
+                    destination.display(),
+                    source.display()
+                ));
+            }
+        }
+
+        let mut renamed = Vec::new();
+        for (source, destination) in &pairs {
+            if !path_exists_no_follow(source)? {
+                continue;
+            }
+            if let Err(error) = fs::rename(source, destination) {
+                let rollback_error =
+                    renamed
+                        .iter()
+                        .rev()
+                        .find_map(|(old_path, new_path): &(PathBuf, PathBuf)| {
+                            fs::rename(new_path, old_path).err()
+                        });
+                return match rollback_error {
+                    Some(rollback_error) => Err(anyhow!(
+                        "Failed to rename completion '{}' to '{}': {}. Rollback also failed: {}",
+                        source.display(),
+                        destination.display(),
+                        error,
+                        rollback_error
+                    )),
+                    None => Err(error).with_context(|| {
+                        format!(
+                            "Failed to rename completion '{}' to '{}'",
+                            source.display(),
+                            destination.display()
+                        )
+                    }),
+                };
+            }
+            renamed.push((source.clone(), destination.clone()));
+        }
+
+        Ok(!renamed.is_empty())
     }
 
     pub fn remove_for_package<H>(
@@ -281,7 +407,7 @@ impl<'a> CompletionManager<'a> {
 
         let mut removed = 0_usize;
         for path in candidates {
-            if !path.exists() {
+            if !path_exists_no_follow(&path)? {
                 continue;
             }
             fs::remove_file(&path).with_context(|| {
@@ -521,6 +647,68 @@ mod tests {
                 .exists()
         );
         assert!(!paths.integration.zsh_completions_dir.join("_rg").exists());
+
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn completion_snapshot_restores_previous_files_and_removes_replacements() {
+        let root = test_support::temp_root("upstream-completion-manager", "snapshot");
+        let paths = test_support::upstream_paths(&root);
+        let manager = CompletionManager::new(&paths);
+        fs::create_dir_all(&paths.integration.bash_completions_dir).expect("create bash dir");
+        fs::create_dir_all(&paths.integration.fish_completions_dir).expect("create fish dir");
+        let bash = paths.integration.bash_completions_dir.join("tool");
+        let fish = paths.integration.fish_completions_dir.join("tool.fish");
+        fs::write(&bash, "old bash\n").expect("write old bash");
+
+        let snapshot = manager
+            .snapshot_for_package("tool")
+            .expect("snapshot completions");
+        fs::write(&bash, "new bash\n").expect("replace bash");
+        fs::write(&fish, "new fish\n").expect("write replacement-only fish");
+
+        snapshot.restore().expect("restore snapshot");
+
+        assert_eq!(fs::read_to_string(&bash).expect("read bash"), "old bash\n");
+        assert!(!fish.exists());
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn rename_moves_completion_files_without_overwriting_destination() {
+        let root = test_support::temp_root("upstream-completion-manager", "rename");
+        let paths = test_support::upstream_paths(&root);
+        let manager = CompletionManager::new(&paths);
+        fs::create_dir_all(&paths.integration.bash_completions_dir).expect("create bash dir");
+        let old = paths.integration.bash_completions_dir.join("old");
+        let new = paths.integration.bash_completions_dir.join("new");
+        fs::write(&old, "old completion\n").expect("write old");
+
+        assert!(
+            manager
+                .rename_for_package("old", "new")
+                .expect("rename completion")
+        );
+        assert!(!old.exists());
+        assert_eq!(
+            fs::read_to_string(&new).expect("read renamed"),
+            "old completion\n"
+        );
+
+        fs::write(&old, "another old\n").expect("write old again");
+        let error = manager
+            .rename_for_package("old", "new")
+            .expect_err("existing destination must not be overwritten");
+        assert!(error.to_string().contains("Refusing to claim"));
+        assert_eq!(
+            fs::read_to_string(&old).expect("old preserved"),
+            "another old\n"
+        );
+        assert_eq!(
+            fs::read_to_string(&new).expect("new preserved"),
+            "old completion\n"
+        );
 
         fs::remove_dir_all(root).expect("cleanup");
     }

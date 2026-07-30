@@ -9,10 +9,9 @@ use crate::{
         ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_path_size,
     },
     services::{
-        integration::ShellManager,
         packaging::{
             PackageChecker, PackageInstaller, PackageProgressEvent, PackageRemover,
-            PackageUpgrader, ResolvedUpgradeTarget,
+            PackageReplacer, PackageUpgrader, ResolvedUpgradeTarget,
         },
         trust::TrustedSignatureKeys,
     },
@@ -477,6 +476,7 @@ impl<'a> UpgradeOperation<'a> {
         }
 
         while let Some((idx, row)) = pending.next().await {
+            let row = row?;
             if let Some(row) = row.clone() {
                 event_callback(UpgradePreviewEvent::Row(Box::new(row)));
             }
@@ -498,7 +498,7 @@ impl<'a> UpgradeOperation<'a> {
         idx: usize,
         package: crate::models::upstream::Package,
         force: bool,
-    ) -> (usize, Option<UpgradePreviewRow>) {
+    ) -> (usize, Result<Option<UpgradePreviewRow>>) {
         (idx, self.preview_package_upgrade(package, force).await)
     }
 
@@ -506,9 +506,9 @@ impl<'a> UpgradeOperation<'a> {
         &self,
         package: crate::models::upstream::Package,
         force: bool,
-    ) -> Option<UpgradePreviewRow> {
+    ) -> Result<Option<UpgradePreviewRow>> {
         if package.is_pinned {
-            return None;
+            return Ok(None);
         }
 
         if package.install_type == crate::models::upstream::InstallType::Build
@@ -523,16 +523,21 @@ impl<'a> UpgradeOperation<'a> {
                     package.base_url.as_deref(),
                 )
                 .await
-                .ok()?;
+                .with_context(|| {
+                    format!(
+                        "Failed to resolve branch '{}' for '{}'",
+                        branch, package.name
+                    )
+                })?;
             let up_to_date = package
                 .build_commit
                 .as_deref()
                 .is_some_and(|saved| saved == head_commit);
             if up_to_date && !force {
-                return None;
+                return Ok(None);
             }
 
-            return Some(UpgradePreviewRow {
+            return Ok(Some(UpgradePreviewRow {
                 package: package.clone(),
                 name: package.name.clone(),
                 source: preview_package_source(&package),
@@ -547,33 +552,39 @@ impl<'a> UpgradeOperation<'a> {
                     branch: branch.to_string(),
                     head_commit,
                 },
-            });
+            }));
         }
 
         let release = if force {
-            self.provider_manager
-                .get_latest_release(
-                    &package.repo_slug,
-                    &package.provider,
-                    &package.channel,
-                    package.base_url.as_deref(),
-                )
-                .await
-                .ok()
+            Some(
+                self.provider_manager
+                    .get_latest_release(
+                        &package.repo_slug,
+                        &package.provider,
+                        &package.channel,
+                        package.base_url.as_deref(),
+                    )
+                    .await
+                    .with_context(|| {
+                        format!("Failed to resolve latest release for '{}'", package.name)
+                    })?,
+            )
         } else {
             self.provider_manager
                 .check_for_updates(&package)
                 .await
-                .ok()
-                .flatten()
-        }?;
+                .with_context(|| format!("Failed to check '{}' for updates", package.name))?
+        };
+        let Some(release) = release else {
+            return Ok(None);
+        };
 
         if !force && !package.is_update_available(&release) {
-            return None;
+            return Ok(None);
         }
 
         let source_build = package.install_type == crate::models::upstream::InstallType::Build;
-        Some(UpgradePreviewRow {
+        Ok(Some(UpgradePreviewRow {
             package: package.clone(),
             name: package.name.clone(),
             source: preview_package_source(&package),
@@ -586,7 +597,7 @@ impl<'a> UpgradeOperation<'a> {
             },
             source_build,
             target: ResolvedUpgradeTarget::Release(release),
-        })
+        }))
     }
 
     fn estimate_release_upgrade_impact(
@@ -693,9 +704,13 @@ impl<'a> UpgradeOperation<'a> {
 
         let mut ticker = time::interval(Duration::from_millis(100));
         ticker.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+        // Drain every in-flight result after cancellation. A replacement may
+        // already be complete and buffered here, so returning early could drop
+        // its result before the matching database commit.
+        let mut interrupted = false;
 
         while completed < total {
-            cancellation::check()?;
+            interrupted |= cancellation::is_requested();
             tokio::select! {
                 maybe_item = pending.next() => {
                     let Some((name, new_version, _downloaded, _bytes_total, result)) = maybe_item else {
@@ -766,6 +781,9 @@ impl<'a> UpgradeOperation<'a> {
         if let Some(cb) = progress_callback.as_mut() {
             cb(UpgradeProgressEvent::Clear);
         }
+        if interrupted || cancellation::is_requested() {
+            cancellation::check()?;
+        }
 
         Ok((upgraded, failures))
     }
@@ -774,12 +792,12 @@ impl<'a> UpgradeOperation<'a> {
         &self,
         package_names: Option<&[String]>,
         checking_callback: &mut dyn FnMut(&str),
-    ) -> Vec<UpdateCheckRow> {
+    ) -> Result<Vec<UpdateCheckRow>> {
         let Some(package_names) = package_names else {
-            let packages = self.package_database.list_packages().unwrap_or_default();
-            return self
+            let packages = self.package_database.list_packages()?;
+            return Ok(self
                 .check_installed_packages_detailed_with_callback(packages, checking_callback)
-                .await;
+                .await);
         };
 
         let mut rows: Vec<Option<UpdateCheckRow>> =
@@ -793,13 +811,19 @@ impl<'a> UpgradeOperation<'a> {
                     selected_packages.push(package);
                     selected_indices.push(idx);
                 }
-                Ok(None) | Err(_) => {
+                Ok(None) => {
                     rows[idx] = Some(UpdateCheckRow {
                         name: name.clone(),
                         channel: None,
                         provider: None,
                         status: UpdateCheckStatus::NotInstalled,
                     })
+                }
+                Err(err) => {
+                    return Err(err).context(format!(
+                        "Failed to load package '{}' for update check",
+                        name
+                    ));
                 }
             }
         }
@@ -811,15 +835,8 @@ impl<'a> UpgradeOperation<'a> {
             rows[row_idx] = Some(checked_row);
         }
 
-        rows.into_iter().flatten().collect()
+        Ok(rows.into_iter().flatten().collect())
     }
-}
-
-fn refresh_shell_paths(
-    paths: &UpstreamPaths,
-    package_database: &mut PackageDatabase,
-) -> Result<()> {
-    ShellManager::new(&paths.config.paths_file).regenerate_paths(package_database, paths)
 }
 
 fn persist_upgrade_and_emit_complete<P>(
@@ -833,8 +850,7 @@ fn persist_upgrade_and_emit_complete<P>(
 where
     P: FnMut(UpgradeProgressEvent),
 {
-    package_database.upsert_package(updated)?;
-    refresh_shell_paths(paths, package_database)?;
+    PackageReplacer::new(paths).commit(package_database, updated)?;
     if let Some(cb) = progress_callback.as_mut() {
         cb(UpgradeProgressEvent::Complete {
             name,

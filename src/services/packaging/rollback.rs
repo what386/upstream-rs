@@ -20,7 +20,7 @@ use crate::storage::{
     rollback::{RollbackArtifactFormat, RollbackRecord, RollbackSource, RollbackStorage},
     system::config::ConfigStorage,
 };
-use crate::utils::filesystem::safe_move;
+use crate::utils::filesystem::{path_exists_no_follow, safe_move};
 use crate::utils::static_paths::UpstreamPaths;
 
 macro_rules! message {
@@ -100,11 +100,38 @@ impl<'a> RollbackManager<'a> {
             options,
             message_callback,
         )?;
-        let pruned =
-            self.rollback_storage
-                .push_record(&package.name, record, options.stored_artifacts)?;
+        let pruned = match self.rollback_storage.push_record(
+            &package.name,
+            record.clone(),
+            options.stored_artifacts,
+        ) {
+            Ok(pruned) => pruned,
+            Err(storage_error) => {
+                return match restore_failed_capture(
+                    self.paths,
+                    &package.name,
+                    install_path,
+                    &record,
+                ) {
+                    Ok(()) => Err(storage_error)
+                        .context("Failed to persist rollback record; install was restored"),
+                    Err(restore_error) => Err(anyhow!(
+                        "Failed to persist rollback record: {}. Failed to restore captured install: {}",
+                        storage_error,
+                        restore_error
+                    )),
+                };
+            }
+        };
         for record in pruned {
-            delete_record_artifacts(self.paths, &package.name, &record)?;
+            if let Err(error) = delete_record_artifacts(self.paths, &package.name, &record) {
+                message!(
+                    message_callback,
+                    "Warning: failed to delete pruned rollback artifact for '{}': {}",
+                    package.name,
+                    error
+                );
+            }
         }
         Ok(())
     }
@@ -129,10 +156,33 @@ impl<'a> RollbackManager<'a> {
             options,
             message_callback,
         )?;
-        let pruned =
-            rollback_storage.push_record(&package.name, record, options.stored_artifacts)?;
+        let pruned = match rollback_storage.push_record(
+            &package.name,
+            record.clone(),
+            options.stored_artifacts,
+        ) {
+            Ok(pruned) => pruned,
+            Err(storage_error) => {
+                return match restore_failed_capture(paths, &package.name, backup_path, &record) {
+                    Ok(()) => Err(storage_error)
+                        .context("Failed to persist rollback record; backup was restored"),
+                    Err(restore_error) => Err(anyhow!(
+                        "Failed to persist rollback record: {}. Failed to restore captured backup: {}",
+                        storage_error,
+                        restore_error
+                    )),
+                };
+            }
+        };
         for record in pruned {
-            delete_record_artifacts(paths, &package.name, &record)?;
+            if let Err(error) = delete_record_artifacts(paths, &package.name, &record) {
+                message!(
+                    message_callback,
+                    "Warning: failed to delete pruned rollback artifact for '{}': {}",
+                    package.name,
+                    error
+                );
+            }
         }
         Ok(())
     }
@@ -235,18 +285,44 @@ impl<'a> RollbackManager<'a> {
     where
         H: FnMut(&str),
     {
+        let current = self.package_database.get_package(package_name)?;
+        self.restore_record(package_name, current.as_ref(), message_callback)
+    }
+
+    pub fn restore_replaced_package<H>(
+        &mut self,
+        package_name: &str,
+        replacement: &Package,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        self.restore_record(package_name, Some(replacement), message_callback)
+    }
+
+    fn restore_record<H>(
+        &mut self,
+        package_name: &str,
+        current: Option<&Package>,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
         let Some(record) = self.rollback_storage.get_record(package_name).cloned() else {
             return Err(anyhow!("No rollback data found for '{}'", package_name));
         };
+        let package_settings = self.package_database.get_package_settings(package_name)?;
 
-        if let Some(current) = self.package_database.get_package(package_name)? {
+        if let Some(current) = current {
             message!(
                 message_callback,
                 "Removing current installation for '{}' before rollback ...",
                 package_name
             );
             let remover = PackageRemover::new(self.paths);
-            remover.remove_package_files(&current, message_callback)?;
+            remover.remove_package_files(current, message_callback)?;
             self.package_database.remove_package(package_name)?;
         }
 
@@ -310,8 +386,14 @@ impl<'a> RollbackManager<'a> {
             ))?;
         }
 
-        self.package_database
-            .upsert_package(&record.package_snapshot)?;
+        if let Some(mut settings) = package_settings {
+            settings.package_name = record.package_snapshot.name.clone();
+            self.package_database
+                .upsert_package_with_settings(&record.package_snapshot, &settings)?;
+        } else {
+            self.package_database
+                .upsert_package(&record.package_snapshot)?;
+        }
         let remover = PackageRemover::new(self.paths);
         remover.restore_runtime_integrations(&record.package_snapshot, message_callback)?;
         ShellManager::new(&self.paths.config.paths_file)
@@ -335,6 +417,53 @@ impl<'a> RollbackManager<'a> {
         }
         cleanup_empty_package_rollback_dir(self.paths, package_name)?;
         Ok(!removed.is_empty())
+    }
+
+    pub fn rename_package(
+        paths: &UpstreamPaths,
+        rollback_storage: &mut RollbackStorage,
+        old_name: &str,
+        new_name: &str,
+    ) -> Result<bool> {
+        let source_dir = paths.state.rollback_dir.join(old_name);
+        let destination_dir = paths.state.rollback_dir.join(new_name);
+        if path_exists_no_follow(&destination_dir)? {
+            return Err(anyhow!(
+                "Rollback directory already exists for package '{}'",
+                new_name
+            ));
+        }
+
+        let moved_directory = if path_exists_no_follow(&source_dir)? {
+            fs::rename(&source_dir, &destination_dir).with_context(|| {
+                format!(
+                    "Failed to rename rollback directory '{}' to '{}'",
+                    source_dir.display(),
+                    destination_dir.display()
+                )
+            })?;
+            true
+        } else {
+            false
+        };
+
+        match rollback_storage.rename_package(old_name, new_name) {
+            Ok(renamed_metadata) => Ok(moved_directory || renamed_metadata),
+            Err(error) => {
+                if moved_directory
+                    && let Err(rollback_error) = fs::rename(&destination_dir, &source_dir)
+                {
+                    return Err(anyhow!(
+                        "Failed to rename rollback metadata from '{}' to '{}': {}. Directory rollback also failed: {}",
+                        old_name,
+                        new_name,
+                        error,
+                        rollback_error
+                    ));
+                }
+                Err(error)
+            }
+        }
     }
 
     pub fn rollback_packages(&self) -> Vec<String> {
@@ -381,6 +510,34 @@ impl<'a> RollbackManager<'a> {
             net: SignedByteEstimate::exact(-i128::from(rollback_dir_size)),
         })
     }
+}
+
+fn restore_failed_capture(
+    paths: &UpstreamPaths,
+    package_name: &str,
+    backup_path: &Path,
+    record: &RollbackRecord,
+) -> Result<()> {
+    let extracted_dir = match record.artifact_format {
+        RollbackArtifactFormat::Raw => None,
+        RollbackArtifactFormat::Tgz => Some(extract_record_archive(paths, package_name, record)?),
+    };
+    let source_path = record_artifact_source_path(paths, record, extracted_dir.as_deref())?;
+    safe_move::move_file_or_dir(&source_path, backup_path).context(format!(
+        "Failed to restore backup to '{}'",
+        backup_path.display()
+    ))?;
+
+    delete_record_artifacts(paths, package_name, record)?;
+    if let Some(extracted_dir) = extracted_dir
+        && extracted_dir.exists()
+    {
+        fs::remove_dir_all(&extracted_dir).context(format!(
+            "Failed to remove rollback extraction directory '{}'",
+            extracted_dir.display()
+        ))?;
+    }
+    Ok(())
 }
 
 fn path_relative_to(base: &Path, full: &Path) -> Result<PathBuf> {

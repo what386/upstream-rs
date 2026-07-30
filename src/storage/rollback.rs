@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
@@ -10,6 +11,11 @@ use crate::models::upstream::Package;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 
 const ROLLBACK_STORAGE_VERSION: u32 = 1;
+
+fn rollback_storage_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RollbackSource {
@@ -104,11 +110,16 @@ impl RollbackStorage {
                 ROLLBACK_STORAGE_VERSION
             ));
         }
+        for (package_name, records) in &parsed.records {
+            for record in records {
+                validate_rollback_record(package_name, record)?;
+            }
+        }
         self.file = parsed;
         Ok(())
     }
 
-    pub fn save(&self) -> Result<()> {
+    fn save(&self) -> Result<()> {
         let json = serde_json::to_string_pretty(&self.file)
             .context("Failed to serialize rollback storage")?;
         write_atomic(&self.rollback_file, json.as_bytes()).with_context(|| {
@@ -148,6 +159,12 @@ impl RollbackStorage {
         record: RollbackRecord,
         max_records: usize,
     ) -> Result<Vec<RollbackRecord>> {
+        let _guard = rollback_storage_lock()
+            .lock()
+            .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
+        self.load()?;
+        validate_rollback_record(package_name, &record)?;
+        let original_file = self.file.clone();
         let records = self
             .file
             .records
@@ -160,11 +177,19 @@ impl RollbackStorage {
         } else {
             Vec::new()
         };
-        self.save()?;
+        if let Err(error) = self.save() {
+            self.file = original_file;
+            return Err(error);
+        }
         Ok(pruned)
     }
 
     pub fn remove_record(&mut self, package_name: &str) -> Result<Option<RollbackRecord>> {
+        let _guard = rollback_storage_lock()
+            .lock()
+            .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
+        self.load()?;
+        let original_file = self.file.clone();
         let removed = self.file.records.get_mut(package_name).and_then(Vec::pop);
         if self
             .file
@@ -174,15 +199,157 @@ impl RollbackStorage {
         {
             self.file.records.remove(package_name);
         }
-        self.save()?;
+        if let Err(error) = self.save() {
+            self.file = original_file;
+            return Err(error);
+        }
         Ok(removed)
     }
 
     pub fn remove_all_records(&mut self, package_name: &str) -> Result<Vec<RollbackRecord>> {
+        let _guard = rollback_storage_lock()
+            .lock()
+            .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
+        self.load()?;
+        let original_file = self.file.clone();
         let removed = self.file.records.remove(package_name).unwrap_or_default();
-        self.save()?;
+        if let Err(error) = self.save() {
+            self.file = original_file;
+            return Err(error);
+        }
         Ok(removed)
     }
+
+    pub fn rename_package(&mut self, old_name: &str, new_name: &str) -> Result<bool> {
+        let _guard = rollback_storage_lock()
+            .lock()
+            .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
+        self.load()?;
+        if self.file.records.contains_key(new_name) {
+            return Err(anyhow!(
+                "Rollback data already exists for package '{}'",
+                new_name
+            ));
+        }
+        let Some(original_records) = self.file.records.get(old_name).cloned() else {
+            return Ok(false);
+        };
+
+        let mut renamed_records = original_records.clone();
+        for record in &mut renamed_records {
+            record.package_snapshot.name = new_name.to_string();
+            record.artifact_relative_path =
+                rebase_package_path(&record.artifact_relative_path, old_name, new_name)?;
+            record.icon_relative_path = record
+                .icon_relative_path
+                .as_deref()
+                .map(|path| rebase_package_path(path, old_name, new_name))
+                .transpose()?;
+        }
+        self.file.records.remove(old_name);
+        self.file
+            .records
+            .insert(new_name.to_string(), renamed_records);
+
+        if let Err(error) = self.save() {
+            self.file.records.remove(new_name);
+            self.file
+                .records
+                .insert(old_name.to_string(), original_records);
+            return Err(error).context(format!(
+                "Failed to persist rollback rename from '{}' to '{}'",
+                old_name, new_name
+            ));
+        }
+
+        Ok(true)
+    }
+}
+
+fn rebase_package_path(path: &Path, old_name: &str, new_name: &str) -> Result<PathBuf> {
+    validate_package_relative_path(path, old_name)?;
+    let mut components = path.components();
+    let _ = components.next();
+    let mut rebased = PathBuf::from(new_name);
+    rebased.extend(components);
+    Ok(rebased)
+}
+
+fn validate_rollback_record(package_name: &str, record: &RollbackRecord) -> Result<()> {
+    if record.package_snapshot.name != package_name {
+        return Err(anyhow!(
+            "Rollback record key '{}' does not match snapshot package '{}'",
+            package_name,
+            record.package_snapshot.name
+        ));
+    }
+    validate_package_relative_path(&record.artifact_relative_path, package_name)?;
+    if let Some(icon_path) = &record.icon_relative_path {
+        validate_package_relative_path(icon_path, package_name)?;
+    }
+    match record.artifact_format {
+        RollbackArtifactFormat::Raw => {
+            if record.artifact_entry_path.is_some() || record.icon_entry_path.is_some() {
+                return Err(anyhow!(
+                    "Raw rollback record for '{}' contains archive entry paths",
+                    package_name
+                ));
+            }
+        }
+        RollbackArtifactFormat::Tgz => {
+            let artifact_entry = record.artifact_entry_path.as_deref().ok_or_else(|| {
+                anyhow!(
+                    "Compressed rollback record for '{}' is missing its artifact entry path",
+                    package_name
+                )
+            })?;
+            validate_entry_path(artifact_entry, "artifact")?;
+            if let Some(icon_entry) = record.icon_entry_path.as_deref() {
+                validate_entry_path(icon_entry, "icon")?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_package_relative_path(path: &Path, package_name: &str) -> Result<()> {
+    let mut components = path.components();
+    let Some(std::path::Component::Normal(first)) = components.next() else {
+        return Err(anyhow!(
+            "Rollback path '{}' is not a safe relative path",
+            path.display()
+        ));
+    };
+    if first != std::ffi::OsStr::new(package_name)
+        || components.any(|component| !matches!(component, std::path::Component::Normal(_)))
+    {
+        return Err(anyhow!(
+            "Rollback path '{}' is not safely stored under package '{}'",
+            path.display(),
+            package_name
+        ));
+    }
+    Ok(())
+}
+
+fn validate_entry_path(path: &Path, expected_root: &str) -> Result<()> {
+    let mut components = path.components();
+    let Some(std::path::Component::Normal(first)) = components.next() else {
+        return Err(anyhow!(
+            "Rollback entry path '{}' is not a safe relative path",
+            path.display()
+        ));
+    };
+    if first != std::ffi::OsStr::new(expected_root)
+        || components.any(|component| !matches!(component, std::path::Component::Normal(_)))
+    {
+        return Err(anyhow!(
+            "Rollback entry path '{}' is not safely stored under '{}'",
+            path.display(),
+            expected_root
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -232,7 +399,9 @@ mod tests {
     }
 
     fn cleanup(path: &Path) -> io::Result<()> {
-        if let Some(parent) = path.parent() {
+        if let Some(parent) = path.parent()
+            && parent.exists()
+        {
             fs::remove_dir_all(parent)?;
         }
         Ok(())
@@ -305,6 +474,86 @@ mod tests {
             RollbackSource::Reinstall
         ));
 
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn rename_package_rekeys_records_and_rebases_artifact_paths() {
+        let path = temp_rollback_file("rename");
+        let mut storage = RollbackStorage::new(&path).expect("create storage");
+        let mut record = test_record("old", RollbackSource::Upgrade);
+        record.icon_relative_path = Some(PathBuf::from("old/capture/icon.png"));
+        storage
+            .upsert_record("old", record)
+            .expect("store old record");
+
+        assert!(
+            storage
+                .rename_package("old", "new")
+                .expect("rename rollback metadata")
+        );
+        assert!(storage.get_record("old").is_none());
+        let renamed = storage.get_record("new").expect("renamed record");
+        assert_eq!(renamed.package_snapshot.name, "new");
+        assert_eq!(renamed.artifact_relative_path, PathBuf::from("new/old.old"));
+        assert_eq!(
+            renamed.icon_relative_path.as_deref(),
+            Some(Path::new("new/capture/icon.png"))
+        );
+
+        let reloaded = RollbackStorage::new(&path).expect("reload renamed storage");
+        assert_eq!(
+            reloaded
+                .get_record("new")
+                .expect("persisted renamed record")
+                .package_snapshot
+                .name,
+            "new"
+        );
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn concurrent_storage_instances_do_not_lose_records() {
+        let path = temp_rollback_file("concurrent");
+        let handles = (0..8)
+            .map(|index| {
+                let path = path.clone();
+                std::thread::spawn(move || {
+                    let name = format!("tool-{index}");
+                    let mut storage = RollbackStorage::new(&path).expect("open storage");
+                    storage
+                        .upsert_record(&name, test_record(&name, RollbackSource::Upgrade))
+                        .expect("store record");
+                })
+            })
+            .collect::<Vec<_>>();
+        for handle in handles {
+            handle.join().expect("join writer");
+        }
+
+        let storage = RollbackStorage::new(&path).expect("reload");
+        for index in 0..8 {
+            assert!(storage.get_record(&format!("tool-{index}")).is_some());
+        }
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn rejects_rollback_paths_outside_the_package_directory() {
+        let path = temp_rollback_file("unsafe-path");
+        let mut storage = RollbackStorage::new(&path).expect("create storage");
+        let mut record = test_record("tool", RollbackSource::Upgrade);
+        record.artifact_relative_path = PathBuf::from("../outside");
+
+        let error = storage
+            .upsert_record("tool", record)
+            .expect_err("unsafe rollback path should be rejected");
+
+        assert!(error.to_string().contains("not a safe"));
+        assert!(storage.get_record("tool").is_none());
         cleanup(&path).expect("cleanup");
     }
 }

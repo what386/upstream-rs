@@ -10,8 +10,11 @@ use crate::{
     routines::build::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         artifact::zsync_handler,
-        integration::{CompletionManager, DesktopManager, SymlinkManager},
+        integration::{
+            CompletionManager, CompletionSnapshot, DesktopManager, DesktopSnapshot, SymlinkManager,
+        },
         packaging::RollbackManager,
+        packaging::installer::PartialInstallGuard,
         packaging::{PackageInstaller, PackagePhase, PackageProgressEvent, PackageRemover},
         trust::TrustedSignatureKeys,
     },
@@ -22,7 +25,7 @@ use crate::{
 use anyhow::{Context, Result, bail};
 use console::style;
 use std::{
-    fs,
+    fs, io,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -63,6 +66,8 @@ struct UpgradeRollbackGuard {
     original_install_path: PathBuf,
     backup_path: PathBuf,
     symlinks_dir: Option<PathBuf>,
+    completion_snapshot: Option<CompletionSnapshot>,
+    desktop_snapshot: Option<DesktopSnapshot>,
     armed: bool,
 }
 
@@ -78,12 +83,21 @@ impl UpgradeRollbackGuard {
             original_install_path,
             backup_path,
             symlinks_dir: None,
+            completion_snapshot: None,
+            desktop_snapshot: None,
             armed: true,
         }
     }
 
-    fn attach_paths(&mut self, paths: &UpstreamPaths) {
+    fn attach_paths(&mut self, paths: &UpstreamPaths) -> Result<()> {
         self.symlinks_dir = Some(paths.state.symlinks_dir.clone());
+        self.completion_snapshot =
+            Some(CompletionManager::new(paths).snapshot_for_package(&self.previous_package.name)?);
+        self.desktop_snapshot = Some(DesktopManager::snapshot_for_package(
+            paths,
+            &self.previous_package,
+        )?);
+        Ok(())
     }
 
     fn set_partial_package(&mut self, package: Package) {
@@ -97,7 +111,7 @@ impl UpgradeRollbackGuard {
 
 impl Drop for UpgradeRollbackGuard {
     fn drop(&mut self) {
-        if !self.armed || !self.backup_path.exists() {
+        if !self.armed || fs::symlink_metadata(&self.backup_path).is_err() {
             return;
         }
 
@@ -124,6 +138,12 @@ impl Drop for UpgradeRollbackGuard {
             let _ =
                 SymlinkManager::new(symlinks_dir).add_link(exec_path, &self.previous_package.name);
         }
+        if let Some(snapshot) = self.completion_snapshot.as_ref() {
+            let _ = snapshot.restore();
+        }
+        if let Some(snapshot) = self.desktop_snapshot.as_ref() {
+            let _ = snapshot.restore(self.partially_installed_package.as_ref());
+        }
     }
 }
 
@@ -147,17 +167,28 @@ impl<'a> PackageUpgrader<'a> {
             "Failed to create upgrade temp directory '{}'",
             paths.install.tmp_dir.display()
         ))?;
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0);
         Ok(paths
             .install
             .tmp_dir
-            .join(format!("{}.old", file_name.to_string_lossy())))
+            .join(format!("{}-{nonce}.old", file_name.to_string_lossy())))
     }
 
     fn remove_path_if_exists(path: &Path) -> Result<()> {
-        if path.is_dir() {
+        let metadata = match fs::symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => {
+                return Err(error).context(format!("Failed to inspect path '{}'", path.display()));
+            }
+        };
+        if metadata.is_dir() && !metadata.file_type().is_symlink() {
             fs::remove_dir_all(path)
                 .context(format!("Failed to remove directory '{}'", path.display()))?;
-        } else if path.is_file() {
+        } else {
             fs::remove_file(path).context(format!("Failed to remove file '{}'", path.display()))?;
         }
         Ok(())
@@ -264,14 +295,38 @@ impl<'a> PackageUpgrader<'a> {
 
             progress!(
                 progress_callback,
+                PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
+            );
+            let mut install_pkg = package;
+            install_pkg.install_path = None;
+            install_pkg.exec_path = None;
+            install_pkg.icon_path = None;
+            install_pkg.version = release.version.clone();
+            install_pkg.record_release(release);
+
+            let installed = self
+                .installer
+                .install_local_artifact_files(
+                    install_pkg,
+                    &work_target,
+                    release.version.clone(),
+                    message_callback,
+                )
+                .context("Failed to install zsync-updated artifact")?;
+            let installed_name = installed.name.clone();
+            let installed_provider = installed.provider.clone();
+            let install_guard = PartialInstallGuard::new(self.paths, installed);
+
+            progress!(
+                progress_callback,
                 PackageProgressEvent::Phase(PackagePhase::InstallingCompletions)
             );
             if let Err(err) = CompletionManager::new(self.paths)
                 .install_from_release_assets(
-                    &package.name,
+                    &installed_name,
                     release,
                     self.provider_manager,
-                    &package.provider,
+                    &installed_provider,
                     &work_cache,
                     message_callback,
                 )
@@ -283,24 +338,7 @@ impl<'a> PackageUpgrader<'a> {
                 );
             }
 
-            progress!(
-                progress_callback,
-                PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
-            );
-            let mut install_pkg = package;
-            install_pkg.install_path = None;
-            install_pkg.exec_path = None;
-            install_pkg.version = release.version.clone();
-            install_pkg.record_release(release);
-
-            self.installer
-                .install_local_artifact_files(
-                    install_pkg,
-                    &work_target,
-                    release.version.clone(),
-                    message_callback,
-                )
-                .context("Failed to install zsync-updated artifact")
+            Ok(install_guard.disarm())
         }
         .await;
 
@@ -316,6 +354,7 @@ impl<'a> PackageUpgrader<'a> {
         paths: &UpstreamPaths,
         package: &Package,
         backup_path: &Path,
+        source: RollbackSource,
     ) -> Result<()> {
         let rollback_file = RollbackManager::rollback_file_path(paths);
         let mut rollback_storage = RollbackStorage::new(&rollback_file)?;
@@ -324,7 +363,7 @@ impl<'a> PackageUpgrader<'a> {
             &mut rollback_storage,
             package,
             backup_path,
-            RollbackSource::Upgrade,
+            source,
             &mut None::<fn(&str)>,
         )
     }
@@ -359,8 +398,70 @@ impl<'a> PackageUpgrader<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        self.replace_resolved(
+            package,
+            target,
+            trust_mode,
+            false,
+            RollbackSource::Upgrade,
+            "Upgrading",
+            download_progress,
+            message_callback,
+            progress_callback,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn reinstall_resolved<F, H, P>(
+        &self,
+        package: &Package,
+        target: ResolvedUpgradeTarget,
+        trust_mode: TrustMode,
+        force: bool,
+        download_progress: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        self.replace_resolved(
+            package,
+            target,
+            trust_mode,
+            force,
+            RollbackSource::Reinstall,
+            "Reinstalling",
+            download_progress,
+            message_callback,
+            progress_callback,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn replace_resolved<F, H, P>(
+        &self,
+        package: &Package,
+        target: ResolvedUpgradeTarget,
+        trust_mode: TrustMode,
+        allow_pinned: bool,
+        rollback_source: RollbackSource,
+        action: &'static str,
+        download_progress: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
         cancellation::check()?;
-        if package.is_pinned {
+        if package.is_pinned && !allow_pinned {
             bail!("Package '{}' is pinned", package.name);
         }
 
@@ -369,7 +470,7 @@ impl<'a> PackageUpgrader<'a> {
         message!(
             message_callback,
             "{}",
-            style(format!("Upgrading '{}' ...", package.name)).cyan()
+            style(format!("{action} '{}' ...", package.name)).cyan()
         );
 
         let original_install_path = package
@@ -385,9 +486,7 @@ impl<'a> PackageUpgrader<'a> {
             original_install_path.clone(),
             backup_path.clone(),
         );
-        rollback_guard.attach_paths(self.paths);
-
-        Self::remove_path_if_exists(&backup_path)?;
+        rollback_guard.attach_paths(self.paths)?;
 
         progress!(
             progress_callback,
@@ -405,10 +504,7 @@ impl<'a> PackageUpgrader<'a> {
             progress_callback,
             PackageProgressEvent::Phase(PackagePhase::RemovingRuntimeLinks)
         );
-        if let Err(e) = self
-            .remover
-            .remove_runtime_integrations(package, message_callback)
-        {
+        if let Err(e) = self.remover.remove_runtime_link(package, message_callback) {
             let _ = fs::rename(&backup_path, &original_install_path);
             let _ = self
                 .remover
@@ -467,6 +563,7 @@ impl<'a> PackageUpgrader<'a> {
                     let mut install_pkg = package.clone();
                     install_pkg.install_path = None;
                     install_pkg.exec_path = None;
+                    install_pkg.icon_path = None;
                     install_pkg.build_branch = output.branch.clone();
                     install_pkg.build_commit = output.commit.or(branch_head_commit.clone());
                     if install_pkg.build_branch.is_some() {
@@ -497,32 +594,20 @@ impl<'a> PackageUpgrader<'a> {
                         &mut install_message_callback,
                     );
                     match install_result {
-                        Ok(updated) => {
-                            rollback_guard.set_partial_package(updated.clone());
-                            if cancellation::is_requested() {
-                                self.rollback_failed_upgrade(
-                                    rollback_guard,
-                                    anyhow::anyhow!("Operation interrupted by CTRL-C"),
-                                    "Upgrade interrupted",
-                                    message_callback,
-                                )
-                            } else {
-                                if let Err(err) = Self::capture_successful_upgrade_rollback(
-                                    self.paths,
-                                    package,
-                                    &backup_path,
-                                ) {
-                                    let _ = Self::remove_path_if_exists(&backup_path);
-                                    rollback_guard.disarm();
-                                    Err(err).context(format!(
-                                        "Failed to capture rollback for '{}'",
-                                        package.name
-                                    ))
-                                } else {
-                                    rollback_guard.disarm();
-                                    Ok(updated)
-                                }
-                            }
+                        Ok(mut updated_package) => {
+                            rollback_guard.set_partial_package(updated_package.clone());
+                            updated_package.icon_path = package.icon_path.clone();
+                            self.finish_replacement(
+                                package,
+                                updated_package,
+                                false,
+                                &backup_path,
+                                rollback_guard,
+                                rollback_source.clone(),
+                                message_callback,
+                                progress_callback,
+                            )
+                            .await
                         }
                         Err(err) => self.rollback_failed_upgrade(
                             rollback_guard,
@@ -590,7 +675,8 @@ impl<'a> PackageUpgrader<'a> {
                     let mut install_pkg = package.clone();
                     install_pkg.install_path = None;
                     install_pkg.exec_path = None;
-                    let updated_package = self
+                    install_pkg.icon_path = None;
+                    let result = self
                         .installer
                         .install_selected_asset(
                             &self.trusted_keys,
@@ -603,9 +689,11 @@ impl<'a> PackageUpgrader<'a> {
                             message_callback,
                             progress_callback,
                         )
-                        .await?;
-                    rollback_guard.set_partial_package(updated_package.clone());
-                    Ok(updated_package)
+                        .await;
+                    if let Ok(updated_package) = &result {
+                        rollback_guard.set_partial_package(updated_package.clone());
+                    }
+                    result
                 }
                 Err(err) => {
                     if cancellation::is_requested() {
@@ -626,7 +714,8 @@ impl<'a> PackageUpgrader<'a> {
                     let mut install_pkg = package.clone();
                     install_pkg.install_path = None;
                     install_pkg.exec_path = None;
-                    let updated_package = self
+                    install_pkg.icon_path = None;
+                    let result = self
                         .installer
                         .install_selected_asset(
                             &self.trusted_keys,
@@ -639,13 +728,15 @@ impl<'a> PackageUpgrader<'a> {
                             message_callback,
                             progress_callback,
                         )
-                        .await?;
-                    rollback_guard.set_partial_package(updated_package.clone());
-                    Ok(updated_package)
+                        .await;
+                    if let Ok(updated_package) = &result {
+                        rollback_guard.set_partial_package(updated_package.clone());
+                    }
+                    result
                 }
             };
 
-            let mut updated_package = match install_result {
+            let updated_package = match install_result {
                 Ok(updated_package) => updated_package,
                 Err(install_err) => {
                     progress!(
@@ -662,55 +753,99 @@ impl<'a> PackageUpgrader<'a> {
                 }
             };
 
+            self.finish_replacement(
+                package,
+                updated_package,
+                had_desktop_integration,
+                &backup_path,
+                rollback_guard,
+                rollback_source,
+                message_callback,
+                progress_callback,
+            )
+            .await
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn finish_replacement<H, P>(
+        &self,
+        previous_package: &Package,
+        mut updated_package: Package,
+        restore_desktop: bool,
+        backup_path: &Path,
+        mut rollback_guard: UpgradeRollbackGuard,
+        rollback_source: RollbackSource,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        if cancellation::is_requested() {
+            return self.rollback_failed_upgrade(
+                rollback_guard,
+                anyhow::anyhow!("Operation interrupted by CTRL-C"),
+                "Replacement interrupted",
+                message_callback,
+            );
+        }
+
+        if restore_desktop {
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Phase(PackagePhase::CreatingRuntimeLinks)
+            );
+            if let Err(err) = self
+                .add_desktop_integration(&mut updated_package, message_callback)
+                .await
+            {
+                progress!(
+                    progress_callback,
+                    PackageProgressEvent::Phase(PackagePhase::RollingBack)
+                );
+                return self.rollback_failed_upgrade(
+                    rollback_guard,
+                    err.context("Failed to restore desktop integration"),
+                    "Failed to restore desktop integration",
+                    message_callback,
+                );
+            }
+            rollback_guard.set_partial_package(updated_package.clone());
             if cancellation::is_requested() {
                 return self.rollback_failed_upgrade(
                     rollback_guard,
                     anyhow::anyhow!("Operation interrupted by CTRL-C"),
-                    "Upgrade interrupted",
+                    "Replacement interrupted",
                     message_callback,
                 );
             }
-
-            // Restore desktop integration if it existed before
-            if had_desktop_integration {
-                progress!(
-                    progress_callback,
-                    PackageProgressEvent::Phase(PackagePhase::CreatingRuntimeLinks)
-                );
-
-                if let Err(err) = self
-                    .add_desktop_integration(&mut updated_package, message_callback)
-                    .await
-                {
-                    progress!(
-                        progress_callback,
-                        PackageProgressEvent::Phase(PackagePhase::RollingBack)
-                    );
-                    return self.rollback_failed_upgrade(
-                        rollback_guard,
-                        err.context("Failed to restore desktop integration"),
-                        "Failed to restore desktop integration",
-                        message_callback,
-                    );
-                }
-            }
-
-            if let Err(err) =
-                Self::capture_successful_upgrade_rollback(self.paths, package, &backup_path)
-            {
-                progress!(
-                    progress_callback,
-                    PackageProgressEvent::Warning(format!(
-                        "Warning: failed to capture rollback for '{}': {}",
-                        package.name, err
-                    ))
-                );
-                Self::remove_path_if_exists(&backup_path)
-                    .context(format!("Failed to remove backup for '{}'", package.name))?;
-            }
-            rollback_guard.disarm();
-            Ok(updated_package)
         }
+
+        if let Err(err) = Self::capture_successful_upgrade_rollback(
+            self.paths,
+            previous_package,
+            backup_path,
+            rollback_source,
+        ) {
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Phase(PackagePhase::RollingBack)
+            );
+            return self.rollback_failed_upgrade(
+                rollback_guard,
+                err.context(format!(
+                    "Failed to capture rollback for '{}'",
+                    previous_package.name
+                )),
+                "Failed to finalize replacement",
+                message_callback,
+            );
+        }
+        let mut rollback_guard = rollback_guard;
+        rollback_guard.disarm();
+        Ok(updated_package)
     }
 
     async fn add_desktop_integration<H>(
@@ -779,6 +914,23 @@ impl<'a> PackageUpgrader<'a> {
                 "{} for '{}': {}. Rollback failed while restoring runtime links",
                 failure_context, rollback.previous_package.name, failure
             ))?;
+
+        if let Some(snapshot) = rollback.completion_snapshot.as_ref() {
+            CompletionManager::new(self.paths)
+                .restore_snapshot(snapshot)
+                .context(format!(
+                    "{} for '{}': {}. Rollback failed while restoring completions",
+                    failure_context, rollback.previous_package.name, failure
+                ))?;
+        }
+        if let Some(snapshot) = rollback.desktop_snapshot.as_ref() {
+            snapshot
+                .restore(rollback.partially_installed_package.as_ref())
+                .context(format!(
+                    "{} for '{}': {}. Rollback failed while restoring desktop integration",
+                    failure_context, rollback.previous_package.name, failure
+                ))?;
+        }
 
         Err(failure).context(format!(
             "{} for '{}' (previous version restored)",
@@ -883,14 +1035,35 @@ mod tests {
         fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
         fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
         fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
+        fs::create_dir_all(&paths.integration.bash_completions_dir)
+            .expect("create bash completions dir");
+        fs::create_dir_all(&paths.integration.xdg_applications_dir)
+            .expect("create applications dir");
+        fs::create_dir_all(&paths.state.icons_dir).expect("create icons dir");
 
         let install_path = paths.install.binaries_dir.join("tool");
         let backup_path = paths.install.tmp_dir.join("tool.old");
         fs::write(&install_path, b"new").expect("write partial new binary");
         fs::write(&backup_path, b"old").expect("write backup binary");
 
-        let previous = test_package("tool", install_path.clone());
-        let partial = test_package("tool", install_path.clone());
+        let desktop_path = paths.integration.xdg_applications_dir.join("tool.desktop");
+        let old_icon_path = paths.state.icons_dir.join("tool-old.png");
+        let new_icon_path = paths.state.icons_dir.join("tool-new.png");
+        fs::write(&desktop_path, b"old desktop").expect("write old desktop");
+        fs::write(&old_icon_path, b"old icon").expect("write old icon");
+        let mut previous = test_package("tool", install_path.clone());
+        previous.icon_path = Some(old_icon_path.clone());
+        let mut partial = test_package("tool", install_path.clone());
+        partial.icon_path = Some(new_icon_path.clone());
+        let completion_path = paths.integration.bash_completions_dir.join("tool");
+        fs::write(&completion_path, b"old completion").expect("write old completion");
+        let mut rollback_guard =
+            UpgradeRollbackGuard::new(previous, install_path.clone(), backup_path.clone());
+        rollback_guard.attach_paths(&paths).expect("snapshot paths");
+        rollback_guard.set_partial_package(partial);
+        fs::write(&completion_path, b"new completion").expect("write new completion");
+        fs::write(&desktop_path, b"new desktop").expect("write new desktop");
+        fs::write(&new_icon_path, b"new icon").expect("write new icon");
         let provider_manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
         let installer = PackageInstaller::new(&provider_manager, &paths).expect("installer");
@@ -906,14 +1079,7 @@ mod tests {
 
         let err = upgrader
             .rollback_failed_upgrade(
-                UpgradeRollbackGuard {
-                    previous_package: previous,
-                    partially_installed_package: Some(partial),
-                    original_install_path: install_path.clone(),
-                    backup_path: backup_path.clone(),
-                    symlinks_dir: None,
-                    armed: true,
-                },
+                rollback_guard,
                 anyhow::anyhow!("desktop failed"),
                 "Failed to restore desktop integration",
                 &mut msg,
@@ -927,6 +1093,19 @@ mod tests {
         );
         assert!(!backup_path.exists());
         assert!(expected_symlink_path(&paths, "tool").exists());
+        assert_eq!(
+            fs::read(&completion_path).expect("read restored completion"),
+            b"old completion"
+        );
+        assert_eq!(
+            fs::read(&desktop_path).expect("read restored desktop"),
+            b"old desktop"
+        );
+        assert_eq!(
+            fs::read(&old_icon_path).expect("read restored icon"),
+            b"old icon"
+        );
+        assert!(!new_icon_path.exists());
 
         cleanup(&root).expect("cleanup");
     }
@@ -965,6 +1144,8 @@ mod tests {
                     original_install_path: install_path.clone(),
                     backup_path: backup_path.clone(),
                     symlinks_dir: None,
+                    completion_snapshot: None,
+                    desktop_snapshot: None,
                     armed: true,
                 },
                 anyhow::anyhow!("already installed"),
@@ -980,6 +1161,96 @@ mod tests {
         );
         assert!(!backup_path.exists());
         assert!(expected_symlink_path(&paths, "tool").exists());
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn rollback_guard_drop_restores_binary_link_and_completions() {
+        let root = temp_root("drop-rollback");
+        let paths = test_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
+        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
+        fs::create_dir_all(&paths.integration.bash_completions_dir)
+            .expect("create bash completions dir");
+
+        let install_path = paths.install.binaries_dir.join("tool");
+        let backup_path = paths.install.tmp_dir.join("tool.old");
+        let completion_path = paths.integration.bash_completions_dir.join("tool");
+        fs::write(&backup_path, b"old").expect("write backup");
+        fs::write(&completion_path, b"old completion").expect("write old completion");
+        let previous = test_package("tool", install_path.clone());
+        let mut guard =
+            UpgradeRollbackGuard::new(previous, install_path.clone(), backup_path.clone());
+        guard.attach_paths(&paths).expect("attach paths");
+
+        fs::write(&install_path, b"new").expect("write replacement");
+        fs::write(&completion_path, b"new completion").expect("replace completion");
+        drop(guard);
+
+        assert_eq!(fs::read(&install_path).expect("read restored"), b"old");
+        assert!(expected_symlink_path(&paths, "tool").exists());
+        assert_eq!(
+            fs::read(&completion_path).expect("read completion"),
+            b"old completion"
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn rollback_capture_failure_restores_previous_install() {
+        let root = temp_root("capture-failure");
+        let paths = test_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
+        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
+        fs::create_dir_all(&paths.dirs.config_dir).expect("create config dir");
+        fs::write(&paths.config.config_file, "[rollback\ninvalid").expect("write invalid config");
+
+        let install_path = paths.install.binaries_dir.join("tool");
+        let backup_path = paths.install.tmp_dir.join("tool-backup.old");
+        fs::write(&install_path, b"new").expect("write replacement");
+        fs::write(&backup_path, b"old").expect("write backup");
+        let previous = test_package("tool", install_path.clone());
+        let updated = test_package("tool", install_path.clone());
+        let mut guard =
+            UpgradeRollbackGuard::new(previous.clone(), install_path.clone(), backup_path.clone());
+        guard.attach_paths(&paths).expect("attach paths");
+        guard.set_partial_package(updated.clone());
+
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+        let installer = PackageInstaller::new(&provider_manager, &paths).expect("installer");
+        let remover = PackageRemover::new(&paths);
+        let upgrader = PackageUpgrader::new(
+            &provider_manager,
+            installer,
+            remover,
+            &paths,
+            TrustedSignatureKeys::default(),
+        );
+        let mut messages: Option<fn(&str)> = None;
+        let mut progress: Option<fn(PackageProgressEvent)> = None;
+
+        let error = upgrader
+            .finish_replacement(
+                &previous,
+                updated,
+                false,
+                &backup_path,
+                guard,
+                crate::storage::rollback::RollbackSource::Upgrade,
+                &mut messages,
+                &mut progress,
+            )
+            .await
+            .expect_err("invalid config should prevent rollback capture");
+
+        assert!(error.to_string().contains("previous version restored"));
+        assert_eq!(fs::read(&install_path).expect("read restored"), b"old");
+        assert!(!backup_path.exists());
 
         cleanup(&root).expect("cleanup");
     }
@@ -1049,7 +1320,12 @@ mod tests {
         );
         assert_eq!(fs::read(&install_path).expect("restored install"), b"old");
         assert!(expected_symlink_path(&paths, "tool").exists());
-        assert!(!paths.install.tmp_dir.join("tool.old").exists());
+        assert!(
+            fs::read_dir(&paths.install.tmp_dir)
+                .expect("read tmp")
+                .filter_map(Result::ok)
+                .all(|entry| entry.path().extension().and_then(|ext| ext.to_str()) != Some("old"))
+        );
 
         cleanup(&root).expect("cleanup");
     }

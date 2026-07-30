@@ -5,7 +5,10 @@ use crate::{
         common::{DesktopEntry, enums::Filetype},
         upstream::Package,
     },
-    utils::static_paths::UpstreamPaths,
+    utils::{
+        filesystem::{atomic_ops::write_atomic, path_exists_no_follow},
+        static_paths::UpstreamPaths,
+    },
 };
 use anyhow::{Context, Result, anyhow};
 use std::{
@@ -24,6 +27,138 @@ macro_rules! message {
             cb(&format!($($arg)*));
         }
     }};
+}
+
+#[derive(Debug, Clone)]
+enum FileSnapshot {
+    Missing(PathBuf),
+    File { path: PathBuf, contents: Vec<u8> },
+    Symlink { path: PathBuf, target: PathBuf },
+}
+
+impl FileSnapshot {
+    fn capture(path: PathBuf) -> Result<Self> {
+        let metadata = match fs::symlink_metadata(&path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Self::Missing(path));
+            }
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("Failed to inspect '{}'", path.display()));
+            }
+        };
+
+        if metadata.file_type().is_symlink() {
+            let target = fs::read_link(&path)
+                .with_context(|| format!("Failed to snapshot symlink '{}'", path.display()))?;
+            return Ok(Self::Symlink { path, target });
+        }
+        if metadata.is_file() {
+            let contents = fs::read(&path)
+                .with_context(|| format!("Failed to snapshot file '{}'", path.display()))?;
+            return Ok(Self::File { path, contents });
+        }
+
+        Err(anyhow!(
+            "Cannot snapshot unsupported desktop integration path '{}'",
+            path.display()
+        ))
+    }
+
+    fn path(&self) -> &Path {
+        match self {
+            Self::Missing(path) | Self::File { path, .. } | Self::Symlink { path, .. } => path,
+        }
+    }
+
+    fn restore(&self) -> Result<()> {
+        let path = self.path();
+        if path_exists_no_follow(path)? {
+            fs::remove_file(path).with_context(|| {
+                format!(
+                    "Failed to remove replacement desktop integration '{}'",
+                    path.display()
+                )
+            })?;
+        }
+
+        match self {
+            Self::Missing(_) => Ok(()),
+            Self::File { path, contents } => {
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent).with_context(|| {
+                        format!(
+                            "Failed to create desktop integration directory '{}'",
+                            parent.display()
+                        )
+                    })?;
+                }
+                write_atomic(path, contents).with_context(|| {
+                    format!(
+                        "Failed to restore desktop integration file '{}'",
+                        path.display()
+                    )
+                })
+            }
+            Self::Symlink { path, target } => {
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent).with_context(|| {
+                        format!(
+                            "Failed to create desktop integration directory '{}'",
+                            parent.display()
+                        )
+                    })?;
+                }
+                create_file_symlink(target, path).with_context(|| {
+                    format!(
+                        "Failed to restore desktop integration symlink '{}'",
+                        path.display()
+                    )
+                })
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+fn create_file_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(windows)]
+fn create_file_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::windows::fs::symlink_file(target, link)
+}
+
+#[derive(Debug, Clone)]
+pub struct DesktopSnapshot {
+    entry: FileSnapshot,
+    icon: Option<FileSnapshot>,
+}
+
+impl DesktopSnapshot {
+    pub fn restore(&self, replacement: Option<&Package>) -> Result<()> {
+        if let Some(replacement_icon) = replacement.and_then(|package| package.icon_path.as_ref())
+            && self
+                .icon
+                .as_ref()
+                .is_none_or(|snapshot| snapshot.path() != replacement_icon)
+            && path_exists_no_follow(replacement_icon)?
+        {
+            fs::remove_file(replacement_icon).with_context(|| {
+                format!(
+                    "Failed to remove replacement icon '{}'",
+                    replacement_icon.display()
+                )
+            })?;
+        }
+
+        if let Some(icon) = &self.icon {
+            icon.restore()?;
+        }
+        self.entry.restore()
+    }
 }
 
 pub struct DesktopManager<'a> {
@@ -209,12 +344,10 @@ impl<'a> DesktopManager<'a> {
     }
 
     pub fn remove_entry(paths: &UpstreamPaths, name: &str) -> Result<()> {
+        let path = Self::managed_entry_path(paths, name);
+
         #[cfg(target_os = "linux")]
         {
-            let path = paths
-                .integration
-                .xdg_applications_dir
-                .join(format!("{}.desktop", name));
             if path.exists() {
                 fs::remove_file(&path)?;
             }
@@ -223,7 +356,6 @@ impl<'a> DesktopManager<'a> {
 
         #[cfg(target_os = "macos")]
         {
-            let path = Self::macos_launcher_path(paths, name);
             if path.exists() {
                 let metadata = fs::symlink_metadata(&path)?;
                 if metadata.file_type().is_symlink() {
@@ -235,11 +367,74 @@ impl<'a> DesktopManager<'a> {
 
         #[cfg(windows)]
         {
-            let path = Self::windows_shortcut_path(paths, name);
             if path.exists() {
                 fs::remove_file(&path)?;
             }
             return Ok(());
+        }
+    }
+
+    pub fn snapshot_for_package(
+        paths: &UpstreamPaths,
+        package: &Package,
+    ) -> Result<DesktopSnapshot> {
+        let entry = FileSnapshot::capture(Self::managed_entry_path(paths, &package.name))?;
+        let icon = package
+            .icon_path
+            .as_ref()
+            .map(|path| FileSnapshot::capture(path.clone()))
+            .transpose()?;
+        Ok(DesktopSnapshot { entry, icon })
+    }
+
+    pub fn rename_entry(paths: &UpstreamPaths, old_name: &str, new_name: &str) -> Result<bool> {
+        let source = Self::managed_entry_path(paths, old_name);
+        let destination = Self::managed_entry_path(paths, new_name);
+
+        if path_exists_no_follow(&destination)? {
+            return Err(anyhow!(
+                "Refusing to overwrite existing desktop entry '{}'",
+                destination.display()
+            ));
+        }
+        if !path_exists_no_follow(&source)? {
+            return Ok(false);
+        }
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent).with_context(|| {
+                format!(
+                    "Failed to create desktop entry directory '{}'",
+                    parent.display()
+                )
+            })?;
+        }
+        fs::rename(&source, &destination).with_context(|| {
+            format!(
+                "Failed to rename desktop entry '{}' to '{}'",
+                source.display(),
+                destination.display()
+            )
+        })?;
+        Ok(true)
+    }
+
+    fn managed_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
+        #[cfg(target_os = "linux")]
+        {
+            paths
+                .integration
+                .xdg_applications_dir
+                .join(format!("{name}.desktop"))
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            Self::macos_launcher_path(paths, name)
+        }
+
+        #[cfg(windows)]
+        {
+            Self::windows_shortcut_path(paths, name)
         }
     }
 
@@ -306,7 +501,7 @@ impl<'a> DesktopManager<'a> {
             .integration
             .xdg_applications_dir
             .join(format!("{}.desktop", name));
-        fs::write(&out_path, entry.to_desktop_file())?;
+        write_atomic(&out_path, entry.to_desktop_file().as_bytes())?;
         Ok(out_path)
     }
 
@@ -555,7 +750,14 @@ impl<'a> DesktopManager<'a> {
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::DesktopManager;
-    use crate::models::common::DesktopEntry;
+    use crate::models::{
+        common::{
+            DesktopEntry,
+            enums::{Channel, Filetype, Provider},
+        },
+        upstream::Package,
+    };
+    use crate::utils::test_support;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -660,5 +862,79 @@ mod tests {
         assert!(rendered.contains("Terminal=false\n"));
         assert!(rendered.contains("Name[en_GB]=Localized App\n"));
         assert!(rendered.contains("X-AppImage-Version=25.12.2-1\n"));
+    }
+
+    #[test]
+    fn rename_entry_moves_file_without_overwriting_existing_destination() {
+        let root = temp_root("rename");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(&paths.integration.xdg_applications_dir)
+            .expect("create applications dir");
+        let old = paths.integration.xdg_applications_dir.join("old.desktop");
+        let new = paths.integration.xdg_applications_dir.join("new.desktop");
+        fs::write(&old, "old desktop\n").expect("write old desktop");
+
+        assert!(DesktopManager::rename_entry(&paths, "old", "new").expect("rename entry"));
+        assert!(!old.exists());
+        assert_eq!(fs::read_to_string(&new).expect("read new"), "old desktop\n");
+
+        fs::write(&old, "another desktop\n").expect("write another old desktop");
+        let error = DesktopManager::rename_entry(&paths, "old", "new")
+            .expect_err("existing destination should be preserved");
+        assert!(error.to_string().contains("Refusing to overwrite"));
+        assert_eq!(
+            fs::read_to_string(&old).expect("read preserved old"),
+            "another desktop\n"
+        );
+        assert_eq!(
+            fs::read_to_string(&new).expect("read preserved new"),
+            "old desktop\n"
+        );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn desktop_snapshot_restores_entry_and_icon_after_replacement() {
+        let root = temp_root("snapshot");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(&paths.integration.xdg_applications_dir)
+            .expect("create applications dir");
+        fs::create_dir_all(&paths.state.icons_dir).expect("create icons dir");
+        let entry_path = paths.integration.xdg_applications_dir.join("tool.desktop");
+        let old_icon_path = paths.state.icons_dir.join("tool-old.png");
+        let new_icon_path = paths.state.icons_dir.join("tool-new.png");
+        fs::write(&entry_path, b"old desktop").expect("write old desktop");
+        fs::write(&old_icon_path, b"old icon").expect("write old icon");
+
+        let mut previous = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        previous.icon_path = Some(old_icon_path.clone());
+        let snapshot =
+            DesktopManager::snapshot_for_package(&paths, &previous).expect("snapshot desktop");
+
+        fs::write(&entry_path, b"new desktop").expect("write new desktop");
+        fs::write(&old_icon_path, b"overwritten icon").expect("overwrite old icon");
+        fs::write(&new_icon_path, b"new icon").expect("write new icon");
+        let mut replacement = previous.clone();
+        replacement.icon_path = Some(new_icon_path.clone());
+
+        snapshot
+            .restore(Some(&replacement))
+            .expect("restore desktop snapshot");
+
+        assert_eq!(fs::read(&entry_path).expect("read entry"), b"old desktop");
+        assert_eq!(fs::read(&old_icon_path).expect("read icon"), b"old icon");
+        assert!(!new_icon_path.exists());
+
+        cleanup(&root).expect("cleanup");
     }
 }

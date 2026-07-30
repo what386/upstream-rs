@@ -1,6 +1,8 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::fs;
 use std::path::Path;
+
+use crate::utils::filesystem::path_exists_no_follow;
 
 #[cfg(windows)]
 use std::ffi::OsStr;
@@ -74,6 +76,39 @@ impl<'a> SymlinkManager<'a> {
         }
 
         Ok(())
+    }
+
+    pub fn rename_link(&self, old_name: &str, new_name: &str) -> Result<bool> {
+        let old_base = self.symlinks_dir.join(old_name);
+        let new_base = self.symlinks_dir.join(new_name);
+        let old_link = Self::platform_link_path(&old_base);
+        let new_link = Self::platform_link_path(&new_base);
+
+        if path_exists_no_follow(&new_link)?
+            || (new_base != new_link && path_exists_no_follow(&new_base)?)
+        {
+            return Err(anyhow!(
+                "Refusing to overwrite existing runtime link for '{}'",
+                new_name
+            ));
+        }
+
+        let source = if path_exists_no_follow(&old_link)? {
+            old_link
+        } else if old_base != old_link && path_exists_no_follow(&old_base)? {
+            old_base
+        } else {
+            return Ok(false);
+        };
+
+        fs::rename(&source, &new_link).with_context(|| {
+            format!(
+                "Failed to rename runtime link '{}' to '{}'",
+                source.display(),
+                new_link.display()
+            )
+        })?;
+        Ok(true)
     }
 
     #[cfg(unix)]
@@ -170,6 +205,34 @@ mod tests {
             fs::symlink_metadata(&link_path).is_err(),
             "dangling symlink should be removed"
         );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rename_link_moves_alias_without_overwriting_existing_target() {
+        let root = temp_root("rename");
+        let symlinks_dir = root.join("symlinks");
+        let target = root.join("target");
+        fs::create_dir_all(&symlinks_dir).expect("create symlink dir");
+        fs::write(&target, b"target").expect("write target");
+        let manager = SymlinkManager::new(&symlinks_dir);
+        manager.add_link(&target, "old").expect("add old link");
+
+        assert!(manager.rename_link("old", "new").expect("rename link"));
+        assert!(fs::symlink_metadata(symlinks_dir.join("old")).is_err());
+        assert_eq!(
+            fs::read_link(symlinks_dir.join("new")).expect("read new link"),
+            target
+        );
+
+        manager.add_link(&target, "old").expect("recreate old link");
+        let error = manager
+            .rename_link("old", "new")
+            .expect_err("existing link should be preserved");
+        assert!(error.to_string().contains("Refusing to overwrite"));
+        assert!(fs::symlink_metadata(symlinks_dir.join("old")).is_ok());
 
         cleanup(&root).expect("cleanup");
     }

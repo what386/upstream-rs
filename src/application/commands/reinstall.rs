@@ -1,14 +1,10 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
     application::cancellation,
     application::context::CommandContext,
-    application::operations::{
-        install_op::{InstallOperation, LocalArtifactInstallRequest, ReleaseInstallRequest},
-        remove_op::RemoveOperation,
-    },
     models::{
         common::enums::TrustMode,
         provider::Release,
@@ -16,10 +12,10 @@ use crate::{
     },
     output::{self, Status},
     providers::provider_manager::ProviderManager,
-    routines::build::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         packaging::{
-            PackageProgressEvent, PackageRemover,
+            PackageInstaller, PackageProgressEvent, PackageRemover, PackageReplacer,
+            PackageUpgrader, ResolvedUpgradeTarget,
             disk_impact::{
                 ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate,
                 install_impact_from_download,
@@ -132,9 +128,6 @@ pub async fn run(
                 continue;
             }
         };
-        let package_settings = package_database
-            .get_package_settings(name)?
-            .unwrap_or_else(|| crate::storage::database::PackageSettings::new(name));
         let effective_trust_mode = package_database.effective_trust_mode(name, trust_mode)?;
 
         if let Err(err) = reinstall_one(
@@ -143,7 +136,6 @@ pub async fn run(
             context.paths,
             package,
             effective_trust_mode,
-            package_settings,
             force,
             &trusted_keys,
             &mut msg,
@@ -457,7 +449,6 @@ async fn reinstall_one<H>(
     paths: &UpstreamPaths,
     package: Package,
     trust_mode: TrustMode,
-    package_settings: crate::storage::database::PackageSettings,
     force: bool,
     trusted_keys: &TrustedSignatureKeys,
     message_callback: &mut Option<H>,
@@ -465,108 +456,63 @@ async fn reinstall_one<H>(
 where
     H: FnMut(&str),
 {
-    let had_icon = package.icon_path.is_some();
-    let resolved_release = match package.install_type {
-        InstallType::Release => Some(resolve_reinstall_release(provider_manager, &package).await?),
-        InstallType::Build if package.build_branch.is_none() => {
-            Some(resolve_reinstall_release(provider_manager, &package).await?)
-        }
-        InstallType::Build => None,
-    };
-    let version_tag = resolved_release.as_ref().map(|release| release.tag.clone());
-    let mut reinstall_package = package.clone();
-    reinstall_package.install_path = None;
-    reinstall_package.exec_path = None;
-    reinstall_package.icon_path = None;
-
-    let mut remove_op = RemoveOperation::new(package_database, paths);
-    let mut no_remove_progress = Some(|_: &str, _: PackageProgressEvent| {});
-    remove_op.remove_single(
-        &package.name,
-        &false,
-        &force,
-        message_callback,
-        &mut no_remove_progress,
-    )?;
-
-    match package.install_type {
-        InstallType::Release => {
-            let mut install_operation = InstallOperation::new(
-                provider_manager,
-                package_database,
-                paths,
-                trusted_keys.clone(),
-            )?;
-            let mut no_progress: Option<fn(PackageProgressEvent)> = None;
-            install_operation
-                .install_release(
-                    ReleaseInstallRequest {
-                        package: reinstall_package,
-                        version: version_tag,
-                        add_entry: had_icon,
-                        trust_mode,
-                    },
-                    &mut Some(|_: u64, _: u64| {}),
-                    message_callback,
-                    &mut no_progress,
-                )
-                .await?;
-        }
+    let target = match package.install_type {
+        InstallType::Release => ResolvedUpgradeTarget::Release(
+            resolve_reinstall_release(provider_manager, &package).await?,
+        ),
+        InstallType::Build if package.build_branch.is_none() => ResolvedUpgradeTarget::Release(
+            resolve_reinstall_release(provider_manager, &package).await?,
+        ),
         InstallType::Build => {
-            let worker = BuildWorker::new(provider_manager, paths);
-            let output = {
-                let mut build_line_callback = Some(|line: &str| {
-                    if let Some(callback) = message_callback.as_mut() {
-                        callback(line);
-                    }
-                });
-                worker
-                    .build(
-                        BuildRequest {
-                            name: reinstall_package.name.clone(),
-                            repo_slug: reinstall_package.repo_slug.clone(),
-                            provider: reinstall_package.provider.clone(),
-                            base_url: reinstall_package.base_url.clone(),
-                            version_tag: if reinstall_package.build_branch.is_some() {
-                                None
-                            } else {
-                                version_tag
-                            },
-                            branch: reinstall_package.build_branch.clone(),
-                            requested_profile: None,
-                            script_action: BuildScriptAction::Upgrade,
-                        },
-                        reinstall_package.channel.clone(),
-                        &mut build_line_callback,
-                    )
-                    .await?
-            };
-            reinstall_package.build_branch = output.branch.clone();
-            reinstall_package.build_commit = output.commit.clone();
-
-            let mut install_operation = InstallOperation::new(
-                provider_manager,
-                package_database,
-                paths,
-                trusted_keys.clone(),
-            )?;
-            let mut no_progress: Option<fn(PackageProgressEvent)> = None;
-            install_operation
-                .install_local_artifact(
-                    LocalArtifactInstallRequest {
-                        package: reinstall_package,
-                        artifact_path: &output.artifact_path,
-                        version: output.version,
-                        add_entry: had_icon,
-                    },
-                    message_callback,
-                    &mut no_progress,
+            let branch = package
+                .build_branch
+                .as_ref()
+                .expect("build branch checked above")
+                .clone();
+            let head_commit = provider_manager
+                .get_branch_head_sha(
+                    &package.repo_slug,
+                    &package.provider,
+                    &branch,
+                    package.base_url.as_deref(),
                 )
-                .await?;
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to resolve branch '{}' for '{}'",
+                        branch, package.name
+                    )
+                })?;
+            ResolvedUpgradeTarget::Branch {
+                branch,
+                head_commit,
+            }
         }
-    }
+    };
 
-    package_database.upsert_package_settings(&package_settings)?;
+    let installer = PackageInstaller::new(provider_manager, paths)?;
+    let remover = PackageRemover::new(paths);
+    let upgrader = PackageUpgrader::new(
+        provider_manager,
+        installer,
+        remover,
+        paths,
+        trusted_keys.clone(),
+    );
+    let mut no_progress: Option<fn(PackageProgressEvent)> = None;
+    let updated = upgrader
+        .reinstall_resolved(
+            &package,
+            target,
+            trust_mode,
+            force,
+            &mut Some(|_: u64, _: u64| {}),
+            message_callback,
+            &mut no_progress,
+        )
+        .await?;
+
+    PackageReplacer::new(paths).commit(package_database, &updated)?;
 
     Ok(())
 }

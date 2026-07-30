@@ -4,8 +4,8 @@ mod icon_manager;
 mod shell_manager;
 mod symlink_manager;
 
-pub use completion_manager::{CompletionManager, CompletionShell};
-pub use desktop_manager::DesktopManager;
+pub use completion_manager::{CompletionManager, CompletionShell, CompletionSnapshot};
+pub use desktop_manager::{DesktopManager, DesktopSnapshot};
 pub use icon_manager::IconManager;
 pub use shell_manager::ShellManager;
 #[cfg(unix)]

@@ -69,6 +69,74 @@ pub struct ResolvedAssetInstall {
     pub asset: Asset,
 }
 
+struct InstalledPathGuard {
+    path: PathBuf,
+    armed: bool,
+}
+
+impl InstalledPathGuard {
+    fn new(path: PathBuf) -> Self {
+        Self { path, armed: true }
+    }
+
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for InstalledPathGuard {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+
+        let Ok(metadata) = fs::symlink_metadata(&self.path) else {
+            return;
+        };
+        if metadata.is_dir() && !metadata.file_type().is_symlink() {
+            let _ = fs::remove_dir_all(&self.path);
+        } else {
+            let _ = fs::remove_file(&self.path);
+        }
+    }
+}
+
+pub(super) struct PartialInstallGuard<'a> {
+    paths: &'a UpstreamPaths,
+    package: Option<Package>,
+}
+
+impl<'a> PartialInstallGuard<'a> {
+    pub(super) fn new(paths: &'a UpstreamPaths, package: Package) -> Self {
+        Self {
+            paths,
+            package: Some(package),
+        }
+    }
+
+    fn package_mut(&mut self) -> &mut Package {
+        self.package
+            .as_mut()
+            .expect("partial install guard is still armed")
+    }
+
+    pub(super) fn disarm(mut self) -> Package {
+        self.package
+            .take()
+            .expect("partial install guard is still armed")
+    }
+}
+
+impl Drop for PartialInstallGuard<'_> {
+    fn drop(&mut self) {
+        let Some(package) = self.package.as_ref() else {
+            return;
+        };
+        let _ =
+            PackageRemover::new(self.paths).remove_package_files(package, &mut None::<fn(&str)>);
+    }
+}
+
 impl<'a> PackageInstaller<'a> {
     pub fn paths(&self) -> &UpstreamPaths {
         self.paths
@@ -392,7 +460,7 @@ impl<'a> PackageInstaller<'a> {
 
     async fn finish_installed_package<H, P>(
         &self,
-        mut installed_package: Package,
+        installed_package: Package,
         add_entry: &bool,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
@@ -401,6 +469,7 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        let mut install_guard = PartialInstallGuard::new(self.paths, installed_package);
         if *add_entry {
             progress!(
                 progress_callback,
@@ -408,18 +477,18 @@ impl<'a> PackageInstaller<'a> {
             );
 
             if let Err(err) = self
-                .add_desktop_entry(&mut installed_package, message_callback)
+                .add_desktop_entry(install_guard.package_mut(), message_callback)
                 .await
             {
                 return self.fail_after_partial_install(
-                    installed_package,
+                    install_guard.disarm(),
                     err.context("Failed to create desktop integration"),
                     message_callback,
                 );
             }
         }
 
-        Ok(installed_package)
+        Ok(install_guard.disarm())
     }
 
     async fn add_desktop_entry<H>(
@@ -718,33 +787,14 @@ impl<'a> PackageInstaller<'a> {
 
         progress!(
             progress_callback,
-            PackageProgressEvent::Phase(PackagePhase::InstallingCompletions)
-        );
-        if let Err(err) = CompletionManager::new(self.paths)
-            .install_from_release_assets(
-                &package.name,
-                release,
-                self.provider_manager,
-                &package.provider,
-                &package_download_cache,
-                message_callback,
-            )
-            .await
-        {
-            progress!(
-                progress_callback,
-                PackageProgressEvent::Warning(format!("Completion install skipped: {err}"))
-            );
-        }
-
-        progress!(
-            progress_callback,
             PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
         );
 
         package.record_release(release);
+        let package_name = package.name.clone();
+        let package_provider = package.provider.clone();
 
-        match package.filetype {
+        let installed_package = match package.filetype {
             Filetype::AppImage => {
                 #[cfg(target_os = "linux")]
                 {
@@ -797,7 +847,31 @@ impl<'a> PackageInstaller<'a> {
                 self.handle_file(&download_path, package, message_callback)
                     .context("Failed to install file")
             }
+        }?;
+        let install_guard = PartialInstallGuard::new(self.paths, installed_package);
+
+        progress!(
+            progress_callback,
+            PackageProgressEvent::Phase(PackagePhase::InstallingCompletions)
+        );
+        if let Err(err) = CompletionManager::new(self.paths)
+            .install_from_release_assets(
+                &package_name,
+                release,
+                self.provider_manager,
+                &package_provider,
+                &package_download_cache,
+                message_callback,
+            )
+            .await
+        {
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Warning(format!("Completion install skipped: {err}"))
+            );
         }
+
+        Ok(install_guard.disarm())
     }
 
     pub fn install_local_artifact_files<H>(
@@ -859,18 +933,6 @@ impl<'a> PackageInstaller<'a> {
             return self.handle_file(&extracted_path, package, message_callback);
         }
 
-        if let Err(err) = CompletionManager::new(self.paths).install_from_root(
-            &package.name,
-            &extracted_path,
-            message_callback,
-        ) {
-            message!(
-                message_callback,
-                "{}",
-                style(format!("Completion install skipped: {err}")).yellow()
-            );
-        }
-
         if let Some(app_bundle_path) =
             BundleHandler::find_macos_app_bundle(&extracted_path, &package.name)
                 .context("Failed to detect .app bundle in extracted archive")?
@@ -898,6 +960,7 @@ impl<'a> PackageInstaller<'a> {
             install_root.display(),
             out_path.display()
         ))?;
+        let mut install_guard = InstalledPathGuard::new(out_path.clone());
 
         message!(message_callback, "Searching for executable ...");
 
@@ -907,9 +970,11 @@ impl<'a> PackageInstaller<'a> {
                 "{}",
                 style("Could not automatically locate executable").yellow()
             );
+            self.install_completions_from_root(&package.name, &out_path, message_callback);
             package.exec_path = None;
             package.install_path = Some(out_path);
             package.last_upgraded = Utc::now();
+            install_guard.disarm();
             return Ok(package);
         };
 
@@ -940,10 +1005,33 @@ impl<'a> PackageInstaller<'a> {
             out_path.display()
         );
 
+        self.install_completions_from_root(&package.name, &out_path, message_callback);
         package.exec_path = Some(exec_path);
         package.install_path = Some(out_path);
         package.last_upgraded = Utc::now();
+        install_guard.disarm();
         Ok(package)
+    }
+
+    fn install_completions_from_root<H>(
+        &self,
+        package_name: &str,
+        root: &Path,
+        message_callback: &mut Option<H>,
+    ) where
+        H: FnMut(&str),
+    {
+        if let Err(err) = CompletionManager::new(self.paths).install_from_root(
+            package_name,
+            root,
+            message_callback,
+        ) {
+            message!(
+                message_callback,
+                "{}",
+                style(format!("Completion install skipped: {err}")).yellow()
+            );
+        }
     }
 
     async fn select_asset<H>(
@@ -1199,6 +1287,7 @@ impl<'a> PackageInstaller<'a> {
             "Failed to move AppImage to '{}'",
             out_path.display()
         ))?;
+        let mut install_guard = InstalledPathGuard::new(out_path.clone());
 
         permission_handler::make_executable(&out_path).context(format!(
             "Failed to make AppImage '{}' executable",
@@ -1207,30 +1296,19 @@ impl<'a> PackageInstaller<'a> {
 
         message!(message_callback, "Made '{}' executable", filename.display());
 
-        match crate::services::artifact::AppImageExtractor::new() {
+        let completion_root = match crate::services::artifact::AppImageExtractor::new() {
             Ok(extractor) => match extractor
                 .extract(&package.name, &out_path, message_callback)
                 .await
             {
-                Ok(root) => {
-                    if let Err(err) = CompletionManager::new(self.paths).install_from_root(
-                        &package.name,
-                        &root,
-                        message_callback,
-                    ) {
-                        message!(
-                            message_callback,
-                            "{}",
-                            style(format!("Completion install skipped: {err}")).yellow()
-                        );
-                    }
-                }
+                Ok(root) => Some(root),
                 Err(err) => {
                     message!(
                         message_callback,
                         "{}",
                         style(format!("AppImage completion scan skipped: {err}")).yellow()
                     );
+                    None
                 }
             },
             Err(err) => {
@@ -1239,8 +1317,9 @@ impl<'a> PackageInstaller<'a> {
                     "{}",
                     style(format!("AppImage completion scan skipped: {err}")).yellow()
                 );
+                None
             }
-        }
+        };
 
         SymlinkManager::new(&self.paths.state.symlinks_dir)
             .add_link(&out_path, &package.name)
@@ -1253,9 +1332,14 @@ impl<'a> PackageInstaller<'a> {
             out_path.display()
         );
 
+        if let Some(root) = completion_root {
+            self.install_completions_from_root(&package.name, &root, message_callback);
+        }
+
         package.install_path = Some(out_path.clone());
         package.exec_path = Some(out_path);
         package.last_upgraded = Utc::now();
+        install_guard.disarm();
         Ok(package)
     }
 
@@ -1281,6 +1365,7 @@ impl<'a> PackageInstaller<'a> {
 
         safe_move::move_file_or_dir(asset_path, &out_path)
             .context(format!("Failed to move binary to '{}'", out_path.display()))?;
+        let mut install_guard = InstalledPathGuard::new(out_path.clone());
 
         permission_handler::make_executable(&out_path).context(format!(
             "Failed to make binary '{}' executable",
@@ -1303,6 +1388,7 @@ impl<'a> PackageInstaller<'a> {
         package.install_path = Some(out_path.clone());
         package.exec_path = Some(out_path);
         package.last_upgraded = Utc::now();
+        install_guard.disarm();
         Ok(package)
     }
 }
@@ -1319,6 +1405,7 @@ mod tests {
     use super::PackageInstaller;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
+    use crate::providers::provider_manager::ProviderManager;
     use crate::utils::test_support;
     use std::fs;
 
@@ -1392,6 +1479,51 @@ mod tests {
             key.chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
         );
+    }
+
+    #[test]
+    fn local_file_install_removes_placed_file_when_link_creation_fails() {
+        let root = test_support::temp_root("upstream-installer-test", "partial-file-cleanup");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries");
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks");
+        fs::create_dir_all(paths.state.symlinks_dir.join("tool"))
+            .expect("create blocking runtime-link directory");
+        let source_dir = root.join("source");
+        fs::create_dir_all(&source_dir).expect("create source");
+        let artifact = source_dir.join("tool-bin");
+        fs::write(&artifact, b"new binary").expect("write artifact");
+
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+        let installer = PackageInstaller::new(&provider_manager, &paths).expect("installer");
+        let mut package = make_package("tool", None, None);
+        package.filetype = Filetype::Binary;
+        let mut no_messages: Option<fn(&str)> = None;
+
+        let error = installer
+            .install_local_artifact_files(
+                package,
+                &artifact,
+                crate::models::common::Version::new(1, 0, 0, false),
+                &mut no_messages,
+            )
+            .expect_err("blocking runtime link should fail installation");
+
+        assert!(
+            format!("{error:#}").contains("Failed to create symlink"),
+            "unexpected error chain: {error:#}"
+        );
+        assert!(
+            !paths.install.binaries_dir.join("tool-bin").exists(),
+            "partially placed binary should be removed"
+        );
+        assert!(
+            paths.state.symlinks_dir.join("tool").is_dir(),
+            "unrelated blocking directory should be preserved"
+        );
+
+        fs::remove_dir_all(&root).expect("cleanup");
     }
 
     #[cfg(target_os = "linux")]

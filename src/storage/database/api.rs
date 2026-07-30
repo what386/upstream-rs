@@ -77,6 +77,13 @@ impl PackageDatabase {
         package: &Package,
         settings: &PackageSettings,
     ) -> Result<()> {
+        if settings.package_name != package.name {
+            return Err(anyhow!(
+                "Package settings for '{}' cannot be stored with package '{}'",
+                settings.package_name,
+                package.name
+            ));
+        }
         self.connection()?
             .upsert_package_with_settings(package, settings)
     }
@@ -403,6 +410,22 @@ mod tests {
             TrustMode::Signature
         );
 
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn package_and_settings_names_must_match_in_combined_upsert() {
+        let path = temp_database_path("settings-name-mismatch");
+        let mut db = PackageDatabase::open(&path).expect("open database");
+        let package = test_package("tool");
+        let settings = PackageSettings::new("other");
+
+        let error = db
+            .upsert_package_with_settings(&package, &settings)
+            .expect_err("mismatched settings should be rejected");
+
+        assert!(error.to_string().contains("cannot be stored"));
+        assert!(db.list_packages().expect("list packages").is_empty());
         cleanup(&path).expect("cleanup");
     }
 }
