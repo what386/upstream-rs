@@ -33,28 +33,6 @@ impl<'a> MetadataManager<'a> {
         })?;
         Ok(())
     }
-
-    /// Renames a package alias without changing provider/repo/version metadata.
-    pub fn rename_package(&mut self, old_name: &str, new_name: &str) -> Result<bool> {
-        let old_name = old_name.trim();
-        let new_name = new_name.trim();
-
-        if old_name.is_empty() || new_name.is_empty() {
-            return Err(anyhow::anyhow!("Package names cannot be empty"));
-        }
-
-        if old_name == new_name {
-            return Ok(false);
-        }
-
-        if self.package_database.get_package(new_name)?.is_some() {
-            return Err(anyhow::anyhow!("Package '{}' already exists", new_name));
-        }
-
-        self.package_database.rename_package(old_name, new_name)?;
-
-        Ok(true)
-    }
 }
 
 #[cfg(test)]
@@ -124,39 +102,6 @@ mod tests {
                 .expect("load package")
                 .expect("package")
                 .is_pinned
-        );
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
-    fn rename_package_rejects_duplicates_and_updates_alias() {
-        let path = temp_packages_file("rename");
-        fs::create_dir_all(path.parent().expect("parent")).expect("create parent");
-        let mut storage = PackageDatabase::open(&path).expect("create storage");
-        let old = test_package("old");
-        storage.upsert_package(&old).expect("store old");
-        let taken = test_package("taken");
-        storage.upsert_package(&taken).expect("store taken");
-        let mut manager = MetadataManager::new(&mut storage);
-
-        assert!(manager.rename_package("old", "taken").is_err());
-        manager
-            .rename_package("old", "new")
-            .expect("rename package");
-        assert!(
-            manager
-                .package_database
-                .get_package("new")
-                .expect("load new")
-                .is_some()
-        );
-        assert!(
-            manager
-                .package_database
-                .get_package("old")
-                .expect("load old")
-                .is_none()
         );
 
         cleanup(&path).expect("cleanup");

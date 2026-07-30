@@ -9,5 +9,6 @@ pub mod install_op;
 pub mod metadata_op;
 pub mod probe_op;
 pub mod remove_op;
+pub mod rename_op;
 pub mod rollback_op;
 pub mod upgrade_op;
