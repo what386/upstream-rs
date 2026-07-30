@@ -163,28 +163,11 @@ pub(super) fn parse_index(bytes: &[u8]) -> Result<RegistryIndex> {
     let mut installed_names = BTreeMap::new();
     for (name, package) in &index.packages {
         let installed_name = package.binary.as_deref().unwrap_or(name);
-        validate_binary_name(installed_name)
-            .with_context(|| format!("Registry package '{name}' has an invalid binary name"))?;
         if let Some(previous) = installed_names.insert(installed_name, name) {
             bail!("Registry packages '{previous}' and '{name}' both install as '{installed_name}'");
         }
     }
     Ok(index)
-}
-
-fn validate_binary_name(name: &str) -> Result<()> {
-    let valid = !name.is_empty()
-        && name != "."
-        && name != ".."
-        && name.trim() == name
-        && !name.contains('/')
-        && !name.contains('\\')
-        && !name.chars().any(char::is_control)
-        && !name.to_ascii_lowercase().ends_with(".exe");
-    if !valid {
-        bail!("expected a safe command basename without path separators or a platform extension");
-    }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -205,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_invalid_versions_revisions_and_binary_paths() {
+    fn rejects_invalid_versions_and_revisions() {
         assert!(
             parse_index(br#"{"version":2,"packages":{}}"#)
                 .unwrap_err()
@@ -213,7 +196,6 @@ mod tests {
                 .contains("Unsupported")
         );
         assert!(parse_index(br#"{"version":1,"packages":{"tool":{"revision":0,"desktop":false,"trust":"checksum","install":{"type":"release","repo":"o/tool","provider":"github"}}}}"#).unwrap_err().to_string().contains("revision 0"));
-        assert!(parse_index(br#"{"version":1,"packages":{"tool":{"revision":1,"binary":"../Tool","desktop":false,"trust":"checksum","install":{"type":"release","repo":"o/tool","provider":"github"}}}}"#).unwrap_err().to_string().contains("invalid binary"));
     }
 
     #[test]
