@@ -191,6 +191,7 @@ mod tests {
         fs::remove_dir_all(root).expect("cleanup");
     }
 
+    #[cfg(unix)]
     #[test]
     fn shell_refresh_failure_keeps_persisted_replacement_consistent() {
         let root = test_support::temp_root("upstream-package-replacement-test", "shell-failure");

@@ -1028,6 +1028,7 @@ mod tests {
         cleanup(&root).expect("cleanup");
     }
 
+    #[cfg(unix)]
     #[test]
     fn rollback_failed_upgrade_removes_partial_install_and_restores_previous_binary() {
         let root = temp_root("rollback-desktop-failure");

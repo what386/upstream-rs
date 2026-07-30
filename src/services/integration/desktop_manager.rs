@@ -864,6 +864,7 @@ mod tests {
         assert!(rendered.contains("X-AppImage-Version=25.12.2-1\n"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn rename_entry_moves_file_without_overwriting_existing_destination() {
         let root = temp_root("rename");
@@ -894,6 +895,7 @@ mod tests {
         cleanup(&root).expect("cleanup");
     }
 
+    #[cfg(unix)]
     #[test]
     fn desktop_snapshot_restores_entry_and_icon_after_replacement() {
         let root = temp_root("snapshot");
