@@ -96,6 +96,7 @@ pub struct StatePaths {
     pub rollback_dir: PathBuf,
     pub symlinks_dir: PathBuf,
     pub icons_dir: PathBuf,
+    pub lock_file: PathBuf
 }
 
 impl StatePaths {
@@ -104,6 +105,7 @@ impl StatePaths {
             rollback_dir: dirs.state_dir.join("rollback"),
             symlinks_dir: dirs.state_dir.join("symlinks"),
             icons_dir: dirs.state_dir.join("icons"),
+            lock_file: dirs.state_dir.join("lock")
         }
     }
 }

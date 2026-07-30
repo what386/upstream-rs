@@ -32,8 +32,7 @@ enum AcquireOutcome {
 
 impl LockStorage {
     pub fn acquire(paths: &UpstreamPaths, operation: &str) -> Result<Self> {
-        let lock_path = paths.dirs.metadata_dir.join("lock");
-        Self::acquire_at(&lock_path, operation)
+        Self::acquire_at(&paths.state.lock_file, operation)
     }
 
     fn acquire_at(lock_path: &Path, operation: &str) -> Result<Self> {
