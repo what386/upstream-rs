@@ -10,21 +10,41 @@ from pathlib import Path
 from .environment import FAKEHOME, ROOT, upstream_binary
 
 
-def run_upstream_result(*args: str) -> subprocess.CompletedProcess[str]:
+def upstream_environment() -> dict[str, str]:
     env = os.environ.copy()
     host_home = env.get("HOME")
     env["HOME"] = str(FAKEHOME)
-    # Keep the caller's Rust toolchain and Cargo registry available to build
-    # integration packages. Upstream itself still uses FAKEHOME for all state.
+    # Deliberately re-add the caller's Rust toolchain and Cargo registry so
+    # integration packages can build while Upstream itself uses FAKEHOME state.
     if host_home:
         env.setdefault("RUSTUP_HOME", str(Path(host_home) / ".rustup"))
         env.setdefault("CARGO_HOME", str(Path(host_home) / ".cargo"))
+    return env
+
+
+def run_upstream_result(*args: str) -> subprocess.CompletedProcess[str]:
+    env = upstream_environment()
     return subprocess.run(
         [str(upstream_binary()), "--no-pager", *args],
         cwd=ROOT,
         env=env,
         text=True,
         capture_output=True,
+    )
+
+
+def start_upstream(*args: str) -> subprocess.Popen[str]:
+    options: dict[str, object] = {}
+    if os.name == "nt":
+        options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    return subprocess.Popen(
+        [str(upstream_binary()), "--no-pager", *args],
+        cwd=ROOT,
+        env=upstream_environment(),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        **options,
     )
 
 
