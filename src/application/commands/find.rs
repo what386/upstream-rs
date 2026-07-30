@@ -3,13 +3,14 @@ use chrono::NaiveDate;
 use std::fmt::Write as _;
 
 use crate::{
-    application::commands::{install, search},
+    application::commands::{install, resolve_new_package_name, search},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         provider::{RepositorySearchFilters, RepositorySearchResult},
         upstream::config::AppConfig,
     },
     output,
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -75,11 +76,14 @@ pub async fn run(
     };
 
     let result = &search.results[selected];
-    let inferred_name = default_package_name(result);
-    let install_name = match name {
-        Some(name) => name,
-        None => output::prompt_text("Package name", Some(&inferred_name))?,
-    };
+    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let install_name = resolve_new_package_name(
+        name,
+        &result.repo_slug,
+        Some(&search.provider),
+        search.base_url.as_deref(),
+        &package_database,
+    )?;
     println!(
         "{}",
         output::title(format!("Selected {} as {}", result.repo_slug, install_name))
@@ -218,45 +222,9 @@ impl SearchChoiceWidths {
     }
 }
 
-fn default_package_name(result: &RepositorySearchResult) -> String {
-    let candidate = result
-        .repo_slug
-        .rsplit('/')
-        .next()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or(&result.display_name);
-
-    sanitize_package_name(candidate)
-}
-
-fn sanitize_package_name(value: &str) -> String {
-    let mut out = String::new();
-    let mut previous_dash = false;
-
-    for ch in value.trim().chars().flat_map(char::to_lowercase) {
-        if ch.is_ascii_alphanumeric() {
-            out.push(ch);
-            previous_dash = false;
-        } else if !previous_dash && !out.is_empty() {
-            out.push('-');
-            previous_dash = true;
-        }
-    }
-
-    while out.ends_with('-') {
-        out.pop();
-    }
-
-    if out.is_empty() {
-        "package".to_string()
-    } else {
-        out
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{SearchChoiceTable, default_package_name, sanitize_package_name};
+    use super::SearchChoiceTable;
     use crate::models::provider::RepositorySearchResult;
     use chrono::{TimeZone, Utc};
 
@@ -269,20 +237,6 @@ mod tests {
             language: "Rust".to_string(),
             updated_at: Utc.with_ymd_and_hms(2026, 6, 13, 0, 0, 0).unwrap(),
         }
-    }
-
-    #[test]
-    fn default_package_name_uses_repo_basename() {
-        assert_eq!(
-            default_package_name(&result("BurntSushi/ripgrep", "ripgrep")),
-            "ripgrep"
-        );
-    }
-
-    #[test]
-    fn sanitize_package_name_keeps_alias_shell_friendly() {
-        assert_eq!(sanitize_package_name("My Tool_2!"), "my-tool-2");
-        assert_eq!(sanitize_package_name("..."), "package");
     }
 
     #[test]

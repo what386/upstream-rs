@@ -4,6 +4,7 @@ use serde::Serialize;
 use std::time::Duration;
 
 use crate::{
+    application::commands::resolve_new_package_name,
     application::context::CommandContext,
     application::operations::install_op::{InstallOperation, SelectedAssetInstallRequest},
     application::operations::probe_op::{
@@ -14,7 +15,6 @@ use crate::{
         upstream::config::AppConfig,
     },
     output::{self, Status, TransactionRow},
-    providers::discovery::infer_package_name,
     services::packaging::PackageProgressEvent,
     utils::static_paths::UpstreamPaths,
 };
@@ -99,11 +99,13 @@ pub async fn run(
         return Ok(());
     };
 
-    let install_name = resolve_probe_package_name(
+    let mut package_database = context.package_database()?;
+    let install_name = resolve_new_package_name(
         name,
         &probe_result.repo_slug,
-        &probe_result.provider,
+        Some(&probe_result.provider),
         probe_result.base_url.as_deref(),
+        &package_database,
     )?;
     let selection =
         probe_operation.prepare_install_selection(&probe_result, selected, install_name)?;
@@ -164,7 +166,6 @@ pub async fn run(
 
     output::confirm_or_cancel("Proceed with installation?", true)?;
 
-    let mut package_database = context.package_database()?;
     let trusted_keys = context.trusted_keys()?;
     let mut install_operation = InstallOperation::new(
         &context.provider_manager,
@@ -247,20 +248,6 @@ pub async fn run(
     }
 
     Ok(())
-}
-
-fn resolve_probe_package_name(
-    name: Option<String>,
-    source: &str,
-    provider: &Provider,
-    base_url: Option<&str>,
-) -> Result<String> {
-    if let Some(name) = name.filter(|value| !value.trim().is_empty()) {
-        return Ok(name);
-    }
-
-    let default = infer_package_name(source, Some(provider), base_url)?;
-    output::prompt_text("Package name", default.as_deref())
 }
 
 fn render_probe_install_progress_message(name: &str, event: PackageProgressEvent) -> String {

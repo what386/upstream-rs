@@ -4,7 +4,10 @@ use std::time::Duration;
 
 use crate::{
     application::operations::install_op::{InstallOperation, PlannedReleaseInstallRequest},
-    application::{commands::build, context::CommandContext},
+    application::{
+        commands::{build, resolve_new_package_name},
+        context::CommandContext,
+    },
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::{
@@ -15,12 +18,13 @@ use crate::{
     output::{self, Status, TransactionRow},
     providers::{
         discovery::{
-            DiscoveryRequest, DiscoveryResult, SourceKind, infer_package_name, infer_source,
+            DiscoveryRequest, DiscoveryResult, SourceKind, infer_source,
             normalize_source_for_provider,
         },
         provider_manager::ProviderManager,
     },
     services::packaging::PackageProgressEvent,
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -118,7 +122,14 @@ pub async fn run(
     paths: &UpstreamPaths,
     app_config: &AppConfig,
 ) -> Result<()> {
-    let name = resolve_package_name(name, &repo_slug, provider.as_ref(), base_url.as_deref())?;
+    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let name = resolve_new_package_name(
+        name,
+        &repo_slug,
+        provider.as_ref(),
+        base_url.as_deref(),
+        &package_database,
+    )?;
     let plan = InstallPlan {
         name,
         desktop: create_entry,
@@ -205,6 +216,13 @@ async fn run_release_plan(
     let trust_mode = source.trust_mode;
     let context = CommandContext::new(paths, app_config)?;
     let mut package_database = context.package_database()?;
+    let name = resolve_new_package_name(
+        Some(name),
+        &source.source,
+        source.provider.as_ref(),
+        source.base_url.as_deref(),
+        &package_database,
+    )?;
     let trusted_keys = context.trusted_keys()?;
     let package = build_package(
         &context.provider_manager,
@@ -335,25 +353,6 @@ async fn run_release_plan(
     }
 
     Ok(())
-}
-
-fn resolve_package_name(
-    name: Option<String>,
-    source: &str,
-    provider: Option<&Provider>,
-    base_url: Option<&str>,
-) -> Result<String> {
-    if let Some(name) = name.filter(|value| !value.trim().is_empty()) {
-        return Ok(name);
-    }
-
-    let Some(default) = infer_package_name(source, provider, base_url)? else {
-        return Err(anyhow::anyhow!(
-            "Package name is required for this source. Provide a name after the repository or URL."
-        ));
-    };
-
-    output::prompt_text("Package name", Some(&default))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -489,8 +488,6 @@ fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::{render_install_progress_message, render_install_progress_row};
-    use crate::models::common::enums::Provider;
-    use crate::providers::discovery::infer_package_name;
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
 
     #[test]
@@ -529,38 +526,5 @@ mod tests {
             ),
             "Installing pnpm\n pnpm                         Installing package ..."
         );
-    }
-
-    #[test]
-    fn default_package_name_infers_git_repo_name_when_omitted() {
-        assert_eq!(
-            default_package_name("BurntSushi/ripgrep", None, None).expect("default name"),
-            Some("ripgrep".to_string())
-        );
-        assert_eq!(
-            default_package_name(
-                "https://gitlab.example.com/group/project",
-                Some(&Provider::Gitlab),
-                Some("https://gitlab.example.com"),
-            )
-            .expect("default name"),
-            Some("project".to_string())
-        );
-    }
-
-    #[test]
-    fn default_package_name_returns_none_for_http_sources() {
-        let default =
-            default_package_name("https://example.invalid/downloads", None, None).expect("default");
-
-        assert_eq!(default, None);
-    }
-
-    fn default_package_name(
-        source: &str,
-        provider: Option<&Provider>,
-        base_url: Option<&str>,
-    ) -> anyhow::Result<Option<String>> {
-        infer_package_name(source, provider, base_url)
     }
 }
