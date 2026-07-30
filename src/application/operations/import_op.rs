@@ -183,12 +183,7 @@ impl<'a> ImportOperation<'a> {
             .with_context(|| format!("Failed to read packages export from '{}'", path.display()))?;
         let packages: ImportPackages =
             serde_json::from_str(&content).context("Failed to parse packages export")?;
-        if !matches!(packages.version, 2 | PACKAGES_EXPORT_VERSION) {
-            bail!(
-                "Unsupported packages export version {}. Upgrade upstream and try again.",
-                packages.version
-            );
-        }
+        Self::validate_packages(&packages)?;
         Ok(packages)
     }
 
