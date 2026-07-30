@@ -12,18 +12,31 @@
 - [ ] consider: crash recovery
       @created 2026-07-22 23:44
 
-- [ ] Harden package replacement transactions #packaging #correctness
-      @created 2026-07-30 21:02
 
-- [ ] Make package rename transactional #package #correctness
-      @created 2026-07-30 21:02
+## Completed
 
-- [ ] Centralize new package name resolution #cli #ux
+- [x] Harden package replacement transactions #packaging #correctness
       @created 2026-07-30 21:02
+      @completed 2026-07-30 21:02
+      @completed_commit e53a199
 
-- [ ] Reuse package import validation #import #cleanup
+- [x] Make package rename transactional #package #correctness
       @created 2026-07-30 21:02
+      @completed 2026-07-30 21:02
+      @completed_commit 892fa74
 
-- [ ] Remove registry binary name guard #registry #cleanup
+- [x] Centralize new package name resolution #cli #ux
       @created 2026-07-30 21:02
+      @completed 2026-07-30 21:02
+      @completed_commit 78e8044
+
+- [x] Reuse package import validation #import #cleanup
+      @created 2026-07-30 21:02
+      @completed 2026-07-30 21:02
+      @completed_commit 91148f8
+
+- [x] Remove registry binary name guard #registry #cleanup
+      @created 2026-07-30 21:02
+      @completed 2026-07-30 21:02
+      @completed_commit b388371
 
