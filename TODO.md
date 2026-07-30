@@ -18,3 +18,6 @@
 - [ ] Make package rename transactional #package #correctness
       @created 2026-07-30 21:02
 
+- [ ] Centralize new package name resolution #cli #ux
+      @created 2026-07-30 21:02
+
