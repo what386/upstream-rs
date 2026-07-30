@@ -24,3 +24,6 @@
 - [ ] Reuse package import validation #import #cleanup
       @created 2026-07-30 21:02
 
+- [ ] Remove registry binary name guard #registry #cleanup
+      @created 2026-07-30 21:02
+
