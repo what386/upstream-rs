@@ -29,7 +29,7 @@ impl<'a> PackageReplacer<'a> {
             );
         }
 
-        ShellManager::new(&self.paths.config.paths_file)
+        ShellManager::new(&self.paths.generated.paths_file)
             .regenerate_paths(package_database, self.paths)
             .context(format!(
                 "Replacement for '{}' was persisted, but shell PATH files could not be refreshed",
@@ -114,7 +114,7 @@ mod tests {
         previous.exec_path = Some(install_path.clone());
 
         let mut database =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("open database");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
         let mut settings = PackageSettings::new("tool");
         settings.trust_mode = Some(TrustMode::Signature);
         database
@@ -141,7 +141,7 @@ mod tests {
         replacement.version = Version::new(2, 0, 0, false);
 
         let database_path =
-            PackageDatabase::database_path_for(&paths.config.packages_database_file);
+            PackageDatabase::database_path_for(&paths.metadata.packages_database_file);
         Connection::open(&database_path)
             .expect("open trigger connection")
             .execute_batch(
@@ -220,7 +220,7 @@ mod tests {
         replacement.version = Version::new(2, 0, 0, false);
 
         let mut database =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("open database");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
         database
             .upsert_package(&previous)
             .expect("store previous package");

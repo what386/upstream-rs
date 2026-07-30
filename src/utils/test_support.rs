@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::utils::static_paths::{
-    AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, StatePaths, UpstreamPaths,
+    AppDirs, ConfigPaths, GeneratedPaths, InstallPaths, IntegrationPaths, MetadataPaths,
+    StatePaths, UpstreamPaths,
 };
 
 pub fn temp_root(prefix: &str, name: &str) -> PathBuf {
@@ -28,10 +29,14 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
     UpstreamPaths {
         config: ConfigPaths {
             config_file: dirs.config_dir.join("config.toml"),
-            auth_file: dirs.config_dir.join("auth.toml"),
+        },
+        metadata: MetadataPaths {
+            auth_file: dirs.metadata_dir.join("auth.toml"),
             packages_file: dirs.metadata_dir.join("packages.json"),
             packages_database_file: dirs.metadata_dir.join("packages.db"),
             trust_file: dirs.metadata_dir.join("trust.json"),
+        },
+        generated: GeneratedPaths {
             paths_file: dirs.generated_dir.join("paths.sh"),
             paths_nu_file: dirs.generated_dir.join("paths.nu"),
         },
@@ -45,6 +50,7 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
             rollback_dir: dirs.state_dir.join("rollback"),
             symlinks_dir: dirs.state_dir.join("symlinks"),
             icons_dir: dirs.state_dir.join("icons"),
+            lock_file: dirs.state_dir.join("lock"),
         },
         integration: IntegrationPaths {
             xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),

@@ -635,13 +635,13 @@ mod tests {
         let paths = test_support::upstream_paths(&root);
         fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
         fs::create_dir_all(&paths.install.archives_dir).expect("create archives dir");
-        fs::create_dir_all(paths.config.paths_file.parent().expect("paths parent"))
+        fs::create_dir_all(paths.generated.paths_file.parent().expect("paths parent"))
             .expect("create paths parent");
-        fs::write(&paths.config.paths_file, "").expect("create paths file");
-        fs::write(&paths.config.paths_nu_file, "").expect("create paths nu");
+        fs::write(&paths.generated.paths_file, "").expect("create paths file");
+        fs::write(&paths.generated.paths_nu_file, "").expect("create paths nu");
 
         let mut package_database =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("open db");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("open db");
 
         let older_install = paths.install.archives_dir.join("older/bin");
         let newer_install = paths.install.archives_dir.join("newer/bin");
@@ -679,13 +679,13 @@ mod tests {
         package_database.upsert_package(&older).expect("seed older");
         package_database.upsert_package(&newer).expect("seed newer");
 
-        let manager = ShellManager::new(&paths.config.paths_file);
+        let manager = ShellManager::new(&paths.generated.paths_file);
         manager
             .regenerate_paths(&mut package_database, &paths)
             .expect("regenerate paths");
 
         let nushell_content =
-            fs::read_to_string(&paths.config.paths_nu_file).expect("read paths.nu");
+            fs::read_to_string(&paths.generated.paths_nu_file).expect("read paths.nu");
         assert_eq!(
             parse_nushell_paths_file(&nushell_content),
             vec![

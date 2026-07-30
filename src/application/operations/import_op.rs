@@ -173,7 +173,7 @@ impl<'a> ImportOperation<'a> {
             progress_callback,
         )?;
         self.trusted_keys =
-            TrustStorage::new(&self.paths.config.trust_file)?.trusted_signature_keys();
+            TrustStorage::new(&self.paths.metadata.trust_file)?.trusted_signature_keys();
         self.import_packages_from_export(profile.packages, skip_failed, latest, progress_callback)
             .await
     }
@@ -410,7 +410,7 @@ impl<'a> ImportOperation<'a> {
             return self.cleanup_after_metadata_error(installer, installed_package, err);
         }
 
-        if let Err(err) = ShellManager::new(&self.paths.config.paths_file)
+        if let Err(err) = ShellManager::new(&self.paths.generated.paths_file)
             .regenerate_paths(self.package_database, self.paths)
         {
             let _ = self
@@ -453,7 +453,7 @@ impl<'a> ImportOperation<'a> {
         P: FnMut(ImportProgressEvent),
     {
         emit_phase(progress_callback, OperationPhase::ImportingKeys);
-        let mut trust_storage = TrustStorage::new(&self.paths.config.trust_file)?;
+        let mut trust_storage = TrustStorage::new(&self.paths.metadata.trust_file)?;
         let summary = trust_storage.merge_trusted_keys(&minisign_keys, &cosign_keys)?;
         emit_detail(
             progress_callback,

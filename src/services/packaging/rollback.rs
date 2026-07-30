@@ -396,7 +396,7 @@ impl<'a> RollbackManager<'a> {
         }
         let remover = PackageRemover::new(self.paths);
         remover.restore_runtime_integrations(&record.package_snapshot, message_callback)?;
-        ShellManager::new(&self.paths.config.paths_file)
+        ShellManager::new(&self.paths.generated.paths_file)
             .regenerate_paths(self.package_database, self.paths)?;
 
         self.rollback_storage.remove_record(package_name)?;
@@ -918,7 +918,7 @@ mod tests {
         write_rollback_config(&root, "low", 2);
         let paths = test_support::upstream_paths(&root);
         let mut package_database =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("package storage");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("package storage");
         let rollback_file = RollbackManager::rollback_file_path(&paths);
         let mut rollback_storage = RollbackStorage::new(&rollback_file).expect("rollback storage");
         let package = test_package(&root, "tool");
@@ -970,7 +970,7 @@ mod tests {
         write_rollback_config(&root, "high", 1);
         let paths = test_support::upstream_paths(&root);
         let mut package_database =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("package storage");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("package storage");
         let rollback_file = RollbackManager::rollback_file_path(&paths);
         let mut rollback_storage = RollbackStorage::new(&rollback_file).expect("rollback storage");
         let package = test_package(&root, "tool");

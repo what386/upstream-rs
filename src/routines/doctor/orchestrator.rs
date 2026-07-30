@@ -13,12 +13,14 @@ pub async fn run(names: Vec<String>, fix: bool, paths: &UpstreamPaths) -> Result
     checks::check_interrupted_transactions(paths, &mut report);
     checks::check_completion_directories(paths, &mut report);
     let app_config = checks::check_app_config(paths, fix, &mut report);
-    let auth = AuthStorage::new(&paths.config.auth_file)?;
+    let auth = AuthStorage::new(&paths.metadata.auth_file)?;
     checks::check_package_metadata_file(paths, &mut report);
     checks::check_path_integration(paths, fix, &mut report);
 
-    let mut package_database = if paths.config.packages_database_file.exists() {
-        Some(PackageDatabase::open(&paths.config.packages_database_file)?)
+    let mut package_database = if paths.metadata.packages_database_file.exists() {
+        Some(PackageDatabase::open(
+            &paths.metadata.packages_database_file,
+        )?)
     } else {
         None
     };

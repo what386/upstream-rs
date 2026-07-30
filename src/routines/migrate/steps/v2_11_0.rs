@@ -39,8 +39,8 @@ impl Step for V2_11_0 {
             return Ok(true);
         }
 
-        if file_contains_path(&paths.config.paths_file, &old_symlinks_dir)?
-            || file_contains_path(&paths.config.paths_nu_file, &old_symlinks_dir)?
+        if file_contains_path(&paths.generated.paths_file, &old_symlinks_dir)?
+            || file_contains_path(&paths.generated.paths_nu_file, &old_symlinks_dir)?
             || package_database_contains_icon_path(paths, &old_icons_dir)?
             || rollback_storage_contains_icon_path(paths, &old_icons_dir)?
             || desktop_entries_contain_icon_path(paths, &old_icons_dir)?
@@ -67,12 +67,12 @@ fn apply(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
     move_legacy_state_dir(&old_icons_dir, &paths.state.icons_dir, report)?;
 
     rewrite_paths_file(
-        &paths.config.paths_file,
+        &paths.generated.paths_file,
         &old_symlinks_dir,
         &paths.state.symlinks_dir,
     )?;
     rewrite_paths_file(
-        &paths.config.paths_nu_file,
+        &paths.generated.paths_nu_file,
         &old_symlinks_dir,
         &paths.state.symlinks_dir,
     )?;
@@ -101,11 +101,11 @@ fn package_database_contains_icon_path(
     paths: &UpstreamPaths,
     old_icons_dir: &Path,
 ) -> Result<bool> {
-    if !paths.config.packages_database_file.exists() {
+    if !paths.metadata.packages_database_file.exists() {
         return Ok(false);
     }
 
-    let database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     Ok(database.list_packages()?.iter().any(|package| {
         package
             .icon_path
@@ -258,7 +258,7 @@ fn rewrite_package_database_icons(
     old_icons_dir: &Path,
     report: &mut MigrationReport,
 ) -> Result<()> {
-    let mut database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let mut packages = database.list_packages()?;
     let mut changed = false;
     let mut updated_packages = 0;
@@ -463,7 +463,7 @@ mod tests {
         fs::write(old_symlinks_dir.join("tool"), b"link").expect("write symlink placeholder");
         fs::write(old_icons_dir.join("tool.png"), b"icon").expect("write icon");
 
-        let mut package_db = PackageDatabase::open(&paths.config.packages_database_file)
+        let mut package_db = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("create package database");
         let mut package = test_package(
             "tool",
@@ -499,15 +499,15 @@ mod tests {
         )
         .expect("write rollback");
 
-        fs::create_dir_all(paths.config.paths_file.parent().expect("paths parent"))
+        fs::create_dir_all(paths.generated.paths_file.parent().expect("paths parent"))
             .expect("create paths parent");
         fs::write(
-            &paths.config.paths_file,
+            &paths.generated.paths_file,
             format!("export PATH=\"{}:$PATH\"\n", old_symlinks_dir.display()),
         )
         .expect("write paths.sh");
         fs::write(
-            &paths.config.paths_nu_file,
+            &paths.generated.paths_nu_file,
             format!(
                 "$env.PATH = ($env.PATH | prepend '{}')\n",
                 old_symlinks_dir.display()
@@ -538,11 +538,13 @@ mod tests {
         assert!(report.updated_packages >= 1);
         assert_eq!(report.updated_rollback_records, 1);
 
-        let migrated_config = fs::read_to_string(&paths.config.paths_file).expect("read paths.sh");
+        let migrated_config =
+            fs::read_to_string(&paths.generated.paths_file).expect("read paths.sh");
         assert!(migrated_config.contains(&paths.state.symlinks_dir.display().to_string()));
-        let migrated_nu = fs::read_to_string(&paths.config.paths_nu_file).expect("read paths.nu");
+        let migrated_nu =
+            fs::read_to_string(&paths.generated.paths_nu_file).expect("read paths.nu");
         assert!(migrated_nu.contains(&paths.state.symlinks_dir.display().to_string()));
-        let migrated_db = PackageDatabase::open(&paths.config.packages_database_file)
+        let migrated_db = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("reopen package database");
         let migrated_package = migrated_db
             .get_package("tool")

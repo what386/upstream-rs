@@ -47,13 +47,21 @@ impl AppDirs {
     }
 }
 
-/// Paths to configuration and metadata files
+/// Paths to the application configuration file.
 pub struct ConfigPaths {
     pub config_file: PathBuf,
+}
+
+/// Paths to persisted metadata and storage files.
+pub struct MetadataPaths {
     pub auth_file: PathBuf,
     pub packages_file: PathBuf,
     pub packages_database_file: PathBuf,
     pub trust_file: PathBuf,
+}
+
+/// Paths to generated shell integration files.
+pub struct GeneratedPaths {
     pub paths_file: PathBuf,
     pub paths_nu_file: PathBuf,
 }
@@ -62,10 +70,24 @@ impl ConfigPaths {
     pub fn new(dirs: &AppDirs) -> Self {
         Self {
             config_file: dirs.config_dir.join("config.toml"),
+        }
+    }
+}
+
+impl MetadataPaths {
+    pub fn new(dirs: &AppDirs) -> Self {
+        Self {
             auth_file: dirs.metadata_dir.join("auth.toml"),
             packages_file: dirs.metadata_dir.join("packages.json"),
             packages_database_file: dirs.metadata_dir.join("packages.db"),
             trust_file: dirs.metadata_dir.join("trust.json"),
+        }
+    }
+}
+
+impl GeneratedPaths {
+    pub fn new(dirs: &AppDirs) -> Self {
+        Self {
             paths_file: dirs.generated_dir.join("paths.sh"),
             paths_nu_file: dirs.generated_dir.join("paths.nu"),
         }
@@ -96,7 +118,7 @@ pub struct StatePaths {
     pub rollback_dir: PathBuf,
     pub symlinks_dir: PathBuf,
     pub icons_dir: PathBuf,
-    pub lock_file: PathBuf
+    pub lock_file: PathBuf,
 }
 
 impl StatePaths {
@@ -105,7 +127,7 @@ impl StatePaths {
             rollback_dir: dirs.state_dir.join("rollback"),
             symlinks_dir: dirs.state_dir.join("symlinks"),
             icons_dir: dirs.state_dir.join("icons"),
-            lock_file: dirs.state_dir.join("lock")
+            lock_file: dirs.state_dir.join("lock"),
         }
     }
 }
@@ -135,6 +157,8 @@ impl IntegrationPaths {
 pub struct UpstreamPaths {
     pub dirs: AppDirs,
     pub config: ConfigPaths,
+    pub metadata: MetadataPaths,
+    pub generated: GeneratedPaths,
     pub install: InstallPaths,
     pub state: StatePaths,
     pub integration: IntegrationPaths,
@@ -151,6 +175,8 @@ impl UpstreamPaths {
         let dirs = AppDirs::new()?;
         Ok(Self {
             config: ConfigPaths::new(&dirs),
+            metadata: MetadataPaths::new(&dirs),
+            generated: GeneratedPaths::new(&dirs),
             install: InstallPaths::new(&dirs),
             state: StatePaths::new(&dirs),
             integration: IntegrationPaths::new(&dirs),

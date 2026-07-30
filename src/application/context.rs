@@ -19,7 +19,7 @@ pub struct CommandContext<'a> {
 
 impl<'a> CommandContext<'a> {
     pub fn new(paths: &'a UpstreamPaths, app_config: &'a AppConfig) -> Result<Self> {
-        let auth = AuthStorage::new(&paths.config.auth_file)?;
+        let auth = AuthStorage::new(&paths.metadata.auth_file)?;
         let provider_manager = ProviderManager::new(
             auth.get_auth().github.api_token.as_deref(),
             auth.get_auth().gitlab.api_token.as_deref(),
@@ -35,11 +35,11 @@ impl<'a> CommandContext<'a> {
     }
 
     pub fn package_database(&self) -> Result<PackageDatabase> {
-        PackageDatabase::open(&self.paths.config.packages_database_file)
+        PackageDatabase::open(&self.paths.metadata.packages_database_file)
     }
 
     pub fn trust_storage(&self) -> Result<TrustStorage> {
-        TrustStorage::new(&self.paths.config.trust_file)
+        TrustStorage::new(&self.paths.metadata.trust_file)
     }
 
     pub fn trusted_keys(&self) -> Result<TrustedSignatureKeys> {

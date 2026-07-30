@@ -1048,7 +1048,7 @@ mod tests {
     fn upgrade_completion_callback_observes_persisted_package_state() {
         let root = test_support::temp_root("upstream-upgrade-op-test", "completion-order");
         let paths = test_support::upstream_paths(&root);
-        let path = paths.config.packages_database_file.clone();
+        let path = paths.metadata.packages_database_file.clone();
 
         let mut database = PackageDatabase::open(&path).expect("open database");
         let mut stored = test_package("tool", Channel::Stable);

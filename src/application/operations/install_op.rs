@@ -237,7 +237,7 @@ impl<'a> InstallOperation<'a> {
             return self.fail_after_metadata_error(installed_package, err, message_callback);
         }
 
-        if let Err(err) = ShellManager::new(&self.installer.paths().config.paths_file)
+        if let Err(err) = ShellManager::new(&self.installer.paths().generated.paths_file)
             .regenerate_paths(self.package_database, self.installer.paths())
         {
             let _ = self
@@ -322,7 +322,7 @@ mod tests {
         let provider_manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
         let mut package_database =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("open database");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
         package_database
             .upsert_package(&test_package("tool"))
             .expect("store package");

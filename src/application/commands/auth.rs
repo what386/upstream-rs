@@ -10,7 +10,7 @@ pub fn run_set(set_keys: Vec<String>, paths: &UpstreamPaths) -> Result<()> {
         return Err(anyhow!("At least one auth assignment is required"));
     }
 
-    let mut auth_storage = AuthStorage::new(&paths.config.auth_file)?;
+    let mut auth_storage = AuthStorage::new(&paths.metadata.auth_file)?;
     let mut auth_updater = AuthUpdater::new(&mut auth_storage);
 
     println!("{}", output::title("Auth set"));
@@ -45,7 +45,7 @@ pub fn run_get(get_keys: Vec<String>, paths: &UpstreamPaths) -> Result<()> {
         return Err(anyhow!("At least one auth key is required"));
     }
 
-    let mut auth_storage = AuthStorage::new(&paths.config.auth_file)?;
+    let mut auth_storage = AuthStorage::new(&paths.metadata.auth_file)?;
     let auth_updater = AuthUpdater::new(&mut auth_storage);
 
     println!("{}", output::title("Auth get"));
@@ -72,7 +72,7 @@ pub fn run_get(get_keys: Vec<String>, paths: &UpstreamPaths) -> Result<()> {
 }
 
 pub fn run_list(paths: &UpstreamPaths) -> Result<()> {
-    let auth_storage = AuthStorage::new(&paths.config.auth_file)?;
+    let auth_storage = AuthStorage::new(&paths.metadata.auth_file)?;
 
     let flattened = auth_storage.get_flattened_auth();
 
@@ -96,7 +96,7 @@ pub fn run_list(paths: &UpstreamPaths) -> Result<()> {
 }
 
 pub fn run_reset(paths: &UpstreamPaths) -> Result<()> {
-    let mut auth_storage = AuthStorage::new(&paths.config.auth_file)?;
+    let mut auth_storage = AuthStorage::new(&paths.metadata.auth_file)?;
 
     output::confirm_or_cancel("Reset all auth tokens to empty?", false)?;
     auth_storage.reset_to_defaults()?;
@@ -120,13 +120,13 @@ pub fn run_edit(paths: &UpstreamPaths) -> Result<()> {
     output::action_note(format!("Opening with {}", editor));
 
     let status = std::process::Command::new(&editor)
-        .arg(&paths.config.auth_file)
+        .arg(&paths.metadata.auth_file)
         .status()?;
 
     if status.success() {
         println!("{}", output::success("Editor closed."));
 
-        match AuthStorage::new(&paths.config.auth_file) {
+        match AuthStorage::new(&paths.metadata.auth_file) {
             Ok(_) => println!("{}", output::success("Auth file is valid.")),
             Err(e) => {
                 println!(

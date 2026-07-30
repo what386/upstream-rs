@@ -76,7 +76,7 @@ pub async fn run(
     };
 
     let result = &search.results[selected];
-    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let install_name = resolve_new_package_name(
         name,
         &result.repo_slug,

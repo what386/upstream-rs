@@ -191,14 +191,14 @@ pub(in crate::routines::doctor) fn check_package_metadata_file(
     paths: &UpstreamPaths,
     report: &mut DoctorReport,
 ) {
-    if paths.config.packages_database_file.exists() {
+    if paths.metadata.packages_database_file.exists() {
         report.line(Level::Ok, "Package database exists");
     } else if legacy_package_metadata_exists(paths) {
         report.line(
             Level::Warn,
             format!(
                 "Legacy package metadata detected: {}",
-                paths.config.packages_file.display()
+                paths.metadata.packages_file.display()
             ),
         );
         report.hint("Run `upstream hooks init` to create package metadata storage.");
@@ -207,7 +207,7 @@ pub(in crate::routines::doctor) fn check_package_metadata_file(
             Level::Warn,
             format!(
                 "Package database missing: {}",
-                paths.config.packages_database_file.display()
+                paths.metadata.packages_database_file.display()
             ),
         );
         report.hint("Run `upstream hooks init` to create package metadata storage.");

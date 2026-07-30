@@ -540,7 +540,8 @@ mod tests {
     async fn fix_version_tag_templates_uses_v_template_without_network() {
         let root = test_support::temp_root("upstream-doctor-test", "version-tag-template");
         let paths = test_support::upstream_paths(&root);
-        let mut db = PackageDatabase::open(&paths.config.packages_database_file).expect("open db");
+        let mut db =
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("open db");
         let mut package = Package::with_defaults(
             "codex".to_string(),
             "openai/codex".to_string(),

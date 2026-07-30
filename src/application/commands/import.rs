@@ -173,15 +173,15 @@ pub async fn run_import_profile(
     paths: &UpstreamPaths,
 ) -> Result<()> {
     let profile_config = ImportOperation::read_profile_config(&path)?;
-    let auth = AuthStorage::new(&paths.config.auth_file)?;
+    let auth = AuthStorage::new(&paths.metadata.auth_file)?;
     let provider_manager = ProviderManager::new(
         auth.get_auth().github.api_token.as_deref(),
         auth.get_auth().gitlab.api_token.as_deref(),
         auth.get_auth().gitea.api_token.as_deref(),
         profile_config.download,
     )?;
-    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
-    let trusted_keys = TrustStorage::new(&paths.config.trust_file)?.trusted_signature_keys();
+    let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
+    let trusted_keys = TrustStorage::new(&paths.metadata.trust_file)?.trusted_signature_keys();
     let mut import_op = ImportOperation::new(
         &provider_manager,
         &mut package_database,

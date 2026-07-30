@@ -122,7 +122,7 @@ pub async fn run(
     paths: &UpstreamPaths,
     app_config: &AppConfig,
 ) -> Result<()> {
-    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let name = resolve_new_package_name(
         name,
         &repo_slug,

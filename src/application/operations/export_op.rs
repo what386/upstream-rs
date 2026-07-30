@@ -122,7 +122,7 @@ impl<'a> ExportOperation<'a> {
     }
 
     fn keys_export(&self, exported_at: String) -> Result<KeysExport> {
-        let keys = TrustStorage::new(&self.paths.config.trust_file)?.trusted_signature_keys();
+        let keys = TrustStorage::new(&self.paths.metadata.trust_file)?.trusted_signature_keys();
         Ok(KeysExport {
             version: crate::storage::system::trust::TRUST_STORAGE_VERSION,
             exported_at,
@@ -209,7 +209,8 @@ mod tests {
     fn export_packages_fails_when_no_installed_packages_exist() {
         let root = temp_root("empty");
         let paths = test_paths(&root);
-        let storage = PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
+        let storage =
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
         let operation = ExportOperation::new(&storage, &paths);
         let output = root.join("packages.json");
         let mut progress: Option<fn(crate::services::packaging::OperationProgressEvent)> = None;
@@ -227,7 +228,7 @@ mod tests {
         let root = temp_root("packages");
         let paths = test_paths(&root);
         let mut storage =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
         let mut package = Package::with_defaults(
             "tool".to_string(),
             "owner/tool".to_string(),
@@ -275,7 +276,8 @@ mod tests {
             .expect("config storage")
             .save_config()
             .expect("save config");
-        let storage = PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
+        let storage =
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
         let operation = ExportOperation::new(&storage, &paths);
         let output = root.join("config.toml");
         let mut progress: Option<fn(crate::services::packaging::OperationProgressEvent)> = None;
@@ -300,7 +302,7 @@ mod tests {
             .save_config()
             .expect("save config");
         let mut storage =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
         let mut package = Package::with_defaults(
             "tool".to_string(),
             "owner/tool".to_string(),

@@ -462,9 +462,9 @@ mod tests {
     fn remove_runtime_integrations_requires_install_path() {
         let root = temp_root("runtime-missing-path");
         let paths = test_paths(&root);
-        fs::create_dir_all(paths.config.paths_file.parent().expect("parent"))
+        fs::create_dir_all(paths.generated.paths_file.parent().expect("parent"))
             .expect("create metadata dir");
-        fs::write(&paths.config.paths_file, "").expect("create paths file");
+        fs::write(&paths.generated.paths_file, "").expect("create paths file");
 
         let package = Package::with_defaults(
             "tool".to_string(),

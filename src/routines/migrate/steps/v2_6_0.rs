@@ -21,8 +21,8 @@ impl Step for V2_6_0 {
     }
 
     fn apply(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
-        let database_existed = paths.config.packages_database_file.exists();
-        let mut storage = PackageDatabase::open(&paths.config.packages_database_file)?;
+        let database_existed = paths.metadata.packages_database_file.exists();
+        let mut storage = PackageDatabase::open(&paths.metadata.packages_database_file)?;
         let packages = storage.list_packages()?;
         let packages = if legacy::legacy_package_metadata_exists(paths) && packages.is_empty() {
             let legacy_packages = legacy::load_legacy_package_metadata(paths)?;
@@ -43,14 +43,14 @@ impl Step for V2_6_0 {
 }
 
 fn package_database_schema_needs_migration(paths: &UpstreamPaths) -> Result<bool> {
-    if !paths.config.packages_database_file.exists() {
+    if !paths.metadata.packages_database_file.exists() {
         return Ok(false);
     }
 
-    let conn = Connection::open(&paths.config.packages_database_file).with_context(|| {
+    let conn = Connection::open(&paths.metadata.packages_database_file).with_context(|| {
         format!(
             "Failed to open package database '{}'",
-            paths.config.packages_database_file.display()
+            paths.metadata.packages_database_file.display()
         )
     })?;
     let schema_version = conn
@@ -64,14 +64,14 @@ fn legacy_packages_need_database_import(paths: &UpstreamPaths) -> Result<bool> {
     if !legacy::legacy_package_metadata_exists(paths) {
         return Ok(false);
     }
-    if !paths.config.packages_database_file.exists() {
+    if !paths.metadata.packages_database_file.exists() {
         return Ok(true);
     }
 
-    let conn = Connection::open(&paths.config.packages_database_file).with_context(|| {
+    let conn = Connection::open(&paths.metadata.packages_database_file).with_context(|| {
         format!(
             "Failed to open package database '{}'",
-            paths.config.packages_database_file.display()
+            paths.metadata.packages_database_file.display()
         )
     })?;
     let package_count = conn
@@ -158,7 +158,7 @@ mod tests {
         let paths = test_support::upstream_paths(&root);
         fs::create_dir_all(&paths.dirs.metadata_dir).expect("create metadata");
         fs::write(
-            &paths.config.packages_file,
+            &paths.metadata.packages_file,
             serde_json::to_vec_pretty(&serde_json::json!({
                 "version": 1,
                 "packages": [],
@@ -181,7 +181,7 @@ mod tests {
         fs::write(&binary, b"tool").expect("write binary");
         fs::create_dir_all(&paths.dirs.metadata_dir).expect("create metadata");
         fs::write(
-            &paths.config.packages_file,
+            &paths.metadata.packages_file,
             serde_json::to_vec_pretty(&serde_json::json!({
                 "version": 1,
                 "packages": [test_package("tool", binary.clone(), binary.clone())],
@@ -193,7 +193,7 @@ mod tests {
 
         run(&paths, &mut report).expect("migrate package database");
 
-        let migrated_storage = PackageDatabase::open(&paths.config.packages_database_file)
+        let migrated_storage = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("open migrated package database");
         let migrated_package = migrated_storage
             .get_package("tool")

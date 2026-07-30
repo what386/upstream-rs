@@ -48,10 +48,13 @@ pub(in crate::routines::doctor) fn check_path_integration(
 
 #[cfg(unix)]
 fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
-    if !paths.config.paths_file.exists() {
+    if !paths.generated.paths_file.exists() {
         report.line(
             Level::Warn,
-            format!("PATH file missing: {}", paths.config.paths_file.display()),
+            format!(
+                "PATH file missing: {}",
+                paths.generated.paths_file.display()
+            ),
         );
         return;
     }
@@ -61,7 +64,7 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
         paths.state.symlinks_dir.display()
     );
 
-    match fs::read_to_string(&paths.config.paths_file) {
+    match fs::read_to_string(&paths.generated.paths_file) {
         Ok(content) => {
             if content.contains(&expected_line) {
                 report.line(Level::Ok, "POSIX shell PATH integration file looks valid");
@@ -76,18 +79,18 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
             Level::Warn,
             format!(
                 "Failed to read PATH integration file '{}': {}",
-                paths.config.paths_file.display(),
+                paths.generated.paths_file.display(),
                 e
             ),
         ),
     }
 
-    if !paths.config.paths_nu_file.exists() {
+    if !paths.generated.paths_nu_file.exists() {
         report.line(
             Level::Warn,
             format!(
                 "Nushell PATH file missing: {}",
-                paths.config.paths_nu_file.display()
+                paths.generated.paths_nu_file.display()
             ),
         );
         return;
@@ -95,7 +98,7 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
 
     let expected_nushell_path = paths.state.symlinks_dir.display().to_string();
 
-    match fs::read_to_string(&paths.config.paths_nu_file) {
+    match fs::read_to_string(&paths.generated.paths_nu_file) {
         Ok(content) => {
             if nushell_paths_file_contains_path(&content, &expected_nushell_path) {
                 report.line(Level::Ok, "Nushell PATH integration file looks valid");
@@ -110,7 +113,7 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
             Level::Warn,
             format!(
                 "Failed to read Nushell PATH integration file '{}': {}",
-                paths.config.paths_nu_file.display(),
+                paths.generated.paths_nu_file.display(),
                 e
             ),
         ),
@@ -119,8 +122,8 @@ fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
 
 #[cfg(unix)]
 fn fix_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
-    let manager = ShellManager::new(&paths.config.paths_file);
-    let result = PackageDatabase::open(&paths.config.packages_database_file)
+    let manager = ShellManager::new(&paths.generated.paths_file);
+    let result = PackageDatabase::open(&paths.metadata.packages_database_file)
         .and_then(|mut package_database| manager.regenerate_paths(&mut package_database, paths));
     if let Err(err) = result {
         report.line(

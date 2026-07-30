@@ -29,7 +29,7 @@ struct PackageSettingsView {
 }
 
 pub fn run_set(name: String, assignments: Vec<String>, paths: &UpstreamPaths) -> Result<()> {
-    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let mut package = load_package(&package_database, &name)?;
     let mut settings = package_database
         .get_package_settings(&name)?
@@ -89,7 +89,7 @@ pub fn run_get(
     json: bool,
     paths: &UpstreamPaths,
 ) -> Result<()> {
-    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let package = load_package(&package_database, &name)?;
     let trust_mode = package_database
         .get_package_settings(&name)?
@@ -156,7 +156,7 @@ pub fn run_get(
 }
 
 pub fn run_unset(name: String, keys: Vec<PackageSettingKey>, paths: &UpstreamPaths) -> Result<()> {
-    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let mut package = load_package(&package_database, &name)?;
     let mut settings = package_database
         .get_package_settings(&name)?
@@ -217,7 +217,7 @@ fn selected_setting_keys(keys: Vec<PackageSettingKey>) -> Vec<PackageSettingKey>
 }
 
 pub fn run_pin(name: String, paths: &UpstreamPaths) -> Result<()> {
-    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let mut package_manager = MetadataManager::new(&mut package_database);
 
     println!("{}", output::title("Package pin"));
@@ -229,7 +229,7 @@ pub fn run_pin(name: String, paths: &UpstreamPaths) -> Result<()> {
 }
 
 pub fn run_unpin(name: String, paths: &UpstreamPaths) -> Result<()> {
-    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let mut package_manager = MetadataManager::new(&mut package_database);
 
     println!("{}", output::title("Package unpin"));
@@ -243,7 +243,7 @@ pub fn run_unpin(name: String, paths: &UpstreamPaths) -> Result<()> {
 pub fn run_rename(old_name: String, new_name: String, paths: &UpstreamPaths) -> Result<()> {
     let old_name = old_name.trim().to_string();
     let new_name = new_name.trim().to_string();
-    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
 
     println!("{}", output::title("Package rename"));
 
@@ -310,7 +310,7 @@ pub async fn run_rm_entry(name: String, paths: &UpstreamPaths) -> Result<()> {
 }
 
 fn load_installed_package(name: &str, paths: &UpstreamPaths) -> Result<(PackageDatabase, Package)> {
-    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let package = package_database
         .get_package(name)?
         .ok_or_else(|| anyhow::anyhow!("Package '{}' not found", name))?;

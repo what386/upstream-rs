@@ -32,8 +32,8 @@ impl Step for V2_12_0 {
             )
         })?;
 
-        let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
-        ShellManager::new(&paths.config.paths_file)
+        let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
+        ShellManager::new(&paths.generated.paths_file)
             .regenerate_paths(&mut package_database, paths)
             .context("Failed to regenerate generated PATH files")?;
 
@@ -239,9 +239,9 @@ mod tests {
         let root = temp_root("check-current");
         let paths = test_support::upstream_paths(&root);
         fs::create_dir_all(&paths.dirs.generated_dir).expect("create generated");
-        fs::write(&paths.config.paths_file, "#!/usr/bin/env sh\n").expect("write paths.sh");
+        fs::write(&paths.generated.paths_file, "#!/usr/bin/env sh\n").expect("write paths.sh");
         fs::write(
-            &paths.config.paths_nu_file,
+            &paths.generated.paths_nu_file,
             "# Upstream managed PATH additions\n",
         )
         .expect("write paths.nu");
@@ -264,7 +264,7 @@ mod tests {
         fs::write(&legacy_paths_file, "legacy paths").expect("write legacy paths.sh");
         fs::write(&legacy_paths_nu_file, "legacy paths").expect("write legacy paths.nu");
 
-        let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)
+        let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("create package database");
         let mut package = test_package(
             "tool",
@@ -290,15 +290,17 @@ mod tests {
         let mut report = MigrationReport::default();
         run(&paths, &mut report).expect("run migration");
 
-        assert!(paths.config.paths_file.exists());
-        assert!(paths.config.paths_nu_file.exists());
+        assert!(paths.generated.paths_file.exists());
+        assert!(paths.generated.paths_nu_file.exists());
         assert!(!legacy_paths_file.exists());
         assert!(!legacy_paths_nu_file.exists());
         assert!(paths.dirs.generated_dir.exists());
 
-        let migrated_config = fs::read_to_string(&paths.config.paths_file).expect("read paths.sh");
+        let migrated_config =
+            fs::read_to_string(&paths.generated.paths_file).expect("read paths.sh");
         assert!(migrated_config.contains(&paths.state.symlinks_dir.display().to_string()));
-        let migrated_nu = fs::read_to_string(&paths.config.paths_nu_file).expect("read paths.nu");
+        let migrated_nu =
+            fs::read_to_string(&paths.generated.paths_nu_file).expect("read paths.nu");
         assert!(migrated_nu.contains(&paths.state.symlinks_dir.display().to_string()));
 
         for shell in installed_shell_commands() {

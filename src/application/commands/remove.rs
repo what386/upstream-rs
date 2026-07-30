@@ -63,7 +63,7 @@ pub fn run(
     dry_run: bool,
     paths: &UpstreamPaths,
 ) -> Result<()> {
-    let mut package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
 
     if names.is_empty() {
         return Err(anyhow::anyhow!("At least one package name is required"));

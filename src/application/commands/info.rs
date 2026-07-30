@@ -9,7 +9,7 @@ use anyhow::{Result, anyhow};
 use std::{fmt::Write as _, path::Path};
 
 pub fn run(query: String, json: bool, paths: &UpstreamPaths) -> Result<()> {
-    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
 
     if json {
         return print_info_json(&package_database, &query);

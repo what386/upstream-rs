@@ -84,11 +84,11 @@ fn create_manifest_file(paths: &UpstreamPaths) -> Result<()> {
 }
 
 fn create_package_database_file(paths: &UpstreamPaths) -> Result<()> {
-    PackageDatabase::open(&paths.config.packages_database_file).map(|_| ())
+    PackageDatabase::open(&paths.metadata.packages_database_file).map(|_| ())
 }
 
 fn create_trust_file(paths: &UpstreamPaths) -> Result<()> {
-    TrustStorage::new(&paths.config.trust_file)?.ensure_exists()
+    TrustStorage::new(&paths.metadata.trust_file)?.ensure_exists()
 }
 
 pub fn purge_data(paths: &UpstreamPaths) -> Result<()> {
@@ -172,12 +172,12 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
         );
     }
 
-    if paths.config.trust_file.exists() {
+    if paths.metadata.trust_file.exists() {
         check_ok(
             &mut report,
             format!(
                 "trust metadata file exists: {}",
-                paths.config.trust_file.display()
+                paths.metadata.trust_file.display()
             ),
         );
     } else {
@@ -185,7 +185,7 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
             &mut report,
             format!(
                 "trust metadata file missing: {}",
-                paths.config.trust_file.display()
+                paths.metadata.trust_file.display()
             ),
         );
     }
@@ -296,8 +296,8 @@ fn create_default_config_file(paths: &UpstreamPaths) -> Result<()> {
 #[cfg(unix)]
 fn create_metadata_files(paths: &UpstreamPaths) -> io::Result<()> {
     let mut package_database =
-        PackageDatabase::open(&paths.config.packages_database_file).map_err(io::Error::other)?;
-    ShellManager::new(&paths.config.paths_file)
+        PackageDatabase::open(&paths.metadata.packages_database_file).map_err(io::Error::other)?;
+    ShellManager::new(&paths.generated.paths_file)
         .regenerate_paths(&mut package_database, paths)
         .map_err(io::Error::other)
 }
@@ -343,22 +343,22 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
         paths.state.symlinks_dir.display()
     );
 
-    if !paths.config.paths_file.exists() {
+    if !paths.generated.paths_file.exists() {
         check_fail(
             report,
             format!(
                 "PATH metadata file missing: {}",
-                paths.config.paths_file.display()
+                paths.generated.paths_file.display()
             ),
         );
     } else {
-        let content = fs::read_to_string(&paths.config.paths_file)?;
+        let content = fs::read_to_string(&paths.generated.paths_file)?;
         if content.contains(&expected_line) {
             check_ok(
                 report,
                 format!(
                     "PATH metadata file contains symlink export: {}",
-                    paths.config.paths_file.display()
+                    paths.generated.paths_file.display()
                 ),
             );
         } else {
@@ -366,7 +366,7 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
                 report,
                 format!(
                     "PATH metadata file missing expected export line: {}",
-                    paths.config.paths_file.display()
+                    paths.generated.paths_file.display()
                 ),
             );
         }
@@ -374,22 +374,22 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
 
     let expected_nushell_path = paths.state.symlinks_dir.display().to_string();
 
-    if !paths.config.paths_nu_file.exists() {
+    if !paths.generated.paths_nu_file.exists() {
         check_fail(
             report,
             format!(
                 "Nushell PATH metadata file missing: {}",
-                paths.config.paths_nu_file.display()
+                paths.generated.paths_nu_file.display()
             ),
         );
     } else {
-        let content = fs::read_to_string(&paths.config.paths_nu_file)?;
+        let content = fs::read_to_string(&paths.generated.paths_nu_file)?;
         if nushell_paths_file_contains_path(&content, &expected_nushell_path) {
             check_ok(
                 report,
                 format!(
                     "Nushell PATH metadata file contains symlink path: {}",
-                    paths.config.paths_nu_file.display()
+                    paths.generated.paths_nu_file.display()
                 ),
             );
         } else {
@@ -397,7 +397,7 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
                 report,
                 format!(
                     "Nushell PATH metadata file missing expected symlink path: {}",
-                    paths.config.paths_nu_file.display()
+                    paths.generated.paths_nu_file.display()
                 ),
             );
         }
@@ -592,7 +592,8 @@ mod tests {
     use super::purge_data;
     use crate::storage::manifest::{CURRENT_LAYOUT_VERSION, MANIFEST_FILE_NAME};
     use crate::utils::static_paths::{
-        AppDirs, ConfigPaths, InstallPaths, IntegrationPaths, StatePaths, UpstreamPaths,
+        AppDirs, ConfigPaths, GeneratedPaths, InstallPaths, IntegrationPaths, MetadataPaths,
+        StatePaths, UpstreamPaths,
     };
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -621,10 +622,14 @@ mod tests {
         UpstreamPaths {
             config: ConfigPaths {
                 config_file: dirs.config_dir.join("config.toml"),
-                auth_file: dirs.config_dir.join("auth.toml"),
+            },
+            metadata: MetadataPaths {
+                auth_file: dirs.metadata_dir.join("auth.toml"),
                 packages_file: dirs.metadata_dir.join("packages.json"),
                 packages_database_file: dirs.metadata_dir.join("packages.db"),
                 trust_file: dirs.metadata_dir.join("trust.json"),
+            },
+            generated: GeneratedPaths {
                 paths_file: dirs.generated_dir.join("paths.sh"),
                 paths_nu_file: dirs.generated_dir.join("paths.nu"),
             },
@@ -638,6 +643,7 @@ mod tests {
                 rollback_dir: dirs.state_dir.join("rollback"),
                 symlinks_dir: dirs.state_dir.join("symlinks"),
                 icons_dir: dirs.state_dir.join("icons"),
+                lock_file: dirs.state_dir.join("lock"),
             },
             integration: IntegrationPaths {
                 xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
@@ -689,7 +695,7 @@ mod tests {
         super::create_trust_file(&paths).expect("create trust file");
 
         let trust: serde_json::Value =
-            serde_json::from_slice(&fs::read(&paths.config.trust_file).expect("read trust file"))
+            serde_json::from_slice(&fs::read(&paths.metadata.trust_file).expect("read trust file"))
                 .expect("parse trust file");
         assert_eq!(trust["version"].as_u64(), Some(1));
         assert_eq!(
@@ -770,12 +776,12 @@ mod tests {
 
         super::create_metadata_files(&paths).expect("create metadata files");
 
-        let posix_content = fs::read_to_string(&paths.config.paths_file).expect("read paths.sh");
+        let posix_content = fs::read_to_string(&paths.generated.paths_file).expect("read paths.sh");
         assert!(posix_content.contains("export PATH="));
         assert!(posix_content.contains(&paths.state.symlinks_dir.display().to_string()));
 
         let nushell_content =
-            fs::read_to_string(&paths.config.paths_nu_file).expect("read paths.nu");
+            fs::read_to_string(&paths.generated.paths_nu_file).expect("read paths.nu");
         assert!(nushell_content.contains("let upstream_paths = ["));
         assert!(nushell_content.contains("$env.PATH = ($upstream_paths ++ $env.PATH)"));
         assert!(nushell_content.contains(&paths.state.symlinks_dir.display().to_string()));

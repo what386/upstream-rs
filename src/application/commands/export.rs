@@ -20,7 +20,7 @@ fn render_export_progress(event: OperationProgressEvent) -> String {
 }
 
 pub fn run_export_packages(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
-    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let export_op = ExportOperation::new(&package_database, paths);
     let pb = new_export_progress_bar();
     let progress_pb = pb.clone();
@@ -41,7 +41,7 @@ pub fn run_export_packages(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
 }
 
 pub fn run_export_keys(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
-    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let export_op = ExportOperation::new(&package_database, paths);
     let pb = new_export_progress_bar();
     let progress_pb = pb.clone();
@@ -62,7 +62,7 @@ pub fn run_export_keys(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
 }
 
 pub fn run_export_config(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
-    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let export_op = ExportOperation::new(&package_database, paths);
     let pb = new_export_progress_bar();
     let progress_pb = pb.clone();
@@ -83,7 +83,7 @@ pub fn run_export_config(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
 }
 
 pub fn run_export_profile(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
-    let package_database = PackageDatabase::open(&paths.config.packages_database_file)?;
+    let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let export_op = ExportOperation::new(&package_database, paths);
     let pb = new_export_progress_bar();
     let progress_pb = pb.clone();

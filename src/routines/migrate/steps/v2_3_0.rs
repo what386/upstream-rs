@@ -28,7 +28,7 @@ impl Step for V2_3_0 {
     }
 
     fn apply(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
-        let mut trust_storage = TrustStorage::new(&paths.config.trust_file)?;
+        let mut trust_storage = TrustStorage::new(&paths.metadata.trust_file)?;
         let Some(legacy_trust) = legacy_trust_config(paths)? else {
             trust_storage.ensure_exists()?;
             return Ok(());
@@ -88,7 +88,7 @@ fn legacy_trust_needs_migration(paths: &UpstreamPaths) -> Result<bool> {
     let Some(legacy_trust) = legacy_trust_config(paths)? else {
         return Ok(false);
     };
-    let trust_storage = TrustStorage::new(&paths.config.trust_file)?;
+    let trust_storage = TrustStorage::new(&paths.metadata.trust_file)?;
     let trusted_keys = trust_storage.trusted_signature_keys();
 
     let missing_minisign = legacy_trust.minisign_public_keys.iter().any(|legacy_key| {
@@ -164,7 +164,7 @@ mod tests {
 
         assert_eq!(report.migrated_trusted_keys, 2);
         let trust_json: serde_json::Value = serde_json::from_slice(
-            &fs::read(&paths.config.trust_file).expect("read trust storage"),
+            &fs::read(&paths.metadata.trust_file).expect("read trust storage"),
         )
         .expect("parse trust storage");
         assert_eq!(

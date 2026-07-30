@@ -146,7 +146,7 @@ mod tests {
         package.install_path = Some(install_path.clone());
         package.exec_path = Some(install_path.clone());
         let mut database =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("open database");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
         database.upsert_package(&package).expect("store package");
         SymlinkManager::new(&paths.state.symlinks_dir)
             .add_link(&install_path, name)
@@ -190,7 +190,7 @@ mod tests {
         .expect("capture rollback");
 
         let mut database =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("open database");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
         assert_eq!(
             rename_package(&mut database, &paths, "old", "new").expect("rename package"),
             RenameOutcome::Renamed
@@ -244,7 +244,7 @@ mod tests {
         .expect("write colliding desktop");
 
         let mut database =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("open database");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
         let error = rename_package(&mut database, &paths, "old", "new")
             .expect_err("desktop collision should fail rename");
 

@@ -269,7 +269,7 @@ fn migrate_package_json_metadata(
 
     if changed {
         write_json(
-            &paths.config.packages_file,
+            &paths.metadata.packages_file,
             &PackageStorageFile {
                 version: PACKAGE_STORAGE_VERSION,
                 packages: packages.clone(),
@@ -507,7 +507,7 @@ mod tests {
         let package = test_package("tool", old_binary.clone(), old_binary.clone());
         fs::create_dir_all(&paths.dirs.metadata_dir).expect("create metadata");
         fs::write(
-            &paths.config.packages_file,
+            &paths.metadata.packages_file,
             serde_json::to_vec_pretty(&json!({
                 "version": 1,
                 "packages": [package],
@@ -527,7 +527,7 @@ mod tests {
         assert_eq!(report.updated_packages, 1);
 
         let migrated: serde_json::Value = serde_json::from_slice(
-            &fs::read(&paths.config.packages_file).expect("read migrated packages"),
+            &fs::read(&paths.metadata.packages_file).expect("read migrated packages"),
         )
         .expect("parse migrated packages");
         assert_eq!(

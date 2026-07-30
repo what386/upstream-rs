@@ -247,7 +247,7 @@ impl<'a> RemoveOperation<'a> {
             ))?;
 
         let paths = self.remover.paths();
-        ShellManager::new(&paths.config.paths_file)
+        ShellManager::new(&paths.generated.paths_file)
             .regenerate_paths(self.package_database, paths)
             .context(format!(
                 "Failed to regenerate PATH integration after removing '{}'",
@@ -313,10 +313,10 @@ mod tests {
     fn remove_single_returns_error_for_missing_package() {
         let root = temp_root("missing");
         let paths = test_paths(&root);
-        fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
+        fs::create_dir_all(paths.metadata.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
         let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
         let mut remove_progress: Option<fn(&str, PackageProgressEvent)> = None;
@@ -333,10 +333,10 @@ mod tests {
     fn remove_bulk_reports_failures_for_missing_packages() {
         let root = temp_root("bulk");
         let paths = test_paths(&root);
-        fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
+        fs::create_dir_all(paths.metadata.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
         let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
         let mut progress_calls = Vec::new();
@@ -368,7 +368,7 @@ mod tests {
         let root = temp_root("no-rollback");
         let paths = test_paths(&root);
         fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
-        fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
+        fs::create_dir_all(paths.metadata.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
 
         let install_path = paths.install.binaries_dir.join("tool");
@@ -388,7 +388,7 @@ mod tests {
         package.exec_path = Some(install_path.clone());
 
         let mut storage =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
         storage.upsert_package(&package).expect("store package");
 
         let mut op = RemoveOperation::new(&mut storage, &paths);
@@ -409,10 +409,10 @@ mod tests {
     fn preview_bulk_preserves_order_and_reports_missing_packages() {
         let root = temp_root("preview-order");
         let paths = test_paths(&root);
-        fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
+        fs::create_dir_all(paths.metadata.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
         let package = Package::with_defaults(
             "tool".to_string(),
             "owner/tool".to_string(),
@@ -445,10 +445,10 @@ mod tests {
     fn preview_bulk_reports_missing_without_mutating_storage() {
         let root = temp_root("preview-bulk");
         let paths = test_paths(&root);
-        fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
+        fs::create_dir_all(paths.metadata.packages_file.parent().expect("parent"))
             .expect("create metadata dir");
         let mut storage =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("storage");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
         let op = RemoveOperation::new(&mut storage, &paths);
 
         let names = vec!["a".to_string(), "b".to_string()];
@@ -462,7 +462,7 @@ mod tests {
         );
 
         let persisted =
-            PackageDatabase::open(&paths.config.packages_database_file).expect("storage reload");
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage reload");
         assert!(persisted.list_packages().expect("list packages").is_empty());
 
         cleanup(&root).expect("cleanup");

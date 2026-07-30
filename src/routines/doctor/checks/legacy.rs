@@ -51,11 +51,11 @@ pub fn previous_layout_version_hint(paths: &UpstreamPaths) -> Option<u32> {
 }
 
 pub fn legacy_package_metadata_exists(paths: &UpstreamPaths) -> bool {
-    paths.config.packages_file.exists()
+    paths.metadata.packages_file.exists()
 }
 
 pub fn load_legacy_package_metadata(paths: &UpstreamPaths) -> Result<Vec<Package>> {
-    let packages_file = &paths.config.packages_file;
+    let packages_file = &paths.metadata.packages_file;
     let json = fs::read_to_string(packages_file).with_context(|| {
         format!(
             "Failed to read package storage '{}'",
@@ -148,10 +148,10 @@ mod tests {
     fn load_legacy_package_metadata_reads_versioned_json() {
         let root = temp_root("legacy-package-json");
         let paths = test_support::upstream_paths(&root);
-        fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
+        fs::create_dir_all(paths.metadata.packages_file.parent().expect("parent"))
             .expect("create parent");
         fs::write(
-            &paths.config.packages_file,
+            &paths.metadata.packages_file,
             serde_json::json!({
                 "version": super::LEGACY_PACKAGE_STORAGE_VERSION,
                 "packages": [test_package("tool")]
@@ -172,10 +172,10 @@ mod tests {
     fn load_legacy_package_metadata_rejects_unsupported_version() {
         let root = temp_root("legacy-package-json-bad-version");
         let paths = test_support::upstream_paths(&root);
-        fs::create_dir_all(paths.config.packages_file.parent().expect("parent"))
+        fs::create_dir_all(paths.metadata.packages_file.parent().expect("parent"))
             .expect("create parent");
         fs::write(
-            &paths.config.packages_file,
+            &paths.metadata.packages_file,
             r#"{"version":2,"packages":[]}"#,
         )
         .expect("write packages");
