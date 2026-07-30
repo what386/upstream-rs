@@ -1,6 +1,17 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-07-23*
+*Generated on 2026-07-30*
+
+## 2.15.3 — 2026-07-30
+
+### Changes
+
+- Harden package replacement transactions `packaging`, `correctness` ([`e53a199`])
+- Make package rename transactional `package`, `correctness` ([`892fa74`])
+- Centralize new package name resolution `cli`, `ux` ([`78e8044`])
+- Reuse package import validation `import`, `cleanup` ([`91148f8`])
+- Remove registry binary name guard `registry`, `cleanup` ([`b388371`])
+
 
 ## 2.15.2 — 2026-07-23
 
