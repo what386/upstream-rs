@@ -21,3 +21,6 @@
 - [ ] Centralize new package name resolution #cli #ux
       @created 2026-07-30 21:02
 
+- [ ] Reuse package import validation #import #cleanup
+      @created 2026-07-30 21:02
+
