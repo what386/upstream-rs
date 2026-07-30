@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-07-23
+@modified: 2026-07-30
 
 
 ## Tasks
@@ -11,4 +11,7 @@
 
 - [ ] consider: crash recovery
       @created 2026-07-22 23:44
+
+- [ ] Harden package replacement transactions #packaging #correctness
+      @created 2026-07-30 21:02
 
