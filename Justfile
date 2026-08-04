@@ -28,8 +28,12 @@ integration-tests:
 verify-release:
     just lint
     just test
+    just install-script-tests
     just integration-tests
     just registry-validate
+
+install-script-tests:
+    python3 -m unittest discover -s tests/install -p 'test_*.py'
 
 registry-validate:
     python3 scripts/registry/validate.py
