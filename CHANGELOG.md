@@ -1,6 +1,16 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-07-30*
+*Generated on 2026-08-04*
+
+## 2.15.4 — 2026-08-04
+
+### Changes
+
+- Verify bootstrap downloads with published SHA-256 checksums
+- Reject unsupported bootstrap architectures before downloading.
+- Support UTF-16 LE/BE checksum manifests.
+- Complete the existing registry trust-policy item using commit
+
 
 ## 2.15.3 — 2026-07-30
 
