@@ -21,13 +21,17 @@
 - [ ] docs: document contributor workflows and architecture invariants
       @created 2026-08-04 21:58
 
-- [ ] Reject unsupported bootstrap architectures before downloading.
+- [ ] Support UTF-16 LE/BE checksum manifests.
       @created 2026-08-04 23:35
 
 
 ## Completed
 
 - [x] Verify bootstrap downloads with published SHA-256 checksums
+      @created 2026-08-04 23:35
+      @completed 2026-08-04 23:35
+
+- [x] Reject unsupported bootstrap architectures before downloading.
       @created 2026-08-04 23:35
       @completed 2026-08-04 23:35
 
