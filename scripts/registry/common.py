@@ -166,12 +166,14 @@ def validate_entry(path: Path, entry: object) -> list[str]:
         if key in entry:
             errors.extend(validate_patterns(path, key, entry[key]))
 
-    errors.extend(validate_install(path, entry.get("install"), keys))
+    errors.extend(validate_install(path, entry.get("install"), keys, trust))
 
     return errors
 
 
-def validate_install(path: Path, install: object, entry_keys: set[str]) -> list[str]:
+def validate_install(
+    path: Path, install: object, entry_keys: set[str], trust: object
+) -> list[str]:
     if not isinstance(install, dict):
         return [f"{path}: 'install' must be a table"]
 
@@ -208,6 +210,8 @@ def validate_install(path: Path, install: object, entry_keys: set[str]) -> list[
             )
 
     if install_type == "build":
+        if trust != "none":
+            errors.append(f"{path}: build installs must use trust = 'none'")
         profile = install.get("profile")
         if profile is not None and (
             not isinstance(profile, str) or profile not in BUILD_PROFILES

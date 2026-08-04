@@ -151,7 +151,7 @@ def entry_from_record(record: dict[str, Any], trust: str) -> tuple[str, dict[str
         "name": name,
         "revision": 1,
         "desktop": record.get("icon_path") is not None,
-        "trust": trust,
+        "trust": "none" if install["type"] == "build" else trust,
         "install": install,
     }
     if binary != name:

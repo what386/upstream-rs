@@ -190,6 +190,34 @@ class RegistryTests(unittest.TestCase):
 
             self.assertEqual(packages["Audacity Editor"]["binary"], "Audacity App")
 
+    def test_build_installs_require_no_trust_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            packages_dir = Path(directory)
+            (packages_dir / "tool.toml").write_text(
+                "\n".join(
+                    [
+                        'name = "tool"',
+                        "revision = 1",
+                        "desktop = false",
+                        'trust = "best-effort"',
+                        "[install]",
+                        'type = "build"',
+                        'repo = "https://github.com/owner/tool"',
+                        'provider = "github"',
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaises(COMMON.RegistryValidationError) as raised:
+                COMMON.load_registry(packages_dir)
+
+            self.assertIn("build installs must use trust = 'none'", str(raised.exception))
+
+            path = packages_dir / "tool.toml"
+            path.write_text(path.read_text().replace('trust = "best-effort"', 'trust = "none"'))
+            self.assertEqual(COMMON.load_registry(packages_dir)["tool"]["trust"], "none")
+
     def test_revision_changes_are_enforced(self) -> None:
         previous = {
             "unchanged": {"revision": 4, "repo": "https://example.com/unchanged"},
@@ -326,6 +354,7 @@ class RegistryTests(unittest.TestCase):
                 (packages_dir / "source-tool.toml").read_text(encoding="utf-8")
             )
             self.assertEqual(build_package["install"]["type"], "build")
+            self.assertEqual(build_package["trust"], "none")
 
     def test_list_import_bootstraps_an_empty_registry(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
