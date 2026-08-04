@@ -1,8 +1,8 @@
 name = "ripgrep"
-revision = 1
+revision = 2
 binary = "rg"
 desktop = false
-trust = "best-effort"
+trust = "checksum"
 
 [install]
 type = "release"

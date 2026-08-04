@@ -1,8 +1,8 @@
 name = "cli"
-revision = 1
+revision = 2
 binary = "gh"
 desktop = false
-trust = "best-effort"
+trust = "checksum"
 
 [install]
 type = "release"

@@ -2,9 +2,9 @@
   "version": 1,
   "packages": {
     "actionlint": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/rhysd/actionlint",
@@ -12,9 +12,9 @@
       }
     },
     "arduino-cli": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/arduino/arduino-cli",
@@ -63,9 +63,9 @@
       }
     },
     "binwalk": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "none",
       "install": {
         "type": "build",
         "repo": "https://github.com/ReFirmLabs/binwalk",
@@ -114,9 +114,9 @@
       }
     },
     "chezmoi": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/twpayne/chezmoi",
@@ -124,10 +124,10 @@
       }
     },
     "cli": {
-      "revision": 1,
+      "revision": 2,
       "binary": "gh",
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/cli/cli",
@@ -155,9 +155,9 @@
       }
     },
     "cosign": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/sigstore/cosign",
@@ -175,9 +175,9 @@
       }
     },
     "dotenvx": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/dotenvx/dotenvx",
@@ -205,9 +205,9 @@
       }
     },
     "dz6": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/mentebinaria/dz6",
@@ -225,9 +225,9 @@
       }
     },
     "fcp": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "none",
       "install": {
         "type": "build",
         "repo": "https://github.com/Svetlitski/fcp",
@@ -245,9 +245,9 @@
       }
     },
     "forge": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/what386/forge",
@@ -276,9 +276,9 @@
       }
     },
     "fzf": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/junegunn/fzf",
@@ -296,9 +296,9 @@
       }
     },
     "glow": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/charmbracelet/glow",
@@ -306,9 +306,9 @@
       }
     },
     "just": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/casey/just",
@@ -316,9 +316,9 @@
       }
     },
     "lazysql": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/jorgerojas26/lazysql",
@@ -434,10 +434,10 @@
       }
     },
     "ripgrep": {
-      "revision": 1,
+      "revision": 2,
       "binary": "rg",
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/BurntSushi/ripgrep",
@@ -445,9 +445,9 @@
       }
     },
     "riprip": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "none",
       "install": {
         "type": "build",
         "repo": "https://github.com/Blobfolio/riprip",
@@ -455,9 +455,9 @@
       }
     },
     "scrcpy": {
-      "revision": 1,
+      "revision": 2,
       "desktop": true,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/Genymobile/scrcpy",
@@ -475,9 +475,9 @@
       }
     },
     "starship": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/starship/starship",
@@ -495,10 +495,10 @@
       }
     },
     "taskwarrior": {
-      "revision": 1,
+      "revision": 2,
       "binary": "task",
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "none",
       "install": {
         "type": "build",
         "repo": "https://github.com/GothenburgBitFactory/taskwarrior",
@@ -556,9 +556,9 @@
       }
     },
     "yq": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "checksum",
       "install": {
         "type": "release",
         "repo": "https://github.com/mikefarah/yq",
@@ -566,9 +566,9 @@
       }
     },
     "zsync": {
-      "revision": 1,
+      "revision": 2,
       "desktop": false,
-      "trust": "best-effort",
+      "trust": "none",
       "install": {
         "type": "build",
         "repo": "https://github.com/cph6/zsync",

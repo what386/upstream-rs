@@ -1,8 +1,8 @@
 name = "taskwarrior"
-revision = 1
+revision = 2
 binary = "task"
 desktop = false
-trust = "best-effort"
+trust = "none"
 
 [install]
 type = "build"

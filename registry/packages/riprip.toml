@@ -1,7 +1,7 @@
 name = "riprip"
-revision = 1
+revision = 2
 desktop = false
-trust = "best-effort"
+trust = "none"
 
 [install]
 type = "build"

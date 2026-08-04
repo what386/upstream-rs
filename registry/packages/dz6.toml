@@ -1,7 +1,7 @@
 name = "dz6"
-revision = 1
+revision = 2
 desktop = false
-trust = "best-effort"
+trust = "checksum"
 
 [install]
 type = "release"

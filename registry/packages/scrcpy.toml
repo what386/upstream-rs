@@ -1,7 +1,7 @@
 name = "scrcpy"
-revision = 1
+revision = 2
 desktop = true
-trust = "best-effort"
+trust = "checksum"
 
 [install]
 type = "release"
