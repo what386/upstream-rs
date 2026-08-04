@@ -8,6 +8,7 @@ This directory contains the detailed reference material for Upstream. The README
 - [Command reference](commands.md): full command overview with common options.
 - [Package lifecycle](packages.md): install, upgrade, remove, reinstall, rollback, and pinning.
 - [Building from source](build.md): source-build behavior and supported build profiles.
+- [Package registry maintenance](registry.md): trust policy, auditing, and index generation.
 - [Configuration](configuration.md): config file layout, provider tokens, and package metadata.
 - [Trust and verification](trust.md): checksum/signature modes and trusted key imports.
 - [Backup, import, and export](backup.md): config, package, key, and profile export/import workflows.
