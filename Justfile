@@ -20,8 +20,16 @@ integration-tests:
     python3 tests/integration/pkg_rollback.py
     python3 tests/integration/state_mutations.py
     python3 tests/integration/pkg_export_import.py
+    python3 tests/integration/pkg_upgrade_failure.py
+    python3 tests/integration/pkg_upgrade_interrupt.py
     python3 tests/integration/pkg_install.py
     python3 tests/integration/pkg_remove.py
+
+verify-release:
+    just lint
+    just test
+    just integration-tests
+    just registry-validate
 
 registry-validate:
     python3 scripts/registry/validate.py
@@ -47,8 +55,6 @@ prepare version:
     scripts/release/prepare.sh {{version}}
 
 promote:
-    just lint
-    just test
     scripts/release/promote.sh
 
 publish version:
