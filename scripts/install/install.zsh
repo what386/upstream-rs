@@ -23,6 +23,44 @@ detect_arch() {
   esac
 }
 
+download_file() {
+  local url="$1"
+  local destination="$2"
+
+  if command -v curl &>/dev/null; then
+    curl -fsSL "$url" -o "$destination"
+  elif command -v wget &>/dev/null; then
+    wget -q "$url" -O "$destination"
+  else
+    echo -e "${RED}Error: Neither curl nor wget found. Please install one.${NC}" >&2
+    exit 1
+  fi
+}
+
+verify_checksum() {
+  local expected actual
+  expected="$(awk -v asset="$ASSET_NAME" '$2 == asset || $2 == "*" asset { print tolower($1); exit }' "$CHECKSUM_FILE")"
+
+  if [[ -z "$expected" ]]; then
+    echo -e "${RED}Error: No checksum found for ${ASSET_NAME}.${NC}" >&2
+    exit 1
+  fi
+
+  if command -v sha256sum &>/dev/null; then
+    actual="$(sha256sum "$TMP_FILE" | awk '{ print tolower($1) }')"
+  elif command -v shasum &>/dev/null; then
+    actual="$(shasum -a 256 "$TMP_FILE" | awk '{ print tolower($1) }')"
+  else
+    echo -e "${RED}Error: Neither sha256sum nor shasum found.${NC}" >&2
+    exit 1
+  fi
+
+  if [[ "$actual" != "$expected" ]]; then
+    echo -e "${RED}Error: Checksum verification failed for ${ASSET_NAME}.${NC}" >&2
+    exit 1
+  fi
+}
+
 choose_existing_data_action() {
   if [[ ! -e "$UPSTREAM_DIR" ]]; then
     echo "new"
@@ -98,28 +136,30 @@ main() {
 
   ARCH="$(detect_arch)"
 
-  if [ "$ARCH" = "unknown" ]; then
-    echo -e "${RED}Error: Unsupported architecture ($ARCH)${NC}"
-    exit 1
-  fi
+  case "$ARCH" in
+    x86_64|aarch64) ;;
+    *)
+      echo -e "${RED}Error: Unsupported architecture: $(uname -m)${NC}" >&2
+      exit 1
+      ;;
+  esac
 
   echo "Detected OS: $OS"
   echo "Detected Architecture: $ARCH"
 
-  DOWNLOAD_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/${BINARY_NAME}-${ARCH}-${OS}"
+  ASSET_NAME="${BINARY_NAME}-${ARCH}-${OS}"
+  DOWNLOAD_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/${ASSET_NAME}"
+  CHECKSUM_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/SHA256SUMS.txt"
   echo "Downloading from: $DOWNLOAD_URL"
 
   TMP_DIR="$(mktemp -d)"
+  trap 'rm -rf "$TMP_DIR"' EXIT
   TMP_FILE="${TMP_DIR}/${BINARY_NAME}"
+  CHECKSUM_FILE="${TMP_DIR}/SHA256SUMS.txt"
 
-  if command -v curl &>/dev/null; then
-    curl -fsSL "$DOWNLOAD_URL" -o "$TMP_FILE"
-  elif command -v wget &>/dev/null; then
-    wget -q "$DOWNLOAD_URL" -O "$TMP_FILE"
-  else
-    echo -e "${RED}Error: Neither curl nor wget found. Please install one.${NC}"
-    exit 1
-  fi
+  download_file "$DOWNLOAD_URL" "$TMP_FILE"
+  download_file "$CHECKSUM_URL" "$CHECKSUM_FILE"
+  verify_checksum
 
   chmod +x "$TMP_FILE"
   echo -e "${GREEN}Download complete!${NC}"
@@ -135,7 +175,6 @@ main() {
   run_upstream hooks init
   install_upstream_if_missing
 
-  rm -rf "$TMP_DIR"
   echo -e "${GREEN}Installation complete!${NC}"
 }
 

@@ -79,6 +79,31 @@ function Detect-Arch {
     return "unknown"
 }
 
+function Confirm-Checksum {
+    param(
+        [string]$Binary,
+        [string]$ChecksumFile,
+        [string]$AssetName
+    )
+
+    $expected = $null
+    foreach ($line in Get-Content -LiteralPath $ChecksumFile) {
+        if ($line -match '^([A-Fa-f0-9]{64})\s+\*?(.+)$' -and $Matches[2] -eq $AssetName) {
+            $expected = $Matches[1]
+            break
+        }
+    }
+
+    if (-not $expected) {
+        throw "No checksum found for $AssetName."
+    }
+
+    $actual = (Get-FileHash -LiteralPath $Binary -Algorithm SHA256).Hash
+    if (-not $actual.Equals($expected, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Checksum verification failed for $AssetName."
+    }
+}
+
 function Select-ExistingDataAction {
     if (-not (Test-Path $UPSTREAM_DIR)) {
         return "new"
@@ -179,17 +204,22 @@ function Main {
 
     Write-Host "Detected Architecture: $ARCH"
 
-    $DOWNLOAD_URL = "https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/${BINARY_NAME}-${ARCH}-pc-windows-msvc.exe"
+    $ASSET_NAME = "${BINARY_NAME}-${ARCH}-pc-windows-msvc.exe"
+    $DOWNLOAD_URL = "https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/${ASSET_NAME}"
+    $CHECKSUM_URL = "https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/SHA256SUMS.txt"
 
     Write-Host "Downloading from: $DOWNLOAD_URL"
 
     # Create temporary directory
     $TMP_DIR = New-Item -ItemType Directory -Path ([System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), [System.IO.Path]::GetRandomFileName()))
     $TMP_FILE = Join-Path $TMP_DIR "${BINARY_NAME}.exe"
+    $CHECKSUM_FILE = Join-Path $TMP_DIR "SHA256SUMS.txt"
 
     try {
         # Download file
         Invoke-WebRequest -Uri $DOWNLOAD_URL -OutFile $TMP_FILE -UseBasicParsing
+        Invoke-WebRequest -Uri $CHECKSUM_URL -OutFile $CHECKSUM_FILE -UseBasicParsing
+        Confirm-Checksum -Binary $TMP_FILE -ChecksumFile $CHECKSUM_FILE -AssetName $ASSET_NAME
 
         Write-ColorOutput "Download complete!" $GREEN
 
