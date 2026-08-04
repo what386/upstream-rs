@@ -18,3 +18,6 @@
 - [ ] refactor: replace high-arity command dispatch calls with typed request structs
       @created 2026-08-04 21:58
 
+- [ ] docs: document contributor workflows and architecture invariants
+      @created 2026-08-04 21:58
+
