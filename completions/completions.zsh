@@ -70,7 +70,7 @@ _arguments "${_arguments_options[@]}" : \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':repo_slug -- Repository identifier or direct download URL:_default' \
-'::name -- Name to register the application under (falls back to git repository name when omitted):_default' \
+'::name -- Name to register; omitted names are prompted for (forge repositories get an inferred default):_default' \
 && ret=0
 ;;
 (build)
@@ -94,8 +94,8 @@ _arguments "${_arguments_options[@]}" : \
 '--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':repo_slug -- Repository identifier or git URL:_default' \
-'::name -- Name to register the application under (falls back to git repository name when omitted):_default' \
+':repo_slug -- GitHub, GitLab, or Gitea repository identifier or URL:_default' \
+'::name -- Name to register; omitted names are prompted for with an inferred default:_default' \
 && ret=0
 ;;
 (remove)
@@ -185,7 +185,7 @@ _arguments "${_arguments_options[@]}" : \
 '--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':query -- Package name or unique substring for detailed information:_default' \
+':query -- Exact installed package name for detailed information:_default' \
 && ret=0
 ;;
 (changelog)
@@ -873,7 +873,7 @@ _arguments "${_arguments_options[@]}" : \
 (packages)
 _arguments "${_arguments_options[@]}" : \
 '--skip-failed[Continue installing remaining packages after a package import fails]' \
-'--latest[Ignore exported version tags and install latest releases]' \
+'--latest[Ignore exported tags and re-resolve release and non-branch build packages]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
 '--no-pager[Prevent paging long command outputs]' \
@@ -885,7 +885,7 @@ _arguments "${_arguments_options[@]}" : \
 (profile)
 _arguments "${_arguments_options[@]}" : \
 '--skip-failed[Continue installing remaining packages after a package import fails]' \
-'--latest[Ignore exported package version tags and install latest releases]' \
+'--latest[Ignore exported tags and re-resolve release and non-branch build packages]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
 '--no-pager[Prevent paging long command outputs]' \

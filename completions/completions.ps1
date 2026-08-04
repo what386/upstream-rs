@@ -712,7 +712,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         }
         'upstream;import;packages' {
             [CompletionResult]::new('--skip-failed', '--skip-failed', [CompletionResultType]::ParameterName, 'Continue installing remaining packages after a package import fails')
-            [CompletionResult]::new('--latest', '--latest', [CompletionResultType]::ParameterName, 'Ignore exported version tags and install latest releases')
+            [CompletionResult]::new('--latest', '--latest', [CompletionResultType]::ParameterName, 'Ignore exported tags and re-resolve release and non-branch build packages')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
             [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
@@ -722,7 +722,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         }
         'upstream;import;profile' {
             [CompletionResult]::new('--skip-failed', '--skip-failed', [CompletionResultType]::ParameterName, 'Continue installing remaining packages after a package import fails')
-            [CompletionResult]::new('--latest', '--latest', [CompletionResultType]::ParameterName, 'Ignore exported package version tags and install latest releases')
+            [CompletionResult]::new('--latest', '--latest', [CompletionResultType]::ParameterName, 'Ignore exported tags and re-resolve release and non-branch build packages')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
             [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')

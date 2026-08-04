@@ -627,7 +627,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;import;packages'= {
             cand --skip-failed 'Continue installing remaining packages after a package import fails'
-            cand --latest 'Ignore exported version tags and install latest releases'
+            cand --latest 'Ignore exported tags and re-resolve release and non-branch build packages'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
             cand --no-pager 'Prevent paging long command outputs'
@@ -636,7 +636,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
         &'upstream;import;profile'= {
             cand --skip-failed 'Continue installing remaining packages after a package import fails'
-            cand --latest 'Ignore exported package version tags and install latest releases'
+            cand --latest 'Ignore exported tags and re-resolve release and non-branch build packages'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
             cand --no-pager 'Prevent paging long command outputs'
