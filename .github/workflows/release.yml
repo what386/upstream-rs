@@ -65,6 +65,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: dist
+          merge-multiple: true
       - name: Add completion assets
         run: |
           cp completions/completions.bash dist/completions.bash
@@ -83,11 +84,24 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          checksum_file="$RUNNER_TEMP/SHA256SUMS.txt"
-          find . -type f ! -name SHA256SUMS.txt -print0 \
-            | sort -z \
-            | xargs -0 sha256sum > "$checksum_file"
-          mv "$checksum_file" SHA256SUMS.txt
+          expected_assets=(
+            upstream-x86_64-unknown-linux-gnu
+            upstream-aarch64-unknown-linux-gnu
+            upstream-x86_64-apple-darwin
+            upstream-aarch64-apple-darwin
+            upstream-x86_64-pc-windows-msvc.exe
+            upstream-aarch64-pc-windows-msvc.exe
+            completions.bash
+            completions.fish
+            completions.zsh
+            completions.ps1
+            completions.elvish
+            upstream.spdx.json
+          )
+          for asset in "${expected_assets[@]}"; do
+            test -f "$asset" || { echo "Missing release asset: $asset" >&2; exit 1; }
+          done
+          sha256sum "${expected_assets[@]}" > SHA256SUMS.txt
       - name: Read changelog section for tag
         id: release_notes
         run: |
@@ -102,4 +116,5 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           body: ${{ steps.release_notes.outputs.body }}
-          files: dist/**/*
+          files: dist/*
+          fail_on_unmatched_files: true
