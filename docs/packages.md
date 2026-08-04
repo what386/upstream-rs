@@ -5,10 +5,10 @@ Packages are tracked by a local alias, source metadata, selected file type, prov
 ## Install
 
 ```bash
-upstream install <repo-or-url> <name>
+upstream install <repo-or-url> [name]
 ```
 
-The canonical form is `<repo-or-url> <name>`. For git repositories, Upstream can infer `<name>` from the repository name when it is omitted. Direct HTTP sources may still require an explicit name.
+The canonical form provides `<repo-or-url> <name>`. When `<name>` is omitted, Upstream prompts for it and offers the repository name as the default for forge sources. Direct HTTP sources have no inferred default, so non-interactive use must provide `<name>`.
 
 The install flow:
 

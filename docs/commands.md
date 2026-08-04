@@ -2,22 +2,23 @@
 
 Use `upstream <command> --help` for the exact help output of your installed binary. This page summarizes the command surface and the options most users need.
 
-## Global Option
+## Global Options
 
 ```bash
 -y, --yes
+--no-pager
 ```
 
-Accept confirmation prompts. This is useful for scripts and bootstrap flows.
+`--yes` accepts confirmation prompts. `--no-pager` prevents long output from opening a pager. Neither option supplies required interactive text input.
 
 ## Install
 
 ```bash
-upstream install [options] <repo-or-url> <name>
+upstream install [options] <repo-or-url> [name]
 ```
 
 Installs a package from a release source and records it for future upgrades.
-The canonical form is `<repo-or-url> <name>`. For git repositories, upstream can fall back to the repository name when `<name>` is omitted. Direct URLs and scraped download pages may still require `<name>`.
+The canonical form provides `<repo-or-url> <name>`. When `<name>` is omitted, upstream prompts for it and offers the repository name as the default for forge sources. Direct URLs and scraped download pages have no inferred default, so scripts must provide `<name>`.
 
 Common options:
 
@@ -67,11 +68,11 @@ The index URL defaults to Upstream's registry on GitHub and can be changed with 
 ## Build
 
 ```bash
-upstream build [options] <repo-or-url> <name>
+upstream build [options] <repo-or-url> [name]
 ```
 
 Builds from source and installs the resulting artifact. See [Building from source](build.md).
-The canonical form is `<repo-or-url> <name>`. For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
+Build accepts GitHub, GitLab, and Gitea repository slugs or URLs. When `<name>` is omitted, upstream prompts with the repository name as the default; scripts must provide `<name>`.
 
 Common options:
 
@@ -103,6 +104,7 @@ Options:
 | --- | --- |
 | `--check` | Check for updates without applying them |
 | `--machine-readable` | With `--check`, print `name oldver newver` lines |
+| `--json` | With `--check`, print structured update results |
 | `--force` | Reinstall/upgrade even when current metadata says up to date |
 | `--trust <mode>` | Verification mode for downloaded release assets |
 | `--dry-run` | Preview upgrade resolution without writing |
@@ -187,7 +189,7 @@ Package settings support `match_pattern`, `exclude_pattern`, and `trust_mode`. P
 
 ```bash
 upstream cache list [--json]
-upstream cache clean [build|source|docs|all]... [--dry-run]
+upstream cache clean [build|source|docs|registry|all]... [--dry-run]
 ```
 
 `cache list` reports known cache sizes and locations. `cache clean` removes selected categories after confirmation; with no category it selects all known caches. Global `--yes` skips confirmation and `--dry-run` previews cleanup. Installed packages and rollback artifacts are never cache-cleaning targets.
@@ -205,7 +207,7 @@ upstream docs --fetch [names...]
 upstream search [query...] [-p <provider>] [--base-url <url>] [--limit <n>] [filters]
 upstream find <query...> [-p <provider>] [--limit <n>] [filters] [--name <name>] [install options]
 upstream probe <repo-or-url> [name] [-p <provider>] [-k <kind>] [--channel <channel>] [--limit <n>] [--include-incompatible]
-upstream doctor [names...] [--verbose] [--fix]
+upstream doctor [names...] [--verbose] [--fix] [--json]
 ```
 
 - `list` shows installed packages. Provide `[filter]` to rank exact and substring matches first, followed by close fuzzy matches.

@@ -185,8 +185,8 @@ exports, and can be inspected with `upstream auth list` or `upstream auth get`.
 
 Both of these token types work:
 
-* A fine-grained personal access token with public repository access.
-* A classic personal access token with `read:project` permissions.
+* A fine-grained personal access token that can read the repositories you use.
+* An unscoped classic token for public data, or a `repo`-scoped classic token when private repository access is required.
 
 Run `upstream doctor` after configuring tokens to verify that they work.
 
@@ -195,10 +195,10 @@ Run `upstream doctor` after configuring tokens to verify that they work.
 ### Install from a release source
 
 ```bash
-upstream install <repo-or-url> <name>
+upstream install <repo-or-url> [name]
 ```
 
-The canonical form is `<repo-or-url> <name>`. For git repositories, upstream can fall back to the repository name when `<name>` is omitted. Direct URLs and scraped download pages may still require `<name>`.
+The canonical form provides `<repo-or-url> <name>`. When `<name>` is omitted, upstream prompts for it and offers the repository name as the default for forge sources. Direct URLs and scraped download pages have no inferred default, so non-interactive use must provide `<name>`.
 
 Examples:
 
@@ -209,7 +209,7 @@ upstream install neovim/neovim nvim --tag v0.11.0
 upstream install owner/repo app --desktop
 ```
 
-Use `--match` and `--exclude` to guide asset selection:
+Use `--match-pattern` and `--exclude-pattern` to guide asset selection:
 
 ```bash
 upstream install owner/repo app --match-pattern linux --exclude-pattern debug
@@ -219,10 +219,10 @@ upstream install owner/repo app --match-pattern linux,x86_64 --exclude-pattern d
 ### Build from source
 
 ```bash
-upstream build <repo-or-url> <name>
+upstream build <repo-or-url> [name]
 ```
 
-The canonical form is `<repo-or-url> <name>`. For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
+Build accepts GitHub, GitLab, and Gitea repository slugs or URLs. The canonical form provides `<repo-or-url> <name>`; when `<name>` is omitted, upstream prompts with the repository name as the default. Non-interactive use must provide `<name>`.
 
 Examples:
 
@@ -305,12 +305,14 @@ individual package fails.
 | Command     | Purpose                              |
 | ----------- | ------------------------------------ |
 | `install`   | Install from a release source        |
+| `add`       | Install a package from the registry  |
 | `build`     | Build and install from source        |
 | `upgrade`   | Upgrade packages                     |
 | `remove`    | Remove packages (`uninstall` alias)  |
 | `reinstall` | Reinstall using stored metadata      |
 | `rollback`  | Manage rollback artifacts            |
 | `list`      | Show installed packages              |
+| `info`      | Show one package's exact metadata    |
 | `changelog` | Show upstream release notes          |
 | `docs`      | Search cached or fetched package documentation |
 | `search`    | Search provider repositories         |

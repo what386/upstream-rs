@@ -62,19 +62,19 @@ pub enum Commands {
     #[command(long_about = "Install a release asset or direct download.\n\n\
         Resolves a compatible asset from the selected provider, channel, and tag, \
         downloads it, verifies it according to the selected trust mode, installs it, \
-        and records the package for future upgrades. If the name is omitted for a \
-        git repository, upstream uses the repository name. Direct HTTP sources may \
-        require an explicit name.\n\n\
+        and records the package for future upgrades. If the name is omitted, upstream \
+        prompts for one, offering the repository name as the default for forge sources. \
+        Direct HTTP sources require terminal input because they have no inferred default.\n\n\
         EXAMPLES:\n  \
         upstream install BurntSushi/ripgrep rg -k binary\n  \
-        upstream install bootandy/dust       # name inferred as dust\n  \
+        upstream install bootandy/dust       # prompts with dust as the default\n  \
         upstream install neovim/neovim nvim --desktop\n  \
         upstream install sharkdp/bat bat --tag v0.25.0")]
     Install {
         /// Repository identifier or direct download URL
         repo_slug: String,
 
-        /// Name to register the application under (falls back to git repository name when omitted)
+        /// Name to register; omitted names are prompted for (forge repositories get an inferred default)
         name: Option<String>,
 
         /// Release tag to install (defaults to latest matching the channel)
@@ -127,19 +127,20 @@ pub enum Commands {
         Clones or updates a cached source checkout, selects a tag or branch, runs the \
         detected or requested build profile, installs the produced artifact, and records \
         the package for future rebuilds/upgrades. Use this when release artifacts are \
-        unavailable or unsuitable. If the name is omitted for a git repository, upstream \
-        uses the repository name.\n\n\
+        unavailable or unsuitable. Build accepts GitHub, GitLab, or Gitea repository \
+        sources. If the name is omitted, upstream prompts with the repository name as \
+        the default.\n\n\
         EXAMPLES:\n  \
         upstream build BurntSushi/ripgrep rg\n  \
-        upstream build BurntSushi/ripgrep       # name inferred as ripgrep\n  \
+        upstream build BurntSushi/ripgrep       # prompts with ripgrep as the default\n  \
         upstream build BurntSushi/ripgrep rg --branch main\n  \
         upstream build BurntSushi/ripgrep rg --build-profile rust\n  \
         upstream build owner/repo app --build-profile dotnet --tag v1.2.3")]
     Build {
-        /// Repository identifier or git URL
+        /// GitHub, GitLab, or Gitea repository identifier or URL
         repo_slug: String,
 
-        /// Name to register the application under (falls back to git repository name when omitted)
+        /// Name to register; omitted names are prompted for with an inferred default
         name: Option<String>,
 
         /// Release tag to build (defaults to latest matching the channel)
@@ -341,10 +342,9 @@ pub enum Commands {
         suggested without being selected. Use --json to print the raw stored \
         package record.\n\n\
         EXAMPLES:\n  \
-        upstream info nvim  # Show details for nvim\n  \
-        upstream info code  # Show details when exactly one package contains code")]
+        upstream info nvim  # Show details for nvim")]
     Info {
-        /// Package name or unique substring for detailed information
+        /// Exact installed package name for detailed information
         query: String,
 
         /// Print raw package metadata as JSON
@@ -993,9 +993,10 @@ pub enum ImportAction {
 
     /// Install packages from an exported package list
     #[command(long_about = "Install packages from an exported package list.\n\n\
-        Package exports contain package references, not installed files. By \
-        default, upstream installs each package at the version tag recorded in the export. \
-        Use --latest to ignore recorded tags and install current releases instead.\n\n\
+        Package exports contain package references, not installed files. By default, \
+        upstream reinstalls release packages at their recorded tags and rebuilds build \
+        packages from their recorded tag or branch. Use --latest to re-resolve release \
+        and non-branch build packages.\n\n\
         EXAMPLES:\n  \
         upstream import packages ./packages.json\n  \
         upstream import packages ./packages.json --latest")]
@@ -1007,7 +1008,7 @@ pub enum ImportAction {
         #[arg(long, default_value_t = false)]
         skip_failed: bool,
 
-        /// Ignore exported version tags and install latest releases
+        /// Ignore exported tags and re-resolve release and non-branch build packages
         #[arg(long, default_value_t = false)]
         latest: bool,
     },
@@ -1015,9 +1016,10 @@ pub enum ImportAction {
     /// Import config, keys, and packages from a profile
     #[command(
         long_about = "Import config, trusted keys, and packages from a profile export.\n\n\
-        Profile imports apply config first, merge trust keys second, and install release \
-        packages last. By default, package imports use the version tags recorded in the \
-        profile. Use --latest to install current releases instead.\n\n\
+        Profile imports apply config first, merge trust keys second, then install release \
+        packages and rebuild build packages. By default, package imports use recorded \
+        release tags or source branches. Use --latest to re-resolve release and non-branch \
+        build packages.\n\n\
         EXAMPLES:\n  \
         upstream import profile ./profile.json\n  \
         upstream import profile ./profile.json --latest"
@@ -1030,7 +1032,7 @@ pub enum ImportAction {
         #[arg(long, default_value_t = false)]
         skip_failed: bool,
 
-        /// Ignore exported package version tags and install latest releases
+        /// Ignore exported tags and re-resolve release and non-branch build packages
         #[arg(long, default_value_t = false)]
         latest: bool,
     },
@@ -1075,7 +1077,7 @@ pub enum ExportAction {
     #[command(
         long_about = "Export config, trust keys, and installed package references.\n\n\
         The output is a portable profile for restoring upstream settings, trust keys, \
-        and release package references. It does not include installed artifacts, \
+        and release and build package references. It does not include installed artifacts, \
         rollback data, or cache contents.\n\n\
         EXAMPLE:\n  \
         upstream export profile ./profile.json"

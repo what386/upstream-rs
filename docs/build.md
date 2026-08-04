@@ -3,10 +3,10 @@
 Use `upstream build` when a project publishes source releases but does not provide a suitable prebuilt artifact for your system.
 
 ```bash
-upstream build <repo-or-url> <name>
+upstream build <repo-or-url> [name]
 ```
 
-The canonical form is `<repo-or-url> <name>`. For git repositories, upstream can fall back to the repository name when `<name>` is omitted.
+Build accepts GitHub, GitLab, and Gitea repository slugs or URLs. The canonical form provides `<repo-or-url> <name>`; when `<name>` is omitted, upstream prompts with the repository name as the default. Non-interactive use must provide `<name>`.
 
 ## Supported Profiles
 
@@ -55,7 +55,7 @@ When upgrading or rebuilding a git source package, Upstream fetches the cached r
 If a source is only available as an archive, Upstream falls back to a cached source-archive workspace under:
 
 ```text
-$HOME/.upstream/cache/source-archives/
+$HOME/.upstream/cache/source/
 ```
 
 Archive cache refreshes update source-controlled files while preserving unowned build output where possible.

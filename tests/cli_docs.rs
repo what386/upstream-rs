@@ -1,4 +1,4 @@
-use clap::{Parser, error::ErrorKind};
+use clap::{CommandFactory, Parser, error::ErrorKind};
 use std::{fs, path::Path};
 use upstream_rs::application::cli::arguments::{Cli, Commands};
 
@@ -139,4 +139,56 @@ fn cache_and_package_settings_commands_parse() {
     ] {
         Cli::try_parse_from(args).expect("new command should parse");
     }
+}
+
+#[test]
+fn help_describes_runtime_name_and_import_behavior() {
+    let install_help = long_help_for(&["install"]);
+    assert!(install_help.contains("prompts for one"));
+    assert!(install_help.contains("Direct HTTP sources require terminal input"));
+
+    let build_help = long_help_for(&["build"]);
+    assert!(build_help.contains("Build accepts GitHub, GitLab, or Gitea repository sources"));
+    assert!(build_help.contains("prompts with the repository name as the default"));
+
+    let info_help = long_help_for(&["info"]);
+    assert!(info_help.contains("exact package name"));
+    assert!(!info_help.contains("unique substring"));
+
+    let import_profile_help = long_help_for(&["import", "profile"]);
+    assert!(import_profile_help.contains("rebuild build packages"));
+
+    let export_profile_help = long_help_for(&["export", "profile"]);
+    assert!(export_profile_help.contains("release and build package references"));
+}
+
+#[test]
+fn command_reference_covers_global_and_cache_options() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let commands = fs::read_to_string(root.join("docs/commands.md")).expect("read command docs");
+    let readme = fs::read_to_string(root.join("README.md")).expect("read README");
+    let build_docs = fs::read_to_string(root.join("docs/build.md")).expect("read build docs");
+
+    assert!(commands.contains("--no-pager"));
+    assert!(commands.contains("build|source|docs|registry|all"));
+    assert!(commands.contains("upstream doctor [names...] [--verbose] [--fix] [--json]"));
+    assert!(readme.contains("--match-pattern` and `--exclude-pattern"));
+    assert!(build_docs.contains("$HOME/.upstream/cache/source/"));
+    assert!(!build_docs.contains("source-archives"));
+}
+
+fn long_help_for(path: &[&str]) -> String {
+    let mut command = Cli::command();
+    for name in path {
+        command = command
+            .find_subcommand(name)
+            .unwrap_or_else(|| panic!("missing subcommand {name}"))
+            .clone();
+    }
+
+    let mut output = Vec::new();
+    command
+        .write_long_help(&mut output)
+        .expect("render long help");
+    String::from_utf8(output).expect("help is UTF-8")
 }

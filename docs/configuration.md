@@ -100,8 +100,8 @@ Settings > Developer settings > Personal access tokens
 
 For public GitHub releases, use the smallest token that works:
 
-- Fine-grained personal access token: choose public repository access and leave additional permissions unset.
-- Personal access token (classic): a token with `read:project` works for upstream's GitHub API calls.
+- Fine-grained personal access token: grant access to the repositories Upstream needs to read.
+- Personal access token (classic): an unscoped token can access public data; use the `repo` scope only when private repository access is required.
 
 Store the copied token with:
 
