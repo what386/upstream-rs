@@ -21,9 +21,6 @@
 - [ ] docs: document contributor workflows and architecture invariants
       @created 2026-08-04 21:58
 
-- [ ] Complete the existing registry trust-policy item using commit
-      @created 2026-08-04 23:36
-
 
 ## Completed
 
@@ -38,4 +35,8 @@
 - [x] Support UTF-16 LE/BE checksum manifests.
       @created 2026-08-04 23:35
       @completed 2026-08-04 23:35
+
+- [x] Complete the existing registry trust-policy item using commit
+      @created 2026-08-04 23:36
+      @completed 2026-08-04 23:36
 
