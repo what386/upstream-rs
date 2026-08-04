@@ -4,6 +4,7 @@ use crate::{
         provider::{Asset, Release},
     },
     providers::provider_manager::ProviderManager,
+    utils::filesystem::read_utf8_or_utf16,
 };
 use anyhow::{Context, Result, anyhow};
 use std::{
@@ -110,7 +111,7 @@ impl<'a> ChecksumVerifier<'a> {
         };
 
         // Read and parse the checksum file
-        let contents = fs::read_to_string(&checksum_path.path)?;
+        let contents = read_utf8_or_utf16(&checksum_path.path)?;
         let mut entries = Self::parse_checksums(&contents);
 
         if entries.is_empty() && Self::looks_like_matrix_manifest(&contents) {
@@ -124,7 +125,7 @@ impl<'a> ChecksumVerifier<'a> {
                     )
                 })?;
 
-            let order_contents = fs::read_to_string(order_path)?;
+            let order_contents = read_utf8_or_utf16(&order_path)?;
             entries = Self::parse_matrix_checksums(&contents, &order_contents)?;
         }
 
