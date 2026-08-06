@@ -1,6 +1,15 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-08-04*
+*Generated on 2026-08-06*
+
+## 2.15.5 — 2026-08-06
+
+### Changes
+
+- behavior: centralize and harden Windows PATH registry management `windows`, `path`, `correctness`
+- feat: add a Windows repair script for legacy installs `windows`, `repair`
+- fix: retry Windows executable renames during package upgrades `windows`, `upgrade`
+
 
 ## 2.15.4 — 2026-08-04
 
