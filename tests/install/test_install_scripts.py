@@ -179,7 +179,79 @@ esac
 
 
 @unittest.skipUnless(shutil.which("pwsh"), "pwsh is not installed")
-class PowerShellChecksumTests(unittest.TestCase):
+class PowerShellInstallerTests(unittest.TestCase):
+    def test_missing_managed_package_continues_to_self_install(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            command_log = root / "commands.log"
+            if os.name == "nt":
+                binary = root / "upstream.cmd"
+                binary.write_text(
+                    "@echo off\n"
+                    'echo %*>>"%MOCK_COMMAND_LOG%"\n'
+                    'if "%~1"=="list" if "%~2"=="--json" (\n'
+                    "    echo []\n"
+                    "    exit /b 0\n"
+                    ")\n"
+                    'if "%~1"=="list" (\n'
+                    "    echo No installed packages match upstream. 1>&2\n"
+                    "    exit /b 1\n"
+                    ")\n",
+                    encoding="utf-8",
+                )
+            else:
+                binary = root / "upstream"
+                binary.write_text(
+                    "#!/bin/sh\n"
+                    'printf "%s\\n" "$*" >> "$MOCK_COMMAND_LOG"\n'
+                    'if [ "$1" = "list" ] && [ "$2" = "--json" ]; then\n'
+                    "    printf '[]\\n'\n"
+                    "    exit 0\n"
+                    "fi\n"
+                    'if [ "$1" = "list" ]; then\n'
+                    '    printf "No installed packages match upstream.\\n" >&2\n'
+                    "    exit 1\n"
+                    "fi\n",
+                    encoding="utf-8",
+                )
+                binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
+
+            source = (INSTALLERS / "install.ps1").read_text(encoding="utf-8")
+            definitions = source.rsplit("\nMain", 1)[0]
+            harness = root / "self-install-test.ps1"
+            harness.write_text(
+                definitions
+                + "\nif (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {\n"
+                + "    $PSNativeCommandUseErrorActionPreference = $true\n"
+                + "}\n"
+                + "$env:MOCK_COMMAND_LOG = $args[1]\n"
+                + "Install-UpstreamIfMissing -Binary $args[0]\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    "pwsh",
+                    "-NoProfile",
+                    "-File",
+                    str(harness),
+                    str(binary),
+                    str(command_log),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(
+                command_log.read_text(encoding="utf-8").splitlines(),
+                [
+                    "list --json",
+                    "--yes install what386/upstream-rs upstream -k win-exe",
+                ],
+            )
+
     def test_confirm_checksum_accepts_match_and_rejects_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -158,7 +158,7 @@ function Test-UpstreamPackageInstalled {
         [string]$Binary
     )
 
-    $output = & $Binary @("list", "upstream", "--json") 2>$null
+    $output = & $Binary @("list", "--json") 2>$null
     if ($LASTEXITCODE -ne 0) {
         return $false
     }
