@@ -63,9 +63,6 @@ fn apply(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
 
     create_state_directories(paths, report)?;
     move_legacy_state_dir(&old_rollback_dir, &paths.state.rollback_dir, report)?;
-    #[cfg(windows)]
-    migrate_windows_symlinks_dir(&old_symlinks_dir, &paths.state.symlinks_dir, report)?;
-    #[cfg(not(windows))]
     move_legacy_state_dir(&old_symlinks_dir, &paths.state.symlinks_dir, report)?;
     move_legacy_state_dir(&old_icons_dir, &paths.state.icons_dir, report)?;
 
@@ -92,32 +89,6 @@ fn apply(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
     rewrite_rollback_storage(paths, &old_icons_dir, report)?;
     rewrite_desktop_entries(paths, &old_icons_dir, &paths.state.icons_dir)?;
 
-    Ok(())
-}
-
-#[cfg(windows)]
-fn migrate_windows_symlinks_dir(
-    src: &Path,
-    dst: &Path,
-    report: &mut MigrationReport,
-) -> Result<()> {
-    if !src.exists() || same_location(src, dst)? {
-        return Ok(());
-    }
-    fs::create_dir_all(dst)
-        .with_context(|| format!("Failed to create directory '{}'", dst.display()))?;
-    for entry in fs::read_dir(src)
-        .with_context(|| format!("Failed to read directory '{}'", src.display()))?
-    {
-        let entry = entry?;
-        let source = entry.path();
-        let target = dst.join(entry.file_name());
-        if target.exists() {
-            continue;
-        }
-        crate::utils::filesystem::safe_move::copy_file_or_dir(&source, &target)?;
-        report.moved_entries += 1;
-    }
     Ok(())
 }
 
@@ -572,6 +543,7 @@ mod tests {
         assert!(paths.state.rollback_dir.exists());
         assert!(paths.state.symlinks_dir.exists());
         assert!(paths.state.icons_dir.exists());
+        assert!(!V2_11_0::check(&paths).expect("check migration after migration"));
         assert_eq!(report.moved_entries, 2);
         assert!(report.updated_packages >= 1);
         assert_eq!(report.updated_rollback_records, 1);
