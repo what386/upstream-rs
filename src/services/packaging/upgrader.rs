@@ -19,7 +19,7 @@ use crate::{
         trust::TrustedSignatureKeys,
     },
     storage::rollback::{RollbackSource, RollbackStorage},
-    utils::static_paths::UpstreamPaths,
+    utils::{filesystem::safe_move, static_paths::UpstreamPaths},
 };
 
 use anyhow::{Context, Result, bail};
@@ -131,7 +131,7 @@ impl Drop for UpgradeRollbackGuard {
         } else {
             PackageUpgrader::remove_path_if_exists(&self.original_install_path)
         };
-        let _ = fs::rename(&self.backup_path, &self.original_install_path);
+        let _ = safe_move::move_file_or_dir(&self.backup_path, &self.original_install_path);
         if let (Some(symlinks_dir), Some(exec_path)) =
             (&self.symlinks_dir, self.previous_package.exec_path.as_ref())
         {
@@ -492,7 +492,7 @@ impl<'a> PackageUpgrader<'a> {
             progress_callback,
             PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot)
         );
-        fs::rename(&original_install_path, &backup_path).context(format!(
+        safe_move::move_file_or_dir(&original_install_path, &backup_path).context(format!(
             "Failed to back up '{}' to '{}'",
             original_install_path.display(),
             backup_path.display()
@@ -505,7 +505,7 @@ impl<'a> PackageUpgrader<'a> {
             PackageProgressEvent::Phase(PackagePhase::RemovingRuntimeLinks)
         );
         if let Err(e) = self.remover.remove_runtime_link(package, message_callback) {
-            let _ = fs::rename(&backup_path, &original_install_path);
+            let _ = safe_move::move_file_or_dir(&backup_path, &original_install_path);
             let _ = self
                 .remover
                 .restore_runtime_integrations(package, message_callback);
@@ -903,10 +903,11 @@ impl<'a> PackageUpgrader<'a> {
             ));
         }
 
-        fs::rename(&rollback.backup_path, &rollback.original_install_path).context(format!(
-            "{} for '{}': {}. Rollback failed while restoring backup",
-            failure_context, rollback.previous_package.name, failure
-        ))?;
+        safe_move::move_file_or_dir(&rollback.backup_path, &rollback.original_install_path)
+            .context(format!(
+                "{} for '{}': {}. Rollback failed while restoring backup",
+                failure_context, rollback.previous_package.name, failure
+            ))?;
 
         self.remover
             .restore_runtime_integrations(&rollback.previous_package, message_callback)

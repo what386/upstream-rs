@@ -4,10 +4,23 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(windows)]
+use std::{thread, time::Duration};
+
+#[cfg(windows)]
+const WINDOWS_RENAME_RETRIES: usize = 20;
+#[cfg(windows)]
+const WINDOWS_RENAME_RETRY_DELAY: Duration = Duration::from_millis(50);
+
 /// Move a file or directory, falling back to copy+delete
 /// if the source and dest are on different filesystems.
 pub fn move_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
-    match fs::rename(src, dst) {
+    #[cfg(windows)]
+    let rename_result = rename_with_retry(src, dst);
+    #[cfg(not(windows))]
+    let rename_result = fs::rename(src, dst);
+
+    match rename_result {
         Ok(()) => Ok(()),
         Err(err) if err.kind() == io::ErrorKind::CrossesDevices => move_via_copy(src, dst),
         Err(err) => Err(err).context(format!(
@@ -16,6 +29,37 @@ pub fn move_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
             dst.display()
         )),
     }
+}
+
+#[cfg(windows)]
+fn rename_with_retry(src: &Path, dst: &Path) -> io::Result<()> {
+    for attempt in 0..=WINDOWS_RENAME_RETRIES {
+        match fs::rename(src, dst) {
+            Ok(()) => return Ok(()),
+            Err(error)
+                if attempt < WINDOWS_RENAME_RETRIES && is_retryable_windows_rename(&error) =>
+            {
+                thread::sleep(WINDOWS_RENAME_RETRY_DELAY);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    unreachable!("bounded rename loop always returns")
+}
+
+#[cfg(windows)]
+fn is_retryable_windows_rename(error: &io::Error) -> bool {
+    use winapi::shared::winerror::{
+        ERROR_ACCESS_DENIED, ERROR_LOCK_VIOLATION, ERROR_SHARING_VIOLATION,
+    };
+
+    matches!(
+        error.raw_os_error(),
+        Some(code)
+            if code == ERROR_ACCESS_DENIED as i32
+                || code == ERROR_SHARING_VIOLATION as i32
+                || code == ERROR_LOCK_VIOLATION as i32
+    )
 }
 
 pub fn copy_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
@@ -175,5 +219,80 @@ mod tests {
         );
 
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_can_switch_a_running_executable_and_its_alias() {
+        const MODE_ENV: &str = "UPSTREAM_SAFE_MOVE_CHILD_MODE";
+        const READY_ENV: &str = "UPSTREAM_SAFE_MOVE_READY_FILE";
+        const TEST_NAME: &str = "utils::filesystem::safe_move::tests::windows_can_switch_a_running_executable_and_its_alias";
+
+        if std::env::var_os(MODE_ENV).as_deref() == Some(std::ffi::OsStr::new("hold")) {
+            let ready = std::env::var_os(READY_ENV).expect("child ready path");
+            fs::write(ready, b"ready").expect("signal child readiness");
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            return;
+        }
+
+        let root = temp_root("running-executable");
+        fs::create_dir_all(&root).expect("create root");
+        let source = root.join("upstream.exe");
+        let backup = root.join("upstream.old.exe");
+        let alias = root.join("alias.exe");
+        let ready = root.join("ready");
+        let test_binary = std::env::current_exe().expect("resolve test binary");
+        fs::copy(&test_binary, &source).expect("copy source executable");
+        fs::hard_link(&source, &alias).expect("create initial alias");
+
+        let mut child = std::process::Command::new(&alias)
+            .args(["--exact", TEST_NAME, "--nocapture"])
+            .env(MODE_ENV, "hold")
+            .env(READY_ENV, &ready)
+            .spawn()
+            .expect("start executable through alias");
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while !ready.is_file() && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(ready.is_file(), "child did not become ready");
+
+        move_file_or_dir(&source, &backup).expect("rename running executable");
+        fs::write(&source, b"replacement").expect("install replacement executable");
+        fs::remove_file(&alias).expect("remove old running alias");
+        fs::hard_link(&source, &alias).expect("create replacement alias");
+
+        assert_eq!(
+            fs::read(&alias).expect("read replacement alias"),
+            b"replacement"
+        );
+        assert!(backup.is_file());
+        assert!(child.wait().expect("wait for old process").success());
+
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_retryable_rename_errors_are_limited_to_lock_failures() {
+        use super::is_retryable_windows_rename;
+        use winapi::shared::winerror::{
+            ERROR_ACCESS_DENIED, ERROR_FILE_NOT_FOUND, ERROR_LOCK_VIOLATION,
+            ERROR_SHARING_VIOLATION,
+        };
+
+        for code in [
+            ERROR_ACCESS_DENIED,
+            ERROR_SHARING_VIOLATION,
+            ERROR_LOCK_VIOLATION,
+        ] {
+            assert!(is_retryable_windows_rename(
+                &std::io::Error::from_raw_os_error(code as i32)
+            ));
+        }
+        assert!(!is_retryable_windows_rename(
+            &std::io::Error::from_raw_os_error(ERROR_FILE_NOT_FOUND as i32)
+        ));
     }
 }

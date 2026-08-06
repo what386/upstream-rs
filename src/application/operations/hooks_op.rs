@@ -60,7 +60,12 @@ pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
     create_default_config_file(paths)?;
 
     #[cfg(windows)]
-    add_to_windows_path(paths)?;
+    {
+        let symlinks_path = paths.state.symlinks_dir.display().to_string();
+        crate::services::integration::windows_path::WindowsPathManager::ensure_present(
+            &symlinks_path,
+        )?;
+    }
 
     #[cfg(unix)]
     update_shell_profiles(paths)?;
@@ -186,13 +191,6 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
     check_windows_integration(paths, &mut report)?;
 
     Ok(report)
-}
-
-#[cfg(windows)]
-fn add_to_windows_path(paths: &UpstreamPaths) -> Result<()> {
-    let symlinks_path = paths.state.symlinks_dir.display().to_string();
-    crate::services::integration::windows_path::WindowsPathManager::ensure_present(&symlinks_path)?;
-    Ok(())
 }
 
 fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
