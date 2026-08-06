@@ -91,7 +91,7 @@ pub async fn run(
     )
     .await;
     output::print_disk_impact_with_size_rows(&impact, &[], true);
-    output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()), false)?;
+    output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()), true)?;
 
     let mut reinstalled = 0_u32;
     let mut failed = 0_u32;
