@@ -17,20 +17,20 @@ fn paths_file_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
-pub struct ShellManager<'a> {
+pub struct ShellManager {
     #[cfg(unix)]
-    paths_file: &'a Path,
+    paths_file: PathBuf,
     #[cfg(unix)]
     paths_nu_file: PathBuf,
 }
 
-impl<'a> ShellManager<'a> {
-    pub fn new(paths_file: &'a Path) -> Self {
+impl ShellManager {
+    pub fn new(_paths_file: &Path) -> Self {
         Self {
             #[cfg(unix)]
-            paths_file,
+            paths_file: _paths_file.to_path_buf(),
             #[cfg(unix)]
-            paths_nu_file: paths_file.with_extension("nu"),
+            paths_nu_file: _paths_file.with_extension("nu"),
         }
     }
 
@@ -49,7 +49,7 @@ impl<'a> ShellManager<'a> {
 
         let rendered_paths = render_path_entries(&paths.state.symlinks_dir, &path_entries);
         let posix_content = render_posix_paths_file(&rendered_paths);
-        write_atomic(self.paths_file, posix_content.as_bytes())
+        write_atomic(&self.paths_file, posix_content.as_bytes())
             .context("Failed to write paths file")?;
 
         let nushell_paths = rendered_paths
@@ -144,7 +144,7 @@ impl<'a> ShellManager<'a> {
     pub fn regenerate_paths_files(&self, package_database: &PackageDatabase) -> Result<()> {
         let paths = package_database.list_path_entries()?;
         let posix_content = render_posix_paths_file(&paths);
-        write_atomic(self.paths_file, posix_content.as_bytes())
+        write_atomic(&self.paths_file, posix_content.as_bytes())
             .context("Failed to write paths file")?;
 
         let nushell_paths = paths
