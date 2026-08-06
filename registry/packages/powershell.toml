@@ -1,0 +1,10 @@
+name = "powershell"
+revision = 1
+binary = "pwsh"
+desktop = false
+trust = "checksum"
+
+[install]
+type = "release"
+repo = "https://github.com/PowerShell/PowerShell"
+provider = "github"

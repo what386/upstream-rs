@@ -1,0 +1,10 @@
+name = "colibri"
+revision = 1
+binary = "coli"
+desktop = false
+trust = "checksum"
+
+[install]
+type = "release"
+repo = "https://github.com/JustVugg/colibri"
+provider = "github"
