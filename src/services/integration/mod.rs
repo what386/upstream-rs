@@ -3,6 +3,8 @@ mod desktop_manager;
 mod icon_manager;
 mod shell_manager;
 mod symlink_manager;
+#[cfg(windows)]
+pub mod windows_path;
 
 pub use completion_manager::{CompletionManager, CompletionShell, CompletionSnapshot};
 pub use desktop_manager::{DesktopManager, DesktopSnapshot};

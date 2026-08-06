@@ -18,28 +18,38 @@ pub fn move_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
     }
 }
 
+pub fn copy_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
+    let metadata = fs::metadata(src)
+        .with_context(|| format!("Failed to read metadata for '{}'", src.display()))?;
+    if metadata.is_dir() {
+        copy_dir_recursive(src, dst)
+            .with_context(|| format!("Failed to copy directory to '{}'", dst.display()))
+    } else {
+        fs::copy(src, dst).with_context(|| {
+            format!(
+                "Failed to copy file from '{}' to '{}'",
+                src.display(),
+                dst.display()
+            )
+        })?;
+        fs::set_permissions(dst, metadata.permissions())
+            .with_context(|| format!("Failed to preserve file permissions on '{}'", dst.display()))
+    }
+}
+
 /// Copy the source to destination and remove the source when rename cannot be used.
 fn move_via_copy(src: &Path, dst: &Path) -> Result<()> {
     let metadata = fs::metadata(src)
         .with_context(|| format!("Failed to read metadata for '{}'", src.display()))?;
 
     if metadata.is_dir() {
-        copy_dir_recursive(src, dst)
-            .with_context(|| format!("Failed to copy directory to '{}'", dst.display()))?;
+        copy_file_or_dir(src, dst)?;
         fs::remove_dir_all(src)
             .with_context(|| format!("Failed to remove source directory '{}'", src.display()))?;
         return Ok(());
     }
 
-    fs::copy(src, dst).with_context(|| {
-        format!(
-            "Failed to copy file from '{}' to '{}'",
-            src.display(),
-            dst.display()
-        )
-    })?;
-    fs::set_permissions(dst, metadata.permissions())
-        .with_context(|| format!("Failed to preserve file permissions on '{}'", dst.display()))?;
+    copy_file_or_dir(src, dst)?;
     fs::remove_file(src)
         .with_context(|| format!("Failed to remove source file '{}'", src.display()))?;
     Ok(())

@@ -135,10 +135,52 @@ fn fix_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
     report.line(Level::Ok, "Repaired PATH integration file");
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn fix_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
+    let path = paths.state.symlinks_dir.display().to_string();
+    match crate::services::integration::windows_path::WindowsPathManager::ensure_present(&path) {
+        Ok(_) => report.line(Level::Ok, "Repaired Windows PATH integration"),
+        Err(err) => report.line(
+            Level::Warn,
+            format!("Failed to repair Windows PATH integration: {err}"),
+        ),
+    }
+}
+
+#[cfg(not(any(unix, windows)))]
 fn fix_paths_file(_paths: &UpstreamPaths, _report: &mut DoctorReport) {}
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
+    let expected = paths.state.symlinks_dir.display().to_string();
+    match crate::services::integration::windows_path::WindowsPathManager::read() {
+        Ok(Some(value))
+            if crate::services::integration::windows_path::WindowsPathManager::contains(
+                &value.value,
+                &expected,
+            ) =>
+        {
+            report.line(
+                Level::Ok,
+                "Windows PATH contains upstream symlinks directory",
+            )
+        }
+        Ok(Some(value)) => report.line(
+            Level::Warn,
+            format!(
+                "Windows PATH is missing upstream symlinks directory (registry type: {:?})",
+                value.registry_type
+            ),
+        ),
+        Ok(None) => report.line(Level::Warn, "Windows user PATH registry value is missing"),
+        Err(err) => report.line(
+            Level::Warn,
+            format!("Failed to read Windows PATH registry value: {err}"),
+        ),
+    }
+}
+
+#[cfg(not(any(unix, windows)))]
 fn check_paths_file(_paths: &UpstreamPaths, report: &mut DoctorReport) {
     report.line(Level::Ok, "PATH integration check skipped on this platform");
 }

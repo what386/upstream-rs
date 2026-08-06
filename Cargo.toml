@@ -57,7 +57,7 @@ sevenz-rust2 = { version = "0.21.3", default-features = false, features = ["util
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
-winapi = { version = "0.3", features = ["winuser", "processthreadsapi", "handleapi", "minwinbase", "winbase", "winnt", "errhandlingapi", "winerror"] }
+winapi = { version = "0.3", features = ["winuser", "processthreadsapi", "handleapi", "synchapi", "minwinbase", "winbase", "winnt", "errhandlingapi", "winerror"] }
 
 [[bin]]
 name = "completions"

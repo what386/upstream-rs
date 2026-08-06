@@ -12,8 +12,6 @@ use crate::{
         system::{config::ConfigStorage, trust::TrustStorage},
     },
 };
-#[cfg(windows)]
-use anyhow::Context;
 use anyhow::Result;
 #[cfg(unix)]
 use std::collections::BTreeSet;
@@ -51,15 +49,6 @@ fn check_fail(report: &mut InitCheckReport, detail: impl fmt::Display) {
     report
         .messages
         .push(format!("{} {}", output::status_cell(Status::Fail), detail));
-}
-
-#[cfg(windows)]
-fn normalize_windows_path(path: &str) -> String {
-    let mut normalized = path.replace('/', "\\").trim().to_ascii_lowercase();
-    while normalized.ends_with('\\') {
-        normalized.pop();
-    }
-    normalized
 }
 
 pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
@@ -201,66 +190,9 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
 
 #[cfg(windows)]
 fn add_to_windows_path(paths: &UpstreamPaths) -> Result<()> {
-    use winreg::RegKey;
-    use winreg::enums::*;
-
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let env_key = hkcu
-        .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
-        .context("Failed to open registry key")?;
-
     let symlinks_path = paths.state.symlinks_dir.display().to_string();
-    let symlinks_norm = normalize_windows_path(&symlinks_path);
-
-    // Get current PATH
-    let current_path: String = env_key.get_value("Path").unwrap_or_else(|_| String::new());
-
-    // Check if our path is already in PATH
-    let path_entries: Vec<&str> = current_path.split(';').collect();
-    if path_entries
-        .iter()
-        .any(|&p| normalize_windows_path(p) == symlinks_norm)
-    {
-        return Ok(()); // Already in PATH
-    }
-
-    // Add our path to the beginning
-    let new_path = if current_path.is_empty() {
-        symlinks_path
-    } else {
-        format!("{};{}", symlinks_path, current_path)
-    };
-
-    env_key
-        .set_value("Path", &new_path)
-        .context("Failed to set PATH")?;
-
-    // Broadcast WM_SETTINGCHANGE to notify other applications
-    broadcast_environment_change();
-
+    crate::services::integration::windows_path::WindowsPathManager::ensure_present(&symlinks_path)?;
     Ok(())
-}
-
-#[cfg(windows)]
-fn broadcast_environment_change() {
-    use std::ptr;
-    use winapi::shared::minwindef::LPARAM;
-    use winapi::um::winuser::{
-        HWND_BROADCAST, SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_SETTINGCHANGE,
-    };
-
-    unsafe {
-        let env_string: Vec<u16> = "Environment\0".encode_utf16().collect();
-        SendMessageTimeoutW(
-            HWND_BROADCAST,
-            WM_SETTINGCHANGE,
-            0,
-            env_string.as_ptr() as LPARAM,
-            SMTO_ABORTIFHUNG,
-            5000,
-            ptr::null_mut(),
-        );
-    }
 }
 
 fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
@@ -528,55 +460,21 @@ pub fn cleanup(paths: &UpstreamPaths) -> Result<()> {
 
 #[cfg(windows)]
 fn remove_from_windows_path(paths: &UpstreamPaths) -> Result<()> {
-    use winreg::RegKey;
-    use winreg::enums::*;
-
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let env_key = hkcu
-        .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
-        .context("Failed to open registry key")?;
-
     let symlinks_path = paths.state.symlinks_dir.display().to_string();
-    let symlinks_norm = normalize_windows_path(&symlinks_path);
-
-    // Get current PATH
-    let current_path: String = env_key.get_value("Path").unwrap_or_else(|_| String::new());
-
-    // Remove our path from PATH
-    let path_entries: Vec<&str> = current_path
-        .split(';')
-        .filter(|&p| normalize_windows_path(p) != symlinks_norm)
-        .collect();
-
-    let new_path = path_entries.join(";");
-
-    env_key
-        .set_value("Path", &new_path)
-        .context("Failed to set PATH")?;
-
-    // Broadcast WM_SETTINGCHANGE to notify other applications
-    broadcast_environment_change();
-
+    crate::services::integration::windows_path::WindowsPathManager::remove(&symlinks_path)?;
     Ok(())
 }
 
 #[cfg(windows)]
 fn check_windows_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -> Result<()> {
-    use winreg::RegKey;
-    use winreg::enums::*;
-
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let env_key = hkcu
-        .open_subkey_with_flags("Environment", KEY_READ)
-        .context("Failed to open PATH")?;
-
     let symlinks_path = paths.state.symlinks_dir.display().to_string();
-    let symlinks_norm = normalize_windows_path(&symlinks_path);
-    let current_path: String = env_key.get_value("Path").unwrap_or_else(|_| String::new());
-
-    let in_path = current_path
-        .split(';')
-        .any(|p| normalize_windows_path(p) == symlinks_norm);
+    let in_path = crate::services::integration::windows_path::WindowsPathManager::read()?
+        .is_some_and(|value| {
+            crate::services::integration::windows_path::WindowsPathManager::contains(
+                &value.value,
+                &symlinks_path,
+            )
+        });
 
     if in_path {
         check_ok(report, "Windows PATH contains upstream symlinks directory");
