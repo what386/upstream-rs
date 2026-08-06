@@ -32,16 +32,13 @@ IMPORT_SPEC.loader.exec_module(IMPORT_LIST)
 class RegistryTests(unittest.TestCase):
     def test_repository_registry_is_valid_and_index_is_current(self) -> None:
         packages = COMMON.load_registry(ROOT / "registry" / "packages")
-        readable = (ROOT / "registry" / "index.json").read_text(encoding="utf-8")
         minified = (ROOT / "registry" / "index.min.json").read_text(encoding="utf-8")
-        self.assertEqual(readable, COMMON.render_index(packages))
         self.assertEqual(minified, COMMON.render_minified_index(packages))
-        self.assertEqual(json.loads(minified), json.loads(readable))
         self.assertNotIn("\n", minified.rstrip("\n"))
 
     def test_index_is_keyed_by_package_name(self) -> None:
         packages = COMMON.load_registry(ROOT / "registry" / "packages")
-        rendered = json.loads(COMMON.render_index(packages))
+        rendered = json.loads(COMMON.render_minified_index(packages))
         self.assertEqual(rendered["version"], 1)
         self.assertIn("upstream", rendered["packages"])
         self.assertNotIn("name", rendered["packages"]["upstream"])

@@ -1,12 +1,16 @@
 # Package registry maintenance
 
-Registry definitions live in `registry/packages/`. The readable and minified
-version 1 indexes are generated artifacts; update both after changing a package:
+Registry definitions live in `registry/packages/`. The minified version 1 index
+is a generated artifact; update it after changing a package:
 
 ```sh
 just registry-gen-index
 just registry-validate
 ```
+
+The generated `registry/index.min.json` is the published fetch target. The
+readable index is intentionally not tracked; inspect the package TOML files or
+render an index locally when reviewing registry changes.
 
 Every recipe declares a trust policy. Build recipes must use `none` because the
 build path does not apply registry release-asset verification. Release recipes

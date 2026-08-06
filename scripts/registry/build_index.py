@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build readable and minified registry indexes from package TOML files."""
+"""Build the minified registry index from package TOML files."""
 
 from __future__ import annotations
 
@@ -13,10 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def main() -> int:
-    outputs = (
-        (ROOT / "registry" / "index.json", False),
-        (ROOT / "registry" / "index.min.json", True),
-    )
+    outputs = ((ROOT / "registry" / "index.min.json", True),)
     try:
         for output, minified in outputs:
             write_index(

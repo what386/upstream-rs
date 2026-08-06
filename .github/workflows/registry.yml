@@ -38,4 +38,4 @@ jobs:
       - name: Verify generated registry index
         run: |
           python3 scripts/registry/build_index.py
-          git diff --exit-code -- registry/index.json registry/index.min.json
+          git diff --exit-code -- registry/index.min.json

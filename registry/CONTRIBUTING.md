@@ -245,10 +245,10 @@ Run the local validator before opening a pull request:
 just registry-validate
 ```
 
-The committed [`index.json`](index.json) and [`index.min.json`](index.min.json) are generated from the package definitions. The minified index contains the same data without formatting whitespace and is intended for clients. Rebuild both after changing package definitions:
+The committed [`index.min.json`](index.min.json) is generated from the package definitions and is the client-facing registry index. The readable index is not tracked. Rebuild the minified index after changing package definitions:
 
 ```bash
-just registry-index
+just registry-gen-index
 ```
 
 ## Pull requests
