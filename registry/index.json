@@ -154,6 +154,17 @@
         "provider": "github"
       }
     },
+    "colibri": {
+      "revision": 1,
+      "binary": "coli",
+      "desktop": false,
+      "trust": "checksum",
+      "install": {
+        "type": "release",
+        "repo": "https://github.com/JustVugg/colibri",
+        "provider": "github"
+      }
+    },
     "cosign": {
       "revision": 2,
       "desktop": false,
@@ -412,6 +423,17 @@
         "provider": "github"
       }
     },
+    "powershell": {
+      "revision": 1,
+      "binary": "pwsh",
+      "desktop": false,
+      "trust": "checksum",
+      "install": {
+        "type": "release",
+        "repo": "https://github.com/PowerShell/PowerShell",
+        "provider": "github"
+      }
+    },
     "rdr": {
       "revision": 1,
       "desktop": false,
@@ -515,6 +537,16 @@
         "provider": "github"
       }
     },
+    "typst": {
+      "revision": 1,
+      "desktop": false,
+      "trust": "best-effort",
+      "install": {
+        "type": "release",
+        "repo": "https://github.com/typst/typst",
+        "provider": "github"
+      }
+    },
     "upstream": {
       "revision": 1,
       "desktop": false,
@@ -522,6 +554,16 @@
       "install": {
         "type": "release",
         "repo": "https://github.com/what386/upstream-rs",
+        "provider": "github"
+      }
+    },
+    "webreaper": {
+      "revision": 1,
+      "desktop": false,
+      "trust": "checksum",
+      "install": {
+        "type": "release",
+        "repo": "https://github.com/alex-on-ai/WebReaper",
         "provider": "github"
       }
     },
