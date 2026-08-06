@@ -1,7 +1,9 @@
 use crate::storage::database::PackageDatabase;
 #[cfg(unix)]
 use crate::utils::filesystem::atomic_ops::write_atomic;
-use anyhow::{Context, Result};
+#[cfg(unix)]
+use anyhow::Context;
+use anyhow::Result;
 use std::path::Path;
 #[cfg(unix)]
 use std::path::PathBuf;
@@ -16,6 +18,7 @@ fn paths_file_lock() -> &'static Mutex<()> {
 }
 
 pub struct ShellManager<'a> {
+    #[cfg(unix)]
     paths_file: &'a Path,
     #[cfg(unix)]
     paths_nu_file: PathBuf,
@@ -24,6 +27,7 @@ pub struct ShellManager<'a> {
 impl<'a> ShellManager<'a> {
     pub fn new(paths_file: &'a Path) -> Self {
         Self {
+            #[cfg(unix)]
             paths_file,
             #[cfg(unix)]
             paths_nu_file: paths_file.with_extension("nu"),

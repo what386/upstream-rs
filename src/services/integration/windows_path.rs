@@ -155,7 +155,7 @@ fn normalize(path: &str) -> String {
 }
 
 fn decode_path_value(raw: &RegValue<'_>) -> Result<WindowsPathValue> {
-    let registry_type = match raw.vtype {
+    let registry_type = match &raw.vtype {
         REG_SZ => PathRegistryType::String,
         REG_EXPAND_SZ => PathRegistryType::ExpandString,
         other => bail!("User PATH has unsupported registry type {other:?}"),
@@ -179,7 +179,7 @@ fn decode_path_value(raw: &RegValue<'_>) -> Result<WindowsPathValue> {
     })
 }
 
-fn encode_path_value(value: &WindowsPathValue) -> RegValue {
+fn encode_path_value(value: &WindowsPathValue) -> RegValue<'_> {
     let mut words = value.value.encode_utf16().collect::<Vec<_>>();
     words.push(0);
     RegValue {
