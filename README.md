@@ -36,6 +36,9 @@ curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/in
 iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.ps1 | iex
 ```
 
+For damaged Windows PATH, alias, or managed-core state, see the
+[Windows repair instructions](docs/troubleshooting.md#windows-repair).
+
 ### Cargo
 
 ```bash

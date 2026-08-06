@@ -111,22 +111,24 @@ if (-not $Fix) {
 
 $temporary = New-Item -ItemType Directory -Path ([IO.Path]::Combine([IO.Path]::GetTempPath(), [IO.Path]::GetRandomFileName()))
 try {
-    $asset = "upstream-$(Get-Architecture)-pc-windows-msvc.zip"
-    $archive = Join-Path $temporary $asset
+    $asset = "upstream-$(Get-Architecture)-pc-windows-msvc.exe"
+    $core = Join-Path $temporary $asset
     $checksums = Join-Path $temporary "SHA256SUMS.txt"
-    Invoke-WebRequest "https://github.com/what386/upstream-rs/releases/latest/download/$asset" -OutFile $archive -UseBasicParsing
+    Invoke-WebRequest "https://github.com/what386/upstream-rs/releases/latest/download/$asset" -OutFile $core -UseBasicParsing
     Invoke-WebRequest "https://github.com/what386/upstream-rs/releases/latest/download/SHA256SUMS.txt" -OutFile $checksums -UseBasicParsing
-    Confirm-Checksum $archive $checksums $asset
-    $bundle = Join-Path $temporary "bundle"
-    Expand-Archive -LiteralPath $archive -DestinationPath $bundle
-    $core = Join-Path $bundle "upstream.exe"
-    if (-not (Test-Path $core -PathType Leaf)) {
-        throw "Downloaded archive does not contain upstream.exe."
-    }
+    Confirm-Checksum $core $checksums $asset
 
     $installed = & $core list --json 2>$null | ConvertFrom-Json | Where-Object name -eq "upstream" | Select-Object -First 1
-    if (-not $installed) {
-        Invoke-Core $core @("--yes", "install", "what386/upstream-rs", "upstream", "-k", "archive")
+    $needsInstall = -not $installed
+    if ($installed) {
+        $execExists = $installed.exec_path -and (Test-Path -LiteralPath $installed.exec_path -PathType Leaf)
+        if ($installed.filetype -ne "WinExe" -or -not $execExists) {
+            Invoke-Core $core @("--yes", "remove", "upstream", "--force")
+            $needsInstall = $true
+        }
+    }
+    if ($needsInstall) {
+        Invoke-Core $core @("--yes", "install", "what386/upstream-rs", "upstream", "-k", "win-exe")
     }
     Invoke-Core $core @("hooks", "init")
     Invoke-Core $core @("doctor", "--fix")

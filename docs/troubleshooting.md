@@ -10,6 +10,29 @@ upstream doctor --fix
 
 `doctor` checks installed package paths, symlinks, shell hooks, completion directories, desktop entries, icons, config, and metadata. Use `--verbose` when you need individual check lines. Use `--fix` to repair supported issues such as PATH hooks, missing symlinks, executable bits, executable metadata, and unused config keys. Versioned local-data migrations run automatically at startup.
 
+## Windows Repair
+
+The Windows repair script is diagnostic-only unless `-Fix` is supplied:
+
+```powershell
+$repair = Join-Path $env:TEMP "repair-windows.ps1"
+iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/debug/repair-windows.ps1 -OutFile $repair
+pwsh -NoProfile -File $repair
+```
+
+After reviewing the output, repair the managed executable, aliases, and canonical
+user PATH entry with:
+
+```powershell
+pwsh -NoProfile -File $repair -Fix
+```
+
+The repair verifies the downloaded Windows executable against the published
+checksum and preserves configuration, other packages, caches, and rollback data.
+Restart separately launched shells afterward. The normal `install.ps1 | iex`
+command can prepend the repaired alias directory only in that current PowerShell
+process; it cannot change the environment of shells that are already running.
+
 ## Migration
 
 Startup migration creates missing current-layout directories, moves legacy
