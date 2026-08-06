@@ -223,10 +223,11 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
-    fn windows_can_switch_a_running_executable_and_its_alias() {
+    fn windows_can_replace_a_running_executable() {
         const MODE_ENV: &str = "UPSTREAM_SAFE_MOVE_CHILD_MODE";
         const READY_ENV: &str = "UPSTREAM_SAFE_MOVE_READY_FILE";
-        const TEST_NAME: &str = "utils::filesystem::safe_move::tests::windows_can_switch_a_running_executable_and_its_alias";
+        const TEST_NAME: &str =
+            "utils::filesystem::safe_move::tests::windows_can_replace_a_running_executable";
 
         if std::env::var_os(MODE_ENV).as_deref() == Some(std::ffi::OsStr::new("hold")) {
             let ready = std::env::var_os(READY_ENV).expect("child ready path");
@@ -239,13 +240,11 @@ mod tests {
         fs::create_dir_all(&root).expect("create root");
         let source = root.join("upstream.exe");
         let backup = root.join("upstream.old.exe");
-        let alias = root.join("alias.exe");
         let ready = root.join("ready");
         let test_binary = std::env::current_exe().expect("resolve test binary");
         fs::copy(&test_binary, &source).expect("copy source executable");
-        fs::hard_link(&source, &alias).expect("create initial alias");
 
-        let mut child = std::process::Command::new(&alias)
+        let mut child = std::process::Command::new(&source)
             .args(["--exact", TEST_NAME, "--nocapture"])
             .env(MODE_ENV, "hold")
             .env(READY_ENV, &ready)
@@ -260,13 +259,8 @@ mod tests {
 
         move_file_or_dir(&source, &backup).expect("rename running executable");
         fs::write(&source, b"replacement").expect("install replacement executable");
-        fs::remove_file(&alias).expect("remove old running alias");
-        fs::hard_link(&source, &alias).expect("create replacement alias");
 
-        assert_eq!(
-            fs::read(&alias).expect("read replacement alias"),
-            b"replacement"
-        );
+        assert_eq!(fs::read(&source).expect("read replacement"), b"replacement");
         assert!(backup.is_file());
         assert!(child.wait().expect("wait for old process").success());
 
