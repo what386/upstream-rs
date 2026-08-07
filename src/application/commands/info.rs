@@ -20,6 +20,7 @@ pub fn run(query: String, json: bool, paths: &UpstreamPaths) -> Result<()> {
 
 fn print_info_json(storage: &PackageDatabase, query: &str) -> Result<()> {
     let packages = storage.list_packages()?;
+
     let resolved = resolve_package_query(&packages, query)?;
     println!("{}", serde_json::to_string_pretty(resolved)?);
     Ok(())
@@ -28,9 +29,11 @@ fn print_info_json(storage: &PackageDatabase, query: &str) -> Result<()> {
 fn display_package_info(storage: &PackageDatabase, query: &str) -> Result<()> {
     let packages = storage.list_packages()?;
     let resolved = resolve_package_query(&packages, query)?;
+
     let header = format!("Exact match: {}", resolved.name);
 
     pager::page_text(Some(&header), &format_package_details(resolved))?;
+
     Ok(())
 }
 

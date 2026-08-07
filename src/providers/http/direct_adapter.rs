@@ -65,6 +65,7 @@ impl DirectAdapter {
             ConditionalProbeResult::NotModified => return Ok(None),
             ConditionalProbeResult::Asset(info) => info,
         };
+
         let published_at = info
             .last_modified
             .unwrap_or_else(|| last_upgraded.unwrap_or_else(Utc::now));

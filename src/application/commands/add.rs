@@ -29,6 +29,7 @@ pub async fn run(
                 FetchOutcome::NotModified => "index already current",
             },
         );
+
         return Ok(());
     }
 
@@ -39,6 +40,7 @@ pub async fn run(
         &app_config.registry.index_url,
     )
     .await?;
+
     if let Some(outcome) = outcome {
         output::status_line(
             Status::Ok,

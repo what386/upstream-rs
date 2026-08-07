@@ -161,6 +161,7 @@ fn run_restore(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperat
             "{}",
             output::warning("No rollback artifacts to restore for selected packages.")
         );
+
         return Ok(());
     }
     output::confirm_or_cancel(

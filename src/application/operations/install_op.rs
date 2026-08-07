@@ -93,6 +93,7 @@ impl<'a> InstallOperation<'a> {
     {
         cancellation::check()?;
         self.ensure_package_name_available(&request.package.name)?;
+
         let installed_package = self
             .installer
             .install_selected_asset(

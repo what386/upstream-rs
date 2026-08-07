@@ -23,6 +23,7 @@ impl AppDirs {
     pub fn new() -> Result<Self> {
         let user_dir =
             dirs::home_dir().context("Failed to determine the current user's home directory")?;
+
         let config_dir = dirs::config_dir()
             .context("Failed to determine the current user's config directory")?
             .join("upstream");

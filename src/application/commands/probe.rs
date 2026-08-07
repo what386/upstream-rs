@@ -340,6 +340,7 @@ impl ProbeAssetChoiceTable {
             arch = widths.arch,
             score = widths.score,
         );
+
         let divider = format!("  {}", output::divider(widths.table_width()));
         let rows = choices
             .iter()

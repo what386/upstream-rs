@@ -97,6 +97,7 @@ impl BuildProfileHandler for GoProfile {
             line_callback,
             format!("Running go build -o <artifact> {target} ..."),
         );
+
         let status = run_command_with_line_callback(
             Command::new("go")
                 .arg("build")

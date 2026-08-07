@@ -396,6 +396,7 @@ impl<'a> UpgradeOperation<'a> {
         concurrency_config: ConcurrencyConfig,
     ) -> Result<Self> {
         let installer = PackageInstaller::new(provider_manager, paths)?;
+
         let remover = PackageRemover::new(paths);
 
         let upgrader =
@@ -456,6 +457,7 @@ impl<'a> UpgradeOperation<'a> {
                 .collect::<Result<Vec<_>>>()?,
             None => self.package_database.list_packages()?,
         };
+
         let package_width = preview_package_width(&packages);
         event_callback(UpgradePreviewEvent::Started { package_width });
 
@@ -477,6 +479,7 @@ impl<'a> UpgradeOperation<'a> {
 
         while let Some((idx, row)) = pending.next().await {
             let row = row?;
+
             if let Some(row) = row.clone() {
                 event_callback(UpgradePreviewEvent::Row(Box::new(row)));
             }

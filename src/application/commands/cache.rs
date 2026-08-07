@@ -30,6 +30,7 @@ struct CacheReport {
 
 pub fn run_list(json: bool, paths: &UpstreamPaths) -> Result<()> {
     let report = inspect(paths)?;
+
     if json {
         println!("{}", serde_json::to_string_pretty(&report)?);
         return Ok(());

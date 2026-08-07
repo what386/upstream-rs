@@ -92,6 +92,7 @@ pub fn run_list(paths: &UpstreamPaths) -> Result<()> {
     }
 
     pager::page_text(Some("Current configuration"), &config_output)?;
+
     Ok(())
 }
 

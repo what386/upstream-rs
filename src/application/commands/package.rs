@@ -258,6 +258,7 @@ pub fn run_rename(old_name: String, new_name: String, paths: &UpstreamPaths) -> 
         "{}",
         output::success(format!("Package '{}' renamed to '{}'.", old_name, new_name))
     );
+
     Ok(())
 }
 

@@ -54,6 +54,7 @@ pub async fn run(
 
     let search =
         search_repositories(query, provider, base_url, limit, filters, paths, app_config).await?;
+
     let query = search.query;
     let effective_provider = search.provider;
     let base_url = search.base_url;
@@ -97,6 +98,7 @@ pub async fn run(
         format!("Search: '{}' via {}", query, effective_provider)
     };
     pager::page_text(Some(&title), &format_results(&results))?;
+
     Ok(())
 }
 

@@ -99,6 +99,7 @@ impl WindowsPathManager {
                     registry_type: PathRegistryType::ExpandString,
                 },
             };
+
             let mut entries = decoded
                 .value
                 .split(';')

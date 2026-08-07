@@ -212,6 +212,7 @@ impl<'a> RemoveOperation<'a> {
             package_name,
             PackageProgressEvent::Phase(PackagePhase::RemovingPackage)
         );
+
         let removal_result = self
             .remover
             .remove_package_files(&package, message_callback)

@@ -34,6 +34,7 @@ pub fn run(
         output::read_log_events(&paths.dirs.data_dir.join("log.jsonl"))?,
         &filter,
     );
+
     if json {
         println!("{}", serde_json::to_string_pretty(&events)?);
         return Ok(());
@@ -46,5 +47,6 @@ pub fn run(
 
     let text = history_op::render_records(&events);
     output::pager::page_text(Some("Upstream history"), text.trim_end())?;
+
     Ok(())
 }

@@ -37,6 +37,7 @@ pub fn run_export_packages(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
         "{}",
         output::success(format!("Packages complete: saved to '{}'.", path.display()))
     );
+
     Ok(())
 }
 
@@ -58,6 +59,7 @@ pub fn run_export_keys(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
         "{}",
         output::success(format!("Keys complete: saved to '{}'.", path.display()))
     );
+
     Ok(())
 }
 
@@ -79,6 +81,7 @@ pub fn run_export_config(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
         "{}",
         output::success(format!("Config complete: saved to '{}'.", path.display()))
     );
+
     Ok(())
 }
 
@@ -100,6 +103,7 @@ pub fn run_export_profile(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
         "{}",
         output::success(format!("Profile complete: saved to '{}'.", path.display()))
     );
+
     Ok(())
 }
 

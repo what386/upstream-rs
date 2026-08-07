@@ -123,6 +123,7 @@ pub async fn run(
     app_config: &AppConfig,
 ) -> Result<()> {
     let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
+
     let name = resolve_new_package_name(
         name,
         &repo_slug,
@@ -130,6 +131,7 @@ pub async fn run(
         base_url.as_deref(),
         &package_database,
     )?;
+
     let plan = InstallPlan {
         name,
         desktop: create_entry,
@@ -348,6 +350,7 @@ async fn run_release_plan(
                 "{}",
                 output::warning("Install complete: 0 installed, 1 failed.")
             );
+
             return Err(err.context(format!("Failed to install '{install_name}'")));
         }
     }

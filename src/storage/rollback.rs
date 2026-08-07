@@ -102,6 +102,7 @@ impl RollbackStorage {
                 self.rollback_file.display()
             )
         })?;
+
         if parsed.version != ROLLBACK_STORAGE_VERSION {
             return Err(anyhow!(
                 "Unsupported rollback storage version {} in '{}'. Expected version {}.",
@@ -164,6 +165,7 @@ impl RollbackStorage {
             .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
         self.load()?;
         validate_rollback_record(package_name, &record)?;
+
         let original_file = self.file.clone();
         let records = self
             .file
@@ -177,6 +179,7 @@ impl RollbackStorage {
         } else {
             Vec::new()
         };
+
         if let Err(error) = self.save() {
             self.file = original_file;
             return Err(error);
@@ -189,6 +192,7 @@ impl RollbackStorage {
             .lock()
             .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
         self.load()?;
+
         let original_file = self.file.clone();
         let removed = self.file.records.get_mut(package_name).and_then(Vec::pop);
         if self
@@ -211,6 +215,7 @@ impl RollbackStorage {
             .lock()
             .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
         self.load()?;
+
         let original_file = self.file.clone();
         let removed = self.file.records.remove(package_name).unwrap_or_default();
         if let Err(error) = self.save() {
@@ -225,6 +230,7 @@ impl RollbackStorage {
             .lock()
             .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
         self.load()?;
+
         if self.file.records.contains_key(new_name) {
             return Err(anyhow!(
                 "Rollback data already exists for package '{}'",

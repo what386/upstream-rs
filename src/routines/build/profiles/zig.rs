@@ -57,6 +57,7 @@ impl BuildProfileHandler for ZigProfile {
             line_callback,
             "Running zig build -Doptimize=ReleaseSafe ...",
         );
+
         let status = run_command_with_line_callback(
             Command::new("zig")
                 .arg("build")

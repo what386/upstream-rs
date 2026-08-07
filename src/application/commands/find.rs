@@ -62,6 +62,7 @@ pub async fn run(
         app_config,
     )
     .await?;
+
     if search.results.is_empty() {
         println!("{}", output::warning("No repositories found."));
         return Ok(());

@@ -148,6 +148,7 @@ pub fn run_build_script(
         "Failed to run build script '{}'. Check the script shebang, executable bit, and interpreter availability.",
         path.display()
     );
+
     let status =
         run_command_with_line_callback(&mut command, context.as_str(), &mut status_callback)
             .with_context(|| format!("Build script execution failed: '{}'", path.display()))?;

@@ -107,6 +107,7 @@ impl ManifestStorage {
                 self.manifest_file.display()
             )
         })?;
+
         if json.trim().is_empty() {
             self.manifest = None;
             return Ok(());
@@ -118,6 +119,7 @@ impl ManifestStorage {
                 self.manifest_file.display()
             )
         })?;
+
         if manifest.manifest_version != MANIFEST_STORAGE_VERSION {
             return Err(anyhow!(
                 "Unsupported migration manifest version {} in '{}'. Expected version {}.",

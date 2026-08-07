@@ -74,6 +74,7 @@ impl AuthStorage {
         }
 
         let mut root = public_auth_value(&self.auth).context("Failed to serialize auth")?;
+
         let keys: Vec<&str> = key_path.split('.').collect();
         let (path, final_key) = keys.split_at(keys.len() - 1);
 

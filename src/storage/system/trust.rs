@@ -193,6 +193,7 @@ impl TrustStorage {
         cosign_keys: &[CosignPublicKey],
     ) -> Result<SignatureKeyMergeSummary> {
         let minisign = self.merge_trusted_minisign_keys(minisign_keys)?;
+
         let cosign = self.merge_trusted_cosign_keys(cosign_keys)?;
         Ok(SignatureKeyMergeSummary { minisign, cosign })
     }

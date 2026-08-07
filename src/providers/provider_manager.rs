@@ -245,6 +245,7 @@ impl ProviderManager {
             requested,
             channel,
         );
+
         if let Some(release) = template_match {
             matches.push(release);
         }

@@ -251,6 +251,7 @@ pub(in crate::routines::doctor) fn check_untracked_package_artifacts(
         ],
         &tracked_install_paths,
     );
+
     if orphan_install_entries.is_empty() {
         report.line(Level::Ok, "No untracked install artifacts detected");
     } else {

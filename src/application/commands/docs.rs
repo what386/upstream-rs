@@ -46,6 +46,7 @@ pub async fn run(
         offline,
     )
     .await?;
+
     if matches!(result.readme_source, ProjectReadmeSource::CachedFallback) {
         println!(
             "{}",
@@ -79,6 +80,7 @@ pub async fn run(
 
     let text = format_selected_section(&result, &result.sections[selected], &renderer);
     pager::page_text(None, &text)?;
+
     Ok(())
 }
 
@@ -95,6 +97,7 @@ async fn run_fetch_readmes(
     }
 
     let targets = resolve_fetch_targets(packages, leading_name, keywords, fetch_names)?;
+
     if targets.is_empty() {
         println!("{}", output::warning("No installed packages to refresh."));
         return Ok(());

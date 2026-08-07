@@ -28,6 +28,7 @@ pub async fn run(names: Vec<String>, fix: bool, paths: &UpstreamPaths) -> Result
         Some(package_database) => package_database.list_packages()?,
         None => Vec::new(),
     };
+
     checks::check_untracked_package_artifacts(paths, &all_packages, &mut report);
     let selected = checks::select_packages(&names, &all_packages, &mut report);
 

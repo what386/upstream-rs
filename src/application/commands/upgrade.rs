@@ -187,6 +187,7 @@ pub async fn run(
         pb.finish_and_clear();
     }
     let preview_rows = preview_result?;
+
     let impact = preview_rows.iter().fold(
         crate::services::packaging::disk_impact::DiskImpact::empty(),
         |total, row| total + row.disk_impact.clone(),
@@ -601,6 +602,7 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
     } else {
         Status::Ok
     };
+
     if !display_rows.is_empty() {
         println!();
     }
@@ -720,6 +722,7 @@ async fn run_check(
             .await;
         check_pb.finish_and_clear();
         let rows = rows_result?;
+
         render_check_table(&rows);
         let failed = check_failure_count(&rows);
         if failed > 0 {
@@ -890,6 +893,7 @@ async fn run_dry_run(
             would_upgrade, up_to_date, failed, not_installed
         ),
     );
+
     if failed > 0 || not_installed > 0 {
         anyhow::bail!(
             "{} upgrade preview(s) failed",

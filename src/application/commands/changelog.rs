@@ -43,6 +43,7 @@ pub async fn run(
                     tag, package.repo_slug
                 )
             })?;
+
         let changelog = changelog_text_for_release(&package, &release);
         let renderer = output::MarkdownRenderer::for_terminal();
         let changelog = renderer.render(&changelog);
@@ -161,6 +162,7 @@ pub async fn run(
                 package.name, from_version, to_release.version
             ))
         );
+
         return Ok(());
     };
 

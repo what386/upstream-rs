@@ -206,6 +206,7 @@ impl Version {
         {
             bail!("Invalid datetime revision");
         }
+
         let timestamp = NaiveDateTime::parse_from_str(timestamp, DATETIME_FORMAT)
             .map_err(|_| anyhow::anyhow!("Invalid datetime timestamp"))?;
         Ok(Self::Datetime {

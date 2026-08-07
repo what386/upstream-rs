@@ -80,6 +80,7 @@ pub struct RollbackPruneOutcome {
 impl<'a> RollbackOperation<'a> {
     pub fn new(paths: &'a UpstreamPaths) -> Result<Self> {
         let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
+
         let rollback_file = RollbackManager::rollback_file_path(paths);
         let rollback_storage = RollbackStorage::new(&rollback_file)?;
 
@@ -217,6 +218,7 @@ impl<'a> RollbackOperation<'a> {
         } else {
             names
         };
+
         let preview = prune_preview(&target_names, &manager);
 
         RollbackPrunePreview {

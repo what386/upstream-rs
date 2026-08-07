@@ -14,6 +14,7 @@ impl Cli {
     pub async fn run(self, paths: &UpstreamPaths, app_config: &AppConfig) -> Result<()> {
         output::set_assume_yes(self.yes);
         output::set_no_pager(self.no_pager);
+
         let command = self.command;
         let operation = command.to_string();
         let _lock = if command.requires_lock() {

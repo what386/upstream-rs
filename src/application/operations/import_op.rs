@@ -291,6 +291,7 @@ impl<'a> ImportOperation<'a> {
         emit_overall(progress_callback, completed, total);
 
         let installer = PackageInstaller::new(self.provider_manager, self.paths)?;
+
         if let Some(cb) = progress_callback.as_mut() {
             cb(ImportProgressEvent::Started {
                 package_width: eligible
@@ -378,6 +379,7 @@ impl<'a> ImportOperation<'a> {
             &mut last_progress_events,
             progress_callback,
         );
+
         if let Some(cb) = progress_callback.as_mut() {
             cb(ImportProgressEvent::Clear);
         }

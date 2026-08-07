@@ -242,6 +242,7 @@ impl HttpClient {
             let Ok(joined) = base.join(&href) else {
                 continue;
             };
+
             if joined.scheme() != "http" && joined.scheme() != "https" {
                 continue;
             }

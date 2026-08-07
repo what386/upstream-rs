@@ -82,6 +82,7 @@ impl<'a> BuildWorker<'a> {
             let mut sender_callback = |line: &str| {
                 let _ = build_tx.send(line.to_string());
             };
+
             let mut build_line_callback: Option<&mut dyn FnMut(&str)> = Some(&mut sender_callback);
 
             selected.run_build(&workspace_path, &package_name, &mut build_line_callback)
@@ -104,6 +105,7 @@ impl<'a> BuildWorker<'a> {
                 }
             }
         };
+
         if scripts::script_for(request.script_action, &source.workspace_path).is_some() {
             cancellation::check()?;
             Self::emit_status(line_callback, "Running build scripts ...");

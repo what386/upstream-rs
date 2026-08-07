@@ -109,6 +109,7 @@ pub async fn run_import_packages(
 
     pb.finish_and_clear();
     let summary = result?;
+
     let failed = summary.failed;
     print_import_summary("Package import", summary);
     if failed > 0 {
@@ -136,6 +137,7 @@ pub fn run_import_keys(path: PathBuf, paths: &UpstreamPaths, app_config: &AppCon
     import_op.import_keys(&path, &mut progress_callback)?;
 
     pb.finish_and_clear();
+
     println!("{}", output::success("Key import complete."));
     Ok(())
 }
@@ -162,6 +164,7 @@ pub fn run_import_config(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
     );
 
     pb.finish_and_clear();
+
     println!("{}", output::success("Config import complete."));
     Ok(())
 }

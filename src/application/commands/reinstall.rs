@@ -128,6 +128,7 @@ pub async fn run(
                 continue;
             }
         };
+
         let effective_trust_mode = package_database.effective_trust_mode(name, trust_mode)?;
 
         if let Err(err) = reinstall_one(

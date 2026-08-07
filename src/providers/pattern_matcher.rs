@@ -180,6 +180,7 @@ fn asset_pattern_tokens(value: &str) -> Vec<String> {
         }
         _ => value,
     };
+
     let mut tokens = Vec::new();
     for segment in value
         .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '.')

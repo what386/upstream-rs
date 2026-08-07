@@ -355,6 +355,7 @@ impl<'a> RollbackManager<'a> {
                 Some(extract_record_archive(self.paths, package_name, &record)?)
             }
         };
+
         let source_path =
             record_artifact_source_path(self.paths, &record, extracted_dir.as_deref())?;
         if !source_path.exists() {
@@ -522,6 +523,7 @@ fn restore_failed_capture(
         RollbackArtifactFormat::Raw => None,
         RollbackArtifactFormat::Tgz => Some(extract_record_archive(paths, package_name, record)?),
     };
+
     let source_path = record_artifact_source_path(paths, record, extracted_dir.as_deref())?;
     safe_move::move_file_or_dir(&source_path, backup_path).context(format!(
         "Failed to restore backup to '{}'",

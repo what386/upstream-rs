@@ -67,6 +67,7 @@ async fn run() -> anyhow::Result<()> {
             LogLevel::Error,
             Some(output::error_summary(&err)),
         );
+
         return Err(err);
     }
 
@@ -78,6 +79,7 @@ async fn run() -> anyhow::Result<()> {
                 LogLevel::Error,
                 Some(output::error_summary(&err)),
             );
+
             return Err(err);
         }
     };

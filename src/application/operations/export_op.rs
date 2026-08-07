@@ -72,6 +72,7 @@ impl<'a> ExportOperation<'a> {
     {
         emit_phase(progress_callback, OperationPhase::SerializingExport);
         let export = self.keys_export(chrono::Utc::now().to_rfc3339())?;
+
         write_json(output, &export, "keys export", progress_callback)
     }
 
@@ -83,6 +84,7 @@ impl<'a> ExportOperation<'a> {
         let config_storage = ConfigStorage::new(&self.paths.config.config_file)?;
         let toml = toml::to_string_pretty(config_storage.get_config())
             .context("Failed to serialize config export")?;
+
         write_text(output, &toml, "config export", progress_callback)
     }
 
@@ -152,6 +154,7 @@ where
 {
     let json = serde_json::to_string_pretty(value)
         .with_context(|| format!("Failed to serialize {label}"))?;
+
     emit_phase(progress_callback, OperationPhase::WritingExport);
     fs::write(output, json)
         .with_context(|| format!("Failed to write {label} to '{}'", output.display()))

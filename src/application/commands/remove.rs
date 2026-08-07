@@ -171,6 +171,7 @@ pub fn run(
             return Err(err);
         }
     };
+
     overall_pb.finish_and_clear();
     let completion_rows = persistent_completion_rows
         .lock()
@@ -252,6 +253,7 @@ fn run_dry_run(
         "summary",
         format!("{planned} planned, {failed} failed"),
     );
+
     if failed > 0 {
         anyhow::bail!("{failed} package removal preview(s) failed");
     }

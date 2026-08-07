@@ -103,6 +103,7 @@ impl<'a> SourceDownloader<'a> {
                 status_callback,
                 format!("Fetching branch head for '{branch_name}' ..."),
             );
+
             let head_commit = self
                 .provider_manager
                 .get_branch_head_sha(repo_slug, provider, branch_name, base_url)
@@ -323,6 +324,7 @@ impl<'a> SourceDownloader<'a> {
             status_callback,
             format!("Syncing source archive cache '{}'", destination.display()),
         );
+
         sync_manifested_tree(workspace_path, &destination, &manifest_path).context(format!(
             "Failed to sync source archive cache for '{}' at '{}'",
             repo_slug,

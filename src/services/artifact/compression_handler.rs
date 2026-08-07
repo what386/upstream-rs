@@ -202,6 +202,7 @@ fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> 
                     err
                 )
             })?;
+
             if !metadata.is_file() {
                 return Err(anyhow!(
                     "Archive hardlink '{}' target is not a regular file '{}'",
@@ -413,6 +414,7 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
         let Some(single_dir) = top_level_entries.into_iter().next() else {
             return Ok(extract_dir.to_path_buf());
         };
+
         if single_dir.is_dir() {
             // Move contents of single_dir up to extract_dir
             for entry in std::fs::read_dir(&single_dir)? {

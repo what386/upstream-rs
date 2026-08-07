@@ -12,6 +12,7 @@ pub fn run_hooks_init(paths: &UpstreamPaths) -> Result<()> {
         "{}",
         output::success("Hooks complete: shell integration initialized.")
     );
+
     Ok(())
 }
 
@@ -36,6 +37,7 @@ pub fn run_hooks_clean(paths: &UpstreamPaths) -> Result<()> {
         "{}",
         output::success("Hooks complete: shell integration removed.")
     );
+
     Ok(())
 }
 
@@ -52,5 +54,6 @@ pub fn run_hooks_purge(paths: &UpstreamPaths) -> Result<()> {
     purge_data(paths)?;
     println!("{}", output::success("Hooks purge complete."));
     output::action_note(format!("Deleted '{}'", paths.dirs.data_dir.display()));
+
     Ok(())
 }

@@ -91,6 +91,7 @@ impl<'a> ProbeOperation<'a> {
             provider.clone(),
             base_url.clone(),
         );
+
         let rows = build_probe_rows(&releases, self.provider_manager, &probe_package);
         let choices = build_probe_asset_choices(
             &releases,
@@ -128,6 +129,7 @@ impl<'a> ProbeOperation<'a> {
             .get(selected_choice.release_index)
             .cloned()
             .ok_or_else(|| anyhow!("Selected release no longer exists"))?;
+
         let selected_asset = selected_choice.asset.clone();
         let generated = AssetSelector::new().generate_patterns_for_asset(
             &selected_asset,

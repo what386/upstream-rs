@@ -23,6 +23,7 @@ pub async fn run(
 ) -> Result<DocsRunResult> {
     let readme =
         fetch_project_readme(provider_manager, &paths.dirs.cache_dir, package, offline).await?;
+
     let search = search_readme(
         &package.name,
         &readme.document_name,

@@ -385,6 +385,7 @@ pub fn render_records(records: &[HistoryRecord]) -> String {
             record.message
         )
         .expect("writing to a String cannot fail");
+
         let package_items = record
             .items
             .iter()
@@ -426,6 +427,7 @@ fn operation_id() -> String {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
         .unwrap_or_default();
+
     let counter = COUNTER.get_or_init(|| Mutex::new(0));
     let value = counter
         .lock()

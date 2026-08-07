@@ -56,6 +56,7 @@ where
     F: FnMut(u64, u64),
 {
     cancellation::check()?;
+
     let response = client.get(url);
     let response = tokio::select! {
         response = response.send() => response,
@@ -137,6 +138,7 @@ where
     F: FnMut(u64, u64),
 {
     cancellation::check()?;
+
     let response = client.get(url).send();
     let response = tokio::select! {
         response = response => response,

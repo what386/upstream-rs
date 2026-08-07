@@ -21,6 +21,7 @@ pub fn run(filter: Option<String>, json: bool, paths: &UpstreamPaths) -> Result<
 
 fn print_list_json(storage: &PackageDatabase, filter: Option<&str>) -> Result<()> {
     let packages = storage.list_packages()?;
+
     let packages = filter_packages_by_name(packages, filter)?;
     println!("{}", serde_json::to_string_pretty(&packages)?);
     Ok(())
@@ -50,6 +51,7 @@ fn display_package_list(storage: &PackageDatabase, filter: Option<&str>) -> Resu
         None => format!("Packages ({})  Flags: D=desktop, P=pinned", packages.len()),
     };
     pager::page_text(Some(&title), &format_package_table(&packages))?;
+
     Ok(())
 }
 

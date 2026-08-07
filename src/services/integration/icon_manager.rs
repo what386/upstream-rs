@@ -119,6 +119,7 @@ impl<'a> IconManager<'a> {
                             "Found system icon: {}",
                             exact_match.display()
                         );
+
                         return Some(exact_match);
                     }
                 }

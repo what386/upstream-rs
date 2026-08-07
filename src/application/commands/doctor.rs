@@ -70,6 +70,7 @@ pub async fn run(
             "{}",
             serde_json::to_string_pretty(&json_doctor_report(&report))?
         );
+
         if report.fail > 0 {
             return Err(anyhow!(
                 "Doctor found {} failure(s). Resolve reported issues and retry.",
@@ -82,6 +83,7 @@ pub async fn run(
     println!("{}", style("Running upstream doctor...").cyan());
 
     let report = doctor::run(names, fix, paths).await?;
+
     if verbose {
         print_verbose_findings(&report);
     }

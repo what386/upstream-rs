@@ -195,6 +195,7 @@ fn render_selection(
         items.len(),
         preview_line_count,
     );
+
     let visible_rows = layout.selection_rows;
     *top = selection_top(selected, *top, visible_rows, items.len());
     let bottom = top.saturating_add(visible_rows).min(items.len());

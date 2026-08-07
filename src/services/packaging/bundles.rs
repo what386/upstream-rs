@@ -443,6 +443,7 @@ impl<'a> BundleHandler<'a> {
                 "Mounting DMG '{}' ...",
                 dmg_path.display()
             );
+
             let mut mounted = MountedDmg::attach(dmg_path, mount_point)?;
 
             message!(message_callback, "Searching DMG for .app bundle ...");

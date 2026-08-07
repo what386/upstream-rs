@@ -103,6 +103,7 @@ impl<'a> BuildOperation<'a> {
         if let Some(semver) = input.semver.as_deref() {
             let requested = crate::models::common::Version::parse(semver)
                 .with_context(|| format!("Invalid semantic version '{semver}'"))?;
+
             let release = self
                 .provider_manager
                 .get_release_by_semver(

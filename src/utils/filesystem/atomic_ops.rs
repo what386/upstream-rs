@@ -19,6 +19,7 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
+
     let temp_path = parent.join(format!(
         ".{}.tmp-{}-{}",
         path.file_name()
