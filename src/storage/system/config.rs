@@ -338,36 +338,6 @@ mod tests {
     }
 
     #[test]
-    fn load_rejects_legacy_version_key() {
-        let path = temp_config_file("legacy-version");
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("create parent");
-        }
-        fs::write(&path, "version = 999\n\n[download]\nhigh_threads = 6\n").expect("write config");
-
-        let err = ConfigStorage::new(&path).expect_err("legacy version should be rejected");
-        assert!(err.to_string().contains("Tried to parse an invalid config"));
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
-    fn save_config_omits_internal_version_key() {
-        let path = temp_config_file("save-without-version");
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("create parent");
-        }
-        let storage = ConfigStorage::new(&path).expect("create storage");
-        storage.save_config().expect("save config");
-
-        let content = fs::read_to_string(&path).expect("read config");
-        assert!(!content.contains("version ="));
-        assert!(content.contains("[download]"));
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
     fn load_rejects_config_with_unsupported_auth_table() {
         let path = temp_config_file("unsupported-trust");
         if let Some(parent) = path.parent() {

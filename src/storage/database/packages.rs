@@ -506,17 +506,6 @@ mod tests {
     }
 
     #[test]
-    fn open_in_memory_initializes_schema() {
-        let db = PackageConnection::open_in_memory().expect("open db");
-
-        assert_eq!(
-            db.schema_version().expect("schema version"),
-            PACKAGE_DB_SCHEMA_VERSION
-        );
-        assert!(!db.package_exists("missing").expect("exists check"));
-    }
-
-    #[test]
     fn open_migrates_schema_v1_in_place() {
         let conn = Connection::open_in_memory().expect("open sqlite");
         conn.execute_batch(

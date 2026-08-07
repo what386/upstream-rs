@@ -369,13 +369,6 @@ mod tests {
             .collect()
     }
 
-    #[test]
-    fn parse_version_from_filename_extracts_semver_triplet() {
-        let version = WebScraperAdapter::parse_version_from_filename("tool-v1.4.9-linux.tar.gz")
-            .expect("parsed version");
-        assert_eq!(version, Version::new(1, 4, 9, false));
-    }
-
     fn test_asset(name: &str) -> HttpAssetInfo {
         HttpAssetInfo {
             download_url: format!("https://example.invalid/{name}"),

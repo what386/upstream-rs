@@ -49,20 +49,6 @@ impl PatternTable {
         Self::from_patterns(value.split(','))
     }
 
-    fn from_legacy_string(value: &str) -> Self {
-        let mut seen = HashSet::new();
-        let mut out = Vec::new();
-        for chunk in value.split(',') {
-            for pattern in chunk.split_whitespace() {
-                let normalized = normalize_pattern(pattern);
-                if !normalized.is_empty() && seen.insert(normalized.clone()) {
-                    out.push(normalized);
-                }
-            }
-        }
-        Self { patterns: out }
-    }
-
     pub fn is_empty(&self) -> bool {
         self.patterns.is_empty()
     }
@@ -115,7 +101,7 @@ impl<'de> Visitor<'de> for PatternTableVisitor {
     type Value = PatternTable;
 
     fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("null, a string, or an array of pattern strings")
+        formatter.write_str("null or an array of pattern strings")
     }
 
     fn visit_unit<E>(self) -> Result<Self::Value, E>
@@ -136,14 +122,14 @@ impl<'de> Visitor<'de> for PatternTableVisitor {
     where
         E: de::Error,
     {
-        Ok(PatternTable::from_legacy_string(value))
+        Err(E::invalid_type(de::Unexpected::Str(value), &self))
     }
 
     fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        Ok(PatternTable::from_legacy_string(&value))
+        Err(E::invalid_type(de::Unexpected::Str(&value), &self))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -360,13 +346,6 @@ mod tests {
     fn cli_patterns_split_on_commas_only() {
         let table = PatternTable::from_cli_arg(Some("linux-x86_64,musl".to_string()));
         assert_eq!(table.as_slice(), ["linux-x86_64", "musl"]);
-    }
-
-    #[test]
-    fn legacy_strings_split_on_whitespace_and_commas() {
-        let json = r#""x86_64 linux,musl""#;
-        let table: PatternTable = serde_json::from_str(json).expect("legacy table");
-        assert_eq!(table.as_slice(), ["x86_64", "linux", "musl"]);
     }
 
     #[test]

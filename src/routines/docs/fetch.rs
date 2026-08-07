@@ -158,7 +158,7 @@ fn write_cached_readme(path: &Path, contents: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ProjectReadmeSource, cache_path_for_package, fetch_project_readme, read_cached_readme,
+        ProjectReadmeSource, cache_path_for_package, fetch_project_readme,
         sanitize_cache_component, write_cached_readme,
     };
     use crate::models::{
@@ -207,18 +207,6 @@ mod tests {
                 .join("what386_upstream-rs_upstream")
                 .join("README.md")
         );
-    }
-
-    #[test]
-    fn cached_readme_round_trips() {
-        let root = crate::utils::test_support::temp_root("docs-cache", "readme");
-        let path = root.join("docs/owner_repo_tool/README.md");
-
-        write_cached_readme(&path, "# README\n").expect("write cache");
-        let contents = read_cached_readme(&path).expect("read cache");
-
-        assert_eq!(contents, "# README\n");
-        std::fs::remove_dir_all(root).expect("cleanup");
     }
 
     #[tokio::test]

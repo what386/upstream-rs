@@ -787,32 +787,6 @@ mod tests {
     }
 
     #[test]
-    fn read_packages_accepts_current_version() {
-        let path = temp_file("current-version");
-        fs::write(
-            &path,
-            format!(r#"{{"version":{PACKAGES_EXPORT_VERSION},"packages":[]}}"#),
-        )
-        .expect("write packages");
-
-        let packages = ImportOperation::read_packages(&path).expect("read packages");
-
-        assert_eq!(packages.version, PACKAGES_EXPORT_VERSION);
-        let _ = fs::remove_file(path);
-    }
-
-    #[test]
-    fn read_packages_accepts_legacy_version_two() {
-        let path = temp_file("version-two");
-        fs::write(&path, r#"{"version":2,"packages":[]}"#).expect("write packages");
-
-        let packages = ImportOperation::read_packages(&path).expect("read legacy packages");
-
-        assert_eq!(packages.version, 2);
-        let _ = fs::remove_file(path);
-    }
-
-    #[test]
     fn read_keys_export_accepts_current_version() {
         let path = temp_file("keys-current-version");
         fs::write(

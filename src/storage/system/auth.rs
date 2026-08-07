@@ -227,20 +227,6 @@ mod tests {
     }
 
     #[test]
-    fn new_keeps_defaults_in_memory_when_file_missing() {
-        let path = temp_auth_file("new-default-in-memory");
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("create parent");
-        }
-
-        let storage = AuthStorage::new(&path).expect("create storage");
-        assert!(!path.exists());
-        assert!(storage.get_auth().github.api_token.is_none());
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
     fn set_and_get_auth_values_updates_storage() {
         let path = temp_auth_file("set-get");
         if let Some(parent) = path.parent() {

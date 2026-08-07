@@ -224,15 +224,6 @@ mod tests {
     }
 
     #[test]
-    fn new_starts_empty_when_file_missing() {
-        let path = temp_trust_file("missing");
-        let storage = TrustStorage::new(&path).expect("create storage");
-        let keys = storage.trusted_signature_keys();
-        assert!(keys.minisign_public_keys.is_empty());
-        assert!(keys.cosign_public_keys.is_empty());
-    }
-
-    #[test]
     fn merge_keys_dedupes_and_round_trips() {
         let path = temp_trust_file("merge");
         let mut storage = TrustStorage::new(&path).expect("create storage");

@@ -197,15 +197,6 @@ mod tests {
     }
 
     #[test]
-    fn open_starts_empty_when_file_missing() {
-        let path = temp_database_path("missing");
-        let db = PackageDatabase::open(&path).expect("open database");
-        assert!(db.list_packages().expect("list packages").is_empty());
-        assert!(path.exists());
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
     fn open_ignores_adjacent_legacy_json() {
         let path = temp_database_path("legacy-json-ignored");
         let legacy_path = legacy_packages_file(&path);

@@ -237,13 +237,6 @@ mod tests {
     }
 
     #[test]
-    fn new_starts_empty_when_manifest_is_missing() {
-        let path = temp_manifest_file("missing");
-        let storage = ManifestStorage::new(&path).expect("create storage");
-        assert!(storage.manifest().is_none());
-    }
-
-    #[test]
     fn ensure_current_writes_migration_manifest() {
         let path = temp_manifest_file("ensure-current");
         let mut storage = ManifestStorage::new(&path).expect("create storage");

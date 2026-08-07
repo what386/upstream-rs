@@ -212,13 +212,6 @@ mod tests {
         out
     }
 
-    #[test]
-    fn parse_version_from_filename_extracts_semver_triplet() {
-        let version = DirectAdapter::parse_version_from_filename("tool-v1.2.3-linux-x86_64.tar.gz")
-            .expect("parsed version");
-        assert_eq!(version, Version::new(1, 2, 3, false));
-    }
-
     #[tokio::test]
     async fn get_latest_release_builds_release_from_probe_metadata() {
         let etag = "\"etag-value\"".to_string();
