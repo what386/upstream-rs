@@ -846,6 +846,15 @@ impl<'a> PackageUpgrader<'a> {
         }
         let mut rollback_guard = rollback_guard;
         rollback_guard.disarm();
+        if let Err(error) = Self::remove_path_if_exists(backup_path) {
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Warning(format!(
+                    "Replacement succeeded, but retained backup '{}' could not be removed: {error:#}",
+                    backup_path.display()
+                ))
+            );
+        }
         Ok(updated_package)
     }
 
@@ -950,8 +959,11 @@ mod tests {
         upstream::Package,
     };
     use crate::providers::provider_manager::ProviderManager;
-    use crate::services::packaging::{PackageInstaller, PackageProgressEvent, PackageRemover};
+    use crate::services::packaging::{
+        PackageInstaller, PackageProgressEvent, PackageRemover, RollbackManager,
+    };
     use crate::services::trust::TrustedSignatureKeys;
+    use crate::storage::rollback::RollbackStorage;
     use crate::utils::{static_paths::UpstreamPaths, test_support};
     use chrono::Utc;
     use std::path::{Path, PathBuf};
@@ -1210,16 +1222,24 @@ mod tests {
         fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
         fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
         fs::create_dir_all(&paths.dirs.config_dir).expect("create config dir");
-        fs::write(&paths.config.config_file, "[rollback\ninvalid").expect("write invalid config");
+        fs::write(
+            &paths.config.config_file,
+            "[rollback]\ncompression_level = \"low\"\nstored_artifacts = 1\n",
+        )
+        .expect("write rollback config");
 
         let install_path = paths.install.binaries_dir.join("tool");
         let backup_path = paths.install.tmp_dir.join("tool-backup.old");
         fs::write(&install_path, b"new").expect("write replacement");
         fs::write(&backup_path, b"old").expect("write backup");
-        let previous = test_package("tool", install_path.clone());
+        let guard_previous = test_package("tool", install_path.clone());
+        let mut previous = guard_previous.clone();
+        let invalid_icon = root.join("icon-directory");
+        fs::create_dir_all(&invalid_icon).expect("create invalid icon directory");
+        previous.icon_path = Some(invalid_icon);
         let updated = test_package("tool", install_path.clone());
         let mut guard =
-            UpgradeRollbackGuard::new(previous.clone(), install_path.clone(), backup_path.clone());
+            UpgradeRollbackGuard::new(guard_previous, install_path.clone(), backup_path.clone());
         guard.attach_paths(&paths).expect("attach paths");
         guard.set_partial_package(updated.clone());
 
@@ -1249,11 +1269,72 @@ mod tests {
                 &mut progress,
             )
             .await
-            .expect_err("invalid config should prevent rollback capture");
+            .expect_err("post-copy icon failure should prevent rollback capture");
 
         assert!(error.to_string().contains("previous version restored"));
         assert_eq!(fs::read(&install_path).expect("read restored"), b"old");
         assert!(!backup_path.exists());
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn successful_rollback_capture_removes_old_backup_after_commit() {
+        let root = temp_root("capture-success");
+        let paths = test_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
+        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
+        fs::create_dir_all(&paths.dirs.config_dir).expect("create config dir");
+        fs::write(
+            &paths.config.config_file,
+            "[rollback]\ncompression_level = \"low\"\nstored_artifacts = 1\n",
+        )
+        .expect("write rollback config");
+
+        let install_path = paths.install.binaries_dir.join("tool");
+        let backup_path = paths.install.tmp_dir.join("tool-backup.old");
+        fs::write(&install_path, b"new").expect("write replacement");
+        fs::write(&backup_path, b"old").expect("write backup");
+        let previous = test_package("tool", install_path.clone());
+        let updated = test_package("tool", install_path.clone());
+        let mut guard =
+            UpgradeRollbackGuard::new(previous.clone(), install_path.clone(), backup_path.clone());
+        guard.attach_paths(&paths).expect("attach paths");
+        guard.set_partial_package(updated.clone());
+
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+        let installer = PackageInstaller::new(&provider_manager, &paths).expect("installer");
+        let remover = PackageRemover::new(&paths);
+        let upgrader = PackageUpgrader::new(
+            &provider_manager,
+            installer,
+            remover,
+            &paths,
+            TrustedSignatureKeys::default(),
+        );
+
+        upgrader
+            .finish_replacement(
+                &previous,
+                updated,
+                false,
+                &backup_path,
+                guard,
+                crate::storage::rollback::RollbackSource::Upgrade,
+                &mut None::<fn(&str)>,
+                &mut None::<fn(PackageProgressEvent)>,
+            )
+            .await
+            .expect("finish replacement");
+
+        assert_eq!(fs::read(&install_path).expect("read replacement"), b"new");
+        assert!(!backup_path.exists());
+        let rollback_file = RollbackManager::rollback_file_path(&paths);
+        let rollback_storage =
+            RollbackStorage::new(&rollback_file).expect("reload rollback storage");
+        assert!(rollback_storage.get_record("tool").is_some());
 
         cleanup(&root).expect("cleanup");
     }

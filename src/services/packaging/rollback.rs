@@ -107,20 +107,7 @@ impl<'a> RollbackManager<'a> {
         ) {
             Ok(pruned) => pruned,
             Err(storage_error) => {
-                return match restore_failed_capture(
-                    self.paths,
-                    &package.name,
-                    install_path,
-                    &record,
-                ) {
-                    Ok(()) => Err(storage_error)
-                        .context("Failed to persist rollback record; install was restored"),
-                    Err(restore_error) => Err(anyhow!(
-                        "Failed to persist rollback record: {}. Failed to restore captured install: {}",
-                        storage_error,
-                        restore_error
-                    )),
-                };
+                return cleanup_failed_capture(self.paths, &package.name, &record, storage_error);
             }
         };
         for record in pruned {
@@ -163,15 +150,7 @@ impl<'a> RollbackManager<'a> {
         ) {
             Ok(pruned) => pruned,
             Err(storage_error) => {
-                return match restore_failed_capture(paths, &package.name, backup_path, &record) {
-                    Ok(()) => Err(storage_error)
-                        .context("Failed to persist rollback record; backup was restored"),
-                    Err(restore_error) => Err(anyhow!(
-                        "Failed to persist rollback record: {}. Failed to restore captured backup: {}",
-                        storage_error,
-                        restore_error
-                    )),
-                };
+                return cleanup_failed_capture(paths, &package.name, &record, storage_error);
             }
         };
         for record in pruned {
@@ -232,49 +211,65 @@ impl<'a> RollbackManager<'a> {
             package.name,
             rollback_artifact.display()
         );
-        safe_move::move_file_or_dir(artifact_path, &rollback_artifact)?;
+        let archive_path = package_rollback_dir.join(format!("{capture_id}.tgz"));
+        let capture_result = (|| {
+            safe_move::copy_file_or_dir(artifact_path, &rollback_artifact)?;
 
-        let icon_entry_path = capture_icon(paths, package, &capture_dir)?;
+            let icon_entry_path = capture_icon(paths, package, &capture_dir)?;
 
-        let created_at = Utc::now();
-        if matches!(options.compression_level, CompressionLevel::None) {
-            return Ok(RollbackRecord {
+            let created_at = Utc::now();
+            if matches!(options.compression_level, CompressionLevel::None) {
+                return Ok(RollbackRecord {
+                    package_snapshot: package.clone(),
+                    artifact_relative_path: path_relative_to(
+                        &paths.state.rollback_dir,
+                        &rollback_artifact,
+                    )?,
+                    icon_relative_path: icon_entry_path
+                        .as_ref()
+                        .map(|entry| {
+                            path_relative_to(&paths.state.rollback_dir, &capture_dir.join(entry))
+                        })
+                        .transpose()?,
+                    artifact_format: RollbackArtifactFormat::Raw,
+                    artifact_entry_path: None,
+                    icon_entry_path: None,
+                    source,
+                    created_at,
+                });
+            }
+
+            compress_capture_dir(&capture_dir, &archive_path, options.compression_level)?;
+            fs::remove_dir_all(&capture_dir).context(format!(
+                "Failed to remove rollback staging directory '{}'",
+                capture_dir.display()
+            ))?;
+
+            Ok(RollbackRecord {
                 package_snapshot: package.clone(),
-                artifact_relative_path: path_relative_to(
-                    &paths.state.rollback_dir,
-                    &rollback_artifact,
-                )?,
-                icon_relative_path: icon_entry_path
-                    .as_ref()
-                    .map(|entry| {
-                        path_relative_to(&paths.state.rollback_dir, &capture_dir.join(entry))
-                    })
-                    .transpose()?,
-                artifact_format: RollbackArtifactFormat::Raw,
-                artifact_entry_path: None,
-                icon_entry_path: None,
+                artifact_relative_path: path_relative_to(&paths.state.rollback_dir, &archive_path)?,
+                icon_relative_path: None,
+                artifact_format: RollbackArtifactFormat::Tgz,
+                artifact_entry_path: Some(artifact_entry_path),
+                icon_entry_path,
                 source,
                 created_at,
-            });
+            })
+        })();
+
+        if let Err(capture_error) = capture_result {
+            let cleanup_result = remove_file_or_dir_if_exists(&capture_dir)
+                .and_then(|()| remove_file_or_dir_if_exists(&archive_path))
+                .and_then(|()| cleanup_empty_package_rollback_dir(paths, &package.name));
+            return match cleanup_result {
+                Ok(()) => Err(capture_error),
+                Err(cleanup_error) => Err(anyhow!(
+                    "{capture_error:#}. Failed to clean incomplete rollback capture: {cleanup_error:#}"
+                )),
+            };
         }
 
-        let archive_path = package_rollback_dir.join(format!("{capture_id}.tgz"));
-        compress_capture_dir(&capture_dir, &archive_path, options.compression_level)?;
-        fs::remove_dir_all(&capture_dir).context(format!(
-            "Failed to remove rollback staging directory '{}'",
-            capture_dir.display()
-        ))?;
-
-        Ok(RollbackRecord {
-            package_snapshot: package.clone(),
-            artifact_relative_path: path_relative_to(&paths.state.rollback_dir, &archive_path)?,
-            icon_relative_path: None,
-            artifact_format: RollbackArtifactFormat::Tgz,
-            artifact_entry_path: Some(artifact_entry_path),
-            icon_entry_path,
-            source,
-            created_at,
-        })
+        capture_result
     }
 
     pub fn restore_package<H>(
@@ -513,33 +508,18 @@ impl<'a> RollbackManager<'a> {
     }
 }
 
-fn restore_failed_capture(
+fn cleanup_failed_capture(
     paths: &UpstreamPaths,
     package_name: &str,
-    backup_path: &Path,
     record: &RollbackRecord,
+    storage_error: anyhow::Error,
 ) -> Result<()> {
-    let extracted_dir = match record.artifact_format {
-        RollbackArtifactFormat::Raw => None,
-        RollbackArtifactFormat::Tgz => Some(extract_record_archive(paths, package_name, record)?),
-    };
-
-    let source_path = record_artifact_source_path(paths, record, extracted_dir.as_deref())?;
-    safe_move::move_file_or_dir(&source_path, backup_path).context(format!(
-        "Failed to restore backup to '{}'",
-        backup_path.display()
-    ))?;
-
-    delete_record_artifacts(paths, package_name, record)?;
-    if let Some(extracted_dir) = extracted_dir
-        && extracted_dir.exists()
-    {
-        fs::remove_dir_all(&extracted_dir).context(format!(
-            "Failed to remove rollback extraction directory '{}'",
-            extracted_dir.display()
-        ))?;
+    match delete_record_artifacts(paths, package_name, record) {
+        Ok(()) => Err(storage_error).context("Failed to persist rollback record"),
+        Err(cleanup_error) => Err(anyhow!(
+            "Failed to persist rollback record: {storage_error:#}. Failed to clean unrecorded rollback artifact: {cleanup_error:#}"
+        )),
     }
-    Ok(())
 }
 
 fn path_relative_to(base: &Path, full: &Path) -> Result<PathBuf> {
@@ -940,6 +920,10 @@ mod tests {
                         &mut None::<fn(&str)>,
                     )
                     .expect("capture rollback");
+                assert_eq!(
+                    fs::read_to_string(install_path).expect("source remains after capture"),
+                    contents
+                );
             }
         }
 
@@ -987,7 +971,10 @@ mod tests {
             manager
                 .capture_from_installed(&package, RollbackSource::Upgrade, &mut None::<fn(&str)>)
                 .expect("capture rollback");
-            assert!(!install_path.exists());
+            assert_eq!(
+                fs::read_to_string(&install_path).expect("source remains after capture"),
+                "before-upgrade"
+            );
             assert_eq!(
                 manager
                     .rollback_record("tool")
@@ -996,6 +983,7 @@ mod tests {
                 RollbackArtifactFormat::Tgz
             );
 
+            fs::remove_file(&install_path).expect("remove current install before restore");
             manager
                 .restore_package("tool", &mut None::<fn(&str)>)
                 .expect("restore rollback");
@@ -1006,6 +994,40 @@ mod tests {
             "before-upgrade"
         );
         assert!(rollback_storage.get_record("tool").is_none());
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn failed_capture_keeps_source_and_cleans_managed_copy() {
+        let root = temp_root("failed-capture-source");
+        write_rollback_config(&root, "low", 1);
+        let paths = test_support::upstream_paths(&root);
+        let mut package_database =
+            PackageDatabase::open(&paths.metadata.packages_database_file).expect("package storage");
+        let rollback_file = RollbackManager::rollback_file_path(&paths);
+        let mut rollback_storage = RollbackStorage::new(&rollback_file).expect("rollback storage");
+        let mut package = test_package(&root, "tool");
+        let install_path = package.install_path.as_ref().expect("install path").clone();
+        fs::create_dir_all(install_path.parent().expect("install parent"))
+            .expect("create install parent");
+        fs::write(&install_path, "original").expect("write install artifact");
+        let invalid_icon = root.join("icon-directory");
+        fs::create_dir_all(&invalid_icon).expect("create invalid icon directory");
+        package.icon_path = Some(invalid_icon);
+
+        let mut manager =
+            RollbackManager::new(&paths, &mut package_database, &mut rollback_storage);
+        manager
+            .capture_from_installed(&package, RollbackSource::Upgrade, &mut None::<fn(&str)>)
+            .expect_err("directory icon should fail after artifact copy");
+
+        assert_eq!(
+            fs::read_to_string(&install_path).expect("source remains after failed capture"),
+            "original"
+        );
+        assert!(rollback_storage.get_record("tool").is_none());
+        assert!(!paths.state.rollback_dir.join("tool").exists());
 
         cleanup(&root).expect("cleanup");
     }

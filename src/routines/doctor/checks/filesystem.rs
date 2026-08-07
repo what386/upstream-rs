@@ -141,12 +141,12 @@ pub(in crate::routines::doctor) fn check_interrupted_transactions(
         .collect();
 
     if leftovers.is_empty() {
-        report.line(Level::Ok, "no interrupted upgrade backups detected");
+        report.line(Level::Ok, "no retained upgrade backups detected");
     } else {
         report.line(
             Level::Warn,
             format!(
-                "{} interrupted upgrade backup(s) remain in {}",
+                "{} retained or interrupted upgrade backup(s) remain in {}",
                 leftovers.len(),
                 paths.install.tmp_dir.display()
             ),
