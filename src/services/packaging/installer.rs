@@ -1,5 +1,3 @@
-mod staging;
-
 use crate::{
     models::common::enums::TrustMode,
     models::{
@@ -12,6 +10,7 @@ use crate::{
         artifact::{archive_layout, compression_handler, dotslash_parser, permission_handler},
         integration::CompletionManager,
         packaging::{
+            staging::InstallWorkspace,
             InstallPlan, InstallRequest, InstallSource, PackagePhase, PackageProgressEvent,
             PlannedInstallSource,
             disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
@@ -24,7 +23,6 @@ use crate::{
     },
     utils::{filesystem::safe_move, static_paths::UpstreamPaths},
 };
-pub(crate) use staging::InstallWorkspace;
 
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
@@ -72,11 +70,11 @@ pub struct ResolvedAssetInstall {
 }
 
 impl<'a> PackageInstaller<'a> {
-    pub(crate) fn paths(&self) -> &UpstreamPaths {
+    pub fn paths(&self) -> &UpstreamPaths {
         self.paths
     }
 
-    pub(crate) fn provider_manager(&self) -> &ProviderManager {
+    pub fn provider_manager(&self) -> &ProviderManager {
         self.provider_manager
     }
 
@@ -170,7 +168,7 @@ impl<'a> PackageInstaller<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn materialize_install<F, H, P>(
+    pub async fn materialize_install<F, H, P>(
         &mut self,
         trusted_keys: &TrustedSignatureKeys,
         plan: InstallPlan,
@@ -216,7 +214,7 @@ impl<'a> PackageInstaller<'a> {
         }
     }
 
-    pub(crate) fn ensure_name_available(
+    pub fn ensure_name_available(
         &self,
         database: &PackageDatabase,
         name: &str,
@@ -273,7 +271,7 @@ impl<'a> PackageInstaller<'a> {
         })
     }
 
-    pub(crate) fn new_for_workspace(
+    pub fn new_for_workspace(
         provider_manager: &'a ProviderManager,
         paths: &'a UpstreamPaths,
         workspace: InstallWorkspace,
@@ -316,7 +314,7 @@ impl<'a> PackageInstaller<'a> {
         Ok(())
     }
 
-    pub(crate) fn take_workspace(&mut self) -> Result<InstallWorkspace> {
+    pub fn take_workspace(&mut self) -> Result<InstallWorkspace> {
         self.workspace
             .take()
             .ok_or_else(|| anyhow!("Installer workspace has already been consumed"))
@@ -797,7 +795,7 @@ impl<'a> PackageInstaller<'a> {
     /// This is shared by the normal download path and zsync so that staged
     /// installs always receive identical cleanup and completion handling.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn finish_verified_release_install<H, P>(
+    pub async fn finish_verified_release_install<H, P>(
         &self,
         installed_package: Package,
         package_name: &str,

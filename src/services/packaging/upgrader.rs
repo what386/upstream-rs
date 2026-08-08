@@ -12,7 +12,8 @@ use crate::{
         artifact::zsync_handler,
         packaging::{
             PackageInstaller, PackagePhase, PackageProgressEvent, PackageReplacer,
-            installer::InstallWorkspace, replacement::PreparedInstall,
+            replacement::PreparedInstall,
+            staging::InstallWorkspace,
         },
         trust::{TrustVerifier, TrustedSignatureKeys},
     },

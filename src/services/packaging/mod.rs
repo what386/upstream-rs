@@ -6,6 +6,7 @@ mod remover;
 mod replacement;
 pub mod rollback;
 mod upgrader;
+mod staging;
 
 use std::path::PathBuf;
 
@@ -47,15 +48,15 @@ pub struct InstallRequest {
 /// directly and never resolve a different latest release.
 #[derive(Clone)]
 pub struct InstallPlan {
-    pub(crate) package: Package,
-    pub(crate) source: PlannedInstallSource,
-    pub(crate) add_entry: bool,
-    pub(crate) trust_mode: TrustMode,
+    pub package: Package,
+    pub source: PlannedInstallSource,
+    pub add_entry: bool,
+    pub trust_mode: TrustMode,
     pub disk_impact: DiskImpact,
 }
 
 #[derive(Clone)]
-pub(crate) enum PlannedInstallSource {
+pub enum PlannedInstallSource {
     Release {
         release: Release,
         asset: Asset,
@@ -93,12 +94,13 @@ impl InstallPlan {
     }
 }
 
-pub(crate) use checker::PackageChecker;
-pub(crate) use installer::PackageInstaller;
+pub use checker::PackageChecker;
+pub use installer::PackageInstaller;
 pub use installer::ResolvedAssetInstall;
 pub use progress::{OperationPhase, OperationProgressEvent, PackagePhase, PackageProgressEvent};
-pub(crate) use remover::PackageRemover;
-pub(crate) use replacement::{PackageReplacer, PreparedInstall};
+pub use remover::PackageRemover;
+pub use replacement::{PackageReplacer, PreparedInstall};
 pub use rollback::RollbackManager;
-pub(crate) use upgrader::PackageUpgrader;
+pub use upgrader::PackageUpgrader;
 pub use upgrader::ResolvedUpgradeTarget;
+pub use staging::InstallWorkspace;

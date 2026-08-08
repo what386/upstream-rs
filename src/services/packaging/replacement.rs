@@ -7,7 +7,7 @@ use crate::{
         integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
         packaging::{
             PackagePhase, PackageProgressEvent, PackageRemover, RollbackManager,
-            installer::InstallWorkspace,
+            staging::InstallWorkspace,
         },
     },
     storage::{
@@ -29,7 +29,7 @@ macro_rules! progress {
     }};
 }
 
-pub(crate) struct PreparedInstall {
+pub struct PreparedInstall {
     package: Package,
     workspace: InstallWorkspace,
     final_icon_path: Option<PathBuf>,
@@ -37,7 +37,7 @@ pub(crate) struct PreparedInstall {
 }
 
 impl PreparedInstall {
-    pub(crate) fn new(package: Package, workspace: InstallWorkspace) -> Self {
+    pub fn new(package: Package, workspace: InstallWorkspace) -> Self {
         Self {
             package,
             workspace,
@@ -238,7 +238,7 @@ impl PreparedInstall {
     }
 }
 
-pub(crate) struct ReplacementBackup {
+pub struct ReplacementBackup {
     previous_package: Package,
     partially_installed_package: Option<Package>,
     original_install_path: PathBuf,
@@ -250,7 +250,7 @@ pub(crate) struct ReplacementBackup {
 }
 
 impl ReplacementBackup {
-    pub(crate) fn new(
+    pub fn new(
         previous_package: Package,
         original_install_path: PathBuf,
         backup_dir: PathBuf,
@@ -318,7 +318,7 @@ impl ReplacementBackup {
         Ok(())
     }
 
-    pub(crate) fn move_integrations(&mut self, paths: &UpstreamPaths) -> Result<()> {
+    pub fn move_integrations(&mut self, paths: &UpstreamPaths) -> Result<()> {
         for path in
             CompletionManager::new(paths).package_completion_paths(&self.previous_package.name)
         {
@@ -334,7 +334,7 @@ impl ReplacementBackup {
         Ok(())
     }
 
-    pub(crate) fn set_partial_package(&mut self, package: Package) {
+    pub fn set_partial_package(&mut self, package: Package) {
         self.partially_installed_package = Some(package);
     }
 
@@ -413,7 +413,7 @@ impl<'a> PackageReplacer<'a> {
         }
     }
 
-    pub(crate) async fn install_new<H, P>(
+    pub async fn install_new<H, P>(
         &self,
         package_database: &mut PackageDatabase,
         prepared: PreparedInstall,
@@ -436,7 +436,7 @@ impl<'a> PackageReplacer<'a> {
         .await
     }
 
-    pub(crate) async fn install_new_with_settings<H, P>(
+    pub async fn install_new_with_settings<H, P>(
         &self,
         package_database: &mut PackageDatabase,
         mut prepared: PreparedInstall,
@@ -529,7 +529,7 @@ impl<'a> PackageReplacer<'a> {
         Ok(updated_package)
     }
 
-    pub(crate) async fn replace<H, P>(
+    pub async fn replace<H, P>(
         &self,
         previous_package: &Package,
         mut prepared: PreparedInstall,
@@ -713,7 +713,7 @@ impl<'a> PackageReplacer<'a> {
         Ok(backup_dir)
     }
 
-    pub(crate) fn remove_path_if_exists(path: &Path) -> Result<()> {
+    pub fn remove_path_if_exists(path: &Path) -> Result<()> {
         let metadata = match fs::symlink_metadata(path) {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
@@ -730,7 +730,7 @@ impl<'a> PackageReplacer<'a> {
         Ok(())
     }
 
-    pub(crate) fn capture_rollback(
+    pub fn capture_rollback(
         paths: &UpstreamPaths,
         package: &Package,
         backup_path: &Path,
@@ -750,7 +750,7 @@ impl<'a> PackageReplacer<'a> {
         )
     }
 
-    pub(crate) fn restore_after_failure<H, T>(
+    pub fn restore_after_failure<H, T>(
         &self,
         backup: ReplacementBackup,
         failure: anyhow::Error,
@@ -826,7 +826,7 @@ impl<'a> PackageReplacer<'a> {
         ))
     }
 
-    pub(crate) fn persist(
+    pub fn persist(
         &self,
         package_database: &mut PackageDatabase,
         replacement: &Package,

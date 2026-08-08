@@ -13,18 +13,18 @@ use crate::{services::integration::CompletionPaths, utils::static_paths::Upstrea
 /// Nothing in this workspace is a managed live path.  The workspace is moved
 /// into place only by the package activation service after preparation has
 /// completed successfully.
-pub(crate) struct InstallWorkspace {
+pub struct InstallWorkspace {
     root: PathBuf,
-    pub(crate) appimages_dir: PathBuf,
-    pub(crate) binaries_dir: PathBuf,
-    pub(crate) archives_dir: PathBuf,
-    pub(crate) completions: CompletionPaths,
-    pub(crate) desktop_dir: PathBuf,
-    pub(crate) icons_dir: PathBuf,
+    pub appimages_dir: PathBuf,
+    pub binaries_dir: PathBuf,
+    pub archives_dir: PathBuf,
+    pub completions: CompletionPaths,
+    pub desktop_dir: PathBuf,
+    pub icons_dir: PathBuf,
 }
 
 impl InstallWorkspace {
-    pub(crate) fn new(paths: &UpstreamPaths, package_name: &str) -> Result<Self> {
+    pub fn new(paths: &UpstreamPaths, package_name: &str) -> Result<Self> {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|duration| duration.as_nanos())
@@ -69,19 +69,19 @@ impl InstallWorkspace {
         })
     }
 
-    pub(crate) fn root(&self) -> &Path {
+    pub fn root(&self) -> &Path {
         &self.root
     }
 
-    pub(crate) fn completions(&self) -> CompletionPaths {
+    pub fn completions(&self) -> CompletionPaths {
         self.completions.clone()
     }
 
-    pub(crate) fn icons_dir(&self) -> &Path {
+    pub fn icons_dir(&self) -> &Path {
         &self.icons_dir
     }
 
-    pub(crate) fn desktop_path(&self, package_name: &str) -> PathBuf {
+    pub fn desktop_path(&self, package_name: &str) -> PathBuf {
         #[cfg(target_os = "linux")]
         return self.desktop_dir.join(format!("{package_name}.desktop"));
         #[cfg(target_os = "macos")]
