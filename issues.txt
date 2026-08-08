@@ -1,1 +1,2 @@
 - installs sometimes hang after downloading
+- ctrl-c doesnt always work (specifically during download step)
