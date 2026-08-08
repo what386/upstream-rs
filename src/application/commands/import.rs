@@ -66,6 +66,13 @@ fn render_import_progress_row(
             format!("Zsync upgrading {}", HumanBytes(downloaded))
         }
         PackageProgressEvent::Zsync { .. } => "Zsync upgrading...".to_string(),
+        PackageProgressEvent::Extraction { extracted, total } if total > 0 => format!(
+            "Extracting {} {} / {}",
+            output::progress_bar(extracted, total, IMPORT_PROGRESS_BAR_WIDTH),
+            HumanBytes(extracted),
+            HumanBytes(total),
+        ),
+        PackageProgressEvent::Extraction { .. } => "Extracting...".to_string(),
         PackageProgressEvent::Checksum { checked, total } if total > 0 => format!(
             "Checksumming {} {} / {}",
             output::progress_bar(checked, total, IMPORT_PROGRESS_BAR_WIDTH),

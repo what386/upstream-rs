@@ -56,6 +56,10 @@ pub enum PackageProgressEvent {
         downloaded: u64,
         total: u64,
     },
+    Extraction {
+        extracted: u64,
+        total: u64,
+    },
     Zsync {
         downloaded: u64,
         total: u64,

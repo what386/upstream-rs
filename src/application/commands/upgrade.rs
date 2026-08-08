@@ -87,6 +87,13 @@ fn render_upgrade_progress_row(
             format!("Downloading {}", HumanBytes(downloaded))
         }
         PackageProgressEvent::Download { .. } => "Downloading...".to_string(),
+        PackageProgressEvent::Extraction { extracted, total } if total > 0 => format!(
+            "Extracting {} {} / {}",
+            output::progress_bar(extracted, total, UPGRADE_PROGRESS_BAR_WIDTH),
+            HumanBytes(extracted),
+            HumanBytes(total)
+        ),
+        PackageProgressEvent::Extraction { .. } => "Extracting...".to_string(),
         PackageProgressEvent::Zsync { downloaded, total } if total > 0 => {
             format!(
                 "Zsync upgrading {} {} / {}",

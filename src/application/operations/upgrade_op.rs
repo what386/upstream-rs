@@ -213,6 +213,11 @@ impl<'a> UpgradeOperation<'a> {
             PackageProgressEvent::Download { downloaded, total } => {
                 Self::record_download_progress(progress_state, name, downloaded, total)
             }
+            PackageProgressEvent::Extraction { extracted, total } => Self::record_status_progress(
+                progress_state,
+                name,
+                PackageProgressEvent::Extraction { extracted, total },
+            ),
             PackageProgressEvent::Zsync { downloaded, total } => {
                 Self::record_zsync_progress(progress_state, name, downloaded, total)
             }

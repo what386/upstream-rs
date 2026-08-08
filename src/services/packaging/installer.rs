@@ -755,11 +755,18 @@ impl<'a> PackageInstaller<'a> {
                     progress_callback,
                     PackageProgressEvent::Phase(PackagePhase::ExtractingPackage)
                 );
+                let mut extraction_progress = |extracted: u64, total: u64| {
+                    progress!(
+                        progress_callback,
+                        PackageProgressEvent::Extraction { extracted, total }
+                    );
+                };
                 self.handle_archive(
                     &download_path,
                     &package_extract_cache,
                     package,
                     message_callback,
+                    &mut extraction_progress,
                 )
                 .context("Failed to install archive")
             }
@@ -848,12 +855,14 @@ impl<'a> PackageInstaller<'a> {
         package.version = version;
 
         if artifact_path.is_dir() {
+            let mut extraction_progress = |_: u64, _: u64| {};
             return self
                 .handle_archive(
                     artifact_path,
                     &self.extract_cache,
                     package,
                     message_callback,
+                    &mut extraction_progress,
                 )
                 .context("Failed to install local artifact directory");
         }
@@ -868,6 +877,7 @@ impl<'a> PackageInstaller<'a> {
         extract_cache: &Path,
         mut package: Package,
         message_callback: &mut Option<H>,
+        extraction_progress: &mut dyn FnMut(u64, u64),
     ) -> Result<Package>
     where
         H: FnMut(&str),
@@ -879,8 +889,12 @@ impl<'a> PackageInstaller<'a> {
             .to_string();
         message!(message_callback, "Extracting directory '{filename}' ...");
 
-        let extracted_path = compression_handler::decompress(asset_path, extract_cache)
-            .context(format!("Failed to extract archive '{}'", filename))?;
+        let extracted_path = compression_handler::decompress_with_progress(
+            asset_path,
+            extract_cache,
+            extraction_progress,
+        )
+        .context(format!("Failed to extract archive '{}'", filename))?;
 
         if extracted_path.is_file() {
             return self.handle_file(&extracted_path, package, message_callback);

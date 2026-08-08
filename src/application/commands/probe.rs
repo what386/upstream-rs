@@ -278,6 +278,19 @@ fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) ->
             };
             format!(" {:<28} {}", name, detail)
         }
+        PackageProgressEvent::Extraction { extracted, total } => {
+            let detail = if total > 0 {
+                format!(
+                    "Extracting {} {} / {}",
+                    output::progress_bar(extracted, total, 14),
+                    HumanBytes(extracted),
+                    HumanBytes(total)
+                )
+            } else {
+                "Extracting...".to_string()
+            };
+            format!(" {:<28} {}", name, detail)
+        }
         PackageProgressEvent::Zsync { downloaded, total } => {
             let detail = if total > 0 {
                 format!(

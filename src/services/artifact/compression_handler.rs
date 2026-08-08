@@ -3,7 +3,7 @@ use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use std::borrow::Cow;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Component, Path, PathBuf};
 use tar::Archive;
 use xz2::read::XzDecoder;
@@ -16,6 +16,15 @@ use zstd::Decoder as ZstdDecoder;
 /// - Archives return a directory named after the archive file
 /// - Single-directory archives are automatically flattened
 pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
+    decompress_with_progress(input, output, &mut |_, _| {})
+}
+
+/// Decompress an archive while reporting compressed input bytes consumed.
+pub fn decompress_with_progress(
+    input: &Path,
+    output: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
     std::fs::create_dir_all(output)?;
 
     // Create a subdirectory named after the input file (removing extensions)
@@ -45,26 +54,26 @@ pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
     let name = file_name.to_lowercase();
 
     if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
-        return decompress_tar_gz(input, &extract_dir);
+        return decompress_tar_gz(input, &extract_dir, progress);
     }
     if name.ends_with(".tar.bz2") || name.ends_with(".tbz2") || name.ends_with(".tbz") {
-        return decompress_tar_bz2(input, &extract_dir);
+        return decompress_tar_bz2(input, &extract_dir, progress);
     }
     if name.ends_with(".tar.xz") || name.ends_with(".txz") {
-        return decompress_tar_xz(input, &extract_dir);
+        return decompress_tar_xz(input, &extract_dir, progress);
     }
     if name.ends_with(".tar.zst") || name.ends_with(".tzst") {
-        return decompress_tar_zst(input, &extract_dir);
+        return decompress_tar_zst(input, &extract_dir, progress);
     }
 
     match ext.as_str() {
-        "zip" => decompress_zip(input, &extract_dir),
-        "gz" => decompress_gz_single(input, &extract_dir),
-        "bz2" => decompress_bz2_single(input, &extract_dir),
-        "xz" => decompress_xz_single(input, &extract_dir),
-        "zst" => decompress_zst_single(input, &extract_dir),
-        "tar" => unpack_tar(input, &extract_dir),
-        "7z" => decompress_7z(input, &extract_dir),
+        "zip" => decompress_zip(input, &extract_dir, progress),
+        "gz" => decompress_gz_single(input, &extract_dir, progress),
+        "bz2" => decompress_bz2_single(input, &extract_dir, progress),
+        "xz" => decompress_xz_single(input, &extract_dir, progress),
+        "zst" => decompress_zst_single(input, &extract_dir, progress),
+        "tar" => unpack_tar(input, &extract_dir, progress),
+        "7z" => decompress_7z(input, &extract_dir, progress),
         _ => Err(anyhow!("Unsupported format: {}", input.display())),
     }
 }
@@ -262,8 +271,12 @@ fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> 
 }
 
 // ---------------- ZIP ----------------
-fn decompress_zip(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
-    let file = File::open(input)?;
+fn decompress_zip(
+    input: &Path,
+    extract_dir: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let file = progress_reader(input, progress)?;
     let mut archive = ZipArchive::new(file)?;
     let mut paths = Vec::new();
     for i in 0..archive.len() {
@@ -284,7 +297,12 @@ fn decompress_zip(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
 }
 
 // ---------------- 7Z ----------------
-fn decompress_7z(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
+fn decompress_7z(
+    input: &Path,
+    extract_dir: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    progress(0, input.metadata()?.len());
     let mut paths = Vec::new();
 
     sevenz_rust2::decompress_file_with_extract_fn(input, extract_dir, |entry, reader, _dest| {
@@ -299,26 +317,84 @@ fn decompress_7z(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
         Ok(extracted)
     })?;
 
+    progress(input.metadata()?.len(), input.metadata()?.len());
+
     common_root(&paths, extract_dir)
 }
 
 // ---------------- TAR ----------------
-fn unpack_tar(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
-    let file = File::open(input)?;
+fn unpack_tar(
+    input: &Path,
+    extract_dir: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let file = progress_reader(input, progress)?;
     let mut archive = Archive::new(file);
     unpack_tar_entries(&mut archive, extract_dir)
 }
 
 // ---------------- ZST ----------------
-fn decompress_tar_zst(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
-    let file = File::open(input)?;
-    let tar = ZstdDecoder::new(file)?;
+fn decompress_tar_zst(
+    input: &Path,
+    extract_dir: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let reader = progress_reader(input, progress)?;
+    let tar = ZstdDecoder::new(reader)?;
     let mut archive = Archive::new(tar);
     unpack_tar_entries(&mut archive, extract_dir)
 }
 
-fn decompress_zst_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
-    let file = File::open(input)?;
+struct ProgressReader<'a, R> {
+    reader: R,
+    read: u64,
+    total: u64,
+    progress: &'a mut dyn FnMut(u64, u64),
+}
+
+impl<'a, R> ProgressReader<'a, R> {
+    fn new(reader: R, total: u64, progress: &'a mut dyn FnMut(u64, u64)) -> Self {
+        Self {
+            reader,
+            read: 0,
+            total,
+            progress,
+        }
+    }
+}
+
+fn progress_reader<'a>(
+    input: &Path,
+    progress: &'a mut dyn FnMut(u64, u64),
+) -> Result<ProgressReader<'a, File>> {
+    let total = input.metadata()?.len();
+    Ok(ProgressReader::new(File::open(input)?, total, progress))
+}
+
+impl<R: Read> Read for ProgressReader<'_, R> {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        let count = self.reader.read(buffer)?;
+        self.read = self.read.saturating_add(count as u64);
+        (self.progress)(self.read, self.total);
+        Ok(count)
+    }
+}
+
+impl<R: Seek> Seek for ProgressReader<'_, R> {
+    fn seek(&mut self, position: SeekFrom) -> std::io::Result<u64> {
+        let offset = self.reader.seek(position)?;
+        self.read = offset;
+        (self.progress)(self.read, self.total);
+        Ok(offset)
+    }
+}
+
+fn decompress_zst_single(
+    input: &Path,
+    extract_dir: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let file = progress_reader(input, progress)?;
     let mut decoder = ZstdDecoder::new(file)?;
     let out_name = input
         .file_stem()
@@ -330,15 +406,23 @@ fn decompress_zst_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
 }
 
 // ---------------- XZ ----------------
-fn decompress_tar_xz(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
-    let file = File::open(input)?;
+fn decompress_tar_xz(
+    input: &Path,
+    extract_dir: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let file = progress_reader(input, progress)?;
     let tar = XzDecoder::new(file);
     let mut archive = Archive::new(tar);
     unpack_tar_entries(&mut archive, extract_dir)
 }
 
-fn decompress_xz_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
-    let file = File::open(input)?;
+fn decompress_xz_single(
+    input: &Path,
+    extract_dir: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let file = progress_reader(input, progress)?;
     let mut decoder = XzDecoder::new(file);
     let out_name = input
         .file_stem()
@@ -350,15 +434,23 @@ fn decompress_xz_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
 }
 
 // ---------------- GZIP ----------------
-fn decompress_tar_gz(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
-    let file = File::open(input)?;
+fn decompress_tar_gz(
+    input: &Path,
+    extract_dir: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let file = progress_reader(input, progress)?;
     let tar = GzDecoder::new(file);
     let mut archive = Archive::new(tar);
     unpack_tar_entries(&mut archive, extract_dir)
 }
 
-fn decompress_gz_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
-    let file = File::open(input)?;
+fn decompress_gz_single(
+    input: &Path,
+    extract_dir: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let file = progress_reader(input, progress)?;
     let mut decoder = GzDecoder::new(file);
     let out_name = input
         .file_stem()
@@ -370,15 +462,23 @@ fn decompress_gz_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
 }
 
 // ---------------- BZIP2 ----------------
-fn decompress_tar_bz2(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
-    let file = File::open(input)?;
+fn decompress_tar_bz2(
+    input: &Path,
+    extract_dir: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let file = progress_reader(input, progress)?;
     let tar = BzDecoder::new(file);
     let mut archive = Archive::new(tar);
     unpack_tar_entries(&mut archive, extract_dir)
 }
 
-fn decompress_bz2_single(input: &Path, extract_dir: &Path) -> Result<PathBuf> {
-    let file = File::open(input)?;
+fn decompress_bz2_single(
+    input: &Path,
+    extract_dir: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let file = progress_reader(input, progress)?;
     let mut decoder = BzDecoder::new(file);
     let out_name = input
         .file_stem()
