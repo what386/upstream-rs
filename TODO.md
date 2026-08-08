@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-06
+@modified: 2026-08-08
 
 
 ## Tasks
@@ -20,4 +20,7 @@
 
 - [ ] docs: document contributor workflows and architecture invariants
       @created 2026-08-04 21:58
+
+- [ ] BREAKING: remove macos dmg/.app support
+      @created 2026-08-08 02:37
 
