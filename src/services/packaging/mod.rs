@@ -99,7 +99,7 @@ pub use installer::PackageInstaller;
 pub use installer::ResolvedAssetInstall;
 pub use progress::{OperationPhase, OperationProgressEvent, PackagePhase, PackageProgressEvent};
 pub use remover::PackageRemover;
-pub use activation::{PackageReplacer, PreparedInstall};
+pub use activation::{PackageActivator, PreparedInstall};
 pub use rollbacker::RollbackManager;
 pub use upgrader::PackageUpgrader;
 pub use upgrader::ResolvedUpgradeTarget;

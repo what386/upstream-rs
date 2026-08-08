@@ -11,7 +11,7 @@ use crate::{
     services::{
         artifact::zsync_handler,
         packaging::{
-            PackageInstaller, PackagePhase, PackageProgressEvent, PackageReplacer,
+            PackageInstaller, PackagePhase, PackageProgressEvent, PackageActivator,
             activation::PreparedInstall,
             staging::InstallWorkspace,
         },
@@ -358,7 +358,7 @@ impl<'a> PackageUpgrader<'a> {
                         Ok(mut updated_package) => {
                             updated_package.icon_path = package.icon_path.clone();
                             let workspace = staging_installer.take_workspace()?;
-                            PackageReplacer::new(self.paths)
+                            PackageActivator::new(self.paths)
                                 .replace(
                                     package,
                                     PreparedInstall::new(updated_package, workspace),
@@ -479,7 +479,7 @@ impl<'a> PackageUpgrader<'a> {
             };
 
             let workspace = staging_installer.take_workspace()?;
-            PackageReplacer::new(self.paths)
+            PackageActivator::new(self.paths)
                 .replace(
                     package,
                     PreparedInstall::new(updated_package, workspace),
@@ -505,7 +505,7 @@ mod tests {
     use crate::services::integration::SymlinkManager;
     use crate::services::packaging::{
         PackageInstaller, PackageProgressEvent, RollbackManager,
-        activation::{PackageReplacer, ReplacementBackup},
+        activation::{PackageActivator, ReplacementBackup},
     };
     use crate::services::trust::TrustedSignatureKeys;
     use crate::storage::rollback::RollbackStorage;
@@ -614,7 +614,7 @@ mod tests {
         fs::write(&new_icon_path, b"new icon").expect("write new icon");
         let mut msg = Some(|_: &str| {});
 
-        let result: anyhow::Result<()> = PackageReplacer::new(&paths).restore_after_failure(
+        let result: anyhow::Result<()> = PackageActivator::new(&paths).restore_after_failure(
             rollback_guard,
             anyhow::anyhow!("desktop failed"),
             "Failed to restore desktop integration",
@@ -678,7 +678,7 @@ mod tests {
                 .expect("create replacement backup");
         guard.set_partial_package(updated.clone());
 
-        let capture_error = PackageReplacer::capture_rollback(
+        let capture_error = PackageActivator::capture_rollback_snapshot(
             &paths,
             &previous,
             &backup_path,
@@ -686,7 +686,7 @@ mod tests {
             crate::storage::rollback::RollbackSource::Upgrade,
         )
         .expect_err("post-copy icon failure should prevent rollback capture");
-        let result: anyhow::Result<()> = PackageReplacer::new(&paths).restore_after_failure(
+        let result: anyhow::Result<()> = PackageActivator::new(&paths).restore_after_failure(
             guard,
             capture_error,
             "Failed to finalize replacement",

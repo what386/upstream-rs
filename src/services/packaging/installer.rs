@@ -14,7 +14,7 @@ use crate::{
             InstallPlan, InstallRequest, InstallSource, PackagePhase, PackageProgressEvent,
             PlannedInstallSource,
             disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
-            activation::{PackageReplacer, PreparedInstall},
+            activation::{PackageActivator, PreparedInstall},
         },
         trust::{
             ChecksumVerificationStatus, SignatureScheme, SignatureVerificationStatus,
@@ -156,7 +156,7 @@ impl<'a> PackageInstaller<'a> {
             )
             .await?;
         let prepared = PreparedInstall::new(installed, self.take_workspace()?);
-        PackageReplacer::new(self.paths)
+        PackageActivator::new(self.paths)
             .install_new(
                 package_database,
                 prepared,
@@ -295,10 +295,6 @@ impl<'a> PackageInstaller<'a> {
             download_cache,
             extract_cache,
         })
-    }
-
-    fn add_runtime_link(&self, _exec_path: &Path, _package_name: &str) -> Result<()> {
-        Ok(())
     }
 
     fn workspace(&self) -> &InstallWorkspace {
@@ -946,16 +942,6 @@ impl<'a> PackageInstaller<'a> {
                 .unwrap_or_else(|| exec_path.display().to_string())
         );
 
-        self.add_runtime_link(&exec_path, &package.name)?;
-        if false {
-            message!(
-                message_callback,
-                "Created symlink: {} → {}",
-                package.name,
-                out_path.display()
-            );
-        }
-
         self.install_completions_from_root(&package.name, &out_path, message_callback);
         package.exec_path = Some(exec_path);
         package.install_path = Some(out_path);
@@ -1126,16 +1112,6 @@ impl<'a> PackageInstaller<'a> {
             }
         };
 
-        self.add_runtime_link(&out_path, &package.name)?;
-        if false {
-            message!(
-                message_callback,
-                "Created symlink: {} → {}",
-                package.name,
-                out_path.display()
-            );
-        }
-
         if let Some(root) = completion_root {
             self.install_completions_from_root(&package.name, &root, message_callback);
         }
@@ -1175,16 +1151,6 @@ impl<'a> PackageInstaller<'a> {
         ))?;
 
         message!(message_callback, "Made '{}' executable", filename.display());
-
-        self.add_runtime_link(&out_path, &package.name)?;
-        if false {
-            message!(
-                message_callback,
-                "Created symlink: {} → {}",
-                package.name,
-                out_path.display()
-            );
-        }
 
         package.install_path = Some(out_path.clone());
         package.exec_path = Some(out_path);

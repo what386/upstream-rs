@@ -351,11 +351,11 @@ impl ReplacementBackup {
     }
 }
 
-pub struct PackageReplacer<'a> {
+pub struct PackageActivator<'a> {
     paths: &'a UpstreamPaths,
 }
 
-impl<'a> PackageReplacer<'a> {
+impl<'a> PackageActivator<'a> {
     pub fn new(paths: &'a UpstreamPaths) -> Self {
         Self { paths }
     }
@@ -664,7 +664,7 @@ impl<'a> PackageReplacer<'a> {
             backup.set_partial_package(updated_package.clone());
         }
 
-        if let Err(error) = Self::capture_rollback(
+        if let Err(error) = Self::capture_rollback_snapshot(
             self.paths,
             previous_package,
             &backup.package_backup_path,
@@ -730,7 +730,7 @@ impl<'a> PackageReplacer<'a> {
         Ok(())
     }
 
-    pub fn capture_rollback(
+    pub fn capture_rollback_snapshot(
         paths: &UpstreamPaths,
         package: &Package,
         backup_path: &Path,
@@ -877,7 +877,7 @@ impl<'a> PackageReplacer<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{InstallWorkspace, PackageReplacer, PreparedInstall};
+    use super::{InstallWorkspace, PackageActivator, PreparedInstall};
     use crate::{
         models::{
             common::{
@@ -926,7 +926,7 @@ mod tests {
 
         let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("open package database");
-        let updated = PackageReplacer::new(&paths)
+        let updated = PackageActivator::new(&paths)
             .install_new(
                 &mut database,
                 PreparedInstall::new(package, workspace),
@@ -994,7 +994,7 @@ mod tests {
 
         let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("open package database");
-        let error = PackageReplacer::new(&paths)
+        let error = PackageActivator::new(&paths)
             .install_new(
                 &mut database,
                 PreparedInstall::new(package, workspace),
@@ -1064,7 +1064,7 @@ mod tests {
             fs::read(&install_path).expect("read active before cutover"),
             b"old binary"
         );
-        let updated = PackageReplacer::new(&paths)
+        let updated = PackageActivator::new(&paths)
             .replace(
                 &previous,
                 PreparedInstall::new(candidate, workspace),
@@ -1139,7 +1139,7 @@ mod tests {
         candidate.install_path = Some(missing_staged_path.clone());
         candidate.exec_path = Some(missing_staged_path);
 
-        let error = PackageReplacer::new(&paths)
+        let error = PackageActivator::new(&paths)
             .replace(
                 &previous,
                 PreparedInstall::new(candidate, workspace),
@@ -1236,7 +1236,7 @@ mod tests {
             )
             .expect("create trigger");
 
-        let error = PackageReplacer::new(&paths)
+        let error = PackageActivator::new(&paths)
             .persist(&mut database, &replacement)
             .expect_err("replacement persistence should fail");
 
