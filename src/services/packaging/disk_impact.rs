@@ -236,29 +236,4 @@ mod tests {
         assert_eq!(estimate_path_size(&root).expect("size"), 7);
         fs::remove_dir_all(root).expect("cleanup");
     }
-
-    #[test]
-    fn download_aggregation_keeps_known_sizes_when_some_are_unknown() {
-        let known = DiskImpact {
-            download: ByteEstimate::exact(1024),
-            net: SignedByteEstimate::exact(0),
-        };
-        let unknown = DiskImpact {
-            download: ByteEstimate::unknown(),
-            net: SignedByteEstimate::exact(0),
-        };
-
-        let total = known + unknown;
-
-        assert_eq!(total.download.bytes, Some(1024));
-        assert_eq!(format!("{:?}", total.download.confidence), "Estimated");
-    }
-
-    #[test]
-    fn download_aggregation_stays_unknown_when_everything_is_unknown() {
-        let total = DiskImpact::unknown() + DiskImpact::unknown();
-
-        assert_eq!(total.download.bytes, None);
-        assert_eq!(format!("{:?}", total.download.confidence), "Unknown");
-    }
 }

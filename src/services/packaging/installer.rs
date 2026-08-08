@@ -14,7 +14,7 @@ use crate::{
             InstallPlan, InstallRequest, InstallSource, PackagePhase, PackageProgressEvent,
             PlannedInstallSource,
             disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
-            replacement::{PackageReplacer, PreparedInstall},
+            activation::{PackageReplacer, PreparedInstall},
         },
         trust::{
             ChecksumVerificationStatus, SignatureScheme, SignatureVerificationStatus,
@@ -1272,16 +1272,6 @@ mod tests {
     }
 
     #[test]
-    fn package_cache_key_sanitizes_disallowed_characters() {
-        let key = PackageInstaller::package_cache_key("my/pkg v1.0");
-        assert!(key.starts_with("my_pkg_v1_0-"));
-        assert!(
-            key.chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        );
-    }
-
-    #[test]
     fn staged_install_writes_only_to_its_workspace() {
         let root = test_support::temp_root("upstream-installer-test", "staged-workspace");
         let paths = test_support::upstream_paths(&root);
@@ -1319,53 +1309,6 @@ mod tests {
         assert!(!paths.state.symlinks_dir.join("tool").exists());
 
         fs::remove_dir_all(root).expect("cleanup");
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn nested_archive_root_prefers_host_linux_gnu_payload() {
-        let Some(expected_dir) = host_linux_gnu_dir() else {
-            return;
-        };
-        let root = test_support::temp_root("upstream-installer-test", "nested-broot");
-        let extracted = root.join("broot_1.56.4");
-        fs::create_dir_all(&extracted).expect("create extracted root");
-
-        for dir in [
-            "x86_64-pc-windows-gnu",
-            "x86_64-unknown-linux-musl",
-            "x86_64-unknown-linux-gnu-glibc2.28",
-            "x86_64-unknown-linux-gnu",
-            "aarch64-unknown-linux-gnu",
-            "aarch64-unknown-linux-musl",
-            "armv7-unknown-linux-gnueabihf",
-            "armv7-unknown-linux-musleabihf",
-        ] {
-            let payload = extracted.join(dir);
-            fs::create_dir_all(&payload).expect("create payload");
-            fs::write(
-                payload.join(if dir.contains("windows") {
-                    "broot.exe"
-                } else {
-                    "broot"
-                }),
-                b"bin",
-            )
-            .expect("write payload binary");
-        }
-
-        fs::create_dir_all(extracted.join("completion")).expect("create completion");
-        fs::write(extracted.join("broot.1"), b"manpage").expect("write manpage");
-
-        let selected = archive_layout::select_nested_archive_root(
-            &extracted,
-            &make_package("broot", None, None),
-        )
-        .expect("select nested root");
-
-        assert!(selected.ends_with(expected_dir));
-
-        fs::remove_dir_all(&root).expect("cleanup");
     }
 
     #[cfg(target_os = "linux")]

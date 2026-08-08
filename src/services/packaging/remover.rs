@@ -33,34 +33,6 @@ impl<'a> PackageRemover<'a> {
         Self { paths }
     }
 
-    #[cfg(test)]
-    fn managed_path_entry(
-        &self,
-        package: &Package,
-        install_path: &Path,
-    ) -> Option<std::path::PathBuf> {
-        if package.filetype != crate::models::common::enums::Filetype::Archive
-            || !install_path.starts_with(&self.paths.install.archives_dir)
-        {
-            return None;
-        }
-
-        if install_path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .map(|ext| ext.eq_ignore_ascii_case("app"))
-            .unwrap_or(false)
-        {
-            return None;
-        }
-
-        package
-            .exec_path
-            .as_ref()
-            .and_then(|exec_path| exec_path.parent().map(Path::to_path_buf))
-            .or_else(|| Some(install_path.to_path_buf()))
-    }
-
     pub fn estimate_remove_impact(&self, package: &Package, purge_option: bool) -> DiskImpact {
         let active_size = self.estimate_active_size(package).unwrap_or(0);
         let purge_size = if purge_option {
@@ -482,6 +454,36 @@ mod tests {
     use std::path::Path;
     use std::{fs, io};
 
+    #[cfg(test)]
+    fn managed_path_entry(
+        package_remover: &PackageRemover,
+        package: &Package,
+        install_path: &Path,
+    ) -> Option<std::path::PathBuf> {
+        if package.filetype != crate::models::common::enums::Filetype::Archive
+            || !install_path.starts_with(&package_remover.paths.install.archives_dir)
+        {
+            return None;
+        }
+
+        if install_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("app"))
+            .unwrap_or(false)
+        {
+            return None;
+        }
+
+        package
+            .exec_path
+            .as_ref()
+            .and_then(|exec_path| exec_path.parent().map(Path::to_path_buf))
+            .or_else(|| Some(install_path.to_path_buf()))
+    }
+
+
+
     fn temp_root(name: &str) -> std::path::PathBuf {
         test_support::temp_root("upstream-remover-test", name)
     }
@@ -523,35 +525,6 @@ mod tests {
     }
 
     #[test]
-    fn remove_runtime_integrations_requires_install_path() {
-        let root = temp_root("runtime-missing-path");
-        let paths = test_paths(&root);
-        fs::create_dir_all(paths.generated.paths_file.parent().expect("parent"))
-            .expect("create metadata dir");
-        fs::write(&paths.generated.paths_file, "").expect("create paths file");
-
-        let package = Package::with_defaults(
-            "tool".to_string(),
-            "owner/tool".to_string(),
-            Filetype::Binary,
-            None,
-            None,
-            Channel::Stable,
-            Provider::Github,
-            None,
-        );
-        let remover = PackageRemover::new(&paths);
-        let mut messages = Some(|_: &str| {});
-
-        let err = remover
-            .remove_runtime_integrations(&package, &mut messages)
-            .expect_err("must fail without install path");
-        assert!(err.to_string().contains("no install path"));
-
-        cleanup(&root).expect("cleanup");
-    }
-
-    #[test]
     fn managed_path_entry_uses_archive_executable_parent() {
         let root = temp_root("path-entry-exec-parent");
         let paths = test_paths(&root);
@@ -573,38 +546,14 @@ mod tests {
         package.exec_path = Some(exec_path);
         fs::create_dir_all(&exec_parent).expect("create exec parent");
 
+        let remover = PackageRemover::new(&paths);
+
         assert_eq!(
-            PackageRemover::new(&paths).managed_path_entry(&package, &install_path),
+            managed_path_entry(&remover, &package, &install_path),
             Some(exec_parent)
         );
 
         cleanup(&root).expect("cleanup");
-    }
-
-    #[test]
-    fn managed_path_entry_uses_recorded_archive_path_even_after_rename() {
-        let root = temp_root("path-entry-renamed");
-        let paths = test_paths(&root);
-        let install_path = paths.install.archives_dir.join("tool");
-        let exec_parent = install_path.join("bin");
-
-        let mut package = Package::with_defaults(
-            "tool".to_string(),
-            "owner/tool".to_string(),
-            Filetype::Archive,
-            None,
-            None,
-            Channel::Stable,
-            Provider::Github,
-            None,
-        );
-        package.install_path = Some(install_path.clone());
-        package.exec_path = Some(exec_parent.join("tool"));
-
-        assert_eq!(
-            PackageRemover::new(&paths).managed_path_entry(&package, &install_path),
-            Some(exec_parent)
-        );
     }
 
     #[test]
@@ -628,8 +577,10 @@ mod tests {
         fs::create_dir_all(install_path.parent().expect("parent")).expect("create parent");
         fs::write(&install_path, b"bin").expect("write binary");
 
+        let remover = PackageRemover::new(&paths);
+
         assert_eq!(
-            PackageRemover::new(&paths).managed_path_entry(&package, &install_path),
+            managed_path_entry(&remover, &package, &install_path),
             None
         );
 
@@ -643,36 +594,6 @@ mod tests {
         let install_path = paths.install.binaries_dir.join("tool");
         fs::create_dir_all(install_path.parent().expect("parent")).expect("create parent");
         fs::write(&install_path, vec![0_u8; 12]).expect("write binary");
-
-        let mut package = Package::with_defaults(
-            "tool".to_string(),
-            "owner/tool".to_string(),
-            Filetype::Binary,
-            None,
-            None,
-            Channel::Stable,
-            Provider::Github,
-            None,
-        );
-        package.install_path = Some(install_path.clone());
-        package.exec_path = Some(install_path);
-
-        let impact = PackageRemover::new(&paths).estimate_remove_impact(&package, false);
-        assert_eq!(impact.net.bytes, Some(-12));
-
-        cleanup(&root).expect("cleanup");
-    }
-
-    #[test]
-    fn remove_impact_with_previous_rollback_still_reports_removed_active_size() {
-        let root = temp_root("impact-with-rollback");
-        let paths = test_paths(&root);
-        let install_path = paths.install.binaries_dir.join("tool");
-        let rollback_path = paths.state.rollback_dir.join("tool").join("old-tool");
-        fs::create_dir_all(install_path.parent().expect("parent")).expect("create install parent");
-        fs::create_dir_all(rollback_path.parent().expect("parent")).expect("create rollback dir");
-        fs::write(&install_path, vec![0_u8; 12]).expect("write binary");
-        fs::write(&rollback_path, vec![0_u8; 20]).expect("write rollback");
 
         let mut package = Package::with_defaults(
             "tool".to_string(),

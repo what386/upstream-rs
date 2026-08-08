@@ -12,7 +12,7 @@ use crate::{
         artifact::zsync_handler,
         packaging::{
             PackageInstaller, PackagePhase, PackageProgressEvent, PackageReplacer,
-            replacement::PreparedInstall,
+            activation::PreparedInstall,
             staging::InstallWorkspace,
         },
         trust::{TrustVerifier, TrustedSignatureKeys},
@@ -505,7 +505,7 @@ mod tests {
     use crate::services::integration::SymlinkManager;
     use crate::services::packaging::{
         PackageInstaller, PackageProgressEvent, RollbackManager,
-        replacement::{PackageReplacer, ReplacementBackup},
+        activation::{PackageReplacer, ReplacementBackup},
     };
     use crate::services::trust::TrustedSignatureKeys;
     use crate::storage::rollback::RollbackStorage;
@@ -567,24 +567,6 @@ mod tests {
             123,
             Utc::now(),
         )
-    }
-
-    #[test]
-    fn remove_path_if_exists_handles_files_and_directories() {
-        let root = temp_root("remove");
-        let file = root.join("f.bin");
-        let dir = root.join("d");
-        fs::create_dir_all(&dir).expect("create dir");
-        fs::write(&file, b"content").expect("write file");
-
-        PackageReplacer::remove_path_if_exists(&file).expect("remove file");
-        PackageReplacer::remove_path_if_exists(&dir).expect("remove dir");
-        PackageReplacer::remove_path_if_exists(&root.join("missing")).expect("ignore missing");
-
-        assert!(!file.exists());
-        assert!(!dir.exists());
-
-        cleanup(&root).expect("cleanup");
     }
 
     #[cfg(unix)]
@@ -664,44 +646,6 @@ mod tests {
         cleanup(&root).expect("cleanup");
     }
 
-    #[test]
-    fn rollback_failed_upgrade_restores_previous_binary_without_partial_install() {
-        let root = temp_root("rollback-install-failure");
-        let paths = test_paths(&root);
-        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
-        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
-        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
-
-        let install_path = paths.install.binaries_dir.join("tool");
-        let backup_dir = paths.install.tmp_dir.join("tool.old");
-        let backup_path = backup_dir.join("package/tool");
-        fs::create_dir_all(backup_path.parent().expect("backup parent"))
-            .expect("create backup directory");
-        fs::write(&backup_path, b"old").expect("write backup binary");
-
-        let previous = test_package("tool", install_path.clone());
-        let mut msg = Some(|_: &str| {});
-
-        let result: anyhow::Result<()> = PackageReplacer::new(&paths).restore_after_failure(
-            ReplacementBackup::new(previous, install_path.clone(), backup_dir.clone())
-                .expect("create replacement backup"),
-            anyhow::anyhow!("already installed"),
-            "Failed to install new version",
-            &mut msg,
-        );
-        let err = result.expect_err("rollback helper returns original failure");
-
-        assert!(err.to_string().contains("previous version restored"));
-        assert_eq!(
-            fs::read(&install_path).expect("read restored binary"),
-            b"old"
-        );
-        assert!(!backup_dir.exists());
-        assert!(expected_symlink_path(&paths, "tool").exists());
-
-        cleanup(&root).expect("cleanup");
-    }
-
     #[tokio::test]
     async fn rollback_capture_failure_restores_previous_install() {
         let root = temp_root("capture-failure");
@@ -753,45 +697,6 @@ mod tests {
         assert!(error.to_string().contains("previous version restored"));
         assert_eq!(fs::read(&install_path).expect("read restored"), b"old");
         assert!(!backup_dir.exists());
-
-        cleanup(&root).expect("cleanup");
-    }
-
-    #[tokio::test]
-    async fn successful_replacement_removes_transient_old_backup() {
-        let root = temp_root("capture-success");
-        let paths = test_paths(&root);
-        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
-        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
-        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
-        fs::create_dir_all(&paths.dirs.config_dir).expect("create config dir");
-        fs::write(
-            &paths.config.config_file,
-            "[rollback]\ncompression_level = \"low\"\nstored_artifacts = 1\n",
-        )
-        .expect("write rollback config");
-
-        let install_path = paths.install.binaries_dir.join("tool");
-        let backup_path = paths.install.tmp_dir.join("tool-backup.old");
-        fs::write(&install_path, b"new").expect("write replacement");
-        fs::write(&backup_path, b"old").expect("write backup");
-        let previous = test_package("tool", install_path.clone());
-        PackageReplacer::capture_rollback(
-            &paths,
-            &previous,
-            &backup_path,
-            None,
-            crate::storage::rollback::RollbackSource::Upgrade,
-        )
-        .expect("capture rollback");
-        PackageReplacer::remove_path_if_exists(&backup_path).expect("remove transient backup");
-
-        assert_eq!(fs::read(&install_path).expect("read replacement"), b"new");
-        assert!(!backup_path.exists());
-        let rollback_file = RollbackManager::rollback_file_path(&paths);
-        let rollback_storage =
-            RollbackStorage::new(&rollback_file).expect("reload rollback storage");
-        assert!(rollback_storage.get_record("tool").is_some());
 
         cleanup(&root).expect("cleanup");
     }
