@@ -183,6 +183,7 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        self.ensure_workspace(&plan.package.name)?;
         match plan.source {
             PlannedInstallSource::Release { release, asset } => {
                 self.install_selected_asset(
@@ -263,12 +264,10 @@ impl<'a> PackageInstaller<'a> {
             "Failed to create extraction cache directory at '{}'",
             extract_cache.display()
         ))?;
-        let workspace = InstallWorkspace::new(paths, "install")?;
-
         Ok(Self {
             provider_manager,
             paths,
-            workspace: Some(workspace),
+            workspace: None,
             download_cache,
             extract_cache,
         })
@@ -310,6 +309,13 @@ impl<'a> PackageInstaller<'a> {
             .expect("installer workspace has not been initialized")
     }
 
+    fn ensure_workspace(&mut self, package_name: &str) -> Result<()> {
+        if self.workspace.is_none() {
+            self.workspace = Some(InstallWorkspace::new(self.paths, package_name)?);
+        }
+        Ok(())
+    }
+
     pub(crate) fn take_workspace(&mut self) -> Result<InstallWorkspace> {
         self.workspace
             .take()
@@ -337,7 +343,7 @@ impl<'a> PackageInstaller<'a> {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn install_selected_asset<F, H, P>(
-        &self,
+        &mut self,
         trusted_keys: &TrustedSignatureKeys,
         package: Package,
         release: &Release,
@@ -356,6 +362,8 @@ impl<'a> PackageInstaller<'a> {
         if package.install_path.is_some() {
             return Err(anyhow!("Package '{}' is already installed", package.name));
         }
+
+        self.ensure_workspace(&package.name)?;
 
         let package_name = package.name.clone();
         let installed_package = {
@@ -401,7 +409,7 @@ impl<'a> PackageInstaller<'a> {
     }
 
     pub async fn install_local_artifact<H, P>(
-        &self,
+        &mut self,
         package: Package,
         artifact_path: &Path,
         version: crate::models::common::version::Version,
@@ -413,6 +421,7 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        self.ensure_workspace(&package.name)?;
         let installed_package = self
             .install_local_artifact_files(package, artifact_path, version, message_callback)
             .context("Failed to install local artifact")?;
