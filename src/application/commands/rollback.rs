@@ -1,15 +1,12 @@
 use anyhow::{Result, bail};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 
 use crate::{
     application::operations::rollback_op::{
         RollbackListRow, RollbackOperation, RollbackPackageOutcome, RollbackPackageStatus,
         RollbackPreview, RollbackPreviewRow,
-    },
-    output::{self, Status, TransactionRow},
-    storage::rollback::RollbackSource,
-    utils::static_paths::UpstreamPaths,
+    }, output::{self, Status, TransactionRow, shorten_upstream_package_path}, storage::rollback::RollbackSource, utils::static_paths::UpstreamPaths,
 };
 
 fn restore_phase_label(message: &str) -> &'static str {
@@ -337,12 +334,14 @@ fn print_list_rows(rows: &[RollbackListRow]) {
     );
     println!("{}", output::divider(table_width));
     for row in rows {
+        let path = shorten_upstream_package_path(Path::new(&row.install_path)).unwrap_or("None".to_string());
+
         println!(
             "{:<name_width$} {:<version_width$} {:<source_width$} {}",
             output::truncate_end(&row.name, name_width),
             output::truncate_end(&row.version, version_width),
             rollback_source_label(&row.source),
-            output::truncate_end(&row.install_path, path_width),
+            output::truncate_end(&path, path_width),
         );
     }
 }

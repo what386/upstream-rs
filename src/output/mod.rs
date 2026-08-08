@@ -6,6 +6,7 @@ mod prompt;
 mod status;
 mod style;
 mod table;
+mod other;
 
 pub use crate::application::operations::history_op::HistoryRecord;
 pub use logger::{read_events as read_log_events, write_operation};
@@ -28,6 +29,10 @@ pub use table::{
     SizeImpactRow, TransactionRow, TransactionTableLayout, print_disk_impact,
     print_disk_impact_with_size_rows, print_transaction_table,
     print_transaction_table_with_size_rows, print_transaction_table_without_size,
+};
+
+pub use other::{
+    shorten_upstream_package_path
 };
 
 pub fn init_logger(path: impl AsRef<std::path::Path>) {

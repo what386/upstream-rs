@@ -2,12 +2,13 @@ use crate::{
     models::upstream::{InstallType, Package},
     output,
     output::pager,
+    output::shorten_upstream_package_path,
     storage::database::PackageDatabase,
     utils::{name_match, static_paths::UpstreamPaths},
 };
 use anyhow::{Result, anyhow};
 use console::Term;
-use std::{fmt::Write as _, path::Path};
+use std::fmt::Write;
 
 pub fn run(filter: Option<String>, json: bool, paths: &UpstreamPaths) -> Result<()> {
     let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
@@ -85,17 +86,6 @@ fn shorten_home_path(path: &str) -> String {
         return path.replacen(home_str, "~", 1);
     }
     path.to_string()
-}
-
-fn shorten_upstream_package_path(path: &Path) -> Option<String> {
-    let packages_dir = dirs::home_dir()?.join(".upstream").join("packages");
-    let suffix = path.strip_prefix(packages_dir).ok()?;
-    let suffix = suffix.to_string_lossy();
-    if suffix.is_empty() {
-        None
-    } else {
-        Some(suffix.into_owned())
-    }
 }
 
 fn format_path(path: Option<&std::path::PathBuf>, default: &str) -> String {
