@@ -246,6 +246,7 @@ pub(crate) struct ReplacementBackup {
     package_backup_path: PathBuf,
     integration_destinations: Vec<PathBuf>,
     moved_integrations: Vec<(PathBuf, PathBuf)>,
+    runtime_link_activated: bool,
 }
 
 impl ReplacementBackup {
@@ -271,6 +272,7 @@ impl ReplacementBackup {
             backup_dir,
             integration_destinations: Vec::new(),
             moved_integrations: Vec::new(),
+            runtime_link_activated: false,
         })
     }
 
@@ -336,6 +338,10 @@ impl ReplacementBackup {
         self.partially_installed_package = Some(package);
     }
 
+    fn mark_runtime_link_activated(&mut self) {
+        self.runtime_link_activated = true;
+    }
+
     fn rollback_icon_path(&self) -> Option<&Path> {
         let original_icon = self.previous_package.icon_path.as_ref()?;
         self.moved_integrations
@@ -352,6 +358,59 @@ pub struct PackageReplacer<'a> {
 impl<'a> PackageReplacer<'a> {
     pub fn new(paths: &'a UpstreamPaths) -> Self {
         Self { paths }
+    }
+
+    fn undo_activation<H>(
+        &self,
+        package: &Package,
+        runtime_link_activated: bool,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        let mut errors = Vec::new();
+
+        if runtime_link_activated
+            && let Err(error) =
+                SymlinkManager::new(&self.paths.state.symlinks_dir).remove_link(&package.name)
+        {
+            errors.push(format!("failed to remove runtime link: {error:#}"));
+        }
+
+        if let Err(error) =
+            CompletionManager::new(self.paths).remove_for_package(&package.name, message_callback)
+        {
+            errors.push(format!("failed to remove completions: {error:#}"));
+        }
+
+        if let Err(error) = DesktopManager::remove_entry(self.paths, &package.name) {
+            errors.push(format!("failed to remove desktop entry: {error:#}"));
+        }
+
+        if let Some(icon_path) = package.icon_path.as_ref()
+            && let Err(error) = Self::remove_path_if_exists(icon_path)
+        {
+            errors.push(format!(
+                "failed to remove icon '{}': {error:#}",
+                icon_path.display()
+            ));
+        }
+
+        if let Some(install_path) = package.install_path.as_ref()
+            && let Err(error) = Self::remove_path_if_exists(install_path)
+        {
+            errors.push(format!(
+                "failed to remove package '{}': {error:#}",
+                install_path.display()
+            ));
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(anyhow!("Activation cleanup failed: {}", errors.join("; ")))
+        }
     }
 
     pub(crate) async fn install_new<H, P>(
@@ -402,14 +461,31 @@ impl<'a> PackageReplacer<'a> {
         }
 
         let updated_package = prepared.activate_payload(self.paths)?;
-        if let Some(exec_path) = updated_package.exec_path.as_ref() {
-            SymlinkManager::new(&self.paths.state.symlinks_dir)
-                .add_link(exec_path, &updated_package.name)
-                .context("Failed to activate runtime link")?;
-        }
-        prepared.install_completions(self.paths)?;
-        if add_entry {
-            prepared.install_desktop_artifacts(self.paths)?;
+        let mut runtime_link_activated = false;
+        let activation_result = (|| {
+            if let Some(exec_path) = updated_package.exec_path.as_ref() {
+                SymlinkManager::new(&self.paths.state.symlinks_dir)
+                    .add_link(exec_path, &updated_package.name)
+                    .context("Failed to activate runtime link")?;
+                runtime_link_activated = true;
+            }
+            prepared.install_completions(self.paths)?;
+            if add_entry {
+                prepared.install_desktop_artifacts(self.paths)?;
+            }
+            Ok::<(), anyhow::Error>(())
+        })();
+        if let Err(error) = activation_result {
+            if let Err(cleanup) = self.undo_activation(
+                &updated_package,
+                runtime_link_activated,
+                &mut None::<fn(&str)>,
+            ) {
+                return Err(anyhow!(
+                    "{error:#}. Additionally failed to undo partial install activation: {cleanup:#}"
+                ));
+            }
+            return Err(error);
         }
 
         progress!(
@@ -425,8 +501,11 @@ impl<'a> PackageReplacer<'a> {
             package_database.upsert_package(&updated_package)
         };
         if let Err(error) = persist_result {
-            let _ = PackageRemover::new(self.paths)
-                .remove_package_files(&updated_package, &mut None::<fn(&str)>);
+            let _ = self.undo_activation(
+                &updated_package,
+                runtime_link_activated,
+                &mut None::<fn(&str)>,
+            );
             return Err(error).context(format!(
                 "Failed to save package '{}' to storage",
                 updated_package.name
@@ -436,8 +515,11 @@ impl<'a> PackageReplacer<'a> {
             .regenerate_paths(package_database, self.paths)
         {
             let _ = package_database.remove_package(&updated_package.name);
-            let _ = PackageRemover::new(self.paths)
-                .remove_package_files(&updated_package, &mut None::<fn(&str)>);
+            let _ = self.undo_activation(
+                &updated_package,
+                runtime_link_activated,
+                &mut None::<fn(&str)>,
+            );
             return Err(error).context(format!(
                 "Failed to refresh shell PATH after installing '{}'",
                 updated_package.name
@@ -552,6 +634,7 @@ impl<'a> PackageReplacer<'a> {
                 message_callback,
             );
         }
+        backup.mark_runtime_link_activated();
         if let Err(error) = prepared.install_completions(self.paths) {
             return self.restore_after_failure(
                 backup,
@@ -678,16 +761,11 @@ impl<'a> PackageReplacer<'a> {
         H: FnMut(&str),
     {
         let mut errors = Vec::new();
-        let replacement_path = backup
-            .partially_installed_package
-            .as_ref()
-            .and_then(|package| package.install_path.as_deref())
-            .unwrap_or(&backup.original_install_path);
-        if let Err(error) = Self::remove_path_if_exists(replacement_path) {
-            errors.push(format!(
-                "failed to remove replacement '{}': {error:#}",
-                replacement_path.display()
-            ));
+        if let Some(package) = backup.partially_installed_package.as_ref()
+            && let Err(error) =
+                self.undo_activation(package, backup.runtime_link_activated, message_callback)
+        {
+            errors.push(format!("failed to undo replacement activation: {error:#}"));
         }
 
         if fs::symlink_metadata(&backup.original_install_path).is_err() {
@@ -708,22 +786,6 @@ impl<'a> PackageReplacer<'a> {
             .restore_runtime_integrations(&backup.previous_package, message_callback)
         {
             errors.push(format!("failed to restore runtime integrations: {error:#}"));
-        }
-        let mut integration_destinations = backup.integration_destinations.clone();
-        if let Some(icon_path) = backup
-            .partially_installed_package
-            .as_ref()
-            .and_then(|package| package.icon_path.clone())
-        {
-            integration_destinations.push(icon_path);
-        }
-        for destination in integration_destinations {
-            if let Err(error) = Self::remove_path_if_exists(&destination) {
-                errors.push(format!(
-                    "failed to remove replacement integration '{}': {error:#}",
-                    destination.display()
-                ));
-            }
         }
         for (original, stored) in backup.moved_integrations.iter().rev() {
             if let Some(parent) = original.parent()
@@ -891,6 +953,67 @@ mod tests {
         assert!(paths.state.symlinks_dir.join("tool.exe").exists());
         #[cfg(not(windows))]
         assert!(paths.state.symlinks_dir.join("tool").exists());
+
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn failed_new_activation_removes_package_files_already_moved_live() {
+        let root = test_support::temp_root("upstream-package-replacement-test", "failed-new");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries");
+        fs::create_dir_all(&paths.install.tmp_dir).expect("create temp");
+        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks");
+        fs::create_dir_all(&paths.dirs.config_dir).expect("create config");
+
+        let workspace = InstallWorkspace::new(&paths, "tool").expect("create workspace");
+        let staged_path = workspace.root().join("binaries/tool");
+        fs::create_dir_all(staged_path.parent().expect("staged parent"))
+            .expect("create staged binaries");
+        fs::write(&staged_path, b"new binary").expect("write staged binary");
+
+        let link_blocker =
+            paths
+                .state
+                .symlinks_dir
+                .join(if cfg!(windows) { "tool.exe" } else { "tool" });
+        fs::create_dir_all(&link_blocker).expect("create link blocker");
+
+        let mut package = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_path = Some(staged_path.clone());
+        package.exec_path = Some(staged_path);
+
+        let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)
+            .expect("open package database");
+        let error = PackageReplacer::new(&paths)
+            .install_new(
+                &mut database,
+                PreparedInstall::new(package, workspace),
+                false,
+                &mut None::<fn(&str)>,
+                &mut None::<fn(crate::services::packaging::PackageProgressEvent)>,
+            )
+            .await
+            .expect_err("blocked runtime link should fail activation");
+
+        assert!(format!("{error:#}").contains("Failed to activate runtime link"));
+        assert!(!paths.install.binaries_dir.join("tool").exists());
+        assert!(link_blocker.is_dir());
+        assert!(
+            database
+                .get_package("tool")
+                .expect("read package")
+                .is_none()
+        );
 
         fs::remove_dir_all(root).expect("cleanup");
     }
