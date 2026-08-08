@@ -370,24 +370,20 @@ impl<'a> PackageActivator<'a> {
         H: FnMut(&str),
     {
         let mut errors = Vec::new();
-
         if runtime_link_activated
             && let Err(error) =
                 SymlinkManager::new(&self.paths.state.symlinks_dir).remove_link(&package.name)
         {
             errors.push(format!("failed to remove runtime link: {error:#}"));
         }
-
         if let Err(error) =
             CompletionManager::new(self.paths).remove_for_package(&package.name, message_callback)
         {
             errors.push(format!("failed to remove completions: {error:#}"));
         }
-
         if let Err(error) = DesktopManager::remove_entry(self.paths, &package.name) {
             errors.push(format!("failed to remove desktop entry: {error:#}"));
         }
-
         if let Some(icon_path) = package.icon_path.as_ref()
             && let Err(error) = Self::remove_path_if_exists(icon_path)
         {
@@ -396,7 +392,6 @@ impl<'a> PackageActivator<'a> {
                 icon_path.display()
             ));
         }
-
         if let Some(install_path) = package.install_path.as_ref()
             && let Err(error) = Self::remove_path_if_exists(install_path)
         {
@@ -405,7 +400,6 @@ impl<'a> PackageActivator<'a> {
                 install_path.display()
             ));
         }
-
         if errors.is_empty() {
             Ok(())
         } else {
@@ -413,6 +407,48 @@ impl<'a> PackageActivator<'a> {
         }
     }
 
+    pub fn remove_path_if_exists(path: &Path) -> Result<()> {
+        let metadata = match fs::symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => {
+                return Err(error).context(format!("Failed to inspect path '{}'", path.display()));
+            }
+        };
+        if metadata.is_dir() && !metadata.file_type().is_symlink() {
+            fs::remove_dir_all(path)
+                .context(format!("Failed to remove directory '{}'", path.display()))?;
+        } else {
+            fs::remove_file(path).context(format!("Failed to remove file '{}'", path.display()))?;
+        }
+        Ok(())
+    }
+
+    pub fn capture_rollback_snapshot(
+        paths: &UpstreamPaths,
+        package: &Package,
+        backup_path: &Path,
+        icon_source: Option<&Path>,
+        source: RollbackSource,
+    ) -> Result<()> {
+        let rollback_file = RollbackManager::rollback_file_path(paths);
+        let mut rollback_storage = RollbackStorage::new(&rollback_file)?;
+        RollbackManager::capture_backup_path_with_icon_source(
+            paths,
+            &mut rollback_storage,
+            package,
+            backup_path,
+            icon_source,
+            source,
+            &mut None::<fn(&str)>,
+        )
+    }
+}
+
+// Activate a package with no existing install.
+// No previous version, no backup, no rollback snapshot — failure just means
+// undoing whatever partial activation happened and leaving no trace.
+impl<'a> PackageActivator<'a> {
     pub async fn install_new<H, P>(
         &self,
         package_database: &mut PackageDatabase,
@@ -459,7 +495,6 @@ impl<'a> PackageActivator<'a> {
                 .prepare_desktop_data(self.paths, message_callback)
                 .await?;
         }
-
         let updated_package = prepared.activate_payload(self.paths)?;
         let mut runtime_link_activated = false;
         let activation_result = (|| {
@@ -487,7 +522,6 @@ impl<'a> PackageActivator<'a> {
             }
             return Err(error);
         }
-
         progress!(
             progress_callback,
             PackageProgressEvent::Phase(PackagePhase::SavingMetadata)
@@ -525,10 +559,14 @@ impl<'a> PackageActivator<'a> {
                 updated_package.name
             ));
         }
-
         Ok(updated_package)
     }
+}
 
+// Replace a package that is already installed.
+// A previous version exists, so every step backs up before it overwrites and
+// restore_after_failure can put the old version fully back if anything fails.
+impl<'a> PackageActivator<'a> {
     pub async fn replace<H, P>(
         &self,
         previous_package: &Package,
@@ -572,14 +610,12 @@ impl<'a> PackageActivator<'a> {
                 final_install_path.display()
             );
         }
-
         let backup_dir = Self::backup_dir(self.paths, &previous_package.name)?;
         let mut backup = ReplacementBackup::new(
             previous_package.clone(),
             original_install_path.clone(),
             backup_dir.clone(),
         )?;
-
         progress!(
             progress_callback,
             PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot)
@@ -600,7 +636,6 @@ impl<'a> PackageActivator<'a> {
                 message_callback,
             );
         }
-
         if cancellation::is_requested() {
             return self.restore_after_failure(
                 backup,
@@ -609,7 +644,6 @@ impl<'a> PackageActivator<'a> {
                 message_callback,
             );
         }
-
         let updated_package = match prepared.activate_payload(self.paths) {
             Ok(package) => package,
             Err(error) => {
@@ -622,7 +656,6 @@ impl<'a> PackageActivator<'a> {
             }
         };
         backup.set_partial_package(updated_package.clone());
-
         if let Some(exec_path) = updated_package.exec_path.as_ref()
             && let Err(error) = SymlinkManager::new(&self.paths.state.symlinks_dir)
                 .add_link(exec_path, &updated_package.name)
@@ -643,7 +676,6 @@ impl<'a> PackageActivator<'a> {
                 message_callback,
             );
         }
-
         if restore_desktop {
             progress!(
                 progress_callback,
@@ -663,7 +695,6 @@ impl<'a> PackageActivator<'a> {
             }
             backup.set_partial_package(updated_package.clone());
         }
-
         if let Err(error) = Self::capture_rollback_snapshot(
             self.paths,
             previous_package,
@@ -685,7 +716,6 @@ impl<'a> PackageActivator<'a> {
                 message_callback,
             );
         }
-
         if let Err(error) = Self::remove_path_if_exists(&backup_dir) {
             progress!(
                 progress_callback,
@@ -713,43 +743,6 @@ impl<'a> PackageActivator<'a> {
         Ok(backup_dir)
     }
 
-    pub fn remove_path_if_exists(path: &Path) -> Result<()> {
-        let metadata = match fs::symlink_metadata(path) {
-            Ok(metadata) => metadata,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
-            Err(error) => {
-                return Err(error).context(format!("Failed to inspect path '{}'", path.display()));
-            }
-        };
-        if metadata.is_dir() && !metadata.file_type().is_symlink() {
-            fs::remove_dir_all(path)
-                .context(format!("Failed to remove directory '{}'", path.display()))?;
-        } else {
-            fs::remove_file(path).context(format!("Failed to remove file '{}'", path.display()))?;
-        }
-        Ok(())
-    }
-
-    pub fn capture_rollback_snapshot(
-        paths: &UpstreamPaths,
-        package: &Package,
-        backup_path: &Path,
-        icon_source: Option<&Path>,
-        source: RollbackSource,
-    ) -> Result<()> {
-        let rollback_file = RollbackManager::rollback_file_path(paths);
-        let mut rollback_storage = RollbackStorage::new(&rollback_file)?;
-        RollbackManager::capture_backup_path_with_icon_source(
-            paths,
-            &mut rollback_storage,
-            package,
-            backup_path,
-            icon_source,
-            source,
-            &mut None::<fn(&str)>,
-        )
-    }
-
     pub fn restore_after_failure<H, T>(
         &self,
         backup: ReplacementBackup,
@@ -767,7 +760,6 @@ impl<'a> PackageActivator<'a> {
         {
             errors.push(format!("failed to undo replacement activation: {error:#}"));
         }
-
         if fs::symlink_metadata(&backup.original_install_path).is_err() {
             if let Err(error) = safe_move::move_file_or_dir(
                 &backup.package_backup_path,
@@ -781,7 +773,6 @@ impl<'a> PackageActivator<'a> {
                 backup.original_install_path.display()
             ));
         }
-
         if let Err(error) = PackageRemover::new(self.paths)
             .restore_runtime_integrations(&backup.previous_package, message_callback)
         {
@@ -810,7 +801,6 @@ impl<'a> PackageActivator<'a> {
                 backup.backup_dir.display()
             ));
         }
-
         if !errors.is_empty() {
             return Err(anyhow!(
                 "{} for '{}': {failure:#}. Rollback encountered: {}",
@@ -819,13 +809,17 @@ impl<'a> PackageActivator<'a> {
                 errors.join("; ")
             ));
         }
-
         Err(failure).context(format!(
             "{} for '{}' (previous version restored)",
             failure_context, backup.previous_package.name
         ))
     }
+}
 
+// Persisting a replacement's metadata after activation has already succeeded
+// on disk. Only relevant to the replace path — a new install persists inline
+// as part of install_new_with_settings above.
+impl<'a> PackageActivator<'a> {
     pub fn persist(
         &self,
         package_database: &mut PackageDatabase,
@@ -838,7 +832,6 @@ impl<'a> PackageActivator<'a> {
                 persistence_error,
             );
         }
-
         ShellManager::new(&self.paths.generated.paths_file)
             .regenerate_paths(package_database, self.paths)
             .context(format!(
@@ -859,7 +852,6 @@ impl<'a> PackageActivator<'a> {
             RollbackManager::new(self.paths, package_database, &mut rollback_storage)
                 .restore_replaced_package(&replacement.name, replacement, &mut None::<fn(&str)>)
         })();
-
         match rollback_result {
             Ok(()) => Err(persistence_error).context(format!(
                 "Failed to persist replacement for '{}' (previous version restored)",
