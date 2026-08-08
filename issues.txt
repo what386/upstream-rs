@@ -1,0 +1,1 @@
+- installs sometimes hang after downloading
