@@ -4,7 +4,7 @@ mod installer;
 pub mod progress;
 mod remover;
 mod activation;
-pub mod rollback;
+pub mod rollbacker;
 mod upgrader;
 mod staging;
 
@@ -100,7 +100,7 @@ pub use installer::ResolvedAssetInstall;
 pub use progress::{OperationPhase, OperationProgressEvent, PackagePhase, PackageProgressEvent};
 pub use remover::PackageRemover;
 pub use activation::{PackageReplacer, PreparedInstall};
-pub use rollback::RollbackManager;
+pub use rollbacker::RollbackManager;
 pub use upgrader::PackageUpgrader;
 pub use upgrader::ResolvedUpgradeTarget;
 pub use staging::InstallWorkspace;
