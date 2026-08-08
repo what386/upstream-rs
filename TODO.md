@@ -18,6 +18,9 @@
 - [ ] feat: better upgrade/install service, less prone to issues
       @created 2026-08-08 03:36
 
+- [ ] fix: ctrl-c is respected during downloads
+      @created 2026-08-08 14:36
+
 
 ## Completed
 
