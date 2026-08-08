@@ -18,17 +18,17 @@ use crate::{
 
 /// A zsync-produced artifact and its cache. Dropping it removes the temporary
 /// workspace after the caller has verified and installed the artifact.
-pub(crate) struct UpdatedAsset {
+pub struct UpdatedAsset {
     root: PathBuf,
     cache: PathBuf,
     path: PathBuf,
 }
 
 impl UpdatedAsset {
-    pub(crate) fn cache(&self) -> &Path {
+    pub fn cache(&self) -> &Path {
         &self.cache
     }
-    pub(crate) fn path(&self) -> &Path {
+    pub fn path(&self) -> &Path {
         &self.path
     }
 }
@@ -39,14 +39,14 @@ impl Drop for UpdatedAsset {
     }
 }
 
-pub(crate) fn can_update_package(package: &Package, asset: &Asset, seed_path: &Path) -> bool {
+pub fn can_update_package(package: &Package, asset: &Asset, seed_path: &Path) -> bool {
     seed_path.is_file()
         && asset.filetype == package.filetype
         && !matches!(package.filetype, Filetype::Archive | Filetype::Compressed)
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) async fn update_package_asset<H, P>(
+pub async fn update_package_asset<H, P>(
     package: &Package,
     release: &Release,
     asset: &Asset,

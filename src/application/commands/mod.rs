@@ -29,7 +29,7 @@ use crate::{
     storage::database::PackageDatabase,
 };
 
-pub(crate) fn resolve_new_package_name(
+pub fn resolve_new_package_name(
     override_name: Option<String>,
     source: &str,
     provider: Option<&Provider>,

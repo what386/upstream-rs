@@ -32,14 +32,14 @@ pub enum CompletionShell {
 /// This deliberately contains only completion output paths, so a replacement
 /// can stage completions without manufacturing an alternate application root.
 #[derive(Debug, Clone)]
-pub(crate) struct CompletionPaths {
+pub struct CompletionPaths {
     pub bash_dir: PathBuf,
     pub fish_dir: PathBuf,
     pub zsh_dir: PathBuf,
 }
 
 impl CompletionPaths {
-    pub(crate) fn from_upstream(paths: &UpstreamPaths) -> Self {
+    pub fn from_upstream(paths: &UpstreamPaths) -> Self {
         Self {
             bash_dir: paths.integration.bash_completions_dir.clone(),
             fish_dir: paths.integration.fish_completions_dir.clone(),
@@ -47,7 +47,7 @@ impl CompletionPaths {
         }
     }
 
-    pub(crate) fn under(root: &Path) -> Self {
+    pub fn under(root: &Path) -> Self {
         Self {
             bash_dir: root.join("bash"),
             fish_dir: root.join("fish"),
@@ -139,7 +139,7 @@ impl<'a> CompletionManager<'a> {
         }
     }
 
-    pub(crate) fn with_paths(paths: CompletionPaths) -> Self {
+    pub fn with_paths(paths: CompletionPaths) -> Self {
         Self {
             paths,
             _upstream_paths: std::marker::PhantomData,
@@ -322,7 +322,7 @@ impl<'a> CompletionManager<'a> {
         }
     }
 
-    pub(crate) fn package_completion_paths(&self, package_name: &str) -> [PathBuf; 3] {
+    pub fn package_completion_paths(&self, package_name: &str) -> [PathBuf; 3] {
         [
             self.completion_path(package_name, CompletionShell::Bash),
             self.completion_path(package_name, CompletionShell::Fish),

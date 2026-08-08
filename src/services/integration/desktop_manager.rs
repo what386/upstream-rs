@@ -255,7 +255,7 @@ impl<'a> DesktopManager<'a> {
     /// active integration paths. `final_package` supplies the paths written to
     /// the desktop entry; `staged_package` is used only to inspect icons and
     /// embedded desktop metadata.
-    pub(crate) async fn prepare_package_entry<H>(
+    pub async fn prepare_package_entry<H>(
         &self,
         staged_package: &Package,
         final_package: &mut Package,
@@ -567,7 +567,7 @@ impl<'a> DesktopManager<'a> {
         Ok(true)
     }
 
-    pub(crate) fn managed_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
+    pub fn managed_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
         #[cfg(target_os = "linux")]
         {
             paths

@@ -50,7 +50,7 @@ impl<'a> IconManager<'a> {
         .await
     }
 
-    pub(crate) async fn add_icon_to<H>(
+    pub async fn add_icon_to<H>(
         &self,
         name: &str,
         path: &Path,
