@@ -8,7 +8,7 @@ use crate::models::common::{
 };
 use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
 use crate::models::upstream::{Package, config::DownloadConfig};
-use crate::providers::asset_selector::{AssetCandidate, AssetSelector};
+use crate::providers::asset_scorer::{AssetCandidate, AssetSelector};
 use crate::providers::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::github::{GithubAdapter, GithubClient};
 use crate::providers::gitlab::{GitlabAdapter, GitlabClient};

@@ -300,7 +300,7 @@ mod tests {
     #[cfg(target_os = "linux")]
     use crate::models::upstream::Package;
     #[cfg(target_os = "linux")]
-    use crate::providers::asset_selector::AssetSelector;
+    use crate::providers::asset_scorer::AssetSelector;
     use chrono::Utc;
 
     #[cfg(target_os = "linux")]

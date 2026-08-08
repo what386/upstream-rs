@@ -8,7 +8,7 @@ use crate::{
         upstream::Package,
     },
     providers::{
-        asset_selector::{AssetCandidate, AssetSelector},
+        asset_scorer::{AssetCandidate, AssetSelector},
         discovery::infer_source,
         provider_manager::ProviderManager,
     },

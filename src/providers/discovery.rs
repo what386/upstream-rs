@@ -7,7 +7,7 @@ use crate::{
         provider::Release,
         upstream::Package,
     },
-    providers::{asset_selector::AssetCandidate, provider_manager::ProviderManager},
+    providers::{asset_scorer::AssetCandidate, provider_manager::ProviderManager},
     utils::filename_parser::parse_filetype,
 };
 
@@ -396,7 +396,7 @@ mod tests {
         common::{Version, enums::Provider},
         provider::{Asset, Release},
     };
-    use crate::providers::asset_selector::AssetCandidate;
+    use crate::providers::asset_scorer::AssetCandidate;
     use chrono::Utc;
 
     #[test]

@@ -1,4 +1,4 @@
-pub mod asset_selector;
+pub mod asset_scorer;
 pub mod discovery;
 pub mod download_handler;
 pub mod pattern_matcher;
