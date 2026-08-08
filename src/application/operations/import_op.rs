@@ -617,6 +617,7 @@ fn emit_progress_updates<P>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn import_package(
     provider_manager: &ProviderManager,
     paths: &UpstreamPaths,

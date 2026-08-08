@@ -420,7 +420,7 @@ impl<'a> PackageUpgrader<'a> {
                     install_pkg.install_path = None;
                     install_pkg.exec_path = None;
                     install_pkg.icon_path = None;
-                    let result = staging_installer
+                    staging_installer
                         .install_selected_asset(
                             &self.trusted_keys,
                             install_pkg,
@@ -432,8 +432,7 @@ impl<'a> PackageUpgrader<'a> {
                             message_callback,
                             progress_callback,
                         )
-                        .await;
-                    result
+                        .await
                 }
                 Err(err) => {
                     if cancellation::is_requested() {
@@ -450,7 +449,7 @@ impl<'a> PackageUpgrader<'a> {
                     install_pkg.install_path = None;
                     install_pkg.exec_path = None;
                     install_pkg.icon_path = None;
-                    let result = staging_installer
+                    staging_installer
                         .install_selected_asset(
                             &self.trusted_keys,
                             install_pkg,
@@ -462,8 +461,7 @@ impl<'a> PackageUpgrader<'a> {
                             message_callback,
                             progress_callback,
                         )
-                        .await;
-                    result
+                        .await
                 }
             };
 

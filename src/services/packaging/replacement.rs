@@ -197,27 +197,24 @@ impl PreparedInstall {
             final_icon
                 .file_name()
                 .map(|name| self.workspace.icons_dir().join(name))
-        }) {
-            if staged_icon_path.exists() {
-                let final_icon_path = self
-                    .final_icon_path
-                    .as_ref()
-                    .expect("staged icon has a final path");
-                if let Some(parent) = final_icon_path.parent() {
-                    fs::create_dir_all(parent).with_context(|| {
-                        format!("Failed to create icon directory '{}'", parent.display())
-                    })?;
-                }
-                safe_move::move_file_or_dir(&staged_icon_path, final_icon_path).with_context(
-                    || {
-                        format!(
-                            "Failed to activate prepared icon '{}' at '{}'",
-                            staged_icon_path.display(),
-                            final_icon_path.display()
-                        )
-                    },
-                )?;
+        }) && staged_icon_path.exists()
+        {
+            let final_icon_path = self
+                .final_icon_path
+                .as_ref()
+                .expect("staged icon has a final path");
+            if let Some(parent) = final_icon_path.parent() {
+                fs::create_dir_all(parent).with_context(|| {
+                    format!("Failed to create icon directory '{}'", parent.display())
+                })?;
             }
+            safe_move::move_file_or_dir(&staged_icon_path, final_icon_path).with_context(|| {
+                format!(
+                    "Failed to activate prepared icon '{}' at '{}'",
+                    staged_icon_path.display(),
+                    final_icon_path.display()
+                )
+            })?;
         }
 
         if let Some(staged_desktop_path) = self.staged_desktop_path.as_ref()
@@ -890,6 +887,9 @@ mod tests {
                 .expect("read package")
                 .is_some()
         );
+        #[cfg(windows)]
+        assert!(paths.state.symlinks_dir.join("tool.exe").exists());
+        #[cfg(not(windows))]
         assert!(paths.state.symlinks_dir.join("tool").exists());
 
         fs::remove_dir_all(root).expect("cleanup");
