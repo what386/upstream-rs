@@ -27,6 +27,35 @@ pub enum CompletionShell {
     Zsh,
 }
 
+/// Concrete destinations for package completion files.
+///
+/// This deliberately contains only completion output paths, so a replacement
+/// can stage completions without manufacturing an alternate application root.
+#[derive(Debug, Clone)]
+pub(crate) struct CompletionPaths {
+    pub bash_dir: PathBuf,
+    pub fish_dir: PathBuf,
+    pub zsh_dir: PathBuf,
+}
+
+impl CompletionPaths {
+    pub(crate) fn from_upstream(paths: &UpstreamPaths) -> Self {
+        Self {
+            bash_dir: paths.integration.bash_completions_dir.clone(),
+            fish_dir: paths.integration.fish_completions_dir.clone(),
+            zsh_dir: paths.integration.zsh_completions_dir.clone(),
+        }
+    }
+
+    pub(crate) fn under(root: &Path) -> Self {
+        Self {
+            bash_dir: root.join("bash"),
+            fish_dir: root.join("fish"),
+            zsh_dir: root.join("zsh"),
+        }
+    }
+}
+
 impl CompletionShell {
     fn from_extension(extension: &str) -> Option<Self> {
         match extension {
@@ -98,12 +127,23 @@ impl CompletionSnapshot {
 }
 
 pub struct CompletionManager<'a> {
-    paths: &'a UpstreamPaths,
+    paths: CompletionPaths,
+    _upstream_paths: std::marker::PhantomData<&'a UpstreamPaths>,
 }
 
 impl<'a> CompletionManager<'a> {
     pub fn new(paths: &'a UpstreamPaths) -> Self {
-        Self { paths }
+        Self {
+            paths: CompletionPaths::from_upstream(paths),
+            _upstream_paths: std::marker::PhantomData,
+        }
+    }
+
+    pub(crate) fn with_paths(paths: CompletionPaths) -> Self {
+        Self {
+            paths,
+            _upstream_paths: std::marker::PhantomData,
+        }
     }
 
     pub fn installed_shells() -> Vec<CompletionShell> {
@@ -266,9 +306,9 @@ impl<'a> CompletionManager<'a> {
 
     fn completion_dir(&self, shell: CompletionShell) -> &Path {
         match shell {
-            CompletionShell::Bash => &self.paths.integration.bash_completions_dir,
-            CompletionShell::Fish => &self.paths.integration.fish_completions_dir,
-            CompletionShell::Zsh => &self.paths.integration.zsh_completions_dir,
+            CompletionShell::Bash => &self.paths.bash_dir,
+            CompletionShell::Fish => &self.paths.fish_dir,
+            CompletionShell::Zsh => &self.paths.zsh_dir,
         }
     }
 
@@ -282,12 +322,16 @@ impl<'a> CompletionManager<'a> {
         }
     }
 
-    fn remove_installed_completion_files(&self, package_name: &str) -> Result<usize> {
-        let candidates = [
+    pub(crate) fn package_completion_paths(&self, package_name: &str) -> [PathBuf; 3] {
+        [
             self.completion_path(package_name, CompletionShell::Bash),
             self.completion_path(package_name, CompletionShell::Fish),
             self.completion_path(package_name, CompletionShell::Zsh),
-        ];
+        ]
+    }
+
+    fn remove_installed_completion_files(&self, package_name: &str) -> Result<usize> {
+        let candidates = self.package_completion_paths(package_name);
 
         let mut removed = 0_usize;
         for path in candidates {

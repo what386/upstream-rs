@@ -21,7 +21,7 @@ use crate::{
 
 use anyhow::{Context, Result, anyhow};
 use futures_util::stream::{self, FuturesUnordered, StreamExt};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 use tokio::time::{self, Duration};
 
@@ -396,17 +396,9 @@ impl<'a> UpgradeOperation<'a> {
         concurrency_config: ConcurrencyConfig,
     ) -> Result<Self> {
         let installer = PackageInstaller::new(provider_manager, paths)?;
-
-        let remover = PackageRemover::new(paths);
-
-        let upgrader =
-            PackageUpgrader::new(provider_manager, installer, remover, paths, trusted_keys);
-
-        let checker = PackageChecker::new(provider_manager);
-
         Ok(Self {
-            upgrader,
-            checker,
+            upgrader: PackageUpgrader::new(provider_manager, installer, paths, trusted_keys),
+            checker: PackageChecker::new(provider_manager),
             provider_manager,
             paths,
             package_database,
@@ -446,6 +438,15 @@ impl<'a> UpgradeOperation<'a> {
     where
         H: FnMut(UpgradePreviewEvent),
     {
+        if let Some(names) = names {
+            let mut unique = BTreeSet::new();
+            if let Some(duplicate) = names.iter().find(|name| !unique.insert(name.as_str())) {
+                return Err(anyhow!(
+                    "Package '{}' was requested more than once",
+                    duplicate
+                ));
+            }
+        }
         let packages = match names {
             Some(names) => names
                 .iter()
@@ -853,7 +854,7 @@ fn persist_upgrade_and_emit_complete<P>(
 where
     P: FnMut(UpgradeProgressEvent),
 {
-    PackageReplacer::new(paths).commit(package_database, updated)?;
+    PackageReplacer::new(paths).persist(package_database, updated)?;
     if let Some(cb) = progress_callback.as_mut() {
         cb(UpgradeProgressEvent::Complete {
             name,

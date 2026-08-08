@@ -1,8 +1,8 @@
 use crate::{
     application::cancellation,
     output::{self, Status},
+    services::packaging::disk_impact::DiskImpact,
     services::packaging::{PackagePhase, PackageProgressEvent, PackageRemover},
-    services::{integration::ShellManager, packaging::disk_impact::DiskImpact},
     storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
@@ -46,9 +46,8 @@ pub enum RemovePreviewStatus {
 
 impl<'a> RemoveOperation<'a> {
     pub fn new(package_database: &'a mut PackageDatabase, paths: &'a UpstreamPaths) -> Self {
-        let remover = PackageRemover::new(paths);
         Self {
-            remover,
+            remover: PackageRemover::new(paths),
             package_database,
         }
     }
@@ -202,88 +201,14 @@ impl<'a> RemoveOperation<'a> {
         H: FnMut(&str),
         P: FnMut(&str, PackageProgressEvent),
     {
-        let package = self
-            .package_database
-            .get_package(package_name)?
-            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
-
-        progress!(
-            progress_callback,
+        self.remover.remove(
+            self.package_database,
             package_name,
-            PackageProgressEvent::Phase(PackagePhase::RemovingPackage)
-        );
-
-        let removal_result = self
-            .remover
-            .remove_package_files(&package, message_callback)
-            .context(format!(
-                "Failed to perform removal operations for '{}'",
-                package_name
-            ));
-
-        if let Err(err) = removal_result {
-            if !*force_option {
-                return Err(err);
-            }
-            message!(
-                message_callback,
-                "{}",
-                output::warning(format!(
-                    "Ignoring uninstall error for '{}': {}",
-                    package_name, err
-                ))
-            );
-        }
-
-        progress!(
+            *purge_option,
+            *force_option,
+            message_callback,
             progress_callback,
-            package_name,
-            PackageProgressEvent::Phase(PackagePhase::RemovingMetadata)
-        );
-        self.package_database
-            .remove_package(package_name)
-            .context(format!(
-                "Failed to remove '{}' from package storage",
-                package_name
-            ))?;
-
-        let paths = self.remover.paths();
-        ShellManager::new(&paths.generated.paths_file)
-            .regenerate_paths(self.package_database, paths)
-            .context(format!(
-                "Failed to regenerate PATH integration after removing '{}'",
-                package_name
-            ))?;
-
-        if *purge_option {
-            progress!(
-                progress_callback,
-                package_name,
-                PackageProgressEvent::Phase(PackagePhase::PurgingPackageData)
-            );
-            let purge_result = self
-                .remover
-                .purge_configs(package_name, message_callback)
-                .context(format!(
-                    "Failed to purge configuration files for '{}'",
-                    package_name
-                ));
-            if let Err(err) = purge_result {
-                if !*force_option {
-                    return Err(err);
-                }
-                message!(
-                    message_callback,
-                    "{}",
-                    output::warning(format!(
-                        "Ignoring purge error for '{}': {}",
-                        package_name, err
-                    ))
-                );
-            }
-        }
-
-        Ok(())
+        )
     }
 }
 

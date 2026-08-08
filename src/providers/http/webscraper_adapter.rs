@@ -46,12 +46,7 @@ impl WebScraperAdapter {
 
         matches!(
             parse_filetype(&info.name),
-            Filetype::AppImage
-                | Filetype::MacApp
-                | Filetype::MacDmg
-                | Filetype::Archive
-                | Filetype::Compressed
-                | Filetype::WinExe
+            Filetype::AppImage | Filetype::Archive | Filetype::Compressed | Filetype::WinExe
         )
     }
 

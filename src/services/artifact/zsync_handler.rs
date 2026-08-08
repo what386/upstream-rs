@@ -42,10 +42,7 @@ impl Drop for UpdatedAsset {
 pub(crate) fn can_update_package(package: &Package, asset: &Asset, seed_path: &Path) -> bool {
     seed_path.is_file()
         && asset.filetype == package.filetype
-        && !matches!(
-            package.filetype,
-            Filetype::Archive | Filetype::Compressed | Filetype::MacApp | Filetype::MacDmg
-        )
+        && !matches!(package.filetype, Filetype::Archive | Filetype::Compressed)
 }
 
 #[allow(clippy::too_many_arguments)]

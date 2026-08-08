@@ -40,6 +40,27 @@ impl<'a> IconManager<'a> {
     where
         H: FnMut(&str),
     {
+        self.add_icon_to(
+            name,
+            path,
+            filetype,
+            &self.paths.state.icons_dir,
+            message_callback,
+        )
+        .await
+    }
+
+    pub(crate) async fn add_icon_to<H>(
+        &self,
+        name: &str,
+        path: &Path,
+        filetype: &Filetype,
+        output_dir: &Path,
+        message_callback: &mut Option<H>,
+    ) -> Result<Option<PathBuf>>
+    where
+        H: FnMut(&str),
+    {
         let icon_path = match filetype {
             Filetype::AppImage => {
                 #[cfg(target_os = "linux")]
@@ -67,14 +88,15 @@ impl<'a> IconManager<'a> {
             return Ok(None);
         };
 
-        self.copy_icon_to_output(&icon_path).map(Some)
+        self.copy_icon_to_output(&icon_path, output_dir).map(Some)
     }
 
-    fn copy_icon_to_output(&self, icon_path: &Path) -> Result<PathBuf> {
+    fn copy_icon_to_output(&self, icon_path: &Path, output_dir: &Path) -> Result<PathBuf> {
         let filename = icon_path
             .file_name()
             .ok_or_else(|| anyhow!("Invalid icon path"))?;
-        let output_path = self.paths.state.icons_dir.join(filename);
+        fs::create_dir_all(output_dir)?;
+        let output_path = output_dir.join(filename);
         fs::copy(icon_path, &output_path)?;
         Ok(output_path)
     }

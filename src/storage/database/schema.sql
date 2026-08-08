@@ -4,8 +4,6 @@ CREATE TABLE IF NOT EXISTS packages (
     filetype TEXT NOT NULL CHECK (
         filetype IN (
             'AppImage',
-            'MacApp',
-            'MacDmg',
             'Archive',
             'Compressed',
             'Binary',

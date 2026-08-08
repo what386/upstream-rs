@@ -104,14 +104,6 @@ pub fn parse_filetype(filename: &str) -> Filetype {
         return Filetype::AppImage;
     }
 
-    if filename.ends_with(".app") {
-        return Filetype::MacApp;
-    }
-
-    if filename.ends_with(".dmg") {
-        return Filetype::MacDmg;
-    }
-
     if filename.ends_with(".exe") {
         return Filetype::WinExe;
     }
@@ -205,8 +197,6 @@ mod tests {
     #[test]
     fn parse_filetype_classifies_extensions_in_priority_order() {
         assert_eq!(parse_filetype("tool.AppImage"), Filetype::AppImage);
-        assert_eq!(parse_filetype("tool.app"), Filetype::MacApp);
-        assert_eq!(parse_filetype("tool.dmg"), Filetype::MacDmg);
         assert_eq!(parse_filetype("tool.exe"), Filetype::WinExe);
         assert_eq!(parse_filetype("tool.tar.gz"), Filetype::Archive);
         assert_eq!(parse_filetype("tool.gz"), Filetype::Compressed);

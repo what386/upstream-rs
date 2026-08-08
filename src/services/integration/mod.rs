@@ -6,6 +6,7 @@ mod symlink_manager;
 #[cfg(windows)]
 pub mod windows_path;
 
+pub(crate) use completion_manager::CompletionPaths;
 pub use completion_manager::{CompletionManager, CompletionShell, CompletionSnapshot};
 pub use desktop_manager::{DesktopManager, DesktopSnapshot};
 pub use icon_manager::IconManager;

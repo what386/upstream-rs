@@ -84,8 +84,6 @@ pub(super) enum RegistryBuildProfile {
 #[serde(rename_all = "kebab-case")]
 pub(super) enum RegistryFiletype {
     Appimage,
-    MacApp,
-    MacDmg,
     Archive,
     Compressed,
     Binary,
@@ -132,8 +130,6 @@ impl RegistryFiletype {
     pub(super) fn filetype(&self) -> Filetype {
         match self {
             Self::Appimage => Filetype::AppImage,
-            Self::MacApp => Filetype::MacApp,
-            Self::MacDmg => Filetype::MacDmg,
             Self::Archive => Filetype::Archive,
             Self::Compressed => Filetype::Compressed,
             Self::Binary => Filetype::Binary,

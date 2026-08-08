@@ -251,6 +251,84 @@ impl<'a> DesktopManager<'a> {
         Ok(())
     }
 
+    /// Build desktop integration from a staged payload without touching the
+    /// active integration paths. `final_package` supplies the paths written to
+    /// the desktop entry; `staged_package` is used only to inspect icons and
+    /// embedded desktop metadata.
+    pub(crate) async fn prepare_package_entry<H>(
+        &self,
+        staged_package: &Package,
+        final_package: &mut Package,
+        entry_path: &Path,
+        icons_dir: &Path,
+        message_callback: &mut Option<H>,
+    ) -> Result<Option<PathBuf>>
+    where
+        H: FnMut(&str),
+    {
+        let staged_install_path = staged_package.install_path.as_ref().ok_or_else(|| {
+            anyhow!(
+                "Staged package '{}' has no install path",
+                staged_package.name
+            )
+        })?;
+        let final_install_path = final_package.install_path.as_ref().ok_or_else(|| {
+            anyhow!(
+                "Replacement package '{}' has no install path",
+                final_package.name
+            )
+        })?;
+
+        #[cfg(target_os = "linux")]
+        let extractor =
+            AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
+        #[cfg(target_os = "linux")]
+        let icon_manager = IconManager::new(self.paths, &extractor);
+        #[cfg(not(target_os = "linux"))]
+        let icon_manager = IconManager::new(self.paths);
+
+        let staged_icon = icon_manager
+            .add_icon_to(
+                &final_package.name,
+                staged_install_path,
+                &final_package.filetype,
+                icons_dir,
+                message_callback,
+            )
+            .await
+            .context(format!(
+                "Failed to prepare icon for '{}'",
+                final_package.name
+            ))?;
+        let final_icon = staged_icon.as_ref().map(|path| {
+            self.paths
+                .state
+                .icons_dir
+                .join(path.file_name().expect("staged icon output has a filename"))
+        });
+
+        let mut desktop_package = final_package.clone();
+        desktop_package.icon_path = final_icon.clone();
+        let desktop_entry = DesktopEntry::from_package(&desktop_package);
+        let staged_exec_path = staged_package.exec_path.as_deref();
+        let final_exec_path = final_package.exec_path.as_deref();
+        self.create_staged_entry(
+            &final_package.name,
+            staged_install_path,
+            staged_exec_path,
+            final_install_path,
+            final_exec_path,
+            &final_package.filetype,
+            desktop_entry,
+            entry_path,
+            message_callback,
+        )
+        .await?;
+
+        final_package.icon_path = final_icon;
+        Ok(staged_icon)
+    }
+
     pub fn disable_package_entry<H>(
         &self,
         package: &mut Package,
@@ -343,6 +421,77 @@ impl<'a> DesktopManager<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    async fn create_staged_entry<H>(
+        &self,
+        name: &str,
+        staged_install_path: &Path,
+        staged_exec_path: Option<&Path>,
+        final_install_path: &Path,
+        final_exec_path: Option<&Path>,
+        filetype: &Filetype,
+        entry: DesktopEntry,
+        entry_path: &Path,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
+        #[cfg(target_os = "linux")]
+        {
+            let _ = (name, staged_exec_path, final_install_path, final_exec_path);
+            self.create_unix_desktop_entry_at(
+                staged_install_path,
+                filetype,
+                entry,
+                entry_path,
+                message_callback,
+            )
+            .await?;
+            return Ok(());
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let staged_exec_path = staged_exec_path
+                .ok_or_else(|| anyhow!("Staged package '{}' has no executable path", name))?;
+            let final_exec_path = final_exec_path
+                .ok_or_else(|| anyhow!("Replacement package '{}' has no executable path", name))?;
+            let staged_bundle =
+                Self::find_app_bundle_path(staged_install_path, staged_exec_path, filetype)
+                    .ok_or_else(|| anyhow!("Could not locate a .app bundle for '{}'", name))?;
+            let relative_bundle = staged_bundle
+                .strip_prefix(staged_install_path)
+                .unwrap_or(Path::new(""));
+            let final_bundle = final_install_path.join(relative_bundle);
+            self.create_macos_launcher_at(
+                name,
+                &staged_bundle,
+                &final_bundle,
+                entry_path,
+                message_callback,
+            )?;
+            let _ = final_exec_path;
+            return Ok(());
+        }
+
+        #[cfg(windows)]
+        {
+            let exec_path = final_exec_path
+                .ok_or_else(|| anyhow!("Replacement package '{}' has no executable path", name))?;
+            let icon_path = entry
+                .icon
+                .as_deref()
+                .filter(|icon| !icon.is_empty())
+                .map(Path::new);
+            self.create_windows_shortcut_at(entry_path, exec_path, icon_path)?;
+            return Ok(());
+        }
+
+        #[allow(unreachable_code)]
+        Ok(())
+    }
+
     pub fn remove_entry(paths: &UpstreamPaths, name: &str) -> Result<()> {
         let path = Self::managed_entry_path(paths, name);
 
@@ -418,7 +567,7 @@ impl<'a> DesktopManager<'a> {
         Ok(true)
     }
 
-    fn managed_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
+    pub(crate) fn managed_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
         #[cfg(target_os = "linux")]
         {
             paths
@@ -492,6 +641,45 @@ impl<'a> DesktopManager<'a> {
 
         entry.terminal = false;
         self.write_unix_entry(&name, &entry)
+    }
+
+    #[cfg(target_os = "linux")]
+    async fn create_unix_desktop_entry_at<H>(
+        &self,
+        install_path: &Path,
+        filetype: &Filetype,
+        mut entry: DesktopEntry,
+        output_path: &Path,
+        message_callback: &mut Option<H>,
+    ) -> Result<PathBuf>
+    where
+        H: FnMut(&str),
+    {
+        let name = entry
+            .name
+            .as_deref()
+            .ok_or_else(|| anyhow!("Desktop entry name is required"))?
+            .to_string();
+
+        entry = if *filetype == Filetype::AppImage {
+            let squashfs_root = self
+                .extractor
+                .extract(&name, install_path, message_callback)
+                .await?;
+            let embedded = self
+                .find_and_parse_desktop_file(&squashfs_root, &name, message_callback)
+                .unwrap_or_default();
+            Self::merge_embedded_entry(embedded, entry, &name)
+        } else {
+            entry.ensure_name(&name)
+        };
+
+        entry.terminal = false;
+        if let Some(parent) = output_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        write_atomic(output_path, entry.to_desktop_file().as_bytes())?;
+        Ok(output_path.to_path_buf())
     }
 
     #[cfg(target_os = "linux")]
@@ -603,12 +791,6 @@ impl<'a> DesktopManager<'a> {
     ) -> Option<PathBuf> {
         use std::ffi::OsStr;
 
-        if matches!(filetype, Filetype::MacApp)
-            && install_path.extension() == Some(OsStr::new("app"))
-        {
-            return Some(install_path.to_path_buf());
-        }
-
         if install_path.extension() == Some(OsStr::new("app")) {
             return Some(install_path.to_path_buf());
         }
@@ -648,6 +830,34 @@ impl<'a> DesktopManager<'a> {
         }
 
         let launcher_path = Self::macos_launcher_path(self.paths, name);
+        self.create_macos_launcher_at(
+            name,
+            &app_bundle,
+            &app_bundle,
+            &launcher_path,
+            message_callback,
+        )
+    }
+
+    #[cfg(target_os = "macos")]
+    fn create_macos_launcher_at<H>(
+        &self,
+        name: &str,
+        staged_bundle: &Path,
+        target_bundle: &Path,
+        launcher_path: &Path,
+        message_callback: &mut Option<H>,
+    ) -> Result<PathBuf>
+    where
+        H: FnMut(&str),
+    {
+        if !staged_bundle.exists() || !staged_bundle.is_dir() {
+            return Err(anyhow!(
+                "Resolved .app bundle '{}' does not exist or is not a directory",
+                staged_bundle.display()
+            ));
+        }
+
         if let Some(parent) = launcher_path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -664,15 +874,16 @@ impl<'a> DesktopManager<'a> {
             }
         }
 
-        std::os::unix::fs::symlink(&app_bundle, &launcher_path)?;
+        std::os::unix::fs::symlink(target_bundle, launcher_path)?;
         message!(
             message_callback,
             "Created macOS launcher: {} -> {}",
             launcher_path.display(),
-            app_bundle.display()
+            target_bundle.display()
         );
 
-        Ok(launcher_path)
+        let _ = name;
+        Ok(launcher_path.to_path_buf())
     }
 
     #[cfg(windows)]
@@ -695,6 +906,16 @@ impl<'a> DesktopManager<'a> {
         icon_path: Option<&Path>,
     ) -> Result<PathBuf> {
         let shortcut_path = Self::windows_shortcut_path(self.paths, name);
+        self.create_windows_shortcut_at(&shortcut_path, exec_path, icon_path)
+    }
+
+    #[cfg(windows)]
+    fn create_windows_shortcut_at(
+        &self,
+        shortcut_path: &Path,
+        exec_path: &Path,
+        icon_path: Option<&Path>,
+    ) -> Result<PathBuf> {
         if let Some(parent) = shortcut_path.parent() {
             fs::create_dir_all(parent).context("Failed to create shortcut directory")?;
         }
@@ -743,7 +964,7 @@ impl<'a> DesktopManager<'a> {
             );
         }
 
-        Ok(shortcut_path)
+        Ok(shortcut_path.to_path_buf())
     }
 }
 
@@ -840,6 +1061,63 @@ mod tests {
 
         let fallback_resolved = DesktopEntry::default().ensure_name("fallback-name");
         assert_eq!(fallback_resolved.name.as_deref(), Some("fallback-name"));
+    }
+
+    #[tokio::test]
+    async fn prepare_entry_keeps_live_paths_untouched_and_uses_final_paths() {
+        let root = temp_root("staged-entry");
+        let paths = test_support::upstream_paths(&root);
+        let staged_root = root.join("candidate");
+        fs::create_dir_all(&staged_root).expect("create candidate");
+        let staged_exec = staged_root.join("tool");
+        fs::write(&staged_exec, b"candidate binary").expect("write candidate");
+        fs::write(staged_root.join("tool.svg"), b"candidate icon").expect("write icon");
+
+        let final_root = paths.install.archives_dir.join("tool");
+        let final_exec = final_root.join("tool");
+        let mut staged = Package::with_defaults(
+            "tool".to_string(),
+            "owner/tool".to_string(),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        staged.install_path = Some(staged_root.clone());
+        staged.exec_path = Some(staged_exec);
+        let mut final_package = staged.clone();
+        final_package.install_path = Some(final_root.clone());
+        final_package.exec_path = Some(final_exec.clone());
+
+        let staged_entry = root.join("workspace/desktop/tool.desktop");
+        let staged_icons = root.join("workspace/icons");
+        let extractor = crate::services::artifact::AppImageExtractor::new().expect("extractor");
+        let manager = DesktopManager::new(&paths, &extractor);
+        manager
+            .prepare_package_entry(
+                &staged,
+                &mut final_package,
+                &staged_entry,
+                &staged_icons,
+                &mut None::<fn(&str)>,
+            )
+            .await
+            .expect("prepare staged entry");
+
+        let entry = fs::read_to_string(&staged_entry).expect("read staged entry");
+        assert!(entry.contains(&format!("Exec={}", final_exec.display())));
+        assert!(staged_icons.join("tool.svg").exists());
+        assert!(!DesktopManager::managed_entry_path(&paths, "tool").exists());
+        assert!(!paths.state.icons_dir.join("tool.svg").exists());
+        let final_icon = paths.state.icons_dir.join("tool.svg");
+        assert_eq!(
+            final_package.icon_path.as_deref(),
+            Some(final_icon.as_path())
+        );
+
+        cleanup(&root).expect("cleanup");
     }
 
     #[test]

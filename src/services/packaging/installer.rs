@@ -1,3 +1,5 @@
+mod staging;
+
 use crate::{
     models::common::enums::TrustMode,
     models::{
@@ -7,12 +9,13 @@ use crate::{
     },
     providers::provider_manager::ProviderManager,
     services::{
-        artifact::{compression_handler, dotslash_parser, permission_handler},
-        integration::{CompletionManager, DesktopManager, SymlinkManager},
+        artifact::{archive_layout, compression_handler, dotslash_parser, permission_handler},
+        integration::CompletionManager,
         packaging::{
-            PackagePhase, PackageProgressEvent, PackageRemover,
-            bundles::BundleHandler,
+            InstallPlan, InstallRequest, InstallSource, PackagePhase, PackageProgressEvent,
+            PlannedInstallSource,
             disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
+            replacement::{PackageReplacer, PreparedInstall},
         },
         trust::{
             ChecksumVerificationStatus, SignatureScheme, SignatureVerificationStatus,
@@ -21,6 +24,7 @@ use crate::{
     },
     utils::{filesystem::safe_move, static_paths::UpstreamPaths},
 };
+pub(crate) use staging::InstallWorkspace;
 
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
@@ -31,10 +35,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::utils::{
-    filename_parser::{parse_arch, parse_os},
-    platform::platform_info::{ArchitectureInfo, CpuArch, OSKind},
-};
+use crate::storage::database::PackageDatabase;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -55,6 +56,7 @@ macro_rules! progress {
 pub struct PackageInstaller<'a> {
     provider_manager: &'a ProviderManager,
     paths: &'a UpstreamPaths,
+    workspace: Option<InstallWorkspace>,
     download_cache: PathBuf,
     extract_cache: PathBuf,
 }
@@ -69,81 +71,159 @@ pub struct ResolvedAssetInstall {
     pub asset: Asset,
 }
 
-struct InstalledPathGuard {
-    path: PathBuf,
-    armed: bool,
-}
-
-impl InstalledPathGuard {
-    fn new(path: PathBuf) -> Self {
-        Self { path, armed: true }
-    }
-
-    fn disarm(&mut self) {
-        self.armed = false;
-    }
-}
-
-impl Drop for InstalledPathGuard {
-    fn drop(&mut self) {
-        if !self.armed {
-            return;
-        }
-
-        let Ok(metadata) = fs::symlink_metadata(&self.path) else {
-            return;
-        };
-        if metadata.is_dir() && !metadata.file_type().is_symlink() {
-            let _ = fs::remove_dir_all(&self.path);
-        } else {
-            let _ = fs::remove_file(&self.path);
-        }
-    }
-}
-
-pub(super) struct PartialInstallGuard<'a> {
-    paths: &'a UpstreamPaths,
-    package: Option<Package>,
-}
-
-impl<'a> PartialInstallGuard<'a> {
-    pub(super) fn new(paths: &'a UpstreamPaths, package: Package) -> Self {
-        Self {
-            paths,
-            package: Some(package),
-        }
-    }
-
-    fn package_mut(&mut self) -> &mut Package {
-        self.package
-            .as_mut()
-            .expect("partial install guard is still armed")
-    }
-
-    pub(super) fn disarm(mut self) -> Package {
-        self.package
-            .take()
-            .expect("partial install guard is still armed")
-    }
-}
-
-impl Drop for PartialInstallGuard<'_> {
-    fn drop(&mut self) {
-        let Some(package) = self.package.as_ref() else {
-            return;
-        };
-        let _ =
-            PackageRemover::new(self.paths).remove_package_files(package, &mut None::<fn(&str)>);
-    }
-}
-
 impl<'a> PackageInstaller<'a> {
-    pub fn paths(&self) -> &UpstreamPaths {
+    pub(crate) fn paths(&self) -> &UpstreamPaths {
         self.paths
     }
 
-    pub fn provider_manager(&self) -> &ProviderManager {
+    pub(crate) fn provider_manager(&self) -> &ProviderManager {
         self.provider_manager
+    }
+
+    pub async fn plan_install(&self, request: InstallRequest) -> Result<InstallPlan> {
+        if request.package.install_path.is_some() {
+            return Err(anyhow!(
+                "Package '{}' is already installed",
+                request.package.name
+            ));
+        }
+        let source = match request.source {
+            InstallSource::Release { version, semver } => {
+                let resolved = self
+                    .preview_single_install(&request.package, &version, &semver)
+                    .await?;
+                PlannedInstallSource::Release {
+                    release: resolved.release,
+                    asset: resolved.asset,
+                }
+            }
+            InstallSource::SelectedRelease { release, asset } => {
+                PlannedInstallSource::Release { release, asset }
+            }
+            InstallSource::LocalArtifact {
+                artifact_path,
+                version,
+            } => {
+                if !artifact_path.exists() {
+                    return Err(anyhow!(
+                        "Local artifact path '{}' does not exist",
+                        artifact_path.display()
+                    ));
+                }
+                PlannedInstallSource::LocalArtifact {
+                    artifact_path,
+                    version,
+                }
+            }
+        };
+        let disk_impact = match &source {
+            PlannedInstallSource::Release { asset, .. } => {
+                install_impact_from_download(asset_size_estimate(asset.size))
+            }
+            PlannedInstallSource::LocalArtifact { .. } => DiskImpact::unknown(),
+        };
+        Ok(InstallPlan {
+            package: request.package,
+            source,
+            add_entry: request.add_entry,
+            trust_mode: request.trust_mode,
+            disk_impact,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn install<F, H, P>(
+        &mut self,
+        package_database: &mut PackageDatabase,
+        trusted_keys: &TrustedSignatureKeys,
+        plan: InstallPlan,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        self.ensure_name_available(package_database, &plan.package.name)?;
+        let add_entry = plan.add_entry;
+        let installed = self
+            .materialize_install(
+                trusted_keys,
+                plan,
+                download_progress_callback,
+                message_callback,
+                progress_callback,
+            )
+            .await?;
+        let prepared = PreparedInstall::new(installed, self.take_workspace()?);
+        PackageReplacer::new(self.paths)
+            .install_new(
+                package_database,
+                prepared,
+                add_entry,
+                message_callback,
+                progress_callback,
+            )
+            .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn materialize_install<F, H, P>(
+        &mut self,
+        trusted_keys: &TrustedSignatureKeys,
+        plan: InstallPlan,
+        download_progress_callback: &mut Option<F>,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        F: FnMut(u64, u64),
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
+        match plan.source {
+            PlannedInstallSource::Release { release, asset } => {
+                self.install_selected_asset(
+                    trusted_keys,
+                    plan.package,
+                    &release,
+                    &asset,
+                    &plan.add_entry,
+                    plan.trust_mode,
+                    download_progress_callback,
+                    message_callback,
+                    progress_callback,
+                )
+                .await
+            }
+            PlannedInstallSource::LocalArtifact {
+                artifact_path,
+                version,
+            } => {
+                self.install_local_artifact(
+                    plan.package,
+                    &artifact_path,
+                    version,
+                    &plan.add_entry,
+                    message_callback,
+                    progress_callback,
+                )
+                .await
+            }
+        }
+    }
+
+    pub(crate) fn ensure_name_available(
+        &self,
+        database: &PackageDatabase,
+        name: &str,
+    ) -> Result<()> {
+        if database.package_exists(name)? {
+            return Err(anyhow!("Package '{}' already exists", name));
+        }
+        Ok(())
     }
 
     fn package_cache_key(package_name: &str) -> String {
@@ -167,7 +247,11 @@ impl<'a> PackageInstaller<'a> {
     }
 
     pub fn new(provider_manager: &'a ProviderManager, paths: &'a UpstreamPaths) -> Result<Self> {
-        let temp_path = std::env::temp_dir().join(format!("upstream-{}", std::process::id()));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0);
+        let temp_path = std::env::temp_dir().join(format!("upstream-{nonce}"));
         let download_cache = temp_path.join("downloads");
         let extract_cache = temp_path.join("extracts");
 
@@ -179,115 +263,76 @@ impl<'a> PackageInstaller<'a> {
             "Failed to create extraction cache directory at '{}'",
             extract_cache.display()
         ))?;
+        let workspace = InstallWorkspace::new(paths, "install")?;
 
         Ok(Self {
             provider_manager,
             paths,
+            workspace: Some(workspace),
             download_cache,
             extract_cache,
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub async fn install_release<F, H, P>(
+    pub(crate) fn new_for_workspace(
+        provider_manager: &'a ProviderManager,
+        paths: &'a UpstreamPaths,
+        workspace: InstallWorkspace,
+    ) -> Result<Self> {
+        let nonce = Self::package_cache_key("installer");
+        let temp_path = std::env::temp_dir().join(format!("upstream-{nonce}"));
+        let download_cache = temp_path.join("downloads");
+        let extract_cache = temp_path.join("extracts");
+        fs::create_dir_all(&download_cache).context(format!(
+            "Failed to create download cache directory at '{}'",
+            download_cache.display()
+        ))?;
+        fs::create_dir_all(&extract_cache).context(format!(
+            "Failed to create extraction cache directory at '{}'",
+            extract_cache.display()
+        ))?;
+        Ok(Self {
+            provider_manager,
+            paths,
+            workspace: Some(workspace),
+            download_cache,
+            extract_cache,
+        })
+    }
+
+    fn add_runtime_link(&self, _exec_path: &Path, _package_name: &str) -> Result<()> {
+        Ok(())
+    }
+
+    fn workspace(&self) -> &InstallWorkspace {
+        self.workspace
+            .as_ref()
+            .expect("installer workspace has not been initialized")
+    }
+
+    pub(crate) fn take_workspace(&mut self) -> Result<InstallWorkspace> {
+        self.workspace
+            .take()
+            .ok_or_else(|| anyhow!("Installer workspace has already been consumed"))
+    }
+
+    fn install_completions_from_root<H>(
         &self,
-        trusted_keys: &TrustedSignatureKeys,
-        package: Package,
-        version: &Option<String>,
-        add_entry: &bool,
-        trust_mode: TrustMode,
-        download_progress_callback: &mut Option<F>,
+        package_name: &str,
+        root: &Path,
         message_callback: &mut Option<H>,
-        progress_callback: &mut Option<P>,
-    ) -> Result<Package>
-    where
-        F: FnMut(u64, u64),
+    ) where
         H: FnMut(&str),
-        P: FnMut(PackageProgressEvent),
     {
-        let package_name = package.name.clone();
-        if package.install_path.is_some() {
-            return Err(anyhow!("Package '{}' is already installed", package.name));
-        }
-
-        progress!(
-            progress_callback,
-            PackageProgressEvent::Phase(PackagePhase::ResolvingRelease)
-        );
-
-        let release = if let Some(version_tag) = version {
+        if let Err(err) = CompletionManager::with_paths(self.workspace().completions.clone())
+            .install_from_root(package_name, root, message_callback)
+        {
             message!(
                 message_callback,
-                "Fetching release for version '{}' ...",
-                version_tag
+                "{}",
+                style(format!("Completion install skipped: {err}")).yellow()
             );
-            self.provider_manager
-                .get_release_by_tag(
-                    &package.repo_slug,
-                    version_tag,
-                    &package.provider,
-                    package.base_url.as_deref(),
-                )
-                .await
-                .context(format!(
-                    "Failed to fetch release '{}' for '{}'. Verify the version tag exists",
-                    version_tag, package.repo_slug
-                ))?
-        } else {
-            message!(message_callback, "Fetching latest release ...");
-            self.provider_manager
-                .get_latest_release(
-                    &package.repo_slug,
-                    &package.provider,
-                    &package.channel,
-                    package.base_url.as_deref(),
-                )
-                .await
-                .context(format!(
-                    "Failed to fetch latest {} release for '{}'",
-                    package.channel, package.repo_slug
-                ))?
-        };
-
-        let installed_package = {
-            let progress_callback = std::cell::RefCell::new(progress_callback.as_mut());
-            let mut bridged_progress = Some(|event: PackageProgressEvent| {
-                if let Some(cb) = progress_callback.borrow_mut().as_deref_mut() {
-                    cb(event);
-                }
-            });
-            let mut bridged_download_progress = Some(|downloaded: u64, total: u64| {
-                if let Some(cb) = download_progress_callback.as_mut() {
-                    cb(downloaded, total);
-                }
-                if let Some(cb) = progress_callback.borrow_mut().as_deref_mut() {
-                    cb(PackageProgressEvent::Download { downloaded, total });
-                }
-            });
-
-            self.install_package_files(
-                package,
-                &release,
-                trust_mode,
-                trusted_keys,
-                &mut bridged_download_progress,
-                message_callback,
-                &mut bridged_progress,
-            )
-            .await
         }
-        .context(format!(
-            "Failed to perform installation for '{}'",
-            package_name
-        ))?;
-
-        self.finish_installed_package(
-            installed_package,
-            add_entry,
-            message_callback,
-            progress_callback,
-        )
-        .await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -461,7 +506,7 @@ impl<'a> PackageInstaller<'a> {
     async fn finish_installed_package<H, P>(
         &self,
         installed_package: Package,
-        add_entry: &bool,
+        _add_entry: &bool,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
     ) -> Result<Package>
@@ -469,134 +514,9 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
-        let mut install_guard = PartialInstallGuard::new(self.paths, installed_package);
-        if *add_entry {
-            progress!(
-                progress_callback,
-                PackageProgressEvent::Phase(PackagePhase::CreatingDesktopEntry)
-            );
-
-            if let Err(err) = self
-                .add_desktop_entry(install_guard.package_mut(), message_callback)
-                .await
-            {
-                return self.fail_after_partial_install(
-                    install_guard.disarm(),
-                    err.context("Failed to create desktop integration"),
-                    message_callback,
-                );
-            }
-        }
-
-        Ok(install_guard.disarm())
-    }
-
-    async fn add_desktop_entry<H>(
-        &self,
-        installed_package: &mut Package,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
-        #[cfg(target_os = "linux")]
-        let appimage_extractor = crate::services::artifact::AppImageExtractor::new()
-            .context("Failed to initialize appimage extractor")?;
-
-        #[cfg(target_os = "linux")]
-        let desktop_manager = DesktopManager::new(self.paths, &appimage_extractor);
-        #[cfg(not(target_os = "linux"))]
-        let desktop_manager = DesktopManager::new(self.paths);
-
-        desktop_manager
-            .enable_package_entry(installed_package, message_callback)
-            .await
-            .context(format!(
-                "Failed to create desktop entry for '{}'",
-                installed_package.name
-            ))?;
-
-        Ok(())
-    }
-
-    fn fail_after_partial_install<H>(
-        &self,
-        installed_package: Package,
-        err: anyhow::Error,
-        message_callback: &mut Option<H>,
-    ) -> Result<Package>
-    where
-        H: FnMut(&str),
-    {
-        match self.cleanup_partial_install(&installed_package, message_callback) {
-            Ok(()) => Err(err.context(format!(
-                "Rolled back partial install for '{}'",
-                installed_package.name
-            ))),
-            Err(cleanup_err) => Err(anyhow!(
-                "{}. Additionally failed to roll back partial install for '{}': {}",
-                err,
-                installed_package.name,
-                cleanup_err
-            )),
-        }
-    }
-
-    pub fn cleanup_partial_install<H>(
-        &self,
-        installed_package: &Package,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
-        if installed_package.install_path.is_none() {
-            return Ok(());
-        }
-
-        PackageRemover::new(self.paths)
-            .remove_package_files(installed_package, message_callback)
-            .context(format!(
-                "Failed to clean up partial install for '{}'",
-                installed_package.name
-            ))
-    }
-
-    /// Install package files from a release
-    /// Returns the updated package with installation paths set
-    #[allow(clippy::too_many_arguments)]
-    pub async fn install_package_files<F, H, P>(
-        &self,
-        package: Package,
-        release: &Release,
-        trust_mode: TrustMode,
-        trusted_keys: &TrustedSignatureKeys,
-        download_progress_callback: &mut Option<F>,
-        message_callback: &mut Option<H>,
-        progress_callback: &mut Option<P>,
-    ) -> Result<Package>
-    where
-        F: FnMut(u64, u64),
-        H: FnMut(&str),
-        P: FnMut(PackageProgressEvent),
-    {
-        message!(message_callback, "Selecting asset from '{}'", release.name);
-
-        let best_asset = self
-            .select_asset(&package, release, message_callback.as_mut())
-            .await?;
-
-        self.install_package_asset_files(
-            package,
-            release,
-            &best_asset,
-            trust_mode,
-            trusted_keys,
-            download_progress_callback,
-            message_callback,
-            progress_callback,
-        )
-        .await
+        let _ = message_callback;
+        let _ = progress_callback;
+        Ok(installed_package)
     }
 
     pub async fn resolve_release_asset<H>(
@@ -808,12 +728,6 @@ impl<'a> PackageInstaller<'a> {
                     anyhow::bail!("AppImage installation is only supported on Linux hosts");
                 }
             }
-            Filetype::MacApp => BundleHandler::new(self.paths, &self.extract_cache)
-                .install_app_bundle(&download_path, package, message_callback)
-                .context("Failed to install macOS app bundle"),
-            Filetype::MacDmg => BundleHandler::new(self.paths, &self.extract_cache)
-                .install_dmg(&download_path, package, message_callback)
-                .context("Failed to install macOS disk image"),
             Filetype::Compressed => {
                 progress!(
                     progress_callback,
@@ -849,19 +763,49 @@ impl<'a> PackageInstaller<'a> {
                     .context("Failed to install file")
             }
         }?;
-        let install_guard = PartialInstallGuard::new(self.paths, installed_package);
+        self.finish_verified_release_install(
+            installed_package,
+            &package_name,
+            &package_provider,
+            release,
+            &package_download_cache,
+            message_callback,
+            progress_callback,
+        )
+        .await
+    }
 
+    /// Complete a release artifact that has already been downloaded, verified,
+    /// and materialized into this installer's temporary workspace.
+    ///
+    /// This is shared by the normal download path and zsync so that staged
+    /// installs always receive identical cleanup and completion handling.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn finish_verified_release_install<H, P>(
+        &self,
+        installed_package: Package,
+        package_name: &str,
+        package_provider: &crate::models::common::enums::Provider,
+        release: &Release,
+        artifact_cache: &Path,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+        P: FnMut(PackageProgressEvent),
+    {
         progress!(
             progress_callback,
             PackageProgressEvent::Phase(PackagePhase::InstallingCompletions)
         );
-        if let Err(err) = CompletionManager::new(self.paths)
+        if let Err(err) = CompletionManager::with_paths(self.workspace().completions.clone())
             .install_from_release_assets(
-                &package_name,
+                package_name,
                 release,
                 self.provider_manager,
-                &package_provider,
-                &package_download_cache,
+                package_provider,
+                artifact_cache,
                 message_callback,
             )
             .await
@@ -871,8 +815,7 @@ impl<'a> PackageInstaller<'a> {
                 PackageProgressEvent::Warning(format!("Completion install skipped: {err}"))
             );
         }
-
-        Ok(install_guard.disarm())
+        Ok(installed_package)
     }
 
     pub fn install_local_artifact_files<H>(
@@ -934,20 +877,11 @@ impl<'a> PackageInstaller<'a> {
             return self.handle_file(&extracted_path, package, message_callback);
         }
 
-        if let Some(app_bundle_path) =
-            BundleHandler::find_macos_app_bundle(&extracted_path, &package.name)
-                .context("Failed to detect .app bundle in extracted archive")?
-        {
-            return BundleHandler::new(self.paths, &self.extract_cache)
-                .install_app_bundle(&app_bundle_path, package, message_callback)
-                .context("Failed to install app bundle from archive");
-        }
-
         let dirname = extracted_path
             .file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
-        let out_path = self.paths.install.archives_dir.join(dirname);
-        let install_root = Self::select_nested_archive_root(&extracted_path, &package)
+        let out_path = self.workspace().archives_dir.join(dirname);
+        let install_root = archive_layout::select_nested_archive_root(&extracted_path, &package)
             .unwrap_or_else(|| extracted_path.clone());
 
         message!(
@@ -961,7 +895,6 @@ impl<'a> PackageInstaller<'a> {
             install_root.display(),
             out_path.display()
         ))?;
-        let mut install_guard = InstalledPathGuard::new(out_path.clone());
 
         message!(message_callback, "Searching for executable ...");
 
@@ -975,7 +908,6 @@ impl<'a> PackageInstaller<'a> {
             package.exec_path = None;
             package.install_path = Some(out_path);
             package.last_upgraded = Utc::now();
-            install_guard.disarm();
             return Ok(package);
         };
 
@@ -993,46 +925,21 @@ impl<'a> PackageInstaller<'a> {
                 .unwrap_or_else(|| exec_path.display().to_string())
         );
 
-        let symlink_manager = SymlinkManager::new(&self.paths.state.symlinks_dir);
-
-        symlink_manager
-            .add_link(&exec_path, &package.name)
-            .context(format!("Failed to create symlink for '{}'", package.name))?;
-
-        message!(
-            message_callback,
-            "Created symlink: {} → {}",
-            package.name,
-            out_path.display()
-        );
+        self.add_runtime_link(&exec_path, &package.name)?;
+        if false {
+            message!(
+                message_callback,
+                "Created symlink: {} → {}",
+                package.name,
+                out_path.display()
+            );
+        }
 
         self.install_completions_from_root(&package.name, &out_path, message_callback);
         package.exec_path = Some(exec_path);
         package.install_path = Some(out_path);
         package.last_upgraded = Utc::now();
-        install_guard.disarm();
         Ok(package)
-    }
-
-    fn install_completions_from_root<H>(
-        &self,
-        package_name: &str,
-        root: &Path,
-        message_callback: &mut Option<H>,
-    ) where
-        H: FnMut(&str),
-    {
-        if let Err(err) = CompletionManager::new(self.paths).install_from_root(
-            package_name,
-            root,
-            message_callback,
-        ) {
-            message!(
-                message_callback,
-                "{}",
-                style(format!("Completion install skipped: {err}")).yellow()
-            );
-        }
     }
 
     async fn select_asset<H>(
@@ -1117,129 +1024,6 @@ impl<'a> PackageInstaller<'a> {
         .await
     }
 
-    fn select_nested_archive_root(extracted_path: &Path, package: &Package) -> Option<PathBuf> {
-        if !extracted_path.is_dir() {
-            return None;
-        }
-
-        let architecture = ArchitectureInfo::new();
-        let mut candidates = fs::read_dir(extracted_path)
-            .ok()?
-            .flatten()
-            .filter_map(|entry| {
-                let file_type = entry.file_type().ok()?;
-                if !file_type.is_dir() {
-                    return None;
-                }
-
-                let name = entry.file_name().to_string_lossy().to_string();
-                let target_os = parse_os(&name)?;
-                let target_arch = parse_arch(&name)?;
-
-                if target_os != architecture.os_kind {
-                    return None;
-                }
-
-                let lower = name.to_ascii_lowercase();
-                if package
-                    .exclude_pattern
-                    .as_slice()
-                    .iter()
-                    .any(|pattern| lower.contains(pattern))
-                {
-                    return None;
-                }
-
-                let arch_score = Self::nested_arch_score(&architecture.cpu_arch, &target_arch)?;
-                permission_handler::find_executable(&entry.path(), &package.name)?;
-                let score = Self::nested_archive_score(
-                    &name,
-                    &target_os,
-                    arch_score,
-                    &package.match_pattern,
-                );
-
-                Some((score, name, entry.path()))
-            })
-            .collect::<Vec<_>>();
-
-        if candidates.is_empty() {
-            return None;
-        }
-
-        candidates.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
-        candidates.into_iter().next().map(|(_, _, path)| path)
-    }
-
-    fn nested_arch_score(host_arch: &CpuArch, target_arch: &CpuArch) -> Option<i32> {
-        if host_arch == target_arch {
-            return Some(100);
-        }
-
-        if *host_arch == CpuArch::X86_64 && *target_arch == CpuArch::X86 {
-            return Some(40);
-        }
-
-        if *host_arch == CpuArch::Aarch64 && *target_arch == CpuArch::Arm {
-            return Some(40);
-        }
-
-        None
-    }
-
-    fn nested_archive_score(
-        name: &str,
-        target_os: &OSKind,
-        arch_score: i32,
-        match_pattern: &crate::providers::pattern_matcher::PatternTable,
-    ) -> i32 {
-        let lower = name.to_ascii_lowercase();
-        let mut score = arch_score;
-
-        if *target_os == OSKind::Linux {
-            score += Self::linux_abi_score(&lower);
-        }
-
-        if !match_pattern.is_empty() {
-            score += (match_pattern.match_ratio(&lower) * 100.0).round() as i32;
-        }
-
-        score
-    }
-
-    fn linux_abi_score(name: &str) -> i32 {
-        #[cfg(all(target_os = "linux", target_env = "musl"))]
-        {
-            if name.contains("musl") {
-                return 30;
-            }
-            if name.contains("gnu") || name.contains("glibc") {
-                return 10;
-            }
-            return 0;
-        }
-
-        #[cfg(all(target_os = "linux", not(target_env = "musl")))]
-        {
-            if name.contains("linux-gnu") && !name.contains("glibc") {
-                return 30;
-            }
-            if name.contains("glibc") {
-                return 20;
-            }
-            if name.contains("musl") {
-                return 10;
-            }
-            0
-        }
-
-        #[cfg(not(target_os = "linux"))]
-        {
-            let _ = name;
-            0
-        }
-    }
-
     fn handle_compressed<H>(
         &self,
         asset_path: &Path,
@@ -1276,7 +1060,7 @@ impl<'a> PackageInstaller<'a> {
         let filename = asset_path
             .file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
-        let out_path = self.paths.install.appimages_dir.join(filename);
+        let out_path = self.workspace().appimages_dir.join(filename);
 
         message!(
             message_callback,
@@ -1288,7 +1072,6 @@ impl<'a> PackageInstaller<'a> {
             "Failed to move AppImage to '{}'",
             out_path.display()
         ))?;
-        let mut install_guard = InstalledPathGuard::new(out_path.clone());
 
         permission_handler::make_executable(&out_path).context(format!(
             "Failed to make AppImage '{}' executable",
@@ -1322,16 +1105,15 @@ impl<'a> PackageInstaller<'a> {
             }
         };
 
-        SymlinkManager::new(&self.paths.state.symlinks_dir)
-            .add_link(&out_path, &package.name)
-            .context(format!("Failed to create symlink for '{}'", package.name))?;
-
-        message!(
-            message_callback,
-            "Created symlink: {} → {}",
-            package.name,
-            out_path.display()
-        );
+        self.add_runtime_link(&out_path, &package.name)?;
+        if false {
+            message!(
+                message_callback,
+                "Created symlink: {} → {}",
+                package.name,
+                out_path.display()
+            );
+        }
 
         if let Some(root) = completion_root {
             self.install_completions_from_root(&package.name, &root, message_callback);
@@ -1340,7 +1122,6 @@ impl<'a> PackageInstaller<'a> {
         package.install_path = Some(out_path.clone());
         package.exec_path = Some(out_path);
         package.last_upgraded = Utc::now();
-        install_guard.disarm();
         Ok(package)
     }
 
@@ -1356,7 +1137,7 @@ impl<'a> PackageInstaller<'a> {
         let filename = asset_path
             .file_name()
             .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
-        let out_path = self.paths.install.binaries_dir.join(filename);
+        let out_path = self.workspace().binaries_dir.join(filename);
 
         message!(
             message_callback,
@@ -1366,7 +1147,6 @@ impl<'a> PackageInstaller<'a> {
 
         safe_move::move_file_or_dir(asset_path, &out_path)
             .context(format!("Failed to move binary to '{}'", out_path.display()))?;
-        let mut install_guard = InstalledPathGuard::new(out_path.clone());
 
         permission_handler::make_executable(&out_path).context(format!(
             "Failed to make binary '{}' executable",
@@ -1375,21 +1155,19 @@ impl<'a> PackageInstaller<'a> {
 
         message!(message_callback, "Made '{}' executable", filename.display());
 
-        SymlinkManager::new(&self.paths.state.symlinks_dir)
-            .add_link(&out_path, &package.name)
-            .context(format!("Failed to create symlink for '{}'", package.name))?;
-
-        message!(
-            message_callback,
-            "Created symlink: {} → {}",
-            package.name,
-            out_path.display()
-        );
+        self.add_runtime_link(&out_path, &package.name)?;
+        if false {
+            message!(
+                message_callback,
+                "Created symlink: {} → {}",
+                package.name,
+                out_path.display()
+            );
+        }
 
         package.install_path = Some(out_path.clone());
         package.exec_path = Some(out_path);
         package.last_upgraded = Utc::now();
-        install_guard.disarm();
         Ok(package)
     }
 }
@@ -1403,7 +1181,7 @@ impl<'a> Drop for PackageInstaller<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::PackageInstaller;
+    use super::{InstallWorkspace, PackageInstaller, archive_layout};
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use crate::providers::provider_manager::ProviderManager;
@@ -1483,48 +1261,43 @@ mod tests {
     }
 
     #[test]
-    fn local_file_install_removes_placed_file_when_link_creation_fails() {
-        let root = test_support::temp_root("upstream-installer-test", "partial-file-cleanup");
+    fn staged_install_writes_only_to_its_workspace() {
+        let root = test_support::temp_root("upstream-installer-test", "staged-workspace");
         let paths = test_support::upstream_paths(&root);
-        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries");
-        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks");
-        fs::create_dir_all(paths.state.symlinks_dir.join("tool"))
-            .expect("create blocking runtime-link directory");
         let source_dir = root.join("source");
         fs::create_dir_all(&source_dir).expect("create source");
         let artifact = source_dir.join("tool-bin");
         fs::write(&artifact, b"new binary").expect("write artifact");
 
+        let workspace = InstallWorkspace::new(&paths, "tool").expect("workspace");
+        let staged_root = workspace.root().to_path_buf();
         let provider_manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
-        let installer = PackageInstaller::new(&provider_manager, &paths).expect("installer");
+        let installer = PackageInstaller::new_for_workspace(&provider_manager, &paths, workspace)
+            .expect("staged installer");
         let mut package = make_package("tool", None, None);
         package.filetype = Filetype::Binary;
         let mut no_messages: Option<fn(&str)> = None;
 
-        let error = installer
+        let installed = installer
             .install_local_artifact_files(
                 package,
                 &artifact,
                 crate::models::common::Version::new(1, 0, 0, false),
                 &mut no_messages,
             )
-            .expect_err("blocking runtime link should fail installation");
+            .expect("stage local artifact");
 
-        assert!(
-            format!("{error:#}").contains("Failed to create symlink"),
-            "unexpected error chain: {error:#}"
+        let staged_path = staged_root.join("binaries/tool-bin");
+        assert_eq!(
+            installed.install_path.as_deref(),
+            Some(staged_path.as_path())
         );
-        assert!(
-            !paths.install.binaries_dir.join("tool-bin").exists(),
-            "partially placed binary should be removed"
-        );
-        assert!(
-            paths.state.symlinks_dir.join("tool").is_dir(),
-            "unrelated blocking directory should be preserved"
-        );
+        assert!(staged_path.exists());
+        assert!(!paths.install.binaries_dir.join("tool-bin").exists());
+        assert!(!paths.state.symlinks_dir.join("tool").exists());
 
-        fs::remove_dir_all(&root).expect("cleanup");
+        fs::remove_dir_all(root).expect("cleanup");
     }
 
     #[cfg(target_os = "linux")]
@@ -1563,7 +1336,7 @@ mod tests {
         fs::create_dir_all(extracted.join("completion")).expect("create completion");
         fs::write(extracted.join("broot.1"), b"manpage").expect("write manpage");
 
-        let selected = PackageInstaller::select_nested_archive_root(
+        let selected = archive_layout::select_nested_archive_root(
             &extracted,
             &make_package("broot", None, None),
         )
@@ -1594,14 +1367,14 @@ mod tests {
             fs::write(payload.join("tool"), b"bin").expect("write payload binary");
         }
 
-        let selected_musl = PackageInstaller::select_nested_archive_root(
+        let selected_musl = archive_layout::select_nested_archive_root(
             &extracted,
             &make_package("tool", Some("musl"), None),
         )
         .expect("select musl root");
         assert!(selected_musl.ends_with(musl_dir));
 
-        let selected_glibc = PackageInstaller::select_nested_archive_root(
+        let selected_glibc = archive_layout::select_nested_archive_root(
             &extracted,
             &make_package("tool", None, Some("linux-gnu")),
         )
@@ -1620,7 +1393,7 @@ mod tests {
         fs::create_dir_all(extracted.join("docs")).expect("create docs");
 
         assert!(
-            PackageInstaller::select_nested_archive_root(
+            archive_layout::select_nested_archive_root(
                 &extracted,
                 &make_package("tool", None, None),
             )

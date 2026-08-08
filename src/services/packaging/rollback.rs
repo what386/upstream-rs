@@ -96,6 +96,7 @@ impl<'a> RollbackManager<'a> {
             self.paths,
             package,
             install_path,
+            package.icon_path.as_deref(),
             source,
             options,
             message_callback,
@@ -134,11 +135,36 @@ impl<'a> RollbackManager<'a> {
     where
         H: FnMut(&str),
     {
+        Self::capture_backup_path_with_icon_source(
+            paths,
+            rollback_storage,
+            package,
+            backup_path,
+            package.icon_path.as_deref(),
+            source,
+            message_callback,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn capture_backup_path_with_icon_source<H>(
+        paths: &UpstreamPaths,
+        rollback_storage: &mut RollbackStorage,
+        package: &Package,
+        backup_path: &Path,
+        icon_source: Option<&Path>,
+        source: RollbackSource,
+        message_callback: &mut Option<H>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+    {
         let options = Self::capture_options(paths)?;
         let record = Self::capture_artifact_from_path(
             paths,
             package,
             backup_path,
+            icon_source,
             source,
             options,
             message_callback,
@@ -170,6 +196,7 @@ impl<'a> RollbackManager<'a> {
         paths: &UpstreamPaths,
         package: &Package,
         artifact_path: &Path,
+        icon_source: Option<&Path>,
         source: RollbackSource,
         options: RollbackCaptureOptions,
         message_callback: &mut Option<H>,
@@ -215,7 +242,7 @@ impl<'a> RollbackManager<'a> {
         let capture_result = (|| {
             safe_move::copy_file_or_dir(artifact_path, &rollback_artifact)?;
 
-            let icon_entry_path = capture_icon(paths, package, &capture_dir)?;
+            let icon_entry_path = capture_icon(paths, icon_source, &capture_dir)?;
 
             let created_at = Utc::now();
             if matches!(options.compression_level, CompressionLevel::None) {
@@ -550,10 +577,10 @@ fn rollback_capture_id(source: &RollbackSource) -> String {
 
 fn capture_icon(
     paths: &UpstreamPaths,
-    package: &Package,
+    icon_path: Option<&Path>,
     capture_dir: &Path,
 ) -> Result<Option<PathBuf>> {
-    let Some(icon_path) = package.icon_path.as_ref() else {
+    let Some(icon_path) = icon_path else {
         return Ok(None);
     };
     if !icon_path.exists() {

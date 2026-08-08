@@ -161,13 +161,7 @@ impl AssetSelector {
         return vec![Filetype::WinExe, Filetype::Archive, Filetype::Compressed];
 
         #[cfg(target_os = "macos")]
-        return vec![
-            Filetype::MacApp,
-            Filetype::MacDmg,
-            Filetype::Archive,
-            Filetype::Compressed,
-            Filetype::Binary,
-        ];
+        return vec![Filetype::Archive, Filetype::Compressed, Filetype::Binary];
     }
 
     pub fn resolve_auto_filetype(release: &Release) -> Result<Filetype> {
@@ -210,8 +204,6 @@ impl AssetSelector {
         #[cfg(target_os = "macos")]
         {
             return match filetype {
-                Filetype::MacApp => 120,
-                Filetype::MacDmg => 100,
                 Filetype::Archive => 60,
                 Filetype::Compressed => 40,
                 Filetype::Binary => 20,
@@ -702,73 +694,6 @@ mod tests {
         assert_eq!(
             AssetSelector::resolve_auto_filetype(&release).expect("resolve"),
             Filetype::AppImage
-        );
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn resolve_auto_filetype_prefers_macapp_on_macos() {
-        let release = make_release(
-            vec![
-                Asset::new(
-                    "https://example.invalid/tool.tar.gz".to_string(),
-                    1,
-                    "tool.tar.gz".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool.app".to_string(),
-                    2,
-                    "tool.app".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool.dmg".to_string(),
-                    3,
-                    "tool.dmg".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-            ],
-            false,
-            "v1.0.0",
-        );
-
-        assert_eq!(
-            AssetSelector::resolve_auto_filetype(&release).expect("resolve"),
-            Filetype::MacApp
-        );
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn resolve_auto_filetype_uses_macdmg_when_no_macapp_exists() {
-        let release = make_release(
-            vec![
-                Asset::new(
-                    "https://example.invalid/tool.tar.gz".to_string(),
-                    1,
-                    "tool.tar.gz".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-                Asset::new(
-                    "https://example.invalid/tool.dmg".to_string(),
-                    2,
-                    "tool.dmg".to_string(),
-                    200_000,
-                    Utc::now(),
-                ),
-            ],
-            false,
-            "v1.0.0",
-        );
-
-        assert_eq!(
-            AssetSelector::resolve_auto_filetype(&release).expect("resolve"),
-            Filetype::MacDmg
         );
     }
 

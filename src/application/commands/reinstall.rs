@@ -374,7 +374,6 @@ async fn estimate_reinstall_impact(
     paths: &UpstreamPaths,
 ) -> DiskImpact {
     let mut total = DiskImpact::empty();
-    let remover = PackageRemover::new(paths);
 
     for name in names {
         let Some(package) = package_database.get_package(name).ok().flatten() else {
@@ -382,7 +381,9 @@ async fn estimate_reinstall_impact(
             continue;
         };
 
-        let active_size = remover.estimate_active_size(&package).unwrap_or(0);
+        let active_size = PackageRemover::new(paths)
+            .estimate_active_size(&package)
+            .unwrap_or(0);
         let new_install = match package.install_type {
             InstallType::Release => {
                 let mut preview_package = package.clone();
@@ -492,14 +493,7 @@ where
     };
 
     let installer = PackageInstaller::new(provider_manager, paths)?;
-    let remover = PackageRemover::new(paths);
-    let upgrader = PackageUpgrader::new(
-        provider_manager,
-        installer,
-        remover,
-        paths,
-        trusted_keys.clone(),
-    );
+    let upgrader = PackageUpgrader::new(provider_manager, installer, paths, trusted_keys.clone());
     let mut no_progress: Option<fn(PackageProgressEvent)> = None;
     let updated = upgrader
         .reinstall_resolved(
@@ -513,7 +507,7 @@ where
         )
         .await?;
 
-    PackageReplacer::new(paths).commit(package_database, &updated)?;
+    PackageReplacer::new(paths).persist(package_database, &updated)?;
 
     Ok(())
 }

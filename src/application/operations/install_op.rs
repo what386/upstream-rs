@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 
 use crate::{
     application::cancellation,
@@ -11,8 +11,10 @@ use crate::{
     },
     providers::provider_manager::ProviderManager,
     services::{
-        integration::ShellManager,
-        packaging::{PackageInstaller, PackagePhase, PackageProgressEvent, ResolvedAssetInstall},
+        packaging::{
+            InstallRequest, InstallSource, PackageInstaller, PackagePhase, PackageProgressEvent,
+            ResolvedAssetInstall,
+        },
         trust::TrustedSignatureKeys,
     },
     storage::database::PackageDatabase,
@@ -74,9 +76,20 @@ impl<'a> InstallOperation<'a> {
         version: &Option<String>,
         semver: &Option<String>,
     ) -> Result<ResolvedAssetInstall> {
-        self.installer
-            .preview_single_install(package, version, semver)
-            .await
+        let plan = self
+            .installer
+            .plan_install(InstallRequest {
+                package: package.clone(),
+                source: InstallSource::Release {
+                    version: version.clone(),
+                    semver: semver.clone(),
+                },
+                add_entry: false,
+                trust_mode: TrustMode::BestEffort,
+            })
+            .await?;
+        plan.resolved_asset()
+            .ok_or_else(|| anyhow!("Release install plan did not resolve an asset"))
     }
 
     pub async fn install_release_plan<F, H, P>(
@@ -92,23 +105,30 @@ impl<'a> InstallOperation<'a> {
         P: FnMut(PackageProgressEvent),
     {
         cancellation::check()?;
-        self.ensure_package_name_available(&request.package.name)?;
-
-        let installed_package = self
+        self.installer
+            .ensure_name_available(self.package_database, &request.package.name)?;
+        let plan = self
             .installer
-            .install_selected_asset(
+            .plan_install(InstallRequest {
+                package: request.package,
+                source: InstallSource::SelectedRelease {
+                    release: request.plan.release,
+                    asset: request.plan.asset,
+                },
+                add_entry: request.add_entry,
+                trust_mode: request.trust_mode,
+            })
+            .await?;
+        self.installer
+            .install(
+                self.package_database,
                 &self.trusted_keys,
-                request.package,
-                &request.plan.release,
-                &request.plan.asset,
-                &request.add_entry,
-                request.trust_mode,
+                plan,
                 download_progress_callback,
                 message_callback,
                 progress_callback,
             )
-            .await?;
-        self.save_installed_package(installed_package, message_callback, progress_callback)
+            .await
     }
 
     pub async fn install_release<F, H, P>(
@@ -124,26 +144,33 @@ impl<'a> InstallOperation<'a> {
         P: FnMut(PackageProgressEvent),
     {
         cancellation::check()?;
-        self.ensure_package_name_available(&request.package.name)?;
-        match self
+        self.installer
+            .ensure_name_available(self.package_database, &request.package.name)?;
+        if let Some(callback) = progress_callback.as_mut() {
+            callback(PackageProgressEvent::Phase(PackagePhase::ResolvingRelease));
+        }
+        let plan = self
             .installer
-            .install_release(
+            .plan_install(InstallRequest {
+                package: request.package,
+                source: InstallSource::Release {
+                    version: request.version,
+                    semver: None,
+                },
+                add_entry: request.add_entry,
+                trust_mode: request.trust_mode,
+            })
+            .await?;
+        self.installer
+            .install(
+                self.package_database,
                 &self.trusted_keys,
-                request.package,
-                &request.version,
-                &request.add_entry,
-                request.trust_mode,
+                plan,
                 download_progress_callback,
                 message_callback,
                 progress_callback,
             )
             .await
-        {
-            Ok(installed_package) => {
-                self.save_installed_package(installed_package, message_callback, progress_callback)
-            }
-            Err(err) => Err(err),
-        }
     }
 
     pub async fn install_selected_asset<F, H, P>(
@@ -159,27 +186,30 @@ impl<'a> InstallOperation<'a> {
         P: FnMut(PackageProgressEvent),
     {
         cancellation::check()?;
-        self.ensure_package_name_available(&request.package.name)?;
-        match self
+        self.installer
+            .ensure_name_available(self.package_database, &request.package.name)?;
+        let plan = self
             .installer
-            .install_selected_asset(
+            .plan_install(InstallRequest {
+                package: request.package,
+                source: InstallSource::SelectedRelease {
+                    release: request.release.clone(),
+                    asset: request.asset.clone(),
+                },
+                add_entry: request.add_entry,
+                trust_mode: request.trust_mode,
+            })
+            .await?;
+        self.installer
+            .install(
+                self.package_database,
                 &self.trusted_keys,
-                request.package,
-                request.release,
-                request.asset,
-                &request.add_entry,
-                request.trust_mode,
+                plan,
                 download_progress_callback,
                 message_callback,
                 progress_callback,
             )
             .await
-        {
-            Ok(installed_package) => {
-                self.save_installed_package(installed_package, message_callback, progress_callback)
-            }
-            Err(err) => Err(err),
-        }
     }
 
     pub async fn install_local_artifact<H, P>(
@@ -193,95 +223,31 @@ impl<'a> InstallOperation<'a> {
         P: FnMut(PackageProgressEvent),
     {
         cancellation::check()?;
-        self.ensure_package_name_available(&request.package.name)?;
-        match self
+        self.installer
+            .ensure_name_available(self.package_database, &request.package.name)?;
+        let plan = self
             .installer
-            .install_local_artifact(
-                request.package,
-                request.artifact_path,
-                request.version,
-                &request.add_entry,
+            .plan_install(InstallRequest {
+                package: request.package,
+                source: InstallSource::LocalArtifact {
+                    artifact_path: request.artifact_path.to_path_buf(),
+                    version: request.version,
+                },
+                add_entry: request.add_entry,
+                trust_mode: TrustMode::BestEffort,
+            })
+            .await?;
+        let mut no_download_progress: Option<fn(u64, u64)> = None;
+        self.installer
+            .install(
+                self.package_database,
+                &self.trusted_keys,
+                plan,
+                &mut no_download_progress,
                 message_callback,
                 progress_callback,
             )
             .await
-        {
-            Ok(installed_package) => {
-                self.save_installed_package(installed_package, message_callback, progress_callback)
-            }
-            Err(err) => Err(err),
-        }
-    }
-
-    fn save_installed_package<H, P>(
-        &mut self,
-        installed_package: Package,
-        message_callback: &mut Option<H>,
-        progress_callback: &mut Option<P>,
-    ) -> Result<Package>
-    where
-        H: FnMut(&str),
-        P: FnMut(PackageProgressEvent),
-    {
-        if let Some(cb) = progress_callback.as_mut() {
-            cb(PackageProgressEvent::Phase(PackagePhase::SavingMetadata));
-        }
-
-        if let Err(err) = self
-            .package_database
-            .upsert_package(&installed_package)
-            .context(format!(
-                "Failed to save package '{}' to storage",
-                installed_package.name
-            ))
-        {
-            return self.fail_after_metadata_error(installed_package, err, message_callback);
-        }
-
-        if let Err(err) = ShellManager::new(&self.installer.paths().generated.paths_file)
-            .regenerate_paths(self.package_database, self.installer.paths())
-        {
-            let _ = self
-                .package_database
-                .remove_package(&installed_package.name);
-            return self.fail_after_metadata_error(installed_package, err, message_callback);
-        }
-
-        Ok(installed_package)
-    }
-
-    fn ensure_package_name_available(&self, name: &str) -> Result<()> {
-        if self.package_database.package_exists(name)? {
-            return Err(anyhow!("Package '{}' already exists", name));
-        }
-
-        Ok(())
-    }
-
-    fn fail_after_metadata_error<H>(
-        &self,
-        installed_package: Package,
-        err: anyhow::Error,
-        message_callback: &mut Option<H>,
-    ) -> Result<Package>
-    where
-        H: FnMut(&str),
-    {
-        match self
-            .installer
-            .cleanup_partial_install(&installed_package, message_callback)
-        {
-            Ok(()) => Err(err.context(format!(
-                "Rolled back partial install for '{}'",
-                installed_package.name
-            ))),
-            Err(cleanup_err) => Err(anyhow!(
-                "{}. Additionally failed to roll back partial install for '{}': {}",
-                err,
-                installed_package.name,
-                cleanup_err
-            )),
-        }
     }
 }
 

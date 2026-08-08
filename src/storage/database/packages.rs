@@ -700,7 +700,7 @@ mod tests {
 
         assert_eq!(package.release_tag.as_deref(), Some("rust-v1.2.3-linux"));
         assert!(package.release_published_at.is_none());
-        assert_eq!(db.schema_version().expect("schema version"), 8);
+        assert_eq!(db.schema_version().expect("schema version"), 9);
     }
 
     #[test]

@@ -7,8 +7,10 @@ use crate::{
     providers::provider_manager::ProviderManager,
     routines::build::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
-        integration::ShellManager,
-        packaging::{OperationPhase, PackageInstaller, PackagePhase, PackageProgressEvent},
+        packaging::{
+            InstallRequest, InstallSource, OperationPhase, PackageInstaller, PackagePhase,
+            PackageProgressEvent, PackageReplacer, PreparedInstall,
+        },
         trust::{CosignPublicKey, MinisignPublicKey, TrustedSignatureKeys},
     },
     storage::{
@@ -17,7 +19,7 @@ use crate::{
     },
     utils::static_paths::UpstreamPaths,
 };
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, bail};
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use minisign_verify::PublicKey;
 use p256::ecdsa::VerifyingKey;
@@ -290,8 +292,6 @@ impl<'a> ImportOperation<'a> {
 
         emit_overall(progress_callback, completed, total);
 
-        let installer = PackageInstaller::new(self.provider_manager, self.paths)?;
-
         if let Some(cb) = progress_callback.as_mut() {
             cb(ImportProgressEvent::Started {
                 package_width: eligible
@@ -314,7 +314,8 @@ impl<'a> ImportOperation<'a> {
                 break;
             };
             pending.push(import_package(
-                &installer,
+                self.provider_manager,
+                self.paths,
                 self.trusted_keys.clone(),
                 package,
                 version,
@@ -337,7 +338,24 @@ impl<'a> ImportOperation<'a> {
                     }
                     last_progress_events.remove(&name);
 
-                    match result.and_then(|package| self.persist_imported_package(&installer, &package, trust_mode).map(|()| package)) {
+                    let persisted = match result {
+                        Ok(prepared) => {
+                            let mut no_messages: Option<fn(&str)> = None;
+                            let mut no_progress: Option<fn(PackageProgressEvent)> = None;
+                            PackageReplacer::new(self.paths)
+                                .install_new_with_settings(
+                                    self.package_database,
+                                    prepared,
+                                    false,
+                                    trust_mode,
+                                    &mut no_messages,
+                                    &mut no_progress,
+                                )
+                                .await
+                        }
+                        Err(error) => Err(error),
+                    };
+                    match persisted {
                         Ok(package) => {
                             summary.installed += 1;
                             emit_complete(progress_callback, name, ImportPackageResult::Installed { version: package.version.to_string() });
@@ -357,7 +375,8 @@ impl<'a> ImportOperation<'a> {
                     if !stop_scheduling
                         && let Some((package, version, trust_mode)) = packages.next() {
                             pending.push(import_package(
-                                &installer,
+                                self.provider_manager,
+                                self.paths,
                                 self.trusted_keys.clone(),
                                 package,
                                 version,
@@ -395,54 +414,6 @@ impl<'a> ImportOperation<'a> {
             ),
         );
         Ok(summary)
-    }
-
-    fn persist_imported_package(
-        &mut self,
-        installer: &PackageInstaller<'_>,
-        installed_package: &Package,
-        trust_mode: Option<TrustMode>,
-    ) -> Result<()> {
-        let mut settings = crate::storage::database::PackageSettings::new(&installed_package.name);
-        settings.trust_mode = trust_mode;
-        if let Err(err) = self
-            .package_database
-            .upsert_package_with_settings(installed_package, &settings)
-        {
-            return self.cleanup_after_metadata_error(installer, installed_package, err);
-        }
-
-        if let Err(err) = ShellManager::new(&self.paths.generated.paths_file)
-            .regenerate_paths(self.package_database, self.paths)
-        {
-            let _ = self
-                .package_database
-                .remove_package(&installed_package.name);
-            return self.cleanup_after_metadata_error(installer, installed_package, err);
-        }
-
-        Ok(())
-    }
-
-    fn cleanup_after_metadata_error(
-        &self,
-        installer: &PackageInstaller<'_>,
-        installed_package: &Package,
-        err: anyhow::Error,
-    ) -> Result<()> {
-        let mut ignored_messages = Some(|_: &str| {});
-        match installer.cleanup_partial_install(installed_package, &mut ignored_messages) {
-            Ok(()) => Err(err.context(format!(
-                "Rolled back partial install for '{}'",
-                installed_package.name
-            ))),
-            Err(cleanup_err) => Err(anyhow!(
-                "{}. Additionally failed to roll back partial install for '{}': {}",
-                err,
-                installed_package.name,
-                cleanup_err
-            )),
-        }
     }
 
     fn import_key_values<P>(
@@ -647,46 +618,71 @@ fn emit_progress_updates<P>(
 }
 
 async fn import_package(
-    installer: &PackageInstaller<'_>,
+    provider_manager: &ProviderManager,
+    paths: &UpstreamPaths,
     trusted_keys: TrustedSignatureKeys,
     package: Package,
     version: Option<String>,
     trust_mode: Option<TrustMode>,
     progress_state: ProgressState,
     warning_state: WarningState,
-) -> (String, Option<TrustMode>, Result<Package>) {
+) -> (String, Option<TrustMode>, Result<PreparedInstall>) {
     let name = package.name.clone();
     let progress_name = name.clone();
     let mut progress_callback = Some(move |event: PackageProgressEvent| {
         record_progress_event(&progress_state, &warning_state, &progress_name, event);
     });
-    let result = match package.install_type {
+    let mut installer = match PackageInstaller::new(provider_manager, paths) {
+        Ok(installer) => installer,
+        Err(error) => return (name, trust_mode, Err(error)),
+    };
+    let result: Result<Package> = match package.install_type {
         InstallType::Release => {
-            let mut no_download_progress: Option<fn(u64, u64)> = None;
-            let mut ignored_messages = Some(|_: &str| {});
-            installer
-                .install_release(
-                    &trusted_keys,
-                    package,
-                    &version,
-                    &false,
-                    trust_mode.unwrap_or(TrustMode::BestEffort),
-                    &mut no_download_progress,
-                    &mut ignored_messages,
-                    &mut progress_callback,
-                )
-                .await
+            async {
+                if let Some(callback) = progress_callback.as_mut() {
+                    callback(PackageProgressEvent::Phase(PackagePhase::ResolvingRelease));
+                }
+                let mut no_download_progress: Option<fn(u64, u64)> = None;
+                let mut ignored_messages = Some(|_: &str| {});
+                let plan = installer
+                    .plan_install(InstallRequest {
+                        package,
+                        source: InstallSource::Release {
+                            version,
+                            semver: None,
+                        },
+                        add_entry: false,
+                        trust_mode: trust_mode.unwrap_or(TrustMode::BestEffort),
+                    })
+                    .await?;
+                installer
+                    .materialize_install(
+                        &trusted_keys,
+                        plan,
+                        &mut no_download_progress,
+                        &mut ignored_messages,
+                        &mut progress_callback,
+                    )
+                    .await
+            }
+            .await
         }
         InstallType::Build => {
-            import_build_package(installer, package, version, &mut progress_callback).await
+            import_build_package(&mut installer, package, version, &mut progress_callback).await
         }
-    }
-    .context(format!("Failed to import package '{name}'"));
+    };
+    let result = result
+        .and_then(|package| {
+            installer
+                .take_workspace()
+                .map(|workspace| PreparedInstall::new(package, workspace))
+        })
+        .context(format!("Failed to import package '{name}'"));
     (name, trust_mode, result)
 }
 
 async fn import_build_package<P>(
-    installer: &PackageInstaller<'_>,
+    installer: &mut PackageInstaller<'_>,
     mut package: Package,
     version_tag: Option<String>,
     progress_callback: &mut Option<P>,
@@ -715,12 +711,23 @@ where
     }
 
     let mut ignored_messages = Some(|_: &str| {});
-    installer
-        .install_local_artifact(
+    let plan = installer
+        .plan_install(InstallRequest {
             package,
-            &output.artifact_path,
-            output.version,
-            &false,
+            source: InstallSource::LocalArtifact {
+                artifact_path: output.artifact_path,
+                version: output.version,
+            },
+            add_entry: false,
+            trust_mode: TrustMode::BestEffort,
+        })
+        .await?;
+    let mut no_download_progress: Option<fn(u64, u64)> = None;
+    installer
+        .materialize_install(
+            &TrustedSignatureKeys::default(),
+            plan,
+            &mut no_download_progress,
             &mut ignored_messages,
             progress_callback,
         )

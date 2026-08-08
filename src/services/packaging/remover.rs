@@ -1,9 +1,14 @@
 use crate::{
     models::upstream::Package,
-    services::integration::{CompletionManager, DesktopManager, SymlinkManager},
-    services::packaging::disk_impact::{
-        ByteEstimate, DiskImpact, SignedByteEstimate, estimate_existing_paths,
+    output,
+    services::{
+        integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
+        packaging::{
+            PackagePhase, PackageProgressEvent,
+            disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate, estimate_existing_paths},
+        },
     },
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
@@ -26,10 +31,6 @@ pub struct PackageRemover<'a> {
 impl<'a> PackageRemover<'a> {
     pub fn new(paths: &'a UpstreamPaths) -> Self {
         Self { paths }
-    }
-
-    pub fn paths(&self) -> &UpstreamPaths {
-        self.paths
     }
 
     #[cfg(test)]
@@ -110,6 +111,101 @@ impl<'a> PackageRemover<'a> {
         estimate_existing_paths(paths)
     }
 
+    pub fn remove<H, P>(
+        &self,
+        package_database: &mut PackageDatabase,
+        package_name: &str,
+        purge_option: bool,
+        force_option: bool,
+        message_callback: &mut Option<H>,
+        progress_callback: &mut Option<P>,
+    ) -> Result<()>
+    where
+        H: FnMut(&str),
+        P: FnMut(&str, PackageProgressEvent),
+    {
+        let package = package_database
+            .get_package(package_name)?
+            .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
+        if let Some(callback) = progress_callback.as_mut() {
+            callback(
+                package_name,
+                PackageProgressEvent::Phase(PackagePhase::RemovingPackage),
+            );
+        }
+
+        if let Err(error) = self
+            .remove_package_files(&package, message_callback)
+            .context(format!(
+                "Failed to perform removal operations for '{}'",
+                package_name
+            ))
+        {
+            if !force_option {
+                return Err(error);
+            }
+            if let Some(callback) = message_callback.as_mut() {
+                callback(&format!(
+                    "{}",
+                    output::warning(format!(
+                        "Ignoring uninstall error for '{}': {}",
+                        package_name, error
+                    ))
+                ));
+            }
+        }
+
+        if let Some(callback) = progress_callback.as_mut() {
+            callback(
+                package_name,
+                PackageProgressEvent::Phase(PackagePhase::RemovingMetadata),
+            );
+        }
+        package_database
+            .remove_package(package_name)
+            .context(format!(
+                "Failed to remove '{}' from package storage",
+                package_name
+            ))?;
+        ShellManager::new(&self.paths.generated.paths_file)
+            .regenerate_paths(package_database, self.paths)
+            .context(format!(
+                "Failed to regenerate PATH integration after removing '{}'",
+                package_name
+            ))?;
+
+        if !purge_option {
+            return Ok(());
+        }
+        if let Some(callback) = progress_callback.as_mut() {
+            callback(
+                package_name,
+                PackageProgressEvent::Phase(PackagePhase::PurgingPackageData),
+            );
+        }
+        if let Err(error) = self
+            .purge_configs(package_name, message_callback)
+            .context(format!(
+                "Failed to purge configuration files for '{}'",
+                package_name
+            ))
+        {
+            if !force_option {
+                return Err(error);
+            }
+            if let Some(callback) = message_callback.as_mut() {
+                callback(&format!(
+                    "{}",
+                    output::warning(format!(
+                        "Ignoring purge error for '{}': {}",
+                        package_name, error
+                    ))
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn purge_candidate_paths(package_name: &str) -> Vec<std::path::PathBuf> {
         let mut candidates = Vec::new();
         if let Some(config_dir) = dirs::config_dir() {
@@ -183,38 +279,6 @@ impl<'a> PackageRemover<'a> {
                 install_path.display()
             ));
         }
-
-        if let Some(icon_path) = &package.icon_path {
-            message!(message_callback, "Removing desktop entry ...");
-            DesktopManager::remove_entry(self.paths, &package.name).context(format!(
-                "Failed to remove desktop entry for '{}'",
-                package.name
-            ))?;
-
-            fs::remove_file(icon_path).context(format!(
-                "Failed to remove icon file at '{}'",
-                icon_path.display()
-            ))?;
-            message!(
-                message_callback,
-                "Removed stored icon: {}",
-                icon_path.display()
-            );
-        }
-
-        Ok(())
-    }
-
-    /// Remove runtime integrations and stored desktop/icon artifacts without touching install_path.
-    pub fn remove_runtime_and_desktop_artifacts<H>(
-        &self,
-        package: &Package,
-        message_callback: &mut Option<H>,
-    ) -> Result<()>
-    where
-        H: FnMut(&str),
-    {
-        self.remove_runtime_integrations(package, message_callback)?;
 
         if let Some(icon_path) = &package.icon_path {
             message!(message_callback, "Removing desktop entry ...");
