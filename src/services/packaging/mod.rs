@@ -7,6 +7,8 @@ mod activation;
 pub mod rollbacker;
 mod upgrader;
 mod staging;
+mod filetypes;
+mod selection;
 
 use std::path::PathBuf;
 
