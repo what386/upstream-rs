@@ -14,7 +14,7 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         packaging::{
-            PackageInstaller, PackageProgressEvent, PackageRemover, PackageReplacer,
+            PackageInstaller, PackageProgressEvent, PackageRemover, PackageActivator,
             PackageUpgrader, ResolvedUpgradeTarget,
             disk_impact::{
                 ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate,
@@ -507,7 +507,7 @@ where
         )
         .await?;
 
-    PackageReplacer::new(paths).persist(package_database, &updated)?;
+    PackageActivator::new(paths).persist(package_database, &updated)?;
 
     Ok(())
 }

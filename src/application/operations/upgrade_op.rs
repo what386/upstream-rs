@@ -11,7 +11,7 @@ use crate::{
     services::{
         packaging::{
             PackageChecker, PackageInstaller, PackageProgressEvent, PackageRemover,
-            PackageReplacer, PackageUpgrader, ResolvedUpgradeTarget,
+            PackageActivator, PackageUpgrader, ResolvedUpgradeTarget,
         },
         trust::TrustedSignatureKeys,
     },
@@ -859,7 +859,7 @@ fn persist_upgrade_and_emit_complete<P>(
 where
     P: FnMut(UpgradeProgressEvent),
 {
-    PackageReplacer::new(paths).persist(package_database, updated)?;
+    PackageActivator::new(paths).persist(package_database, updated)?;
     if let Some(cb) = progress_callback.as_mut() {
         cb(UpgradeProgressEvent::Complete {
             name,

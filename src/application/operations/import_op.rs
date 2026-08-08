@@ -9,7 +9,7 @@ use crate::{
     services::{
         packaging::{
             InstallRequest, InstallSource, OperationPhase, PackageInstaller, PackagePhase,
-            PackageProgressEvent, PackageReplacer, PreparedInstall,
+            PackageProgressEvent, PackageActivator, PreparedInstall,
         },
         trust::{CosignPublicKey, MinisignPublicKey, TrustedSignatureKeys},
     },
@@ -342,7 +342,7 @@ impl<'a> ImportOperation<'a> {
                         Ok(prepared) => {
                             let mut no_messages: Option<fn(&str)> = None;
                             let mut no_progress: Option<fn(PackageProgressEvent)> = None;
-                            PackageReplacer::new(self.paths)
+                            PackageActivator::new(self.paths)
                                 .install_new_with_settings(
                                     self.package_database,
                                     prepared,
