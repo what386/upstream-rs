@@ -1,18 +1,107 @@
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, anyhow};
 use tokio::{io::AsyncReadExt, process::Command};
 
 use crate::{
     models::{
+        common::enums::Filetype,
         provider::{Asset, Release},
         upstream::Package,
     },
     providers::provider_manager::ProviderManager,
 };
+
+/// A zsync-produced artifact and its cache. Dropping it removes the temporary
+/// workspace after the caller has verified and installed the artifact.
+pub(crate) struct UpdatedAsset {
+    root: PathBuf,
+    cache: PathBuf,
+    path: PathBuf,
+}
+
+impl UpdatedAsset {
+    pub(crate) fn cache(&self) -> &Path {
+        &self.cache
+    }
+    pub(crate) fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for UpdatedAsset {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
+
+pub(crate) fn can_update_package(package: &Package, asset: &Asset, seed_path: &Path) -> bool {
+    seed_path.is_file()
+        && asset.filetype == package.filetype
+        && !matches!(
+            package.filetype,
+            Filetype::Archive | Filetype::Compressed | Filetype::MacApp | Filetype::MacDmg
+        )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn update_package_asset<H, P>(
+    package: &Package,
+    release: &Release,
+    asset: &Asset,
+    provider_manager: &ProviderManager,
+    temp_dir: &Path,
+    seed_path: &Path,
+    message_callback: &mut Option<H>,
+    progress_callback: &mut Option<P>,
+) -> Result<Option<UpdatedAsset>>
+where
+    H: FnMut(&str),
+    P: FnMut(u64, u64),
+{
+    if !can_update_package(package, asset, seed_path) || find_asset(release, asset).is_none() {
+        return Ok(None);
+    }
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let root = temp_dir.join(format!("upstream-zsync-{}-{nonce}", package.name));
+    let cache = root.join("downloads");
+    fs::create_dir_all(&cache).with_context(|| {
+        format!(
+            "Failed to create zsync cache directory '{}'",
+            cache.display()
+        )
+    })?;
+    let path = root.join(
+        Path::new(&asset.name)
+            .file_name()
+            .ok_or_else(|| anyhow!("Selected asset '{}' has no filename", asset.name))?,
+    );
+    if let Err(error) = update_selected_asset(
+        package,
+        release,
+        asset,
+        provider_manager,
+        &cache,
+        seed_path,
+        &path,
+        message_callback.as_mut(),
+        progress_callback,
+    )
+    .await
+    {
+        let _ = fs::remove_dir_all(&root);
+        return Err(error)
+            .with_context(|| format!("Failed to update '{}' via zsync", package.name));
+    }
+    Ok(Some(UpdatedAsset { root, cache, path }))
+}
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
