@@ -24,6 +24,9 @@
 - [ ] feat: option to disable rollback creation
       @created 2026-08-09 04:30
 
+- [ ] feat: commit-based build storage/dl
+      @created 2026-08-09 05:36
+
 
 ## Completed
 
