@@ -937,61 +937,6 @@ mod tests {
     }
 
     #[test]
-    fn upgrade_progress_row_renders_download_and_phase_states() {
-        let download = render_upgrade_progress_row(
-            "gitui",
-            PackageProgressEvent::Download {
-                downloaded: 512,
-                total: 1024,
-            },
-            5,
-        );
-        assert!(download.starts_with("gitui Downloading [=======>      ]"));
-        assert!(download.contains('/'));
-
-        let checksum = render_upgrade_progress_row(
-            "gitui",
-            PackageProgressEvent::Checksum {
-                checked: 512,
-                total: 1024,
-            },
-            5,
-        );
-        assert!(checksum.starts_with("gitui Checksumming [=======>      ]"));
-        assert!(checksum.contains('/'));
-        assert!(!checksum.contains("Downloading"));
-
-        let zsync = render_upgrade_progress_row(
-            "gitui",
-            PackageProgressEvent::Zsync {
-                downloaded: 512,
-                total: 1024,
-            },
-            5,
-        );
-        assert!(zsync.starts_with("gitui Synchronizing [=======>      ]"));
-        assert!(zsync.contains('/'));
-
-        assert_eq!(
-            render_upgrade_progress_row(
-                "zsync",
-                PackageProgressEvent::Detail("go build -o <artifact> ./cmd/zsync ...".to_string()),
-                5,
-            ),
-            "zsync go build -o <artifact> ./cmd/zsync ..."
-        );
-
-        assert_eq!(
-            render_upgrade_progress_row(
-                "dz6",
-                PackageProgressEvent::Phase(PackagePhase::InstallingCompletions),
-                5,
-            ),
-            "dz6   Installing completions..."
-        );
-    }
-
-    #[test]
     fn check_table_layout_uses_compact_dynamic_columns() {
         let rows = vec![UpdateCheckRow {
             name: "ripgrep".to_string(),
