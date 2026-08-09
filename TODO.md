@@ -21,6 +21,9 @@
 - [ ] consider: update reinstall to have consistent cli like upgrade/install
       @created 2026-08-09 03:51
 
+- [ ] feat: option to disable rollback creation
+      @created 2026-08-09 04:30
+
 
 ## Completed
 
