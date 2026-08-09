@@ -85,9 +85,6 @@ impl InstallPlan {
                 self.package.filetype
             };
         Some(ResolvedAssetInstall {
-            release_name: release.name.clone(),
-            release_tag: release.tag.clone(),
-            asset_name: asset.name.clone(),
             resolved_filetype,
             disk_impact: self.disk_impact.clone(),
             release: release.clone(),

@@ -1,7 +1,7 @@
 use crate::{
     application::cancellation,
     models::{
-        common::enums::TrustMode,
+        common::enums::{Filetype, TrustMode},
         provider::{Asset, Release},
         upstream::{InstallType, Package},
     },
@@ -11,9 +11,19 @@ use crate::{
     services::{
         artifact::zsync_handler,
         packaging::{
-            PackageInstaller, PackagePhase, PackageProgressEvent, PackageActivator,
             activation::PreparedInstall,
             staging::InstallWorkspace,
+            PackageInstaller,
+            PackagePhase,
+            PackageProgressEvent,
+            PackageActivator,
+            PackageRemover,
+            disk_impact::{
+                DiskImpact,
+                SignedByteEstimate,
+                asset_size_estimate,
+                estimate_upgrade,
+            },
         },
         trust::{TrustVerifier, TrustedSignatureKeys},
     },
@@ -53,6 +63,13 @@ pub enum ResolvedUpgradeTarget {
     Release(Release),
     Branch { branch: String, head_commit: String },
 }
+
+#[derive(Clone)]
+pub struct UpgradePlan {
+    pub target: ResolvedUpgradeTarget,
+    pub disk_impact: DiskImpact,
+}
+
 
 impl<'a> PackageUpgrader<'a> {
     #[cfg(test)]
@@ -169,6 +186,98 @@ impl<'a> PackageUpgrader<'a> {
             paths,
             trusted_keys,
         }
+    }
+
+    pub async fn plan_upgrade(
+        &self,
+        package: &Package,
+        force: bool,
+    ) -> Result<Option<UpgradePlan>> {
+        if package.is_pinned {
+            return Ok(None);
+        }
+
+        if package.install_type == InstallType::Build
+            && let Some(branch) = package.build_branch.as_deref()
+        {
+            let head_commit = self
+                .provider_manager
+                .get_branch_head_sha(
+                    &package.repo_slug,
+                    &package.provider,
+                    branch,
+                    package.base_url.as_deref(),
+                )
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to resolve branch '{}' for '{}'",
+                        branch, package.name
+                    )
+                })?;
+
+            let up_to_date = package
+                .build_commit
+                .as_deref()
+                .is_some_and(|saved| saved == head_commit);
+
+            if up_to_date && !force {
+                return Ok(None);
+            }
+
+            return Ok(Some(UpgradePlan {
+                target: ResolvedUpgradeTarget::Branch {
+                    branch: branch.to_string(),
+                    head_commit,
+                },
+                disk_impact: DiskImpact::unknown(),
+            }));
+        }
+
+        let release = if force {
+            Some(
+                self.provider_manager
+                    .get_latest_release(
+                        &package.repo_slug,
+                        &package.provider,
+                        &package.channel,
+                        package.base_url.as_deref(),
+                    )
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "Failed to resolve latest release for '{}'",
+                            package.name
+                        )
+                    })?,
+            )
+        } else {
+            self.provider_manager
+                .check_for_updates(package)
+                .await
+                .with_context(|| {
+                    format!("Failed to check '{}' for updates", package.name)
+                })?
+        };
+
+        let Some(release) = release else {
+            return Ok(None);
+        };
+
+        if !force && !package.is_update_available(&release) {
+            return Ok(None);
+        }
+
+        let disk_impact = if package.install_type == InstallType::Build {
+            DiskImpact::unknown()
+        } else {
+            self.estimate_release_upgrade_impact(package, &release)
+        };
+
+        Ok(Some(UpgradePlan {
+            target: ResolvedUpgradeTarget::Release(release),
+            disk_impact,
+        }))
     }
 
     pub async fn upgrade_resolved<F, H, P>(
@@ -490,6 +599,38 @@ impl<'a> PackageUpgrader<'a> {
                 )
                 .await
         }
+    }
+
+    fn estimate_release_upgrade_impact(
+        &self,
+        package: &Package,
+        release: &Release,
+    ) -> DiskImpact {
+        let Ok(asset) = self
+            .provider_manager
+            .find_recommended_asset(release, package)
+        else {
+            return DiskImpact::unknown();
+        };
+
+        let download = asset_size_estimate(asset.size);
+
+        let Ok(active_size) =
+            PackageRemover::new(self.paths).estimate_active_size(package)
+        else {
+            return DiskImpact {
+                download,
+                net: SignedByteEstimate::unknown(),
+            };
+        };
+
+        let filetype = if package.filetype == Filetype::Auto {
+            asset.filetype
+        } else {
+            package.filetype
+        };
+
+        estimate_upgrade(filetype, download, active_size)
     }
 }
 

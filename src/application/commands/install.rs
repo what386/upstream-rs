@@ -271,11 +271,11 @@ async fn run_release_plan(
         );
         output::kv(
             "Release",
-            format!("{} ({})", preview.release_name, preview.release_tag),
+            format!("{} ({})", preview.release.name, preview.release.tag),
         );
         output::kv(
             "Asset",
-            format!("{} ({:?})", preview.asset_name, preview.resolved_filetype),
+            format!("{} ({:?})", preview.asset.name, preview.resolved_filetype),
         );
         output::kv("Trust", trust_mode);
         output::kv("Desktop", if create_entry { "yes" } else { "no" });
@@ -286,7 +286,7 @@ async fn run_release_plan(
 
     let transaction_rows = vec![TransactionRow::single_version(
         format!("{}/{}", package.provider, package.name),
-        &preview.release_tag,
+        &preview.release.tag,
         preview.disk_impact.net,
         preview.disk_impact.download,
     )];
@@ -301,7 +301,7 @@ async fn run_release_plan(
 
     let install_name = package.name.clone();
     let progress_name = install_name.clone();
-    let install_version = preview.release_tag.clone();
+    let install_version = preview.release.tag.clone();
     let progress_pb = pb.clone();
     let mut last_emit = None;
     let mut progress_callback = Some(move |event: PackageProgressEvent| {

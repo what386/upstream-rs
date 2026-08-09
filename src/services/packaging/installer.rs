@@ -57,14 +57,12 @@ pub struct PackageInstaller<'a> {
     extract_cache: PathBuf,
 }
 
+#[derive(Clone)]
 pub struct ResolvedAssetInstall {
-    pub release_name: String,
-    pub release_tag: String,
-    pub asset_name: String,
-    pub resolved_filetype: Filetype,
-    pub disk_impact: DiskImpact,
     pub release: Release,
     pub asset: Asset,
+    pub resolved_filetype: Filetype,
+    pub disk_impact: DiskImpact,
 }
 
 /// Sanitizes a package name into a filesystem-safe cache directory prefix,
@@ -480,17 +478,17 @@ impl<'a> PackageInstaller<'a> {
         } else {
             package.filetype
         };
-        Ok(ResolvedAssetInstall {
-            release_name: release.name.clone(),
-            release_tag: release.tag.clone(),
-            asset_name: best_asset.name.clone(),
+
+        let disk_impact = estimate_fresh_install(
             resolved_filetype,
-            disk_impact: estimate_fresh_install(
-                resolved_filetype,
-                asset_size_estimate(best_asset.size),
-            ),
+            asset_size_estimate(best_asset.size),
+        );
+
+        Ok(ResolvedAssetInstall {
             release,
-            asset: best_asset.clone(),
+            asset: best_asset,
+            resolved_filetype,
+            disk_impact,
         })
     }
 

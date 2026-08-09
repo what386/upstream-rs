@@ -1,7 +1,7 @@
 use crate::{
-    application::cancellation, models::{common::enums::{Channel, Filetype, Provider, TrustMode}, provider::Release, upstream::config::ConcurrencyConfig}, output, providers::provider_manager::ProviderManager, services::{packaging::{PackageActivator, PackageChecker, PackageInstaller, PackageProgressEvent, PackageRemover, PackageUpgrader, ResolvedUpgradeTarget, RollbackManager,
+    application::cancellation, models::{common::enums::{Channel, Provider, TrustMode}, upstream::{Package, config::ConcurrencyConfig}}, output, providers::provider_manager::ProviderManager, services::{packaging::{PackageActivator, PackageChecker, PackageInstaller, PackageProgressEvent, PackageUpgrader, ResolvedUpgradeTarget, RollbackManager,
     disk_impact::{
-        DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_upgrade,
+        DiskImpact, SignedByteEstimate,
     }
     }, trust::TrustedSignatureKeys}, storage::{
         database::PackageDatabase,
@@ -22,15 +22,6 @@ struct ProgressEntry {
 type ProgressState = Arc<Mutex<BTreeMap<String, ProgressEntry>>>;
 type WarningState = Arc<Mutex<Vec<(String, String)>>>;
 
-fn build_ref_version(label: impl AsRef<str>, commit: Option<&str>) -> String {
-    let label = label.as_ref();
-    let Some(commit) = commit else {
-        return label.to_string();
-    };
-    let short: String = commit.chars().take(7).collect();
-    format!("{label}@{short}")
-}
-
 fn preview_package_source(package: &crate::models::upstream::Package) -> String {
     package.channel.to_string().to_lowercase()
 }
@@ -48,10 +39,21 @@ fn preview_package_width(packages: &[crate::models::upstream::Package]) -> usize
         .unwrap_or("Package".len())
 }
 
+fn build_ref_version(label: impl AsRef<str>, commit: Option<&str>) -> String {
+    let label = label.as_ref();
+
+    let Some(commit) = commit else {
+        return label.to_string();
+    };
+
+    let short: String = commit.chars().take(7).collect();
+    format!("{label}@{short}")
+}
+
+
 pub struct UpgradeOperation<'a> {
     upgrader: PackageUpgrader<'a>,
     checker: PackageChecker<'a>,
-    provider_manager: &'a ProviderManager,
     paths: &'a UpstreamPaths,
     package_database: &'a mut PackageDatabase,
     concurrency_config: ConcurrencyConfig,
@@ -394,7 +396,6 @@ impl<'a> UpgradeOperation<'a> {
         Ok(Self {
             upgrader: PackageUpgrader::new(provider_manager, installer, paths, trusted_keys),
             checker: PackageChecker::new(provider_manager),
-            provider_manager,
             paths,
             package_database,
             concurrency_config,
@@ -510,7 +511,7 @@ impl<'a> UpgradeOperation<'a> {
     async fn preview_package_at_index(
         &self,
         idx: usize,
-        package: crate::models::upstream::Package,
+        package: Package,
         force: bool,
     ) -> (usize, Result<Option<UpgradePreviewRow>>) {
         (idx, self.preview_package_upgrade(package, force).await)
@@ -518,132 +519,47 @@ impl<'a> UpgradeOperation<'a> {
 
     async fn preview_package_upgrade(
         &self,
-        package: crate::models::upstream::Package,
+        package: Package,
         force: bool,
     ) -> Result<Option<UpgradePreviewRow>> {
-        if package.is_pinned {
-            return Ok(None);
-        }
-
-        if package.install_type == crate::models::upstream::InstallType::Build
-            && let Some(branch) = package.build_branch.as_deref()
-        {
-            let head_commit = self
-                .provider_manager
-                .get_branch_head_sha(
-                    &package.repo_slug,
-                    &package.provider,
-                    branch,
-                    package.base_url.as_deref(),
-                )
-                .await
-                .with_context(|| {
-                    format!(
-                        "Failed to resolve branch '{}' for '{}'",
-                        branch, package.name
-                    )
-                })?;
-            let up_to_date = package
-                .build_commit
-                .as_deref()
-                .is_some_and(|saved| saved == head_commit);
-            if up_to_date && !force {
-                return Ok(None);
-            }
-
-            return Ok(Some(UpgradePreviewRow {
-                package: package.clone(),
-                name: package.name.clone(),
-                source: preview_package_source(&package),
-                old_version: build_ref_version(
-                    package.version.to_string(),
-                    package.build_commit.as_deref(),
-                ),
-                new_version: build_ref_version(branch, Some(&head_commit)),
-                disk_impact: DiskImpact::unknown(),
-                source_build: true,
-                target: ResolvedUpgradeTarget::Branch {
-                    branch: branch.to_string(),
-                    head_commit,
-                },
-            }));
-        }
-
-        let release = if force {
-            Some(
-                self.provider_manager
-                    .get_latest_release(
-                        &package.repo_slug,
-                        &package.provider,
-                        &package.channel,
-                        package.base_url.as_deref(),
-                    )
-                    .await
-                    .with_context(|| {
-                        format!("Failed to resolve latest release for '{}'", package.name)
-                    })?,
-            )
-        } else {
-            self.provider_manager
-                .check_for_updates(&package)
-                .await
-                .with_context(|| format!("Failed to check '{}' for updates", package.name))?
-        };
-        let Some(release) = release else {
+        let Some(plan) = self.upgrader.plan_upgrade(&package, force).await? else {
             return Ok(None);
         };
-
-        if !force && !package.is_update_available(&release) {
-            return Ok(None);
-        }
 
         let source_build = package.install_type == crate::models::upstream::InstallType::Build;
+
+        let old_version = if source_build {
+            build_ref_version(
+                package.version.to_string(),
+                package.build_commit.as_deref(),
+            )
+        } else {
+            package.version.to_string()
+        };
+
+        let new_version = match &plan.target {
+            ResolvedUpgradeTarget::Release(release) => {
+                release.version.to_string()
+            }
+
+            ResolvedUpgradeTarget::Branch {
+                branch,
+                head_commit,
+            } => {
+                build_ref_version(branch, Some(head_commit))
+            }
+        };
+
         Ok(Some(UpgradePreviewRow {
-            package: package.clone(),
             name: package.name.clone(),
             source: preview_package_source(&package),
-            old_version: package.version.to_string(),
-            new_version: release.version.to_string(),
-            disk_impact: if source_build {
-                DiskImpact::unknown()
-            } else {
-                self.estimate_release_upgrade_impact(&package, &release)
-            },
+            old_version,
+            new_version,
+            disk_impact: plan.disk_impact,
             source_build,
-            target: ResolvedUpgradeTarget::Release(release),
+            target: plan.target,
+            package,
         }))
-    }
-
-    fn estimate_release_upgrade_impact(
-        &self,
-        package: &crate::models::upstream::Package,
-        release: &Release,
-    ) -> DiskImpact {
-        let Ok(asset) = self
-            .provider_manager
-            .find_recommended_asset(release, package)
-        else {
-            return DiskImpact::unknown();
-        };
-
-        let download = asset_size_estimate(asset.size);
-
-        let Ok(active_size) = PackageRemover::new(self.paths)
-            .estimate_active_size(package)
-        else {
-            return DiskImpact {
-                download,
-                net: SignedByteEstimate::unknown(),
-            };
-        };
-
-        let filetype = if package.filetype == Filetype::Auto {
-            asset.filetype
-        } else {
-            package.filetype
-        };
-
-        estimate_upgrade(filetype, download, active_size)
     }
 
     pub async fn upgrade_resolved_bulk<P>(
