@@ -18,9 +18,6 @@
 - [ ] consider: update reinstall to have consistent cli like upgrade/install
       @created 2026-08-09 03:51
 
-- [ ] feat: option to disable rollback creation
-      @created 2026-08-09 04:30
-
 - [ ] feat: commit-based build storage/dl
       @created 2026-08-09 05:36
 
@@ -34,4 +31,8 @@
 - [x] feat: better upgrade/install service, less prone to issues
       @created 2026-08-08 03:36
       @completed 2026-08-08 14:36
+
+- [x] feat: option to disable rollback creation
+      @created 2026-08-09 04:30
+      @completed 2026-08-09 17:28
 
