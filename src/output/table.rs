@@ -211,12 +211,7 @@ impl TransactionTableLayout {
         println!();
     }
 
-    pub fn print_totals(
-        &self,
-        totals: &DiskImpact,
-        net_label: &str,
-        size_rows: &[SizeImpactRow],
-    ) {
+    pub fn print_totals(&self, totals: &DiskImpact, net_label: &str, size_rows: &[SizeImpactRow]) {
         println!();
 
         if self.show_download && !matches!(totals.download.bytes, Some(0)) {

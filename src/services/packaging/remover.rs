@@ -482,8 +482,6 @@ mod tests {
             .or_else(|| Some(install_path.to_path_buf()))
     }
 
-
-
     fn temp_root(name: &str) -> std::path::PathBuf {
         test_support::temp_root("upstream-remover-test", name)
     }
@@ -579,10 +577,7 @@ mod tests {
 
         let remover = PackageRemover::new(&paths);
 
-        assert_eq!(
-            managed_path_entry(&remover, &package, &install_path),
-            None
-        );
+        assert_eq!(managed_path_entry(&remover, &package, &install_path), None);
 
         cleanup(&root).expect("cleanup");
     }

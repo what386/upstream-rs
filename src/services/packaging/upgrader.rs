@@ -11,19 +11,10 @@ use crate::{
     services::{
         artifact::zsync_handler,
         packaging::{
+            PackageActivator, PackageInstaller, PackagePhase, PackageProgressEvent, PackageRemover,
             activation::PreparedInstall,
+            disk_impact::{DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_upgrade},
             staging::InstallWorkspace,
-            PackageInstaller,
-            PackagePhase,
-            PackageProgressEvent,
-            PackageActivator,
-            PackageRemover,
-            disk_impact::{
-                DiskImpact,
-                SignedByteEstimate,
-                asset_size_estimate,
-                estimate_upgrade,
-            },
         },
         trust::{TrustVerifier, TrustedSignatureKeys},
     },
@@ -69,7 +60,6 @@ pub struct UpgradePlan {
     pub target: ResolvedUpgradeTarget,
     pub disk_impact: DiskImpact,
 }
-
 
 impl<'a> PackageUpgrader<'a> {
     #[cfg(test)]
@@ -245,19 +235,14 @@ impl<'a> PackageUpgrader<'a> {
                     )
                     .await
                     .with_context(|| {
-                        format!(
-                            "Failed to resolve latest release for '{}'",
-                            package.name
-                        )
+                        format!("Failed to resolve latest release for '{}'", package.name)
                     })?,
             )
         } else {
             self.provider_manager
                 .check_for_updates(package)
                 .await
-                .with_context(|| {
-                    format!("Failed to check '{}' for updates", package.name)
-                })?
+                .with_context(|| format!("Failed to check '{}' for updates", package.name))?
         };
 
         let Some(release) = release else {
@@ -601,11 +586,7 @@ impl<'a> PackageUpgrader<'a> {
         }
     }
 
-    fn estimate_release_upgrade_impact(
-        &self,
-        package: &Package,
-        release: &Release,
-    ) -> DiskImpact {
+    fn estimate_release_upgrade_impact(&self, package: &Package, release: &Release) -> DiskImpact {
         let Ok(asset) = self
             .provider_manager
             .find_recommended_asset(release, package)
@@ -615,9 +596,7 @@ impl<'a> PackageUpgrader<'a> {
 
         let download = asset_size_estimate(asset.size);
 
-        let Ok(active_size) =
-            PackageRemover::new(self.paths).estimate_active_size(package)
-        else {
+        let Ok(active_size) = PackageRemover::new(self.paths).estimate_active_size(package) else {
             return DiskImpact {
                 download,
                 net: SignedByteEstimate::unknown(),

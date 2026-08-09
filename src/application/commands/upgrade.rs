@@ -243,9 +243,8 @@ pub async fn run(
     let completion_subject_width =
         output::status_subject_width(preview_rows.iter().map(|row| row.name.as_str()));
 
-    let active_name_width = output::progress_name_width(
-        preview_rows.iter().map(|row| row.name.as_str()),
-    );
+    let active_name_width =
+        output::progress_name_width(preview_rows.iter().map(|row| row.name.as_str()));
 
     let mut completed_count = 0_u32;
     let mut total_count = preview_rows.len() as u32;

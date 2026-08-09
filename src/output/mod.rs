@@ -2,11 +2,11 @@ pub mod pager;
 
 mod logger;
 mod markdown;
+mod other;
 mod prompt;
 mod status;
 mod style;
 mod table;
-mod other;
 
 pub use crate::application::operations::history_op::HistoryRecord;
 pub use logger::{read_events as read_log_events, write_operation};
@@ -31,10 +31,7 @@ pub use table::{
     print_transaction_table_with_size_rows, print_transaction_table_without_size,
 };
 
-pub use other::{
-    shorten_upstream_package_path,
-    progress_name_width
-};
+pub use other::{progress_name_width, shorten_upstream_package_path};
 
 pub fn init_logger(path: impl AsRef<std::path::Path>) {
     logger::init(path.as_ref());

@@ -877,9 +877,7 @@ mod tests {
                 total: 2048,
             },
         );
-        assert!(
-            zsync.starts_with(" pnpm                         Synchronizing [=======>      ]")
-        );
+        assert!(zsync.starts_with(" pnpm                         Synchronizing [=======>      ]"));
         assert!(zsync.contains('/'));
 
         let phase = render_probe_install_progress_row(

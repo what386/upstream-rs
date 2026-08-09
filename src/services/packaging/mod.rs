@@ -1,14 +1,14 @@
+mod activation;
 mod checker;
 pub mod disk_impact;
+mod filetypes;
 mod installer;
 pub mod progress;
 mod remover;
-mod activation;
 pub mod rollbacker;
-mod upgrader;
-mod staging;
-mod filetypes;
 mod selection;
+mod staging;
+mod upgrader;
 
 use std::path::PathBuf;
 
@@ -93,13 +93,13 @@ impl InstallPlan {
     }
 }
 
+pub use activation::{PackageActivator, PreparedInstall};
 pub use checker::PackageChecker;
 pub use installer::PackageInstaller;
 pub use installer::ResolvedAssetInstall;
 pub use progress::{OperationPhase, OperationProgressEvent, PackagePhase, PackageProgressEvent};
 pub use remover::PackageRemover;
-pub use activation::{PackageActivator, PreparedInstall};
 pub use rollbacker::RollbackManager;
+pub use staging::InstallWorkspace;
 pub use upgrader::PackageUpgrader;
 pub use upgrader::ResolvedUpgradeTarget;
-pub use staging::InstallWorkspace;

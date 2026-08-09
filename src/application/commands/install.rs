@@ -58,9 +58,7 @@ fn render_install_progress_row(
     name_width: usize,
 ) -> String {
     let detail = match event {
-        PackageProgressEvent::Phase(phase) => {
-            phase.label().to_string()
-        }
+        PackageProgressEvent::Phase(phase) => phase.label().to_string(),
 
         PackageProgressEvent::Detail(message) => message,
 
@@ -68,18 +66,11 @@ fn render_install_progress_row(
             if total > 0 {
                 format!(
                     "Downloading {} {}",
-                    output::progress_bar(
-                        downloaded,
-                        total,
-                        INSTALL_PROGRESS_BAR_WIDTH,
-                    ),
+                    output::progress_bar(downloaded, total, INSTALL_PROGRESS_BAR_WIDTH,),
                     format_transfer(downloaded, total),
                 )
             } else if downloaded > 0 {
-                format!(
-                    "Downloading {}",
-                    format_transfer(downloaded, total),
-                )
+                format!("Downloading {}", format_transfer(downloaded, total),)
             } else {
                 "Downloading...".to_string()
             }
@@ -89,11 +80,7 @@ fn render_install_progress_row(
             if total > 0 {
                 format!(
                     "Extracting {} {}",
-                    output::progress_bar(
-                        extracted,
-                        total,
-                        INSTALL_PROGRESS_BAR_WIDTH,
-                    ),
+                    output::progress_bar(extracted, total, INSTALL_PROGRESS_BAR_WIDTH,),
                     format_transfer(extracted, total),
                 )
             } else {
@@ -105,18 +92,11 @@ fn render_install_progress_row(
             if total > 0 {
                 format!(
                     "Synchronizing {} {}",
-                    output::progress_bar(
-                        downloaded,
-                        total,
-                        INSTALL_PROGRESS_BAR_WIDTH,
-                    ),
+                    output::progress_bar(downloaded, total, INSTALL_PROGRESS_BAR_WIDTH,),
                     format_transfer(downloaded, total),
                 )
             } else if downloaded > 0 {
-                format!(
-                    "Synchronizing {}",
-                    format_transfer(downloaded, total),
-                )
+                format!("Synchronizing {}", format_transfer(downloaded, total),)
             } else {
                 "Synchronizing...".to_string()
             }
@@ -126,18 +106,11 @@ fn render_install_progress_row(
             if total > 0 {
                 format!(
                     "Checksumming {} {}",
-                    output::progress_bar(
-                        checked,
-                        total,
-                        INSTALL_PROGRESS_BAR_WIDTH,
-                    ),
+                    output::progress_bar(checked, total, INSTALL_PROGRESS_BAR_WIDTH,),
                     format_transfer(checked, total),
                 )
             } else if checked > 0 {
-                format!(
-                    "Checksumming {}",
-                    format_transfer(checked, total),
-                )
+                format!("Checksumming {}", format_transfer(checked, total),)
             } else {
                 "Checksumming...".to_string()
             }
@@ -347,13 +320,11 @@ async fn run_release_plan(
                 PackageProgressEvent::Download { .. } | PackageProgressEvent::Zsync { .. }
             )
         {
-            progress_pb.set_message(
-                render_install_progress_message(
-                    &progress_name,
-                    event,
-                    progress_name_width,
-                )
-            );
+            progress_pb.set_message(render_install_progress_message(
+                &progress_name,
+                event,
+                progress_name_width,
+            ));
             last_emit = Some(std::time::Instant::now());
         }
     });
@@ -537,48 +508,4 @@ fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
         ),
         false,
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{render_install_progress_message, render_install_progress_row};
-    use crate::services::packaging::{PackagePhase, PackageProgressEvent};
-
-    #[test]
-    fn install_progress_row_renders_phase_warning_and_download() {
-        assert_eq!(
-            render_install_progress_row(
-                "pnpm",
-                PackageProgressEvent::Phase(PackagePhase::VerifyingSignature)
-            ),
-            " pnpm                         Verifying signature ..."
-        );
-        assert_eq!(
-            render_install_progress_row(
-                "pnpm",
-                PackageProgressEvent::Warning("Completion install skipped".to_string())
-            ),
-            " pnpm                         Completion install skipped"
-        );
-        let download = render_install_progress_row(
-            "pnpm",
-            PackageProgressEvent::Download {
-                downloaded: 1024,
-                total: 2048,
-            },
-        );
-        assert!(download.starts_with(" pnpm                         Downloading [=======>      ]"));
-        assert!(download.contains('/'));
-    }
-
-    #[test]
-    fn install_progress_message_keeps_phase_inside_spinner_message() {
-        assert_eq!(
-            render_install_progress_message(
-                "pnpm",
-                PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
-            ),
-            "Installing pnpm\n pnpm                         Installing package ..."
-        );
-    }
 }

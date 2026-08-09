@@ -282,10 +282,7 @@ impl<'a> RollbackManager<'a> {
 
             Ok(RollbackRecord {
                 package_snapshot: package.clone(),
-                artifact_relative_path: path_relative_to(
-                    &paths.state.rollback_dir,
-                    &archive_path,
-                )?,
+                artifact_relative_path: path_relative_to(&paths.state.rollback_dir, &archive_path)?,
                 icon_relative_path: None,
                 artifact_format: RollbackArtifactFormat::Tgz,
                 artifact_entry_path: Some(artifact_entry_path),
@@ -405,8 +402,7 @@ impl<'a> RollbackManager<'a> {
 
         safe_move::move_file_or_dir(&source_path, &target_install_path)?;
 
-        let icon_source =
-            record_icon_source_path(self.paths, &record, extracted_dir.as_deref())?;
+        let icon_source = record_icon_source_path(self.paths, &record, extracted_dir.as_deref())?;
         if let (Some(icon_source), Some(icon_target)) = (
             icon_source.as_ref(),
             record.package_snapshot.icon_path.as_ref(),
@@ -540,8 +536,7 @@ impl<'a> RollbackManager<'a> {
             .map(ByteEstimate::estimated)
             .unwrap_or_else(|_| ByteEstimate::unknown());
 
-        let pruned_size =
-            self.estimate_pruned_size(&package.name, options.stored_artifacts)?;
+        let pruned_size = self.estimate_pruned_size(&package.name, options.stored_artifacts)?;
 
         let Some(new_size) = new_capture_size.bytes else {
             return Ok(SignedByteEstimate::unknown());
@@ -557,11 +552,7 @@ impl<'a> RollbackManager<'a> {
         })
     }
 
-    fn estimate_pruned_size(
-        &self,
-        package_name: &str,
-        stored_artifacts: usize,
-    ) -> Result<u64> {
+    fn estimate_pruned_size(&self, package_name: &str, stored_artifacts: usize) -> Result<u64> {
         self.rollback_storage
             .records_pruned_by_next_push(package_name, stored_artifacts)
             .iter()
@@ -726,15 +717,13 @@ fn cleanup_failed_capture(
 }
 
 fn path_relative_to(base: &Path, full: &Path) -> Result<PathBuf> {
-    full.strip_prefix(base)
-        .map(Path::to_path_buf)
-        .map_err(|_| {
-            anyhow!(
-                "Path '{}' is not under '{}'",
-                full.display(),
-                base.display()
-            )
-        })
+    full.strip_prefix(base).map(Path::to_path_buf).map_err(|_| {
+        anyhow!(
+            "Path '{}' is not under '{}'",
+            full.display(),
+            base.display()
+        )
+    })
 }
 
 fn effective_stored_artifacts(config: &RollbackConfig) -> usize {
@@ -864,11 +853,11 @@ fn extract_record_archive(
         ));
     }
 
-    let extract_dir = paths.state.rollback_dir.join(format!(
-        ".restore-{}-{}",
-        package_name,
-        std::process::id()
-    ));
+    let extract_dir =
+        paths
+            .state
+            .rollback_dir
+            .join(format!(".restore-{}-{}", package_name, std::process::id()));
 
     if extract_dir.exists() {
         fs::remove_dir_all(&extract_dir).context(format!(
@@ -1010,10 +999,7 @@ fn delete_record_artifacts(
     cleanup_empty_package_rollback_dir(paths, package_name)
 }
 
-fn cleanup_empty_rollback_ancestors(
-    package_dir: &Path,
-    start: Option<&Path>,
-) -> Result<()> {
+fn cleanup_empty_rollback_ancestors(package_dir: &Path, start: Option<&Path>) -> Result<()> {
     let Some(mut current) = start else {
         return Ok(());
     };
@@ -1042,10 +1028,7 @@ fn cleanup_empty_rollback_ancestors(
     Ok(())
 }
 
-fn cleanup_empty_package_rollback_dir(
-    paths: &UpstreamPaths,
-    package_name: &str,
-) -> Result<()> {
+fn cleanup_empty_package_rollback_dir(paths: &UpstreamPaths, package_name: &str) -> Result<()> {
     let package_dir = paths.state.rollback_dir.join(package_name);
 
     if package_dir.exists()
@@ -1132,8 +1115,7 @@ mod tests {
         let mut package_database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("package storage");
         let rollback_file = RollbackManager::rollback_file_path(&paths);
-        let mut rollback_storage =
-            RollbackStorage::new(&rollback_file).expect("rollback storage");
+        let mut rollback_storage = RollbackStorage::new(&rollback_file).expect("rollback storage");
         let package = test_package(&root, "tool");
         let install_path = package.install_path.as_ref().expect("install path");
         fs::create_dir_all(install_path.parent().expect("install parent"))
@@ -1173,8 +1155,7 @@ mod tests {
         let mut package_database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("package storage");
         let rollback_file = RollbackManager::rollback_file_path(&paths);
-        let mut rollback_storage =
-            RollbackStorage::new(&rollback_file).expect("rollback storage");
+        let mut rollback_storage = RollbackStorage::new(&rollback_file).expect("rollback storage");
 
         let package = test_package(&root, "tool");
         let install_path = package.install_path.as_ref().expect("install path");
@@ -1186,16 +1167,11 @@ mod tests {
             let mut manager =
                 RollbackManager::new(&paths, &mut package_database, &mut rollback_storage);
             manager
-                .capture_from_installed(
-                    &package,
-                    RollbackSource::Upgrade,
-                    &mut None::<fn(&str)>,
-                )
+                .capture_from_installed(&package, RollbackSource::Upgrade, &mut None::<fn(&str)>)
                 .expect("first capture");
         }
 
-        let manager =
-            RollbackManager::new(&paths, &mut package_database, &mut rollback_storage);
+        let manager = RollbackManager::new(&paths, &mut package_database, &mut rollback_storage);
         let impact = manager
             .estimate_capture_impact(&package)
             .expect("capture impact");

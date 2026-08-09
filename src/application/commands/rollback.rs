@@ -6,7 +6,10 @@ use crate::{
     application::operations::rollback_op::{
         RollbackListRow, RollbackOperation, RollbackPackageOutcome, RollbackPackageStatus,
         RollbackPreview, RollbackPreviewRow,
-    }, output::{self, Status, TransactionRow, shorten_upstream_package_path}, storage::rollback::RollbackSource, utils::static_paths::UpstreamPaths,
+    },
+    output::{self, Status, TransactionRow, shorten_upstream_package_path},
+    storage::rollback::RollbackSource,
+    utils::static_paths::UpstreamPaths,
 };
 
 fn restore_phase_label(message: &str) -> &'static str {
@@ -334,7 +337,8 @@ fn print_list_rows(rows: &[RollbackListRow]) {
     );
     println!("{}", output::divider(table_width));
     for row in rows {
-        let path = shorten_upstream_package_path(Path::new(&row.install_path)).unwrap_or("None".to_string());
+        let path = shorten_upstream_package_path(Path::new(&row.install_path))
+            .unwrap_or("None".to_string());
 
         println!(
             "{:<name_width$} {:<version_width$} {:<source_width$} {}",

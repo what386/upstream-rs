@@ -8,8 +8,8 @@ use crate::{
     routines::build::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         packaging::{
-            InstallRequest, InstallSource, OperationPhase, PackageInstaller, PackagePhase,
-            PackageProgressEvent, PackageActivator, PreparedInstall,
+            InstallRequest, InstallSource, OperationPhase, PackageActivator, PackageInstaller,
+            PackagePhase, PackageProgressEvent, PreparedInstall,
         },
         trust::{CosignPublicKey, MinisignPublicKey, TrustedSignatureKeys},
     },

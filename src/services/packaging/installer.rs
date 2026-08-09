@@ -1,3 +1,4 @@
+use crate::storage::database::PackageDatabase;
 use crate::{
     models::common::enums::TrustMode,
     models::{
@@ -8,15 +9,13 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         packaging::{
-            staging::InstallWorkspace,
             InstallPlan, InstallRequest, InstallSource, PackagePhase, PackageProgressEvent,
             PlannedInstallSource,
-            disk_impact::{
-                DiskImpact, asset_size_estimate, estimate_fresh_install,
-            },
             activation::{PackageActivator, PreparedInstall},
+            disk_impact::{DiskImpact, asset_size_estimate, estimate_fresh_install},
             filetypes,
             selection::AssetSelector,
+            staging::InstallWorkspace,
         },
         trust::{
             ChecksumVerificationStatus, SignatureScheme, SignatureVerificationStatus,
@@ -32,7 +31,6 @@ use std::{
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
-use crate::storage::database::PackageDatabase;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -144,15 +142,10 @@ impl<'a> PackageInstaller<'a> {
                     request.package.filetype
                 };
 
-                estimate_fresh_install(
-                    filetype,
-                    asset_size_estimate(asset.size),
-                )
+                estimate_fresh_install(filetype, asset_size_estimate(asset.size))
             }
 
-            PlannedInstallSource::LocalArtifact { .. } => {
-                DiskImpact::unknown()
-            }
+            PlannedInstallSource::LocalArtifact { .. } => DiskImpact::unknown(),
         };
 
         Ok(InstallPlan {
@@ -479,10 +472,8 @@ impl<'a> PackageInstaller<'a> {
             package.filetype
         };
 
-        let disk_impact = estimate_fresh_install(
-            resolved_filetype,
-            asset_size_estimate(best_asset.size),
-        );
+        let disk_impact =
+            estimate_fresh_install(resolved_filetype, asset_size_estimate(best_asset.size));
 
         Ok(ResolvedAssetInstall {
             release,
@@ -710,9 +701,14 @@ impl<'a> PackageInstaller<'a> {
             Filetype::AppImage => {
                 #[cfg(target_os = "linux")]
                 {
-                    filetypes::handle_appimage(self.workspace(), &download_path, package, message_callback)
-                        .await
-                        .context("Failed to install AppImage")
+                    filetypes::handle_appimage(
+                        self.workspace(),
+                        &download_path,
+                        package,
+                        message_callback,
+                    )
+                    .await
+                    .context("Failed to install AppImage")
                 }
                 #[cfg(not(target_os = "linux"))]
                 {

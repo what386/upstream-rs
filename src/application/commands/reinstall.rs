@@ -14,7 +14,7 @@ use crate::{
     providers::provider_manager::ProviderManager,
     services::{
         packaging::{
-            PackageInstaller, PackageProgressEvent, PackageRemover, PackageActivator,
+            PackageActivator, PackageInstaller, PackageProgressEvent, PackageRemover,
             PackageUpgrader, ResolvedUpgradeTarget,
             disk_impact::{
                 ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate,

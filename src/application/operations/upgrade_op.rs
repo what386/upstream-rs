@@ -1,12 +1,21 @@
 use crate::{
-    application::cancellation, models::{common::enums::{Channel, Provider, TrustMode}, upstream::{Package, config::ConcurrencyConfig}}, output, providers::provider_manager::ProviderManager, services::{packaging::{PackageActivator, PackageChecker, PackageInstaller, PackageProgressEvent, PackageUpgrader, ResolvedUpgradeTarget, RollbackManager,
-    disk_impact::{
-        DiskImpact, SignedByteEstimate,
-    }
-    }, trust::TrustedSignatureKeys}, storage::{
-        database::PackageDatabase,
-        rollback::RollbackStorage,
-    }, utils::static_paths::UpstreamPaths,
+    application::cancellation,
+    models::{
+        common::enums::{Channel, Provider, TrustMode},
+        upstream::{Package, config::ConcurrencyConfig},
+    },
+    output,
+    providers::provider_manager::ProviderManager,
+    services::{
+        packaging::{
+            PackageActivator, PackageChecker, PackageInstaller, PackageProgressEvent,
+            PackageUpgrader, ResolvedUpgradeTarget, RollbackManager,
+            disk_impact::{DiskImpact, SignedByteEstimate},
+        },
+        trust::TrustedSignatureKeys,
+    },
+    storage::{database::PackageDatabase, rollback::RollbackStorage},
+    utils::static_paths::UpstreamPaths,
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -44,14 +53,12 @@ fn build_ref_version(label: impl AsRef<str>, commit: Option<&str>) -> String {
 
 type SharedProgressCallback<'a, P> = Arc<Mutex<&'a mut Option<P>>>;
 
-fn emit_progress<P>(
-    callback: &SharedProgressCallback<'_, P>,
-    event: UpgradeProgressEvent,
-) where
+fn emit_progress<P>(callback: &SharedProgressCallback<'_, P>, event: UpgradeProgressEvent)
+where
     P: FnMut(UpgradeProgressEvent),
 {
     if let Ok(mut callback) = callback.lock()
-        && let Some(callback) = (&mut **callback).as_mut()
+        && let Some(callback) = (**callback).as_mut()
     {
         callback(event);
     }
@@ -77,7 +84,6 @@ fn emit_package_progress<P>(
 
     emit_progress(callback, event);
 }
-
 
 pub struct UpgradeOperation<'a> {
     upgrader: PackageUpgrader<'a>,
@@ -265,26 +271,20 @@ impl<'a> UpgradeOperation<'a> {
                     return SignedByteEstimate::unknown();
                 };
 
-                let mut database = match PackageDatabase::open(
-                    &self.paths.metadata.packages_database_file,
-                ) {
-                    Ok(database) => database,
-                    Err(_) => return SignedByteEstimate::unknown(),
-                };
+                let mut database =
+                    match PackageDatabase::open(&self.paths.metadata.packages_database_file) {
+                        Ok(database) => database,
+                        Err(_) => return SignedByteEstimate::unknown(),
+                    };
 
-                let manager = RollbackManager::new(
-                    self.paths,
-                    &mut database,
-                    &mut rollback_storage,
-                );
+                let manager =
+                    RollbackManager::new(self.paths, &mut database, &mut rollback_storage);
 
                 manager
                     .estimate_capture_impact(&package)
                     .unwrap_or_else(|_| SignedByteEstimate::unknown())
             })
-            .fold(SignedByteEstimate::exact(0), |total, impact| {
-                total + impact
-            })
+            .fold(SignedByteEstimate::exact(0), |total, impact| total + impact)
     }
 
     pub async fn preview_upgrade<H>(
@@ -376,25 +376,18 @@ impl<'a> UpgradeOperation<'a> {
         let source_build = package.install_type == crate::models::upstream::InstallType::Build;
 
         let old_version = if source_build {
-            build_ref_version(
-                package.version.to_string(),
-                package.build_commit.as_deref(),
-            )
+            build_ref_version(package.version.to_string(), package.build_commit.as_deref())
         } else {
             package.version.to_string()
         };
 
         let new_version = match &plan.target {
-            ResolvedUpgradeTarget::Release(release) => {
-                release.version.to_string()
-            }
+            ResolvedUpgradeTarget::Release(release) => release.version.to_string(),
 
             ResolvedUpgradeTarget::Branch {
                 branch,
                 head_commit,
-            } => {
-                build_ref_version(branch, Some(head_commit))
-            }
+            } => build_ref_version(branch, Some(head_commit)),
         };
 
         Ok(Some(UpgradePreviewRow {
@@ -459,11 +452,7 @@ impl<'a> UpgradeOperation<'a> {
                 let mut no_download_progress: Option<fn(u64, u64)> = None;
                 let mut ignored_messages = Some(|_: &str| {});
                 let mut progress_cb = Some(move |event: PackageProgressEvent| {
-                    emit_package_progress(
-                        &package_progress_callback,
-                        &progress_name,
-                        event,
-                    );
+                    emit_package_progress(&package_progress_callback, &progress_name, event);
                 });
 
                 let result = upgrader
@@ -805,4 +794,3 @@ mod tests {
         fs::remove_dir_all(root).expect("cleanup");
     }
 }
-

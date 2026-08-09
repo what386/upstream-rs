@@ -11,9 +11,7 @@ pub fn shorten_upstream_package_path(path: &Path) -> Option<String> {
     }
 }
 
-pub fn progress_name_width<'a>(
-    names: impl IntoIterator<Item = &'a str>,
-) -> usize {
+pub fn progress_name_width<'a>(names: impl IntoIterator<Item = &'a str>) -> usize {
     names
         .into_iter()
         .map(|name| name.chars().count())

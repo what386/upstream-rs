@@ -79,8 +79,7 @@ pub struct RollbackPruneOutcome {
 
 impl<'a> RollbackOperation<'a> {
     pub fn new(paths: &'a UpstreamPaths) -> Result<Self> {
-        let package_database =
-            PackageDatabase::open(&paths.metadata.packages_database_file)?;
+        let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
 
         let rollback_file = RollbackManager::rollback_file_path(paths);
         let rollback_storage = RollbackStorage::new(&rollback_file)?;
@@ -272,9 +271,7 @@ impl<'a> RollbackOperation<'a> {
                         let summary = output::error_summary(&err);
                         packages.push(RollbackPackageOutcome {
                             name: name.clone(),
-                            status: RollbackPackageStatus::Failed {
-                                error: summary,
-                            },
+                            status: RollbackPackageStatus::Failed { error: summary },
                         });
                         return Err(err);
                     }

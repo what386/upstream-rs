@@ -74,8 +74,7 @@ pub fn run(
         return Err(anyhow::anyhow!("At least one package name is required"));
     }
 
-    let progress_name_width =
-        output::progress_name_width(names.iter().map(String::as_str));
+    let progress_name_width = output::progress_name_width(names.iter().map(String::as_str));
 
     let mut package_remover = RemoveOperation::new(&mut package_database, paths);
 

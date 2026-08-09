@@ -182,12 +182,8 @@ pub fn estimate_path_size(path: &Path) -> Result<u64> {
     for entry in WalkDir::new(path).follow_links(false) {
         let entry = entry.with_context(|| format!("Failed to scan '{}'", path.display()))?;
 
-        let metadata = fs::symlink_metadata(entry.path()).with_context(|| {
-            format!(
-                "Failed to read metadata for '{}'",
-                entry.path().display()
-            )
-        })?;
+        let metadata = fs::symlink_metadata(entry.path())
+            .with_context(|| format!("Failed to read metadata for '{}'", entry.path().display()))?;
 
         #[cfg(unix)]
         let size = metadata_disk_usage(&metadata, &mut seen_files)?;
@@ -230,9 +226,7 @@ fn metadata_disk_usage(metadata: &fs::Metadata) -> Result<u64> {
     Ok(metadata.len())
 }
 
-pub fn estimate_existing_paths(
-    paths: impl IntoIterator<Item = impl AsRef<Path>>,
-) -> Result<u64> {
+pub fn estimate_existing_paths(paths: impl IntoIterator<Item = impl AsRef<Path>>) -> Result<u64> {
     let mut total = 0_u64;
 
     for path in paths {
@@ -302,25 +296,17 @@ fn combine_confidence(left: SizeConfidence, right: SizeConfidence) -> SizeConfid
         (Exact, Exact) => Exact,
 
         // A lower bound plus an exact/lower-bound value remains a lower bound.
-        (AtLeast, Exact)
-        | (Exact, AtLeast)
-        | (AtLeast, AtLeast) => AtLeast,
+        (AtLeast, Exact) | (Exact, AtLeast) | (AtLeast, AtLeast) => AtLeast,
 
         // Once an ordinary estimate participates, we no longer have a
         // mathematically meaningful lower bound.
-        (Estimated, _)
-        | (_, Estimated) => Estimated,
+        (Estimated, _) | (_, Estimated) => Estimated,
     }
 }
 
-pub fn estimate_fresh_install(
-    filetype: Filetype,
-    download: ByteEstimate,
-) -> DiskImpact {
+pub fn estimate_fresh_install(filetype: Filetype, download: ByteEstimate) -> DiskImpact {
     let net = match (filetype, download.bytes) {
-        (Filetype::Archive | Filetype::Compressed, _) => {
-            SignedByteEstimate::unknown()
-        }
+        (Filetype::Archive | Filetype::Compressed, _) => SignedByteEstimate::unknown(),
 
         (_, Some(bytes)) => SignedByteEstimate {
             bytes: Some(i128::from(bytes)),
@@ -341,13 +327,11 @@ pub fn estimate_upgrade(
     let net = match (filetype, download.bytes) {
         // Cheap heuristic: assume archive upgrades install to roughly
         // the same size as the current version.
-        (Filetype::Archive | Filetype::Compressed, _) => {
-            SignedByteEstimate::estimated(0)
-        }
+        (Filetype::Archive | Filetype::Compressed, _) => SignedByteEstimate::estimated(0),
 
-        (_, Some(new_size)) => SignedByteEstimate::estimated(
-            i128::from(new_size) - i128::from(current_installed),
-        ),
+        (_, Some(new_size)) => {
+            SignedByteEstimate::estimated(i128::from(new_size) - i128::from(current_installed))
+        }
 
         (_, None) => SignedByteEstimate::unknown(),
     };
@@ -357,9 +341,7 @@ pub fn estimate_upgrade(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        ByteEstimate, SignedByteEstimate, SizeConfidence, estimate_path_size,
-    };
+    use super::{ByteEstimate, SignedByteEstimate, SizeConfidence, estimate_path_size};
     use std::fs;
 
     #[test]
@@ -396,8 +378,7 @@ mod tests {
 
     #[test]
     fn signed_estimates_add_and_preserve_estimated_confidence() {
-        let total = SignedByteEstimate::exact(10)
-            + SignedByteEstimate::estimated(-3);
+        let total = SignedByteEstimate::exact(10) + SignedByteEstimate::estimated(-3);
 
         assert_eq!(total.bytes, Some(7));
         assert_eq!(total.confidence, SizeConfidence::Estimated);
@@ -405,8 +386,7 @@ mod tests {
 
     #[test]
     fn signed_known_plus_unknown_is_unknown() {
-        let total = SignedByteEstimate::exact(-10)
-            + SignedByteEstimate::unknown();
+        let total = SignedByteEstimate::exact(-10) + SignedByteEstimate::unknown();
 
         assert_eq!(total.bytes, None);
         assert_eq!(total.confidence, SizeConfidence::Unknown);
@@ -422,10 +402,8 @@ mod tests {
 
     #[test]
     fn path_size_counts_nested_files() {
-        let root = std::env::temp_dir().join(format!(
-            "upstream-disk-impact-test-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("upstream-disk-impact-test-{}", std::process::id()));
 
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("nested")).expect("create dir");
