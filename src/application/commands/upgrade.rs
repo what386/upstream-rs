@@ -912,12 +912,11 @@ async fn run_dry_run(
 #[cfg(test)]
 mod tests {
     use super::{
-        CheckTableLayout, UpgradePromptAction, json_check_rows, render_upgrade_progress_row,
+        CheckTableLayout, UpgradePromptAction, json_check_rows,
         upgrade_prompt_action_from_input,
     };
     use crate::application::operations::upgrade_op::{UpdateCheckRow, UpdateCheckStatus};
     use crate::models::common::enums::{Channel, Provider};
-    use crate::services::packaging::{PackagePhase, PackageProgressEvent};
 
     #[test]
     fn upgrade_prompt_accepts_changelog_option() {
