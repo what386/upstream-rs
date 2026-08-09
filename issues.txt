@@ -1,2 +1,3 @@
 - installs sometimes hang after downloading
 - ctrl-c doesnt always work (specifically during download step)
+- disk impact is blatantly wrong (broke during packaging rework?)
