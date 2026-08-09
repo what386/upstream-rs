@@ -20,6 +20,7 @@ use crate::{
 };
 
 const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
+const PROBE_PROGRESS_BAR_WIDTH: usize = 14;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
@@ -60,6 +61,7 @@ pub async fn run(
             println!("{}", serde_json::to_string_pretty(&result)?);
             return Ok(());
         }
+
         println!(
             "{}",
             crate::output::warning(format!(
@@ -85,6 +87,7 @@ pub async fn run(
                 probe_result.channel
             )
         };
+
         println!("{}", output::warning(message));
         return Ok(());
     }
@@ -94,6 +97,7 @@ pub async fn run(
         "Probe: '{}' as '{}' via {}",
         repo_slug, probe_result.repo_slug, probe_result.provider
     );
+
     let Some(selected) = output::select_from_table(prompt, &table.headers, &table.rows)? else {
         println!("{}", output::warning("Cancelled"));
         return Ok(());
@@ -107,10 +111,12 @@ pub async fn run(
         probe_result.base_url.as_deref(),
         &package_database,
     )?;
+
     let selection =
         probe_operation.prepare_install_selection(&probe_result, selected, install_name)?;
 
     println!("{}", output::title("Install preview"));
+
     output::kv("Package", &selection.package.name);
     output::kv(
         "Source",
@@ -125,7 +131,10 @@ pub async fn run(
     );
     output::kv(
         "Asset",
-        format!("{} ({:?})", selection.asset.name, selection.asset.filetype),
+        format!(
+            "{} ({:?})",
+            selection.asset.name, selection.asset.filetype
+        ),
     );
     output::kv(
         "Match",
@@ -153,6 +162,7 @@ pub async fn run(
         selection.disk_impact.net,
         selection.disk_impact.download,
     )];
+
     output::print_transaction_table(
         &transaction_rows,
         &selection.disk_impact,
@@ -181,27 +191,39 @@ pub async fn run(
     pb.set_message(format!("Installing {}", selection.package.name));
 
     let progress_name = selection.package.name.clone();
+    let progress_name_width = output::progress_name_width([progress_name.as_str()]);
     let install_name = selection.package.name.clone();
     let install_version = selection.release.tag.clone();
+
     let progress_pb = pb.clone();
     let mut last_emit = None;
+
     let mut progress_callback = Some(move |event: PackageProgressEvent| {
         let should_emit = last_emit
-            .map(|elapsed: std::time::Instant| elapsed.elapsed() >= PROGRESS_UPDATE_INTERVAL)
+            .map(|elapsed: std::time::Instant| {
+                elapsed.elapsed() >= PROGRESS_UPDATE_INTERVAL
+            })
             .unwrap_or(true);
+
         if should_emit
             || !matches!(
                 event,
-                PackageProgressEvent::Download { .. } | PackageProgressEvent::Zsync { .. }
+                PackageProgressEvent::Download { .. }
+                    | PackageProgressEvent::Zsync { .. }
             )
         {
-            progress_pb.set_message(render_probe_install_progress_message(&progress_name, event));
+            progress_pb.set_message(render_probe_install_progress_message(
+                &progress_name,
+                event,
+                progress_name_width,
+            ));
             last_emit = Some(std::time::Instant::now());
         }
     });
 
     let mut no_download_progress: Option<fn(u64, u64)> = None;
     let mut ignored_messages = Some(|_: &str| {});
+
     let install_result = install_operation
         .install_selected_asset(
             SelectedAssetInstallRequest {
@@ -234,15 +256,21 @@ pub async fn run(
                 output::success("Install complete: 1 installed, 0 failed.")
             );
         }
+
         Err(err) => {
             println!(
                 "{}",
-                output::status_line_text(Status::Fail, &install_name, output::error_summary(&err))
+                output::status_line_text(
+                    Status::Fail,
+                    &install_name,
+                    output::error_summary(&err)
+                )
             );
             println!(
                 "{}",
                 output::warning("Install complete: 0 installed, 1 failed.")
             );
+
             return Err(err.context(format!("Failed to install '{install_name}'")));
         }
     }
@@ -250,24 +278,36 @@ pub async fn run(
     Ok(())
 }
 
-fn render_probe_install_progress_message(name: &str, event: PackageProgressEvent) -> String {
+fn render_probe_install_progress_message(
+    name: &str,
+    event: PackageProgressEvent,
+    name_width: usize,
+) -> String {
     format!(
         "Installing {name}\n{}",
-        render_probe_install_progress_row(name, event)
+        render_probe_install_progress_row(name, event, name_width)
     )
 }
 
-fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) -> String {
-    match event {
-        PackageProgressEvent::Phase(phase) => {
-            format!(" {:<28} {}", name, phase.label())
-        }
-        PackageProgressEvent::Detail(message) => format!(" {:<28} {}", name, message),
+fn render_probe_install_progress_row(
+    name: &str,
+    event: PackageProgressEvent,
+    name_width: usize,
+) -> String {
+    let detail = match event {
+        PackageProgressEvent::Phase(phase) => phase.label().to_string(),
+
+        PackageProgressEvent::Detail(message) => message,
+
         PackageProgressEvent::Download { downloaded, total } => {
-            let detail = if total > 0 {
+            if total > 0 {
                 format!(
                     "Downloading {} {} / {}",
-                    output::progress_bar(downloaded, total, 14),
+                    output::progress_bar(
+                        downloaded,
+                        total,
+                        PROBE_PROGRESS_BAR_WIDTH,
+                    ),
                     HumanBytes(downloaded),
                     HumanBytes(total)
                 )
@@ -275,27 +315,35 @@ fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) ->
                 format!("Downloading {}", HumanBytes(downloaded))
             } else {
                 "Downloading...".to_string()
-            };
-            format!(" {:<28} {}", name, detail)
+            }
         }
+
         PackageProgressEvent::Extraction { extracted, total } => {
-            let detail = if total > 0 {
+            if total > 0 {
                 format!(
                     "Extracting {} {} / {}",
-                    output::progress_bar(extracted, total, 14),
+                    output::progress_bar(
+                        extracted,
+                        total,
+                        PROBE_PROGRESS_BAR_WIDTH,
+                    ),
                     HumanBytes(extracted),
                     HumanBytes(total)
                 )
             } else {
                 "Extracting...".to_string()
-            };
-            format!(" {:<28} {}", name, detail)
+            }
         }
+
         PackageProgressEvent::Zsync { downloaded, total } => {
-            let detail = if total > 0 {
+            if total > 0 {
                 format!(
                     "Synchronizing {} {} / {}",
-                    output::progress_bar(downloaded, total, 14),
+                    output::progress_bar(
+                        downloaded,
+                        total,
+                        PROBE_PROGRESS_BAR_WIDTH,
+                    ),
                     HumanBytes(downloaded),
                     HumanBytes(total)
                 )
@@ -303,27 +351,31 @@ fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) ->
                 format!("Synchronizing {}", HumanBytes(downloaded))
             } else {
                 "Synchronizing...".to_string()
-            };
-            format!(" {:<28} {}", name, detail)
+            }
         }
+
         PackageProgressEvent::Checksum { checked, total } => {
-            let detail = if total > 0 {
+            if total > 0 {
                 format!(
                     "Checksumming {} {}",
-                    output::progress_bar(checked, total, 14),
+                    output::progress_bar(
+                        checked,
+                        total,
+                        PROBE_PROGRESS_BAR_WIDTH,
+                    ),
                     HumanBytes(checked)
                 )
             } else if checked > 0 {
                 format!("Checksumming {}", HumanBytes(checked))
             } else {
                 "Checksumming...".to_string()
-            };
-            format!(" {:<28} {}", name, detail)
+            }
         }
-        PackageProgressEvent::Warning(message) => {
-            format!(" {:<28} {}", name, message)
-        }
-    }
+
+        PackageProgressEvent::Warning(message) => message,
+    };
+
+    format!(" {name:<name_width$}{detail}")
 }
 
 struct ProbeAssetChoiceTable {
@@ -334,6 +386,7 @@ struct ProbeAssetChoiceTable {
 impl ProbeAssetChoiceTable {
     fn from_choices(choices: &[ProbeAssetChoice]) -> Self {
         let widths = ProbeAssetChoiceWidths::from_choices(choices);
+
         let header = format!(
             "  {:<rel$} {:<state$} {:<name$} {:<kind$} {:>size$} {:<os$} {:<arch$} {:>score$}",
             "Release",
@@ -355,6 +408,7 @@ impl ProbeAssetChoiceTable {
         );
 
         let divider = format!("  {}", output::divider(widths.table_width()));
+
         let rows = choices
             .iter()
             .map(|choice| format_probe_asset_choice(choice, &widths))
@@ -367,8 +421,12 @@ impl ProbeAssetChoiceTable {
     }
 }
 
-fn format_probe_asset_choice(choice: &ProbeAssetChoice, widths: &ProbeAssetChoiceWidths) -> String {
+fn format_probe_asset_choice(
+    choice: &ProbeAssetChoice,
+    widths: &ProbeAssetChoiceWidths,
+) -> String {
     let asset = &choice.asset;
+
     format!(
         "{:<rel$} {:<state$} {:<name$} {:<kind$} {:>size$} {:<os$} {:<arch$} {:>score$}",
         truncate(&choice.release_tag, widths.release),
@@ -421,18 +479,21 @@ impl ProbeAssetChoiceWidths {
             .unwrap_or(7)
             .max("Release".len())
             .min(28);
+
         let state = choices
             .iter()
             .map(|choice| choice.release_state.label().chars().count())
             .max()
             .unwrap_or(5)
             .max("State".len());
+
         let asset = choices
             .iter()
             .map(|choice| choice.asset.name.chars().count())
             .max()
             .unwrap_or(5)
             .max("Asset".len());
+
         let kind = choices
             .iter()
             .map(|choice| format!("{:?}", choice.asset.filetype).chars().count())
@@ -440,12 +501,19 @@ impl ProbeAssetChoiceWidths {
             .unwrap_or(4)
             .max("Kind".len())
             .min(20);
+
         let size = choices
             .iter()
-            .map(|choice| HumanBytes(choice.asset.size).to_string().chars().count())
+            .map(|choice| {
+                HumanBytes(choice.asset.size)
+                    .to_string()
+                    .chars()
+                    .count()
+            })
             .max()
             .unwrap_or(4)
             .max("Size".len());
+
         let os = choices
             .iter()
             .map(|choice| {
@@ -460,6 +528,7 @@ impl ProbeAssetChoiceWidths {
             .unwrap_or(2)
             .max("OS".len())
             .min(10);
+
         let arch = choices
             .iter()
             .map(|choice| {
@@ -474,6 +543,7 @@ impl ProbeAssetChoiceWidths {
             .unwrap_or(4)
             .max("Arch".len())
             .min(12);
+
         let score = choices
             .iter()
             .map(|choice| {
@@ -554,7 +624,10 @@ struct JsonAssetCandidate {
     target_arch: Option<String>,
 }
 
-fn json_probe_result(probe_result: &ProbeResult, rows: &[ProbeRow]) -> JsonProbeResult {
+fn json_probe_result(
+    probe_result: &ProbeResult,
+    rows: &[ProbeRow],
+) -> JsonProbeResult {
     JsonProbeResult {
         source: JsonProbeSource {
             input: probe_result.input.clone(),
@@ -589,6 +662,7 @@ fn json_asset_candidates(row: &ProbeRow) -> Vec<JsonAssetCandidate> {
         .enumerate()
         .map(|(idx, candidate)| {
             let asset = &candidate.asset;
+
             JsonAssetCandidate {
                 rank: idx + 1,
                 score: candidate.score,
@@ -598,8 +672,14 @@ fn json_asset_candidates(row: &ProbeRow) -> Vec<JsonAssetCandidate> {
                 size: asset.size,
                 created_at: asset.created_at.to_rfc3339(),
                 filetype: asset.filetype.to_string(),
-                target_os: asset.target_os.as_ref().map(|value| format!("{value:?}")),
-                target_arch: asset.target_arch.as_ref().map(|value| format!("{value:?}")),
+                target_os: asset
+                    .target_os
+                    .as_ref()
+                    .map(|value| format!("{value:?}")),
+                target_arch: asset
+                    .target_arch
+                    .as_ref()
+                    .map(|value| format!("{value:?}")),
             }
         })
         .collect()
@@ -607,14 +687,17 @@ fn json_asset_candidates(row: &ProbeRow) -> Vec<JsonAssetCandidate> {
 
 fn truncate(value: &str, max: usize) -> String {
     let char_count = value.chars().count();
+
     if char_count <= max {
         return value.to_string();
     }
 
     let mut out = String::new();
+
     for ch in value.chars().take(max.saturating_sub(3)) {
         out.push(ch);
     }
+
     out.push_str("...");
     out
 }
@@ -623,11 +706,13 @@ fn truncate(value: &str, max: usize) -> String {
 mod tests {
     use super::{
         JsonProbeResult, ProbeAssetChoiceTable, json_probe_result,
+        render_probe_install_progress_message,
         render_probe_install_progress_row,
     };
     use crate::{
         application::operations::probe_op::{
-            ProbeResult, ProbeRow, ReleaseState, build_probe_asset_choices,
+            ProbeResult, ProbeRow, ReleaseState,
+            build_probe_asset_choices,
         },
         models::{
             common::{
@@ -637,14 +722,20 @@ mod tests {
             provider::{Asset, Release},
             upstream::Package,
         },
-        providers::{asset_scorer::AssetCandidate, provider_manager::ProviderManager},
+        providers::{
+            asset_scorer::AssetCandidate,
+            provider_manager::ProviderManager,
+        },
         services::packaging::{PackagePhase, PackageProgressEvent},
     };
     use chrono::{TimeZone, Utc};
 
     #[test]
     fn json_probe_result_includes_source_releases_and_candidates() {
-        let created_at = chrono::Utc.with_ymd_and_hms(2026, 6, 12, 1, 2, 3).unwrap();
+        let created_at = chrono::Utc
+            .with_ymd_and_hms(2026, 6, 12, 1, 2, 3)
+            .unwrap();
+
         let row = ProbeRow {
             row_id: "R01".to_string(),
             state: ReleaseState::Release,
@@ -668,6 +759,7 @@ mod tests {
             }]),
             candidate_error: None,
         };
+
         let probe_package = Package::with_defaults(
             String::new(),
             "owner/tool".to_string(),
@@ -678,6 +770,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         let probe_result = ProbeResult {
             input: "owner/tool".to_string(),
             repo_slug: "owner/tool".to_string(),
@@ -691,13 +784,18 @@ mod tests {
             choices: Vec::new(),
         };
 
-        let result: JsonProbeResult = json_probe_result(&probe_result, &[row]);
-        let json = serde_json::to_value(result).expect("serialize probe result");
+        let result: JsonProbeResult =
+            json_probe_result(&probe_result, &[row]);
+        let json =
+            serde_json::to_value(result).expect("serialize probe result");
 
         assert_eq!(json["source"]["provider"], "github");
         assert_eq!(json["channel"], "Stable");
         assert_eq!(json["releases"][0]["state"], "release");
-        assert_eq!(json["releases"][0]["candidates"][0]["rank"], 1);
+        assert_eq!(
+            json["releases"][0]["candidates"][0]["rank"],
+            1
+        );
         assert_eq!(
             json["releases"][0]["candidates"][0]["filetype"],
             "Compressed archive"
@@ -707,7 +805,14 @@ mod tests {
     #[test]
     fn probe_asset_choices_keep_explicit_filetype_filter() {
         let provider_manager =
-            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+            ProviderManager::new(
+                None,
+                None,
+                None,
+                Default::default(),
+            )
+            .expect("provider manager");
+
         let package = Package::with_defaults(
             String::new(),
             "owner/tool".to_string(),
@@ -718,6 +823,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         let releases = vec![Release {
             id: 1,
             tag: "v1.2.3".to_string(),
@@ -745,19 +851,35 @@ mod tests {
             published_at: Utc::now(),
         }];
 
-        let choices = build_probe_asset_choices(&releases, &provider_manager, &package, false);
+        let choices = build_probe_asset_choices(
+            &releases,
+            &provider_manager,
+            &package,
+            false,
+        );
         let table = ProbeAssetChoiceTable::from_choices(&choices);
 
         assert_eq!(choices.len(), 1);
         assert_eq!(choices[0].asset.name, "tool.tar.gz");
         assert!(table.rows[0].contains("tool.tar.gz"));
-        assert!(!choices.iter().any(|choice| choice.asset.name == "tool.gz"));
+        assert!(
+            !choices
+                .iter()
+                .any(|choice| choice.asset.name == "tool.gz")
+        );
     }
 
     #[test]
     fn probe_asset_choices_include_all_installable_filetypes_for_auto() {
         let provider_manager =
-            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+            ProviderManager::new(
+                None,
+                None,
+                None,
+                Default::default(),
+            )
+            .expect("provider manager");
+
         let package = Package::with_defaults(
             String::new(),
             "owner/tool".to_string(),
@@ -768,6 +890,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         let releases = vec![Release {
             id: 1,
             tag: "v1.2.3".to_string(),
@@ -795,24 +918,52 @@ mod tests {
             published_at: Utc::now(),
         }];
 
-        let choices = build_probe_asset_choices(&releases, &provider_manager, &package, false);
+        let choices = build_probe_asset_choices(
+            &releases,
+            &provider_manager,
+            &package,
+            false,
+        );
         let table = ProbeAssetChoiceTable::from_choices(&choices);
 
         assert_eq!(choices.len(), 2);
+
         assert!(
             choices
                 .iter()
                 .any(|choice| choice.asset.name == "tool.tar.gz")
         );
-        assert!(choices.iter().any(|choice| choice.asset.name == "tool.gz"));
-        assert!(table.rows.iter().any(|row| row.contains("tool.tar.gz")));
-        assert!(table.rows.iter().any(|row| row.contains("tool.gz")));
+        assert!(
+            choices
+                .iter()
+                .any(|choice| choice.asset.name == "tool.gz")
+        );
+
+        assert!(
+            table
+                .rows
+                .iter()
+                .any(|row| row.contains("tool.tar.gz"))
+        );
+        assert!(
+            table
+                .rows
+                .iter()
+                .any(|row| row.contains("tool.gz"))
+        );
     }
 
     #[test]
     fn probe_asset_choices_can_include_incompatible_assets() {
         let provider_manager =
-            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+            ProviderManager::new(
+                None,
+                None,
+                None,
+                Default::default(),
+            )
+            .expect("provider manager");
+
         let package = Package::with_defaults(
             String::new(),
             "owner/tool".to_string(),
@@ -823,6 +974,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         let releases = vec![Release {
             id: 1,
             tag: "v1.2.3".to_string(),
@@ -850,7 +1002,12 @@ mod tests {
             published_at: Utc::now(),
         }];
 
-        let choices = build_probe_asset_choices(&releases, &provider_manager, &package, true);
+        let choices = build_probe_asset_choices(
+            &releases,
+            &provider_manager,
+            &package,
+            true,
+        );
         let table = ProbeAssetChoiceTable::from_choices(&choices);
 
         assert_eq!(choices.len(), 2);
@@ -860,14 +1017,22 @@ mod tests {
 
     #[test]
     fn probe_install_progress_row_renders_download_and_phase_states() {
+        let name_width = "pnpm".chars().count() + 1;
+
         let download = render_probe_install_progress_row(
             "pnpm",
             PackageProgressEvent::Download {
                 downloaded: 1024,
                 total: 2048,
             },
+            name_width,
         );
-        assert!(download.starts_with(" pnpm                         Downloading [=======>      ]"));
+
+        assert!(
+            download.starts_with(
+                " pnpm Downloading [=======>      ]"
+            )
+        );
         assert!(download.contains('/'));
 
         let zsync = render_probe_install_progress_row(
@@ -876,15 +1041,42 @@ mod tests {
                 downloaded: 1024,
                 total: 2048,
             },
+            name_width,
         );
-        assert!(zsync.starts_with(" pnpm                         Synchronizing [=======>      ]"));
+
+        assert!(
+            zsync.starts_with(
+                " pnpm Synchronizing [=======>      ]"
+            )
+        );
         assert!(zsync.contains('/'));
 
         let phase = render_probe_install_progress_row(
             "dz6",
-            PackageProgressEvent::Phase(PackagePhase::InstallingCompletions),
+            PackageProgressEvent::Phase(
+                PackagePhase::InstallingCompletions,
+            ),
+            name_width,
         );
-        assert!(phase.starts_with(" dz6"));
-        assert!(phase.contains("Installing completions ..."));
+
+        assert!(
+            phase.starts_with(
+                " dz6  Installing completions ..."
+            )
+        );
+    }
+
+    #[test]
+    fn probe_install_progress_message_uses_dynamic_name_width() {
+        assert_eq!(
+            render_probe_install_progress_message(
+                "pnpm",
+                PackageProgressEvent::Phase(
+                    PackagePhase::InstallingPackage,
+                ),
+                5,
+            ),
+            "Installing pnpm\n pnpm Installing package ..."
+        );
     }
 }
