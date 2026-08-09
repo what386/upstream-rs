@@ -96,16 +96,16 @@ fn render_upgrade_progress_row(
         PackageProgressEvent::Extraction { .. } => "Extracting...".to_string(),
         PackageProgressEvent::Zsync { downloaded, total } if total > 0 => {
             format!(
-                "Zsync upgrading {} {} / {}",
+                "Synchronizing {} {} / {}",
                 output::progress_bar(downloaded, total, UPGRADE_PROGRESS_BAR_WIDTH),
                 HumanBytes(downloaded),
                 HumanBytes(total)
             )
         }
         PackageProgressEvent::Zsync { downloaded, .. } if downloaded > 0 => {
-            format!("Zsync upgrading {}", HumanBytes(downloaded))
+            format!("Synchronizing {}", HumanBytes(downloaded))
         }
-        PackageProgressEvent::Zsync { .. } => "Zsync upgrading...".to_string(),
+        PackageProgressEvent::Zsync { .. } => "Synchronizing...".to_string(),
         PackageProgressEvent::Checksum { checked, total } if total > 0 => {
             format!(
                 "Checksumming {} {} / {}",
@@ -970,7 +970,7 @@ mod tests {
             },
             5,
         );
-        assert!(zsync.starts_with("gitui Zsync upgrading [=======>      ]"));
+        assert!(zsync.starts_with("gitui Synchronizing [=======>      ]"));
         assert!(zsync.contains('/'));
 
         assert_eq!(

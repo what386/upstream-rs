@@ -50,7 +50,7 @@ fn render_remove_progress_row(name: &str, event: PackageProgressEvent) -> String
         PackageProgressEvent::Detail(message) => message,
         PackageProgressEvent::Download { .. } => "Downloading package ...".to_string(),
         PackageProgressEvent::Extraction { .. } => "Extracting package ...".to_string(),
-        PackageProgressEvent::Zsync { .. } => "Zsync upgrading ...".to_string(),
+        PackageProgressEvent::Zsync { .. } => "Synchronizing ...".to_string(),
         PackageProgressEvent::Checksum { .. } => "Checksumming package ...".to_string(),
         PackageProgressEvent::Warning(message) => message,
     };

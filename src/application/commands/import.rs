@@ -57,15 +57,15 @@ fn render_import_progress_row(
         }
         PackageProgressEvent::Download { .. } => "Downloading...".to_string(),
         PackageProgressEvent::Zsync { downloaded, total } if total > 0 => format!(
-            "Zsync upgrading {} {} / {}",
+            "Synchronizing {} {} / {}",
             output::progress_bar(downloaded, total, IMPORT_PROGRESS_BAR_WIDTH),
             HumanBytes(downloaded),
             HumanBytes(total),
         ),
         PackageProgressEvent::Zsync { downloaded, .. } if downloaded > 0 => {
-            format!("Zsync upgrading {}", HumanBytes(downloaded))
+            format!("Synchronizing {}", HumanBytes(downloaded))
         }
-        PackageProgressEvent::Zsync { .. } => "Zsync upgrading...".to_string(),
+        PackageProgressEvent::Zsync { .. } => "Synchronizing...".to_string(),
         PackageProgressEvent::Extraction { extracted, total } if total > 0 => format!(
             "Extracting {} {} / {}",
             output::progress_bar(extracted, total, IMPORT_PROGRESS_BAR_WIDTH),

@@ -294,15 +294,15 @@ fn render_probe_install_progress_row(name: &str, event: PackageProgressEvent) ->
         PackageProgressEvent::Zsync { downloaded, total } => {
             let detail = if total > 0 {
                 format!(
-                    "Zsync upgrading {} {} / {}",
+                    "Synchronizing {} {} / {}",
                     output::progress_bar(downloaded, total, 14),
                     HumanBytes(downloaded),
                     HumanBytes(total)
                 )
             } else if downloaded > 0 {
-                format!("Zsync upgrading {}", HumanBytes(downloaded))
+                format!("Synchronizing {}", HumanBytes(downloaded))
             } else {
-                "Zsync upgrading...".to_string()
+                "Synchronizing...".to_string()
             };
             format!(" {:<28} {}", name, detail)
         }
@@ -878,7 +878,7 @@ mod tests {
             },
         );
         assert!(
-            zsync.starts_with(" pnpm                         Zsync upgrading [=======>      ]")
+            zsync.starts_with(" pnpm                         Synchronizing [=======>      ]")
         );
         assert!(zsync.contains('/'));
 
