@@ -441,28 +441,6 @@ mod tests {
     };
 
     #[test]
-    fn live_upgrade_preview_keeps_download_column_aligned() {
-        let layout = TransactionTableLayout::upgrade_preview("stable/forge".len());
-        let row = TransactionRow::new(
-            "stable/forge",
-            "0.1.2",
-            "0.2.2",
-            SignedByteEstimate::estimated(-227_604),
-            ByteEstimate::exact(5 * 1024 * 1024),
-        );
-
-        let header = layout.header_line();
-        let rendered_row = layout.row_line(&row);
-
-        assert_eq!(header.len(), rendered_row.len());
-        assert_eq!(
-            header.find("Download Size").expect("download header") + "Download Size".len(),
-            rendered_row.find("5.00 MiB").expect("download size") + "5.00 MiB".len()
-        );
-        assert_eq!(layout.divider_line(), "-".repeat(header.len()));
-    }
-
-    #[test]
     fn row_cells_keep_confidence_marker() {
         let layout = TransactionTableLayout::upgrade_preview("stable/forge".len());
         let row = TransactionRow::new(

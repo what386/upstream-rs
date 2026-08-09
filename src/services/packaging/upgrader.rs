@@ -504,11 +504,10 @@ mod tests {
     use crate::providers::provider_manager::ProviderManager;
     use crate::services::integration::SymlinkManager;
     use crate::services::packaging::{
-        PackageInstaller, PackageProgressEvent, RollbackManager,
+        PackageInstaller, PackageProgressEvent,
         activation::{PackageActivator, ReplacementBackup},
     };
     use crate::services::trust::TrustedSignatureKeys;
-    use crate::storage::rollback::RollbackStorage;
     use crate::utils::{static_paths::UpstreamPaths, test_support};
     use chrono::Utc;
     use std::path::{Path, PathBuf};
