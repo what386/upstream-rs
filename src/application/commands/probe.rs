@@ -131,10 +131,7 @@ pub async fn run(
     );
     output::kv(
         "Asset",
-        format!(
-            "{} ({:?})",
-            selection.asset.name, selection.asset.filetype
-        ),
+        format!("{} ({:?})", selection.asset.name, selection.asset.filetype),
     );
     output::kv(
         "Match",
@@ -200,16 +197,13 @@ pub async fn run(
 
     let mut progress_callback = Some(move |event: PackageProgressEvent| {
         let should_emit = last_emit
-            .map(|elapsed: std::time::Instant| {
-                elapsed.elapsed() >= PROGRESS_UPDATE_INTERVAL
-            })
+            .map(|elapsed: std::time::Instant| elapsed.elapsed() >= PROGRESS_UPDATE_INTERVAL)
             .unwrap_or(true);
 
         if should_emit
             || !matches!(
                 event,
-                PackageProgressEvent::Download { .. }
-                    | PackageProgressEvent::Zsync { .. }
+                PackageProgressEvent::Download { .. } | PackageProgressEvent::Zsync { .. }
             )
         {
             progress_pb.set_message(render_probe_install_progress_message(
@@ -260,11 +254,7 @@ pub async fn run(
         Err(err) => {
             println!(
                 "{}",
-                output::status_line_text(
-                    Status::Fail,
-                    &install_name,
-                    output::error_summary(&err)
-                )
+                output::status_line_text(Status::Fail, &install_name, output::error_summary(&err))
             );
             println!(
                 "{}",
@@ -303,11 +293,7 @@ fn render_probe_install_progress_row(
             if total > 0 {
                 format!(
                     "Downloading {} {} / {}",
-                    output::progress_bar(
-                        downloaded,
-                        total,
-                        PROBE_PROGRESS_BAR_WIDTH,
-                    ),
+                    output::progress_bar(downloaded, total, PROBE_PROGRESS_BAR_WIDTH,),
                     HumanBytes(downloaded),
                     HumanBytes(total)
                 )
@@ -322,11 +308,7 @@ fn render_probe_install_progress_row(
             if total > 0 {
                 format!(
                     "Extracting {} {} / {}",
-                    output::progress_bar(
-                        extracted,
-                        total,
-                        PROBE_PROGRESS_BAR_WIDTH,
-                    ),
+                    output::progress_bar(extracted, total, PROBE_PROGRESS_BAR_WIDTH,),
                     HumanBytes(extracted),
                     HumanBytes(total)
                 )
@@ -339,11 +321,7 @@ fn render_probe_install_progress_row(
             if total > 0 {
                 format!(
                     "Synchronizing {} {} / {}",
-                    output::progress_bar(
-                        downloaded,
-                        total,
-                        PROBE_PROGRESS_BAR_WIDTH,
-                    ),
+                    output::progress_bar(downloaded, total, PROBE_PROGRESS_BAR_WIDTH,),
                     HumanBytes(downloaded),
                     HumanBytes(total)
                 )
@@ -358,11 +336,7 @@ fn render_probe_install_progress_row(
             if total > 0 {
                 format!(
                     "Checksumming {} {}",
-                    output::progress_bar(
-                        checked,
-                        total,
-                        PROBE_PROGRESS_BAR_WIDTH,
-                    ),
+                    output::progress_bar(checked, total, PROBE_PROGRESS_BAR_WIDTH,),
                     HumanBytes(checked)
                 )
             } else if checked > 0 {
@@ -421,10 +395,7 @@ impl ProbeAssetChoiceTable {
     }
 }
 
-fn format_probe_asset_choice(
-    choice: &ProbeAssetChoice,
-    widths: &ProbeAssetChoiceWidths,
-) -> String {
+fn format_probe_asset_choice(choice: &ProbeAssetChoice, widths: &ProbeAssetChoiceWidths) -> String {
     let asset = &choice.asset;
 
     format!(
@@ -504,12 +475,7 @@ impl ProbeAssetChoiceWidths {
 
         let size = choices
             .iter()
-            .map(|choice| {
-                HumanBytes(choice.asset.size)
-                    .to_string()
-                    .chars()
-                    .count()
-            })
+            .map(|choice| HumanBytes(choice.asset.size).to_string().chars().count())
             .max()
             .unwrap_or(4)
             .max("Size".len());
@@ -624,10 +590,7 @@ struct JsonAssetCandidate {
     target_arch: Option<String>,
 }
 
-fn json_probe_result(
-    probe_result: &ProbeResult,
-    rows: &[ProbeRow],
-) -> JsonProbeResult {
+fn json_probe_result(probe_result: &ProbeResult, rows: &[ProbeRow]) -> JsonProbeResult {
     JsonProbeResult {
         source: JsonProbeSource {
             input: probe_result.input.clone(),
@@ -672,14 +635,8 @@ fn json_asset_candidates(row: &ProbeRow) -> Vec<JsonAssetCandidate> {
                 size: asset.size,
                 created_at: asset.created_at.to_rfc3339(),
                 filetype: asset.filetype.to_string(),
-                target_os: asset
-                    .target_os
-                    .as_ref()
-                    .map(|value| format!("{value:?}")),
-                target_arch: asset
-                    .target_arch
-                    .as_ref()
-                    .map(|value| format!("{value:?}")),
+                target_os: asset.target_os.as_ref().map(|value| format!("{value:?}")),
+                target_arch: asset.target_arch.as_ref().map(|value| format!("{value:?}")),
             }
         })
         .collect()
@@ -706,13 +663,11 @@ fn truncate(value: &str, max: usize) -> String {
 mod tests {
     use super::{
         JsonProbeResult, ProbeAssetChoiceTable, json_probe_result,
-        render_probe_install_progress_message,
-        render_probe_install_progress_row,
+        render_probe_install_progress_message, render_probe_install_progress_row,
     };
     use crate::{
         application::operations::probe_op::{
-            ProbeResult, ProbeRow, ReleaseState,
-            build_probe_asset_choices,
+            ProbeResult, ProbeRow, ReleaseState, build_probe_asset_choices,
         },
         models::{
             common::{
@@ -722,19 +677,14 @@ mod tests {
             provider::{Asset, Release},
             upstream::Package,
         },
-        providers::{
-            asset_scorer::AssetCandidate,
-            provider_manager::ProviderManager,
-        },
+        providers::{asset_scorer::AssetCandidate, provider_manager::ProviderManager},
         services::packaging::{PackagePhase, PackageProgressEvent},
     };
     use chrono::{TimeZone, Utc};
 
     #[test]
     fn json_probe_result_includes_source_releases_and_candidates() {
-        let created_at = chrono::Utc
-            .with_ymd_and_hms(2026, 6, 12, 1, 2, 3)
-            .unwrap();
+        let created_at = chrono::Utc.with_ymd_and_hms(2026, 6, 12, 1, 2, 3).unwrap();
 
         let row = ProbeRow {
             row_id: "R01".to_string(),
@@ -784,18 +734,13 @@ mod tests {
             choices: Vec::new(),
         };
 
-        let result: JsonProbeResult =
-            json_probe_result(&probe_result, &[row]);
-        let json =
-            serde_json::to_value(result).expect("serialize probe result");
+        let result: JsonProbeResult = json_probe_result(&probe_result, &[row]);
+        let json = serde_json::to_value(result).expect("serialize probe result");
 
         assert_eq!(json["source"]["provider"], "github");
         assert_eq!(json["channel"], "Stable");
         assert_eq!(json["releases"][0]["state"], "release");
-        assert_eq!(
-            json["releases"][0]["candidates"][0]["rank"],
-            1
-        );
+        assert_eq!(json["releases"][0]["candidates"][0]["rank"], 1);
         assert_eq!(
             json["releases"][0]["candidates"][0]["filetype"],
             "Compressed archive"
@@ -805,13 +750,7 @@ mod tests {
     #[test]
     fn probe_asset_choices_keep_explicit_filetype_filter() {
         let provider_manager =
-            ProviderManager::new(
-                None,
-                None,
-                None,
-                Default::default(),
-            )
-            .expect("provider manager");
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
 
         let package = Package::with_defaults(
             String::new(),
@@ -851,34 +790,19 @@ mod tests {
             published_at: Utc::now(),
         }];
 
-        let choices = build_probe_asset_choices(
-            &releases,
-            &provider_manager,
-            &package,
-            false,
-        );
+        let choices = build_probe_asset_choices(&releases, &provider_manager, &package, false);
         let table = ProbeAssetChoiceTable::from_choices(&choices);
 
         assert_eq!(choices.len(), 1);
         assert_eq!(choices[0].asset.name, "tool.tar.gz");
         assert!(table.rows[0].contains("tool.tar.gz"));
-        assert!(
-            !choices
-                .iter()
-                .any(|choice| choice.asset.name == "tool.gz")
-        );
+        assert!(!choices.iter().any(|choice| choice.asset.name == "tool.gz"));
     }
 
     #[test]
     fn probe_asset_choices_include_all_installable_filetypes_for_auto() {
         let provider_manager =
-            ProviderManager::new(
-                None,
-                None,
-                None,
-                Default::default(),
-            )
-            .expect("provider manager");
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
 
         let package = Package::with_defaults(
             String::new(),
@@ -918,12 +842,7 @@ mod tests {
             published_at: Utc::now(),
         }];
 
-        let choices = build_probe_asset_choices(
-            &releases,
-            &provider_manager,
-            &package,
-            false,
-        );
+        let choices = build_probe_asset_choices(&releases, &provider_manager, &package, false);
         let table = ProbeAssetChoiceTable::from_choices(&choices);
 
         assert_eq!(choices.len(), 2);
@@ -933,36 +852,16 @@ mod tests {
                 .iter()
                 .any(|choice| choice.asset.name == "tool.tar.gz")
         );
-        assert!(
-            choices
-                .iter()
-                .any(|choice| choice.asset.name == "tool.gz")
-        );
+        assert!(choices.iter().any(|choice| choice.asset.name == "tool.gz"));
 
-        assert!(
-            table
-                .rows
-                .iter()
-                .any(|row| row.contains("tool.tar.gz"))
-        );
-        assert!(
-            table
-                .rows
-                .iter()
-                .any(|row| row.contains("tool.gz"))
-        );
+        assert!(table.rows.iter().any(|row| row.contains("tool.tar.gz")));
+        assert!(table.rows.iter().any(|row| row.contains("tool.gz")));
     }
 
     #[test]
     fn probe_asset_choices_can_include_incompatible_assets() {
         let provider_manager =
-            ProviderManager::new(
-                None,
-                None,
-                None,
-                Default::default(),
-            )
-            .expect("provider manager");
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
 
         let package = Package::with_defaults(
             String::new(),
@@ -1002,12 +901,7 @@ mod tests {
             published_at: Utc::now(),
         }];
 
-        let choices = build_probe_asset_choices(
-            &releases,
-            &provider_manager,
-            &package,
-            true,
-        );
+        let choices = build_probe_asset_choices(&releases, &provider_manager, &package, true);
         let table = ProbeAssetChoiceTable::from_choices(&choices);
 
         assert_eq!(choices.len(), 2);
@@ -1028,11 +922,7 @@ mod tests {
             name_width,
         );
 
-        assert!(
-            download.starts_with(
-                " pnpm Downloading [=======>      ]"
-            )
-        );
+        assert!(download.starts_with(" pnpm Downloading [=======>      ]"));
         assert!(download.contains('/'));
 
         let zsync = render_probe_install_progress_row(
@@ -1044,26 +934,16 @@ mod tests {
             name_width,
         );
 
-        assert!(
-            zsync.starts_with(
-                " pnpm Synchronizing [=======>      ]"
-            )
-        );
+        assert!(zsync.starts_with(" pnpm Synchronizing [=======>      ]"));
         assert!(zsync.contains('/'));
 
         let phase = render_probe_install_progress_row(
             "dz6",
-            PackageProgressEvent::Phase(
-                PackagePhase::InstallingCompletions,
-            ),
+            PackageProgressEvent::Phase(PackagePhase::InstallingCompletions),
             name_width,
         );
 
-        assert!(
-            phase.starts_with(
-                " dz6  Installing completions ..."
-            )
-        );
+        assert!(phase.starts_with(" dz6  Installing completions ..."));
     }
 
     #[test]
@@ -1071,9 +951,7 @@ mod tests {
         assert_eq!(
             render_probe_install_progress_message(
                 "pnpm",
-                PackageProgressEvent::Phase(
-                    PackagePhase::InstallingPackage,
-                ),
+                PackageProgressEvent::Phase(PackagePhase::InstallingPackage,),
                 5,
             ),
             "Installing pnpm\n pnpm Installing package ..."
