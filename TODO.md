@@ -18,23 +18,8 @@
 - [ ] internal: make upgrader expose plan_upgrade like installer exposes plan_install
       @created 2026-08-09 02:55
 
-      Ideally:
-        PackageInstaller
-          plan_install()
-          materialize_install()
-
-        PackageUpgrader
-          plan_upgrade()
-          materialize/upgrade_resolved()
-
-        InstallOperation
-          orchestration + DB + CLI-facing workflow
-
-        UpgradeOperation
-          orchestration + DB + aggregate rollback impact
-
-        disk_impact.rs
-          pure estimation formulas
+- [ ] consider: update reinstall to have consistent cli like upgrade/install
+      @created 2026-08-09 03:51
 
 
 ## Completed
