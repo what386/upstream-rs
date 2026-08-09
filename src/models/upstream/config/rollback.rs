@@ -11,7 +11,7 @@ pub struct RollbackConfig {
 impl Default for RollbackConfig {
     fn default() -> Self {
         Self {
-            compression_level: CompressionLevel::Low,
+            compression_level: CompressionLevel::None,
             stored_artifacts: 1,
         }
     }
