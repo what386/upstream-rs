@@ -6,13 +6,10 @@
 
 ## Tasks
 
-- [ ] consider: split CLI definitions into command-family modules if maintenance warrants it
+- [ ] refactor: replace high-arity command dispatch calls with typed request structs (low)
       @created 2026-08-04 21:58
 
-- [ ] refactor: replace high-arity command dispatch calls with typed request structs
-      @created 2026-08-04 21:58
-
-- [ ] docs: document contributor workflows and architecture invariants
+- [ ] docs: document contributor workflows and architecture invariants (low)
       @created 2026-08-04 21:58
 
 - [ ] fix: ctrl-c is respected during downloads (high)
