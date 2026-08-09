@@ -11,16 +11,8 @@ use crate::{
 
 use anyhow::{Context, Result, anyhow};
 use futures_util::stream::{self, FuturesUnordered, StreamExt};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
-use tokio::time::{self, Duration};
-
-#[derive(Clone)]
-struct ProgressEntry {
-    event: PackageProgressEvent,
-}
-type ProgressState = Arc<Mutex<BTreeMap<String, ProgressEntry>>>;
-type WarningState = Arc<Mutex<Vec<(String, String)>>>;
 
 fn preview_package_source(package: &crate::models::upstream::Package) -> String {
     package.channel.to_string().to_lowercase()
@@ -48,6 +40,42 @@ fn build_ref_version(label: impl AsRef<str>, commit: Option<&str>) -> String {
 
     let short: String = commit.chars().take(7).collect();
     format!("{label}@{short}")
+}
+
+type SharedProgressCallback<'a, P> = Arc<Mutex<&'a mut Option<P>>>;
+
+fn emit_progress<P>(
+    callback: &SharedProgressCallback<'_, P>,
+    event: UpgradeProgressEvent,
+) where
+    P: FnMut(UpgradeProgressEvent),
+{
+    if let Ok(mut callback) = callback.lock()
+        && let Some(callback) = (&mut **callback).as_mut()
+    {
+        callback(event);
+    }
+}
+
+fn emit_package_progress<P>(
+    callback: &SharedProgressCallback<'_, P>,
+    name: &str,
+    event: PackageProgressEvent,
+) where
+    P: FnMut(UpgradeProgressEvent),
+{
+    let event = match event {
+        PackageProgressEvent::Warning(message) => UpgradeProgressEvent::Warning {
+            name: name.to_string(),
+            message,
+        },
+        event => UpgradeProgressEvent::Package {
+            name: name.to_string(),
+            event,
+        },
+    };
+
+    emit_progress(callback, event);
 }
 
 
@@ -119,187 +147,6 @@ pub enum UpgradeProgressEvent {
 }
 
 impl<'a> UpgradeOperation<'a> {
-    fn record_download_progress(
-        progress_state: &ProgressState,
-        name: &str,
-        downloaded: u64,
-        total: u64,
-    ) {
-        let Ok(mut state) = progress_state.lock() else {
-            return;
-        };
-
-        state.insert(
-            name.to_string(),
-            ProgressEntry {
-                event: PackageProgressEvent::Download { downloaded, total },
-            },
-        );
-    }
-
-    fn record_zsync_progress(
-        progress_state: &ProgressState,
-        name: &str,
-        downloaded: u64,
-        total: u64,
-    ) {
-        let Ok(mut state) = progress_state.lock() else {
-            return;
-        };
-
-        state.insert(
-            name.to_string(),
-            ProgressEntry {
-                event: PackageProgressEvent::Zsync { downloaded, total },
-            },
-        );
-    }
-
-    fn record_checksum_progress(
-        progress_state: &ProgressState,
-        name: &str,
-        checked: u64,
-        total: u64,
-    ) {
-        let Ok(mut state) = progress_state.lock() else {
-            return;
-        };
-
-        state.insert(
-            name.to_string(),
-            ProgressEntry {
-                event: PackageProgressEvent::Checksum { checked, total },
-            },
-        );
-    }
-
-    fn record_status_progress(
-        progress_state: &ProgressState,
-        name: &str,
-        event: PackageProgressEvent,
-    ) {
-        let Ok(mut state) = progress_state.lock() else {
-            return;
-        };
-
-        state.insert(name.to_string(), ProgressEntry { event });
-    }
-
-    fn record_progress_event(
-        progress_state: &ProgressState,
-        warning_state: &WarningState,
-        name: &str,
-        event: PackageProgressEvent,
-    ) {
-        match event {
-            PackageProgressEvent::Phase(phase) => Self::record_status_progress(
-                progress_state,
-                name,
-                PackageProgressEvent::Phase(phase),
-            ),
-            PackageProgressEvent::Detail(message) => Self::record_status_progress(
-                progress_state,
-                name,
-                PackageProgressEvent::Detail(message),
-            ),
-            PackageProgressEvent::Download { downloaded, total } => {
-                Self::record_download_progress(progress_state, name, downloaded, total)
-            }
-            PackageProgressEvent::Extraction { extracted, total } => Self::record_status_progress(
-                progress_state,
-                name,
-                PackageProgressEvent::Extraction { extracted, total },
-            ),
-            PackageProgressEvent::Zsync { downloaded, total } => {
-                Self::record_zsync_progress(progress_state, name, downloaded, total)
-            }
-            PackageProgressEvent::Checksum { checked, total } => {
-                Self::record_checksum_progress(progress_state, name, checked, total)
-            }
-            PackageProgressEvent::Warning(message) => {
-                if let Ok(mut warnings) = warning_state.lock() {
-                    warnings.push((name.to_string(), message));
-                }
-            }
-        }
-    }
-
-    fn emit_progress_updates<P>(
-        progress_state: &ProgressState,
-        warning_state: &WarningState,
-        last_progress_events: &mut BTreeMap<String, PackageProgressEvent>,
-        progress_callback: &mut Option<P>,
-    ) where
-        P: FnMut(UpgradeProgressEvent),
-    {
-        let warnings = warning_state
-            .lock()
-            .map(|mut warnings| warnings.drain(..).collect::<Vec<_>>())
-            .unwrap_or_default();
-        if let Some(cb) = progress_callback.as_mut() {
-            for (name, message) in warnings {
-                cb(UpgradeProgressEvent::Warning { name, message });
-            }
-        }
-
-        let snapshot = progress_state
-            .lock()
-            .map(|state| {
-                state
-                    .iter()
-                    .map(|(name, entry)| (name.clone(), entry.clone()))
-                    .collect::<BTreeMap<_, _>>()
-            })
-            .unwrap_or_default();
-
-        for (name, entry) in &snapshot {
-            let changed = last_progress_events
-                .get(name)
-                .map(|prev| prev != &entry.event)
-                .unwrap_or(true);
-            if changed {
-                if let Some(cb) = progress_callback.as_mut() {
-                    cb(UpgradeProgressEvent::Package {
-                        name: name.clone(),
-                        event: entry.event.clone(),
-                    });
-                }
-                last_progress_events.insert(name.clone(), entry.event.clone());
-            }
-        }
-
-        let stale_names = last_progress_events
-            .keys()
-            .filter(|name| !snapshot.contains_key(*name))
-            .cloned()
-            .collect::<Vec<_>>();
-        for name in stale_names {
-            last_progress_events.remove(&name);
-        }
-    }
-
-    fn clear_completed_progress<P>(
-        progress_state: &ProgressState,
-        warning_state: &WarningState,
-        last_progress_events: &mut BTreeMap<String, PackageProgressEvent>,
-        name: &str,
-        progress_callback: &mut Option<P>,
-    ) where
-        P: FnMut(UpgradeProgressEvent),
-    {
-        Self::emit_progress_updates(
-            progress_state,
-            warning_state,
-            last_progress_events,
-            progress_callback,
-        );
-
-        if let Ok(mut state) = progress_state.lock() {
-            state.remove(name);
-        }
-        last_progress_events.remove(name);
-    }
-
     async fn check_packages_parallel(
         &self,
         packages: Vec<crate::models::upstream::Package>,
@@ -572,6 +419,7 @@ impl<'a> UpgradeOperation<'a> {
         P: FnMut(UpgradeProgressEvent),
     {
         cancellation::check()?;
+
         let total = rows.len() as u32;
         let upgrader = &self.upgrader;
         let packages = rows
@@ -589,32 +437,33 @@ impl<'a> UpgradeOperation<'a> {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let mut completed = 0;
-        let mut upgraded = 0;
-        let mut failures = 0;
-        let progress_state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
-        let warning_state: WarningState = Arc::new(Mutex::new(Vec::new()));
-        let mut last_progress_events: BTreeMap<String, PackageProgressEvent> = BTreeMap::new();
-        if let Some(cb) = progress_callback.as_mut() {
-            cb(UpgradeProgressEvent::Overall { completed, total });
-        }
+        let mut completed = 0_u32;
+        let mut upgraded = 0_u32;
+        let mut failures = 0_u32;
+        let progress_callback = Arc::new(Mutex::new(progress_callback));
+
+        emit_progress(
+            &progress_callback,
+            UpgradeProgressEvent::Overall { completed, total },
+        );
+
         let mut pending = stream::iter(packages.into_iter().map(|(package, row, trust_mode)| {
-            let state_ref = Arc::clone(&progress_state);
-            let warning_state_ref = Arc::clone(&warning_state);
+            let progress_callback = Arc::clone(&progress_callback);
+
             async move {
                 let name = package.name.clone();
                 let new_version = row.new_version.clone();
+                let progress_name = name.clone();
+                let package_progress_callback = Arc::clone(&progress_callback);
 
-                let mut downloaded: u64 = 0;
-                let mut bytes_total: u64 = 0;
-                let mut download_cb = Some(|d: u64, t: u64| {
-                    downloaded = d;
-                    bytes_total = t;
-                    Self::record_download_progress(&state_ref, &name, d, t);
-                });
+                let mut no_download_progress: Option<fn(u64, u64)> = None;
                 let mut ignored_messages = Some(|_: &str| {});
-                let mut progress_cb = Some(|event: PackageProgressEvent| {
-                    Self::record_progress_event(&state_ref, &warning_state_ref, &name, event);
+                let mut progress_cb = Some(move |event: PackageProgressEvent| {
+                    emit_package_progress(
+                        &package_progress_callback,
+                        &progress_name,
+                        event,
+                    );
                 });
 
                 let result = upgrader
@@ -622,97 +471,76 @@ impl<'a> UpgradeOperation<'a> {
                         &package,
                         row.target,
                         trust_mode,
-                        &mut download_cb,
+                        &mut no_download_progress,
                         &mut ignored_messages,
                         &mut progress_cb,
                     )
                     .await
                     .context(format!("Failed to upgrade package '{}'", name));
 
-                (name, new_version, downloaded, bytes_total, result)
+                (name, new_version, result)
             }
         }))
         .buffer_unordered(self.concurrency_config.install_concurrency());
 
-        let mut ticker = time::interval(Duration::from_millis(100));
-        ticker.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
         // Drain every in-flight result after cancellation. A replacement may
         // already be complete and buffered here, so returning early could drop
         // its result before the matching database commit.
         let mut interrupted = false;
 
-        while completed < total {
+        while let Some((name, new_version, result)) = pending.next().await {
             interrupted |= cancellation::is_requested();
-            tokio::select! {
-                maybe_item = pending.next() => {
-                    let Some((name, new_version, _downloaded, _bytes_total, result)) = maybe_item else {
-                        break;
-                    };
 
-                    Self::clear_completed_progress(
-                        &progress_state,
-                        &warning_state,
-                        &mut last_progress_events,
-                        &name,
-                        progress_callback,
-                    );
-
-                    match result {
-                        Ok(updated) => {
-                            match persist_upgrade_and_emit_complete(
-                                self.paths,
-                                self.package_database,
-                                progress_callback,
-                                name.clone(),
-                                &updated,
-                                new_version,
-                            ) {
-                                Ok(()) => {
-                                    upgraded += 1;
-                                }
-                                Err(err) => {
-                                    failures += 1;
-                                    if let Some(cb) = progress_callback.as_mut() {
-                                        cb(UpgradeProgressEvent::Complete {
-                                            name,
-                                            result: UpgradePackageResult::Failed {
-                                                error: output::error_summary(&err),
-                                            },
-                                        });
-                                    }
-                                }
-                            }
+            match result {
+                Ok(updated) => {
+                    match persist_upgrade_and_emit_complete(
+                        self.paths,
+                        self.package_database,
+                        &progress_callback,
+                        name.clone(),
+                        &updated,
+                        new_version,
+                    ) {
+                        Ok(()) => {
+                            upgraded += 1;
                         }
                         Err(err) => {
                             failures += 1;
-                            if let Some(cb) = progress_callback.as_mut() {
-                                cb(UpgradeProgressEvent::Complete {
+                            emit_progress(
+                                &progress_callback,
+                                UpgradeProgressEvent::Complete {
                                     name,
                                     result: UpgradePackageResult::Failed {
                                         error: output::error_summary(&err),
                                     },
-                                });
-                            }
+                                },
+                            );
                         }
                     }
-
-                    completed += 1;
-                    if let Some(cb) = progress_callback.as_mut() {
-                        cb(UpgradeProgressEvent::Overall {
-                            completed,
-                            total,
-                        });
-                    }
                 }
-                _ = ticker.tick() => {
-                    Self::emit_progress_updates(&progress_state, &warning_state, &mut last_progress_events, progress_callback);
+                Err(err) => {
+                    failures += 1;
+                    emit_progress(
+                        &progress_callback,
+                        UpgradeProgressEvent::Complete {
+                            name,
+                            result: UpgradePackageResult::Failed {
+                                error: output::error_summary(&err),
+                            },
+                        },
+                    );
                 }
             }
+
+            completed += 1;
+            emit_progress(
+                &progress_callback,
+                UpgradeProgressEvent::Overall { completed, total },
+            );
         }
 
-        if let Some(cb) = progress_callback.as_mut() {
-            cb(UpgradeProgressEvent::Clear);
-        }
+        emit_progress(&progress_callback, UpgradeProgressEvent::Clear);
+
         if interrupted || cancellation::is_requested() {
             cancellation::check()?;
         }
@@ -774,7 +602,7 @@ impl<'a> UpgradeOperation<'a> {
 fn persist_upgrade_and_emit_complete<P>(
     paths: &UpstreamPaths,
     package_database: &mut PackageDatabase,
-    progress_callback: &mut Option<P>,
+    progress_callback: &SharedProgressCallback<'_, P>,
     name: String,
     updated: &crate::models::upstream::Package,
     version: String,
@@ -783,12 +611,13 @@ where
     P: FnMut(UpgradeProgressEvent),
 {
     PackageActivator::new(paths).persist(package_database, updated)?;
-    if let Some(cb) = progress_callback.as_mut() {
-        cb(UpgradeProgressEvent::Complete {
+    emit_progress(
+        progress_callback,
+        UpgradeProgressEvent::Complete {
             name,
             result: UpgradePackageResult::Upgraded { version },
-        });
-    }
+        },
+    );
 
     Ok(())
 }
@@ -796,7 +625,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        ProgressState, UpgradeOperation, UpgradePackageResult, UpgradeProgressEvent,
+        UpgradePackageResult, UpgradeProgressEvent, emit_package_progress, emit_progress,
         persist_upgrade_and_emit_complete, preview_package_width,
     };
     use crate::models::common::enums::{Channel, Filetype, Provider};
@@ -804,7 +633,6 @@ mod tests {
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
     use crate::storage::database::PackageDatabase;
     use crate::utils::test_support;
-    use std::collections::BTreeMap;
     use std::fs;
     use std::sync::{Arc, Mutex};
 
@@ -835,145 +663,93 @@ mod tests {
     }
 
     #[test]
-    fn progress_state_tracks_latest_package_progress_event() {
-        let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
-        let warnings = Arc::new(Mutex::new(Vec::new()));
+    fn package_progress_is_forwarded_immediately() {
+        let mut events = Vec::new();
+        let mut callback = Some(|event: UpgradeProgressEvent| events.push(event));
+        let callback = Arc::new(Mutex::new(&mut callback));
 
-        UpgradeOperation::record_progress_event(
-            &state,
-            &warnings,
+        emit_package_progress(
+            &callback,
             "ripgrep",
             PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot),
         );
-        assert_eq!(
-            state.lock().expect("state")["ripgrep"].event,
-            PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot)
-        );
 
-        UpgradeOperation::record_progress_event(
-            &state,
-            &warnings,
+        emit_package_progress(
+            &callback,
             "ripgrep",
-            PackageProgressEvent::Detail("go build -o <artifact> ./cmd/ripgrep".to_string()),
-        );
-        assert_eq!(
-            state.lock().expect("state")["ripgrep"].event,
-            PackageProgressEvent::Detail("go build -o <artifact> ./cmd/ripgrep".to_string())
-        );
-        assert!(warnings.lock().expect("warnings").is_empty());
-
-        UpgradeOperation::record_download_progress(&state, "ripgrep", 128, 256);
-        assert_eq!(
-            state.lock().expect("state")["ripgrep"].event,
-            PackageProgressEvent::Download {
-                downloaded: 128,
-                total: 256,
-            }
-        );
-
-        UpgradeOperation::record_progress_event(
-            &state,
-            &warnings,
-            "ripgrep",
-            PackageProgressEvent::Zsync {
-                downloaded: 192,
+            PackageProgressEvent::Extraction {
+                extracted: 128,
                 total: 256,
             },
         );
-        assert_eq!(
-            state.lock().expect("state")["ripgrep"].event,
-            PackageProgressEvent::Zsync {
-                downloaded: 192,
-                total: 256,
-            }
-        );
 
-        UpgradeOperation::record_progress_event(
-            &state,
-            &warnings,
-            "ripgrep",
-            PackageProgressEvent::Phase(PackagePhase::InstallingPackage),
-        );
-        assert_eq!(
-            state.lock().expect("state")["ripgrep"].event,
-            PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
-        );
-    }
+        drop(callback);
 
-    #[test]
-    fn progress_updates_emit_typed_package_events_without_sentinels() {
-        let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
-        let warnings = Arc::new(Mutex::new(Vec::new()));
-        let mut last_render = BTreeMap::new();
-        let mut events = Vec::new();
-
-        UpgradeOperation::record_download_progress(&state, "ripgrep", 128, 256);
-        {
-            let mut callback = Some(|event: UpgradeProgressEvent| events.push(event));
-            UpgradeOperation::emit_progress_updates(
-                &state,
-                &warnings,
-                &mut last_render,
-                &mut callback,
-            );
-        }
-        assert!(events.iter().any(|event| matches!(
-            event,
+        assert_eq!(events.len(), 2);
+        assert!(matches!(
+            &events[0],
             UpgradeProgressEvent::Package {
                 name,
-                event: PackageProgressEvent::Download {
-                    downloaded: 128,
+                event: PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot),
+            } if name == "ripgrep"
+        ));
+        assert!(matches!(
+            &events[1],
+            UpgradeProgressEvent::Package {
+                name,
+                event: PackageProgressEvent::Extraction {
+                    extracted: 128,
                     total: 256,
                 },
             } if name == "ripgrep"
-        )));
-
-        {
-            let mut callback = Some(|event: UpgradeProgressEvent| events.push(event));
-            UpgradeOperation::emit_progress_updates(
-                &state,
-                &warnings,
-                &mut last_render,
-                &mut callback,
-            );
-        }
-        assert_eq!(events.len(), 1);
+        ));
     }
 
     #[test]
-    fn completed_progress_flushes_latest_package_event_before_clearing() {
-        let state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
-        let warnings = Arc::new(Mutex::new(Vec::new()));
-        let mut last_render = BTreeMap::new();
+    fn warning_progress_is_forwarded_as_warning_event() {
         let mut events = Vec::new();
+        let mut callback = Some(|event: UpgradeProgressEvent| events.push(event));
+        let callback = Arc::new(Mutex::new(&mut callback));
 
-        UpgradeOperation::record_progress_event(
-            &state,
-            &warnings,
+        emit_package_progress(
+            &callback,
             "ripgrep",
-            PackageProgressEvent::Phase(PackagePhase::RollingBack),
+            PackageProgressEvent::Warning("fallback used".to_string()),
         );
 
-        {
-            let mut callback = Some(|event: UpgradeProgressEvent| events.push(event));
-            UpgradeOperation::clear_completed_progress(
-                &state,
-                &warnings,
-                &mut last_render,
-                "ripgrep",
-                &mut callback,
-            );
-        }
+        drop(callback);
 
-        assert!(events.iter().any(|event| matches!(
-            event,
-            UpgradeProgressEvent::Package {
-                name,
-                event: PackageProgressEvent::Phase(PackagePhase::RollingBack),
-            } if name == "ripgrep"
-        )));
-        assert!(state.lock().expect("state").is_empty());
-        assert!(!last_render.contains_key("ripgrep"));
+        assert_eq!(events.len(), 1);
+        assert!(matches!(
+            &events[0],
+            UpgradeProgressEvent::Warning { name, message }
+                if name == "ripgrep" && message == "fallback used"
+        ));
+    }
+
+    #[test]
+    fn overall_progress_is_emitted_directly() {
+        let mut events = Vec::new();
+        let mut callback = Some(|event: UpgradeProgressEvent| events.push(event));
+        let callback = Arc::new(Mutex::new(&mut callback));
+
+        emit_progress(
+            &callback,
+            UpgradeProgressEvent::Overall {
+                completed: 1,
+                total: 3,
+            },
+        );
+
+        drop(callback);
+
+        assert_eq!(
+            events,
+            vec![UpgradeProgressEvent::Overall {
+                completed: 1,
+                total: 3,
+            }]
+        );
     }
 
     #[test]
@@ -1007,11 +783,12 @@ mod tests {
                     );
                 }
             });
+            let callback = Arc::new(Mutex::new(&mut callback));
 
             persist_upgrade_and_emit_complete(
                 &paths,
                 &mut database,
-                &mut callback,
+                &callback,
                 "tool".to_string(),
                 &updated,
                 updated_version.clone(),
@@ -1028,3 +805,4 @@ mod tests {
         fs::remove_dir_all(root).expect("cleanup");
     }
 }
+
