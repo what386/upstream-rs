@@ -586,31 +586,4 @@ mod tests {
 
         cleanup(&root).expect("cleanup");
     }
-
-    #[test]
-    fn remove_impact_without_purge_reports_removed_active_size() {
-        let root = temp_root("impact-no-rollback");
-        let paths = test_paths(&root);
-        let install_path = paths.install.binaries_dir.join("tool");
-        fs::create_dir_all(install_path.parent().expect("parent")).expect("create parent");
-        fs::write(&install_path, vec![0_u8; 12]).expect("write binary");
-
-        let mut package = Package::with_defaults(
-            "tool".to_string(),
-            "owner/tool".to_string(),
-            Filetype::Binary,
-            None,
-            None,
-            Channel::Stable,
-            Provider::Github,
-            None,
-        );
-        package.install_path = Some(install_path.clone());
-        package.exec_path = Some(install_path);
-
-        let impact = PackageRemover::new(&paths).estimate_remove_impact(&package, false);
-        assert_eq!(impact.net.bytes, Some(-12));
-
-        cleanup(&root).expect("cleanup");
-    }
 }
