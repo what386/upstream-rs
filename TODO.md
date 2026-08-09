@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-08
+@modified: 2026-08-09
 
 
 ## Tasks
@@ -17,6 +17,9 @@
 
 - [ ] fix: ctrl-c is respected during downloads (high)
       @created 2026-08-08 14:36
+
+- [ ] internal: make upgrader expose plan_upgrade like installer exposes plan_install
+      @created 2026-08-09 02:55
 
 
 ## Completed
