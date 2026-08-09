@@ -211,14 +211,21 @@ impl TransactionTableLayout {
         println!();
     }
 
-    pub fn print_totals(&self, totals: &DiskImpact, net_label: &str, size_rows: &[SizeImpactRow]) {
+    pub fn print_totals(
+        &self,
+        totals: &DiskImpact,
+        net_label: &str,
+        size_rows: &[SizeImpactRow],
+    ) {
         println!();
+
         if self.show_download && !matches!(totals.download.bytes, Some(0)) {
             println!(
                 "Total Download Size:   {}",
                 format_compact_unsigned(totals.download)
             );
         }
+
         if size_rows.is_empty() {
             println!("{net_label:<22} {}", format_compact_signed(totals.net));
         } else {
@@ -240,6 +247,7 @@ impl TransactionTableLayout {
                 format_compact_signed(total_disk_change(totals.net, size_rows))
             );
         }
+
         println!();
     }
 }
@@ -254,6 +262,7 @@ pub fn print_disk_impact_with_size_rows(
     include_download: bool,
 ) {
     println!("{}", section("Size impact:"));
+
     if include_download && !matches!(impact.download.bytes, Some(0)) {
         println!(
             "  {} {}",
@@ -261,6 +270,7 @@ pub fn print_disk_impact_with_size_rows(
             format_unsigned(impact.download)
         );
     }
+
     if size_rows.is_empty() {
         println!(
             "  {} {}",
@@ -275,6 +285,7 @@ pub fn print_disk_impact_with_size_rows(
         meta("Package files:"),
         format_signed_delta(impact.net)
     );
+
     for row in size_rows {
         println!(
             "  {} {}",
@@ -282,6 +293,7 @@ pub fn print_disk_impact_with_size_rows(
             format_signed_delta(row.value)
         );
     }
+
     println!(
         "  {} {}",
         meta("Net disk change:"),
@@ -300,7 +312,11 @@ fn total_disk_change(
 
 fn format_compact_unsigned(value: ByteEstimate) -> String {
     match value.bytes {
-        Some(bytes) => format!("{}", HumanBytes(bytes)),
+        Some(bytes) => format!(
+            "{}{}",
+            confidence_prefix(value.confidence),
+            HumanBytes(bytes)
+        ),
         None => "unknown".to_string(),
     }
 }
@@ -322,13 +338,11 @@ fn format_compact_signed(value: SignedByteEstimate) -> String {
 
 fn format_compact_delta(value: SignedByteEstimate) -> String {
     match value.bytes {
-        Some(bytes) if bytes > 0 => {
-            format!(
-                "{}+{}",
-                confidence_prefix(value.confidence),
-                HumanBytes(bytes as u64)
-            )
-        }
+        Some(bytes) if bytes > 0 => format!(
+            "{}+{}",
+            confidence_prefix(value.confidence),
+            HumanBytes(bytes as u64)
+        ),
         Some(bytes) if bytes < 0 => format!(
             "{}-{}",
             confidence_prefix(value.confidence),
@@ -342,9 +356,11 @@ fn format_compact_delta(value: SignedByteEstimate) -> String {
 fn format_compact_signed_cell(value: SignedByteEstimate, magnitude_width: usize) -> String {
     match value.bytes {
         Some(bytes) => {
+            let prefix = confidence_prefix(value.confidence);
             let sign = if bytes < 0 { "-" } else { " " };
-            let magnitude = compact_signed_magnitude(value);
-            format!("{sign}{magnitude:<magnitude_width$}")
+            let magnitude = HumanBytes(bytes.unsigned_abs() as u64);
+            let value_width = magnitude_width.saturating_sub(prefix.chars().count());
+            format!("{prefix}{sign}{magnitude:<value_width$}")
         }
         None => format!(" {:<magnitude_width$}", "unknown"),
     }
@@ -354,7 +370,7 @@ fn compact_signed_magnitude(value: SignedByteEstimate) -> String {
     match value.bytes {
         Some(bytes) => {
             let magnitude = HumanBytes(bytes.unsigned_abs() as u64);
-            format!("{magnitude}")
+            format!("{}{magnitude}", confidence_prefix(value.confidence))
         }
         None => "unknown".to_string(),
     }
@@ -374,33 +390,27 @@ fn format_unsigned(value: ByteEstimate) -> String {
 fn format_signed(value: SignedByteEstimate) -> String {
     match value.bytes {
         Some(0) => format!("{}no change", confidence_prefix(value.confidence)),
-        Some(bytes) if bytes > 0 => {
-            format!(
-                "{}{}",
-                confidence_prefix(value.confidence),
-                HumanBytes(bytes as u64)
-            )
-        }
-        Some(bytes) => {
-            format!(
-                "{}-{}",
-                confidence_prefix(value.confidence),
-                HumanBytes(bytes.unsigned_abs() as u64)
-            )
-        }
+        Some(bytes) if bytes > 0 => format!(
+            "{}{}",
+            confidence_prefix(value.confidence),
+            HumanBytes(bytes as u64)
+        ),
+        Some(bytes) => format!(
+            "{}-{}",
+            confidence_prefix(value.confidence),
+            HumanBytes(bytes.unsigned_abs() as u64)
+        ),
         None => "unknown".to_string(),
     }
 }
 
 fn format_signed_delta(value: SignedByteEstimate) -> String {
     match value.bytes {
-        Some(bytes) if bytes > 0 => {
-            format!(
-                "{}+{}",
-                confidence_prefix(value.confidence),
-                HumanBytes(bytes as u64)
-            )
-        }
+        Some(bytes) if bytes > 0 => format!(
+            "{}+{}",
+            confidence_prefix(value.confidence),
+            HumanBytes(bytes as u64)
+        ),
         Some(bytes) if bytes < 0 => format!(
             "{}-{}",
             confidence_prefix(value.confidence),
@@ -415,12 +425,15 @@ fn confidence_prefix(confidence: SizeConfidence) -> &'static str {
     match confidence {
         SizeConfidence::Exact | SizeConfidence::Unknown => "",
         SizeConfidence::Estimated => "~",
+        SizeConfidence::AtLeast => ">",
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::services::packaging::disk_impact::{ByteEstimate, SignedByteEstimate};
+    use crate::services::packaging::disk_impact::{
+        ByteEstimate, SignedByteEstimate, SizeConfidence,
+    };
 
     use super::{
         SizeImpactRow, TransactionRow, TransactionTableLayout, format_compact_delta,
@@ -450,11 +463,17 @@ mod tests {
     }
 
     #[test]
-    fn live_upgrade_preview_uses_computed_package_width() {
-        let layout = TransactionTableLayout::upgrade_preview("stable/gh".len());
+    fn row_cells_keep_confidence_marker() {
+        let layout = TransactionTableLayout::upgrade_preview("stable/forge".len());
+        let row = TransactionRow::new(
+            "stable/forge",
+            "0.1.2",
+            "0.2.2",
+            SignedByteEstimate::estimated(-5 * 1024 * 1024),
+            ByteEstimate::exact(0),
+        );
 
-        assert_eq!(layout.package_width, "stable/gh".len());
-        assert!(layout.header_line().starts_with("Package   Old Version"));
+        assert!(layout.row_line(&row).contains("~-5.00 MiB"));
     }
 
     #[test]
@@ -487,6 +506,15 @@ mod tests {
             format_compact_delta(SignedByteEstimate::estimated(-5 * 1024 * 1024)),
             "~-5.00 MiB"
         );
+    }
+
+    #[test]
+    fn at_least_unsigned_uses_compact_prefix() {
+        let value = ByteEstimate {
+            bytes: Some(5 * 1024 * 1024),
+            confidence: SizeConfidence::AtLeast,
+        };
+        assert_eq!(super::format_unsigned(value), ">5.00 MiB");
     }
 
     #[test]

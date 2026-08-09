@@ -1,22 +1,12 @@
 use crate::{
-    application::cancellation,
-    models::common::enums::{Channel, Provider, TrustMode},
-    models::provider::Release,
-    models::upstream::config::ConcurrencyConfig,
-    output,
-    providers::provider_manager::ProviderManager,
-    services::packaging::disk_impact::{
-        ByteEstimate, DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_path_size,
-    },
-    services::{
-        packaging::{
-            PackageChecker, PackageInstaller, PackageProgressEvent, PackageRemover,
-            PackageActivator, PackageUpgrader, ResolvedUpgradeTarget,
-        },
-        trust::TrustedSignatureKeys,
-    },
-    storage::database::PackageDatabase,
-    utils::static_paths::UpstreamPaths,
+    application::cancellation, models::{common::enums::{Channel, Filetype, Provider, TrustMode}, provider::Release, upstream::config::ConcurrencyConfig}, output, providers::provider_manager::ProviderManager, services::{packaging::{PackageActivator, PackageChecker, PackageInstaller, PackageProgressEvent, PackageRemover, PackageUpgrader, ResolvedUpgradeTarget, RollbackManager,
+    disk_impact::{
+        DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_upgrade,
+    }
+    }, trust::TrustedSignatureKeys}, storage::{
+        database::PackageDatabase,
+        rollback::RollbackStorage,
+    }, utils::static_paths::UpstreamPaths,
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -415,23 +405,38 @@ impl<'a> UpgradeOperation<'a> {
         &self,
         rows: &[UpgradePreviewRow],
     ) -> SignedByteEstimate {
+        let rollback_file = RollbackManager::rollback_file_path(self.paths);
+        let Ok(mut rollback_storage) = RollbackStorage::new(&rollback_file) else {
+            return SignedByteEstimate::unknown();
+        };
+
         rows.iter()
             .map(|row| {
                 let Some(package) = self.package_database.get_package(&row.name).ok().flatten()
                 else {
                     return SignedByteEstimate::unknown();
                 };
-                let active_size = PackageRemover::new(self.paths)
-                    .estimate_active_size(&package)
-                    .unwrap_or(0);
-                let existing_rollback =
-                    estimate_path_size(&self.paths.state.rollback_dir.join(&package.name))
-                        .unwrap_or(0);
-                SignedByteEstimate::exact(
-                    i128::from(active_size).saturating_sub(i128::from(existing_rollback)),
-                )
+
+                let mut database = match PackageDatabase::open(
+                    &self.paths.metadata.packages_database_file,
+                ) {
+                    Ok(database) => database,
+                    Err(_) => return SignedByteEstimate::unknown(),
+                };
+
+                let manager = RollbackManager::new(
+                    self.paths,
+                    &mut database,
+                    &mut rollback_storage,
+                );
+
+                manager
+                    .estimate_capture_impact(&package)
+                    .unwrap_or_else(|_| SignedByteEstimate::unknown())
             })
-            .fold(SignedByteEstimate::exact(0), |total, impact| total + impact)
+            .fold(SignedByteEstimate::exact(0), |total, impact| {
+                total + impact
+            })
     }
 
     pub async fn preview_upgrade<H>(
@@ -621,22 +626,24 @@ impl<'a> UpgradeOperation<'a> {
             return DiskImpact::unknown();
         };
 
-        let new_size = asset_size_estimate(asset.size);
-        let active_size = PackageRemover::new(self.paths)
+        let download = asset_size_estimate(asset.size);
+
+        let Ok(active_size) = PackageRemover::new(self.paths)
             .estimate_active_size(package)
-            .unwrap_or(0);
-        match new_size.bytes {
-            Some(bytes) => DiskImpact {
-                download: new_size,
-                net: SignedByteEstimate::estimated(
-                    i128::from(bytes).saturating_sub(i128::from(active_size)),
-                ),
-            },
-            None => DiskImpact {
-                download: ByteEstimate::unknown(),
+        else {
+            return DiskImpact {
+                download,
                 net: SignedByteEstimate::unknown(),
-            },
-        }
+            };
+        };
+
+        let filetype = if package.filetype == Filetype::Auto {
+            asset.filetype
+        } else {
+            package.filetype
+        };
+
+        estimate_upgrade(filetype, download, active_size)
     }
 
     pub async fn upgrade_resolved_bulk<P>(

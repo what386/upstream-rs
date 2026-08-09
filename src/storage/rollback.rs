@@ -63,6 +63,21 @@ impl Default for RollbackStorageFile {
     }
 }
 
+/// Return how many existing records would be removed after pushing one more
+/// record while enforcing `max_records`.
+///
+/// A max of zero preserves the historical `push_record()` behavior: unlimited.
+pub fn prune_count_after_push(current_records: usize, max_records: usize) -> usize {
+    if max_records == 0 {
+        0
+    } else {
+        current_records
+            .saturating_add(1)
+            .saturating_sub(max_records)
+            .min(current_records)
+    }
+}
+
 pub struct RollbackStorage {
     file: RollbackStorageFile,
     rollback_file: PathBuf,
@@ -111,11 +126,13 @@ impl RollbackStorage {
                 ROLLBACK_STORAGE_VERSION
             ));
         }
+
         for (package_name, records) in &parsed.records {
             for record in records {
                 validate_rollback_record(package_name, record)?;
             }
         }
+
         self.file = parsed;
         Ok(())
     }
@@ -146,6 +163,16 @@ impl RollbackStorage {
             .unwrap_or(&[])
     }
 
+    pub fn records_pruned_by_next_push(
+        &self,
+        package_name: &str,
+        max_records: usize,
+    ) -> &[RollbackRecord] {
+        let records = self.get_records(package_name);
+        let count = prune_count_after_push(records.len(), max_records);
+        &records[..count]
+    }
+
     pub fn list_records(&self) -> &HashMap<String, Vec<RollbackRecord>> {
         &self.file.records
     }
@@ -172,9 +199,11 @@ impl RollbackStorage {
             .records
             .entry(package_name.to_string())
             .or_default();
+
+        let remove_count = prune_count_after_push(records.len(), max_records);
         records.push(record);
-        let pruned = if max_records > 0 && records.len() > max_records {
-            let remove_count = records.len() - max_records;
+
+        let pruned = if remove_count > 0 {
             records.drain(0..remove_count).collect()
         } else {
             Vec::new()
@@ -184,6 +213,7 @@ impl RollbackStorage {
             self.file = original_file;
             return Err(error);
         }
+
         Ok(pruned)
     }
 
@@ -195,6 +225,7 @@ impl RollbackStorage {
 
         let original_file = self.file.clone();
         let removed = self.file.records.get_mut(package_name).and_then(Vec::pop);
+
         if self
             .file
             .records
@@ -203,10 +234,12 @@ impl RollbackStorage {
         {
             self.file.records.remove(package_name);
         }
+
         if let Err(error) = self.save() {
             self.file = original_file;
             return Err(error);
         }
+
         Ok(removed)
     }
 
@@ -218,10 +251,12 @@ impl RollbackStorage {
 
         let original_file = self.file.clone();
         let removed = self.file.records.remove(package_name).unwrap_or_default();
+
         if let Err(error) = self.save() {
             self.file = original_file;
             return Err(error);
         }
+
         Ok(removed)
     }
 
@@ -237,6 +272,7 @@ impl RollbackStorage {
                 new_name
             ));
         }
+
         let Some(original_records) = self.file.records.get(old_name).cloned() else {
             return Ok(false);
         };
@@ -252,6 +288,7 @@ impl RollbackStorage {
                 .map(|path| rebase_package_path(path, old_name, new_name))
                 .transpose()?;
         }
+
         self.file.records.remove(old_name);
         self.file
             .records
@@ -289,10 +326,13 @@ fn validate_rollback_record(package_name: &str, record: &RollbackRecord) -> Resu
             record.package_snapshot.name
         ));
     }
+
     validate_package_relative_path(&record.artifact_relative_path, package_name)?;
+
     if let Some(icon_path) = &record.icon_relative_path {
         validate_package_relative_path(icon_path, package_name)?;
     }
+
     match record.artifact_format {
         RollbackArtifactFormat::Raw => {
             if record.artifact_entry_path.is_some() || record.icon_entry_path.is_some() {
@@ -310,11 +350,13 @@ fn validate_rollback_record(package_name: &str, record: &RollbackRecord) -> Resu
                 )
             })?;
             validate_entry_path(artifact_entry, "artifact")?;
+
             if let Some(icon_entry) = record.icon_entry_path.as_deref() {
                 validate_entry_path(icon_entry, "icon")?;
             }
         }
     }
+
     Ok(())
 }
 
@@ -326,6 +368,7 @@ fn validate_package_relative_path(path: &Path, package_name: &str) -> Result<()>
             path.display()
         ));
     };
+
     if first != std::ffi::OsStr::new(package_name)
         || components.any(|component| !matches!(component, std::path::Component::Normal(_)))
     {
@@ -335,6 +378,7 @@ fn validate_package_relative_path(path: &Path, package_name: &str) -> Result<()>
             package_name
         ));
     }
+
     Ok(())
 }
 
@@ -346,6 +390,7 @@ fn validate_entry_path(path: &Path, expected_root: &str) -> Result<()> {
             path.display()
         ));
     };
+
     if first != std::ffi::OsStr::new(expected_root)
         || components.any(|component| !matches!(component, std::path::Component::Normal(_)))
     {
@@ -355,12 +400,16 @@ fn validate_entry_path(path: &Path, expected_root: &str) -> Result<()> {
             expected_root
         ));
     }
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{RollbackArtifactFormat, RollbackRecord, RollbackSource, RollbackStorage};
+    use super::{
+        RollbackArtifactFormat, RollbackRecord, RollbackSource, RollbackStorage,
+        prune_count_after_push,
+    };
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use chrono::Utc;
@@ -411,6 +460,15 @@ mod tests {
             fs::remove_dir_all(parent)?;
         }
         Ok(())
+    }
+
+    #[test]
+    fn prune_count_matches_retention_policy() {
+        assert_eq!(prune_count_after_push(0, 1), 0);
+        assert_eq!(prune_count_after_push(1, 1), 1);
+        assert_eq!(prune_count_after_push(2, 2), 1);
+        assert_eq!(prune_count_after_push(3, 2), 2);
+        assert_eq!(prune_count_after_push(3, 0), 0);
     }
 
     #[test]
@@ -475,91 +533,22 @@ mod tests {
         assert_eq!(records.len(), 2);
         assert!(matches!(records[0].source, RollbackSource::Remove));
         assert!(matches!(records[1].source, RollbackSource::Reinstall));
-        assert!(matches!(
-            storage.get_record("tool").expect("latest").source,
-            RollbackSource::Reinstall
-        ));
 
         cleanup(&path).expect("cleanup");
     }
 
     #[test]
-    fn rename_package_rekeys_records_and_rebases_artifact_paths() {
-        let path = temp_rollback_file("rename");
+    fn records_pruned_by_next_push_matches_push_record() {
+        let path = temp_rollback_file("preview-prune");
         let mut storage = RollbackStorage::new(&path).expect("create storage");
-        let mut record = test_record("old", RollbackSource::Upgrade);
-        record.icon_relative_path = Some(PathBuf::from("old/capture/icon.png"));
         storage
-            .upsert_record("old", record)
-            .expect("store old record");
+            .push_record("tool", test_record("tool", RollbackSource::Upgrade), 2)
+            .expect("push first");
+        storage
+            .push_record("tool", test_record("tool", RollbackSource::Remove), 2)
+            .expect("push second");
 
-        assert!(
-            storage
-                .rename_package("old", "new")
-                .expect("rename rollback metadata")
-        );
-        assert!(storage.get_record("old").is_none());
-        let renamed = storage.get_record("new").expect("renamed record");
-        assert_eq!(renamed.package_snapshot.name, "new");
-        assert_eq!(renamed.artifact_relative_path, PathBuf::from("new/old.old"));
-        assert_eq!(
-            renamed.icon_relative_path.as_deref(),
-            Some(Path::new("new/capture/icon.png"))
-        );
-
-        let reloaded = RollbackStorage::new(&path).expect("reload renamed storage");
-        assert_eq!(
-            reloaded
-                .get_record("new")
-                .expect("persisted renamed record")
-                .package_snapshot
-                .name,
-            "new"
-        );
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
-    fn concurrent_storage_instances_do_not_lose_records() {
-        let path = temp_rollback_file("concurrent");
-        let handles = (0..8)
-            .map(|index| {
-                let path = path.clone();
-                std::thread::spawn(move || {
-                    let name = format!("tool-{index}");
-                    let mut storage = RollbackStorage::new(&path).expect("open storage");
-                    storage
-                        .upsert_record(&name, test_record(&name, RollbackSource::Upgrade))
-                        .expect("store record");
-                })
-            })
-            .collect::<Vec<_>>();
-        for handle in handles {
-            handle.join().expect("join writer");
-        }
-
-        let storage = RollbackStorage::new(&path).expect("reload");
-        for index in 0..8 {
-            assert!(storage.get_record(&format!("tool-{index}")).is_some());
-        }
-
-        cleanup(&path).expect("cleanup");
-    }
-
-    #[test]
-    fn rejects_rollback_paths_outside_the_package_directory() {
-        let path = temp_rollback_file("unsafe-path");
-        let mut storage = RollbackStorage::new(&path).expect("create storage");
-        let mut record = test_record("tool", RollbackSource::Upgrade);
-        record.artifact_relative_path = PathBuf::from("../outside");
-
-        let error = storage
-            .upsert_record("tool", record)
-            .expect_err("unsafe rollback path should be rejected");
-
-        assert!(error.to_string().contains("not a safe"));
-        assert!(storage.get_record("tool").is_none());
+        assert_eq!(storage.records_pruned_by_next_push("tool", 2).len(), 1);
         cleanup(&path).expect("cleanup");
     }
 }

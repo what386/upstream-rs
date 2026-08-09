@@ -11,7 +11,9 @@ use crate::{
             staging::InstallWorkspace,
             InstallPlan, InstallRequest, InstallSource, PackagePhase, PackageProgressEvent,
             PlannedInstallSource,
-            disk_impact::{DiskImpact, asset_size_estimate, install_impact_from_download},
+            disk_impact::{
+                DiskImpact, asset_size_estimate, estimate_fresh_install,
+            },
             activation::{PackageActivator, PreparedInstall},
             filetypes,
             selection::AssetSelector,
@@ -135,12 +137,26 @@ impl<'a> PackageInstaller<'a> {
                 }
             }
         };
+
         let disk_impact = match &source {
             PlannedInstallSource::Release { asset, .. } => {
-                install_impact_from_download(asset_size_estimate(asset.size))
+                let filetype = if request.package.filetype == Filetype::Auto {
+                    asset.filetype
+                } else {
+                    request.package.filetype
+                };
+
+                estimate_fresh_install(
+                    filetype,
+                    asset_size_estimate(asset.size),
+                )
             }
-            PlannedInstallSource::LocalArtifact { .. } => DiskImpact::unknown(),
+
+            PlannedInstallSource::LocalArtifact { .. } => {
+                DiskImpact::unknown()
+            }
         };
+
         Ok(InstallPlan {
             package: request.package,
             source,
@@ -469,7 +485,10 @@ impl<'a> PackageInstaller<'a> {
             release_tag: release.tag.clone(),
             asset_name: best_asset.name.clone(),
             resolved_filetype,
-            disk_impact: install_impact_from_download(asset_size_estimate(best_asset.size)),
+            disk_impact: estimate_fresh_install(
+                resolved_filetype,
+                asset_size_estimate(best_asset.size),
+            ),
             release,
             asset: best_asset.clone(),
         })

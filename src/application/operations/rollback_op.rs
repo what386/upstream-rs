@@ -79,7 +79,8 @@ pub struct RollbackPruneOutcome {
 
 impl<'a> RollbackOperation<'a> {
     pub fn new(paths: &'a UpstreamPaths) -> Result<Self> {
-        let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
+        let package_database =
+            PackageDatabase::open(&paths.metadata.packages_database_file)?;
 
         let rollback_file = RollbackManager::rollback_file_path(paths);
         let rollback_storage = RollbackStorage::new(&rollback_file)?;
@@ -172,8 +173,10 @@ impl<'a> RollbackOperation<'a> {
         let mut restored = 0_u32;
         let mut failed = 0_u32;
         let mut packages = Vec::new();
+
         {
             let mut manager = self.manager();
+
             for name in &restorable_names {
                 let package_name = name.clone();
                 let mut msg = Some(|line: &str| {
@@ -239,8 +242,10 @@ impl<'a> RollbackOperation<'a> {
         let mut missing = 0_u32;
         let mut packages = Vec::new();
         let total = target_names.len();
+
         {
             let mut manager = self.manager();
+
             for (idx, name) in target_names.iter().enumerate() {
                 if let Some(callback) = message_callback.as_mut() {
                     callback(name, idx + 1, total);
@@ -256,11 +261,10 @@ impl<'a> RollbackOperation<'a> {
                     }
                     Ok(false) => {
                         missing += 1;
-                        let reason = "no rollback data found".to_string();
                         packages.push(RollbackPackageOutcome {
                             name: name.clone(),
                             status: RollbackPackageStatus::Skipped {
-                                reason: reason.clone(),
+                                reason: "no rollback data found".to_string(),
                             },
                         });
                     }
@@ -269,7 +273,7 @@ impl<'a> RollbackOperation<'a> {
                         packages.push(RollbackPackageOutcome {
                             name: name.clone(),
                             status: RollbackPackageStatus::Failed {
-                                error: summary.clone(),
+                                error: summary,
                             },
                         });
                         return Err(err);
@@ -298,10 +302,11 @@ fn restore_preview(names: &[String], manager: &RollbackManager<'_>) -> RollbackP
                 net_change: manager
                     .estimate_restore_impact(name)
                     .map(|impact| impact.net)
-                    .unwrap_or(SignedByteEstimate::exact(0)),
+                    .unwrap_or_else(SignedByteEstimate::unknown),
             })
         })
         .collect::<Vec<_>>();
+
     let missing_names = missing_names(names, &rows);
     let impact = names
         .iter()
@@ -327,10 +332,11 @@ fn prune_preview(names: &[String], manager: &RollbackManager<'_>) -> RollbackPre
                 net_change: manager
                     .estimate_prune_impact(name)
                     .map(|impact| impact.net)
-                    .unwrap_or(SignedByteEstimate::exact(0)),
+                    .unwrap_or_else(SignedByteEstimate::unknown),
             })
         })
         .collect::<Vec<_>>();
+
     let missing_names = missing_names(names, &rows);
     let impact = names
         .iter()
