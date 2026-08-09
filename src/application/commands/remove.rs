@@ -44,7 +44,11 @@ fn completion_message_key(message: &str) -> Option<String> {
     rest.split_whitespace().next().map(str::to_string)
 }
 
-fn render_remove_progress_row(name: &str, event: PackageProgressEvent) -> String {
+fn render_remove_progress_row(
+    name: &str,
+    event: PackageProgressEvent,
+    name_width: usize,
+) -> String {
     let status = match event {
         PackageProgressEvent::Phase(phase) => phase.label().to_string(),
         PackageProgressEvent::Detail(message) => message,
@@ -54,9 +58,9 @@ fn render_remove_progress_row(name: &str, event: PackageProgressEvent) -> String
         PackageProgressEvent::Checksum { .. } => "Checksumming package ...".to_string(),
         PackageProgressEvent::Warning(message) => message,
     };
-    format!(" {:<28} {}", name, status)
-}
 
+    format!(" {name:<name_width$}{status}")
+}
 pub fn run(
     names: Vec<String>,
     purge: bool,
@@ -69,6 +73,9 @@ pub fn run(
     if names.is_empty() {
         return Err(anyhow::anyhow!("At least one package name is required"));
     }
+
+    let progress_name_width =
+        output::progress_name_width(names.iter().map(String::as_str));
 
     let mut package_remover = RemoveOperation::new(&mut package_database, paths);
 
@@ -145,7 +152,10 @@ pub fn run(
     let completed_rows_for_progress = Arc::clone(&completed_progress_rows);
     let mut progress_callback = Some(move |name: &str, event: PackageProgressEvent| {
         if let Ok(mut rows) = active_rows_for_progress.lock() {
-            rows.insert(name.to_string(), render_remove_progress_row(name, event));
+            rows.insert(
+                name.to_string(),
+                render_remove_progress_row(name, event, progress_name_width),
+            );
         }
         let message = match (
             completed_rows_for_progress.lock(),

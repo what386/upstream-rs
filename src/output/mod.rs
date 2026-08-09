@@ -32,7 +32,8 @@ pub use table::{
 };
 
 pub use other::{
-    shorten_upstream_package_path
+    shorten_upstream_package_path,
+    progress_name_width
 };
 
 pub fn init_logger(path: impl AsRef<std::path::Path>) {

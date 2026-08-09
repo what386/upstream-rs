@@ -15,7 +15,7 @@ use crate::{
             ReleaseSelector, config::AppConfig,
         },
     },
-    output::{self, Status, TransactionRow},
+    output::{self, Status, TransactionRow, progress_name_width},
     providers::{
         discovery::{
             DiscoveryRequest, DiscoveryResult, SourceKind, infer_source,
@@ -41,81 +41,113 @@ fn format_transfer(downloaded: u64, total: u64) -> String {
     }
 }
 
-fn render_install_progress_message(name: &str, event: PackageProgressEvent) -> String {
+fn render_install_progress_message(
+    name: &str,
+    event: PackageProgressEvent,
+    name_width: usize,
+) -> String {
     format!(
         "Installing {name}\n{}",
-        render_install_progress_row(name, event)
+        render_install_progress_row(name, event, name_width)
     )
 }
 
-fn render_install_progress_row(name: &str, event: PackageProgressEvent) -> String {
-    match event {
+fn render_install_progress_row(
+    name: &str,
+    event: PackageProgressEvent,
+    name_width: usize,
+) -> String {
+    let detail = match event {
         PackageProgressEvent::Phase(phase) => {
-            format!(" {:<28} {}", name, phase.label())
+            phase.label().to_string()
         }
-        PackageProgressEvent::Detail(message) => {
-            format!(" {:<28} {}", name, message)
-        }
+
+        PackageProgressEvent::Detail(message) => message,
+
         PackageProgressEvent::Download { downloaded, total } => {
-            let detail = if total > 0 {
+            if total > 0 {
                 format!(
                     "Downloading {} {}",
-                    output::progress_bar(downloaded, total, INSTALL_PROGRESS_BAR_WIDTH),
-                    format_transfer(downloaded, total)
+                    output::progress_bar(
+                        downloaded,
+                        total,
+                        INSTALL_PROGRESS_BAR_WIDTH,
+                    ),
+                    format_transfer(downloaded, total),
                 )
             } else if downloaded > 0 {
-                format!("Downloading {}", format_transfer(downloaded, total))
+                format!(
+                    "Downloading {}",
+                    format_transfer(downloaded, total),
+                )
             } else {
                 "Downloading...".to_string()
-            };
-            format!(" {:<28} {}", name, detail)
+            }
         }
+
         PackageProgressEvent::Extraction { extracted, total } => {
-            let detail = if total > 0 {
+            if total > 0 {
                 format!(
                     "Extracting {} {}",
-                    output::progress_bar(extracted, total, INSTALL_PROGRESS_BAR_WIDTH),
-                    format_transfer(extracted, total)
+                    output::progress_bar(
+                        extracted,
+                        total,
+                        INSTALL_PROGRESS_BAR_WIDTH,
+                    ),
+                    format_transfer(extracted, total),
                 )
             } else {
                 "Extracting...".to_string()
-            };
-            format!(" {:<28} {}", name, detail)
+            }
         }
+
         PackageProgressEvent::Zsync { downloaded, total } => {
-            let detail = if total > 0 {
+            if total > 0 {
                 format!(
                     "Synchronizing {} {}",
-                    output::progress_bar(downloaded, total, INSTALL_PROGRESS_BAR_WIDTH),
-                    format_transfer(downloaded, total)
+                    output::progress_bar(
+                        downloaded,
+                        total,
+                        INSTALL_PROGRESS_BAR_WIDTH,
+                    ),
+                    format_transfer(downloaded, total),
                 )
             } else if downloaded > 0 {
-                format!("Synchronizing {}", format_transfer(downloaded, total))
+                format!(
+                    "Synchronizing {}",
+                    format_transfer(downloaded, total),
+                )
             } else {
                 "Synchronizing...".to_string()
-            };
-            format!(" {:<28} {}", name, detail)
+            }
         }
+
         PackageProgressEvent::Checksum { checked, total } => {
-            let detail = if total > 0 {
+            if total > 0 {
                 format!(
                     "Checksumming {} {}",
-                    output::progress_bar(checked, total, INSTALL_PROGRESS_BAR_WIDTH),
-                    format_transfer(checked, total)
+                    output::progress_bar(
+                        checked,
+                        total,
+                        INSTALL_PROGRESS_BAR_WIDTH,
+                    ),
+                    format_transfer(checked, total),
                 )
             } else if checked > 0 {
-                format!("Checksumming {}", format_transfer(checked, total))
+                format!(
+                    "Checksumming {}",
+                    format_transfer(checked, total),
+                )
             } else {
                 "Checksumming...".to_string()
-            };
-            format!(" {:<28} {}", name, detail)
+            }
         }
-        PackageProgressEvent::Warning(message) => {
-            format!(" {:<28} {}", name, message)
-        }
-    }
-}
 
+        PackageProgressEvent::Warning(message) => message,
+    };
+
+    format!(" {name:<name_width$}{detail}")
+}
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
     name: Option<String>,
@@ -301,6 +333,7 @@ async fn run_release_plan(
 
     let install_name = package.name.clone();
     let progress_name = install_name.clone();
+    let progress_name_width = progress_name_width([progress_name.as_str()]);
     let install_version = preview.release.tag.clone();
     let progress_pb = pb.clone();
     let mut last_emit = None;
@@ -314,7 +347,13 @@ async fn run_release_plan(
                 PackageProgressEvent::Download { .. } | PackageProgressEvent::Zsync { .. }
             )
         {
-            progress_pb.set_message(render_install_progress_message(&progress_name, event));
+            progress_pb.set_message(
+                render_install_progress_message(
+                    &progress_name,
+                    event,
+                    progress_name_width,
+                )
+            );
             last_emit = Some(std::time::Instant::now());
         }
     });

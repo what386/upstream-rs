@@ -120,7 +120,7 @@ fn render_upgrade_progress_row(
         PackageProgressEvent::Checksum { .. } => "Checksumming...".to_string(),
         PackageProgressEvent::Warning(message) => output::truncate_end(&message, 96),
     };
-    format!("{name:<name_width$} {detail}")
+    format!("{name:<name_width$}{detail}")
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -242,11 +242,11 @@ pub async fn run(
     let mut active_progress_rows = BTreeMap::new();
     let completion_subject_width =
         output::status_subject_width(preview_rows.iter().map(|row| row.name.as_str()));
-    let active_name_width = preview_rows
-        .iter()
-        .map(|row| row.name.chars().count())
-        .max()
-        .unwrap_or(0);
+
+    let active_name_width = output::progress_name_width(
+        preview_rows.iter().map(|row| row.name.as_str()),
+    );
+
     let mut completed_count = 0_u32;
     let mut total_count = preview_rows.len() as u32;
     progress_pb.set_message(render_upgrade_progress(
