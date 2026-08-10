@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-09
+@modified: 2026-08-10
 
 
 ## Tasks
@@ -20,6 +20,9 @@
 
 - [ ] feat: commit-based build storage/dl
       @created 2026-08-09 05:36
+
+- [ ] feat: change rollback algo to zst for speed
+      @created 2026-08-10 02:45
 
 
 ## Completed
