@@ -14,7 +14,7 @@ use crate::{
         },
         trust::TrustedSignatureKeys,
     },
-    storage::{database::PackageDatabase, rollback::RollbackStorage},
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -259,8 +259,7 @@ impl<'a> UpgradeOperation<'a> {
         &self,
         rows: &[UpgradePreviewRow],
     ) -> SignedByteEstimate {
-        let rollback_file = RollbackManager::rollback_file_path(self.paths);
-        let Ok(mut rollback_storage) = RollbackStorage::new(&rollback_file) else {
+        let Ok(manager) = RollbackManager::new(self.paths) else {
             return SignedByteEstimate::unknown();
         };
 
@@ -270,15 +269,6 @@ impl<'a> UpgradeOperation<'a> {
                 else {
                     return SignedByteEstimate::unknown();
                 };
-
-                let mut database =
-                    match PackageDatabase::open(&self.paths.metadata.packages_database_file) {
-                        Ok(database) => database,
-                        Err(_) => return SignedByteEstimate::unknown(),
-                    };
-
-                let manager =
-                    RollbackManager::new(self.paths, &mut database, &mut rollback_storage);
 
                 manager
                     .estimate_capture_impact(&package)

@@ -5,7 +5,7 @@ use crate::{
         integration::{CompletionManager, DesktopManager, SymlinkManager},
         packaging::RollbackManager,
     },
-    storage::{database::PackageDatabase, rollback::RollbackStorage},
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -40,8 +40,7 @@ pub fn rename_package(
         bail!("Package '{}' already exists", new_name);
     }
 
-    let rollback_file = RollbackManager::rollback_file_path(paths);
-    let mut rollback_storage = RollbackStorage::new(&rollback_file)?;
+    let mut rollback_manager = RollbackManager::new(paths)?;
     let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
     let completion_manager = CompletionManager::new(paths);
     let mut steps = RenameIntegrationSteps::default();
@@ -50,14 +49,13 @@ pub fn rename_package(
         steps.runtime_link = symlink_manager.rename_link(old_name, new_name)?;
         steps.completions = completion_manager.rename_for_package(old_name, new_name)?;
         steps.desktop_entry = DesktopManager::rename_entry(paths, old_name, new_name)?;
-        steps.rollback =
-            RollbackManager::rename_package(paths, &mut rollback_storage, old_name, new_name)?;
+        steps.rollback = rollback_manager.rename_package(old_name, new_name)?;
         package_database.rename_package(old_name, new_name)
     })();
 
     if let Err(error) = rename_result {
         let rollback_result =
-            rollback_integrations(paths, &mut rollback_storage, old_name, new_name, steps);
+            rollback_integrations(paths, &mut rollback_manager, old_name, new_name, steps);
         return match rollback_result {
             Ok(()) => {
                 Err(error).context("Package rename failed; integration changes were reverted")
@@ -75,15 +73,14 @@ pub fn rename_package(
 
 fn rollback_integrations(
     paths: &UpstreamPaths,
-    rollback_storage: &mut RollbackStorage,
+    rollback_manager: &mut RollbackManager<'_>,
     old_name: &str,
     new_name: &str,
     steps: RenameIntegrationSteps,
 ) -> Result<()> {
     let mut errors = Vec::new();
     if steps.rollback
-        && let Err(error) =
-            RollbackManager::rename_package(paths, rollback_storage, new_name, old_name)
+        && let Err(error) = rollback_manager.rename_package(new_name, old_name)
     {
         errors.push(format!("rollback data: {error}"));
     }
@@ -120,10 +117,7 @@ mod tests {
             upstream::Package,
         },
         services::{integration::SymlinkManager, packaging::RollbackManager},
-        storage::{
-            database::PackageDatabase,
-            rollback::{RollbackSource, RollbackStorage},
-        },
+        storage::{database::PackageDatabase, rollback::RollbackSource},
         utils::test_support,
     };
     use std::fs;
@@ -176,18 +170,15 @@ mod tests {
         fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp");
         fs::write(paths.install.tmp_dir.join("tool.old"), b"rollback")
             .expect("write rollback source");
-        let rollback_file = RollbackManager::rollback_file_path(&paths);
-        let mut rollback_storage =
-            RollbackStorage::new(&rollback_file).expect("open rollback storage");
-        RollbackManager::capture_backup_path(
-            &paths,
-            &mut rollback_storage,
-            &package,
-            &paths.install.tmp_dir.join("tool.old"),
-            RollbackSource::Upgrade,
-            &mut None::<fn(&str)>,
-        )
-        .expect("capture rollback");
+        let mut rollback_manager = RollbackManager::new(&paths).expect("open rollback manager");
+        rollback_manager
+            .capture_backup_path(
+                &package,
+                &paths.install.tmp_dir.join("tool.old"),
+                RollbackSource::Upgrade,
+                &mut None::<fn(&str)>,
+            )
+            .expect("capture rollback");
 
         let mut database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
@@ -208,12 +199,11 @@ mod tests {
                 .join("new.desktop")
                 .exists()
         );
-        let rollback_storage =
-            RollbackStorage::new(&rollback_file).expect("reload rollback storage");
-        assert!(rollback_storage.get_record("old").is_none());
+        let rollback_manager = RollbackManager::new(&paths).expect("reload rollback manager");
+        assert!(rollback_manager.rollback_record("old").is_none());
         assert_eq!(
-            rollback_storage
-                .get_record("new")
+            rollback_manager
+                .rollback_record("new")
                 .expect("renamed rollback")
                 .package_snapshot
                 .name,

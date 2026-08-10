@@ -10,10 +10,7 @@ use crate::{
             staging::InstallWorkspace,
         },
     },
-    storage::{
-        database::PackageDatabase,
-        rollback::{RollbackSource, RollbackStorage},
-    },
+    storage::{database::PackageDatabase, rollback::RollbackSource},
     utils::{filesystem::safe_move, static_paths::UpstreamPaths},
 };
 use std::{
@@ -431,11 +428,7 @@ impl<'a> PackageActivator<'a> {
         icon_source: Option<&Path>,
         source: RollbackSource,
     ) -> Result<()> {
-        let rollback_file = RollbackManager::rollback_file_path(paths);
-        let mut rollback_storage = RollbackStorage::new(&rollback_file)?;
-        RollbackManager::capture_backup_path_with_icon_source(
-            paths,
-            &mut rollback_storage,
+        RollbackManager::new(paths)?.capture_backup_path_with_icon_source(
             package,
             backup_path,
             icon_source,
@@ -847,10 +840,12 @@ impl<'a> PackageActivator<'a> {
         persistence_error: anyhow::Error,
     ) -> Result<()> {
         let rollback_result = (|| {
-            let rollback_file = RollbackManager::rollback_file_path(self.paths);
-            let mut rollback_storage = RollbackStorage::new(&rollback_file)?;
-            RollbackManager::new(self.paths, package_database, &mut rollback_storage)
-                .restore_replaced_package(&replacement.name, replacement, &mut None::<fn(&str)>)
+            RollbackManager::new(self.paths)?.restore_replaced_package(
+                package_database,
+                &replacement.name,
+                replacement,
+                &mut None::<fn(&str)>,
+            )
         })();
         match rollback_result {
             Ok(()) => Err(persistence_error).context(format!(
@@ -881,7 +876,7 @@ mod tests {
         services::{integration::SymlinkManager, packaging::RollbackManager},
         storage::{
             database::{PackageDatabase, PackageSettings},
-            rollback::{RollbackSource, RollbackStorage},
+            rollback::RollbackSource,
         },
         utils::test_support,
     };
@@ -1082,10 +1077,9 @@ mod tests {
                 .flatten()
                 .all(|entry| !entry.file_name().to_string_lossy().ends_with(".old"))
         );
-        let rollback_file = RollbackManager::rollback_file_path(&paths);
-        let rollback_storage = RollbackStorage::new(&rollback_file).expect("open rollback storage");
-        let rollback_record = rollback_storage
-            .get_record("tool")
+        let rollback_manager = RollbackManager::new(&paths).expect("open rollback manager");
+        let rollback_record = rollback_manager
+            .rollback_record("tool")
             .expect("rollback record");
         let rollback_icon = paths.state.rollback_dir.join(
             rollback_record
@@ -1192,18 +1186,15 @@ mod tests {
         database
             .upsert_package_with_settings(&previous, &settings)
             .expect("store previous package and settings");
-        let rollback_file = RollbackManager::rollback_file_path(&paths);
-        let mut rollback_storage =
-            RollbackStorage::new(&rollback_file).expect("open rollback storage");
-        RollbackManager::capture_backup_path(
-            &paths,
-            &mut rollback_storage,
-            &previous,
-            &backup_path,
-            RollbackSource::Upgrade,
-            &mut None::<fn(&str)>,
-        )
-        .expect("capture rollback");
+        let mut rollback_manager = RollbackManager::new(&paths).expect("open rollback manager");
+        rollback_manager
+            .capture_backup_path(
+                &previous,
+                &backup_path,
+                RollbackSource::Upgrade,
+                &mut None::<fn(&str)>,
+            )
+            .expect("capture rollback");
 
         fs::write(&install_path, b"new binary").expect("write replacement");
         SymlinkManager::new(&paths.state.symlinks_dir)
@@ -1254,9 +1245,9 @@ mod tests {
             Some(TrustMode::Signature)
         );
         assert!(
-            RollbackStorage::new(&rollback_file)
-                .expect("reload rollback storage")
-                .get_record("tool")
+            RollbackManager::new(&paths)
+                .expect("reload rollback manager")
+                .rollback_record("tool")
                 .is_none()
         );
 

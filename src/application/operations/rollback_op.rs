@@ -6,17 +6,13 @@ use crate::{
         RollbackManager,
         disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate},
     },
-    storage::{
-        database::PackageDatabase,
-        rollback::{RollbackSource, RollbackStorage},
-    },
+    storage::{database::PackageDatabase, rollback::RollbackSource},
     utils::static_paths::UpstreamPaths,
 };
 
 pub struct RollbackOperation<'a> {
-    paths: &'a UpstreamPaths,
     package_database: PackageDatabase,
-    rollback_storage: RollbackStorage,
+    rollback_manager: RollbackManager<'a>,
 }
 
 pub struct RollbackPreviewRow {
@@ -80,23 +76,12 @@ pub struct RollbackPruneOutcome {
 impl<'a> RollbackOperation<'a> {
     pub fn new(paths: &'a UpstreamPaths) -> Result<Self> {
         let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
-
-        let rollback_file = RollbackManager::rollback_file_path(paths);
-        let rollback_storage = RollbackStorage::new(&rollback_file)?;
+        let rollback_manager = RollbackManager::new(paths)?;
 
         Ok(Self {
-            paths,
             package_database,
-            rollback_storage,
+            rollback_manager,
         })
-    }
-
-    fn manager(&mut self) -> RollbackManager<'_> {
-        RollbackManager::new(
-            self.paths,
-            &mut self.package_database,
-            &mut self.rollback_storage,
-        )
     }
 
     pub fn restore_preview(&mut self, names: &[String]) -> Result<RollbackRestorePreview> {
@@ -106,8 +91,8 @@ impl<'a> RollbackOperation<'a> {
             ));
         }
 
-        let manager = self.manager();
-        let preview = restore_preview(names, &manager);
+        let manager = &self.rollback_manager;
+        let preview = restore_preview(names, manager, &self.package_database);
         let targets = names
             .iter()
             .filter_map(|name| {
@@ -129,7 +114,7 @@ impl<'a> RollbackOperation<'a> {
     }
 
     pub fn list_rows(&mut self) -> Vec<RollbackListRow> {
-        let manager = self.manager();
+        let manager = &self.rollback_manager;
         manager
             .rollback_packages()
             .into_iter()
@@ -151,7 +136,7 @@ impl<'a> RollbackOperation<'a> {
     }
 
     pub fn restorable_names(&mut self, names: &[String]) -> Vec<String> {
-        let manager = self.manager();
+        let manager = &self.rollback_manager;
         names
             .iter()
             .filter(|name| manager.rollback_record(name).is_some())
@@ -174,7 +159,8 @@ impl<'a> RollbackOperation<'a> {
         let mut packages = Vec::new();
 
         {
-            let mut manager = self.manager();
+            let manager = &mut self.rollback_manager;
+            let package_database = &mut self.package_database;
 
             for name in &restorable_names {
                 let package_name = name.clone();
@@ -184,7 +170,7 @@ impl<'a> RollbackOperation<'a> {
                     }
                 });
 
-                match manager.restore_package(name, &mut msg) {
+                match manager.restore_package(package_database, name, &mut msg) {
                     Ok(_) => {
                         packages.push(RollbackPackageOutcome {
                             name: name.clone(),
@@ -214,14 +200,14 @@ impl<'a> RollbackOperation<'a> {
     }
 
     pub fn prune_preview(&mut self, names: Vec<String>) -> RollbackPrunePreview {
-        let manager = self.manager();
+        let manager = &self.rollback_manager;
         let target_names = if names.is_empty() {
             manager.rollback_packages()
         } else {
             names
         };
 
-        let preview = prune_preview(&target_names, &manager);
+        let preview = prune_preview(&target_names, manager);
 
         RollbackPrunePreview {
             target_names,
@@ -243,7 +229,7 @@ impl<'a> RollbackOperation<'a> {
         let total = target_names.len();
 
         {
-            let mut manager = self.manager();
+            let manager = &mut self.rollback_manager;
 
             for (idx, name) in target_names.iter().enumerate() {
                 if let Some(callback) = message_callback.as_mut() {
@@ -287,7 +273,11 @@ impl<'a> RollbackOperation<'a> {
     }
 }
 
-fn restore_preview(names: &[String], manager: &RollbackManager<'_>) -> RollbackPreview {
+fn restore_preview(
+    names: &[String],
+    manager: &RollbackManager<'_>,
+    package_database: &PackageDatabase,
+) -> RollbackPreview {
     let rows = names
         .iter()
         .filter_map(|name| {
@@ -297,7 +287,7 @@ fn restore_preview(names: &[String], manager: &RollbackManager<'_>) -> RollbackP
                 package: format!("{}/{}", pkg.provider, pkg.name),
                 version: pkg.version.to_string(),
                 net_change: manager
-                    .estimate_restore_impact(name)
+                    .estimate_restore_impact(package_database, name)
                     .map(|impact| impact.net)
                     .unwrap_or_else(SignedByteEstimate::unknown),
             })
@@ -307,7 +297,7 @@ fn restore_preview(names: &[String], manager: &RollbackManager<'_>) -> RollbackP
     let missing_names = missing_names(names, &rows);
     let impact = names
         .iter()
-        .filter_map(|name| manager.estimate_restore_impact(name))
+        .filter_map(|name| manager.estimate_restore_impact(package_database, name))
         .fold(DiskImpact::empty(), |total, impact| total + impact);
 
     RollbackPreview {

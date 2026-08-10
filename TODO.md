@@ -21,9 +21,6 @@
 - [ ] feat: commit-based build storage/dl
       @created 2026-08-09 05:36
 
-- [ ] feat: change rollback algo to zst for speed
-      @created 2026-08-10 02:45
-
 
 ## Completed
 
@@ -38,4 +35,8 @@
 - [x] feat: option to disable rollback creation
       @created 2026-08-09 04:30
       @completed 2026-08-09 17:28
+
+- [x] feat: change rollback algo to zst for speed
+      @created 2026-08-10 02:45
+      @completed 2026-08-10 05:08
 

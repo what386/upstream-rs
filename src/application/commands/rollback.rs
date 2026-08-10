@@ -244,7 +244,7 @@ fn run_prune(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperatio
                 "Prune rollback artifacts for {} package(s)?",
                 preview.target_names.len()
             ),
-            false,
+            true,
         )?;
     }
 
