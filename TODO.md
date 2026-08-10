@@ -12,9 +12,6 @@
 - [ ] docs: document contributor workflows and architecture invariants (low)
       @created 2026-08-04 21:58
 
-- [ ] fix: ctrl-c is respected during downloads (high)
-      @created 2026-08-08 14:36
-
 - [ ] consider: update reinstall to have consistent cli like upgrade/install
       @created 2026-08-09 03:51
 
@@ -39,4 +36,8 @@
 - [x] feat: change rollback algo to zst for speed
       @created 2026-08-10 02:45
       @completed 2026-08-10 05:08
+
+- [x] fix: ctrl-c is respected during downloads (high)
+      @created 2026-08-08 14:36
+      @completed 2026-08-10 23:21
 

@@ -1,4 +1,3 @@
-- ctrl-c doesnt always work (specifically during download step)
 - reinstall has old UI / pb callbacks
 
 - windows builds:
