@@ -632,7 +632,7 @@ impl<'a> PackageActivator<'a> {
         if cancellation::is_requested() {
             return self.restore_after_failure(
                 backup,
-                anyhow!("Operation interrupted by CTRL-C"),
+                crate::application::cancellation::Cancelled.into(),
                 "Replacement interrupted",
                 message_callback,
             );

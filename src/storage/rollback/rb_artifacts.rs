@@ -681,6 +681,7 @@ fn estimate_path_size(path: &Path) -> Result<u64> {
 
     let mut total = 0_u64;
     for entry in WalkDir::new(path).follow_links(false) {
+        crate::application::cancellation::check()?;
         let entry = entry.with_context(|| format!("Failed to walk path '{}'", path.display()))?;
         let metadata = fs::symlink_metadata(entry.path())
             .with_context(|| format!("Failed to inspect path '{}'", entry.path().display()))?;

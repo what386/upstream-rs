@@ -1,4 +1,5 @@
 use crate::{
+    application::cancellation,
     models::{
         common::enums::Provider,
         provider::{Asset, Release},
@@ -197,6 +198,13 @@ impl<'a> ChecksumVerifier<'a> {
                         }
                     }
                     return result;
+                }
+                _ = cancellation::cancelled() => {
+                    // Do not abort spawn_blocking: it cannot stop an already
+                    // running closure. The worker checks between read buffers
+                    // and will exit cooperatively; await it before returning.
+                    let _ = (&mut task).await;
+                    return Err(cancellation::Cancelled.into());
                 }
                 update = progress_rx.recv() => {
                     let Some((checked, total)) = update else {
@@ -592,6 +600,7 @@ impl<'a> ChecksumVerifier<'a> {
                 use sha2::Digest;
                 let mut hasher = sha2::Sha256::new();
                 loop {
+                    cancellation::check()?;
                     let n = reader.read(&mut buffer)?;
                     if n == 0 {
                         break;
@@ -607,6 +616,7 @@ impl<'a> ChecksumVerifier<'a> {
                 use sha2::Digest;
                 let mut hasher = sha2::Sha512::new();
                 loop {
+                    cancellation::check()?;
                     let n = reader.read(&mut buffer)?;
                     if n == 0 {
                         break;

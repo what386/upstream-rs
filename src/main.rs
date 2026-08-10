@@ -1,7 +1,7 @@
 use clap::Parser;
 use console::style;
 
-use upstream_rs::application::cancellation;
+use upstream_rs::application::cancellation::{self, Cancellation};
 use upstream_rs::application::cli::arguments::Cli;
 use upstream_rs::application::operations::history_op::{self, LogLevel, Outcome};
 use upstream_rs::output;
@@ -12,29 +12,10 @@ use upstream_rs::utils::static_paths::UpstreamPaths;
 
 #[tokio::main]
 async fn main() {
-    let mut command = Box::pin(run());
-    let result = tokio::select! {
-        result = &mut command => result.map(|_| 0),
-        signal = tokio::signal::ctrl_c() => {
-            match signal {
-                Ok(()) => {
-                    cancellation::request();
-                    eprintln!("CTRL-C received; cleaning up...");
-
-                    tokio::select! {
-                        result = &mut command => result.map(|_| 0),
-                        second_signal = tokio::signal::ctrl_c() => {
-                            if second_signal.is_ok() {
-                                eprintln!("Second CTRL-C received; exiting immediately.");
-                            }
-                            std::process::exit(130);
-                        }
-                    }
-                }
-                Err(err) => Err(anyhow::anyhow!("Failed to install CTRL-C handler: {err}")),
-            }
-        }
-    };
+    let cancellation = cancellation::current();
+    let signal_task = tokio::spawn(signal_supervisor(cancellation));
+    let result = run().await.map(|_| 0);
+    signal_task.abort();
 
     match result {
         Ok(code) => {
@@ -55,6 +36,20 @@ async fn main() {
     }
 }
 
+async fn signal_supervisor(cancellation: Cancellation) {
+    if tokio::signal::ctrl_c().await.is_err() {
+        return;
+    }
+
+    cancellation.request();
+    eprintln!("CTRL-C received; cleaning up...");
+
+    if tokio::signal::ctrl_c().await.is_ok() {
+        eprintln!("Second CTRL-C received; exiting immediately.");
+        std::process::exit(130);
+    }
+}
+
 async fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let paths = UpstreamPaths::new()?;
@@ -63,8 +58,16 @@ async fn run() -> anyhow::Result<()> {
 
     if let Err(err) = run_startup_migrations(&paths) {
         history_op::finish(
-            Outcome::Failure,
-            LogLevel::Error,
+            if cancellation::is_requested() {
+                Outcome::Cancelled
+            } else {
+                Outcome::Failure
+            },
+            if cancellation::is_requested() {
+                LogLevel::Warning
+            } else {
+                LogLevel::Error
+            },
             Some(output::error_summary(&err)),
         );
 
@@ -75,8 +78,16 @@ async fn run() -> anyhow::Result<()> {
         Ok(config) => config,
         Err(err) => {
             history_op::finish(
-                Outcome::Failure,
-                LogLevel::Error,
+                if cancellation::is_requested() {
+                    Outcome::Cancelled
+                } else {
+                    Outcome::Failure
+                },
+                if cancellation::is_requested() {
+                    LogLevel::Warning
+                } else {
+                    LogLevel::Error
+                },
                 Some(output::error_summary(&err)),
             );
 

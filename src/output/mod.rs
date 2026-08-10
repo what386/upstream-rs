@@ -13,8 +13,8 @@ pub use logger::{read_events as read_log_events, write_operation};
 pub use markdown::MarkdownRenderer;
 pub use pager::set_no_pager;
 pub use prompt::{
-    assume_yes, confirm_or_cancel, prompt_text, select_from_list, select_from_table,
-    select_from_table_with_preview, set_assume_yes,
+    assume_yes, confirm_or_cancel, prompt_text, prompt_text_with_suffix, select_from_list,
+    select_from_table, select_from_table_with_preview, set_assume_yes,
 };
 pub use status::error_summary_with_limit;
 pub use status::{

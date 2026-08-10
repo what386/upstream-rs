@@ -76,7 +76,7 @@ pub fn run_command_with_line_callback(
         if cancellation::is_requested() {
             let _ = child.kill();
             let _ = child.wait();
-            anyhow::bail!("Operation interrupted by CTRL-C");
+            return Err(crate::application::cancellation::Cancelled.into());
         }
 
         match rx.recv_timeout(Duration::from_millis(50)) {

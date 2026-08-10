@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
+    io::{Read, Write},
     path::{Component, Path},
 };
 
@@ -109,6 +110,7 @@ fn collect_entries(
     children.sort_by_key(std::fs::DirEntry::path);
 
     for child in children {
+        crate::application::cancellation::check()?;
         let path = child.path();
         let relative = normalized_relative(source_root, &path)?;
         let file_type = child
@@ -141,6 +143,7 @@ fn remove_stale_entries(
     current: &ManifestFile,
 ) -> Result<()> {
     for (relative, entry) in previous.entries.iter().rev() {
+        crate::application::cancellation::check()?;
         if current.entries.contains_key(relative) {
             continue;
         }
@@ -177,6 +180,7 @@ fn remove_manifest_entry(path: &Path, entry: &ManifestEntry) -> Result<()> {
 
 fn copy_current_entries(source: &Path, destination: &Path, manifest: &ManifestFile) -> Result<()> {
     for (relative, entry) in &manifest.entries {
+        crate::application::cancellation::check()?;
         let source_path = source.join(relative);
         let destination_path = destination.join(relative);
         match entry {
@@ -217,18 +221,30 @@ fn copy_file_if_changed(source: &Path, destination: &Path) -> Result<()> {
         return Ok(());
     }
 
-    fs::copy(source, destination).with_context(|| {
-        format!(
-            "Failed to copy '{}' to '{}'",
-            source.display(),
-            destination.display()
-        )
-    })?;
+    copy_file_cancellable(source, destination)?;
     let permissions = fs::metadata(source)
         .with_context(|| format!("Failed to inspect '{}'", source.display()))?
         .permissions();
     fs::set_permissions(destination, permissions)
         .with_context(|| format!("Failed to set permissions on '{}'", destination.display()))
+}
+
+fn copy_file_cancellable(source: &Path, destination: &Path) -> Result<()> {
+    let mut source_file =
+        fs::File::open(source).with_context(|| format!("Failed to read '{}'", source.display()))?;
+    let mut destination_file = fs::File::create(destination)
+        .with_context(|| format!("Failed to create '{}'", destination.display()))?;
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        crate::application::cancellation::check()?;
+        let count = source_file.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        destination_file.write_all(&buffer[..count])?;
+    }
+    destination_file.flush()?;
+    Ok(())
 }
 
 fn replace_non_file(path: &Path) -> Result<()> {
@@ -254,10 +270,26 @@ fn files_equal(left: &Path, right: &Path) -> Result<bool> {
     if left_meta.len() != right_meta.len() {
         return Ok(false);
     }
-    Ok(
-        fs::read(left).with_context(|| format!("Failed to read '{}'", left.display()))?
-            == fs::read(right).with_context(|| format!("Failed to read '{}'", right.display()))?,
-    )
+    let mut left_file =
+        fs::File::open(left).with_context(|| format!("Failed to read '{}'", left.display()))?;
+    let mut right_file =
+        fs::File::open(right).with_context(|| format!("Failed to read '{}'", right.display()))?;
+    let mut left_buffer = [0_u8; 64 * 1024];
+    let mut right_buffer = [0_u8; 64 * 1024];
+    loop {
+        crate::application::cancellation::check()?;
+        let left_count = left_file.read(&mut left_buffer)?;
+        let right_count = right_file.read(&mut right_buffer)?;
+        if left_count != right_count {
+            return Ok(false);
+        }
+        if left_count == 0 {
+            return Ok(true);
+        }
+        if left_buffer[..left_count] != right_buffer[..right_count] {
+            return Ok(false);
+        }
+    }
 }
 
 #[cfg(unix)]
@@ -329,6 +361,7 @@ fn prune_empty_stale_dirs(
     stale_dirs.sort_by_key(|relative| std::cmp::Reverse(relative.matches('/').count()));
 
     for relative in stale_dirs {
+        crate::application::cancellation::check()?;
         let path = destination.join(relative);
         if path.is_dir() {
             let _ = fs::remove_dir(&path);

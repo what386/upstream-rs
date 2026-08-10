@@ -2,7 +2,7 @@ use console::{Key, Term, style};
 
 use super::style::truncate_visible;
 use std::fmt;
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, IsTerminal};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 const SELECTION_SCROLL_MARGIN: usize = 1;
@@ -32,11 +32,11 @@ fn confirm_impl(prompt: impl fmt::Display, default_yes: bool) -> anyhow::Result<
     }
 
     let suffix = if default_yes { " [Y/n] " } else { " [y/N]: " };
-    print!("{prompt}{suffix}");
-    io::stdout().flush()?;
+    let term = prompt_term()?;
+    term.write_str(&format!("{prompt}{suffix}"))?;
+    term.flush()?;
 
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
+    let input = read_key_line(&term)?;
     let normalized = input.trim().to_ascii_lowercase();
     Ok(match normalized.as_str() {
         "y" | "yes" => true,
@@ -53,19 +53,73 @@ pub fn confirm_or_cancel(prompt: impl fmt::Display, default_yes: bool) -> anyhow
 }
 
 pub fn prompt_text(prompt: impl fmt::Display, default: Option<&str>) -> anyhow::Result<String> {
+    let suffix = default
+        .map(|value| format!(" [{value}] "))
+        .unwrap_or_else(|| ": ".to_string());
+    prompt_text_with_suffix(prompt, &suffix, default)
+}
+
+pub fn prompt_text_with_suffix(
+    prompt: impl fmt::Display,
+    suffix: &str,
+    default: Option<&str>,
+) -> anyhow::Result<String> {
     if !io::stdin().is_terminal() {
         anyhow::bail!("Text input requires a terminal.");
     }
 
-    let suffix = default
-        .map(|value| format!(" [{value}] "))
-        .unwrap_or_else(|| ": ".to_string());
-    print!("{prompt}{suffix}");
-    io::stdout().flush()?;
+    let term = prompt_term()?;
+    term.write_str(&format!("{prompt}{suffix}"))?;
+    term.flush()?;
 
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
+    let input = read_key_line(&term)?;
     resolve_text_prompt_value(input.trim(), default)
+}
+
+fn prompt_term() -> anyhow::Result<Term> {
+    if !io::stdin().is_terminal() {
+        anyhow::bail!("Interactive input requires a terminal.");
+    }
+
+    let term = if io::stdout().is_terminal() {
+        Term::stdout()
+    } else if io::stderr().is_terminal() {
+        Term::stderr()
+    } else {
+        anyhow::bail!("Interactive input requires an attached terminal.");
+    };
+
+    if !term.is_term() {
+        anyhow::bail!("Interactive input requires an attached terminal.");
+    }
+    Ok(term)
+}
+
+fn read_key_line(term: &Term) -> anyhow::Result<String> {
+    let mut input = String::new();
+    loop {
+        match term.read_key_raw()? {
+            Key::CtrlC => {
+                crate::application::cancellation::request();
+                return Err(crate::application::cancellation::Cancelled.into());
+            }
+            Key::Escape => anyhow::bail!("Cancelled"),
+            Key::Enter => {
+                term.write_line("")?;
+                return Ok(input);
+            }
+            Key::Backspace => {
+                if input.pop().is_some() {
+                    term.write_str("\u{8} \u{8}")?;
+                }
+            }
+            Key::Char(c) => {
+                input.push(c);
+                term.write_str(&c.to_string())?;
+            }
+            _ => {}
+        }
+    }
 }
 
 fn resolve_text_prompt_value(input: &str, default: Option<&str>) -> anyhow::Result<String> {
@@ -151,7 +205,7 @@ fn select_from_list_with_term(
         rendered_lines =
             render_selection(term, prompt, headers, items, selected, &mut top, previews)?;
 
-        match selection_action_for_key(term.read_key()?) {
+        match selection_action_for_key(term.read_key_raw()?) {
             SelectionAction::Accept => {
                 term.clear_line()?;
                 return Ok(Some(selected));
@@ -159,6 +213,11 @@ fn select_from_list_with_term(
             SelectionAction::Cancel => {
                 term.clear_line()?;
                 return Ok(None);
+            }
+            SelectionAction::Interrupt => {
+                term.clear_line()?;
+                crate::application::cancellation::request();
+                return Err(crate::application::cancellation::Cancelled.into());
             }
             SelectionAction::Next => selected = (selected + 1) % items.len(),
             SelectionAction::Previous => {
@@ -438,6 +497,7 @@ fn truncate_width(value: &str, cols: usize) -> String {
 enum SelectionAction {
     Accept,
     Cancel,
+    Interrupt,
     Next,
     Previous,
     Ignore,
@@ -446,7 +506,8 @@ enum SelectionAction {
 fn selection_action_for_key(key: Key) -> SelectionAction {
     match key {
         Key::Enter => SelectionAction::Accept,
-        Key::Char('q') | Key::Escape | Key::CtrlC => SelectionAction::Cancel,
+        Key::Char('q') | Key::Escape => SelectionAction::Cancel,
+        Key::CtrlC => SelectionAction::Interrupt,
         Key::Char('j') | Key::ArrowDown => SelectionAction::Next,
         Key::Char('k') | Key::ArrowUp => SelectionAction::Previous,
         _ => SelectionAction::Ignore,

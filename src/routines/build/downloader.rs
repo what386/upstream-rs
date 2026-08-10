@@ -747,7 +747,7 @@ fn run_command_output(command: &mut Command) -> Result<std::process::Output> {
         if cancellation::is_requested() {
             let _ = child.kill();
             let _ = child.wait();
-            anyhow::bail!("Operation interrupted by CTRL-C");
+            return Err(crate::application::cancellation::Cancelled.into());
         }
 
         if let Some(status) = child.try_wait()? {

@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use crate::{
+    application::cancellation::Cancellation,
     models::upstream::config::AppConfig,
     providers::provider_manager::ProviderManager,
     services::trust::TrustedSignatureKeys,
@@ -15,6 +16,7 @@ pub struct CommandContext<'a> {
     pub paths: &'a UpstreamPaths,
     pub provider_manager: ProviderManager,
     pub app_config: &'a AppConfig,
+    pub cancellation: Cancellation,
 }
 
 impl<'a> CommandContext<'a> {
@@ -31,6 +33,7 @@ impl<'a> CommandContext<'a> {
             paths,
             provider_manager,
             app_config,
+            cancellation: crate::application::cancellation::current(),
         })
     }
 

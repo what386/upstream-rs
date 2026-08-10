@@ -17,7 +17,7 @@ use indicatif::{HumanBytes, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use serde::Serialize;
 use std::{
     collections::BTreeMap,
-    io::{self, IsTerminal, Write},
+    io::{self, IsTerminal},
     time::Duration,
 };
 
@@ -371,11 +371,8 @@ fn prompt_upgrade_action() -> Result<UpgradePromptAction> {
         );
     }
 
-    print!("Proceed with installation? [Y/n/c] ");
-    io::stdout().flush()?;
-
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
+    let input =
+        output::prompt_text_with_suffix("Proceed with installation?", " [Y/n/c] ", Some("y"))?;
     upgrade_prompt_action_from_input(&input)
 }
 

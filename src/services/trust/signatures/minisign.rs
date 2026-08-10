@@ -1,7 +1,7 @@
-use super::{MinisignPublicKey, SignatureScheme, SignatureVerificationStatus};
-use anyhow::{Result, anyhow};
+use super::{MinisignPublicKey, SignatureScheme, SignatureVerificationStatus, read_asset_bytes};
+use anyhow::Result;
 use minisign_verify::{PublicKey, Signature};
-use std::{fs, path::Path};
+use std::path::Path;
 
 pub fn verify_minisign_signature(
     asset_path: &Path,
@@ -16,13 +16,7 @@ pub fn verify_minisign_signature(
         return Ok(SignatureVerificationStatus::InvalidSignature);
     };
 
-    let file_bytes = fs::read(asset_path).map_err(|e| {
-        anyhow!(
-            "Failed to read asset '{}' for signature verification: {}",
-            asset_path.display(),
-            e
-        )
-    })?;
+    let file_bytes = read_asset_bytes(asset_path)?;
 
     for key in trusted_keys {
         let Ok(public_key) = PublicKey::from_base64(&key.key) else {

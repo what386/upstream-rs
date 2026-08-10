@@ -531,7 +531,7 @@ impl<'a> PackageUpgrader<'a> {
                 }
                 Err(err) => {
                     if cancellation::is_requested() {
-                        return Err(anyhow::anyhow!("Operation interrupted by CTRL-C"));
+                        return Err(crate::application::cancellation::Cancelled.into());
                     }
                     let summary = output::error_summary(&err);
                     let warning = format!("zsync failed, fallback: {summary}");

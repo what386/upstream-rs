@@ -44,6 +44,7 @@ pub enum PagerAction {
     Top,
     Bottom,
     Quit,
+    Interrupt,
     Ignore,
 }
 
@@ -90,7 +91,7 @@ impl PagerState {
             PagerAction::Bottom => {
                 self.top = self.last_top();
             }
-            PagerAction::Quit | PagerAction::Ignore => {}
+            PagerAction::Quit | PagerAction::Interrupt | PagerAction::Ignore => {}
         }
     }
 }
@@ -149,9 +150,14 @@ fn page_lines(
         }
         rendered_lines = render_view(term, title, lines, &state, config.cols)?;
 
-        let action = action_for_key(term.read_key()?);
+        let action = action_for_key(term.read_key_raw()?);
         if action == PagerAction::Quit {
             break;
+        }
+        if action == PagerAction::Interrupt {
+            clear_rendered_view(term, rendered_lines)?;
+            crate::application::cancellation::request();
+            return Err(crate::application::cancellation::Cancelled.into());
         }
         state.apply(action);
     }
@@ -227,7 +233,8 @@ fn truncate_width(value: &str, cols: usize) -> String {
 
 fn action_for_key(key: Key) -> PagerAction {
     match key {
-        Key::Char('q') | Key::Escape | Key::CtrlC => PagerAction::Quit,
+        Key::Char('q') | Key::Escape => PagerAction::Quit,
+        Key::CtrlC => PagerAction::Interrupt,
         Key::Char(' ') | Key::PageDown => PagerAction::NextPage,
         Key::Char('b') | Key::PageUp => PagerAction::PreviousPage,
         Key::Char('j') | Key::ArrowDown | Key::Enter => PagerAction::NextLine,

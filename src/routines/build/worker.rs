@@ -90,10 +90,17 @@ impl<'a> BuildWorker<'a> {
 
         let artifact = loop {
             if cancellation::is_requested() {
-                build_handle.abort();
-                cancellation::check()?;
+                // A blocking build cannot be stopped by aborting its JoinHandle.
+                // Let the cancellable subprocess runner terminate and reap the
+                // child, then wait for the blocking closure to finish.
+                let _ = (&mut build_handle).await;
+                return Err(crate::application::cancellation::Cancelled.into());
             }
             tokio::select! {
+                _ = cancellation::cancelled() => {
+                    let _ = (&mut build_handle).await;
+                    return Err(crate::application::cancellation::Cancelled.into());
+                }
                 Some(line) = build_rx.recv() => {
                     Self::emit_status(line_callback, line);
                 }

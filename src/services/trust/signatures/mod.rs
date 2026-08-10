@@ -3,6 +3,10 @@ mod cosign;
 mod minisign;
 mod orchestrator;
 
+use serde::{Deserialize, Serialize};
+use anyhow::{Context, Result};
+use std::{fs, io::Read, path::Path};
+
 pub use orchestrator::SignatureVerifier;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,4 +44,26 @@ pub enum SignatureVerificationStatus {
     InvalidSignature,
     NoTrustedKeyMatched,
 }
-use serde::{Deserialize, Serialize};
+
+/// Reads a file fully into memory in fixed-size chunks, checking for
+/// cancellation between reads so verification of large assets stays
+/// responsive to CTRL-C / cancellation requests.
+pub(crate) fn read_asset_bytes(asset_path: &Path) -> Result<Vec<u8>> {
+    let mut file = fs::File::open(asset_path).with_context(|| {
+        format!(
+            "Failed to read asset '{}' for signature verification",
+            asset_path.display()
+        )
+    })?;
+    let mut bytes = Vec::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        crate::application::cancellation::check()?;
+        let count = file.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        bytes.extend_from_slice(&buffer[..count]);
+    }
+    Ok(bytes)
+}

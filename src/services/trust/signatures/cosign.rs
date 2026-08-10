@@ -1,7 +1,7 @@
-use super::{CosignPublicKey, SignatureScheme, SignatureVerificationStatus};
-use anyhow::{Context, Result};
+use super::{CosignPublicKey, SignatureScheme, SignatureVerificationStatus, read_asset_bytes};
+use anyhow::Result;
 use sigstore::crypto::{CosignVerificationKey, Signature};
-use std::{fs, path::Path};
+use std::path::Path;
 
 pub async fn verify_cosign_signature(
     asset_path: &Path,
@@ -12,12 +12,7 @@ pub async fn verify_cosign_signature(
         return Ok(SignatureVerificationStatus::NoTrustedKeyMatched);
     }
 
-    let blob = fs::read(asset_path).with_context(|| {
-        format!(
-            "Failed to read asset '{}' for cosign signature verification",
-            asset_path.display()
-        )
-    })?;
+    let blob = read_asset_bytes(asset_path)?;
     let signature = signature_contents.trim();
     let mut saw_valid_key = false;
     let mut saw_parse_error = false;
@@ -41,9 +36,7 @@ pub async fn verify_cosign_signature(
         }
     }
 
-    if saw_valid_key {
-        Ok(SignatureVerificationStatus::NoTrustedKeyMatched)
-    } else if saw_parse_error {
+    if !saw_valid_key && saw_parse_error {
         Ok(SignatureVerificationStatus::InvalidSignature)
     } else {
         Ok(SignatureVerificationStatus::NoTrustedKeyMatched)

@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use std::{
-    fs, io,
+    fs,
+    io::{self, Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -69,7 +70,7 @@ pub fn copy_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
         copy_dir_recursive(src, dst)
             .with_context(|| format!("Failed to copy directory to '{}'", dst.display()))
     } else {
-        fs::copy(src, dst).with_context(|| {
+        copy_file_cancellable(src, dst).with_context(|| {
             format!(
                 "Failed to copy file from '{}' to '{}'",
                 src.display(),
@@ -86,17 +87,30 @@ fn move_via_copy(src: &Path, dst: &Path) -> Result<()> {
     let metadata = fs::metadata(src)
         .with_context(|| format!("Failed to read metadata for '{}'", src.display()))?;
 
-    if metadata.is_dir() {
-        copy_file_or_dir(src, dst)?;
-        fs::remove_dir_all(src)
-            .with_context(|| format!("Failed to remove source directory '{}'", src.display()))?;
-        return Ok(());
+    if let Err(error) = copy_file_or_dir(src, dst) {
+        remove_partial_destination(dst);
+        return Err(error);
     }
 
-    copy_file_or_dir(src, dst)?;
-    fs::remove_file(src)
-        .with_context(|| format!("Failed to remove source file '{}'", src.display()))?;
-    Ok(())
+    if metadata.is_dir() {
+        fs::remove_dir_all(src)
+            .with_context(|| format!("Failed to remove source directory '{}'", src.display()))
+    } else {
+        fs::remove_file(src)
+            .with_context(|| format!("Failed to remove source file '{}'", src.display()))
+    }
+}
+
+fn remove_partial_destination(path: &Path) {
+    let Ok(metadata) = fs::symlink_metadata(path) else {
+        return;
+    };
+
+    if metadata.is_dir() {
+        let _ = fs::remove_dir_all(path);
+    } else {
+        let _ = fs::remove_file(path);
+    }
 }
 
 /// Recursively copy a directory while preserving permissions and symlinks.
@@ -121,7 +135,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
         if file_type.is_dir() {
             copy_dir_recursive(&entry_path, &target_path)?;
         } else if file_type.is_file() {
-            fs::copy(&entry_path, &target_path)?;
+            copy_file_cancellable(&entry_path, &target_path)?;
             let source_permissions = fs::metadata(&entry_path)?.permissions();
             fs::set_permissions(&target_path, source_permissions)?;
         } else if file_type.is_symlink() {
@@ -134,6 +148,27 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
         }
     }
 
+    Ok(())
+}
+
+fn copy_file_cancellable(src: &Path, dst: &Path) -> io::Result<()> {
+    let mut source = fs::File::open(src)?;
+    let mut target = fs::File::create(dst)?;
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        crate::application::cancellation::check().map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::Interrupted,
+                "Operation interrupted by CTRL-C",
+            )
+        })?;
+        let count = source.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        target.write_all(&buffer[..count])?;
+    }
+    target.flush()?;
     Ok(())
 }
 
