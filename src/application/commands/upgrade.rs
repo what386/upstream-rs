@@ -912,8 +912,7 @@ async fn run_dry_run(
 #[cfg(test)]
 mod tests {
     use super::{
-        CheckTableLayout, UpgradePromptAction, json_check_rows,
-        upgrade_prompt_action_from_input,
+        CheckTableLayout, UpgradePromptAction, json_check_rows, upgrade_prompt_action_from_input,
     };
     use crate::application::operations::upgrade_op::{UpdateCheckRow, UpdateCheckStatus};
     use crate::models::common::enums::{Channel, Provider};
