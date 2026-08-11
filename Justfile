@@ -24,7 +24,7 @@ integration-tests:
     python3 tests/integration/pkg_upgrade_interrupt.py
     python3 tests/integration/pkg_install.py
     python3 tests/integration/pkg_remove.py
-    python3 tests/integration/pkg_desktop.py
+    python3 tests/integration/pkg_desktop_linux.py
 
 verify-release:
     just lint
