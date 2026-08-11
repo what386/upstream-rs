@@ -28,6 +28,8 @@ enum PlatformDesktopHandler {
     Linux(LinuxDesktopHandler),
     #[cfg(windows)]
     Windows(WindowsDesktopHandler),
+    #[cfg(target_os = "macos")]
+    Unsupported,
 }
 
 impl PlatformDesktopHandler {
@@ -66,6 +68,8 @@ impl PlatformDesktopHandler {
                     .add_icon(paths, name, path, filetype, output_dir, message_callback)
                     .await
             }
+            #[cfg(target_os = "macos")]
+            Self::Unsupported => Err(anyhow!("Desktop integration is unsupported on macOS")),
         }
     }
 
@@ -93,6 +97,8 @@ impl PlatformDesktopHandler {
                     .create_entry(paths, install_path, filetype, entry, message_callback)
                     .await
             }
+            #[cfg(target_os = "macos")]
+            Self::Unsupported => Err(anyhow!("Desktop integration is unsupported on macOS")),
         }
     }
 
@@ -145,6 +151,8 @@ impl PlatformDesktopHandler {
                     )
                     .await
             }
+            #[cfg(target_os = "macos")]
+            Self::Unsupported => Err(anyhow!("Desktop integration is unsupported on macOS")),
         }
     }
 
@@ -154,6 +162,8 @@ impl PlatformDesktopHandler {
             Self::Linux(_) => LinuxDesktopHandler::remove_entry(paths, name),
             #[cfg(windows)]
             Self::Windows(_) => WindowsDesktopHandler::remove_entry(paths, name),
+            #[cfg(target_os = "macos")]
+            Self::Unsupported => Err(anyhow!("Desktop integration is unsupported on macOS")),
         }
     }
 }
