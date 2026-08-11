@@ -9,8 +9,8 @@ use crate::models::upstream::Package;
 use crate::providers::pattern_matcher::{
     GeneratedAssetPatterns, generate_patterns_for_asset, pattern_match_ratio,
 };
-use crate::utils::math::median_sorted;
 use crate::utils::platform::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
+use crate::utils::{filename_parser::is_unsupported_artifact_name, math::median_sorted};
 
 #[derive(Debug, Clone)]
 pub struct AssetCandidate {
@@ -65,20 +65,6 @@ impl AssetSelector {
         }
     }
 
-    #[cfg(unix)]
-    fn is_unsupported_package_asset_name(name: &str) -> bool {
-        name.ends_with(".deb")
-            || name.ends_with(".rpm")
-            || name.ends_with(".apk")
-            || name.ends_with(".pkg.tar.zst")
-            || name.ends_with(".pkg.tar.xz")
-            || name.ends_with(".pkg.tar.gz")
-            || name.ends_with(".pkg.tar")
-            || name.ends_with(".pacman")
-            || name.ends_with(".flatpak")
-            || name.ends_with(".snap")
-    }
-
     pub fn get_candidate_assets(
         &self,
         release: &Release,
@@ -93,6 +79,7 @@ impl AssetSelector {
         let compatible_assets: Vec<&Asset> = release
             .assets
             .iter()
+            .filter(|a| !is_unsupported_artifact_name(&a.name))
             .filter(|a| self.is_potentially_compatible(a))
             .filter(|a| target_filetypes.contains(&a.filetype))
             .filter(|a| {
@@ -104,13 +91,6 @@ impl AssetSelector {
 
                 if Self::is_auxiliary_asset_name(&name) {
                     return false;
-                }
-
-                #[cfg(unix)]
-                {
-                    if Self::is_unsupported_package_asset_name(&name) {
-                        return false;
-                    }
                 }
 
                 true
@@ -523,7 +503,6 @@ impl AssetSelector {
             ".tar.xz",
             ".tar.zst",
             ".appimage",
-            ".dmg",
             ".pkg",
             ".msi",
             ".exe",

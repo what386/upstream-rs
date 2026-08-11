@@ -32,7 +32,7 @@ pub fn parse_os(filename: &str) -> Option<OSKind> {
     }
 
     // macOS/Darwin
-    if contains_marker(&name, &["macos", "darwin", "osx", "mac", ".dmg", ".app"]) {
+    if contains_marker(&name, &["macos", "darwin", "osx", "mac"]) {
         return Some(OSKind::MacOS);
     }
 
@@ -129,6 +129,27 @@ pub fn parse_filetype(filename: &str) -> Filetype {
     Filetype::Binary
 }
 
+/// Returns whether an artifact format is not supported by the installer.
+pub fn is_unsupported_artifact_name(filename: &str) -> bool {
+    let filename = filename.to_ascii_lowercase();
+    [
+        ".app",
+        ".dmg",
+        ".deb",
+        ".rpm",
+        ".apk",
+        ".pkg.tar.zst",
+        ".pkg.tar.xz",
+        ".pkg.tar.gz",
+        ".pkg.tar",
+        ".pacman",
+        ".flatpak",
+        ".snap",
+    ]
+    .iter()
+    .any(|extension| filename.ends_with(extension))
+}
+
 /// Match token markers with word-boundary checks to reduce false positives.
 ///
 /// Extension markers (starting with `.`) are treated as suffix matches.
@@ -162,14 +183,14 @@ fn contains_marker(filename: &str, markers: &[&str]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_arch, parse_filetype, parse_os};
+    use super::{is_unsupported_artifact_name, parse_arch, parse_filetype, parse_os};
     use crate::models::common::enums::Filetype;
     use crate::utils::platform::platform_info::{CpuArch, OSKind};
 
     #[test]
     fn parse_os_detects_expected_platforms() {
         assert_eq!(parse_os("tool-windows-x64.zip"), Some(OSKind::Windows));
-        assert_eq!(parse_os("tool-macos-universal.dmg"), Some(OSKind::MacOS));
+        assert_eq!(parse_os("tool-macos-universal.tar.gz"), Some(OSKind::MacOS));
         assert_eq!(parse_os("tool-linux-musl.tar.gz"), Some(OSKind::Linux));
         assert_eq!(parse_os("app-android-arm64.apk"), Some(OSKind::Android));
     }
@@ -202,5 +223,16 @@ mod tests {
         assert_eq!(parse_filetype("tool.gz"), Filetype::Compressed);
         assert_eq!(parse_filetype("tool.sha256"), Filetype::Checksum);
         assert_eq!(parse_filetype("tool"), Filetype::Binary);
+    }
+
+    #[test]
+    fn unsupported_desktop_artifacts_are_rejected_by_name() {
+        assert!(is_unsupported_artifact_name("Tool.app"));
+        assert!(is_unsupported_artifact_name("Tool.dmg"));
+        assert!(is_unsupported_artifact_name("tool.deb"));
+        assert!(is_unsupported_artifact_name("tool.rpm"));
+        assert!(is_unsupported_artifact_name("tool.pkg.tar.zst"));
+        assert!(is_unsupported_artifact_name("tool.flatpak"));
+        assert!(!is_unsupported_artifact_name("Tool.AppImage"));
     }
 }
