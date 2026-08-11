@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, anyhow};
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use indicatif::{HumanBytes, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
         provider::Release,
         upstream::{InstallType, Package, config::AppConfig},
     },
-    output::{self, Status},
+    output::{self, Status, TransactionRow},
     providers::provider_manager::ProviderManager,
     services::{
         packaging::{
@@ -27,33 +27,91 @@ use crate::{
     utils::static_paths::UpstreamPaths,
 };
 
-fn reinstall_phase_label(message: &str) -> String {
-    if message.starts_with("Removing") {
-        "Removing current install ...".to_string()
-    } else if message.starts_with("Installing") || message.starts_with("Extracting") {
-        "Installing package ...".to_string()
-    } else if message.starts_with("Searching for executable") {
-        "Resolving executable ...".to_string()
-    } else if message.starts_with("Added '") && message.contains("' to PATH") {
-        "Updating PATH ...".to_string()
-    } else if message.starts_with("Creating symlink") || message.starts_with("Updating symlink") {
-        "Creating runtime links ...".to_string()
-    } else if message.starts_with("Saving package metadata") {
-        "Saving metadata ...".to_string()
-    } else if message.contains("source")
-        || message.starts_with("Fetching ")
-        || message.starts_with("Downloading ")
-        || message.starts_with("Unpacking ")
-        || message.starts_with("Resolving ")
-        || message.starts_with("Detecting ")
-        || message.starts_with("Building ")
-        || message.starts_with("Running ")
-        || message.starts_with("Staging ")
-    {
-        message.to_string()
+const REINSTALL_PROGRESS_BAR_WIDTH: usize = 14;
+
+fn format_transfer(downloaded: u64, total: u64) -> String {
+    if total > 0 {
+        format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
+    } else if downloaded > 0 {
+        HumanBytes(downloaded).to_string()
     } else {
-        format!("Building package ... {message}")
+        "-".to_string()
     }
+}
+
+fn render_reinstall_progress_message(
+    name: &str,
+    event: PackageProgressEvent,
+    name_width: usize,
+) -> String {
+    format!(
+        "Reinstalling {name}\n{}",
+        render_reinstall_progress_row(name, event, name_width)
+    )
+}
+
+fn render_reinstall_progress_row(
+    name: &str,
+    event: PackageProgressEvent,
+    name_width: usize,
+) -> String {
+    let detail = match event {
+        PackageProgressEvent::Phase(phase) => phase.label().to_string(),
+        PackageProgressEvent::Detail(message) => message,
+        PackageProgressEvent::Download { downloaded, total } => {
+            if total > 0 {
+                format!(
+                    "Downloading {} {}",
+                    output::progress_bar(downloaded, total, REINSTALL_PROGRESS_BAR_WIDTH),
+                    format_transfer(downloaded, total)
+                )
+            } else if downloaded > 0 {
+                format!("Downloading {}", format_transfer(downloaded, total))
+            } else {
+                "Downloading...".to_string()
+            }
+        }
+        PackageProgressEvent::Extraction { extracted, total } => {
+            if total > 0 {
+                format!(
+                    "Extracting {} {}",
+                    output::progress_bar(extracted, total, REINSTALL_PROGRESS_BAR_WIDTH),
+                    format_transfer(extracted, total)
+                )
+            } else {
+                "Extracting...".to_string()
+            }
+        }
+        PackageProgressEvent::Zsync { downloaded, total } => {
+            if total > 0 {
+                format!(
+                    "Synchronizing {} {}",
+                    output::progress_bar(downloaded, total, REINSTALL_PROGRESS_BAR_WIDTH),
+                    format_transfer(downloaded, total)
+                )
+            } else if downloaded > 0 {
+                format!("Synchronizing {}", format_transfer(downloaded, total))
+            } else {
+                "Synchronizing...".to_string()
+            }
+        }
+        PackageProgressEvent::Checksum { checked, total } => {
+            if total > 0 {
+                format!(
+                    "Checksumming {} {}",
+                    output::progress_bar(checked, total, REINSTALL_PROGRESS_BAR_WIDTH),
+                    format_transfer(checked, total)
+                )
+            } else if checked > 0 {
+                format!("Checksumming {}", format_transfer(checked, total))
+            } else {
+                "Checksumming...".to_string()
+            }
+        }
+        PackageProgressEvent::Warning(message) => message,
+    };
+
+    format!(" {name:<name_width$}{detail}")
 }
 
 pub async fn run(
@@ -83,14 +141,26 @@ pub async fn run(
         .await;
     }
 
-    let impact = estimate_reinstall_impact(
+    let impact_rows = estimate_reinstall_impact_rows(
         &names,
         &package_database,
         &context.provider_manager,
         context.paths,
     )
     .await;
-    output::print_disk_impact_with_size_rows(&impact, &[], true);
+    let impact = total_reinstall_impact(&impact_rows);
+    let transaction_rows = impact_rows
+        .iter()
+        .map(|row| {
+            TransactionRow::single_version(
+                &row.package,
+                &row.version,
+                row.impact.net,
+                row.impact.download,
+            )
+        })
+        .collect::<Vec<_>>();
+    output::print_transaction_table(&transaction_rows, &impact, "Net disk change:");
     output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()), true)?;
 
     let mut reinstalled = 0_u32;
@@ -102,16 +172,26 @@ pub async fn run(
     pb.set_message("Reinstalling packages ...");
     let mut completion_lines = Vec::new();
     let completion_subject_width = output::status_subject_width(names.iter().map(String::as_str));
+    let progress_name_width = output::progress_name_width(names.iter().map(String::as_str));
 
     for name in &names {
         cancellation::check()?;
         let package_name = name.clone();
-        let progress_pb = pb.clone();
+        let message_pb = pb.clone();
         let mut msg = Some(move |line: &str| {
-            progress_pb.set_message(format!(
-                "Reinstalling {package_name}\n {:<28} {}",
-                package_name,
-                reinstall_phase_label(line)
+            message_pb.set_message(render_reinstall_progress_message(
+                &package_name,
+                PackageProgressEvent::Detail(line.trim().to_string()),
+                progress_name_width,
+            ));
+        });
+        let progress_pb = pb.clone();
+        let progress_package_name = name.clone();
+        let mut progress_callback = Some(move |event: PackageProgressEvent| {
+            progress_pb.set_message(render_reinstall_progress_message(
+                &progress_package_name,
+                event,
+                progress_name_width,
             ));
         });
 
@@ -140,6 +220,7 @@ pub async fn run(
             force,
             &trusted_keys,
             &mut msg,
+            &mut progress_callback,
         )
         .await
         {
@@ -174,6 +255,13 @@ pub async fn run(
             );
             return Ok(());
         }
+        println!(
+            "{}",
+            output::warning(format!(
+                "Reinstall complete: {} reinstalled, {} failed.",
+                reinstalled, failed
+            ))
+        );
         return Err(anyhow!("Reinstall failed"));
     }
 
@@ -259,10 +347,11 @@ async fn run_dry_run(
                                         release.name, release.tag, asset.name, resolved_filetype
                                     ),
                                 );
-                                output::action_note(format!(
-                                    "{:<28} remove/install runtime files",
-                                    package.name
-                                ));
+                                output::status_line(
+                                    Status::Plan,
+                                    &package.name,
+                                    "remove/install runtime files",
+                                );
                                 planned += 1;
                             }
                             Err(err) => {
@@ -308,10 +397,11 @@ async fn run_dry_run(
                                     package.repo_slug, package.provider, branch, commit
                                 ),
                             );
-                            output::action_note(format!(
-                                "{:<28} remove/install runtime files",
-                                package.name
-                            ));
+                            output::status_line(
+                                Status::Plan,
+                                &package.name,
+                                "remove/install runtime files",
+                            );
                             planned += 1;
                         }
                         Err(err) => {
@@ -334,10 +424,11 @@ async fn run_dry_run(
                                     package.repo_slug, package.provider, release.name, release.tag
                                 ),
                             );
-                            output::action_note(format!(
-                                "{:<28} remove/install runtime files",
-                                package.name
-                            ));
+                            output::status_line(
+                                Status::Plan,
+                                &package.name,
+                                "remove/install runtime files",
+                            );
                             planned += 1;
                         }
                         Err(err) => {
@@ -373,11 +464,37 @@ async fn estimate_reinstall_impact(
     provider_manager: &ProviderManager,
     paths: &UpstreamPaths,
 ) -> DiskImpact {
-    let mut total = DiskImpact::empty();
+    total_reinstall_impact(
+        &estimate_reinstall_impact_rows(names, package_database, provider_manager, paths).await,
+    )
+}
+
+struct ReinstallImpactRow {
+    package: String,
+    version: String,
+    impact: DiskImpact,
+}
+
+fn total_reinstall_impact(rows: &[ReinstallImpactRow]) -> DiskImpact {
+    rows.iter()
+        .fold(DiskImpact::empty(), |total, row| total + row.impact.clone())
+}
+
+async fn estimate_reinstall_impact_rows(
+    names: &[String],
+    package_database: &PackageDatabase,
+    provider_manager: &ProviderManager,
+    paths: &UpstreamPaths,
+) -> Vec<ReinstallImpactRow> {
+    let mut rows = Vec::with_capacity(names.len());
 
     for name in names {
         let Some(package) = package_database.get_package(name).ok().flatten() else {
-            total = total + DiskImpact::unknown();
+            rows.push(ReinstallImpactRow {
+                package: name.clone(),
+                version: "-".to_string(),
+                impact: DiskImpact::unknown(),
+            });
             continue;
         };
 
@@ -415,10 +532,14 @@ async fn estimate_reinstall_impact(
                 net: SignedByteEstimate::unknown(),
             }
         };
-        total = total + package_impact;
+        rows.push(ReinstallImpactRow {
+            package: format!("{}/{}", package.provider, package.name),
+            version: package.version.to_string(),
+            impact: package_impact,
+        });
     }
 
-    total
+    rows
 }
 
 async fn resolve_reinstall_release(
@@ -445,7 +566,7 @@ async fn resolve_reinstall_release(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn reinstall_one<H>(
+async fn reinstall_one<H, P>(
     provider_manager: &ProviderManager,
     package_database: &mut PackageDatabase,
     paths: &UpstreamPaths,
@@ -454,9 +575,11 @@ async fn reinstall_one<H>(
     force: bool,
     trusted_keys: &TrustedSignatureKeys,
     message_callback: &mut Option<H>,
+    progress_callback: &mut Option<P>,
 ) -> Result<()>
 where
     H: FnMut(&str),
+    P: FnMut(PackageProgressEvent),
 {
     let target = match package.install_type {
         InstallType::Release => ResolvedUpgradeTarget::Release(
@@ -494,7 +617,6 @@ where
 
     let installer = PackageInstaller::new(provider_manager, paths)?;
     let upgrader = PackageUpgrader::new(provider_manager, installer, paths, trusted_keys.clone());
-    let mut no_progress: Option<fn(PackageProgressEvent)> = None;
     let updated = upgrader
         .reinstall_resolved(
             &package,
@@ -503,7 +625,7 @@ where
             force,
             &mut Some(|_: u64, _: u64| {}),
             message_callback,
-            &mut no_progress,
+            progress_callback,
         )
         .await?;
 
