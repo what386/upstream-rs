@@ -18,9 +18,6 @@
 - [ ] feat: commit-based build storage/dl
       @created 2026-08-09 05:36
 
-- [ ] consider: create false .app bundles pointing to .upstream/ executables on MacOS? (low)
-      @created 2026-08-11 02:45
-
 
 ## Completed
 
@@ -43,4 +40,3 @@
 - [x] fix: ctrl-c is respected during downloads (high)
       @created 2026-08-08 14:36
       @completed 2026-08-10 23:21
-
