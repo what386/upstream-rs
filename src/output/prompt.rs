@@ -108,10 +108,8 @@ fn read_key_line(term: &Term) -> anyhow::Result<String> {
                 term.write_line("")?;
                 return Ok(input);
             }
-            Key::Backspace => {
-                if input.pop().is_some() {
-                    term.write_str("\u{8} \u{8}")?;
-                }
+            Key::Backspace if input.pop().is_some() => {
+                term.write_str("\u{8} \u{8}")?;
             }
             Key::Char(c) => {
                 input.push(c);

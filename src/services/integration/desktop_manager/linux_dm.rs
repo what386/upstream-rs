@@ -82,6 +82,7 @@ impl LinuxDesktopHandler {
         self.write_entry(paths, &name, &entry)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) async fn create_staged_entry<H>(
         &self,
         _name: &str,

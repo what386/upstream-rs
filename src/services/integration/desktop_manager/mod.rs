@@ -96,6 +96,7 @@ impl PlatformDesktopHandler {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn create_staged_entry<H>(
         &self,
         name: &str,
