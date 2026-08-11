@@ -1,8 +1,11 @@
+pub mod archive;
 pub mod determine;
 pub mod downloader;
+pub mod git;
 pub mod profiles;
 pub mod scripts;
 pub mod worker;
+pub mod workspace;
 
 use std::path::PathBuf;
 
