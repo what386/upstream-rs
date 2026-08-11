@@ -18,7 +18,7 @@
 - [ ] feat: commit-based build storage/dl
       @created 2026-08-09 05:36
 
-- [ ] consider: bring back .app/dmg in the future (low)
+- [ ] consider: create false .app bundles pointing to .upstream/ executables on MacOS? (low)
       @created 2026-08-11 02:45
 
 
