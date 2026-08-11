@@ -1,6 +1,21 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-08-06*
+*Generated on 2026-08-11*
+
+## 2.16.0 — 2026-08-11
+
+### High Priority
+
+- fix: ctrl-c is respected during downloads
+
+### Changes
+
+- BREAKING: remove macos dmg/.app support
+- feat: better upgrade/install service, less prone to issues
+- feat: option to disable rollback creation
+- feat: change rollback algo to zst for speed
+- ui: reinstall now has consistent cli like upgrade/install
+
 
 ## 2.15.5 — 2026-08-06
 
