@@ -15,6 +15,9 @@
 - [ ] feat: commit-based build storage/dl
       @created 2026-08-09 05:36
 
+- [ ] desktop manager is bad make it less bad
+      @created 2026-08-11 20:15
+
 
 ## Completed
 
