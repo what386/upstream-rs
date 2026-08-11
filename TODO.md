@@ -12,9 +12,6 @@
 - [ ] docs: document contributor workflows and architecture invariants (low)
       @created 2026-08-04 21:58
 
-- [ ] consider: update reinstall to have consistent cli like upgrade/install
-      @created 2026-08-09 03:51
-
 - [ ] feat: commit-based build storage/dl
       @created 2026-08-09 05:36
 
@@ -40,3 +37,8 @@
 - [x] fix: ctrl-c is respected during downloads (high)
       @created 2026-08-08 14:36
       @completed 2026-08-10 23:21
+
+- [x] ui: reinstall now has consistent cli like upgrade/install
+      @created 2026-08-09 03:51
+      @completed 2026-08-11 20:12
+
