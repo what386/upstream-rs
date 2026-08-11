@@ -3,8 +3,8 @@ mod cosign;
 mod minisign;
 mod orchestrator;
 
-use serde::{Deserialize, Serialize};
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use std::{fs, io::Read, path::Path};
 
 pub use orchestrator::SignatureVerifier;
