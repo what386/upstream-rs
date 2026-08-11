@@ -61,8 +61,6 @@ complete -c upstream -n "__fish_upstream_using_subcommand add" -s h -l help -d '
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s t -l tag -d 'Release tag to install (defaults to latest matching the channel)' -r
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s v -l semver -d 'Semantic version to resolve to a release tag' -r
 complete -c upstream -n "__fish_upstream_using_subcommand install" -s k -l kind -d 'Asset kind to install' -r -f -a "app-image\t''
-mac-app\t''
-mac-dmg\t''
 archive\t''
 compressed\t''
 binary\t''
@@ -172,8 +170,6 @@ nightly\t''"
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l limit -d 'Number of releases to inspect instead of only one tag/latest release' -r
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -l tag -d 'Release tag to inspect exactly' -r
 complete -c upstream -n "__fish_upstream_using_subcommand probe" -s k -l kind -d 'Asset kind to show and install' -r -f -a "app-image\t''
-mac-app\t''
-mac-dmg\t''
 archive\t''
 compressed\t''
 binary\t''
@@ -216,8 +212,6 @@ complete -c upstream -n "__fish_upstream_using_subcommand find" -l max-stars -d 
 complete -c upstream -n "__fish_upstream_using_subcommand find" -l pushed-after -d 'Restrict results to repositories pushed on or after YYYY-MM-DD' -r
 complete -c upstream -n "__fish_upstream_using_subcommand find" -l name -d 'Package name to register without prompting' -r
 complete -c upstream -n "__fish_upstream_using_subcommand find" -s k -l kind -d 'Asset kind to install' -r -f -a "app-image\t''
-mac-app\t''
-mac-dmg\t''
 archive\t''
 compressed\t''
 binary\t''

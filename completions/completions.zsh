@@ -49,8 +49,8 @@ _arguments "${_arguments_options[@]}" : \
 '--tag=[Release tag to install (defaults to latest matching the channel)]:TAG:_default' \
 '(-t --tag)-v+[Semantic version to resolve to a release tag]:SEMVER:_default' \
 '(-t --tag)--semver=[Semantic version to resolve to a release tag]:SEMVER:_default' \
-'-k+[Asset kind to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
-'--kind=[Asset kind to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'-k+[Asset kind to install]:KIND:(app-image archive compressed binary win-exe checksum auto)' \
+'--kind=[Asset kind to install]:KIND:(app-image archive compressed binary win-exe checksum auto)' \
 '-p+[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
 '--provider=[Source provider hosting the repository. Defaults to auto-detection]:PROVIDER:_default' \
 '--base-url=[Custom base URL. Defaults to provider'\''s root]:BASE_URL:_default' \
@@ -223,8 +223,8 @@ _arguments "${_arguments_options[@]}" : \
 '--channel=[Release channel to display and track]:CHANNEL:(stable preview nightly)' \
 '--limit=[Number of releases to inspect instead of only one tag/latest release]:LIMIT:_default' \
 '--tag=[Release tag to inspect exactly]:TAG:_default' \
-'-k+[Asset kind to show and install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
-'--kind=[Asset kind to show and install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'-k+[Asset kind to show and install]:KIND:(app-image archive compressed binary win-exe checksum auto)' \
+'--kind=[Asset kind to show and install]:KIND:(app-image archive compressed binary win-exe checksum auto)' \
 '--trust=[Trust verification mode for downloaded assets]:TRUST_MODE:(none best-effort checksum signature all)' \
 '--include-incompatible[Include assets that do not match the current OS/architecture or selected file type]' \
 '--json[Print probe results as JSON and exit]' \
@@ -274,8 +274,8 @@ _arguments "${_arguments_options[@]}" : \
 '--max-stars=[Restrict results to repositories with at most this many stars]:N:_default' \
 '--pushed-after=[Restrict results to repositories pushed on or after YYYY-MM-DD]:YYYY-MM-DD:_default' \
 '--name=[Package name to register without prompting]:NAME:_default' \
-'-k+[Asset kind to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
-'--kind=[Asset kind to install]:KIND:(app-image mac-app mac-dmg archive compressed binary win-exe checksum auto)' \
+'-k+[Asset kind to install]:KIND:(app-image archive compressed binary win-exe checksum auto)' \
+'--kind=[Asset kind to install]:KIND:(app-image archive compressed binary win-exe checksum auto)' \
 '-c+[Release channel to track for upgrades]:CHANNEL:(stable preview nightly)' \
 '--channel=[Release channel to track for upgrades]:CHANNEL:(stable preview nightly)' \
 '-m+[Match pattern to use as a hint for which asset to prefer]:match:_default' \

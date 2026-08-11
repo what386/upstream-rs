@@ -1307,11 +1307,11 @@ _upstream() {
                     return 0
                     ;;
                 --kind)
-                    COMPREPLY=($(compgen -W "app-image mac-app mac-dmg archive compressed binary win-exe checksum auto" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "app-image archive compressed binary win-exe checksum auto" -- "${cur}"))
                     return 0
                     ;;
                 -k)
-                    COMPREPLY=($(compgen -W "app-image mac-app mac-dmg archive compressed binary win-exe checksum auto" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "app-image archive compressed binary win-exe checksum auto" -- "${cur}"))
                     return 0
                     ;;
                 --channel)
@@ -2527,11 +2527,11 @@ _upstream() {
                     return 0
                     ;;
                 --kind)
-                    COMPREPLY=($(compgen -W "app-image mac-app mac-dmg archive compressed binary win-exe checksum auto" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "app-image archive compressed binary win-exe checksum auto" -- "${cur}"))
                     return 0
                     ;;
                 -k)
-                    COMPREPLY=($(compgen -W "app-image mac-app mac-dmg archive compressed binary win-exe checksum auto" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "app-image archive compressed binary win-exe checksum auto" -- "${cur}"))
                     return 0
                     ;;
                 --provider)
@@ -2897,11 +2897,11 @@ _upstream() {
                     return 0
                     ;;
                 --kind)
-                    COMPREPLY=($(compgen -W "app-image mac-app mac-dmg archive compressed binary win-exe checksum auto" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "app-image archive compressed binary win-exe checksum auto" -- "${cur}"))
                     return 0
                     ;;
                 -k)
-                    COMPREPLY=($(compgen -W "app-image mac-app mac-dmg archive compressed binary win-exe checksum auto" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "app-image archive compressed binary win-exe checksum auto" -- "${cur}"))
                     return 0
                     ;;
                 --trust)
