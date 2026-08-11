@@ -1,5 +1,3 @@
-#[cfg(target_os = "linux")]
-use crate::services::artifact::AppImageExtractor;
 use crate::{
     application::{
         cli::arguments::PackageSettingKey,
@@ -265,14 +263,7 @@ pub fn run_rename(old_name: String, new_name: String, paths: &UpstreamPaths) -> 
 pub async fn run_add_entry(name: String, paths: &UpstreamPaths) -> Result<()> {
     let (mut package_database, mut package) = load_installed_package(&name, paths)?;
 
-    #[cfg(target_os = "linux")]
-    let appimage_extractor =
-        AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
-
-    #[cfg(target_os = "linux")]
-    let desktop_manager = DesktopManager::new(paths, &appimage_extractor);
-    #[cfg(not(target_os = "linux"))]
-    let desktop_manager = DesktopManager::new(&paths);
+    let desktop_manager = DesktopManager::new(paths)?;
 
     println!("{}", output::title("Package add-entry"));
 
@@ -290,14 +281,7 @@ pub async fn run_add_entry(name: String, paths: &UpstreamPaths) -> Result<()> {
 pub async fn run_rm_entry(name: String, paths: &UpstreamPaths) -> Result<()> {
     let (mut package_database, mut package) = load_installed_package(&name, paths)?;
 
-    #[cfg(target_os = "linux")]
-    let appimage_extractor =
-        AppImageExtractor::new().context("Failed to initialize appimage extractor")?;
-
-    #[cfg(target_os = "linux")]
-    let desktop_manager = DesktopManager::new(paths, &appimage_extractor);
-    #[cfg(not(target_os = "linux"))]
-    let desktop_manager = DesktopManager::new(&paths);
+    let desktop_manager = DesktopManager::new(paths)?;
 
     println!("{}", output::title("Package rm-entry"));
 

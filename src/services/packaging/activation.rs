@@ -80,17 +80,10 @@ impl PreparedInstall {
     where
         H: FnMut(&str),
     {
-        #[cfg(target_os = "linux")]
-        let extractor = crate::services::artifact::AppImageExtractor::new()
-            .context("Failed to initialize appimage extractor")?;
-
-        #[cfg(target_os = "linux")]
-        let desktop_manager = DesktopManager::new(paths, &extractor);
-        #[cfg(not(target_os = "linux"))]
-        let desktop_manager = DesktopManager::new(paths);
+        let desktop_manager = DesktopManager::new(paths)?;
 
         let mut final_package = self.final_package(paths)?;
-        let desktop_path = self.workspace.desktop_path(&self.package.name);
+        let desktop_path = self.workspace.desktop_path(&self.package.name)?;
         desktop_manager
             .prepare_package_entry(
                 &self.package,
@@ -217,7 +210,7 @@ impl PreparedInstall {
         if let Some(staged_desktop_path) = self.staged_desktop_path.as_ref()
             && staged_desktop_path.exists()
         {
-            let destination = DesktopManager::managed_entry_path(paths, &self.package.name);
+            let destination = DesktopManager::managed_entry_path(paths, &self.package.name)?;
             if let Some(parent) = destination.parent() {
                 fs::create_dir_all(parent).with_context(|| {
                     format!("Failed to create desktop directory '{}'", parent.display())
@@ -322,7 +315,7 @@ impl ReplacementBackup {
             self.move_integration(path, "completions")?;
         }
         self.move_integration(
-            DesktopManager::managed_entry_path(paths, &self.previous_package.name),
+            DesktopManager::managed_entry_path(paths, &self.previous_package.name)?,
             "desktop",
         )?;
         if let Some(icon_path) = self.previous_package.icon_path.clone() {

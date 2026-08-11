@@ -4,6 +4,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(target_os = "macos")]
+use anyhow::anyhow;
 use anyhow::{Context, Result};
 
 use crate::{services::integration::CompletionPaths, utils::static_paths::UpstreamPaths};
@@ -81,13 +83,19 @@ impl InstallWorkspace {
         &self.icons_dir
     }
 
-    pub fn desktop_path(&self, package_name: &str) -> PathBuf {
-        #[cfg(target_os = "linux")]
-        return self.desktop_dir.join(format!("{package_name}.desktop"));
-        #[cfg(target_os = "macos")]
-        return self.desktop_dir.join(format!("{package_name}.app"));
-        #[cfg(windows)]
-        return self.desktop_dir.join(format!("{package_name}.lnk"));
+    #[cfg(target_os = "linux")]
+    pub fn desktop_path(&self, package_name: &str) -> Result<PathBuf> {
+        Ok(self.desktop_dir.join(format!("{package_name}.desktop")))
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn desktop_path(&self, _package_name: &str) -> Result<PathBuf> {
+        Err(anyhow!("Desktop integration is unsupported on macOS"))
+    }
+
+    #[cfg(windows)]
+    pub fn desktop_path(&self, package_name: &str) -> Result<PathBuf> {
+        Ok(self.desktop_dir.join(format!("{package_name}.lnk")))
     }
 }
 
