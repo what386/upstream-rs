@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-10
+@modified: 2026-08-11
 
 
 ## Tasks
@@ -17,6 +17,9 @@
 
 - [ ] feat: commit-based build storage/dl
       @created 2026-08-09 05:36
+
+- [ ] consider: bring back .app/dmg in the future (low)
+      @created 2026-08-11 02:45
 
 
 ## Completed
