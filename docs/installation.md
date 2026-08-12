@@ -85,12 +85,6 @@ Upstream stores data in user-owned locations:
 
 Desktop entries are written to `$HOME/.local/share/applications` on Linux. Shell completions are installed directly into shell-specific user completion directories when supported.
 
-## Migration
-
-Versioned local-data migrations run automatically when Upstream starts. Run
-`upstream doctor` after an upgrade to check the migrated layout and use
-`upstream doctor --fix` for supported integration repairs.
-
 ## Updating Upstream Itself
 
 The bootstrap scripts install Upstream through Upstream after the binary is available. Once tracked as a package, `upstream upgrade upstream` or plain `upstream upgrade` can update it like other managed packages.

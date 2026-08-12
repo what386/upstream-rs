@@ -345,10 +345,6 @@ Detailed documentation is available in [`docs/`](docs/):
 * [Backup, import, and export](docs/backup.md)
 * [Troubleshooting](docs/troubleshooting.md)
 
-## Notes
-
-Upstream installs packages in user space and does not manage dependencies.
-
 ## License
 
 MIT OR Apache-2.0

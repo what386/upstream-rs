@@ -109,48 +109,6 @@ Store the copied token with:
 upstream auth set github.api_token=github_pat_xxx
 ```
 
-## Download Concurrency
-
-Large downloads can use multiple HTTP range requests when the server supports `Accept-Ranges: bytes`.
-
-Default download concurrency keys:
-
-```text
-download.low_threshold_mb = 16
-download.high_threshold_mb = 64
-download.low_threads = 2
-download.high_threads = 4
-```
-
-With the defaults, downloads under 16 MiB use one stream, downloads from 16 MiB up to 64 MiB use two streams, and downloads at or above 64 MiB use four streams.
-
-Examples:
-
-```bash
-upstream config set download.low_threshold_mb=32
-upstream config set download.high_threshold_mb=128 download.high_threads=6
-```
-
-## Concurrency
-
-Upgrade checks, bulk upgrades, and package imports can run several packages in parallel.
-
-Default concurrency keys:
-
-```text
-concurrency.check_concurrency = 8
-concurrency.install_concurrency = 4
-```
-
-`concurrency.check_concurrency` controls update checks used by `upstream upgrade --check` and by the preview step before applying upgrades. `concurrency.install_concurrency` controls how many packages are upgraded at once after confirmation and how many release or build packages are installed concurrently during package/profile imports. Values below `1` are treated as `1`.
-
-Examples:
-
-```bash
-upstream config set concurrency.check_concurrency=4
-upstream config set concurrency.install_concurrency=2
-```
-
 ## Rollback
 
 Rollback behavior is controlled by:
@@ -186,16 +144,6 @@ upstream import keys ./cosign.pub
 
 Manual edits are possible, but imports handle parsing and deduplication.
 
-Storage shape:
-
-```json
-{
-  "version": 1,
-  "minisign_public_keys": [{ "key": "RW...", "id": "optional-name" }],
-  "cosign_public_keys": [{ "key": "-----BEGIN PUBLIC KEY-----...", "id": "optional-name" }]
-}
-```
-
 ## Package Metadata
 
 Installed package metadata is separate from configuration:
@@ -215,7 +163,3 @@ $HOME/.upstream/state/rollback/
 - `state/rollback/` contains rollback artifact metadata and payloads.
 
 Do not hand-edit these files unless you are repairing a known issue. Use `package rename`, `package pin`, `package unpin`, `remove`, `reinstall`, and `rollback` where possible.
-
-## Editing Safely
-
-Use `upstream config edit` for manual config changes. Unknown keys are rejected when the file is loaded, and `upstream doctor` can help check paths and metadata consistency after manual repairs.
