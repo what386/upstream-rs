@@ -1,3 +1,5 @@
+set positional-arguments
+
 default:
     just --list
 
@@ -54,7 +56,7 @@ registry-import-pkg input="-":
 
 
 run *args:
-    cargo run --bin "upstream" -- {{args}}
+    cargo run --bin "upstream" -- "$0"
 
 testbin *args:
     ./tests/fakehome/.upstream/state/symlinks/upstream {{args}}
