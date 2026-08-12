@@ -1,55 +1,87 @@
 # Troubleshooting
 
-Start with diagnostics:
+## Start with diagnostics
+
+Run the read-only checks first:
 
 ```bash
 upstream doctor
 upstream doctor --verbose
+upstream doctor --json
+```
+
+`doctor` checks the local layout, package paths, symlinks, shell hooks, completion directories, desktop and icon files, configuration, provider tokens, and package metadata. The default output is a summary with actionable hints; `--verbose` prints every check and `--json` emits a machine-readable report. A nonzero exit status means that at least one check failed.
+
+After reviewing the report, run the supported repairs:
+
+```bash
 upstream doctor --fix
 ```
 
-`doctor` checks installed package paths, symlinks, shell hooks, completion directories, desktop entries, icons, config, and metadata. Use `--verbose` when you need individual check lines. Use `--fix` to repair supported issues such as PATH hooks, missing symlinks, executable bits, executable metadata, and unused config keys. Versioned local-data migrations run automatically at startup.
+`--fix` repairs supported package and integration issues, including the generated
+PATH integration, missing package links, executable bits, executable metadata,
+and version-tag templates. It does not repair invalid configuration, replace a
+damaged Upstream installation, or modify provider credentials. Fix invalid keys
+directly in `config.toml`, then rerun `upstream doctor`.
 
-## Windows Repair
+## Repair a damaged Upstream installation
 
-The Windows repair script is diagnostic-only unless `-Fix` is supplied:
+Use the platform repair script when the `upstream` executable itself is missing,
+cannot read its package state, or cannot repair itself. The script first tries an
+in-place reinstall of the managed `upstream` package. If that fails, it downloads
+the latest release, verifies its published SHA-256 checksum, and uses the
+temporary binary to reinstall `upstream` before running `hooks init` and
+`doctor --fix`.
+
+On Linux or macOS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/debug/repair.sh \
+  -o "${TMPDIR:-/tmp}/upstream-repair.sh"
+bash "${TMPDIR:-/tmp}/upstream-repair.sh"
+```
+
+On Windows PowerShell:
 
 ```powershell
-$repair = Join-Path $env:TEMP "repair-windows.ps1"
-iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/debug/repair-windows.ps1 -OutFile $repair
+$repair = Join-Path $env:TEMP "upstream-repair.ps1"
+Invoke-WebRequest https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/debug/repair.ps1 -OutFile $repair
 pwsh -NoProfile -File $repair
 ```
 
-After reviewing the output, repair the managed executable, aliases, and canonical
-user PATH entry with:
+The repair scripts preserve the existing `.upstream` data directory, including
+package metadata, configuration, caches, and rollback artifacts. They do not
+repair arbitrary packages; use `upstream reinstall <name>` for those. Restart
+shells that were launched before the repair so they receive the updated PATH.
 
-```powershell
-pwsh -NoProfile -File $repair -Fix
-```
+On Windows, `upstream doctor --fix` updates the user PATH registry value. A
+running shell still has its old environment, so start a new PowerShell session
+after the repair.
 
-The repair verifies the downloaded Windows executable against the published
-checksum and preserves configuration, other packages, caches, and rollback data.
-Restart separately launched shells afterward. The normal `install.ps1 | iex`
-command can prepend the repaired alias directory only in that current PowerShell
-process; it cannot change the environment of shells that are already running.
+## Startup migration and legacy data
 
-## Migration
+Migrations run automatically before the requested command. They create missing
+current-layout directories, move legacy package artifacts into
+`$HOME/.upstream/packages/`, rewrite affected metadata paths, and import older
+package records when possible. If migration fails, Upstream stops before running
+the command and prints the underlying error.
 
-Startup migration creates missing current-layout directories, moves legacy
-package artifacts into `$HOME/.upstream/packages/`, and rewrites affected
-metadata paths. If a migration cannot complete, Upstream exits with the
-underlying error before running the requested command.
+Do not delete legacy data or edit the package database while diagnosing a
+migration failure. Preserve `$HOME/.upstream` and use the repair script only for
+a damaged Upstream installation; it is not a substitute for recovering corrupt
+user data.
 
-## Shell Hooks
+## Shell hooks and PATH
 
 If installed commands are not found on `PATH`:
 
 ```bash
 upstream hooks check
 upstream hooks init
+upstream doctor --fix
 ```
 
-Restart the shell after initializing hooks. On Unix, Upstream writes managed PATH files at:
+On Unix, Upstream writes managed PATH files at:
 
 ```text
 $HOME/.upstream/generated/paths.sh
@@ -121,6 +153,25 @@ Pinned packages are skipped until unpinned:
 upstream package unpin <name>
 ```
 
+Upgrades and reinstalls use a temporary replacement and retain the previous
+install until the new files, integrations, and metadata are committed. If a
+replacement fails, Upstream removes the partial install and reports that the
+previous version was restored. Check the result before retrying:
+
+```bash
+upstream doctor <name> --verbose
+upstream history --package <name> --status failed
+```
+
+An interrupted operation may leave a temporary `.old` recovery copy while
+cleanup finishes. Leave that file in place and rerun the command or `doctor`; it
+is transaction recovery data, not the persistent artifact managed by
+`upstream rollback`.
+
+Press Ctrl-C once to request cancellation and allow cleanup or rollback to
+finish. Press it a second time only when immediate termination is necessary;
+that exits with status 130 and can prevent cleanup from completing.
+
 ## Rollback
 
 If an upgrade or removal captured rollback data, restore it with:
@@ -135,11 +186,16 @@ Preview first:
 upstream rollback <name> --dry-run
 ```
 
-Remove old rollback artifacts:
+List or remove persistent rollback artifacts:
 
 ```bash
+upstream rollback --list
 upstream rollback --prune
 ```
+
+`rollback` is separate from temporary failed-operation recovery. It restores the
+latest stored artifact for a named package; `--prune` removes stored rollback
+artifacts and does not repair an active installation.
 
 ## Build Failures
 
@@ -152,3 +208,18 @@ upstream build owner/repo app --build-profile rust
 If a project needs custom build steps that do not fit the supported profiles, use a prebuilt release asset or add project install/upgrade scripts upstream can review and run.
 
 Git source builds use cached workspaces under `$HOME/.upstream/cache/build/`. If a cached build workspace appears corrupted, remove that package's build cache and rebuild or reinstall the package.
+
+## Logs and operation history
+
+For a failed or interrupted command, inspect grouped operation history before
+retrying:
+
+```bash
+upstream history --status failed
+upstream history --today
+upstream history --json
+```
+
+Detailed JSONL logging is stored under the Upstream data directory as
+`$HOME/.upstream/log.jsonl`. Include the relevant history output and error chain
+when reporting a problem, but redact tokens and private source URLs.
