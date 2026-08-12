@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-08-11*
+*Generated on 2026-08-12*
+
+## 2.16.1 — 2026-08-12
+
+### Changes
+
+- fix: issue where old packages.json file would try to deserialize and fail
+
 
 ## 2.16.0 — 2026-08-11
 

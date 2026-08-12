@@ -18,10 +18,3 @@
 - [ ] desktop manager is bad make it less bad
       @created 2026-08-11 20:15
 
-
-## Completed
-
-- [x] fix: issue where old packages.json file would try to deserialize and fail
-      @created 2026-08-12 01:55
-      @completed 2026-08-12 01:55
-
