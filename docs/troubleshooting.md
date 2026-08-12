@@ -27,30 +27,27 @@ directly in `config.toml`, then rerun `upstream doctor`.
 ## Repair a damaged Upstream installation
 
 Use the platform repair script when the `upstream` executable itself is missing,
-cannot read its package state, or cannot repair itself. The script first tries an
-in-place reinstall of the managed `upstream` package. If that fails, it downloads
-the latest release, verifies its published SHA-256 checksum, and uses the
-temporary binary to reinstall `upstream` before running `hooks init` and
-`doctor --fix`.
+cannot read its package state, or cannot repair itself. It first tries an
+in-place reinstall. If that fails, it downloads the latest release, verifies its
+published SHA-256 checksum, forcefully removes the broken managed `upstream`
+installation, and reinstalls it before running `hooks init` and `doctor --fix`.
+The forced removal targets the managed Upstream package; it keeps your existing
+configuration, installed package records, package artifacts, caches, and rollback
+data.
 
 On Linux or macOS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/debug/repair.sh \
-  -o "${TMPDIR:-/tmp}/upstream-repair.sh"
-bash "${TMPDIR:-/tmp}/upstream-repair.sh"
+curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/debug/repair.sh | bash
 ```
 
 On Windows PowerShell:
 
 ```powershell
-$repair = Join-Path $env:TEMP "upstream-repair.ps1"
-Invoke-WebRequest https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/debug/repair.ps1 -OutFile $repair
-pwsh -NoProfile -File $repair
+iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/debug/repair.ps1 | iex
 ```
 
-The repair scripts preserve the existing `.upstream` data directory, including
-package metadata, configuration, caches, and rollback artifacts. They do not
+The repair scripts preserve the existing `.upstream` data directory. They do not
 repair arbitrary packages; use `upstream reinstall <name>` for those. Restart
 shells that were launched before the repair so they receive the updated PATH.
 
