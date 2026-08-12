@@ -66,7 +66,19 @@ pub fn load_legacy_package_metadata(paths: &UpstreamPaths) -> Result<Vec<Package
         return Ok(Vec::new());
     }
 
-    let file: LegacyPackageStorageFile = serde_json::from_str(&json).with_context(|| {
+    let mut value: serde_json::Value = serde_json::from_str(&json).with_context(|| {
+        format!(
+            "Failed to parse package storage '{}'. The file may be corrupt; restore from backup or fix JSON syntax",
+            packages_file.display()
+        )
+    })?;
+    normalize_legacy_patterns(&mut value).with_context(|| {
+        format!(
+            "Failed to migrate legacy package patterns in '{}'",
+            packages_file.display()
+        )
+    })?;
+    let file: LegacyPackageStorageFile = serde_json::from_value(value).with_context(|| {
         format!(
             "Failed to parse package storage '{}'. The file may be corrupt; restore from backup or fix JSON syntax",
             packages_file.display()
@@ -82,6 +94,39 @@ pub fn load_legacy_package_metadata(paths: &UpstreamPaths) -> Result<Vec<Package
     }
 
     Ok(file.packages)
+}
+
+/// Package records before the pattern-table format stored patterns as a
+/// comma/whitespace-separated string. Normalize that representation only
+/// while importing legacy storage; current package data remains strict.
+fn normalize_legacy_patterns(value: &mut serde_json::Value) -> Result<()> {
+    let packages = value
+        .get_mut("packages")
+        .and_then(serde_json::Value::as_array_mut)
+        .ok_or_else(|| anyhow!("legacy package storage has no array 'packages' field"))?;
+
+    for package in packages {
+        let Some(package) = package.as_object_mut() else {
+            continue;
+        };
+        for field in ["match_pattern", "exclude_pattern"] {
+            let Some(pattern) = package.get_mut(field) else {
+                continue;
+            };
+            let Some(pattern) = pattern.as_str() else {
+                continue;
+            };
+            let patterns = pattern
+                .split(|character: char| character == ',' || character.is_whitespace())
+                .filter(|pattern| !pattern.is_empty())
+                .map(serde_json::Value::from)
+                .collect();
+            *package.get_mut(field).expect("pattern field still exists") =
+                serde_json::Value::Array(patterns);
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -186,6 +231,33 @@ mod tests {
             err.to_string()
                 .contains("Unsupported package storage version")
         );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn load_legacy_package_metadata_converts_string_patterns() {
+        let root = temp_root("legacy-pattern-string");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(paths.metadata.packages_file.parent().expect("parent"))
+            .expect("create parent");
+        let mut package = serde_json::to_value(test_package("codex")).expect("serialize package");
+        package["match_pattern"] = serde_json::Value::String("codex-x86-64".to_string());
+        package["exclude_pattern"] = serde_json::Value::String("debug, symbols".to_string());
+        fs::write(
+            &paths.metadata.packages_file,
+            serde_json::json!({
+                "version": super::LEGACY_PACKAGE_STORAGE_VERSION,
+                "packages": [package]
+            })
+            .to_string(),
+        )
+        .expect("write packages");
+
+        let packages = super::load_legacy_package_metadata(&paths).expect("load packages");
+
+        assert_eq!(packages[0].match_pattern.as_slice(), ["codex-x86-64"]);
+        assert_eq!(packages[0].exclude_pattern.as_slice(), ["debug", "symbols"]);
 
         cleanup(&root).expect("cleanup");
     }

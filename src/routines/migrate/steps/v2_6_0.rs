@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use rusqlite::Connection;
+use std::fs;
 
 use crate::routines::doctor::checks::legacy;
 use crate::routines::migrate::MigrationReport;
@@ -24,7 +25,9 @@ impl Step for V2_6_0 {
         let database_existed = paths.metadata.packages_database_file.exists();
         let mut storage = PackageDatabase::open(&paths.metadata.packages_database_file)?;
         let packages = storage.list_packages()?;
-        let packages = if legacy::legacy_package_metadata_exists(paths) && packages.is_empty() {
+        let importing_legacy_packages =
+            legacy::legacy_package_metadata_exists(paths) && packages.is_empty();
+        let packages = if importing_legacy_packages {
             let legacy_packages = legacy::load_legacy_package_metadata(paths)?;
             if !legacy_packages.is_empty() {
                 storage.replace_all_packages(&legacy_packages)?;
@@ -36,6 +39,15 @@ impl Step for V2_6_0 {
 
         if database_existed {
             refresh_symlinks(paths, &packages, report)?;
+        }
+
+        if importing_legacy_packages {
+            fs::remove_file(&paths.metadata.packages_file).with_context(|| {
+                format!(
+                    "Failed to remove migrated package storage '{}'",
+                    paths.metadata.packages_file.display()
+                )
+            })?;
         }
 
         Ok(())
@@ -207,6 +219,7 @@ mod tests {
             migrated_package.exec_path.as_deref(),
             Some(binary.as_path())
         );
+        assert!(!paths.metadata.packages_file.exists());
         assert!(!V2_6_0::check(&paths).expect("check after migration"));
 
         cleanup(&root).expect("cleanup");
