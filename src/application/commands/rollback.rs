@@ -46,6 +46,7 @@ fn show_restore_preview(preview: &RollbackPreview) {
             "Net disk change:",
         );
     }
+
     show_missing_names(&preview.missing_names);
 }
 
@@ -53,6 +54,7 @@ fn show_prune_preview(preview: &RollbackPreview, dry_run: bool) {
     if dry_run {
         println!("{}", output::title("Rollback prune preview"));
     }
+
     if preview.rows.is_empty() {
         println!("{}", output::warning("No rollback artifacts to prune."));
     } else {
@@ -62,6 +64,7 @@ fn show_prune_preview(preview: &RollbackPreview, dry_run: bool) {
             "Net disk change:",
         );
     }
+
     show_missing_names(&preview.missing_names);
 }
 
@@ -103,6 +106,7 @@ fn rollback_mode(
         if !names.is_empty() || prune.is_some() {
             bail!("--list cannot be combined with package names or --prune");
         }
+
         return Ok(RollbackMode::List);
     }
 
@@ -110,15 +114,19 @@ fn rollback_mode(
         if !names.is_empty() {
             bail!("--prune cannot be combined with rollback package names");
         }
+
         if prune.is_empty() {
             return Ok(RollbackMode::Prune(Vec::new()));
         }
+
         if prune.iter().any(|name| name.eq_ignore_ascii_case("all")) {
             if prune.len() != 1 {
                 bail!("--prune all cannot be combined with package names");
             }
+
             return Ok(RollbackMode::Prune(Vec::new()));
         }
+
         return Ok(RollbackMode::Prune(prune));
     }
 
@@ -150,6 +158,7 @@ fn run_restore(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperat
                 ),
             );
         }
+
         output::action_note("resolve only (no restore, no prune, no metadata changes)");
         return Ok(());
     }
@@ -164,6 +173,7 @@ fn run_restore(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperat
 
         return Ok(());
     }
+
     output::confirm_or_cancel(
         format!(
             "Restore rollback for {} package(s)?",
@@ -186,6 +196,7 @@ fn run_restore(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperat
             restore_phase_label(line)
         ));
     });
+
     let outcome = operation.restore(&restorable_names, &mut progress)?;
     pb.finish_and_clear();
 
@@ -262,6 +273,7 @@ fn run_prune(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperatio
         prune_pb.set_position(current as u64);
         prune_pb.set_message(format!("\n {:<28} Pruning rollback artifacts ...", name));
     });
+
     let outcome = operation.prune(&preview.target_names, &mut progress);
     pb.finish_and_clear();
     let outcome = outcome?;
@@ -320,6 +332,7 @@ fn print_list_rows(rows: &[RollbackListRow]) {
         .unwrap_or(4)
         .max("Name".len())
         .min(28);
+
     let version_width = rows
         .iter()
         .map(|row| row.version.chars().count())
@@ -327,6 +340,7 @@ fn print_list_rows(rows: &[RollbackListRow]) {
         .unwrap_or(7)
         .max("Version".len())
         .min(18);
+
     let source_width = "reinstall".len().max("Source".len());
     let path_width = 72;
     let table_width = name_width + version_width + source_width + path_width + 3;
@@ -335,6 +349,7 @@ fn print_list_rows(rows: &[RollbackListRow]) {
         "{:<name_width$} {:<version_width$} {:<source_width$} Install path",
         "Name", "Version", "Source",
     );
+
     println!("{}", output::divider(table_width));
     for row in rows {
         let path = shorten_upstream_package_path(Path::new(&row.install_path))

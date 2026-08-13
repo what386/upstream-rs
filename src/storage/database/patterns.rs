@@ -102,10 +102,12 @@ fn load_pattern_kind(conn: &Connection, package_name: &str, kind: &str) -> Resul
              ORDER BY position ASC",
         )
         .with_context(|| format!("Failed to prepare {kind} pattern query"))?;
+
     let patterns = stmt
         .query_map(params![package_name, kind], |row| row.get::<_, String>(0))
         .with_context(|| format!("Failed to load {kind} patterns for '{package_name}'"))?
         .collect::<rusqlite::Result<Vec<_>>>()
         .with_context(|| format!("Failed to decode {kind} patterns for '{package_name}'"))?;
+
     Ok(PatternTable::from_patterns(patterns))
 }

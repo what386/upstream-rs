@@ -9,6 +9,7 @@ use crate::{
 };
 
 use super::gitea_dtos::GiteaReleaseDto;
+
 #[derive(Debug, Deserialize)]
 struct GiteaCommitRefDto {
     #[serde(default)]
@@ -144,6 +145,7 @@ impl GiteaClient {
             "{}/api/v1/repos/{}/releases/tags/{}",
             self.base_url, owner_repo, tag
         );
+
         self.get_json(&url)
             .await
             .context(format!("Failed to get release for tag {}", tag))
@@ -154,6 +156,7 @@ impl GiteaClient {
             "{}/api/v1/repos/{}/releases/latest",
             self.base_url, owner_repo
         );
+
         self.get_json(&url)
             .await
             .context(format!("Failed to get latest release for {}", owner_repo))
@@ -174,6 +177,7 @@ impl GiteaClient {
                 .get_releases_page(owner_repo, per_page, page)
                 .await
                 .context(format!("Failed to get releases page {}", page))?;
+
             let partial_page = batch.len() < per_page as usize;
 
             if batch.is_empty() {
@@ -209,6 +213,7 @@ impl GiteaClient {
             "{}/api/v1/repos/{}/releases?page={}&limit={}",
             self.base_url, owner_repo, page, per_page
         );
+
         self.get_json(&url)
             .await
             .context(format!("Failed to get releases page {}", page))
@@ -220,13 +225,16 @@ impl GiteaClient {
             "{}/api/v1/repos/{}/branches/{}",
             self.base_url, owner_repo, encoded_branch
         );
+
         let dto: GiteaBranchDto = self.get_json(&url).await.context(format!(
             "Failed to get branch head for {}/{}",
             owner_repo, branch
         ))?;
+
         if !dto.commit.id.is_empty() {
             return Ok(dto.commit.id);
         }
+
         Ok(dto.commit.sha)
     }
 
@@ -236,11 +244,13 @@ impl GiteaClient {
             "Failed to get repository metadata for {}",
             owner_repo
         ))?;
+
         let branch = if repo.default_branch.trim().is_empty() {
             "main"
         } else {
             repo.default_branch.trim()
         };
+
         let encoded_branch = branch.replace('/', "%2F");
         let url = format!(
             "{}/{}/raw/branch/{}/README.md",
@@ -262,6 +272,7 @@ mod tests {
     fn new_normalizes_base_url_without_scheme() {
         let client =
             GiteaClient::new(None, Some("gitea.example.com"), Default::default()).expect("client");
+
         assert_eq!(client.base_url, "https://gitea.example.com");
     }
 

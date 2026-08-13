@@ -17,12 +17,15 @@ fn decode_utf8_or_utf16(mut bytes: Vec<u8>) -> Result<String> {
     if let Some(contents) = bytes.strip_prefix(&[0xFF, 0xFE]) {
         return decode_utf16(contents, u16::from_le_bytes, "UTF-16 LE");
     }
+
     if let Some(contents) = bytes.strip_prefix(&[0xFE, 0xFF]) {
         return decode_utf16(contents, u16::from_be_bytes, "UTF-16 BE");
     }
+
     if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
         bytes.drain(..3);
     }
+
     String::from_utf8(bytes).map_err(|error| anyhow!(error))
 }
 
@@ -30,6 +33,7 @@ fn decode_utf16(bytes: &[u8], decode_unit: fn([u8; 2]) -> u16, encoding: &str) -
     if !bytes.len().is_multiple_of(2) {
         return Err(anyhow!("{encoding} text has an incomplete code unit"));
     }
+
     char::decode_utf16(
         bytes
             .chunks_exact(2)
@@ -62,6 +66,7 @@ mod tests {
                 unit.to_le_bytes()
             });
         }
+
         bytes
     }
 
@@ -72,6 +77,7 @@ mod tests {
             decode_utf8_or_utf16(contents.as_bytes().to_vec()).expect("decode UTF-8"),
             contents
         );
+
         let bytes = [b"\xEF\xBB\xBF".as_slice(), contents.as_bytes()].concat();
         assert_eq!(
             decode_utf8_or_utf16(bytes).expect("decode UTF-8 BOM"),
@@ -88,6 +94,7 @@ mod tests {
             decode_utf8_or_utf16(little_endian).expect("decode UTF-16 LE"),
             contents
         );
+
         assert_eq!(
             decode_utf8_or_utf16(big_endian).expect("decode UTF-16 BE"),
             contents
@@ -104,6 +111,7 @@ mod tests {
                 .to_string()
                 .contains("incomplete code unit")
         );
+
         assert!(
             decode_utf8_or_utf16(invalid_utf8.to_vec())
                 .expect_err("reject invalid UTF-8")

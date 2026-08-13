@@ -55,6 +55,7 @@ pub(crate) fn read_asset_bytes(asset_path: &Path) -> Result<Vec<u8>> {
             asset_path.display()
         )
     })?;
+
     let mut bytes = Vec::new();
     let mut buffer = [0_u8; 64 * 1024];
     loop {
@@ -63,7 +64,9 @@ pub(crate) fn read_asset_bytes(asset_path: &Path) -> Result<Vec<u8>> {
         if count == 0 {
             break;
         }
+
         bytes.extend_from_slice(&buffer[..count]);
     }
+
     Ok(bytes)
 }

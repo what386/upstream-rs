@@ -33,11 +33,13 @@ pub fn decompress_with_progress(
     let without_ext = input
         .file_stem()
         .ok_or_else(|| anyhow!("Cannot derive archive name"))?;
+
     // If it ends with .tar, remove that too
     let archive_name = Path::new(without_ext)
         .file_stem()
         .filter(|_| without_ext.to_string_lossy().ends_with(".tar"))
         .unwrap_or(without_ext);
+
     let extract_dir = output.join(archive_name);
     std::fs::create_dir_all(&extract_dir)?;
 
@@ -46,10 +48,12 @@ pub fn decompress_with_progress(
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
+
     let file_name = input
         .file_name()
         .ok_or_else(|| anyhow!("Invalid archive path: no filename"))?
         .to_string_lossy();
+
     let name = file_name.to_lowercase();
 
     let result = if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
@@ -84,6 +88,7 @@ fn finish_extraction(path: &Path, result: Result<PathBuf>) -> Result<PathBuf> {
     if result.is_err() && cancellation::is_requested() {
         let _ = std::fs::remove_dir_all(path);
     }
+
     result
 }
 
@@ -94,6 +99,7 @@ fn safe_join_extract_path(extract_dir: &Path, entry_path: &Path) -> Result<PathB
             entry_path.display()
         ));
     }
+
     let mut out = PathBuf::from(extract_dir);
     for component in entry_path.components() {
         match component {
@@ -107,6 +113,7 @@ fn safe_join_extract_path(extract_dir: &Path, entry_path: &Path) -> Result<PathB
             }
         }
     }
+
     Ok(out)
 }
 
@@ -125,6 +132,7 @@ fn resolve_relative_path_within_root(
             relative_path.display()
         ));
     }
+
     let base_relative = base_path.strip_prefix(extract_dir).map_err(|_| {
         anyhow!(
             "Archive {} escapes extraction root: '{}'",
@@ -132,6 +140,7 @@ fn resolve_relative_path_within_root(
             relative_path.display()
         )
     })?;
+
     let mut normalized_parts: Vec<PathBuf> = Vec::new();
     for component in base_relative.components() {
         match component {
@@ -146,6 +155,7 @@ fn resolve_relative_path_within_root(
             }
         }
     }
+
     for component in relative_path.components() {
         match component {
             Component::CurDir => {}
@@ -168,6 +178,7 @@ fn resolve_relative_path_within_root(
             }
         }
     }
+
     Ok(normalized_parts
         .into_iter()
         .fold(extract_dir.to_path_buf(), |mut acc, part| {
@@ -204,6 +215,7 @@ fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> 
             let raw_target = entry.link_name()?.ok_or_else(|| {
                 anyhow!("Archive hardlink '{}' has no target", entry_path.display())
             })?;
+
             let target_path = safe_join_extract_path(extract_dir, &raw_target)?;
             let metadata = std::fs::metadata(&target_path).map_err(|err| {
                 anyhow!(
@@ -213,6 +225,7 @@ fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> 
                     err
                 )
             })?;
+
             if !metadata.is_file() {
                 return Err(anyhow!(
                     "Archive hardlink '{}' target is not a regular file '{}'",
@@ -220,9 +233,11 @@ fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> 
                     raw_target.display()
                 ));
             }
+
             if let Some(parent) = path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
+
             std::fs::hard_link(&target_path, &path)?;
             paths.push(path);
             continue;
@@ -236,21 +251,25 @@ fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> 
                     entry_path.display()
                 ));
             }
+
             #[cfg(not(windows))]
             {
                 let raw_target = entry.link_name()?.ok_or_else(|| {
                     anyhow!("Archive symlink '{}' has no target", entry_path.display())
                 })?;
+
                 let parent = path.parent().ok_or_else(|| {
                     anyhow!(
                         "Archive symlink entry has no parent directory '{}'",
                         entry_path.display()
                     )
                 })?;
+
                 let _target_path = safe_join_link_target(extract_dir, parent, &raw_target)?;
                 if let Some(parent) = path.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
+
                 std::os::unix::fs::symlink(&raw_target, &path)?;
                 paths.push(path);
                 continue;
@@ -260,9 +279,11 @@ fn unpack_tar_entries<R: Read>(archive: &mut Archive<R>, extract_dir: &Path) -> 
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
+
         entry.unpack(&path)?;
         paths.push(path);
     }
+
     common_root(&paths, extract_dir)
 }
 
@@ -286,11 +307,13 @@ fn decompress_zip(
             if let Some(parent) = out_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
+
             let mut out = File::create(&out_path)?;
             std::io::copy(&mut file, &mut out)?;
             paths.push(out_path);
         }
     }
+
     common_root(&paths, extract_dir)
 }
 
@@ -309,10 +332,12 @@ fn decompress_7z(
             .map_err(|err| sevenz_rust2::Error::Other(Cow::Owned(err.to_string())))?;
         let out_path = safe_join_extract_path(extract_dir, Path::new(entry.name()))
             .map_err(|err| sevenz_rust2::Error::Other(Cow::Owned(err.to_string())))?;
+
         let extracted = sevenz_rust2::default_entry_extract_fn(entry, reader, &out_path)?;
         if extracted && !entry.is_directory() {
             paths.push(out_path);
         }
+
         Ok(extracted)
     })?;
     progress(total, total);
@@ -360,6 +385,7 @@ fn decompress_single<'p, D: Read>(
     let out_name = input
         .file_stem()
         .ok_or_else(|| anyhow!("Cannot derive output name"))?;
+
     let out_path = extract_dir.join(out_name);
     let mut out = File::create(&out_path)?;
     std::io::copy(&mut decoder, &mut out)?;
@@ -400,6 +426,7 @@ impl<R: Read> Read for ProgressReader<'_, R> {
                 "Operation interrupted by CTRL-C",
             ));
         }
+
         let count = self.reader.read(buffer)?;
         self.read = self.read.saturating_add(count as u64);
         (self.progress)(self.read, self.total);
@@ -427,6 +454,7 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
     // Collect all top-level entries (immediate children of extract_dir)
     let mut top_level_entries: std::collections::HashSet<PathBuf> =
         std::collections::HashSet::new();
+
     for path in paths {
         if let Ok(relative) = path.strip_prefix(extract_dir)
             && let Some(first_component) = relative.components().next()
@@ -440,6 +468,7 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
         let Some(single_dir) = top_level_entries.into_iter().next() else {
             return Ok(extract_dir.to_path_buf());
         };
+
         if single_dir.is_dir() {
             // Move contents of single_dir up to extract_dir
             for entry in std::fs::read_dir(&single_dir)? {
@@ -448,6 +477,7 @@ fn common_root(paths: &[PathBuf], extract_dir: &Path) -> Result<PathBuf> {
                 let dest = extract_dir.join(entry.file_name());
                 std::fs::rename(entry.path(), dest)?;
             }
+
             // Remove the now-empty single directory
             std::fs::remove_dir(&single_dir)?;
         }
@@ -473,6 +503,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-compress-test-{name}-{nanos}"))
     }
 
@@ -532,6 +563,7 @@ mod tests {
             fs::read(extracted_file).expect("read extracted file"),
             b"tar-gz-content"
         );
+
         cleanup(&root).expect("cleanup");
     }
 
@@ -548,6 +580,7 @@ mod tests {
             fs::read(extracted_file).expect("read extracted file"),
             b"tar-zst-content"
         );
+
         cleanup(&root).expect("cleanup");
     }
 
@@ -564,6 +597,7 @@ mod tests {
             fs::read(flattened_file).expect("read flattened file"),
             b"zip-content"
         );
+
         assert!(!extracted_root.join("pkg").exists());
         cleanup(&root).expect("cleanup");
     }
@@ -584,6 +618,7 @@ mod tests {
             fs::read(flattened_file).expect("read flattened file"),
             b"7z-content"
         );
+
         assert!(!extracted_root.join("pkg").exists());
         cleanup(&root).expect("cleanup");
     }
@@ -649,6 +684,7 @@ mod tests {
             fs::read(link_path).expect("read through hardlink"),
             b"target-content"
         );
+
         cleanup(&root).expect("cleanup");
     }
 
@@ -713,6 +749,7 @@ mod tests {
             fs::read(link_path).expect("read through symlink"),
             b"target-content"
         );
+
         cleanup(&root).expect("cleanup");
     }
 
@@ -775,6 +812,7 @@ mod tests {
 
             builder.finish().expect("finish archive");
         }
+
         let extracted_root = decompress(&archive_path, &output).expect("decompress with symlink");
         let link_path = extracted_root.join("sub/link.txt");
         assert!(link_path.exists());
@@ -782,6 +820,7 @@ mod tests {
             fs::read(link_path).expect("read through symlink"),
             b"nested-target-content"
         );
+
         cleanup(&root).expect("cleanup");
     }
 }

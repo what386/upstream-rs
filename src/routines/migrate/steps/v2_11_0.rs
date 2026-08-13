@@ -103,6 +103,7 @@ fn file_contains_path(path: &Path, target: &Path) -> Result<bool> {
 
     let contents = fs::read_to_string(path)
         .with_context(|| format!("Failed to read migration candidate '{}'", path.display()))?;
+
     Ok(contents.contains(&target.display().to_string()))
 }
 
@@ -165,9 +166,11 @@ fn create_state_directories(paths: &UpstreamPaths, report: &mut MigrationReport)
         if !dir.exists() {
             report.created_dirs += 1;
         }
+
         fs::create_dir_all(dir)
             .with_context(|| format!("Failed to create directory '{}'", dir.display()))?;
     }
+
     Ok(())
 }
 
@@ -185,6 +188,7 @@ fn move_legacy_state_dir(src: &Path, dst: &Path, report: &mut MigrationReport) -
             fs::create_dir_all(parent)
                 .with_context(|| format!("Failed to create directory '{}'", parent.display()))?;
         }
+
         safe_move::move_file_or_dir(src, dst)?;
         report.moved_entries += 1;
         return Ok(());
@@ -201,6 +205,7 @@ fn merge_directory_contents(src: &Path, dst: &Path, report: &mut MigrationReport
     {
         let entry =
             entry.with_context(|| format!("Failed to read entry in '{}'", src.display()))?;
+
         let from = entry.path();
         let to = dst.join(entry.file_name());
         let file_type = entry
@@ -213,6 +218,7 @@ fn merge_directory_contents(src: &Path, dst: &Path, report: &mut MigrationReport
                 remove_dir_if_empty(&from)?;
                 continue;
             }
+
             return Err(anyhow::anyhow!(
                 "Refusing to overwrite existing migrated path '{}'",
                 to.display()
@@ -222,6 +228,7 @@ fn merge_directory_contents(src: &Path, dst: &Path, report: &mut MigrationReport
         safe_move::move_file_or_dir(&from, &to)?;
         report.moved_entries += 1;
     }
+
     Ok(())
 }
 
@@ -235,6 +242,7 @@ fn remove_dir_if_empty(path: &Path) -> Result<()> {
         fs::remove_dir(path)
             .with_context(|| format!("Failed to remove empty directory '{}'", path.display()))?;
     }
+
     Ok(())
 }
 
@@ -242,6 +250,7 @@ fn same_location(src: &Path, dst: &Path) -> Result<bool> {
     if !src.exists() || !dst.exists() {
         return Ok(false);
     }
+
     Ok(fs::canonicalize(src)? == fs::canonicalize(dst)?)
 }
 
@@ -254,11 +263,13 @@ fn rewrite_paths_file(path: &Path, old_path: &Path, new_path: &Path) -> Result<(
     let new_value = new_path.display().to_string();
     let contents = fs::read_to_string(path)
         .with_context(|| format!("Failed to read paths file '{}'", path.display()))?;
+
     let updated = contents.replace(&old_value, &new_value);
     if updated != contents {
         write_atomic(path, updated.as_bytes())
             .with_context(|| format!("Failed to write paths file '{}'", path.display()))?;
     }
+
     Ok(())
 }
 
@@ -295,9 +306,11 @@ fn rewrite_package_icon_path(
     let Some(icon_path) = package.icon_path.as_ref() else {
         return false;
     };
+
     let Ok(relative) = icon_path.strip_prefix(old_icons_dir) else {
         return false;
     };
+
     package.icon_path = Some(new_icons_dir.join(relative));
     true
 }
@@ -318,6 +331,7 @@ fn rewrite_rollback_storage(
             rollback_file.display()
         )
     })?;
+
     if json.trim().is_empty() {
         return Ok(());
     }
@@ -347,6 +361,7 @@ fn rewrite_rollback_storage(
     if changed {
         let updated_json = serde_json::to_string_pretty(&storage)
             .context("Failed to serialize rollback storage")?;
+
         write_atomic(&rollback_file, updated_json.as_bytes()).with_context(|| {
             format!(
                 "Failed to write rollback storage '{}'",
@@ -385,6 +400,7 @@ fn rewrite_desktop_entries(
 
         let contents = fs::read_to_string(&path)
             .with_context(|| format!("Failed to read desktop entry '{}'", path.display()))?;
+
         let updated = contents.replace(&old_value, &new_value);
         if updated != contents {
             write_atomic(&path, updated.as_bytes())
@@ -427,6 +443,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(install_path);
         package.exec_path = Some(exec_path);
         package
@@ -474,11 +491,13 @@ mod tests {
 
         let mut package_db = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("create package database");
+
         let mut package = test_package(
             "tool",
             paths.dirs.packages_dir.join("binaries/tool"),
             paths.dirs.packages_dir.join("binaries/tool"),
         );
+
         package.icon_path = Some(old_icons_dir.join("tool.png"));
         package_db
             .replace_all_packages(&[package.clone()])
@@ -550,31 +569,39 @@ mod tests {
 
         let migrated_config =
             fs::read_to_string(&paths.generated.paths_file).expect("read paths.sh");
+
         assert!(migrated_config.contains(&paths.state.symlinks_dir.display().to_string()));
         let migrated_nu =
             fs::read_to_string(&paths.generated.paths_nu_file).expect("read paths.nu");
+
         assert!(migrated_nu.contains(&paths.state.symlinks_dir.display().to_string()));
         let migrated_db = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("reopen package database");
+
         let migrated_package = migrated_db
             .get_package("tool")
             .expect("load migrated package")
             .expect("package exists");
+
         let expected_icon_path = paths.state.icons_dir.join("tool.png");
         assert_eq!(
             migrated_package.icon_path.as_deref(),
             Some(expected_icon_path.as_path())
         );
+
         let migrated_rollback: serde_json::Value =
             serde_json::from_slice(&fs::read(&rollback_file).expect("read rollback"))
                 .expect("parse rollback");
+
         assert_eq!(
             migrated_rollback["records"]["tool"][0]["package_snapshot"]["icon_path"].as_str(),
             Some(expected_icon_path.to_str().expect("utf8 path"))
         );
+
         let migrated_desktop =
             fs::read_to_string(paths.integration.xdg_applications_dir.join("tool.desktop"))
                 .expect("read desktop");
+
         assert!(migrated_desktop.contains(&paths.state.icons_dir.display().to_string()));
 
         cleanup(&root).expect("cleanup");

@@ -42,6 +42,7 @@ pub(in crate::routines::doctor::checks) fn expected_link_path(
             return base.with_extension("exe");
         }
     }
+
     base
 }
 
@@ -114,6 +115,7 @@ pub(in crate::routines::doctor) fn select_packages(
                 ),
             }
         }
+
         report.line(
             Level::Ok,
             format!(
@@ -266,6 +268,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                     } else {
                         permission_handler::find_executable(install_path, &package.name)
                     };
+
                     if let Some(path) = rediscovered {
                         resolved_exec_path = Some(path.clone());
                         report.line(
@@ -293,6 +296,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                 let Some(exec_path) = &resolved_exec_path else {
                     unreachable!("checked above");
                 };
+
                 match inspect_unix_link(&link_path, exec_path) {
                     LinkStatus::Target {
                         raw_target,
@@ -400,6 +404,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                     ),
                 }
             }
+
             #[cfg(not(unix))]
             {
                 if link_path.exists() {
@@ -461,6 +466,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                     .integration
                     .xdg_applications_dir
                     .join(format!("{}.desktop", package.name));
+
                 if desktop_entry.exists() {
                     report.line(Level::Ok, format!("{} desktop entry exists", package_label));
                 } else {
@@ -516,6 +522,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-doctor-test-{name}-{nanos}"))
     }
 
@@ -542,6 +549,7 @@ mod tests {
         let paths = test_support::upstream_paths(&root);
         let mut db =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open db");
+
         let mut package = Package::with_defaults(
             "codex".to_string(),
             "openai/codex".to_string(),
@@ -552,6 +560,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.version = Version::new(0, 142, 0, false);
         db.upsert_package(&package).expect("upsert package");
         let selected = vec![package];
@@ -565,6 +574,7 @@ mod tests {
             .get_package("codex")
             .expect("load package")
             .expect("package exists");
+
         assert_eq!(stored.version_tag_template.as_deref(), Some("v{}"));
         assert!(report.warnings.is_empty());
         assert!(report.hints.is_empty());

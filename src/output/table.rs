@@ -71,6 +71,7 @@ pub fn print_transaction_table_without_size(rows: &[TransactionRow]) {
     for row in rows {
         layout.print_row(row);
     }
+
     println!();
 }
 
@@ -85,6 +86,7 @@ pub fn print_transaction_table_with_size_rows(
     for row in rows {
         layout.print_row(row);
     }
+
     layout.print_totals(totals, net_label, size_rows);
 }
 
@@ -109,6 +111,7 @@ impl TransactionTableLayout {
             .max()
             .unwrap_or(package_header.len())
             .clamp(11, 44);
+
         let show_download = rows.iter().any(|row| row.download.bytes != Some(0));
         let show_new_version = rows.iter().any(|row| row.new_version.is_some());
         let net_magnitude_width = rows
@@ -152,6 +155,7 @@ impl TransactionTableLayout {
         } else {
             "Version"
         };
+
         let net_width = self.net_magnitude_width + 1;
 
         let mut line = format!(
@@ -160,15 +164,19 @@ impl TransactionTableLayout {
             version_header,
             package_width = self.package_width
         );
+
         if self.show_new_version {
             line.push_str(&format!(" {:<13}", "New Version"));
         }
+
         if self.show_net_change {
             line.push_str(&format!(" {:>net_width$}", "Net Change"));
         }
+
         if self.show_download {
             line.push_str(&format!(" {:>14}", "Download Size"));
         }
+
         line
     }
 
@@ -188,21 +196,25 @@ impl TransactionTableLayout {
             truncate_end(&row.old_version, 12),
             package_width = self.package_width
         );
+
         if self.show_new_version {
             line.push_str(&format!(
                 " {:<13}",
                 truncate_end(row.new_version.as_deref().unwrap_or("-"), 13)
             ));
         }
+
         if self.show_net_change {
             line.push_str(&format!(
                 " {}",
                 format_compact_signed_cell(row.net_change, self.net_magnitude_width)
             ));
         }
+
         if self.show_download {
             line.push_str(&format!(" {:>14}", format_compact_unsigned(row.download)));
         }
+
         line
     }
 
@@ -229,6 +241,7 @@ impl TransactionTableLayout {
                 "Package files:",
                 format_compact_delta(totals.net)
             );
+
             for row in size_rows {
                 println!(
                     "{:<22} {}",
@@ -236,6 +249,7 @@ impl TransactionTableLayout {
                     format_compact_delta(row.value)
                 );
             }
+
             println!(
                 "{:<22} {}",
                 "Net disk change:",
@@ -272,6 +286,7 @@ pub fn print_disk_impact_with_size_rows(
             meta("Net disk change:"),
             format_signed(impact.net)
         );
+
         return;
     }
 
@@ -455,6 +470,7 @@ mod tests {
             format_signed(SignedByteEstimate::estimated(5 * 1024 * 1024)),
             "~5.00 MiB"
         );
+
         assert_eq!(
             format_signed(SignedByteEstimate::exact(-5 * 1024 * 1024)),
             "-5.00 MiB"
@@ -467,14 +483,17 @@ mod tests {
             format_signed_delta(SignedByteEstimate::exact(5 * 1024 * 1024)),
             "+5.00 MiB"
         );
+
         assert_eq!(
             format_signed_delta(SignedByteEstimate::estimated(-5 * 1024 * 1024)),
             "~-5.00 MiB"
         );
+
         assert_eq!(
             format_compact_delta(SignedByteEstimate::exact(5 * 1024 * 1024)),
             "+5.00 MiB"
         );
+
         assert_eq!(
             format_compact_delta(SignedByteEstimate::estimated(-5 * 1024 * 1024)),
             "~-5.00 MiB"
@@ -487,6 +506,7 @@ mod tests {
             bytes: Some(5 * 1024 * 1024),
             confidence: SizeConfidence::AtLeast,
         };
+
         assert_eq!(super::format_unsigned(value), ">5.00 MiB");
     }
 
@@ -496,6 +516,7 @@ mod tests {
             format_compact_signed(SignedByteEstimate::estimated(5 * 1024 * 1024)),
             "~5.00 MiB"
         );
+
         assert_eq!(
             format_compact_signed(SignedByteEstimate::estimated(-5 * 1024 * 1024)),
             "~-5.00 MiB"

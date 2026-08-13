@@ -42,6 +42,7 @@ impl<'a> BuildWorker<'a> {
             let mut status_callback = line_callback
                 .as_mut()
                 .map(|callback| callback as &mut dyn FnMut(&str));
+
             downloader
                 .fetch_source(
                     &request.repo_slug,
@@ -79,6 +80,7 @@ impl<'a> BuildWorker<'a> {
                 .iter()
                 .find(|handler| handler.profile() == profile)
                 .ok_or_else(|| anyhow!("Unsupported build profile"))?;
+
             let mut sender_callback = |line: &str| {
                 let _ = build_tx.send(line.to_string());
             };
@@ -96,6 +98,7 @@ impl<'a> BuildWorker<'a> {
                 let _ = (&mut build_handle).await;
                 return Err(crate::application::cancellation::Cancelled.into());
             }
+
             tokio::select! {
                 _ = cancellation::cancelled() => {
                     let _ = (&mut build_handle).await;
@@ -119,12 +122,14 @@ impl<'a> BuildWorker<'a> {
             let build_script_callback = line_callback
                 .as_mut()
                 .map(|callback| callback as &mut dyn FnMut(&str));
+
             scripts::run_build_script(
                 request.script_action,
                 &source.workspace_path,
                 build_script_callback,
             )?;
         }
+
         Self::emit_status(line_callback, "Staging built artifact ...");
         cancellation::check()?;
         let persisted_artifact = Self::persist_artifact(&artifact)?;
@@ -158,10 +163,12 @@ impl<'a> BuildWorker<'a> {
         let file_name = artifact_path
             .file_name()
             .ok_or_else(|| anyhow!("Built artifact path has no filename"))?;
+
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         let persist_dir = std::env::temp_dir().join(format!("upstream-artifact-{nonce}"));
         fs::create_dir_all(&persist_dir).context(format!(
             "Failed to create artifact staging directory '{}'",
@@ -181,6 +188,7 @@ impl<'a> BuildWorker<'a> {
                 artifact_path.display()
             ))?
             .permissions();
+
         fs::set_permissions(&persisted_path, perms).context(format!(
             "Failed to preserve artifact permissions on '{}'",
             persisted_path.display()
@@ -202,6 +210,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-worker-test-{name}-{nanos}"))
     }
 
@@ -219,6 +228,7 @@ mod tests {
             fs::read(&persisted).expect("read persisted"),
             b"binary-data"
         );
+
         assert_ne!(persisted, src);
 
         let _ = fs::remove_dir_all(&root);

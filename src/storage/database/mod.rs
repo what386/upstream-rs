@@ -175,6 +175,7 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
                     (true, false) => "ALTER TABLE packages ADD COLUMN version_value TEXT;",
                     (true, true) => "",
                 };
+
                 conn.execute_batch(&format!(
                     "BEGIN; {additions} PRAGMA user_version = 7; COMMIT;"
                 ))
@@ -195,6 +196,7 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
                     (true, false) => "ALTER TABLE packages ADD COLUMN release_published_at TEXT;",
                     (true, true) => "",
                 };
+
                 conn.execute_batch(&format!(
                     "
                     BEGIN;
@@ -295,14 +297,17 @@ fn table_has_column(conn: &Connection, table: &str, column: &str) -> Result<bool
     let mut statement = conn
         .prepare(&format!("PRAGMA table_info({table})"))
         .with_context(|| format!("Failed to inspect table '{table}'"))?;
+
     let names = statement
         .query_map([], |row| row.get::<_, String>(1))
         .with_context(|| format!("Failed to inspect columns for table '{table}'"))?;
+
     for name in names {
         if name? == column {
             return Ok(true);
         }
     }
+
     Ok(false)
 }
 

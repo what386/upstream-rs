@@ -31,6 +31,7 @@ impl VersionTagTemplate {
         if version.is_unknown() {
             return None;
         }
+
         let version_text = version.core_string();
         let index = tag.find(&version_text)?;
         let suffix_start = index + version_text.len();
@@ -144,6 +145,7 @@ impl Version {
         if let Some(candidate) = Self::find_triplet(trimmed) {
             return Self::parse_semver(&candidate);
         }
+
         if let Some(candidate) = Self::find_datetime(trimmed) {
             return Self::parse_datetime(&candidate);
         }
@@ -177,12 +179,14 @@ impl Version {
         let major = parts[0]
             .parse::<u32>()
             .map_err(|_| anyhow::anyhow!("Invalid major"))?;
+
         let minor = parts
             .get(1)
             .map(|value| value.parse::<u32>())
             .transpose()
             .map_err(|_| anyhow::anyhow!("Invalid minor"))?
             .unwrap_or(0);
+
         let patch = parts
             .get(2)
             .map(|value| value.parse::<u32>())
@@ -197,9 +201,11 @@ impl Version {
         if s.len() < 8 + 1 + 6 + 1 + MIN_REVISION_LEN {
             bail!("Invalid datetime version format");
         }
+
         let Some((timestamp, revision)) = s.rsplit_once('-') else {
             bail!("Invalid datetime version format");
         };
+
         if revision.len() < MIN_REVISION_LEN
             || revision.len() > MAX_REVISION_LEN
             || !revision.bytes().all(|byte| byte.is_ascii_hexdigit())
@@ -209,6 +215,7 @@ impl Version {
 
         let timestamp = NaiveDateTime::parse_from_str(timestamp, DATETIME_FORMAT)
             .map_err(|_| anyhow::anyhow!("Invalid datetime timestamp"))?;
+
         Ok(Self::Datetime {
             timestamp,
             revision: revision.to_string(),
@@ -224,30 +231,37 @@ impl Version {
                 i += 1;
                 continue;
             }
+
             let major_start = i;
             while i < len && bytes[i].is_ascii_digit() {
                 i += 1;
             }
+
             if i >= len || bytes[i] != b'.' {
                 continue;
             }
+
             i += 1;
             let minor_start = i;
             while i < len && bytes[i].is_ascii_digit() {
                 i += 1;
             }
+
             if minor_start == i || i >= len || bytes[i] != b'.' {
                 continue;
             }
+
             i += 1;
             let patch_start = i;
             while i < len && bytes[i].is_ascii_digit() {
                 i += 1;
             }
+
             if patch_start != i {
                 return Some(s[major_start..i].to_string());
             }
         }
+
         None
     }
 
@@ -262,6 +276,7 @@ impl Version {
             {
                 continue;
             }
+
             let revision_start = start + 16;
             let mut end = revision_start;
             while end < bytes.len()
@@ -270,6 +285,7 @@ impl Version {
             {
                 end += 1;
             }
+
             if end - revision_start < MIN_REVISION_LEN
                 || (end < bytes.len()
                     && bytes[end].is_ascii_hexdigit()
@@ -277,11 +293,13 @@ impl Version {
             {
                 continue;
             }
+
             let candidate = &s[start..end];
             if Self::parse_datetime(candidate).is_ok() {
                 return Some(candidate.to_string());
             }
         }
+
         None
     }
 }
@@ -412,6 +430,7 @@ impl<'de> Deserialize<'de> for Version {
                 if value.scheme != "datetime" {
                     return Err(serde::de::Error::custom("unsupported version scheme"));
                 }
+
                 Self::parse_datetime(&format!("{}-{}", value.timestamp, value.revision))
                     .map_err(serde::de::Error::custom)
             }
@@ -431,14 +450,17 @@ mod tests {
             Version::parse("1").expect("parse 1"),
             Version::new(1, 0, 0, false)
         );
+
         assert_eq!(
             Version::parse("1.2").expect("parse 1.2"),
             Version::new(1, 2, 0, false)
         );
+
         assert_eq!(
             Version::parse("1.2.3").expect("parse 1.2.3"),
             Version::new(1, 2, 3, false)
         );
+
         assert_eq!(
             Version::parse("20240203-110809-5046fc22")
                 .expect("parse datetime")
@@ -471,12 +493,14 @@ mod tests {
                 .to_string(),
             "2.15.9"
         );
+
         assert_eq!(
             Version::from_filename("tool-20240203-110809-5046fc22-linux.tar.gz")
                 .expect("datetime")
                 .to_string(),
             "20240203-110809-5046fc22"
         );
+
         assert_eq!(
             Version::from_tag("v20240203-110809-ABCDEF1")
                 .expect("wrapped datetime")

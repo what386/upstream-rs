@@ -12,15 +12,18 @@ impl<'a> SourceDownloader<'a> {
         if is_build_root(extracted_path) {
             return Ok(extracted_path.to_path_buf());
         }
+
         let entries = std::fs::read_dir(extracted_path).context(format!(
             "Failed to scan extracted source root '{}'",
             extracted_path.display()
         ))?;
+
         let mut candidates = entries
             .filter_map(Result::ok)
             .map(|entry| entry.path())
             .filter(|path| path.is_dir() && is_build_root(path))
             .collect::<Vec<_>>();
+
         match candidates.len() {
             0 => Ok(extracted_path.to_path_buf()),
             1 => Ok(candidates.remove(0)),
@@ -31,6 +34,7 @@ impl<'a> SourceDownloader<'a> {
                     .map(|p| p.display().to_string())
                     .collect::<Vec<_>>()
                     .join(", ");
+
                 Err(anyhow!(
                     "Build source root is ambiguous under '{}': found multiple candidate repositories [{}]",
                     extracted_path.display(),
@@ -54,6 +58,7 @@ impl<'a> SourceDownloader<'a> {
             provider,
             &format!("{repo_slug}/{git_ref}"),
         ));
+
         let destination = cache_root.join("workspace");
         let manifest_path = cache_root.join("manifest.json");
         Self::emit_status(
@@ -97,6 +102,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-downloader-test-{name}-{nanos}"))
     }
 
@@ -129,6 +135,7 @@ mod tests {
             SourceDownloader::resolve_workspace_root(&root).expect("resolve"),
             root
         );
+
         let _ = fs::remove_dir_all(root);
     }
 
@@ -144,6 +151,7 @@ mod tests {
             SourceDownloader::resolve_workspace_root(&root).expect("resolve"),
             root.join("child")
         );
+
         let _ = fs::remove_dir_all(root);
     }
 
@@ -169,6 +177,7 @@ mod tests {
             SourceDownloader::resolve_workspace_root(&root).expect("resolve"),
             root
         );
+
         let _ = fs::remove_dir_all(root);
     }
 }

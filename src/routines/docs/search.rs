@@ -70,10 +70,12 @@ fn score_text(heading: &str, body: &str, keywords: &[String]) -> f32 {
         .iter()
         .filter(|keyword| heading.contains(keyword.as_str()))
         .count() as f32;
+
     let body_matches = keywords
         .iter()
         .filter(|keyword| body.contains(keyword.as_str()))
         .count() as f32;
+
     let occurrences = keywords
         .iter()
         .map(|keyword| body.matches(keyword.as_str()).count())
@@ -142,6 +144,7 @@ Run the binary.
                 .collect::<Vec<_>>(),
             vec!["Tool", "Installation", "Usage"]
         );
+
         assert!(result.sections.iter().all(|section| section.score == 0.0));
     }
 

@@ -61,6 +61,7 @@ impl DirectAdapter {
             .client
             .probe_asset_if_modified_since(slug, last_upgraded)
             .await?;
+
         let info = match probe {
             ConditionalProbeResult::NotModified => return Ok(None),
             ConditionalProbeResult::Asset(info) => info,
@@ -69,6 +70,7 @@ impl DirectAdapter {
         let published_at = info
             .last_modified
             .unwrap_or_else(|| last_upgraded.unwrap_or_else(Utc::now));
+
         let version = Self::parse_version_from_filename(&info.name)
             .or_else(|| info.last_modified.map(Self::version_from_last_modified))
             .unwrap_or_else(|| Version::new(0, 0, 0, false));
@@ -208,6 +210,7 @@ mod tests {
         for (k, v) in headers {
             out.push_str(&format!("{k}: {v}\r\n"));
         }
+
         out.push_str("\r\n");
         out.push_str(body);
         out
@@ -229,6 +232,7 @@ mod tests {
                 "",
             )
         });
+
         let adapter = DirectAdapter::new(HttpClient::new(Default::default()).expect("http client"));
         let release = adapter
             .get_latest_release(&format!("{server}/tool-v2.3.4.tar.gz"))
@@ -246,12 +250,14 @@ mod tests {
             assert_eq!(method, "HEAD");
             http_response("HTTP/1.1 304 Not Modified", &[("Connection", "close")], "")
         });
+
         let adapter = DirectAdapter::new(HttpClient::new(Default::default()).expect("http client"));
 
         let release = adapter
             .get_latest_release_if_modified_since(&server, Some(Utc::now()))
             .await
             .expect("conditional release");
+
         assert!(release.is_none());
     }
 }

@@ -131,6 +131,7 @@ impl Package {
             self.release_tag = None;
             self.release_published_at = None;
         }
+
         self.version_tag_template = None;
     }
 
@@ -174,6 +175,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.version = version;
         package.last_upgraded = Utc
             .with_ymd_and_hms(2026, 1, 1, 12, 0, 0)
@@ -187,6 +189,7 @@ mod tests {
             .with_ymd_and_hms(2026, 1, 1, 12, 0, 0)
             .single()
             .expect("valid timestamp");
+
         Release {
             id: 1,
             tag: version.to_string(),
@@ -212,6 +215,7 @@ mod tests {
             Provider::Github,
             Some("https://api.github.com".to_string()),
         );
+
         let mut b = a.clone();
         b.version = Version::new(99, 0, 0, false);
         b.is_pinned = true;
@@ -231,6 +235,7 @@ mod tests {
             Version::new(1, 0, 1, false),
             Duration::seconds(-1)
         )));
+
         assert!(!package.is_update_available(&update_test_release(
             Version::new(1, 0, 0, false),
             Duration::days(1)
@@ -245,6 +250,7 @@ mod tests {
             Version::new(0, 0, 0, false),
             Duration::seconds(1)
         )));
+
         assert!(!package.is_update_available(&update_test_release(
             Version::new(0, 0, 0, false),
             Duration::seconds(0)
@@ -259,6 +265,7 @@ mod tests {
             Version::new(1, 0, 0, false),
             Duration::seconds(1)
         )));
+
         assert!(package.is_update_available(&update_test_release(
             Version::new(99, 0, 0, false),
             Duration::seconds(0)
@@ -274,10 +281,12 @@ mod tests {
             Version::parse("20240204-000000-aaaaaaaa").expect("later timestamp"),
             Duration::seconds(-1),
         )));
+
         assert!(!package.is_update_available(&update_test_release(
             Version::parse("20240202-235959-bbbbbbbb").expect("earlier timestamp"),
             Duration::days(1),
         )));
+
         assert!(package.is_update_available(&update_test_release(
             Version::parse("20240203-110809-cccccccc").expect("revision collision"),
             Duration::seconds(1),
@@ -300,6 +309,7 @@ mod tests {
             published_at: chrono::DateTime::<Utc>::MIN_UTC,
             ..same
         };
+
         assert!(package.is_update_available(&changed_without_timestamp));
     }
 
@@ -325,6 +335,7 @@ mod tests {
             Package::version_tag_template_from_tag("rust-v1.2.3", &version).as_deref(),
             Some("rust-v{}")
         );
+
         assert_eq!(
             Package::version_tag_template_from_tag("v1.2.3-beta.4", &version).as_deref(),
             Some("v{}-beta.4")

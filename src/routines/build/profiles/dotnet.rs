@@ -16,6 +16,7 @@ impl DotnetProfile {
         {
             format!("{package_name}.exe")
         }
+
         #[cfg(not(windows))]
         {
             package_name.to_string()
@@ -30,6 +31,7 @@ impl DotnetProfile {
                     .is_some_and(|ext| ext == "sln" || ext == "csproj")
             })
         });
+
         if has_root {
             Some(workspace.to_path_buf())
         } else {

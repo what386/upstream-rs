@@ -62,6 +62,7 @@ impl Step for V2_0_0 {
         let rewrites = package_path_rewrites(paths);
         let mut manifest_storage =
             ManifestStorage::new(&ManifestStorage::path_for_root(&paths.dirs.data_dir))?;
+
         let previous_layout_version = manifest_storage
             .manifest()
             .map(|manifest| manifest.layout_version)
@@ -81,6 +82,7 @@ impl Step for V2_0_0 {
 fn migration_manifest_needs_migration(paths: &UpstreamPaths) -> Result<bool> {
     let manifest_storage =
         ManifestStorage::new(&ManifestStorage::path_for_root(&paths.dirs.data_dir))?;
+
     Ok(manifest_storage
         .manifest()
         .is_some_and(|manifest| manifest.layout_version < CURRENT_LAYOUT_VERSION))
@@ -98,6 +100,7 @@ fn rollback_metadata_needs_migration(paths: &UpstreamPaths) -> Result<bool> {
             rollback_file.display()
         )
     })?;
+
     if json.trim().is_empty() {
         return Ok(false);
     }
@@ -112,6 +115,7 @@ fn rollback_metadata_needs_migration(paths: &UpstreamPaths) -> Result<bool> {
             rollback_file.display()
         )
     })?;
+
     let rewrites = package_path_rewrites(paths);
     Ok(storage.records.values().any(|records| {
         records
@@ -139,9 +143,11 @@ fn create_required_dirs(paths: &UpstreamPaths, report: &mut MigrationReport) -> 
         if !dir.exists() {
             report.created_dirs += 1;
         }
+
         fs::create_dir_all(dir)
             .with_context(|| format!("Failed to create directory '{}'", dir.display()))?;
     }
+
     Ok(())
 }
 
@@ -167,6 +173,7 @@ fn move_legacy_package_dirs(rewrites: &[PathRewrite], report: &mut MigrationRepo
         if !rewrite.old.exists() {
             continue;
         }
+
         move_into_layout(&rewrite.old, &rewrite.new, report).with_context(|| {
             format!(
                 "Failed to migrate '{}' to '{}'",
@@ -175,6 +182,7 @@ fn move_legacy_package_dirs(rewrites: &[PathRewrite], report: &mut MigrationRepo
             )
         })?;
     }
+
     Ok(())
 }
 
@@ -188,6 +196,7 @@ fn move_into_layout(src: &Path, dst: &Path, report: &mut MigrationReport) -> Res
             fs::create_dir_all(parent)
                 .with_context(|| format!("Failed to create directory '{}'", parent.display()))?;
         }
+
         safe_move::move_file_or_dir(src, dst)?;
         report.moved_entries += 1;
         return Ok(());
@@ -204,6 +213,7 @@ fn merge_directory_contents(src: &Path, dst: &Path, report: &mut MigrationReport
     {
         let entry =
             entry.with_context(|| format!("Failed to read entry in '{}'", src.display()))?;
+
         let from = entry.path();
         let to = dst.join(entry.file_name());
         let file_type = entry
@@ -216,6 +226,7 @@ fn merge_directory_contents(src: &Path, dst: &Path, report: &mut MigrationReport
                 remove_dir_if_empty(&from)?;
                 continue;
             }
+
             return Err(anyhow!(
                 "Refusing to overwrite existing migrated path '{}'",
                 to.display()
@@ -225,6 +236,7 @@ fn merge_directory_contents(src: &Path, dst: &Path, report: &mut MigrationReport
         safe_move::move_file_or_dir(&from, &to)?;
         report.moved_entries += 1;
     }
+
     Ok(())
 }
 
@@ -238,6 +250,7 @@ fn remove_dir_if_empty(path: &Path) -> Result<()> {
         fs::remove_dir(path)
             .with_context(|| format!("Failed to remove empty directory '{}'", path.display()))?;
     }
+
     Ok(())
 }
 
@@ -245,6 +258,7 @@ fn paths_are_same(a: &Path, b: &Path) -> io::Result<bool> {
     if !a.exists() || !b.exists() {
         return Ok(false);
     }
+
     Ok(fs::canonicalize(a)? == fs::canonicalize(b)?)
 }
 
@@ -296,6 +310,7 @@ fn migrate_rollback_metadata(
             rollback_file.display()
         )
     })?;
+
     if json.trim().is_empty() {
         return Ok(());
     }
@@ -308,6 +323,7 @@ fn migrate_rollback_metadata(
                 rollback_file.display()
             )
         })?;
+
     if storage.version != ROLLBACK_STORAGE_VERSION {
         return Err(anyhow!(
             "Unsupported rollback storage version {} in '{}'. Expected version {}.",
@@ -377,6 +393,7 @@ fn optional_path_references_rewrite(path: Option<&Path>, rewrites: &[PathRewrite
     let Some(current) = path else {
         return false;
     };
+
     rewrites
         .iter()
         .any(|rewrite| current.starts_with(&rewrite.old))
@@ -417,6 +434,7 @@ fn refresh_symlinks(
             report.skipped_symlinks += 1;
             continue;
         };
+
         if !target.exists() {
             report.skipped_symlinks += 1;
             continue;
@@ -454,6 +472,7 @@ mod tests {
         if path.exists() {
             fs::remove_dir_all(path)?;
         }
+
         Ok(())
     }
 
@@ -468,6 +487,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(install_path);
         package.exec_path = Some(exec_path);
         package
@@ -524,37 +544,45 @@ mod tests {
             fs::read(&new_binary).expect("read migrated binary"),
             b"tool"
         );
+
         assert_eq!(report.updated_packages, 1);
 
         let migrated: serde_json::Value = serde_json::from_slice(
             &fs::read(&paths.metadata.packages_file).expect("read migrated packages"),
         )
         .expect("parse migrated packages");
+
         assert_eq!(
             migrated["packages"][0]["install_path"].as_str(),
             Some(new_binary.to_str().expect("utf8 path"))
         );
+
         assert_eq!(
             migrated["packages"][0]["exec_path"].as_str(),
             Some(new_binary.to_str().expect("utf8 path"))
         );
+
         let migration_manifest: serde_json::Value = serde_json::from_slice(
             &fs::read(ManifestStorage::path_for_root(&paths.dirs.data_dir))
                 .expect("read migration manifest"),
         )
         .expect("parse migration manifest");
+
         assert_eq!(
             migration_manifest["manifest_version"].as_u64(),
             Some(MANIFEST_STORAGE_VERSION as u64)
         );
+
         assert_eq!(
             migration_manifest["layout_version"].as_u64(),
             Some(CURRENT_LAYOUT_VERSION as u64)
         );
+
         assert_eq!(
             migration_manifest["previous_layout_version"].as_u64(),
             Some(1)
         );
+
         assert!(!V2_0_0::check(&paths).expect("check after migration"));
 
         cleanup(&root).expect("cleanup");

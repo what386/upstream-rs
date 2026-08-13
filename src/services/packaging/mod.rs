@@ -78,12 +78,14 @@ impl InstallPlan {
         let PlannedInstallSource::Release { release, asset } = &self.source else {
             return None;
         };
+
         let resolved_filetype =
             if self.package.filetype == crate::models::common::enums::Filetype::Auto {
                 asset.filetype
             } else {
                 self.package.filetype
             };
+
         Some(ResolvedAssetInstall {
             resolved_filetype,
             disk_impact: self.disk_impact.clone(),

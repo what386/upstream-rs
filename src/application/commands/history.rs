@@ -22,6 +22,7 @@ pub fn run(
         .map(history_op::parse_since)
         .transpose()
         .map_err(anyhow::Error::msg)?;
+
     let filter = HistoryFilter {
         package,
         action,
@@ -30,6 +31,7 @@ pub fn run(
         today,
         limit,
     };
+
     let events = history_op::filter_records(
         output::read_log_events(&paths.dirs.data_dir.join("log.jsonl"))?,
         &filter,

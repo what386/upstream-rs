@@ -443,10 +443,12 @@ impl<'a> ChecksumVerifier<'a> {
                 break;
             }
         }
+
         let token = token.trim();
         if !token.chars().all(|ch| ch.is_ascii_hexdigit()) {
             return None;
         }
+
         let algo = match token.len() {
             64 => HashAlgo::Sha256,
             128 => HashAlgo::Sha512,
@@ -563,6 +565,7 @@ impl<'a> ChecksumVerifier<'a> {
             out.push(HEX[(byte >> 4) as usize] as char);
             out.push(HEX[(byte & 0x0f) as usize] as char);
         }
+
         out
     }
 
@@ -605,10 +608,12 @@ impl<'a> ChecksumVerifier<'a> {
                     if n == 0 {
                         break;
                     }
+
                     checked += n as u64;
                     progress(checked, total);
                     hasher.update(&buffer[..n]);
                 }
+
                 let digest = hasher.finalize();
                 Self::bytes_to_lower_hex(digest.as_ref())
             }
@@ -621,10 +626,12 @@ impl<'a> ChecksumVerifier<'a> {
                     if n == 0 {
                         break;
                     }
+
                     checked += n as u64;
                     progress(checked, total);
                     hasher.update(&buffer[..n]);
                 }
+
                 let digest = hasher.finalize();
                 Self::bytes_to_lower_hex(digest.as_ref())
             }
@@ -651,6 +658,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-checksum-test-{name}-{nanos}"))
     }
 
@@ -795,6 +803,7 @@ mod tests {
 
         let manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+
         let verifier = ChecksumVerifier::new(&manager, &root);
         let mut progress: Option<fn(u64, u64)> = None;
         let mut checksum_progress: Option<fn(u64, u64)> = None;
@@ -809,6 +818,7 @@ mod tests {
             )
             .await
             .expect("verify without checksum");
+
         assert!(matches!(verified, ChecksumVerificationResult::Missing));
 
         cleanup(&root).expect("cleanup");
@@ -820,6 +830,7 @@ mod tests {
         let checksum = fixture_string("trust/checksums/valid-checksums.txt");
         let entry =
             ChecksumVerifier::parse_standard_format(&checksum).expect("parse checksum entry");
+
         let mut updates = Vec::new();
         let mut progress = Some(|checked: u64, total: u64| updates.push((checked, total)));
 
@@ -854,10 +865,12 @@ mod tests {
                 Utc::now(),
             ),
         ];
+
         let release = release_with_assets(assets);
 
         let selected = ChecksumVerifier::find_checksum_asset(&release, "tool.tar.gz")
             .expect("must select checksum asset");
+
         assert_eq!(selected.name, "tool.tar.gz.sha256");
     }
 
@@ -879,10 +892,12 @@ mod tests {
                 Utc::now(),
             ),
         ];
+
         let release = release_with_assets(assets);
 
         let selected = ChecksumVerifier::find_checksum_asset(&release, "tool.tar.gz")
             .expect("must select checksum asset");
+
         assert_eq!(selected.name, "checksums-bsd");
     }
 }

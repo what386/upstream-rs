@@ -16,6 +16,7 @@ impl ZigProfile {
         {
             format!("{package_name}.exe")
         }
+
         #[cfg(not(windows))]
         {
             package_name.to_string()

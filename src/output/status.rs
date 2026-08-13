@@ -54,6 +54,7 @@ pub fn status_line_text_with_width(
     if let Some(status_name) = log_status_name(status) {
         super::logger::status(subject.clone(), status_name, detail.clone());
     }
+
     format!(
         "{} {:<subject_width$} {}",
         status_cell(status),
@@ -102,6 +103,7 @@ pub fn error_summary_with_limit(err: &anyhow::Error, max: usize) -> String {
     let Some(root) = parts.last() else {
         return truncate_for_error(&err.to_string(), max);
     };
+
     let Some(parent) = parts.iter().rev().nth(1) else {
         return truncate_for_error(root, max);
     };
@@ -125,6 +127,7 @@ fn truncate_for_error(value: &str, max: usize) -> String {
     if char_count <= max {
         return value.to_string();
     }
+
     if max <= 3 {
         return ".".repeat(max);
     }
@@ -133,6 +136,7 @@ fn truncate_for_error(value: &str, max: usize) -> String {
     for ch in value.chars().take(max - 3) {
         out.push(ch);
     }
+
     out.push_str("...");
     out
 }
@@ -193,6 +197,7 @@ mod tests {
             .to_string(),
             "[ok]    gh         upgraded"
         );
+
         assert_eq!(
             console::strip_ansi_codes(&status_line_text_with_width(
                 Status::Ok,

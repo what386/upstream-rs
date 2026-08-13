@@ -24,6 +24,7 @@ impl AppDirs {
         let user_dir = std::env::var_os("UPSTREAM_TEST_HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fakehome"));
+
         let config_dir = user_dir.join(".config/upstream");
 
         let data_dir = user_dir.join(".upstream");

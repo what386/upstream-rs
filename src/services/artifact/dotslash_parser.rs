@@ -190,6 +190,7 @@ pub fn select_asset_for_architecture(
             .filter_map(|provider| provider.url.as_deref())
             .find(|url| !url.trim().is_empty())
             .ok_or_else(|| anyhow!("DotSlash platform '{}' has no URL provider", platform.key))?;
+
         let filename = filename_from_url(url)?;
 
         return Ok(DotSlashAsset {
@@ -232,6 +233,7 @@ fn json_payload(contents: &str) -> Result<&str> {
     let offset = contents
         .find('{')
         .ok_or_else(|| anyhow!("DotSlash file does not contain a JSON object"))?;
+
     Ok(&contents[offset..])
 }
 
@@ -251,6 +253,7 @@ fn strip_json_comments(input: &str) -> String {
             } else if ch == '"' {
                 in_string = false;
             }
+
             continue;
         }
 
@@ -275,9 +278,11 @@ fn strip_json_comments(input: &str) -> String {
                     if previous == '*' && next == '/' {
                         break;
                     }
+
                     if next == '\n' {
                         output.push('\n');
                     }
+
                     previous = next;
                 }
             }
@@ -292,6 +297,7 @@ fn parse_platform_key(platform_key: &str) -> Result<DotSlashPlatform> {
     let (os, arch) = platform_key
         .split_once('-')
         .ok_or_else(|| anyhow!("Invalid DotSlash platform key '{platform_key}'"))?;
+
     let os = parse_os_key(os)?;
     let arch = parse_arch_key(arch)?;
 
@@ -331,6 +337,7 @@ fn filename_from_url(url: &str) -> Result<String> {
         .next()
         .unwrap_or(url)
         .trim_end_matches('/');
+
     let filename = Path::new(path)
         .file_name()
         .and_then(|name| name.to_str())
@@ -444,6 +451,7 @@ mod tests {
             asset.url,
             "https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.gz"
         );
+
         assert_eq!(asset.filetype, Filetype::Archive);
         assert_eq!(asset.path, "node-v18.19.0-linux-x64/bin/node");
     }
@@ -594,11 +602,13 @@ mod tests {
             asset.filename,
             "codex-package-x86_64-unknown-linux-musl.tar.zst"
         );
+
         assert_eq!(asset.filetype, Filetype::Archive);
         assert_eq!(
             asset.url,
             "https://github.com/openai/codex/releases/download/rust-v0.142.3/codex-package-x86_64-unknown-linux-musl.tar.zst"
         );
+
         assert_eq!(asset.path, "bin/codex");
     }
 

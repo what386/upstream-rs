@@ -24,6 +24,7 @@ pub fn run_set(set_keys: Vec<String>, paths: &UpstreamPaths) -> Result<()> {
                 format!("set to '{}'", applied.display_value),
             );
         }
+
         for (key, err) in &results.failures {
             output::status_line(Status::Fail, key, err);
         }
@@ -60,6 +61,7 @@ pub fn run_get(get_keys: Vec<String>, paths: &UpstreamPaths) -> Result<()> {
                 output::kv(&key, value);
             }
         }
+
         for (key, err) in results.failures {
             output::status_line(Status::Fail, key, err);
         }
@@ -135,6 +137,7 @@ pub fn run_edit(paths: &UpstreamPaths) -> Result<()> {
                     "{}",
                     output::warning(format!("Configuration may have errors: {}", e))
                 );
+
                 output::action_note("Fix manually or run 'upstream config reset'.");
             }
         }

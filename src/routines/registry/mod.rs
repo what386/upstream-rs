@@ -115,12 +115,14 @@ mod tests {
             br#"{"version":1,"packages":{"ripgrep":{"revision":2,"binary":"rg","desktop":false,"trust":"best-effort","match":["linux","x86_64"],"install":{"type":"release","repo":"o/ripgrep","provider":"github"}}}}"#,
         )
         .expect("valid index");
+
         let package = &index.packages["ripgrep"];
         assert_eq!(installed_name("ripgrep", package), "rg");
         assert_eq!(
             joined_patterns(&package.r#match).as_deref(),
             Some("linux,x86_64")
         );
+
         assert_eq!(joined_patterns(&package.exclude), None);
     }
 }

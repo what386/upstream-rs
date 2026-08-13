@@ -65,6 +65,7 @@ impl WebScraperAdapter {
         let extensionless_files = infos
             .iter()
             .filter(|info| Self::is_extensionless_file(info));
+
         let filtered = infos.iter().filter(|info| {
             Self::parse_version_from_filename(&info.name)
                 .map(|v| v == *target_version)
@@ -125,6 +126,7 @@ impl WebScraperAdapter {
             .client
             .discover_assets_if_modified_since(slug, last_upgraded)
             .await?;
+
         let mut infos = match discovery {
             ConditionalDiscoveryResult::NotModified => return Ok(None),
             ConditionalDiscoveryResult::Assets(infos) => infos,
@@ -155,6 +157,7 @@ impl WebScraperAdapter {
                     if probed.last_modified.is_some() {
                         info.last_modified = probed.last_modified;
                     }
+
                     if probed.etag.is_some() {
                         info.etag = probed.etag;
                     }
@@ -208,6 +211,7 @@ impl WebScraperAdapter {
         let version = best_version
             .map(|(version, _)| version)
             .unwrap_or_else(|| Version::new(0, 0, 0, false));
+
         let release_name = if assets.len() == 1 {
             let info = &selected_infos[0];
             if let Some(etag) = &info.etag {
@@ -218,6 +222,7 @@ impl WebScraperAdapter {
         } else {
             format!("Discovered {} assets", assets.len())
         };
+
         Ok(Some(Release {
             id: 1,
             tag: "direct".to_string(),
@@ -339,6 +344,7 @@ mod tests {
         for (k, v) in headers {
             out.push_str(&format!("{k}: {v}\r\n"));
         }
+
         out.push_str("\r\n");
         out.push_str(body);
         out
@@ -391,6 +397,7 @@ mod tests {
             &infos,
             Some(&Version::new(8, 0, 1, false)),
         );
+
         let names: Vec<_> = selected.iter().map(|info| info.name.as_str()).collect();
 
         assert_eq!(names.first(), Some(&"ffmpeg"));
@@ -407,6 +414,7 @@ mod tests {
     async fn get_latest_release_selects_assets_for_latest_detected_version() {
         let html = include_str!("../../../tests/fixtures/providers/http/latest-version-links.html")
             .to_string();
+
         let html_len = html.len().to_string();
         let html_for_server = html.clone();
         let server = spawn_test_server(1, move |method, _| {
@@ -424,6 +432,7 @@ mod tests {
 
         let adapter =
             WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
+
         let release = adapter
             .get_latest_release(&server)
             .await
@@ -440,6 +449,7 @@ mod tests {
             "../../../tests/fixtures/providers/http/extensionless-and-versioned-links.html"
         )
         .to_string();
+
         let html_len = html.len().to_string();
         let html_for_server = html.clone();
         let server = spawn_test_server(1, move |method, _| {
@@ -457,10 +467,12 @@ mod tests {
 
         let adapter =
             WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
+
         let release = adapter
             .get_latest_release(&server)
             .await
             .expect("latest release");
+
         let names = asset_names(&release);
 
         assert_eq!(release.version, Version::new(1, 10, 0, false));
@@ -480,10 +492,12 @@ mod tests {
 
         let adapter =
             WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
+
         let release = adapter
             .get_latest_release(&server)
             .await
             .expect("latest release");
+
         let names = asset_names(&release);
 
         assert_eq!(release.version, Version::new(8, 0, 1, false));
@@ -508,10 +522,12 @@ mod tests {
 
         let adapter =
             WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
+
         let release = adapter
             .get_latest_release(&server)
             .await
             .expect("latest release");
+
         let names = asset_names(&release);
 
         assert_eq!(release.version, Version::new(0, 17, 0, false));
@@ -526,6 +542,7 @@ mod tests {
     async fn get_latest_release_uses_html_last_modified_for_unversioned_links() {
         let html = include_str!("../../../tests/fixtures/providers/http/unversioned-link.html")
             .to_string();
+
         let html_len = html.len().to_string();
         let html_for_server = html.clone();
         let server = spawn_test_server(2, move |method, path| match (method, path) {
@@ -549,6 +566,7 @@ mod tests {
 
         let adapter =
             WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
+
         let release = adapter
             .get_latest_release(&server)
             .await
@@ -564,12 +582,15 @@ mod tests {
             assert_eq!(method, "GET");
             http_response("HTTP/1.1 304 Not Modified", &[("Connection", "close")], "")
         });
+
         let adapter =
             WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
+
         let release = adapter
             .get_latest_release_if_modified_since(&server, Some(Utc::now()))
             .await
             .expect("conditional release");
+
         assert!(release.is_none());
     }
 }

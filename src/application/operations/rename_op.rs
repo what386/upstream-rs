@@ -36,6 +36,7 @@ pub fn rename_package(
     if old_name == new_name {
         return Ok(RenameOutcome::Unchanged);
     }
+
     if package_database.get_package(new_name)?.is_some() {
         bail!("Package '{}' already exists", new_name);
     }
@@ -56,6 +57,7 @@ pub fn rename_package(
     if let Err(error) = rename_result {
         let rollback_result =
             rollback_integrations(paths, &mut rollback_manager, old_name, new_name, steps);
+
         return match rollback_result {
             Ok(()) => {
                 Err(error).context("Package rename failed; integration changes were reverted")
@@ -84,16 +86,19 @@ fn rollback_integrations(
     {
         errors.push(format!("rollback data: {error}"));
     }
+
     if steps.desktop_entry
         && let Err(error) = DesktopManager::rename_entry(paths, new_name, old_name)
     {
         errors.push(format!("desktop entry: {error}"));
     }
+
     if steps.completions
         && let Err(error) = CompletionManager::new(paths).rename_for_package(new_name, old_name)
     {
         errors.push(format!("completions: {error}"));
     }
+
     if steps.runtime_link
         && let Err(error) =
             SymlinkManager::new(&paths.state.symlinks_dir).rename_link(new_name, old_name)
@@ -137,10 +142,12 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(install_path.clone());
         package.exec_path = Some(install_path.clone());
         let mut database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
+
         database.upsert_package(&package).expect("store package");
         SymlinkManager::new(&paths.state.symlinks_dir)
             .add_link(&install_path, name)
@@ -182,6 +189,7 @@ mod tests {
 
         let mut database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
+
         assert_eq!(
             rename_package(&mut database, &paths, "old", "new").expect("rename package"),
             RenameOutcome::Renamed
@@ -199,6 +207,7 @@ mod tests {
                 .join("new.desktop")
                 .exists()
         );
+
         let rollback_manager = RollbackManager::new(&paths).expect("reload rollback manager");
         assert!(rollback_manager.rollback_record("old").is_none());
         assert_eq!(
@@ -209,6 +218,7 @@ mod tests {
                 .name,
             "new"
         );
+
         assert!(paths.state.rollback_dir.join("new").exists());
 
         fs::remove_dir_all(root).expect("cleanup");
@@ -235,6 +245,7 @@ mod tests {
 
         let mut database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
+
         let error = rename_package(&mut database, &paths, "old", "new")
             .expect_err("desktop collision should fail rename");
 
@@ -243,6 +254,7 @@ mod tests {
                 .to_string()
                 .contains("integration changes were reverted")
         );
+
         assert!(database.get_package("old").expect("load old").is_some());
         assert!(database.get_package("new").expect("load new").is_none());
         assert!(paths.state.symlinks_dir.join("old").exists());

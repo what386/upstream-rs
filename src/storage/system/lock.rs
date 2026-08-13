@@ -46,6 +46,7 @@ impl LockStorage {
                         eprintln!("Waiting for lock file...");
                         printed_wait_notice = true;
                     }
+
                     thread::sleep(LOCK_POLL_INTERVAL);
                 }
             }
@@ -108,10 +109,12 @@ impl LockStorage {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
+
         writeln!(file, "pid={}", process::id()).ok();
         if let Some(identity) = process_id::current_process_identity() {
             writeln!(file, "pid_start_token={}", identity.start_token).ok();
         }
+
         writeln!(file, "operation={}", operation).ok();
         writeln!(file, "started_at_unix={}", since_epoch).ok();
 
@@ -140,6 +143,7 @@ impl LockStorage {
                 meta.started_at_unix = value.trim().parse::<u64>().ok();
             }
         }
+
         meta
     }
 
@@ -190,6 +194,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir()
             .join(format!("upstream-lock-test-{name}-{nanos}"))
             .join("metadata")
@@ -248,6 +253,7 @@ mod tests {
         let meta = LockStorage::parse_lock_metadata(
             "pid=123\npid_start_token=abc123\noperation=upgrade\nstarted_at_unix=456\nunknown=ignored\n",
         );
+
         assert_eq!(meta.pid, Some(123));
         assert_eq!(meta.pid_start_token.as_deref(), Some("abc123"));
         assert_eq!(meta.operation.as_deref(), Some("upgrade"));
@@ -263,6 +269,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
+
         fs::write(
             &lock_path,
             format!("pid={current_pid}\noperation=test\nstarted_at_unix={now}\n"),
@@ -271,6 +278,7 @@ mod tests {
 
         let outcome =
             LockStorage::try_acquire_at_internal(&lock_path, "next-op", true).expect("try acquire");
+
         assert!(matches!(outcome, AcquireOutcome::Waiting));
 
         let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());
@@ -289,6 +297,7 @@ mod tests {
 
         let outcome =
             LockStorage::try_acquire_at_internal(&lock_path, "next-op", true).expect("try acquire");
+
         assert!(matches!(outcome, AcquireOutcome::Waiting));
 
         let _ = fs::remove_dir_all(lock_path.parent().unwrap().parent().unwrap());

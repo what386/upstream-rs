@@ -22,6 +22,7 @@ pub async fn verify_cosign_signature(
             saw_parse_error = true;
             continue;
         };
+
         saw_valid_key = true;
 
         if verification_key
@@ -61,6 +62,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-cosign-test-{name}-{nanos}"))
     }
 
@@ -76,6 +78,7 @@ mod tests {
             .verifying_key()
             .to_public_key_pem(LineEnding::LF)
             .expect("encode public key");
+
         let signature: DerSignature = signing_key.sign(b"payload bytes");
         let signature = BASE64_STANDARD.encode(signature.to_bytes());
 

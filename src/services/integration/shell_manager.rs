@@ -44,6 +44,7 @@ impl ShellManager {
             .lock()
             .ok()
             .ok_or_else(|| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
+
         let path_entries = derive_path_entries(package_database, paths)?;
         package_database.replace_all_path_entries(&path_entries)?;
 
@@ -56,6 +57,7 @@ impl ShellManager {
             .iter()
             .map(|path| path.to_string_lossy().to_string())
             .collect::<Vec<_>>();
+
         let nushell_content = render_nushell_paths_file(&nushell_paths);
         write_atomic(&self.paths_nu_file, nushell_content.as_bytes())
             .context("Failed to write Nushell paths file")?;
@@ -94,6 +96,7 @@ impl ShellManager {
                 .lock()
                 .ok()
                 .ok_or_else(|| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
+
             package_database.add_path_entry(package_name, install_path)?;
             self.regenerate_paths_files(package_database)?;
         }
@@ -118,6 +121,7 @@ impl ShellManager {
     ) -> Result<()> {
         #[cfg(not(unix))]
         let _ = (package_database, package_name);
+
         #[cfg(unix)]
         let _ = install_path;
 
@@ -127,6 +131,7 @@ impl ShellManager {
                 .lock()
                 .ok()
                 .ok_or_else(|| anyhow::anyhow!("Failed to lock PATH file for writing"))?;
+
             package_database.remove_path_entry(package_name)?;
             self.regenerate_paths_files(package_database)?;
         }
@@ -151,6 +156,7 @@ impl ShellManager {
             .iter()
             .map(|path| path.to_string_lossy().to_string())
             .collect::<Vec<_>>();
+
         let nushell_content = render_nushell_paths_file(&nushell_paths);
         write_atomic(&self.paths_nu_file, nushell_content.as_bytes())
             .context("Failed to write Nushell paths file")?;
@@ -245,6 +251,7 @@ fn render_path_entries(symlinks_dir: &Path, package_entries: &[(String, PathBuf)
             entries.push(path.clone());
         }
     }
+
     entries
 }
 
@@ -255,6 +262,7 @@ pub fn render_posix_paths_file(paths: &[PathBuf]) -> String {
         let escaped = escape_posix_path(&path.to_string_lossy());
         content.push_str(&format!("export PATH=\"{escaped}:$PATH\"\n"));
     }
+
     content
 }
 
@@ -264,6 +272,7 @@ pub fn render_nushell_paths_file(paths: &[String]) -> String {
     for path in paths {
         content.push_str(&format!("    \"{}\"\n", escape_nushell_string(path)));
     }
+
     content.push_str("]\n\n$env.PATH = ($upstream_paths ++ $env.PATH)\n");
     content
 }
@@ -287,6 +296,7 @@ fn parse_nushell_paths_file(content: &str) -> Vec<String> {
             in_list = true;
             continue;
         }
+
         if in_list && trimmed == "]" {
             in_list = false;
             continue;
@@ -296,6 +306,7 @@ fn parse_nushell_paths_file(content: &str) -> Vec<String> {
             if let Some((path, _)) = parse_nushell_string_literal(trimmed) {
                 list_entries.push(path);
             }
+
             continue;
         }
 
@@ -336,6 +347,7 @@ fn parse_nushell_string_literal(input: &str) -> Option<(String, usize)> {
                     output.push(other);
                 }
             }
+
             escaped = false;
             continue;
         }
@@ -358,6 +370,7 @@ fn dedupe_preserving_order(paths: Vec<String>) -> Vec<String> {
             unique.push(path);
         }
     }
+
     unique
 }
 
@@ -386,6 +399,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-shell-test-{name}-{nanos}"))
     }
 
@@ -406,6 +420,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package_database
             .upsert_package(&package)
             .expect("seed package");
@@ -424,6 +439,7 @@ mod tests {
         let manager = ShellManager::new(&paths_file);
         let mut package_database =
             PackageDatabase::open(&root.join("packages.db")).expect("open package db");
+
         seed_package(&mut package_database, "tool");
 
         manager
@@ -445,6 +461,7 @@ mod tests {
             parse_nushell_paths_file(&nushell_content),
             vec![install_path.to_string_lossy().to_string()]
         );
+
         assert!(nushell_content.contains("\\\""));
         assert!(nushell_content.contains("$"));
 
@@ -464,6 +481,7 @@ mod tests {
         let manager = ShellManager::new(&paths_file);
         let mut package_database =
             PackageDatabase::open(&root.join("packages.db")).expect("open package db");
+
         seed_package(&mut package_database, "tool");
 
         manager
@@ -499,6 +517,7 @@ mod tests {
         let manager = ShellManager::new(&paths_file);
         let mut package_database =
             PackageDatabase::open(&root.join("packages.db")).expect("open package db");
+
         seed_package(&mut package_database, "first");
         seed_package(&mut package_database, "second");
         seed_package(&mut package_database, "new");
@@ -557,6 +576,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         older.install_path = Some(paths.install.archives_dir.join("older"));
         older.exec_path = Some(older_install.clone());
         older.last_upgraded = chrono::Utc::now() - chrono::Duration::days(1);
@@ -571,6 +591,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         newer.install_path = Some(paths.install.archives_dir.join("newer"));
         newer.exec_path = Some(newer_install.clone());
         newer.last_upgraded = chrono::Utc::now();
@@ -585,6 +606,7 @@ mod tests {
 
         let nushell_content =
             fs::read_to_string(&paths.generated.paths_nu_file).expect("read paths.nu");
+
         assert_eq!(
             parse_nushell_paths_file(&nushell_content),
             vec![

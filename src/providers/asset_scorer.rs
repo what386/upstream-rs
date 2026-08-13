@@ -888,6 +888,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         let release = make_release(
             vec![
                 Asset::new(
@@ -1057,6 +1058,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         let release = make_release(
             vec![
                 Asset::new(
@@ -1211,6 +1213,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         let release = make_release(
             vec![
                 Asset::new(
@@ -1241,6 +1244,7 @@ mod tests {
             candidates[0].asset.name,
             "codex-x86_64-unknown-linux-musl.tar.gz"
         );
+
         assert!(candidates[0].score > candidates[1].score);
     }
 
@@ -1258,6 +1262,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         let release = make_release(
             vec![
                 Asset::new(

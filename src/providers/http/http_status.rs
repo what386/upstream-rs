@@ -249,10 +249,12 @@ mod tests {
             friendly_status(StatusCode::TOO_MANY_REQUESTS),
             "rate limited (429)"
         );
+
         assert_eq!(
             friendly_status(StatusCode::UNAUTHORIZED),
             "authentication failed (401)"
         );
+
         assert_eq!(friendly_status(StatusCode::NOT_FOUND), "not found (404)");
         assert_eq!(
             friendly_status(StatusCode::INTERNAL_SERVER_ERROR),

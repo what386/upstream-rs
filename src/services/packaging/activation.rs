@@ -53,6 +53,7 @@ impl PreparedInstall {
                     self.workspace.root().display()
                 )
             })?;
+
         Ok(paths.dirs.packages_dir.join(relative))
     }
 
@@ -106,11 +107,13 @@ impl PreparedInstall {
             .install_path
             .as_ref()
             .ok_or_else(|| anyhow!("Prepared package has no install path"))?;
+
         let package = self.final_package(paths)?;
         let final_install_path = package
             .install_path
             .as_ref()
             .ok_or_else(|| anyhow!("Prepared package has no final install path"))?;
+
         if let Some(parent) = final_install_path.parent() {
             fs::create_dir_all(parent).with_context(|| {
                 format!(
@@ -119,6 +122,7 @@ impl PreparedInstall {
                 )
             })?;
         }
+
         safe_move::move_file_or_dir(staged_install_path, final_install_path).with_context(
             || {
                 format!(
@@ -159,10 +163,12 @@ impl PreparedInstall {
                     .join(format!("_{package_name}")),
             ),
         ];
+
         for (source, destination) in candidates {
             if !source.exists() {
                 continue;
             }
+
             if let Some(parent) = destination.parent() {
                 fs::create_dir_all(parent).with_context(|| {
                     format!(
@@ -171,6 +177,7 @@ impl PreparedInstall {
                     )
                 })?;
             }
+
             safe_move::move_file_or_dir(&source, &destination).with_context(|| {
                 format!(
                     "Failed to activate completion '{}' at '{}'",
@@ -179,6 +186,7 @@ impl PreparedInstall {
                 )
             })?;
         }
+
         Ok(())
     }
 
@@ -193,11 +201,13 @@ impl PreparedInstall {
                 .final_icon_path
                 .as_ref()
                 .expect("staged icon has a final path");
+
             if let Some(parent) = final_icon_path.parent() {
                 fs::create_dir_all(parent).with_context(|| {
                     format!("Failed to create icon directory '{}'", parent.display())
                 })?;
             }
+
             safe_move::move_file_or_dir(&staged_icon_path, final_icon_path).with_context(|| {
                 format!(
                     "Failed to activate prepared icon '{}' at '{}'",
@@ -216,6 +226,7 @@ impl PreparedInstall {
                     format!("Failed to create desktop directory '{}'", parent.display())
                 })?;
             }
+
             safe_move::move_file_or_dir(staged_desktop_path, &destination).with_context(|| {
                 format!(
                     "Failed to activate prepared desktop entry '{}' at '{}'",
@@ -224,6 +235,7 @@ impl PreparedInstall {
                 )
             })?;
         }
+
         Ok(())
     }
 }
@@ -254,6 +266,7 @@ impl ReplacementBackup {
                 )
             })?
             .to_os_string();
+
         Ok(Self {
             previous_package,
             partially_installed_package: None,
@@ -271,6 +284,7 @@ impl ReplacementBackup {
             .package_backup_path
             .parent()
             .expect("package backup path has a parent");
+
         fs::create_dir_all(parent).with_context(|| {
             format!(
                 "Failed to create package backup directory '{}'",
@@ -291,9 +305,11 @@ impl ReplacementBackup {
                 });
             }
         }
+
         let file_name = original
             .file_name()
             .ok_or_else(|| anyhow!("Integration path '{}' has no filename", original.display()))?;
+
         let backup = self.backup_dir.join(category).join(file_name);
         if let Some(parent) = backup.parent() {
             fs::create_dir_all(parent).with_context(|| {
@@ -303,6 +319,7 @@ impl ReplacementBackup {
                 )
             })?;
         }
+
         safe_move::move_file_or_dir(&original, &backup)?;
         self.moved_integrations.push((original, backup));
         Ok(())
@@ -314,6 +331,7 @@ impl ReplacementBackup {
         {
             self.move_integration(path, "completions")?;
         }
+
         self.move_integration(
             DesktopManager::managed_entry_path(paths, &self.previous_package.name)?,
             "desktop",
@@ -321,6 +339,7 @@ impl ReplacementBackup {
         if let Some(icon_path) = self.previous_package.icon_path.clone() {
             self.move_integration(icon_path, "icons")?;
         }
+
         Ok(())
     }
 
@@ -366,14 +385,17 @@ impl<'a> PackageActivator<'a> {
         {
             errors.push(format!("failed to remove runtime link: {error:#}"));
         }
+
         if let Err(error) =
             CompletionManager::new(self.paths).remove_for_package(&package.name, message_callback)
         {
             errors.push(format!("failed to remove completions: {error:#}"));
         }
+
         if let Err(error) = DesktopManager::remove_entry(self.paths, &package.name) {
             errors.push(format!("failed to remove desktop entry: {error:#}"));
         }
+
         if let Some(icon_path) = package.icon_path.as_ref()
             && let Err(error) = Self::remove_path_if_exists(icon_path)
         {
@@ -382,6 +404,7 @@ impl<'a> PackageActivator<'a> {
                 icon_path.display()
             ));
         }
+
         if let Some(install_path) = package.install_path.as_ref()
             && let Err(error) = Self::remove_path_if_exists(install_path)
         {
@@ -390,6 +413,7 @@ impl<'a> PackageActivator<'a> {
                 install_path.display()
             ));
         }
+
         if errors.is_empty() {
             Ok(())
         } else {
@@ -405,12 +429,14 @@ impl<'a> PackageActivator<'a> {
                 return Err(error).context(format!("Failed to inspect path '{}'", path.display()));
             }
         };
+
         if metadata.is_dir() && !metadata.file_type().is_symlink() {
             fs::remove_dir_all(path)
                 .context(format!("Failed to remove directory '{}'", path.display()))?;
         } else {
             fs::remove_file(path).context(format!("Failed to remove file '{}'", path.display()))?;
         }
+
         Ok(())
     }
 
@@ -477,10 +503,12 @@ impl<'a> PackageActivator<'a> {
                 progress_callback,
                 PackageProgressEvent::Phase(PackagePhase::CreatingDesktopEntry)
             );
+
             prepared
                 .prepare_desktop_data(self.paths, message_callback)
                 .await?;
         }
+
         let updated_package = prepared.activate_payload(self.paths)?;
         let mut runtime_link_activated = false;
         let activation_result = (|| {
@@ -490,12 +518,15 @@ impl<'a> PackageActivator<'a> {
                     .context("Failed to activate runtime link")?;
                 runtime_link_activated = true;
             }
+
             prepared.install_completions(self.paths)?;
             if add_entry {
                 prepared.install_desktop_artifacts(self.paths)?;
             }
+
             Ok::<(), anyhow::Error>(())
         })();
+
         if let Err(error) = activation_result {
             if let Err(cleanup) = self.undo_activation(
                 &updated_package,
@@ -506,31 +537,38 @@ impl<'a> PackageActivator<'a> {
                     "{error:#}. Additionally failed to undo partial install activation: {cleanup:#}"
                 ));
             }
+
             return Err(error);
         }
+
         progress!(
             progress_callback,
             PackageProgressEvent::Phase(PackagePhase::SavingMetadata)
         );
+
         let persist_result = if trust_mode.is_some() {
             let mut settings =
                 crate::storage::database::PackageSettings::new(&updated_package.name);
+
             settings.trust_mode = trust_mode;
             package_database.upsert_package_with_settings(&updated_package, &settings)
         } else {
             package_database.upsert_package(&updated_package)
         };
+
         if let Err(error) = persist_result {
             let _ = self.undo_activation(
                 &updated_package,
                 runtime_link_activated,
                 &mut None::<fn(&str)>,
             );
+
             return Err(error).context(format!(
                 "Failed to save package '{}' to storage",
                 updated_package.name
             ));
         }
+
         if let Err(error) = ShellManager::new(&self.paths.generated.paths_file)
             .regenerate_paths(package_database, self.paths)
         {
@@ -540,11 +578,13 @@ impl<'a> PackageActivator<'a> {
                 runtime_link_activated,
                 &mut None::<fn(&str)>,
             );
+
             return Err(error).context(format!(
                 "Failed to refresh shell PATH after installing '{}'",
                 updated_package.name
             ));
         }
+
         Ok(updated_package)
     }
 }
@@ -572,6 +612,7 @@ impl<'a> PackageActivator<'a> {
                 .prepare_desktop_data(self.paths, message_callback)
                 .await?;
         }
+
         cancellation::check()?;
         let original_install_path = previous_package
             .install_path
@@ -583,11 +624,13 @@ impl<'a> PackageActivator<'a> {
                 )
             })?
             .clone();
+
         let updated_package = prepared.final_package(self.paths)?;
         let final_install_path = updated_package
             .install_path
             .as_ref()
             .ok_or_else(|| anyhow!("Prepared replacement has no final install path"))?;
+
         if final_install_path != &original_install_path
             && fs::symlink_metadata(final_install_path).is_ok()
         {
@@ -596,16 +639,19 @@ impl<'a> PackageActivator<'a> {
                 final_install_path.display()
             );
         }
+
         let backup_dir = Self::backup_dir(self.paths, &previous_package.name)?;
         let mut backup = ReplacementBackup::new(
             previous_package.clone(),
             original_install_path.clone(),
             backup_dir.clone(),
         )?;
+
         progress!(
             progress_callback,
             PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot)
         );
+
         backup.move_package().with_context(|| {
             format!(
                 "Failed to move active package '{}' into transient snapshot '{}'",
@@ -622,6 +668,7 @@ impl<'a> PackageActivator<'a> {
                 message_callback,
             );
         }
+
         if cancellation::is_requested() {
             return self.restore_after_failure(
                 backup,
@@ -630,6 +677,7 @@ impl<'a> PackageActivator<'a> {
                 message_callback,
             );
         }
+
         let updated_package = match prepared.activate_payload(self.paths) {
             Ok(package) => package,
             Err(error) => {
@@ -641,6 +689,7 @@ impl<'a> PackageActivator<'a> {
                 );
             }
         };
+
         backup.set_partial_package(updated_package.clone());
         if let Some(exec_path) = updated_package.exec_path.as_ref()
             && let Err(error) = SymlinkManager::new(&self.paths.state.symlinks_dir)
@@ -653,6 +702,7 @@ impl<'a> PackageActivator<'a> {
                 message_callback,
             );
         }
+
         backup.mark_runtime_link_activated();
         if let Err(error) = prepared.install_completions(self.paths) {
             return self.restore_after_failure(
@@ -662,16 +712,19 @@ impl<'a> PackageActivator<'a> {
                 message_callback,
             );
         }
+
         if restore_desktop {
             progress!(
                 progress_callback,
                 PackageProgressEvent::Phase(PackagePhase::CreatingRuntimeLinks)
             );
+
             if let Err(error) = prepared.install_desktop_artifacts(self.paths) {
                 progress!(
                     progress_callback,
                     PackageProgressEvent::Phase(PackagePhase::RollingBack)
                 );
+
                 return self.restore_after_failure(
                     backup,
                     error.context("Failed to activate prepared desktop integration"),
@@ -679,8 +732,10 @@ impl<'a> PackageActivator<'a> {
                     message_callback,
                 );
             }
+
             backup.set_partial_package(updated_package.clone());
         }
+
         if let Err(error) = Self::capture_rollback_snapshot(
             self.paths,
             previous_package,
@@ -692,6 +747,7 @@ impl<'a> PackageActivator<'a> {
                 progress_callback,
                 PackageProgressEvent::Phase(PackagePhase::RollingBack)
             );
+
             return self.restore_after_failure(
                 backup,
                 error.context(format!(
@@ -702,6 +758,7 @@ impl<'a> PackageActivator<'a> {
                 message_callback,
             );
         }
+
         if let Err(error) = Self::remove_path_if_exists(&backup_dir) {
             progress!(
                 progress_callback,
@@ -711,6 +768,7 @@ impl<'a> PackageActivator<'a> {
                 ))
             );
         }
+
         Ok(updated_package)
     }
 
@@ -726,6 +784,7 @@ impl<'a> PackageActivator<'a> {
                 backup_dir.display()
             );
         }
+
         Ok(backup_dir)
     }
 
@@ -746,6 +805,7 @@ impl<'a> PackageActivator<'a> {
         {
             errors.push(format!("failed to undo replacement activation: {error:#}"));
         }
+
         if fs::symlink_metadata(&backup.original_install_path).is_err() {
             if let Err(error) = safe_move::move_file_or_dir(
                 &backup.package_backup_path,
@@ -759,11 +819,13 @@ impl<'a> PackageActivator<'a> {
                 backup.original_install_path.display()
             ));
         }
+
         if let Err(error) = PackageRemover::new(self.paths)
             .restore_runtime_integrations(&backup.previous_package, message_callback)
         {
             errors.push(format!("failed to restore runtime integrations: {error:#}"));
         }
+
         for (original, stored) in backup.moved_integrations.iter().rev() {
             if let Some(parent) = original.parent()
                 && let Err(error) = fs::create_dir_all(parent)
@@ -774,6 +836,7 @@ impl<'a> PackageActivator<'a> {
                 ));
                 continue;
             }
+
             if let Err(error) = safe_move::move_file_or_dir(stored, original) {
                 errors.push(format!(
                     "failed to restore integration '{}': {error:#}",
@@ -781,12 +844,14 @@ impl<'a> PackageActivator<'a> {
                 ));
             }
         }
+
         if let Err(error) = Self::remove_path_if_exists(&backup.backup_dir) {
             errors.push(format!(
                 "failed to remove transient snapshot '{}': {error:#}",
                 backup.backup_dir.display()
             ));
         }
+
         if !errors.is_empty() {
             return Err(anyhow!(
                 "{} for '{}': {failure:#}. Rollback encountered: {}",
@@ -795,6 +860,7 @@ impl<'a> PackageActivator<'a> {
                 errors.join("; ")
             ));
         }
+
         Err(failure).context(format!(
             "{} for '{}' (previous version restored)",
             failure_context, backup.previous_package.name
@@ -818,6 +884,7 @@ impl<'a> PackageActivator<'a> {
                 persistence_error,
             );
         }
+
         ShellManager::new(&self.paths.generated.paths_file)
             .regenerate_paths(package_database, self.paths)
             .context(format!(
@@ -840,6 +907,7 @@ impl<'a> PackageActivator<'a> {
                 &mut None::<fn(&str)>,
             )
         })();
+
         match rollback_result {
             Ok(()) => Err(persistence_error).context(format!(
                 "Failed to persist replacement for '{}' (previous version restored)",
@@ -901,11 +969,13 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(staged_path.clone());
         package.exec_path = Some(staged_path);
 
         let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("open package database");
+
         let updated = PackageActivator::new(&paths)
             .install_new(
                 &mut database,
@@ -923,14 +993,17 @@ mod tests {
             fs::read(&active_path).expect("read active binary"),
             b"new binary"
         );
+
         assert!(
             database
                 .get_package("tool")
                 .expect("read package")
                 .is_some()
         );
+
         #[cfg(windows)]
         assert!(paths.state.symlinks_dir.join("tool.exe").exists());
+
         #[cfg(not(windows))]
         assert!(paths.state.symlinks_dir.join("tool").exists());
 
@@ -957,6 +1030,7 @@ mod tests {
                 .state
                 .symlinks_dir
                 .join(if cfg!(windows) { "tool.exe" } else { "tool" });
+
         fs::create_dir_all(&link_blocker).expect("create link blocker");
 
         let mut package = Package::with_defaults(
@@ -969,11 +1043,13 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(staged_path.clone());
         package.exec_path = Some(staged_path);
 
         let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("open package database");
+
         let error = PackageActivator::new(&paths)
             .install_new(
                 &mut database,
@@ -1025,6 +1101,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         previous.install_path = Some(install_path.clone());
         previous.exec_path = Some(install_path.clone());
         let old_icon = paths.state.icons_dir.join("tool.png");
@@ -1044,6 +1121,7 @@ mod tests {
             fs::read(&install_path).expect("read active before cutover"),
             b"old binary"
         );
+
         let updated = PackageActivator::new(&paths)
             .replace(
                 &previous,
@@ -1060,30 +1138,36 @@ mod tests {
             updated.install_path.as_deref(),
             Some(install_path.as_path())
         );
+
         assert_eq!(
             fs::read(&install_path).expect("read active after cutover"),
             b"new binary"
         );
+
         assert!(
             fs::read_dir(&paths.install.tmp_dir)
                 .expect("read temp")
                 .flatten()
                 .all(|entry| !entry.file_name().to_string_lossy().ends_with(".old"))
         );
+
         let rollback_manager = RollbackManager::new(&paths).expect("open rollback manager");
         let rollback_record = rollback_manager
             .rollback_record("tool")
             .expect("rollback record");
+
         let rollback_icon = paths.state.rollback_dir.join(
             rollback_record
                 .icon_relative_path
                 .as_ref()
                 .expect("rollback icon"),
         );
+
         assert_eq!(
             fs::read(rollback_icon).expect("read rollback icon"),
             b"old icon"
         );
+
         assert!(!old_icon.exists());
 
         fs::remove_dir_all(root).expect("cleanup");
@@ -1109,6 +1193,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         previous.install_path = Some(install_path.clone());
         previous.exec_path = Some(install_path.clone());
 
@@ -1135,6 +1220,7 @@ mod tests {
             fs::read(&install_path).expect("read restored binary"),
             b"old binary"
         );
+
         assert!(
             fs::read_dir(&paths.install.tmp_dir)
                 .expect("read temp")
@@ -1168,12 +1254,14 @@ mod tests {
             Provider::Github,
             None,
         );
+
         previous.version = Version::new(1, 0, 0, false);
         previous.install_path = Some(install_path.clone());
         previous.exec_path = Some(install_path.clone());
 
         let mut database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
+
         let mut settings = PackageSettings::new("tool");
         settings.trust_mode = Some(TrustMode::Signature);
         database
@@ -1198,6 +1286,7 @@ mod tests {
 
         let database_path =
             PackageDatabase::database_path_for(&paths.metadata.packages_database_file);
+
         Connection::open(&database_path)
             .expect("open trigger connection")
             .execute_batch(
@@ -1221,6 +1310,7 @@ mod tests {
             fs::read(&install_path).expect("read restored binary"),
             b"old binary"
         );
+
         assert_eq!(
             database
                 .get_package("tool")
@@ -1229,6 +1319,7 @@ mod tests {
                 .version,
             Version::new(1, 0, 0, false)
         );
+
         assert_eq!(
             database
                 .get_package_settings("tool")
@@ -1237,6 +1328,7 @@ mod tests {
                 .trust_mode,
             Some(TrustMode::Signature)
         );
+
         assert!(
             RollbackManager::new(&paths)
                 .expect("reload rollback manager")

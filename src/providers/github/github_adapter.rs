@@ -44,6 +44,7 @@ impl GithubAdapter {
                     .get_tag_by_name(slug, tag)
                     .await
                     .map_err(|tag_err| anyhow!("{release_err}; tag fallback failed: {tag_err}"))?;
+
                 Ok(Self::convert_tag(tag))
             }
         }
@@ -57,6 +58,7 @@ impl GithubAdapter {
                     self.client.get_latest_tag(slug).await.map_err(|tag_err| {
                         anyhow!("{release_err}; tag fallback failed: {tag_err}")
                     })?;
+
                 Ok(Self::convert_tag(tag))
             }
         }
@@ -101,6 +103,7 @@ impl GithubAdapter {
                     reached_from_version = true;
                     continue;
                 }
+
                 releases.push(release);
             }
 
@@ -132,6 +135,7 @@ impl GithubAdapter {
             .client
             .search_repositories(query, limit, filters)
             .await?;
+
         Ok(dto
             .items
             .into_iter()
@@ -154,6 +158,7 @@ impl GithubAdapter {
         let assets: Vec<Asset> = dto.assets.into_iter().map(Self::convert_asset).collect();
         let version =
             Version::from_tag(&dto.tag_name).unwrap_or_else(|_| Version::new(0, 0, 0, false));
+
         Release {
             id: dto.id as u64,
             tag: dto.tag_name,
@@ -197,6 +202,7 @@ impl GithubAdapter {
         if raw.trim().is_empty() {
             return DateTime::<Utc>::MIN_UTC;
         }
+
         raw.parse::<DateTime<Utc>>()
             .unwrap_or(DateTime::<Utc>::MIN_UTC)
     }
@@ -280,6 +286,7 @@ mod tests {
             GithubAdapter::parse_timestamp(""),
             chrono::DateTime::<chrono::Utc>::MIN_UTC
         );
+
         assert_eq!(
             GithubAdapter::parse_timestamp("not-a-date"),
             chrono::DateTime::<chrono::Utc>::MIN_UTC
@@ -290,6 +297,7 @@ mod tests {
     fn convert_release_maps_assets_and_version() {
         let adapter =
             GithubAdapter::new(GithubClient::new(None, Default::default()).expect("github client"));
+
         let dto = GithubReleaseDto {
             id: 12,
             tag_name: "v2.3.4".to_string(),

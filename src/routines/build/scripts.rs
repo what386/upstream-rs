@@ -66,6 +66,7 @@ fn validate_script(path: &Path) -> Result<()> {
 
     let content = std::fs::read(path)
         .with_context(|| format!("Failed to read build script '{}'", path.display()))?;
+
     if content.starts_with(b"#!") {
         return Ok(());
     }
@@ -97,12 +98,14 @@ fn command_for(path: &Path) -> Result<Command> {
 fn review_script(path: &Path) -> Result<()> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read build script '{}'", path.display()))?;
+
     let mut preview = String::new();
     for line in content.lines() {
         preview.push_str("  ");
         preview.push_str(line);
         preview.push('\n');
     }
+
     preview.push('\n');
     preview.push_str(&format!("  Command: {}\n", command_preview(path)));
 
@@ -177,6 +180,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-builder-script-test-{name}-{nanos}"))
     }
 

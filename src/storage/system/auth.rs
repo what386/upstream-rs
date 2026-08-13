@@ -166,6 +166,7 @@ impl AuthStorage {
                     } else {
                         format!("{}.{}", prefix, key)
                     };
+
                     result.extend(Self::flatten_value(
                         val,
                         &new_prefix,
@@ -215,6 +216,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir()
             .join(format!("upstream-auth-test-{name}-{nanos}"))
             .join("auth.toml")
@@ -224,6 +226,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::remove_dir_all(parent)?;
         }
+
         Ok(())
     }
 
@@ -233,6 +236,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         let mut storage = AuthStorage::new(&path).expect("create storage");
 
         storage
@@ -245,6 +249,7 @@ mod tests {
         let github: Option<String> = storage
             .try_get_value("github.api_token")
             .expect("read github token");
+
         let gitlab: Option<String> = storage
             .try_get_value("gitlab.api_token")
             .expect("read gitlab token");
@@ -261,6 +266,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         fs::write(&path, "[github]\napi_token = \"ghp_abc\"\nextra = true\n").expect("write auth");
 
         let err = AuthStorage::new(&path).expect_err("auth config should be rejected");

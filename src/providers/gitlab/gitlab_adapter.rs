@@ -56,6 +56,7 @@ impl GitlabAdapter {
             .client
             .get_releases(project_path, per_page, max_total)
             .await?;
+
         Ok(dtos
             .into_iter()
             .map(|dto| self.convert_release(dto))
@@ -78,6 +79,7 @@ impl GitlabAdapter {
                 .client
                 .get_releases_page(project_path, per_page, page)
                 .await?;
+
             if batch.is_empty() {
                 break;
             }
@@ -91,6 +93,7 @@ impl GitlabAdapter {
                     reached_from_version = true;
                     continue;
                 }
+
                 releases.push(release);
             }
 
@@ -142,6 +145,7 @@ impl GitlabAdapter {
 
         let version =
             Version::from_tag(&dto.tag_name).unwrap_or_else(|_| Version::new(0, 0, 0, false));
+
         let published_at = dto
             .released_at
             .as_ref()
@@ -165,6 +169,7 @@ impl GitlabAdapter {
         if raw.trim().is_empty() {
             return DateTime::<Utc>::MIN_UTC;
         }
+
         raw.parse::<DateTime<Utc>>()
             .unwrap_or(DateTime::<Utc>::MIN_UTC)
     }
@@ -239,6 +244,7 @@ mod tests {
             GitlabAdapter::parse_timestamp(""),
             chrono::DateTime::<chrono::Utc>::MIN_UTC
         );
+
         assert_eq!(
             GitlabAdapter::parse_timestamp("bad-date"),
             chrono::DateTime::<chrono::Utc>::MIN_UTC
@@ -250,6 +256,7 @@ mod tests {
         let adapter = GitlabAdapter::new(
             GitlabClient::new(None, None, Default::default()).expect("gitlab client"),
         );
+
         let dto = GitlabReleaseDto {
             tag_name: "v1.9.0".to_string(),
             name: "v1.9.0".to_string(),

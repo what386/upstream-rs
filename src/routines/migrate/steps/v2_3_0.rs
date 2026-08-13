@@ -38,6 +38,7 @@ impl Step for V2_3_0 {
             &legacy_trust.minisign_public_keys,
             &legacy_trust.cosign_public_keys,
         )?;
+
         report.migrated_trusted_keys += summary.minisign.imported + summary.cosign.imported;
         report.deduped_trusted_keys += summary.minisign.deduped + summary.cosign.deduped;
 
@@ -56,6 +57,7 @@ fn legacy_trust_config(paths: &UpstreamPaths) -> Result<Option<LegacyTrustConfig
             paths.config.config_file.display()
         )
     })?;
+
     if raw_config.trim().is_empty() {
         return Ok(None);
     }
@@ -66,6 +68,7 @@ fn legacy_trust_config(paths: &UpstreamPaths) -> Result<Option<LegacyTrustConfig
             paths.config.config_file.display()
         )
     })?;
+
     let config_table = config_value.as_table().ok_or_else(|| {
         anyhow!(
             "Config '{}' must be a TOML table",
@@ -88,6 +91,7 @@ fn legacy_trust_needs_migration(paths: &UpstreamPaths) -> Result<bool> {
     let Some(legacy_trust) = legacy_trust_config(paths)? else {
         return Ok(false);
     };
+
     let trust_storage = TrustStorage::new(&paths.metadata.trust_file)?;
     let trusted_keys = trust_storage.trusted_signature_keys();
 
@@ -99,6 +103,7 @@ fn legacy_trust_needs_migration(paths: &UpstreamPaths) -> Result<bool> {
                 .iter()
                 .any(|existing| existing.key.trim().eq_ignore_ascii_case(normalized))
     });
+
     let missing_cosign = legacy_trust.cosign_public_keys.iter().any(|legacy_key| {
         let normalized = legacy_key.key.trim();
         !normalized.is_empty()
@@ -128,6 +133,7 @@ mod tests {
         if path.exists() {
             fs::remove_dir_all(path)?;
         }
+
         Ok(())
     }
 
@@ -167,14 +173,17 @@ mod tests {
             &fs::read(&paths.metadata.trust_file).expect("read trust storage"),
         )
         .expect("parse trust storage");
+
         assert_eq!(
             trust_json["minisign_public_keys"][0]["id"].as_str(),
             Some("mini")
         );
+
         assert_eq!(
             trust_json["cosign_public_keys"][0]["id"].as_str(),
             Some("cosign")
         );
+
         assert!(!V2_3_0::check(&paths).expect("check after migration"));
 
         cleanup(&root).expect("cleanup");

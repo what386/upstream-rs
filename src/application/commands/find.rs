@@ -85,6 +85,7 @@ pub async fn run(
         search.base_url.as_deref(),
         &package_database,
     )?;
+
     println!(
         "{}",
         output::title(format!("Selected {} as {}", result.repo_slug, install_name))

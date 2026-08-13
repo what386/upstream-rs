@@ -20,6 +20,7 @@ pub(in crate::routines::doctor) fn check_completion_directories(
             "No supported shells detected for completion checks",
         );
     }
+
     for (shell, path) in completion_dirs {
         if path.exists() {
             report.line(Level::Ok, format!("{shell} completions directory exists"));
@@ -125,6 +126,7 @@ fn fix_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
     let manager = ShellManager::new(&paths.generated.paths_file);
     let result = PackageDatabase::open(&paths.metadata.packages_database_file)
         .and_then(|mut package_database| manager.regenerate_paths(&mut package_database, paths));
+
     if let Err(err) = result {
         report.line(
             Level::Warn,
@@ -132,6 +134,7 @@ fn fix_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
         );
         return;
     }
+
     report.line(Level::Ok, "Repaired PATH integration file");
 }
 

@@ -75,6 +75,7 @@ impl fmt::Display for TrustMode {
             TrustMode::Signature => "signature",
             TrustMode::All => "all",
         };
+
         write!(f, "{s}")
     }
 }

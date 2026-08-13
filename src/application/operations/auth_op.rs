@@ -127,6 +127,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir()
             .join(format!("upstream-auth-updater-test-{name}-{nanos}"))
             .join("auth.toml")
@@ -140,6 +141,7 @@ mod tests {
                 Err(err) => return Err(err),
             }
         }
+
         Ok(())
     }
 

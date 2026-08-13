@@ -73,6 +73,7 @@ impl<'a> TrustVerifier<'a> {
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("downloaded asset");
+
             let _ = asset_filename;
             if let Some(cb) = progress_callback.as_mut() {
                 cb(PackageProgressEvent::Phase(
@@ -81,6 +82,7 @@ impl<'a> TrustVerifier<'a> {
                 let total = std::fs::metadata(asset_path)
                     .map(|metadata| metadata.len())
                     .unwrap_or(0);
+
                 cb(PackageProgressEvent::Checksum { checked: 0, total });
             }
 
@@ -89,6 +91,7 @@ impl<'a> TrustVerifier<'a> {
                     cb(PackageProgressEvent::Checksum { checked, total });
                 }
             });
+
             let checksum_result = self
                 .checksum_verifier
                 .try_verify_file(
@@ -99,6 +102,7 @@ impl<'a> TrustVerifier<'a> {
                     &mut checksum_progress,
                 )
                 .await?;
+
             match checksum_result {
                 ChecksumVerificationResult::Verified(info) => {
                     let _ = info;
@@ -165,6 +169,7 @@ impl<'a> TrustVerifier<'a> {
                         "Checksum is required but no checksum asset was found"
                     ));
                 }
+
                 Ok(())
             }
             TrustMode::Signature => {
@@ -177,6 +182,7 @@ impl<'a> TrustVerifier<'a> {
                         "Signature is required but no signature asset was found"
                     ));
                 }
+
                 self.enforce_signature_attempt_result(signature)?;
                 Ok(())
             }
@@ -186,6 +192,7 @@ impl<'a> TrustVerifier<'a> {
                         "Checksum is required but no checksum asset was found"
                     ));
                 }
+
                 if matches!(
                     signature,
                     SignatureVerificationStatus::MissingSignature
@@ -195,6 +202,7 @@ impl<'a> TrustVerifier<'a> {
                         "Signature is required but no signature asset was found"
                     ));
                 }
+
                 self.enforce_signature_attempt_result(signature)?;
                 Ok(())
             }
@@ -231,6 +239,7 @@ mod tests {
     fn with_verifier(mode: TrustMode, assert: impl FnOnce(TrustVerifier<'_>)) {
         let provider_manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+
         let trusted_keys = TrustedSignatureKeys::default();
         assert(TrustVerifier::new(
             &provider_manager,

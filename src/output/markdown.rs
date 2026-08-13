@@ -97,6 +97,7 @@ fn normalize_glow_output(output: String) -> String {
     {
         lines.remove(0);
     }
+
     while lines
         .last()
         .is_some_and(|line| console::strip_ansi_codes(line).trim().is_empty())

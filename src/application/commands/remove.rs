@@ -31,6 +31,7 @@ fn render_remove_progress(
         .chain(active_rows.values())
         .cloned()
         .collect::<Vec<_>>();
+
     format!("\n{}", rows.join("\n"))
 }
 
@@ -41,6 +42,7 @@ fn completion_message_key(message: &str) -> Option<String> {
         .strip_prefix("[ok]")
         .or_else(|| cleaned.trim_start().strip_prefix("[fail]"))?
         .trim_start();
+
     rest.split_whitespace().next().map(str::to_string)
 }
 
@@ -61,6 +63,7 @@ fn render_remove_progress_row(
 
     format!(" {name:<name_width$}{status}")
 }
+
 pub fn run(
     names: Vec<String>,
     purge: bool,
@@ -88,12 +91,14 @@ pub fn run(
         .fold(DiskImpact::empty(), |total, (_, _, impact)| {
             total + impact.clone()
         });
+
     let transaction_rows = impact_rows
         .iter()
         .map(|(name, version, impact)| {
             TransactionRow::single_version(name, version, impact.net, ByteEstimate::exact(0))
         })
         .collect::<Vec<_>>();
+
     output::print_transaction_table_with_size_rows(
         &transaction_rows,
         &impact,
@@ -119,8 +124,10 @@ pub fn run(
     let overall_pb_for_messages = overall_pb.clone();
     let active_progress_rows: Arc<Mutex<BTreeMap<String, String>>> =
         Arc::new(Mutex::new(BTreeMap::new()));
+
     let completed_progress_rows: Arc<Mutex<BTreeMap<String, String>>> =
         Arc::new(Mutex::new(BTreeMap::new()));
+
     let persistent_completion_rows = Arc::new(Mutex::new(Vec::new()));
     let active_rows_for_messages = Arc::clone(&active_progress_rows);
     let completed_rows_for_messages = Arc::clone(&completed_progress_rows);
@@ -130,12 +137,15 @@ pub fn run(
             if let Ok(mut rows) = active_rows_for_messages.lock() {
                 rows.remove(&key);
             }
+
             if let Ok(mut rows) = completed_rows_for_messages.lock() {
                 rows.insert(key, msg.to_string());
             }
+
             if let Ok(mut rows) = completion_rows_ref.lock() {
                 rows.push(msg.to_string());
             }
+
             let message = match (
                 completed_rows_for_messages.lock(),
                 active_rows_for_messages.lock(),
@@ -143,9 +153,11 @@ pub fn run(
                 (Ok(completed), Ok(active)) => render_remove_progress(&completed, &active),
                 _ => String::new(),
             };
+
             overall_pb_for_messages.set_message(message);
         }
     });
+
     let remove_pb_for_progress = overall_pb.clone();
     let active_rows_for_progress = Arc::clone(&active_progress_rows);
     let completed_rows_for_progress = Arc::clone(&completed_progress_rows);
@@ -156,6 +168,7 @@ pub fn run(
                 render_remove_progress_row(name, event, progress_name_width),
             );
         }
+
         let message = match (
             completed_rows_for_progress.lock(),
             active_rows_for_progress.lock(),
@@ -163,6 +176,7 @@ pub fn run(
             (Ok(completed), Ok(active)) => render_remove_progress(&completed, &active),
             _ => String::new(),
         };
+
         remove_pb_for_progress.set_message(message);
     });
 
@@ -174,6 +188,7 @@ pub fn run(
         &mut overall_progress_callback,
         &mut progress_callback,
     );
+
     let (removed, failed) = match bulk_result {
         Ok(result) => result,
         Err(err) => {
@@ -187,9 +202,11 @@ pub fn run(
         .lock()
         .map(|rows| rows.clone())
         .unwrap_or_default();
+
     for row in &completion_rows {
         println!("{row}");
     }
+
     if failed > 0 {
         println!(
             "{}",
@@ -226,11 +243,13 @@ fn run_dry_run(
         .iter()
         .filter(|item| matches!(&item.status, RemovePreviewStatus::Failed { .. }))
         .count();
+
     if estimate_failed > 0 {
         output::action_note(format!(
             "{estimate_failed} package(s) could not be included in disk estimate"
         ));
     }
+
     output::action_note("resolve only (no remove, no purge, no metadata changes)");
     println!();
 
@@ -256,6 +275,7 @@ fn run_dry_run(
             }
         }
     }
+
     println!();
     let status = if failed > 0 { Status::Warn } else { Status::Ok };
     output::status_line(
@@ -267,5 +287,6 @@ fn run_dry_run(
     if failed > 0 {
         anyhow::bail!("{failed} package removal preview(s) failed");
     }
+
     Ok(())
 }

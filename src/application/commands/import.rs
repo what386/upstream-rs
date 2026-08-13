@@ -29,9 +29,11 @@ fn render_import_progress(
     let queued = total
         .saturating_sub(completed)
         .saturating_sub(active_rows.len() as u32);
+
     if active_rows.is_empty() {
         return format!("Importing {completed}/{total} packages ({queued} queued)");
     }
+
     format!(
         "Importing {completed}/{total} packages ({queued} queued)\n{}",
         active_rows.values().cloned().collect::<Vec<_>>().join("\n")
@@ -85,6 +87,7 @@ fn render_import_progress_row(
         PackageProgressEvent::Checksum { .. } => "Checksumming...".to_string(),
         PackageProgressEvent::Warning(message) => output::truncate_end(&message, 96),
     };
+
     format!("{name:<name_width$} {detail}")
 }
 
@@ -105,6 +108,7 @@ pub async fn run_import_packages(
         trusted_keys,
         context.app_config.concurrency.install_concurrency(),
     );
+
     let pb = new_import_progress_bar();
     let mut progress_callback = Some(new_import_progress_callback(&pb, 0));
 
@@ -122,6 +126,7 @@ pub async fn run_import_packages(
     if failed > 0 {
         bail!("{failed} package import(s) failed");
     }
+
     Ok(())
 }
 
@@ -136,6 +141,7 @@ pub fn run_import_keys(path: PathBuf, paths: &UpstreamPaths, app_config: &AppCon
         trusted_keys,
         context.app_config.concurrency.install_concurrency(),
     );
+
     let pb = new_import_progress_bar();
     let mut progress_callback = Some(new_import_progress_callback(&pb, 0));
 
@@ -158,6 +164,7 @@ pub fn run_import_config(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
     if !path.exists() {
         bail!("Config import source '{}' does not exist", path.display());
     }
+
     emit_progress(
         &mut progress_callback,
         ImportProgressEvent::Phase(OperationPhase::ImportingConfig),
@@ -190,6 +197,7 @@ pub async fn run_import_profile(
         auth.get_auth().gitea.api_token.as_deref(),
         profile_config.download,
     )?;
+
     let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let trusted_keys = TrustStorage::new(&paths.metadata.trust_file)?.trusted_signature_keys();
     let mut import_op = ImportOperation::new(
@@ -199,6 +207,7 @@ pub async fn run_import_profile(
         trusted_keys,
         profile_config.concurrency.install_concurrency(),
     );
+
     let pb = new_import_progress_bar();
     let mut progress_callback = Some(new_import_progress_callback(&pb, 0));
 
@@ -215,6 +224,7 @@ pub async fn run_import_profile(
     if failed > 0 {
         bail!("{failed} profile package import(s) failed");
     }
+
     Ok(())
 }
 
@@ -273,6 +283,7 @@ fn new_import_progress_callback(pb: &ProgressBar, total: u32) -> impl FnMut(Impo
                     output::status_line_text(Status::Fail, &name, error)
                 }
             };
+
             progress_pb.suspend(|| println!("{row}"));
             progress_pb.set_message(render_import_progress(&active_rows, completed, total));
         }
@@ -288,6 +299,7 @@ fn print_import_summary(label: &str, summary: ImportSummary) {
         "{label} complete: {} installed, {} skipped, {} failed.",
         summary.installed, summary.skipped, summary.failed
     );
+
     println!(
         "{}",
         if summary.failed > 0 {
@@ -323,6 +335,7 @@ mod tests {
             },
             5,
         );
+
         assert!(download.starts_with("gitui Downloading [=======>      ]"));
         assert!(download.contains('/'));
 

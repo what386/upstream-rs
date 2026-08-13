@@ -17,6 +17,7 @@ impl CmakeProfile {
         {
             format!("{package_name}.exe")
         }
+
         #[cfg(not(windows))]
         {
             package_name.to_string()
@@ -63,6 +64,7 @@ impl CmakeProfile {
                     .map(|path| path.display().to_string())
                     .collect::<Vec<_>>()
                     .join(", ");
+
                 Err(anyhow!(
                     "CMake build produced multiple artifact candidates named '{}' under '{}': {}",
                     binary_name,
@@ -88,6 +90,7 @@ impl CmakeProfile {
                     "Failed to inspect CMake build directory '{}'",
                     dir.display()
                 ))?;
+
                 let path = entry.path();
                 let file_type = entry.file_type().context(format!(
                     "Failed to inspect CMake build path '{}'",
@@ -98,6 +101,7 @@ impl CmakeProfile {
                     if is_ignored_artifact_search_dir(&entry.file_name()) {
                         continue;
                     }
+
                     queue.push_back(path);
                 } else if file_type.is_file() && entry.file_name() == binary_name {
                     candidates.push(path);
@@ -196,6 +200,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         let root = std::env::temp_dir().join(format!("upstream-cmake-profile-{name}-{nonce}"));
         fs::create_dir_all(&root).expect("create temp root");
         root

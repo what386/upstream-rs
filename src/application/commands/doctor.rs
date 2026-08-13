@@ -77,6 +77,7 @@ pub async fn run(
                 report.fail
             ));
         }
+
         return Ok(());
     }
 

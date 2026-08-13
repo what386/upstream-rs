@@ -50,6 +50,7 @@ pub fn progress_bar(done: u64, total: u64, width: usize) -> String {
     if width == 0 {
         return "[]".to_string();
     }
+
     if total == 0 {
         return format!("[{}]", "?".repeat(width));
     }
@@ -123,6 +124,7 @@ where
                 if ch == '\x07' {
                     break;
                 }
+
                 if ch == '\x1b' && chars.peek() == Some(&'\\') {
                     out.push(chars.next().expect("peeked OSC terminator"));
                     break;
@@ -139,6 +141,7 @@ pub fn truncate_end(value: &str, max: usize) -> String {
     if char_count <= max {
         return value.to_string();
     }
+
     if max <= 3 {
         return ".".repeat(max);
     }
@@ -147,6 +150,7 @@ pub fn truncate_end(value: &str, max: usize) -> String {
     for ch in value.chars().take(max - 3) {
         out.push(ch);
     }
+
     out.push_str("...");
     out
 }
@@ -156,6 +160,7 @@ pub fn truncate_middle(value: &str, max: usize) -> String {
     if char_count <= max {
         return value.to_string();
     }
+
     if max <= 3 {
         return ".".repeat(max);
     }
@@ -172,6 +177,7 @@ pub fn truncate_middle(value: &str, max: usize) -> String {
         .into_iter()
         .rev()
         .collect();
+
     format!("{prefix}...{suffix}")
 }
 

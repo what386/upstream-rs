@@ -32,6 +32,7 @@ impl PackageConnection {
 
         let conn = Connection::open(path)
             .with_context(|| format!("Failed to open package database '{}'", path.display()))?;
+
         Self::from_connection(conn)
     }
 
@@ -89,6 +90,7 @@ impl PackageConnection {
             .context("Failed to list packages")?
             .collect::<rusqlite::Result<Vec<_>>>()
             .context("Failed to decode package rows")?;
+
         drop(stmt);
 
         load_patterns_for_packages(&self.conn, &mut packages)?;
@@ -121,6 +123,7 @@ impl PackageConnection {
                         .get::<_, Option<String>>(1)?
                         .map(|value| enum_from_db_value(value, 1))
                         .transpose()?;
+
                     Ok(PackageSettings {
                         package_name: row.get(0)?,
                         trust_mode,
@@ -136,6 +139,7 @@ impl PackageConnection {
             .conn
             .transaction()
             .context("Failed to start package settings transaction")?;
+
         write_package_settings(&tx, settings)?;
         tx.commit().with_context(|| {
             format!(
@@ -157,10 +161,12 @@ impl PackageConnection {
                 package.name
             ));
         }
+
         let tx = self
             .conn
             .transaction()
             .context("Failed to start package settings update transaction")?;
+
         write_package(&tx, package)?;
         write_package_settings(&tx, settings)?;
         tx.commit()
@@ -172,6 +178,7 @@ impl PackageConnection {
             .conn
             .transaction()
             .context("Failed to start package upsert transaction")?;
+
         write_package(&tx, package)?;
         tx.commit()
             .with_context(|| format!("Failed to commit package '{}'", package.name))
@@ -192,11 +199,13 @@ impl PackageConnection {
             )
             .optional()
             .with_context(|| format!("Failed to check PATH entry for '{}'", package_name))?;
+
         if existing_path.as_deref() == Some(path.as_str()) {
             tx.commit()
                 .context("Failed to commit unchanged PATH entry transaction")?;
             return Ok(false);
         }
+
         if existing_path.is_some() {
             tx.execute(
                 "UPDATE path_entries SET path = ?1 WHERE package_name = ?2",
@@ -215,6 +224,7 @@ impl PackageConnection {
                 |row| row.get::<_, i64>(0),
             )
             .context("Failed to determine PATH entry position")?;
+
         tx.execute(
             "INSERT INTO path_entries (package_name, path, position) VALUES (?1, ?2, ?3)",
             params![package_name, path, position],
@@ -237,6 +247,7 @@ impl PackageConnection {
                 [package_name],
             )
             .with_context(|| format!("Failed to remove PATH entry for '{}'", package_name))?;
+
         tx.commit()
             .with_context(|| format!("Failed to commit PATH entry removal '{}'", package_name))?;
         Ok(affected > 0)
@@ -247,6 +258,7 @@ impl PackageConnection {
             .conn
             .transaction()
             .context("Failed to start PATH entry replacement transaction")?;
+
         tx.execute("DELETE FROM path_entries", [])
             .context("Failed to clear PATH entries")?;
         for (position, (package_name, path)) in entries.iter().enumerate() {
@@ -257,6 +269,7 @@ impl PackageConnection {
             )
             .context("Failed to insert PATH entry")?;
         }
+
         tx.commit()
             .context("Failed to commit PATH entry replacement transaction")
     }
@@ -266,11 +279,13 @@ impl PackageConnection {
             .conn
             .transaction()
             .context("Failed to start package replacement transaction")?;
+
         tx.execute("DELETE FROM packages", [])
             .context("Failed to clear package database")?;
         for package in packages {
             write_package(&tx, package)?;
         }
+
         tx.commit()
             .context("Failed to commit package replacement transaction")
     }
@@ -280,6 +295,7 @@ impl PackageConnection {
             .conn
             .execute("DELETE FROM packages WHERE name = ?1", [name])
             .with_context(|| format!("Failed to remove package '{}'", name))?;
+
         Ok(affected > 0)
     }
 
@@ -290,12 +306,14 @@ impl PackageConnection {
         let mut package = self
             .get_package(name)?
             .ok_or_else(|| anyhow!("Package '{}' not found", name))?;
+
         update(&mut package)?;
 
         let tx = self
             .conn
             .transaction()
             .context("Failed to start package update transaction")?;
+
         if package.name != name {
             tx.execute(
                 "UPDATE packages SET name = ?1 WHERE name = ?2",
@@ -305,6 +323,7 @@ impl PackageConnection {
                 format!("Failed to rename package '{}' to '{}'", name, package.name)
             })?;
         }
+
         write_package(&tx, &package)?;
         tx.commit()
             .with_context(|| format!("Failed to commit package '{}'", package.name))
@@ -329,6 +348,7 @@ fn write_package_settings(tx: &Transaction<'_>, settings: &PackageSettings) -> R
         })?;
         return Ok(());
     };
+
     let trust_mode = enum_to_db(trust_mode)?;
     tx.execute(
         "
@@ -366,11 +386,13 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
         .version
         .semver_components()
         .unwrap_or((0, 0, 0, false));
+
     let (version_kind, version_value) = match &package.version {
         Version::Unknown => ("Unknown", None),
         Version::Semver { .. } => ("Semver", None),
         Version::Datetime { .. } => ("Datetime", Some(package.version.core_string())),
     };
+
     let release_tag = package.installed_release_tag();
     tx.execute(
         "INSERT INTO packages (
@@ -481,6 +503,7 @@ mod tests {
             Provider::Github,
             Some("https://api.github.com".to_string()),
         );
+
         package.version = Version::new(1, 2, 3, true);
         package.release_tag = Some("rust-v1.2.3-beta.4".to_string());
         package.release_published_at = Some(
@@ -548,6 +571,7 @@ mod tests {
             db.schema_version().expect("schema version"),
             PACKAGE_DB_SCHEMA_VERSION
         );
+
         assert!(!db.package_exists("missing").expect("exists check"));
     }
 
@@ -617,6 +641,7 @@ mod tests {
             db.schema_version().expect("schema version"),
             PACKAGE_DB_SCHEMA_VERSION
         );
+
         assert_eq!(
             db.list_path_entries().expect("list migrated path entries"),
             vec![PathBuf::from("/first/bin"), PathBuf::from("/second/bin")]
@@ -661,6 +686,7 @@ mod tests {
             db.schema_version().expect("schema version"),
             PACKAGE_DB_SCHEMA_VERSION
         );
+
         assert_eq!(
             db.get_package_settings("tool")
                 .expect("load settings")
@@ -732,10 +758,12 @@ mod tests {
             stored.match_pattern.as_slice(),
             package.match_pattern.as_slice()
         );
+
         assert_eq!(
             stored.exclude_pattern.as_slice(),
             package.exclude_pattern.as_slice()
         );
+
         assert_eq!(stored.icon_path, package.icon_path);
         assert_eq!(stored.install_path, package.install_path);
         assert_eq!(stored.exec_path, package.exec_path);
@@ -790,6 +818,7 @@ mod tests {
             !db.remove_path_entry("second")
                 .expect("remove missing second")
         );
+
         assert_eq!(
             db.list_path_entries().expect("list path entries"),
             vec![third, first]
@@ -831,6 +860,7 @@ mod tests {
             .get_package("tool")
             .expect("load package")
             .expect("package exists");
+
         assert_eq!(stored.version, Version::new(2, 0, 0, false));
         assert_eq!(stored.match_pattern.as_slice(), &["aarch64".to_string()]);
         assert!(stored.exclude_pattern.is_empty());
@@ -857,6 +887,7 @@ mod tests {
             packages[0].match_pattern.as_slice(),
             &["alpha".to_string(), "linux".to_string()]
         );
+
         assert_eq!(
             packages[0].exclude_pattern.as_slice(),
             &["debug".to_string()]
@@ -892,6 +923,7 @@ mod tests {
             .get_package("tool")
             .expect("load package")
             .expect("package exists");
+
         assert!(!stored.is_pinned);
         assert_eq!(stored.exec_path, Some(PathBuf::from("/new/tool")));
     }
@@ -963,10 +995,12 @@ mod tests {
                 .expect("load old settings")
                 .is_none()
         );
+
         let renamed = db
             .get_package_settings("new")
             .expect("load renamed settings")
             .expect("renamed settings exist");
+
         assert_eq!(renamed.package_name, "new");
         assert_eq!(renamed.trust_mode, Some(TrustMode::Signature));
 
@@ -995,6 +1029,7 @@ mod tests {
             .get_package("tool")
             .expect("load package")
             .expect("package");
+
         assert_eq!(loaded.match_pattern.to_string(), "linux,x86_64");
         assert_eq!(loaded.exclude_pattern.to_string(), "debug");
         assert_eq!(

@@ -91,6 +91,7 @@ pub fn begin(action: impl Into<String>, mutating: bool) {
         mutating,
         warning: false,
     };
+
     if let Ok(mut current) = active().lock() {
         *current = Some(operation);
     }
@@ -105,12 +106,15 @@ pub fn record_item(
     let Ok(mut current) = active().lock() else {
         return;
     };
+
     let Some(operation) = current.as_mut() else {
         return;
     };
+
     if level == LogLevel::Warning {
         operation.warning = true;
     }
+
     operation.record.items.push(HistoryItem {
         record_type: "item".to_string(),
         package,
@@ -130,9 +134,11 @@ pub fn record_version_item(
     let Ok(mut current) = active().lock() else {
         return;
     };
+
     let Some(operation) = current.as_mut() else {
         return;
     };
+
     let package = package.into();
     if let Some(item) = operation
         .record
@@ -176,9 +182,11 @@ pub fn finish(outcome: Outcome, level: LogLevel, message: Option<String>) {
     let is_read_only_success = !operation.mutating
         && outcome == Outcome::Success
         && operation.record.level == LogLevel::Info;
+
     let is_empty_upgrade = operation.record.action == "upgrade"
         && outcome == Outcome::Success
         && operation.record.items.is_empty();
+
     let is_history_success = operation.record.action == "history" && outcome == Outcome::Success;
     if !is_read_only_success && !is_empty_upgrade && !is_history_success {
         crate::output::write_operation(operation.record);
@@ -191,11 +199,13 @@ fn summarize(record: &HistoryRecord) -> String {
         .iter()
         .filter(|item| item.outcome == Outcome::Success)
         .count();
+
     let failed = record
         .items
         .iter()
         .filter(|item| item.outcome == Outcome::Failure)
         .count();
+
     let cancelled = record
         .items
         .iter()
@@ -224,6 +234,7 @@ fn summarize(record: &HistoryRecord) -> String {
                 "install" | "build" | "find" | "probe" => "installed",
                 _ => "completed",
             };
+
             if failed > 0 {
                 format!("{successful} {verb}, {failed} failed")
             } else if cancelled > 0 {
@@ -241,13 +252,16 @@ pub fn parse_since(raw: &str) -> Result<DateTime<Utc>, String> {
     if raw.len() < 2 {
         return Err("expected a duration such as 2d, 12h, or 30m".to_string());
     }
+
     let (number, unit) = raw.split_at(raw.len() - 1);
     let amount: i64 = number
         .parse()
         .map_err(|_| format!("invalid duration '{raw}'"))?;
+
     if amount < 0 {
         return Err("duration cannot be negative".to_string());
     }
+
     let duration = match unit {
         "m" => Duration::minutes(amount),
         "h" => Duration::hours(amount),
@@ -255,6 +269,7 @@ pub fn parse_since(raw: &str) -> Result<DateTime<Utc>, String> {
         "w" => Duration::weeks(amount),
         _ => return Err("expected a duration such as 2d, 12h, or 30m".to_string()),
     };
+
     Ok(Utc::now() - duration)
 }
 
@@ -266,6 +281,7 @@ pub fn filter_records(
     records.retain(|record| {
         let timestamp = DateTime::parse_from_rfc3339(&record.timestamp)
             .map(|timestamp| timestamp.with_timezone(&Utc));
+
         let package_matches = filter.package.as_ref().is_none_or(|package| {
             record.items.iter().any(|item| {
                 item.package
@@ -273,25 +289,31 @@ pub fn filter_records(
                     .is_some_and(|value| value.eq_ignore_ascii_case(package))
             })
         });
+
         let action_matches = filter
             .action
             .as_ref()
             .is_none_or(|action| record.action.starts_with(action));
+
         let status_matches = filter.status.as_ref().is_none_or(|status| {
             let status = normalize_status(status);
             status == outcome_name(record.outcome) || status == level_name(record.level)
         });
+
         let since_matches = filter
             .since
             .is_none_or(|since| timestamp.is_ok_and(|value| value >= since));
+
         let today_matches = !filter.today
             || timestamp.is_ok_and(|value| value.with_timezone(&Local).date_naive() == today);
+
         package_matches && action_matches && status_matches && since_matches && today_matches
     });
     records.sort_by(|left, right| right.timestamp.cmp(&left.timestamp));
     if filter.limit > 0 {
         records.truncate(filter.limit);
     }
+
     records
 }
 
@@ -324,6 +346,7 @@ pub fn day_label(record: &HistoryRecord) -> String {
     let Ok(timestamp) = DateTime::parse_from_rfc3339(&record.timestamp) else {
         return "Unknown date".to_string();
     };
+
     let date = timestamp.with_timezone(&Local).date_naive();
     let today = Local::now().date_naive();
     if date == today {
@@ -357,6 +380,7 @@ pub fn render_records(records: &[HistoryRecord]) -> String {
         .max()
         .unwrap_or(0)
         .max(8);
+
     let package_width = records
         .iter()
         .flat_map(|record| record.items.iter())
@@ -364,6 +388,7 @@ pub fn render_records(records: &[HistoryRecord]) -> String {
         .map(str::len)
         .max()
         .unwrap_or(0);
+
     let mut text = String::new();
     let mut previous_day = None;
     for record in records {
@@ -372,10 +397,12 @@ pub fn render_records(records: &[HistoryRecord]) -> String {
             if !text.is_empty() {
                 text.push('\n');
             }
+
             writeln!(text, "{}", crate::output::section(&day))
                 .expect("writing to a String cannot fail");
             previous_day = Some(day);
         }
+
         writeln!(
             text,
             "  {}  {} {:<action_width$}  {}",
@@ -391,6 +418,7 @@ pub fn render_records(records: &[HistoryRecord]) -> String {
             .iter()
             .filter(|item| item.package.is_some())
             .collect::<Vec<_>>();
+
         let mut package_index = 0;
         for item in &record.items {
             let detail = item
@@ -400,12 +428,14 @@ pub fn render_records(records: &[HistoryRecord]) -> String {
                 .map(|(from, to)| format!("{from} → {to}"))
                 .or_else(|| item.message.clone())
                 .unwrap_or_default();
+
             if let Some(package) = &item.package {
                 let branch = if package_index + 1 == package_items.len() {
                     '└'
                 } else {
                     '├'
                 };
+
                 writeln!(
                     text,
                     "           {} {:<package_width$}  {detail}",
@@ -419,6 +449,7 @@ pub fn render_records(records: &[HistoryRecord]) -> String {
             }
         }
     }
+
     text.trim_end().to_string()
 }
 
@@ -436,6 +467,7 @@ fn operation_id() -> String {
             *counter
         })
         .unwrap_or_default();
+
     format!("op-{nanos}-{}-{value}", process::id())
 }
 
@@ -474,6 +506,7 @@ mod tests {
             record("upgrade", "upstream", Outcome::Success),
             record("find", "cosign", Outcome::Failure),
         ];
+
         let filtered = filter_records(
             records,
             &HistoryFilter {
@@ -483,6 +516,7 @@ mod tests {
                 ..HistoryFilter::default()
             },
         );
+
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].action, "upgrade");
     }
@@ -501,6 +535,7 @@ mod tests {
         let value: serde_json::Value =
             serde_json::to_value(record("upgrade", "upstream", Outcome::Success))
                 .expect("serialize history record");
+
         assert_eq!(value["record_type"], "operation");
         assert_eq!(value["items"][0]["record_type"], "item");
         assert_eq!(value["items"][0]["package"], "upstream");

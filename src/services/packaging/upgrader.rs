@@ -90,12 +90,14 @@ impl<'a> PackageUpgrader<'a> {
                 PackagePhase::ApplyingZsyncUpdate,
             ));
         }
+
         let progress_cell = std::cell::RefCell::new(progress_callback.as_mut());
         let mut zsync_progress = Some(|downloaded: u64, total: u64| {
             if let Some(callback) = progress_cell.borrow_mut().as_deref_mut() {
                 callback(PackageProgressEvent::Zsync { downloaded, total });
             }
         });
+
         let Some(updated) = zsync_handler::update_package_asset(
             &package,
             release,
@@ -110,12 +112,14 @@ impl<'a> PackageUpgrader<'a> {
         else {
             return Ok(None);
         };
+
         let verifier = TrustVerifier::new(
             self.provider_manager,
             updated.cache(),
             trust_mode,
             &self.trusted_keys,
         );
+
         verifier
             .verify_file(
                 updated.path(),
@@ -130,6 +134,7 @@ impl<'a> PackageUpgrader<'a> {
         if let Some(callback) = progress_callback.as_mut() {
             callback(PackageProgressEvent::Phase(PackagePhase::InstallingPackage));
         }
+
         let mut staged = package;
         staged.install_path = None;
         staged.exec_path = None;
@@ -144,6 +149,7 @@ impl<'a> PackageUpgrader<'a> {
                 message_callback,
             )
             .context("Failed to install zsync-updated artifact")?;
+
         let name = installed.name.clone();
         let provider = installed.provider.clone();
         let result = installer
@@ -158,9 +164,11 @@ impl<'a> PackageUpgrader<'a> {
             )
             .await
             .map(Some);
+
         if let Some(callback) = download_progress.as_mut() {
             callback(0, 0);
         }
+
         result
     }
 
@@ -361,10 +369,12 @@ impl<'a> PackageUpgrader<'a> {
                 anyhow::anyhow!("Package '{}' has no install path recorded", package.name)
             })?
             .clone();
+
         progress!(
             progress_callback,
             PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot)
         );
+
         let workspace = InstallWorkspace::new(self.paths, &package.name)?;
         let mut staging_installer =
             PackageInstaller::new_for_workspace(self.provider_manager, self.paths, workspace)?;
@@ -376,6 +386,7 @@ impl<'a> PackageUpgrader<'a> {
                 progress_callback,
                 PackageProgressEvent::Phase(PackagePhase::RebuildingFromSource)
             );
+
             let (version_tag, branch, branch_head_commit) = match &target {
                 ResolvedUpgradeTarget::Release(release) => (Some(release.tag.clone()), None, None),
                 ResolvedUpgradeTarget::Branch {
@@ -395,6 +406,7 @@ impl<'a> PackageUpgrader<'a> {
                         );
                     }
                 });
+
                 worker
                     .build(
                         BuildRequest {
@@ -428,10 +440,12 @@ impl<'a> PackageUpgrader<'a> {
                     } else {
                         install_pkg.record_release(&output.release);
                     }
+
                     progress!(
                         progress_callback,
                         PackageProgressEvent::Phase(PackagePhase::InstallingPackage)
                     );
+
                     let mut install_message_callback = Some(|line: &str| {
                         let line = line.trim();
                         if !line.is_empty() {
@@ -439,15 +453,18 @@ impl<'a> PackageUpgrader<'a> {
                                 progress_callback,
                                 PackageProgressEvent::Detail(line.to_string())
                             );
+
                             message!(message_callback, "{}", line);
                         }
                     });
+
                     let install_result = staging_installer.install_local_artifact_files(
                         install_pkg,
                         &output.artifact_path,
                         output.version,
                         &mut install_message_callback,
                     );
+
                     match install_result {
                         Ok(mut updated_package) => {
                             updated_package.icon_path = package.icon_path.clone();
@@ -477,6 +494,7 @@ impl<'a> PackageUpgrader<'a> {
                     package.name
                 );
             };
+
             let selected_asset = match self
                 .installer
                 .resolve_release_asset(package, release, message_callback.as_mut())
@@ -488,6 +506,7 @@ impl<'a> PackageUpgrader<'a> {
                         progress_callback,
                         PackageProgressEvent::Phase(PackagePhase::RollingBack)
                     );
+
                     return Err(err).context(format!(
                         "Failed to resolve upgrade asset for '{}'",
                         package.name
@@ -533,12 +552,14 @@ impl<'a> PackageUpgrader<'a> {
                     if cancellation::is_requested() {
                         return Err(crate::application::cancellation::Cancelled.into());
                     }
+
                     let summary = output::error_summary(&err);
                     let warning = format!("zsync failed, fallback: {summary}");
                     progress!(
                         progress_callback,
                         PackageProgressEvent::Warning(warning.clone())
                     );
+
                     message!(message_callback, "{}", warning);
                     let mut install_pkg = package.clone();
                     install_pkg.install_path = None;
@@ -639,6 +660,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-upgrader-test-{name}-{nanos}"))
     }
 
@@ -652,6 +674,7 @@ mod tests {
         {
             return base.with_extension("exe");
         }
+
         #[cfg(not(windows))]
         {
             base
@@ -673,6 +696,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(install_path.clone());
         package.exec_path = Some(install_path);
         package
@@ -724,6 +748,7 @@ mod tests {
         let mut rollback_guard =
             ReplacementBackup::new(previous, install_path.clone(), backup_dir.clone())
                 .expect("create replacement backup");
+
         rollback_guard
             .move_integrations(&paths)
             .expect("move integrations");
@@ -739,6 +764,7 @@ mod tests {
             "Failed to restore desktop integration",
             &mut msg,
         );
+
         let err = result.expect_err("rollback helper returns original failure");
 
         assert!(err.to_string().contains("previous version restored"));
@@ -746,20 +772,24 @@ mod tests {
             fs::read(&install_path).expect("read restored binary"),
             b"old"
         );
+
         assert!(!backup_dir.exists());
         assert!(expected_symlink_path(&paths, "tool").exists());
         assert_eq!(
             fs::read(&completion_path).expect("read restored completion"),
             b"old completion"
         );
+
         assert_eq!(
             fs::read(&desktop_path).expect("read restored desktop"),
             b"old desktop"
         );
+
         assert_eq!(
             fs::read(&old_icon_path).expect("read restored icon"),
             b"old icon"
         );
+
         assert!(!new_icon_path.exists());
 
         cleanup(&root).expect("cleanup");
@@ -795,6 +825,7 @@ mod tests {
         let mut guard =
             ReplacementBackup::new(guard_previous, install_path.clone(), backup_dir.clone())
                 .expect("create replacement backup");
+
         guard.set_partial_package(updated.clone());
 
         let capture_error = PackageActivator::capture_rollback_snapshot(
@@ -805,12 +836,14 @@ mod tests {
             crate::storage::rollback::RollbackSource::Upgrade,
         )
         .expect_err("post-copy icon failure should prevent rollback capture");
+
         let result: anyhow::Result<()> = PackageActivator::new(&paths).restore_after_failure(
             guard,
             capture_error,
             "Failed to finalize replacement",
             &mut None::<fn(&str)>,
         );
+
         let error = result.expect_err("post-copy icon failure should prevent rollback capture");
 
         assert!(error.to_string().contains("previous version restored"));
@@ -857,6 +890,7 @@ mod tests {
 
         let provider_manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+
         let installer = PackageInstaller::new(&provider_manager, &paths).expect("installer");
         let upgrader = PackageUpgrader::new(
             &provider_manager,
@@ -864,6 +898,7 @@ mod tests {
             &paths,
             TrustedSignatureKeys::default(),
         );
+
         let mut download = Some(|_: u64, _: u64| {});
         let mut msg = Some(|_: &str| {});
         let mut progress = Some(|_: PackageProgressEvent| {});
@@ -884,6 +919,7 @@ mod tests {
             err.to_string()
                 .contains("Failed to resolve upgrade asset for 'tool'")
         );
+
         assert_eq!(fs::read(&install_path).expect("restored install"), b"old");
         assert!(expected_symlink_path(&paths, "tool").exists());
         assert!(

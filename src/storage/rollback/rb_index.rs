@@ -90,6 +90,7 @@ impl RollbackIndex {
             file: RollbackStorageFile::default(),
             rollback_file: rollback_file.to_path_buf(),
         };
+
         index.load()?;
         Ok(index)
     }
@@ -141,6 +142,7 @@ impl RollbackIndex {
     fn save(&self) -> Result<()> {
         let json = serde_json::to_string_pretty(&self.file)
             .context("Failed to serialize rollback storage")?;
+
         write_atomic(&self.rollback_file, json.as_bytes()).with_context(|| {
             format!(
                 "Failed to write rollback storage to '{}'",
@@ -187,6 +189,7 @@ impl RollbackIndex {
         let _guard = rollback_storage_lock()
             .lock()
             .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
+
         self.load()?;
         validate_rollback_record(package_name, &record)?;
 
@@ -218,6 +221,7 @@ impl RollbackIndex {
         let _guard = rollback_storage_lock()
             .lock()
             .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
+
         self.load()?;
 
         let original_file = self.file.clone();
@@ -244,6 +248,7 @@ impl RollbackIndex {
         let _guard = rollback_storage_lock()
             .lock()
             .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
+
         self.load()?;
 
         let original_file = self.file.clone();
@@ -261,6 +266,7 @@ impl RollbackIndex {
         let _guard = rollback_storage_lock()
             .lock()
             .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
+
         self.load()?;
 
         if self.file.records.contains_key(new_name) {
@@ -346,6 +352,7 @@ fn validate_rollback_record(package_name: &str, record: &RollbackRecord) -> Resu
                     package_name
                 )
             })?;
+
             validate_entry_path(artifact_entry, "artifact")?;
 
             if let Some(icon_entry) = record.icon_entry_path.as_deref() {
@@ -419,6 +426,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir()
             .join(format!("upstream-rollback-storage-test-{name}-{nanos}"))
             .join("rollback.json")
@@ -456,6 +464,7 @@ mod tests {
         {
             fs::remove_dir_all(parent)?;
         }
+
         Ok(())
     }
 
@@ -485,10 +494,12 @@ mod tests {
             loaded.package_snapshot.release_tag.as_deref(),
             Some("opaque-release")
         );
+
         assert_eq!(
             loaded.package_snapshot.release_published_at,
             record.package_snapshot.release_published_at
         );
+
         assert_eq!(loaded.artifact_relative_path, record.artifact_relative_path);
         assert!(loaded.icon_relative_path.is_some());
 

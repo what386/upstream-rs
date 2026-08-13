@@ -59,6 +59,7 @@ where
         .ok_or_else(|| anyhow!("Invalid archive path: no filename"))?
         .to_string_lossy()
         .to_string();
+
     message!(message_callback, "Extracting directory '{filename}' ...");
 
     let extracted_path = compression_handler::decompress_with_progress(
@@ -75,6 +76,7 @@ where
     let dirname = extracted_path
         .file_name()
         .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
+
     let out_path = workspace.archives_dir.join(dirname);
     let install_root = archive_layout::select_nested_archive_root(&extracted_path, &package)
         .unwrap_or_else(|| extracted_path.clone());
@@ -99,6 +101,7 @@ where
             "{}",
             style("Could not automatically locate executable").yellow()
         );
+
         install_completions_from_root(workspace, &package.name, &out_path, message_callback);
         package.exec_path = None;
         package.install_path = Some(out_path);
@@ -142,6 +145,7 @@ where
         .ok_or_else(|| anyhow!("Invalid compressed path: no filename"))?
         .to_string_lossy()
         .to_string();
+
     message!(message_callback, "Extracting file '{}' ...", filename);
 
     let extracted_path = compression_handler::decompress(asset_path, extract_cache)
@@ -163,6 +167,7 @@ where
     let filename = asset_path
         .file_name()
         .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
+
     let out_path = workspace.appimages_dir.join(filename);
 
     message!(
@@ -195,6 +200,7 @@ where
                     "{}",
                     style(format!("AppImage completion scan skipped: {err}")).yellow()
                 );
+
                 None
             }
         },
@@ -204,6 +210,7 @@ where
                 "{}",
                 style(format!("AppImage completion scan skipped: {err}")).yellow()
             );
+
             None
         }
     };
@@ -230,6 +237,7 @@ where
     let filename = asset_path
         .file_name()
         .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
+
     let out_path = workspace.binaries_dir.join(filename);
 
     message!(

@@ -62,6 +62,7 @@ impl PackageDatabase {
         if let Some(mode) = operation_override {
             return Ok(mode);
         }
+
         Ok(self
             .get_package_settings(package_name)?
             .and_then(|settings| settings.trust_mode)
@@ -84,6 +85,7 @@ impl PackageDatabase {
                 package.name
             ));
         }
+
         self.connection()?
             .upsert_package_with_settings(package, settings)
     }
@@ -119,10 +121,12 @@ impl PackageDatabase {
         let mut package = self
             .get_package(name)?
             .ok_or_else(|| anyhow!("Package '{}' not found", name))?;
+
         let changed = update(&mut package)?;
         if !changed {
             return Ok(false);
         }
+
         if package.name != name {
             return Err(anyhow!(
                 "Package update changed '{}' to '{}'; use rename_package for package renames",
@@ -167,6 +171,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir()
             .join(format!("upstream-packages-test-{name}-{nanos}"))
             .join("packages.db")
@@ -193,6 +198,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::remove_dir_all(parent)?;
         }
+
         Ok(())
     }
 
@@ -203,6 +209,7 @@ mod tests {
         if let Some(parent) = legacy_path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         fs::write(&legacy_path, "{not-json").expect("write invalid legacy json");
 
         let db = PackageDatabase::open(&path).expect("open database");
@@ -219,6 +226,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         let mut db = PackageDatabase::open(&path).expect("open database");
 
         let mut first = test_package("tool");
@@ -234,6 +242,7 @@ mod tests {
             .get_package("tool")
             .expect("load package")
             .expect("stored package");
+
         assert_eq!(package.version, Version::new(2, 0, 0, false));
         assert_eq!(package.repo_slug, "owner/renamed-repo");
 
@@ -246,6 +255,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         let mut db = PackageDatabase::open(&path).expect("open database");
         db.upsert_package(&test_package("tool"))
             .expect("store package");
@@ -277,6 +287,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         let mut db = PackageDatabase::open(&path).expect("open database");
         db.upsert_package(&test_package("tool"))
             .expect("store package");
@@ -295,6 +306,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         let mut db = PackageDatabase::open(&path).expect("open database");
         db.upsert_package(&test_package("old"))
             .expect("store package");
@@ -314,6 +326,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         let mut db = PackageDatabase::open(&path).expect("open database");
         db.upsert_package(&test_package("one"))
             .expect("store package");
@@ -395,6 +408,7 @@ mod tests {
             db.effective_trust_mode("tool", None).expect("stored"),
             TrustMode::Checksum
         );
+
         assert_eq!(
             db.effective_trust_mode("tool", Some(TrustMode::Signature))
                 .expect("override"),

@@ -60,6 +60,7 @@ impl<'a> BuildOperation<'a> {
                 selected,
                 input.base_url.as_deref(),
             );
+
             let inferred_base_url = input.base_url.clone().or_else(|| {
                 infer_source(&input.repo_slug)
                     .ok()
@@ -120,6 +121,7 @@ impl<'a> BuildOperation<'a> {
                         semver, resolved_repo_slug
                     )
                 })?;
+
             input.tag = Some(release.tag);
         }
 
@@ -132,6 +134,7 @@ impl<'a> BuildOperation<'a> {
                     resolved_base_url.as_deref(),
                 )
                 .await;
+
             if let Some(branch) = input.branch.as_deref() {
                 let commit = self
                     .provider_manager
@@ -146,6 +149,7 @@ impl<'a> BuildOperation<'a> {
                         "Failed to fetch branch head for '{}' on '{}'",
                         branch, resolved_repo_slug
                     ))?;
+
                 println!("{}", output::title("Build preview"));
                 output::kv("Package", &input.name);
                 output::kv(
@@ -186,6 +190,7 @@ impl<'a> BuildOperation<'a> {
                         .await
                         .context(format!("fetch latest release for '{}'", resolved_repo_slug))?
                 };
+
                 println!("{}", output::title("Build preview"));
                 output::kv("Package", &input.name);
                 output::kv(
@@ -207,6 +212,7 @@ impl<'a> BuildOperation<'a> {
                 Some(profile) => output::kv("Profile", format!("{:?}", profile)),
                 None => output::kv("Profile", "auto-detect at build time"),
             }
+
             output::kv("Desktop", if input.desktop { "yes" } else { "no" });
             output::action_note("resolve only (no compile, no install, no metadata changes)");
             return Ok(());
@@ -220,11 +226,13 @@ impl<'a> BuildOperation<'a> {
                 resolved_base_url.as_deref(),
             )
             .await;
+
         let new_version = input
             .branch
             .as_deref()
             .or(input.tag.as_deref())
             .unwrap_or("latest");
+
         output::print_transaction_table_without_size(&[output::TransactionRow::single_version(
             format!("{}/{}", resolved_provider, input.name),
             new_version,
@@ -236,6 +244,7 @@ impl<'a> BuildOperation<'a> {
         let worker = BuildWorker::new(self.provider_manager, self.paths);
         let mut build_line_callback =
             Some(|line: &str| output::status_line(output::Status::Plan, "build", line));
+
         let build_result = worker
             .build(
                 BuildRequest {
@@ -272,6 +281,7 @@ impl<'a> BuildOperation<'a> {
             resolved_provider,
             resolved_base_url,
         );
+
         package.install_type = InstallType::Build;
         package.build_branch = build_result.branch.clone();
         package.build_commit = build_result.commit.clone();
@@ -285,6 +295,7 @@ impl<'a> BuildOperation<'a> {
             self.paths,
             TrustedSignatureKeys::default(),
         )?;
+
         let mut msg = Some(|_: &str| {});
         let mut no_progress: Option<fn(PackageProgressEvent)> = None;
         let installed = install_operation

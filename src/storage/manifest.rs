@@ -87,6 +87,7 @@ impl ManifestStorage {
             manifest_file: migration_file.to_path_buf(),
             manifest: None,
         };
+
         storage.load()?;
         Ok(storage)
     }
@@ -148,6 +149,7 @@ impl ManifestStorage {
 
         let json = serde_json::to_string_pretty(&manifest)
             .context("Failed to serialize migration manifest")?;
+
         write_atomic(&self.manifest_file, json.as_bytes()).with_context(|| {
             format!(
                 "Failed to write migration manifest to '{}'",
@@ -162,6 +164,7 @@ impl ManifestStorage {
         if self.manifest.is_none() {
             self.save_manifest(MigrationManifest::current())?;
         }
+
         Ok(())
     }
 
@@ -178,6 +181,7 @@ impl ManifestStorage {
             .manifest
             .clone()
             .unwrap_or_else(MigrationManifest::current);
+
         manifest.record_migration_from(previous_layout_version, layout_version);
         self.save_manifest(manifest)
     }
@@ -207,6 +211,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir()
             .join(format!("upstream-migration-manifest-test-{name}-{nanos}"))
             .join("migration.json")
@@ -216,6 +221,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::remove_dir_all(parent)?;
         }
+
         Ok(())
     }
 
@@ -289,6 +295,7 @@ mod tests {
             err.to_string()
                 .contains("Unsupported migration manifest version")
         );
+
         cleanup(&path).expect("cleanup");
     }
 }

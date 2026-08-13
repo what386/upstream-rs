@@ -9,6 +9,7 @@ pub fn find_signature_assets<'r>(release: &'r Release, asset_name: &str) -> Vec<
         if seen.iter().any(|n| n == &lowered) {
             return;
         }
+
         seen.push(lowered);
         out.push(asset);
     };
@@ -67,6 +68,7 @@ pub fn signature_target_name(signature_asset_name: &str) -> Option<&str> {
             }
         }
     }
+
     None
 }
 

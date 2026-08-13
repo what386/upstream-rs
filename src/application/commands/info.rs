@@ -44,6 +44,7 @@ fn shorten_home_path(path: &str) -> String {
     {
         return path.replacen(home_str, "~", 1);
     }
+
     path.to_string()
 }
 
@@ -83,6 +84,7 @@ fn resolve_package_query<'a>(packages: &'a [Package], query: &str) -> Result<&'a
         query,
         3,
     );
+
     Err(anyhow!(
         "No installed package matches '{}'.{}",
         query,
@@ -134,6 +136,7 @@ fn format_package_details(package: &Package) -> String {
         if let Some(branch) = package.build_branch.as_deref() {
             write_detail_field(&mut out, "Branch", branch);
         }
+
         if let Some(commit) = package.build_commit.as_deref() {
             write_detail_field(&mut out, "Commit", commit);
         }
@@ -177,6 +180,7 @@ fn format_package_details(package: &Package) -> String {
         if !package.match_pattern.is_empty() {
             write_detail_field(&mut out, "Match", package.match_pattern.to_string());
         }
+
         if !package.exclude_pattern.is_empty() {
             write_detail_field(&mut out, "Exclude", package.exclude_pattern.to_string());
         }
@@ -205,6 +209,7 @@ fn package_ref_label(package: &Package) -> String {
                 .as_deref()
                 .map(str::to_string)
                 .unwrap_or_else(|| package.version.to_string());
+
             match package.build_commit.as_deref() {
                 Some(commit) if !commit.is_empty() => format!("{label}@{}", short_commit(commit)),
                 _ => label,

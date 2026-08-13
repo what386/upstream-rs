@@ -67,9 +67,11 @@ impl<'a> IconManager<'a> {
                 {
                     let squashfs_root =
                         self.extractor.extract(name, path, message_callback).await?;
+
                     Self::search_for_best_icon(&squashfs_root, name, message_callback)
                         .or_else(|| Self::search_system_icons(name, message_callback))
                 }
+
                 #[cfg(not(target_os = "linux"))]
                 {
                     anyhow::bail!("AppImage integration is only supported on Linux hosts");
@@ -85,6 +87,7 @@ impl<'a> IconManager<'a> {
                 message_callback,
                 "No icon found; using empty Icon field in .desktop file"
             );
+
             return Ok(None);
         };
 
@@ -95,6 +98,7 @@ impl<'a> IconManager<'a> {
         let filename = icon_path
             .file_name()
             .ok_or_else(|| anyhow!("Invalid icon path"))?;
+
         fs::create_dir_all(output_dir)?;
         let output_path = output_dir.join(filename);
         fs::copy(icon_path, &output_path)?;
@@ -125,6 +129,7 @@ impl<'a> IconManager<'a> {
         } else {
             vec![&name_lower]
         };
+
         let extensions = [".svg", ".png", ".xpm", ".ico"];
 
         // Strategy 1: exact matches (case-insensitive via lowercased variants)
@@ -132,6 +137,7 @@ impl<'a> IconManager<'a> {
             if !dir.exists() {
                 continue;
             }
+
             for variant in &name_variants {
                 for ext in extensions {
                     let exact_match = dir.join(format!("{}{}", variant, ext));
@@ -155,12 +161,14 @@ impl<'a> IconManager<'a> {
             "hicolor/scalable/apps",
             "hicolor/256x256/apps",
         ];
+
         for dir in &icon_dirs {
             for subdir in common_subdirs {
                 let theme_dir = dir.join(subdir);
                 if !theme_dir.exists() {
                     continue;
                 }
+
                 for variant in &name_variants {
                     for ext in extensions {
                         let icon_path = theme_dir.join(format!("{}{}", variant, ext));
@@ -170,6 +178,7 @@ impl<'a> IconManager<'a> {
                                 "Found themed icon: {}",
                                 icon_path.display()
                             );
+
                             return Some(icon_path);
                         }
                     }
@@ -185,6 +194,7 @@ impl<'a> IconManager<'a> {
             if !dir.exists() {
                 continue;
             }
+
             // Name-matched globs (case-insensitive via lowercased variants)
             for variant in &name_variants {
                 for ext in extensions {
@@ -195,12 +205,14 @@ impl<'a> IconManager<'a> {
                     }
                 }
             }
+
             // Generic fallbacks: anything ending in .svg or .ico
             for ext in [".svg", ".ico"] {
                 if let Ok(entries) = glob::glob(&format!("{}/**/*{}", dir.display(), ext)) {
                     all_candidates.extend(entries.flatten().take(20));
                 }
             }
+
             if all_candidates.len() >= 10 {
                 break;
             }
@@ -223,6 +235,7 @@ impl<'a> IconManager<'a> {
                 path.display()
             );
         }
+
         best
     }
 
@@ -254,6 +267,7 @@ impl<'a> IconManager<'a> {
                 if exact_match.exists() {
                     all_candidates.push(exact_match);
                 }
+
                 if let Ok(entries) =
                     glob::glob(&format!("{}/**/*{}*{}", dir.display(), variant, ext))
                 {
@@ -286,6 +300,7 @@ impl<'a> IconManager<'a> {
                 path.display()
             );
         }
+
         best
     }
 
@@ -341,6 +356,7 @@ impl<'a> IconManager<'a> {
         {
             score += 30;
         }
+
         if path_str.contains("/hicolor/") || path_str.contains("/theme/") {
             score += 25;
         }

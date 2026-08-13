@@ -37,6 +37,7 @@ impl PackageReference {
             self.provider,
             self.base_url,
         );
+
         package.install_type = self.install_type;
         package.build_branch = self.build_branch;
         package.build_commit = self.build_commit;
@@ -133,6 +134,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.version = Version::new(1, 2, 3, false);
         package.version_tag_template = Some("rust-v{}-beta.4".to_string());
         package.build_branch = Some("dev".to_string());

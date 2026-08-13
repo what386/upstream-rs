@@ -28,6 +28,7 @@ impl UpdatedAsset {
     pub fn cache(&self) -> &Path {
         &self.cache
     }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -63,10 +64,12 @@ where
     if !can_update_package(package, asset, seed_path) || find_asset(release, asset).is_none() {
         return Ok(None);
     }
+
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
+
     let root = temp_dir.join(format!("upstream-zsync-{}-{nonce}", package.name));
     let cache = root.join("downloads");
     fs::create_dir_all(&cache).with_context(|| {
@@ -80,6 +83,7 @@ where
             .file_name()
             .ok_or_else(|| anyhow!("Selected asset '{}' has no filename", asset.name))?,
     );
+
     if let Err(error) = update_selected_asset(
         package,
         release,
@@ -97,6 +101,7 @@ where
         return Err(error)
             .with_context(|| format!("Failed to update '{}' via zsync", package.name));
     }
+
     Ok(Some(UpdatedAsset { root, cache, path }))
 }
 
@@ -115,6 +120,7 @@ pub fn is_asset(asset_name: &str, target_asset_name: &str) -> bool {
     else {
         return false;
     };
+
     let Some(target_file_name) = Path::new(target_asset_name)
         .file_name()
         .and_then(|name| name.to_str())
@@ -236,9 +242,11 @@ where
         progress_callback,
     )
     .await;
+
     if result.is_err() {
         let _ = fs::remove_file(output_path);
     }
+
     result?;
 
     if !output_path.is_file() {
@@ -346,6 +354,7 @@ where
         if let Some(cb) = progress_callback.as_mut() {
             cb(total_size, total_size);
         }
+
         return Ok(());
     }
 
@@ -369,6 +378,7 @@ where
     let Some(percent) = parse_zsync_percent(bytes) else {
         return;
     };
+
     let downloaded = ((total_size as f64) * (percent / 100.0)).round() as u64;
     if let Some(cb) = progress_callback.as_mut() {
         cb(downloaded.min(total_size), total_size);
@@ -390,10 +400,12 @@ fn parse_zsync_percent(bytes: &[u8]) -> Option<f64> {
             }
         })
         .unwrap_or(0);
+
     let value = before[start..].trim();
     if value.is_empty() {
         return None;
     }
+
     value.parse::<f64>().ok().filter(|value| value.is_finite())
 }
 

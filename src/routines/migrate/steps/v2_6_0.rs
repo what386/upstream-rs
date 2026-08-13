@@ -27,11 +27,13 @@ impl Step for V2_6_0 {
         let packages = storage.list_packages()?;
         let importing_legacy_packages =
             legacy::legacy_package_metadata_exists(paths) && packages.is_empty();
+
         let packages = if importing_legacy_packages {
             let legacy_packages = legacy::load_legacy_package_metadata(paths)?;
             if !legacy_packages.is_empty() {
                 storage.replace_all_packages(&legacy_packages)?;
             }
+
             legacy_packages
         } else {
             packages
@@ -65,6 +67,7 @@ fn package_database_schema_needs_migration(paths: &UpstreamPaths) -> Result<bool
             paths.metadata.packages_database_file.display()
         )
     })?;
+
     let schema_version = conn
         .query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
         .context("Failed to read package database schema version")?;
@@ -76,6 +79,7 @@ fn legacy_packages_need_database_import(paths: &UpstreamPaths) -> Result<bool> {
     if !legacy::legacy_package_metadata_exists(paths) {
         return Ok(false);
     }
+
     if !paths.metadata.packages_database_file.exists() {
         return Ok(true);
     }
@@ -86,11 +90,13 @@ fn legacy_packages_need_database_import(paths: &UpstreamPaths) -> Result<bool> {
             paths.metadata.packages_database_file.display()
         )
     })?;
+
     let package_count = conn
         .query_row("SELECT COUNT(*) FROM packages", [], |row| {
             row.get::<_, u32>(0)
         })
         .unwrap_or(0);
+
     Ok(package_count == 0)
 }
 
@@ -111,6 +117,7 @@ fn refresh_symlinks(
             report.skipped_symlinks += 1;
             continue;
         };
+
         if !target.exists() {
             report.skipped_symlinks += 1;
             continue;
@@ -145,6 +152,7 @@ mod tests {
         if path.exists() {
             fs::remove_dir_all(path)?;
         }
+
         Ok(())
     }
 
@@ -159,6 +167,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(install_path);
         package.exec_path = Some(exec_path);
         package
@@ -207,18 +216,22 @@ mod tests {
 
         let migrated_storage = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("open migrated package database");
+
         let migrated_package = migrated_storage
             .get_package("tool")
             .expect("load migrated package")
             .expect("migrated package");
+
         assert_eq!(
             migrated_package.install_path.as_deref(),
             Some(binary.as_path())
         );
+
         assert_eq!(
             migrated_package.exec_path.as_deref(),
             Some(binary.as_path())
         );
+
         assert!(!paths.metadata.packages_file.exists());
         assert!(!V2_6_0::check(&paths).expect("check after migration"));
 

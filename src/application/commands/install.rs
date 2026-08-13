@@ -121,6 +121,7 @@ fn render_install_progress_row(
 
     format!(" {name:<name_width$}{detail}")
 }
+
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
     name: Option<String>,
@@ -164,6 +165,7 @@ pub async fn run(
             trust_mode,
         }),
     };
+
     run_plan(plan, dry_run, paths, app_config).await
 }
 
@@ -178,6 +180,7 @@ pub async fn run_plan(
         desktop,
         source,
     } = plan;
+
     match source {
         InstallSource::Build(source) => {
             build::run_plan(
@@ -242,6 +245,7 @@ async fn run_release_plan(
         source.base_url.as_deref(),
         &package_database,
     )?;
+
     let trusted_keys = context.trusted_keys()?;
     let package = build_package(
         &context.provider_manager,
@@ -295,6 +299,7 @@ async fn run_release_plan(
         preview.disk_impact.net,
         preview.disk_impact.download,
     )];
+
     output::print_transaction_table(&transaction_rows, &preview.disk_impact, "Net disk change:");
     output::confirm_or_cancel("Proceed with installation?", true)?;
 
@@ -314,6 +319,7 @@ async fn run_release_plan(
         let should_emit = last_emit
             .map(|elapsed: std::time::Instant| elapsed.elapsed() >= PROGRESS_UPDATE_INTERVAL)
             .unwrap_or(true);
+
         if should_emit
             || !matches!(
                 event,
@@ -358,6 +364,7 @@ async fn run_release_plan(
                     format!("installed {install_version}")
                 )
             );
+
             println!(
                 "{}",
                 output::success("Install complete: 1 installed, 0 failed.")
@@ -368,6 +375,7 @@ async fn run_release_plan(
                 "{}",
                 output::status_line_text(Status::Fail, &install_name, output::error_summary(&err))
             );
+
             println!(
                 "{}",
                 output::warning("Install complete: 0 installed, 1 failed.")
@@ -406,6 +414,7 @@ async fn build_package(
                     source_info.repo_slug, source_info.provider
                 ))
             );
+
             return Ok(Package::with_defaults(
                 name,
                 source_info.repo_slug,

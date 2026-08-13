@@ -115,6 +115,7 @@ impl<'a> RemoveOperation<'a> {
                             completion_subject_width
                         )
                     );
+
                     failures += 1;
                 }
             }
@@ -180,6 +181,7 @@ impl<'a> RemoveOperation<'a> {
                     .package_database
                     .get_package(package_name)?
                     .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
+
                 Ok((
                     format!("{}/{}", package.provider, package.name),
                     package.version.to_string(),
@@ -243,6 +245,7 @@ mod tests {
             .expect("create metadata dir");
         let mut storage =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
+
         let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
         let mut remove_progress: Option<fn(&str, PackageProgressEvent)> = None;
@@ -250,6 +253,7 @@ mod tests {
         let err = op
             .remove_single("missing", &false, &false, &mut msg, &mut remove_progress)
             .expect_err("missing package");
+
         assert!(err.to_string().contains("is not installed"));
 
         cleanup(&root).expect("cleanup");
@@ -263,12 +267,14 @@ mod tests {
             .expect("create metadata dir");
         let mut storage =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
+
         let mut op = RemoveOperation::new(&mut storage, &paths);
         let mut msg = Some(|_: &str| {});
         let mut progress_calls = Vec::new();
         let mut progress = Some(|done: u32, total: u32| {
             progress_calls.push((done, total));
         });
+
         let mut remove_progress: Option<fn(&str, PackageProgressEvent)> = None;
         let names = vec!["a".to_string(), "b".to_string()];
 
@@ -282,6 +288,7 @@ mod tests {
                 &mut remove_progress,
             )
             .expect("bulk remove");
+
         assert_eq!((removed, failed), (0, 2));
         assert_eq!(progress_calls.first().copied(), Some((0, 2)));
         assert_eq!(progress_calls.last().copied(), Some((2, 2)));
@@ -310,11 +317,13 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(install_path.clone());
         package.exec_path = Some(install_path.clone());
 
         let mut storage =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
+
         storage.upsert_package(&package).expect("store package");
 
         let mut op = RemoveOperation::new(&mut storage, &paths);
@@ -339,6 +348,7 @@ mod tests {
             .expect("create metadata dir");
         let mut storage =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
+
         let package = Package::with_defaults(
             "tool".to_string(),
             "owner/tool".to_string(),
@@ -349,6 +359,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         storage.upsert_package(&package).expect("store package");
         let op = RemoveOperation::new(&mut storage, &paths);
 
@@ -358,6 +369,7 @@ mod tests {
             preview.items[0].status,
             RemovePreviewStatus::Planned
         ));
+
         assert_eq!(preview.items[1].name, "missing");
         assert!(matches!(
             &preview.items[1].status,
@@ -375,6 +387,7 @@ mod tests {
             .expect("create metadata dir");
         let mut storage =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
+
         let op = RemoveOperation::new(&mut storage, &paths);
 
         let names = vec!["a".to_string(), "b".to_string()];
@@ -389,6 +402,7 @@ mod tests {
 
         let persisted =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage reload");
+
         assert!(persisted.list_packages().expect("list packages").is_empty());
 
         cleanup(&root).expect("cleanup");

@@ -50,6 +50,7 @@ impl HttpClient {
         if let Some(ts) = last_upgraded {
             request = request.header(header::IF_MODIFIED_SINCE, Self::format_http_date(ts));
         }
+
         request
     }
 
@@ -75,6 +76,7 @@ impl HttpClient {
                 .get(index.saturating_sub(1))
                 .map(|b| !b.is_ascii_alphanumeric() && *b != b'-')
                 .unwrap_or(true);
+
         let end = index + attribute.len();
         let valid_end = bytes
             .get(end)
@@ -125,6 +127,7 @@ impl HttpClient {
             "data-download",
             "data-download-url",
         ];
+
         let mut values = Vec::new();
         let lower = html.to_lowercase();
         let bytes = lower.as_bytes();
@@ -157,14 +160,17 @@ impl HttpClient {
             while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                 j += 1;
             }
+
             if j >= bytes.len() || bytes[j] != b'=' {
                 i += 1;
                 continue;
             }
+
             j += 1;
             while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                 j += 1;
             }
+
             if j >= bytes.len() {
                 break;
             }
@@ -176,12 +182,14 @@ impl HttpClient {
                 while end < bytes.len() && bytes[end] != quote {
                     end += 1;
                 }
+
                 if end <= html.len() && start <= end {
                     let href = html[start..end].trim();
                     if !href.is_empty() {
                         values.push(href.to_string());
                     }
                 }
+
                 i = end.saturating_add(1);
                 continue;
             }
@@ -191,6 +199,7 @@ impl HttpClient {
             while end < bytes.len() && !bytes[end].is_ascii_whitespace() && bytes[end] != b'>' {
                 end += 1;
             }
+
             if end <= html.len() && start < end {
                 let href = html[start..end].trim();
                 if !href.is_empty() {
@@ -267,6 +276,7 @@ impl HttpClient {
                 });
             }
         }
+
         assets
     }
 
@@ -296,6 +306,7 @@ impl HttpClient {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("")
             .to_lowercase();
+
         let response_headers = response.headers().clone();
 
         if !content_type.contains("text/html") {
@@ -306,6 +317,7 @@ impl HttpClient {
 
         let base = reqwest::Url::parse(&final_url)
             .context(format!("Failed to parse URL '{}'", final_url))?;
+
         let body = response.text().await.context("Failed to read HTML body")?;
         let assets = Self::extract_assets_from_html(&base, &body, &response_headers);
 
@@ -325,6 +337,7 @@ impl HttpClient {
             .split('?')
             .next()
             .unwrap_or(without_fragment);
+
         let candidate = without_query.rsplit('/').next().unwrap_or("").trim();
 
         if candidate.is_empty() {
@@ -364,6 +377,7 @@ impl HttpClient {
             Ok(resp) if resp.status().is_success() => {
                 let last_modified =
                     Self::parse_last_modified(resp.headers().get(header::LAST_MODIFIED));
+
                 let etag = Self::parse_etag(resp.headers().get(header::ETAG));
                 (resp.content_length().unwrap_or(0), last_modified, etag)
             }
@@ -383,6 +397,7 @@ impl HttpClient {
                 http_status::error_for_status(&get_resp, "HTTP server", &url)?;
                 let last_modified =
                     Self::parse_last_modified(get_resp.headers().get(header::LAST_MODIFIED));
+
                 let etag = Self::parse_etag(get_resp.headers().get(header::ETAG));
                 (get_resp.content_length().unwrap_or(0), last_modified, etag)
             }
@@ -395,6 +410,7 @@ impl HttpClient {
                 ) {
                     bail!("{message}");
                 }
+
                 bail!("HTTP server returned {} for {}", resp.status(), url);
             }
             Err(_) => {
@@ -410,6 +426,7 @@ impl HttpClient {
                 http_status::error_for_status(&get_resp, "HTTP server", &url)?;
                 let last_modified =
                     Self::parse_last_modified(get_resp.headers().get(header::LAST_MODIFIED));
+
                 let etag = Self::parse_etag(get_resp.headers().get(header::ETAG));
                 (get_resp.content_length().unwrap_or(0), last_modified, etag)
             }
@@ -505,6 +522,7 @@ mod tests {
         for (k, v) in headers {
             out.push_str(&format!("{k}: {v}\r\n"));
         }
+
         out.push_str("\r\n");
         out.push_str(body);
         out
@@ -515,6 +533,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-http-test-{name}-{nanos}.bin"))
     }
 
@@ -522,6 +541,7 @@ mod tests {
         if path.exists() {
             fs::remove_file(path)?;
         }
+
         Ok(())
     }
 
@@ -531,6 +551,7 @@ mod tests {
             HttpClient::normalize_url("example.com/a"),
             "https://example.com/a"
         );
+
         assert_eq!(
             HttpClient::normalize_url("http://example.com/a"),
             "http://example.com/a"
@@ -540,6 +561,7 @@ mod tests {
             HttpClient::file_name_from_url("https://x.invalid/path/tool.tar.gz?x=1#frag"),
             "tool.tar.gz"
         );
+
         assert_eq!(
             HttpClient::file_name_from_url("https://x.invalid/path/"),
             "download.bin"
@@ -563,6 +585,7 @@ mod tests {
                 &body,
             )
         });
+
         let client = HttpClient::new(Default::default()).expect("client");
 
         let result = client
@@ -579,6 +602,7 @@ mod tests {
                         .iter()
                         .any(|a| a.name.ends_with("tool-v1.2.3-linux.tar.gz"))
                 );
+
                 assert!(assets.iter().all(|a| !a.name.ends_with(".sha256")));
                 assert!(assets.iter().all(|a| a.last_modified.is_some()));
                 assert!(
@@ -609,12 +633,14 @@ mod tests {
             assert_eq!(method, "HEAD");
             http_response("HTTP/1.1 304 Not Modified", &[("Connection", "close")], "")
         });
+
         let client = HttpClient::new(Default::default()).expect("client");
 
         let result = client
             .probe_asset_if_modified_since(&server, Some(Utc::now()))
             .await
             .expect("probe");
+
         assert!(matches!(result, ConditionalProbeResult::NotModified));
     }
 
@@ -644,6 +670,7 @@ mod tests {
                 "",
             ),
         });
+
         let client = HttpClient::new(Default::default()).expect("client");
 
         let result = client
@@ -679,6 +706,7 @@ mod tests {
                 &body_for_server,
             )
         });
+
         let client = HttpClient::new(Default::default()).expect("client");
         let output = temp_file_path("download");
         let mut progress = Vec::new();

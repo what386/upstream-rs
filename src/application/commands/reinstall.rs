@@ -148,6 +148,7 @@ pub async fn run(
         context.paths,
     )
     .await;
+
     let impact = total_reinstall_impact(&impact_rows);
     let transaction_rows = impact_rows
         .iter()
@@ -160,6 +161,7 @@ pub async fn run(
             )
         })
         .collect::<Vec<_>>();
+
     output::print_transaction_table(&transaction_rows, &impact, "Net disk change:");
     output::confirm_or_cancel(format!("Reinstall {} package(s)?", names.len()), true)?;
 
@@ -185,6 +187,7 @@ pub async fn run(
                 progress_name_width,
             ));
         });
+
         let progress_pb = pb.clone();
         let progress_package_name = name.clone();
         let mut progress_callback = Some(move |event: PackageProgressEvent| {
@@ -242,6 +245,7 @@ pub async fn run(
         ));
         reinstalled += 1;
     }
+
     pb.finish_and_clear();
     for line in completion_lines {
         println!("{line}");
@@ -253,8 +257,10 @@ pub async fn run(
                 "{}",
                 output::success("Reinstall complete: 1 reinstalled, 0 failed.")
             );
+
             return Ok(());
         }
+
         println!(
             "{}",
             output::warning(format!(
@@ -262,6 +268,7 @@ pub async fn run(
                 reinstalled, failed
             ))
         );
+
         return Err(anyhow!("Reinstall failed"));
     }
 
@@ -339,6 +346,7 @@ async fn run_dry_run(
                                 } else {
                                     preview_package.filetype
                                 };
+
                                 output::status_line(
                                     Status::Plan,
                                     &package.name,
@@ -455,6 +463,7 @@ async fn run_dry_run(
     if failed > 0 {
         return Err(anyhow!("{failed} package reinstall preview(s) failed"));
     }
+
     Ok(())
 }
 
@@ -501,6 +510,7 @@ async fn estimate_reinstall_impact_rows(
         let active_size = PackageRemover::new(paths)
             .estimate_active_size(&package)
             .unwrap_or(0);
+
         let new_install = match package.install_type {
             InstallType::Release => {
                 let mut preview_package = package.clone();
@@ -532,6 +542,7 @@ async fn estimate_reinstall_impact_rows(
                 net: SignedByteEstimate::unknown(),
             }
         };
+
         rows.push(ReinstallImpactRow {
             package: format!("{}/{}", package.provider, package.name),
             version: package.version.to_string(),
@@ -594,6 +605,7 @@ where
                 .as_ref()
                 .expect("build branch checked above")
                 .clone();
+
             let head_commit = provider_manager
                 .get_branch_head_sha(
                     &package.repo_slug,
@@ -608,6 +620,7 @@ where
                         branch, package.name
                     )
                 })?;
+
             ResolvedUpgradeTarget::Branch {
                 branch,
                 head_commit,

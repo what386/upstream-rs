@@ -62,6 +62,7 @@ pub fn load_legacy_package_metadata(paths: &UpstreamPaths) -> Result<Vec<Package
             packages_file.display()
         )
     })?;
+
     if json.trim().is_empty() {
         return Ok(Vec::new());
     }
@@ -72,6 +73,7 @@ pub fn load_legacy_package_metadata(paths: &UpstreamPaths) -> Result<Vec<Package
             packages_file.display()
         )
     })?;
+
     normalize_legacy_patterns(&mut value).with_context(|| {
         format!(
             "Failed to migrate legacy package patterns in '{}'",
@@ -84,6 +86,7 @@ pub fn load_legacy_package_metadata(paths: &UpstreamPaths) -> Result<Vec<Package
             packages_file.display()
         )
     })?;
+
     if file.version != LEGACY_PACKAGE_STORAGE_VERSION {
         return Err(anyhow!(
             "Unsupported package storage version {} in '{}'. Expected version {}.",
@@ -109,18 +112,22 @@ fn normalize_legacy_patterns(value: &mut serde_json::Value) -> Result<()> {
         let Some(package) = package.as_object_mut() else {
             continue;
         };
+
         for field in ["match_pattern", "exclude_pattern"] {
             let Some(pattern) = package.get_mut(field) else {
                 continue;
             };
+
             let Some(pattern) = pattern.as_str() else {
                 continue;
             };
+
             let patterns = pattern
                 .split(|character: char| character == ',' || character.is_whitespace())
                 .filter(|pattern| !pattern.is_empty())
                 .map(serde_json::Value::from)
                 .collect();
+
             *package.get_mut(field).expect("pattern field still exists") =
                 serde_json::Value::Array(patterns);
         }

@@ -50,16 +50,19 @@ impl WindowsDesktopHandler {
             .name
             .as_deref()
             .ok_or_else(|| anyhow!("Desktop entry name is required"))?;
+
         let exec_path = entry
             .exec
             .as_deref()
             .map(Path::new)
             .ok_or_else(|| anyhow!("Desktop entry exec path is required"))?;
+
         let icon_path = entry
             .icon
             .as_deref()
             .filter(|icon| !icon.is_empty())
             .map(Path::new);
+
         self.create_shortcut(paths, name, exec_path, icon_path)
     }
 
@@ -80,11 +83,13 @@ impl WindowsDesktopHandler {
     {
         let exec_path = final_exec_path
             .ok_or_else(|| anyhow!("Replacement package '{name}' has no executable path"))?;
+
         let icon_path = entry
             .icon
             .as_deref()
             .filter(|icon| !icon.is_empty())
             .map(Path::new);
+
         self.create_shortcut_at(entry_path, exec_path, icon_path)?;
         Ok(())
     }
@@ -94,12 +99,14 @@ impl WindowsDesktopHandler {
         if path.exists() {
             fs::remove_file(path)?;
         }
+
         Ok(())
     }
 
     pub(super) fn managed_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
         let shortcut_dir =
             dirs::desktop_dir().unwrap_or_else(|| paths.dirs.data_dir.join("shortcuts"));
+
         shortcut_dir.join(format!("{name}.lnk"))
     }
 
@@ -122,6 +129,7 @@ impl WindowsDesktopHandler {
         if let Some(parent) = shortcut_path.parent() {
             fs::create_dir_all(parent).context("Failed to create shortcut directory")?;
         }
+
         let quote = |value: &str| value.replace('\'', "''");
         let target = quote(&exec_path.display().to_string());
         let shortcut = quote(&shortcut_path.display().to_string());
@@ -129,20 +137,24 @@ impl WindowsDesktopHandler {
             .parent()
             .map(|path| quote(&path.display().to_string()))
             .unwrap_or_default();
+
         let mut script = vec![
             "$WshShell = New-Object -ComObject WScript.Shell".to_string(),
             format!("$Shortcut = $WshShell.CreateShortcut('{shortcut}')"),
             format!("$Shortcut.TargetPath = '{target}'"),
         ];
+
         if !working_dir.is_empty() {
             script.push(format!("$Shortcut.WorkingDirectory = '{working_dir}'"));
         }
+
         if let Some(icon) = icon_path {
             script.push(format!(
                 "$Shortcut.IconLocation = '{},0'",
                 quote(&icon.display().to_string())
             ));
         }
+
         script.push("$Shortcut.Save()".to_string());
 
         let status = Command::new("powershell")
@@ -156,6 +168,7 @@ impl WindowsDesktopHandler {
             ])
             .status()
             .context("Failed to execute PowerShell for shortcut creation")?;
+
         if !status.success() {
             anyhow::bail!(
                 "Failed to create Windows shortcut '{}' (PowerShell exit status: {})",
@@ -163,6 +176,7 @@ impl WindowsDesktopHandler {
                 status
             );
         }
+
         Ok(shortcut_path.to_path_buf())
     }
 }

@@ -49,6 +49,7 @@ impl TrustStorage {
             file: TrustStorageFile::default(),
             trust_file: trust_file.to_path_buf(),
         };
+
         storage.load()?;
         Ok(storage)
     }
@@ -65,12 +66,14 @@ impl TrustStorage {
                     self.file = TrustStorageFile::default();
                     return Ok(());
                 }
+
                 let file: TrustStorageFile = serde_json::from_str(&json).with_context(|| {
                     format!(
                         "Failed to parse trust storage '{}'",
                         self.trust_file.display()
                     )
                 })?;
+
                 if file.version != TRUST_STORAGE_VERSION {
                     return Err(anyhow!(
                         "Unsupported trust storage version {} in '{}'. Expected version {}.",
@@ -79,6 +82,7 @@ impl TrustStorage {
                         TRUST_STORAGE_VERSION
                     ));
                 }
+
                 self.file = file;
                 Ok(())
             }
@@ -89,6 +93,7 @@ impl TrustStorage {
     pub fn save(&self) -> Result<()> {
         let json = serde_json::to_string_pretty(&self.file)
             .context("Failed to serialize trust storage")?;
+
         write_atomic(&self.trust_file, json.as_bytes()).with_context(|| {
             format!(
                 "Failed to write trust storage to '{}'",
@@ -101,6 +106,7 @@ impl TrustStorage {
         if !self.trust_file.exists() {
             self.save()?;
         }
+
         Ok(())
     }
 
@@ -123,11 +129,13 @@ impl TrustStorage {
             if normalized.is_empty() {
                 continue;
             }
+
             let duplicate = self
                 .file
                 .minisign_public_keys
                 .iter()
                 .any(|existing| existing.key.trim().eq_ignore_ascii_case(normalized));
+
             if duplicate {
                 deduped += 1;
                 continue;
@@ -161,11 +169,13 @@ impl TrustStorage {
             if normalized.is_empty() {
                 continue;
             }
+
             let duplicate = self
                 .file
                 .cosign_public_keys
                 .iter()
                 .any(|existing| existing.key.trim() == normalized);
+
             if duplicate {
                 deduped += 1;
                 continue;
@@ -212,6 +222,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir()
             .join(format!("upstream-trust-storage-test-{name}-{nanos}"))
             .join("trust.json")
@@ -221,6 +232,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::remove_dir_all(parent)?;
         }
+
         Ok(())
     }
 
@@ -267,18 +279,22 @@ mod tests {
         let value: serde_json::Value =
             serde_json::from_slice(&fs::read(&path).expect("read trust file"))
                 .expect("parse trust file");
+
         assert_eq!(
             value["version"].as_u64(),
             Some(TRUST_STORAGE_VERSION as u64)
         );
+
         assert_eq!(
             value["minisign_public_keys"].as_array().map(Vec::len),
             Some(0)
         );
+
         assert_eq!(
             value["cosign_public_keys"].as_array().map(Vec::len),
             Some(0)
         );
+
         cleanup(&path).expect("cleanup");
     }
 
@@ -297,6 +313,7 @@ mod tests {
             err.to_string()
                 .contains("Unsupported trust storage version")
         );
+
         cleanup(&path).expect("cleanup");
     }
 }

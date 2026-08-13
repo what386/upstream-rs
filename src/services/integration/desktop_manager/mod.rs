@@ -191,11 +191,14 @@ impl FileSnapshot {
         if metadata.file_type().is_symlink() {
             let target = fs::read_link(&path)
                 .with_context(|| format!("Failed to snapshot symlink '{}'", path.display()))?;
+
             return Ok(Self::Symlink { path, target });
         }
+
         if metadata.is_file() {
             let contents = fs::read(&path)
                 .with_context(|| format!("Failed to snapshot file '{}'", path.display()))?;
+
             return Ok(Self::File { path, contents });
         }
 
@@ -228,6 +231,7 @@ impl FileSnapshot {
                 if let Some(parent) = path.parent() {
                     fs::create_dir_all(parent)?;
                 }
+
                 write_atomic(path, contents).with_context(|| {
                     format!(
                         "Failed to restore desktop integration file '{}'",
@@ -239,6 +243,7 @@ impl FileSnapshot {
                 if let Some(parent) = path.parent() {
                     fs::create_dir_all(parent)?;
                 }
+
                 create_file_symlink(target, path).with_context(|| {
                     format!(
                         "Failed to restore desktop integration symlink '{}'",
@@ -286,6 +291,7 @@ impl DesktopSnapshot {
         if let Some(icon) = &self.icon {
             icon.restore()?;
         }
+
         self.entry.restore()
     }
 }
@@ -305,6 +311,7 @@ impl<'a> DesktopManager<'a> {
     pub fn new(paths: &'a UpstreamPaths) -> Result<Self> {
         #[cfg(target_os = "linux")]
         let backend = PlatformDesktopHandler::linux(LinuxDesktopHandler::new()?);
+
         #[cfg(windows)]
         let backend = PlatformDesktopHandler::windows(WindowsDesktopHandler::new());
 
@@ -323,6 +330,7 @@ impl<'a> DesktopManager<'a> {
             .install_path
             .clone()
             .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
+
         let previous_icon_path = package.icon_path.clone();
         let icon_path = self
             .backend
@@ -365,6 +373,7 @@ impl<'a> DesktopManager<'a> {
                     new_icon_path.display()
                 ))?;
             }
+
             return Err(err);
         }
 
@@ -378,6 +387,7 @@ impl<'a> DesktopManager<'a> {
                 previous_icon_path.display()
             ))?;
         }
+
         Ok(())
     }
 
@@ -398,12 +408,14 @@ impl<'a> DesktopManager<'a> {
                 staged_package.name
             )
         })?;
+
         let final_install_path = final_package.install_path.as_ref().ok_or_else(|| {
             anyhow!(
                 "Replacement package '{}' has no install path",
                 final_package.name
             )
         })?;
+
         let staged_icon = self
             .backend
             .add_icon(
@@ -419,6 +431,7 @@ impl<'a> DesktopManager<'a> {
                 "Failed to prepare icon for '{}'",
                 final_package.name
             ))?;
+
         let final_icon = staged_icon.as_ref().map(|path| {
             self.paths
                 .state
@@ -458,6 +471,7 @@ impl<'a> DesktopManager<'a> {
         if let Some(callback) = message_callback.as_mut() {
             callback("Removing desktop entry ...");
         }
+
         self.backend
             .remove_entry(self.paths, &package.name)
             .context(format!(
@@ -476,6 +490,7 @@ impl<'a> DesktopManager<'a> {
                 callback(&format!("Removed stored icon: {}", icon_path.display()));
             }
         }
+
         Ok(())
     }
 
@@ -502,6 +517,7 @@ impl<'a> DesktopManager<'a> {
             .as_ref()
             .map(|path| FileSnapshot::capture(path.clone()))
             .transpose()?;
+
         Ok(DesktopSnapshot { entry, icon })
     }
 
@@ -515,12 +531,15 @@ impl<'a> DesktopManager<'a> {
                 destination.display()
             ));
         }
+
         if !path_exists_no_follow(&source)? {
             return Ok(false);
         }
+
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent)?;
         }
+
         fs::rename(&source, &destination).with_context(|| {
             format!(
                 "Failed to rename desktop entry '{}' to '{}'",

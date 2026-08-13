@@ -43,6 +43,7 @@ impl Step for V2_12_0 {
         if generated_dir_created {
             report.created_dirs += 1;
         }
+
         Ok(())
     }
 }
@@ -60,6 +61,7 @@ fn legacy_shell_profile_hook_exists(paths: &UpstreamPaths) -> Result<bool> {
         let Some((profile, legacy_line)) = legacy_profile_hook(&shell) else {
             continue;
         };
+
         let profile_path = paths.dirs.user_dir.join(profile);
         if !profile_path.exists() {
             continue;
@@ -68,6 +70,7 @@ fn legacy_shell_profile_hook_exists(paths: &UpstreamPaths) -> Result<bool> {
         let content = fs::read_to_string(&profile_path).with_context(|| {
             format!("Failed to read shell profile '{}'", profile_path.display())
         })?;
+
         if content.contains(legacy_line) {
             return Ok(true);
         }
@@ -124,6 +127,7 @@ fn rewrite_shell_profiles(paths: &UpstreamPaths) -> Result<()> {
         let content = fs::read_to_string(&profile_path).with_context(|| {
             format!("Failed to read shell profile '{}'", profile_path.display())
         })?;
+
         let updated = content.replace(old_line, new_line);
         if updated != content {
             crate::utils::filesystem::atomic_ops::write_atomic(&profile_path, updated.as_bytes())
@@ -217,6 +221,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(install_path);
         package.exec_path = Some(exec_path);
         package
@@ -266,11 +271,13 @@ mod tests {
 
         let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("create package database");
+
         let mut package = test_package(
             "tool",
             paths.dirs.packages_dir.join("archives/tool"),
             paths.dirs.packages_dir.join("archives/tool/bin"),
         );
+
         package.last_upgraded = chrono::Utc::now();
         package_database
             .upsert_package(&package)
@@ -280,10 +287,12 @@ mod tests {
             let Some((profile, legacy_line)) = super::legacy_profile_hook(&shell) else {
                 continue;
             };
+
             let profile_path = paths.dirs.user_dir.join(profile);
             if let Some(parent) = profile_path.parent() {
                 fs::create_dir_all(parent).expect("create profile parent");
             }
+
             fs::write(&profile_path, format!("{legacy_line}\n")).expect("write profile");
         }
 
@@ -298,19 +307,23 @@ mod tests {
 
         let migrated_config =
             fs::read_to_string(&paths.generated.paths_file).expect("read paths.sh");
+
         assert!(migrated_config.contains(&paths.state.symlinks_dir.display().to_string()));
         let migrated_nu =
             fs::read_to_string(&paths.generated.paths_nu_file).expect("read paths.nu");
+
         assert!(migrated_nu.contains(&paths.state.symlinks_dir.display().to_string()));
 
         for shell in installed_shell_commands() {
             let Some((profile, legacy_line, new_line)) = super::current_profile_hook(&shell) else {
                 continue;
             };
+
             let profile_path = paths.dirs.user_dir.join(profile);
             if !profile_path.exists() {
                 continue;
             }
+
             let content = fs::read_to_string(&profile_path).expect("read shell profile");
             assert!(!content.contains(legacy_line));
             assert!(content.contains(new_line));

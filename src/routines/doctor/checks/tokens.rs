@@ -96,6 +96,7 @@ async fn validate_github_token(token: &str) -> TokenValidation {
         Ok(client) => client,
         Err(err) => return TokenValidation::Unknown(format!("{err}")),
     };
+
     match client.check_token().await {
         Ok(response) => {
             token_validation_from_response(&response, "GitHub API", "https://api.github.com/user")
@@ -109,6 +110,7 @@ async fn validate_gitlab_token(token: &str, base_url: Option<&str>) -> TokenVali
         Ok(client) => client,
         Err(err) => return TokenValidation::Unknown(format!("{err}")),
     };
+
     match client.check_token().await {
         Ok(response) => {
             let url = response.url().to_string();
@@ -123,6 +125,7 @@ async fn validate_gitea_token(token: &str, base_url: Option<&str>) -> TokenValid
         Ok(client) => client,
         Err(err) => return TokenValidation::Unknown(format!("{err}")),
     };
+
     match client.check_token().await {
         Ok(response) => {
             let url = response.url().to_string();
@@ -281,12 +284,14 @@ mod tests {
                 .iter()
                 .any(|finding| finding.message == "GitHub API token works")
         );
+
         assert!(
             report
                 .failures
                 .iter()
                 .any(|failure| failure.contains("GitLab API token for git.example.com is invalid"))
         );
+
         assert!(
             report
                 .warnings

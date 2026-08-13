@@ -53,6 +53,7 @@ pub async fn run(
             output::warning("README fetch failed; using cached README.md")
         );
     }
+
     let result = result.search;
     if result.sections.is_empty() {
         println!("{}", output::warning("No README sections found."));
@@ -117,12 +118,14 @@ async fn run_fetch_readmes(
     let mut package_iter = targets.into_iter();
     let mut pending: FuturesUnordered<LocalBoxFuture<'_, (Package, Result<()>)>> =
         FuturesUnordered::new();
+
     let mut failures = 0usize;
 
     for _ in 0..DOCS_FETCH_CONCURRENCY {
         let Some(package) = package_iter.next() else {
             break;
         };
+
         active_rows.insert(
             package.name.clone(),
             render_docs_fetch_progress_row(&package.name),
@@ -139,6 +142,7 @@ async fn run_fetch_readmes(
         if failed {
             failures += 1;
         }
+
         completed_rows.insert(package.name.clone(), row.clone());
         completion_rows.push(row);
 
@@ -180,6 +184,7 @@ fn fetch_readme_task<'a>(
         )
         .await
         .map(|_| ());
+
         (package, result)
     }
     .boxed_local()
@@ -198,6 +203,7 @@ fn render_docs_fetch_progress(
         .chain(active_rows.values())
         .cloned()
         .collect::<Vec<_>>();
+
     format!("\n{}", rows.join("\n"))
 }
 
@@ -303,6 +309,7 @@ impl DocsChoiceTable {
                 )
             })
             .collect();
+
         let previews = result
             .sections
             .iter()

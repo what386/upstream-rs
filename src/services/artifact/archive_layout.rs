@@ -27,12 +27,14 @@ pub fn select_nested_archive_root(extracted_path: &Path, package: &Package) -> O
             if !entry.file_type().ok()?.is_dir() {
                 return None;
             }
+
             let name = entry.file_name().to_string_lossy().to_string();
             let target_os = parse_os(&name)?;
             let target_arch = parse_arch(&name)?;
             if target_os != architecture.os_kind {
                 return None;
             }
+
             let lower = name.to_ascii_lowercase();
             if package
                 .exclude_pattern
@@ -42,6 +44,7 @@ pub fn select_nested_archive_root(extracted_path: &Path, package: &Package) -> O
             {
                 return None;
             }
+
             let arch_score = nested_arch_score(&architecture.cpu_arch, &target_arch)?;
             permission_handler::find_executable(&entry.path(), &package.name)?;
             let score = nested_archive_score(&name, &target_os, arch_score, &package.match_pattern);
@@ -57,11 +60,13 @@ fn nested_arch_score(host_arch: &CpuArch, target_arch: &CpuArch) -> Option<i32> 
     if host_arch == target_arch {
         return Some(100);
     }
+
     if (*host_arch == CpuArch::X86_64 && *target_arch == CpuArch::X86)
         || (*host_arch == CpuArch::Aarch64 && *target_arch == CpuArch::Arm)
     {
         return Some(40);
     }
+
     None
 }
 
@@ -76,9 +81,11 @@ fn nested_archive_score(
     if *target_os == OSKind::Linux {
         score += linux_abi_score(&lower);
     }
+
     if !match_pattern.is_empty() {
         score += (match_pattern.match_ratio(&lower) * 100.0).round() as i32;
     }
+
     score
 }
 
@@ -93,6 +100,7 @@ fn linux_abi_score(name: &str) -> i32 {
             0
         }
     }
+
     #[cfg(all(target_os = "linux", not(target_env = "musl")))]
     {
         if name.contains("linux-gnu") && !name.contains("glibc") {
@@ -105,6 +113,7 @@ fn linux_abi_score(name: &str) -> i32 {
             0
         }
     }
+
     #[cfg(not(target_os = "linux"))]
     {
         let _ = name;

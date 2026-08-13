@@ -23,6 +23,7 @@ pub async fn run(names: Vec<String>, fix: bool, paths: &UpstreamPaths) -> Result
     } else {
         None
     };
+
     let all_packages = match &package_database {
         Some(package_database) => package_database.list_packages()?,
         None => Vec::new(),

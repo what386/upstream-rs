@@ -87,20 +87,28 @@ impl ArchitectureInfo {
 
         #[cfg(target_arch = "x86")]
         let cpu_arch = CpuArch::X86;
+
         #[cfg(target_arch = "x86_64")]
         let cpu_arch = CpuArch::X86_64;
+
         #[cfg(target_arch = "arm")]
         let cpu_arch = CpuArch::Arm;
+
         #[cfg(target_arch = "aarch64")]
         let cpu_arch = CpuArch::Aarch64;
+
         #[cfg(target_arch = "powerpc")]
         let cpu_arch = CpuArch::Ppc;
+
         #[cfg(target_arch = "powerpc64")]
         let cpu_arch = CpuArch::Ppc64;
+
         #[cfg(target_arch = "riscv64")]
         let cpu_arch = CpuArch::Riscv64;
+
         #[cfg(target_arch = "s390x")]
         let cpu_arch = CpuArch::S390x;
+
         #[cfg(not(any(
             target_arch = "x86",
             target_arch = "x86_64",
@@ -115,20 +123,28 @@ impl ArchitectureInfo {
 
         #[cfg(target_os = "windows")]
         let os_kind = OSKind::Windows;
+
         #[cfg(target_os = "macos")]
         let os_kind = OSKind::MacOS;
+
         #[cfg(target_os = "linux")]
         let os_kind = OSKind::Linux;
+
         #[cfg(target_os = "freebsd")]
         let os_kind = OSKind::FreeBSD;
+
         #[cfg(target_os = "openbsd")]
         let os_kind = OSKind::OpenBSD;
+
         #[cfg(target_os = "netbsd")]
         let os_kind = OSKind::NetBSD;
+
         #[cfg(target_os = "android")]
         let os_kind = OSKind::Android;
+
         #[cfg(target_os = "ios")]
         let os_kind = OSKind::Ios;
+
         #[cfg(not(any(
             target_os = "windows",
             target_os = "macos",

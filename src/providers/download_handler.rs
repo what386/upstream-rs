@@ -166,6 +166,7 @@ where
         cleanup_temp_file(&temp_path).await;
         return Err(error);
     }
+
     Ok(())
 }
 
@@ -190,6 +191,7 @@ where
             _ = cancellation::cancelled() => return Err(cancellation::Cancelled.into()),
             chunk = stream.next() => chunk,
         };
+
         let Some(chunk) = chunk else { break };
         cancellation::check()?;
         let chunk = chunk.context("Failed to read download chunk")?;
@@ -239,6 +241,7 @@ where
     let temp_file = File::create(&temp_path)
         .await
         .context(format!("Failed to create file at {:?}", temp_path))?;
+
     temp_file
         .set_len(total_bytes)
         .await
@@ -297,6 +300,7 @@ where
             progress_tx.clone(),
         ));
     }
+
     drop(progress_tx);
 
     let mut completed_tasks = 0_usize;
@@ -384,6 +388,7 @@ async fn write_initial_range(
         .transpose()
         .context("Failed to read download chunk")?
         .ok_or_else(|| anyhow!("Initial download stream ended before assigned range"))?;
+
         let remaining = (range.len() - total_read) as usize;
         let write_len = chunk.len().min(remaining);
         if write_len == 0 {
@@ -416,6 +421,7 @@ async fn download_range(
             format!("bytes={}-{}", range.start, range.end),
         )
         .send();
+
     let response = tokio::select! {
         response = response => response,
         _ = cancellation::cancelled() => return Err(cancellation::Cancelled.into()),
@@ -431,6 +437,7 @@ async fn download_range(
         ) {
             bail!("{message}");
         }
+
         return Err(RangeUnsupported {
             status: response.status(),
         }
@@ -460,6 +467,7 @@ async fn download_range(
             _ = cancellation::cancelled() => return Err(cancellation::Cancelled.into()),
             chunk = stream.next() => chunk,
         };
+
         let Some(chunk) = chunk else { break };
         cancellation::check()?;
         let chunk = chunk.context("Failed to read download chunk")?;
@@ -501,6 +509,7 @@ async fn open_range_file(path: &Path, offset: u64) -> Result<File> {
         .open(path)
         .await
         .context(format!("Failed to open file at {:?}", path))?;
+
     file.seek(SeekFrom::Start(offset))
         .await
         .context("Failed to seek in download file")?;
@@ -516,6 +525,7 @@ fn validate_content_range(
         .get(header::CONTENT_RANGE)
         .and_then(|value| value.to_str().ok())
         .ok_or_else(|| anyhow!("Range response did not include Content-Range"))?;
+
     let (start, end, total) = parse_content_range(raw)
         .ok_or_else(|| anyhow!("Range response had invalid Content-Range: {}", raw))?;
 
@@ -571,10 +581,12 @@ fn temporary_destination_path(destination: &Path) -> PathBuf {
         .file_name()
         .map(OsString::from)
         .unwrap_or_else(|| OsString::from("download"));
+
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
         .unwrap_or(0);
+
     file_name.push(format!(".upstream-part-{}-{}", std::process::id(), nanos));
     destination.with_file_name(file_name)
 }
@@ -659,6 +671,7 @@ mod tests {
                     if line == "\r\n" || line.is_empty() {
                         break;
                     }
+
                     if let Some((name, value)) = line.trim_end().split_once(':') {
                         headers.insert(name.trim().to_ascii_lowercase(), value.trim().to_string());
                     }
@@ -679,6 +692,7 @@ mod tests {
         for (k, v) in headers {
             out.push_str(&format!("{k}: {v}\r\n"));
         }
+
         out.push_str("Connection: close\r\n");
         out.push_str("\r\n");
         let mut bytes = out.into_bytes();
@@ -704,6 +718,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-download-test-{name}-{nanos}.bin"))
     }
 
@@ -711,6 +726,7 @@ mod tests {
         if path.exists() {
             fs::remove_file(path)?;
         }
+
         Ok(())
     }
 
@@ -751,6 +767,7 @@ mod tests {
                 ),
             }
         });
+
         let client = Client::new();
         let output = temp_file_path("parallel");
         let mut progress = Vec::new();
@@ -780,6 +797,7 @@ mod tests {
             observed_ranges.as_slice(),
             &["bytes=1024-2047", "bytes=2048-3071", "bytes=3072-4095"]
         );
+
         assert_eq!(
             progress.last().copied().expect("final progress"),
             (len as u64, len as u64)
@@ -810,6 +828,7 @@ mod tests {
                 &body_for_server,
             )
         });
+
         let client = Client::new();
         let output = temp_file_path("fallback");
         let mut progress = Vec::new();

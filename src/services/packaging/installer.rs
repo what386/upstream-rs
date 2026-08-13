@@ -71,6 +71,7 @@ pub(super) fn package_cache_key(package_name: &str) -> String {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
+
     let sanitized = package_name
         .chars()
         .map(|c| {
@@ -81,6 +82,7 @@ pub(super) fn package_cache_key(package_name: &str) -> String {
             }
         })
         .collect::<String>();
+
     format!("{}-{}", sanitized, timestamp)
 }
 
@@ -104,11 +106,13 @@ impl<'a> PackageInstaller<'a> {
                 request.package.name
             ));
         }
+
         let source = match request.source {
             InstallSource::Release { version, semver } => {
                 let resolved = self
                     .preview_single_install(&request.package, &version, &semver)
                     .await?;
+
                 PlannedInstallSource::Release {
                     release: resolved.release,
                     asset: resolved.asset,
@@ -127,6 +131,7 @@ impl<'a> PackageInstaller<'a> {
                         artifact_path.display()
                     ));
                 }
+
                 PlannedInstallSource::LocalArtifact {
                     artifact_path,
                     version,
@@ -183,6 +188,7 @@ impl<'a> PackageInstaller<'a> {
                 progress_callback,
             )
             .await?;
+
         let prepared = PreparedInstall::new(installed, self.take_workspace()?);
         PackageActivator::new(self.paths)
             .install_new(
@@ -246,6 +252,7 @@ impl<'a> PackageInstaller<'a> {
         if database.package_exists(name)? {
             return Err(anyhow!("Package '{}' already exists", name));
         }
+
         Ok(())
     }
 
@@ -254,6 +261,7 @@ impl<'a> PackageInstaller<'a> {
             .duration_since(UNIX_EPOCH)
             .map(|duration| duration.as_nanos())
             .unwrap_or(0);
+
         let temp_path = std::env::temp_dir().join(format!("upstream-{nonce}"));
         let download_cache = temp_path.join("downloads");
         let extract_cache = temp_path.join("extracts");
@@ -310,6 +318,7 @@ impl<'a> PackageInstaller<'a> {
         if self.workspace.is_none() {
             self.workspace = Some(InstallWorkspace::new(self.paths, package_name)?);
         }
+
         Ok(())
     }
 
@@ -340,6 +349,7 @@ impl<'a> PackageInstaller<'a> {
         if package.install_path.is_some() {
             return Err(anyhow!("Package '{}' is already installed", package.name));
         }
+
         self.ensure_workspace(&package.name)?;
         let package_name = package.name.clone();
         let installed_package = {
@@ -349,14 +359,17 @@ impl<'a> PackageInstaller<'a> {
                     cb(event);
                 }
             });
+
             let mut bridged_download_progress = Some(|downloaded: u64, total: u64| {
                 if let Some(cb) = download_progress_callback.as_mut() {
                     cb(downloaded, total);
                 }
+
                 if let Some(cb) = progress_callback.borrow_mut().as_deref_mut() {
                     cb(PackageProgressEvent::Download { downloaded, total });
                 }
             });
+
             self.install_package_asset_files(
                 package,
                 release,
@@ -373,6 +386,7 @@ impl<'a> PackageInstaller<'a> {
             "Failed to perform installation for '{}'",
             package_name
         ))?;
+
         self.finish_installed_package(
             installed_package,
             add_entry,
@@ -399,6 +413,7 @@ impl<'a> PackageInstaller<'a> {
         let installed_package = self
             .install_local_artifact_files(package, artifact_path, version, message_callback)
             .context("Failed to install local artifact")?;
+
         self.finish_installed_package(
             installed_package,
             add_entry,
@@ -417,6 +432,7 @@ impl<'a> PackageInstaller<'a> {
         if package.install_path.is_some() {
             return Err(anyhow!("Package '{}' is already installed", package.name));
         }
+
         let release = if let Some(version_tag) = version {
             self.provider_manager
                 .get_release_by_tag(
@@ -433,6 +449,7 @@ impl<'a> PackageInstaller<'a> {
         } else if let Some(semver) = semver {
             let requested = Version::parse(semver)
                 .with_context(|| format!("Invalid semantic version '{semver}'"))?;
+
             self.provider_manager
                 .get_release_by_semver(
                     &package.repo_slug,
@@ -462,10 +479,12 @@ impl<'a> PackageInstaller<'a> {
                     package.channel, package.repo_slug
                 ))?
         };
+
         let best_asset = self
             .asset_selector()
             .select_asset(package, &release, None::<&mut fn(&str)>)
             .await?;
+
         let resolved_filetype = if package.filetype == Filetype::Auto {
             best_asset.filetype
         } else {
@@ -551,6 +570,7 @@ impl<'a> PackageInstaller<'a> {
                 message_callback.as_mut(),
             )
             .await?;
+
         let asset = resolved_asset.as_ref().unwrap_or(asset);
 
         if package.filetype == Filetype::Auto {
@@ -559,6 +579,7 @@ impl<'a> PackageInstaller<'a> {
                 "Resolved filetype to '{}'",
                 &asset.filetype
             );
+
             package.filetype = asset.filetype;
         }
 
@@ -631,6 +652,7 @@ impl<'a> PackageInstaller<'a> {
                         }
                     }
                 }
+
                 match signature {
                     SignatureVerificationStatus::NotChecked => {}
                     SignatureVerificationStatus::Verified {
@@ -642,6 +664,7 @@ impl<'a> PackageInstaller<'a> {
                             SignatureScheme::Minisign => "minisign",
                             SignatureScheme::Cosign => "cosign",
                         };
+
                         if let Some(id) = key_id {
                             message!(
                                 message_callback,
@@ -659,6 +682,7 @@ impl<'a> PackageInstaller<'a> {
                                 style(format!("{scheme_name} signature verified")).green()
                             );
                         }
+
                         if !signature_asset.is_empty() {
                             message!(
                                 message_callback,
@@ -710,6 +734,7 @@ impl<'a> PackageInstaller<'a> {
                     .await
                     .context("Failed to install AppImage")
                 }
+
                 #[cfg(not(target_os = "linux"))]
                 {
                     anyhow::bail!("AppImage installation is only supported on Linux hosts");
@@ -720,6 +745,7 @@ impl<'a> PackageInstaller<'a> {
                     progress_callback,
                     PackageProgressEvent::Phase(PackagePhase::ExtractingPackage)
                 );
+
                 filetypes::handle_compressed(
                     self.workspace(),
                     &download_path,
@@ -734,12 +760,14 @@ impl<'a> PackageInstaller<'a> {
                     progress_callback,
                     PackageProgressEvent::Phase(PackagePhase::ExtractingPackage)
                 );
+
                 let mut extraction_progress = |extracted: u64, total: u64| {
                     progress!(
                         progress_callback,
                         PackageProgressEvent::Extraction { extracted, total }
                     );
                 };
+
                 filetypes::handle_archive(
                     self.workspace(),
                     &download_path,
@@ -755,10 +783,12 @@ impl<'a> PackageInstaller<'a> {
                     progress_callback,
                     PackageProgressEvent::Phase(PackagePhase::CreatingRuntimeLinks)
                 );
+
                 filetypes::handle_file(self.workspace(), &download_path, package, message_callback)
                     .context("Failed to install file")
             }
         }?;
+
         self.finish_verified_release_install(
             installed_package,
             &package_name,
@@ -795,6 +825,7 @@ impl<'a> PackageInstaller<'a> {
             progress_callback,
             PackageProgressEvent::Phase(PackagePhase::InstallingCompletions)
         );
+
         if let Err(err) = crate::services::integration::CompletionManager::with_paths(
             self.workspace().completions.clone(),
         )
@@ -813,6 +844,7 @@ impl<'a> PackageInstaller<'a> {
                 PackageProgressEvent::Warning(format!("Completion install skipped: {err}"))
             );
         }
+
         Ok(installed_package)
     }
 
@@ -832,6 +864,7 @@ impl<'a> PackageInstaller<'a> {
                 artifact_path.display()
             ));
         }
+
         message!(message_callback, "Installing local artifact ...");
         package.version = version;
 
@@ -944,8 +977,10 @@ mod tests {
         let staged_root = workspace.root().to_path_buf();
         let provider_manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+
         let installer = PackageInstaller::new_for_workspace(&provider_manager, &paths, workspace)
             .expect("staged installer");
+
         let mut package = make_package("tool", None, None);
         package.filetype = Filetype::Binary;
         let mut no_messages: Option<fn(&str)> = None;
@@ -957,11 +992,13 @@ mod tests {
                 &mut no_messages,
             )
             .expect("stage local artifact");
+
         let staged_path = staged_root.join("binaries/tool-bin");
         assert_eq!(
             installed.install_path.as_deref(),
             Some(staged_path.as_path())
         );
+
         assert!(staged_path.exists());
         assert!(!paths.install.binaries_dir.join("tool-bin").exists());
         assert!(!paths.state.symlinks_dir.join("tool").exists());
@@ -978,6 +1015,7 @@ mod tests {
         ) else {
             return;
         };
+
         let root = test_support::temp_root("upstream-installer-test", "nested-patterns");
         let extracted = root.join("tool_1.0.0");
         fs::create_dir_all(&extracted).expect("create extracted root");
@@ -986,17 +1024,20 @@ mod tests {
             fs::create_dir_all(&payload).expect("create payload");
             fs::write(payload.join("tool"), b"bin").expect("write payload binary");
         }
+
         let selected_musl = archive_layout::select_nested_archive_root(
             &extracted,
             &make_package("tool", Some("musl"), None),
         )
         .expect("select musl root");
+
         assert!(selected_musl.ends_with(musl_dir));
         let selected_glibc = archive_layout::select_nested_archive_root(
             &extracted,
             &make_package("tool", None, Some("linux-gnu")),
         )
         .expect("select non-excluded root");
+
         assert!(selected_glibc.ends_with(musl_dir));
         fs::remove_dir_all(&root).expect("cleanup");
     }
@@ -1015,6 +1056,7 @@ mod tests {
             )
             .is_none()
         );
+
         fs::remove_dir_all(&root).expect("cleanup");
     }
 }

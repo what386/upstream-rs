@@ -60,6 +60,7 @@ pub(super) fn row_to_package(row: &Row<'_>) -> rusqlite::Result<Package> {
                     rusqlite::types::Type::Null,
                 )
             })?;
+
             Version::parse(&value).map_err(|err| {
                 rusqlite::Error::FromSqlConversionFailure(
                     8,
@@ -112,6 +113,7 @@ where
 {
     let serialized =
         serde_json::to_value(value).context("Failed to serialize enum for database")?;
+
     serialized
         .as_str()
         .map(ToOwned::to_owned)

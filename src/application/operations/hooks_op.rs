@@ -27,9 +27,11 @@ use std::path::Path;
 #[cfg(unix)]
 const SOURCE_LINE_BASH: &str =
     "[ -f $HOME/.upstream/generated/paths.sh ] && source $HOME/.upstream/generated/paths.sh";
+
 #[cfg(unix)]
 const SOURCE_LINE_FISH: &str =
     "test -f $HOME/.upstream/generated/paths.sh; and source $HOME/.upstream/generated/paths.sh";
+
 #[cfg(unix)]
 const SOURCE_LINE_NUSHELL: &str = r#"const upstream_paths_nu = if ("~/.upstream/generated/paths.nu" | path expand | path exists) { ("~/.upstream/generated/paths.nu" | path expand) } else { null }; source-env $upstream_paths_nu"#;
 
@@ -89,6 +91,7 @@ pub fn purge_data(paths: &UpstreamPaths) -> Result<()> {
     if paths.dirs.data_dir.exists() {
         fs::remove_dir_all(&paths.dirs.data_dir)?;
     }
+
     Ok(())
 }
 
@@ -126,6 +129,7 @@ pub fn check(paths: &UpstreamPaths) -> Result<InitCheckReport> {
             "no supported shells detected for completion installation",
         );
     }
+
     for (shell, path) in completion_dirs {
         let label = format!("{shell} completions directory");
         if path.exists() {
@@ -210,6 +214,7 @@ fn create_package_dirs(paths: &UpstreamPaths) -> io::Result<()> {
     for (_shell, dir) in CompletionManager::new(paths).installed_shell_completion_dirs() {
         fs::create_dir_all(dir)?;
     }
+
     Ok(())
 }
 
@@ -227,6 +232,7 @@ fn create_default_config_file(paths: &UpstreamPaths) -> Result<()> {
 fn create_metadata_files(paths: &UpstreamPaths) -> io::Result<()> {
     let mut package_database =
         PackageDatabase::open(&paths.metadata.packages_database_file).map_err(io::Error::other)?;
+
     ShellManager::new(&paths.generated.paths_file)
         .regenerate_paths(&mut package_database, paths)
         .map_err(io::Error::other)
@@ -263,6 +269,7 @@ fn update_shell_profiles(paths: &UpstreamPaths) -> io::Result<()> {
             _ => {}
         }
     }
+
     Ok(())
 }
 
@@ -432,11 +439,13 @@ pub fn cleanup(paths: &UpstreamPaths) -> Result<()> {
             "nu" => Some(".config/nushell/config.nu"),
             _ => None,
         };
+
         if let Some(profile_rel) = profile {
             let profile_path = paths.dirs.user_dir.join(profile_rel);
             if !profile_path.exists() {
                 continue;
             }
+
             let mut content = fs::read_to_string(&profile_path)?;
             content = content
                 .replace(&format!("{}\n", SOURCE_LINE_BASH), "")
@@ -448,6 +457,7 @@ pub fn cleanup(paths: &UpstreamPaths) -> Result<()> {
             fs::write(&profile_path, content)?;
         }
     }
+
     Ok(())
 }
 
@@ -500,6 +510,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-init-test-{name}-{nanos}"))
     }
 
@@ -557,6 +568,7 @@ mod tests {
         if path.exists() {
             fs::remove_dir_all(path)?;
         }
+
         Ok(())
     }
 
@@ -571,10 +583,12 @@ mod tests {
         let manifest: serde_json::Value =
             serde_json::from_slice(&fs::read(&manifest_path).expect("read manifest"))
                 .expect("parse manifest");
+
         assert_eq!(
             manifest["layout_version"].as_u64(),
             Some(CURRENT_LAYOUT_VERSION as u64)
         );
+
         assert_eq!(
             manifest["platform"]["os"].as_str(),
             Some(std::env::consts::OS)
@@ -593,11 +607,13 @@ mod tests {
         let trust: serde_json::Value =
             serde_json::from_slice(&fs::read(&paths.metadata.trust_file).expect("read trust file"))
                 .expect("parse trust file");
+
         assert_eq!(trust["version"].as_u64(), Some(1));
         assert_eq!(
             trust["minisign_public_keys"].as_array().map(Vec::len),
             Some(0)
         );
+
         assert_eq!(
             trust["cosign_public_keys"].as_array().map(Vec::len),
             Some(0)
@@ -678,6 +694,7 @@ mod tests {
 
         let nushell_content =
             fs::read_to_string(&paths.generated.paths_nu_file).expect("read paths.nu");
+
         assert!(nushell_content.contains("let upstream_paths = ["));
         assert!(nushell_content.contains("$env.PATH = ($upstream_paths ++ $env.PATH)"));
         assert!(nushell_content.contains(&paths.state.symlinks_dir.display().to_string()));

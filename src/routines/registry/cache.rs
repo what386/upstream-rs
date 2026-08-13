@@ -43,11 +43,13 @@ pub(super) async fn fetch_index(
         .timeout(FETCH_TIMEOUT)
         .build()
         .context("Failed to create registry HTTP client")?;
+
     let mut request = client.get(url).header(header::ACCEPT, "application/json");
     if let Some(metadata) = &existing_metadata {
         if let Some(etag) = &metadata.etag {
             request = request.header(header::IF_NONE_MATCH, etag);
         }
+
         if let Some(last_modified) = &metadata.last_modified {
             request = request.header(header::IF_MODIFIED_SINCE, last_modified);
         }
@@ -57,9 +59,11 @@ pub(super) async fn fetch_index(
         .send()
         .await
         .with_context(|| format!("Failed to fetch registry index from '{url}'"))?;
+
     if response.status() == StatusCode::NOT_MODIFIED {
         let mut metadata = existing_metadata
             .context("Registry server returned not modified, but no valid matching cache exists")?;
+
         metadata.fetched_at = Utc::now().to_rfc3339();
         write_cache_metadata(metadata_file, &metadata)?;
         return Ok(FetchOutcome::NotModified);
@@ -68,12 +72,14 @@ pub(super) async fn fetch_index(
     let response = response
         .error_for_status()
         .with_context(|| format!("Registry index request failed for '{url}'"))?;
+
     if response
         .content_length()
         .is_some_and(|length| length > MAX_INDEX_BYTES as u64)
     {
         bail!("Registry index exceeds the {MAX_INDEX_BYTES}-byte size limit");
     }
+
     let etag = response_header(&response, header::ETAG);
     let last_modified = response_header(&response, header::LAST_MODIFIED);
     let bytes = read_limited_body(response).await?;
@@ -104,8 +110,10 @@ async fn read_limited_body(response: reqwest::Response) -> Result<Vec<u8>> {
         if bytes.len().saturating_add(chunk.len()) > MAX_INDEX_BYTES {
             bail!("Registry index exceeds the {MAX_INDEX_BYTES}-byte size limit");
         }
+
         bytes.extend_from_slice(&chunk);
     }
+
     Ok(bytes)
 }
 
@@ -125,6 +133,7 @@ fn usable_cache_metadata(
     load_index(cache_file).ok()?;
     let metadata: RegistryCacheMetadata =
         serde_json::from_slice(&fs::read(metadata_file).ok()?).ok()?;
+
     (metadata.source_url == source_url).then_some(metadata)
 }
 
@@ -136,6 +145,7 @@ pub(super) fn load_cached_index(
     if !cache_file.is_file() || !metadata_file.is_file() {
         bail!("No cached registry index is available. Run 'upstream add --fetch' first.");
     }
+
     let metadata: RegistryCacheMetadata = serde_json::from_slice(
         &fs::read(metadata_file)
             .with_context(|| format!("Failed to read '{}'.", metadata_file.display()))?,
@@ -146,6 +156,7 @@ pub(super) fn load_cached_index(
             metadata_file.display()
         )
     })?;
+
     if metadata.source_url != source_url {
         bail!(
             "The cached registry index came from '{}', but registry.index_url is '{}'. Run 'upstream add --fetch' to refresh it.",
@@ -153,12 +164,14 @@ pub(super) fn load_cached_index(
             source_url
         );
     }
+
     load_index(cache_file)
 }
 
 fn write_cache_metadata(path: &Path, metadata: &RegistryCacheMetadata) -> Result<()> {
     let bytes =
         serde_json::to_vec_pretty(metadata).context("Failed to encode registry metadata")?;
+
     write_atomic(path, &bytes)
         .with_context(|| format!("Failed to cache registry metadata at '{}'", path.display()))
 }
@@ -166,6 +179,7 @@ fn write_cache_metadata(path: &Path, metadata: &RegistryCacheMetadata) -> Result
 fn load_index(path: &Path) -> Result<RegistryIndex> {
     let bytes = fs::read(path)
         .with_context(|| format!("Failed to read registry index '{}'.", path.display()))?;
+
     parse_index(&bytes).with_context(|| format!("Invalid registry index '{}'.", path.display()))
 }
 
@@ -188,6 +202,7 @@ mod tests {
                 .to_string()
                 .contains("--fetch")
         );
+
         write_cache_metadata(
             &metadata_file,
             &RegistryCacheMetadata {
@@ -206,6 +221,7 @@ mod tests {
                 .to_string()
                 .contains("--fetch")
         );
+
         fs::remove_dir_all(root).expect("cleanup");
     }
 }

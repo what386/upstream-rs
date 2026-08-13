@@ -277,6 +277,7 @@ impl<'a> RollbackManager<'a> {
         let prepared = self
             .rollback_storage
             .prepare_record(package_name, &record)?;
+
         let source_path = prepared.artifact_source_path();
 
         if !source_path.exists() {
@@ -345,6 +346,7 @@ impl<'a> RollbackManager<'a> {
             .keys()
             .cloned()
             .collect();
+
         names.sort();
         names
     }
@@ -575,6 +577,7 @@ mod tests {
         let impact = manager
             .estimate_capture_impact(&package)
             .expect("capture impact");
+
         assert_eq!(impact.bytes, Some(0));
         assert_eq!(impact.confidence, SizeConfidence::Exact);
         cleanup(&root).expect("cleanup");
@@ -607,6 +610,7 @@ mod tests {
                 .iter()
                 .all(|record| record.artifact_format == RollbackArtifactFormat::TarZstd)
         );
+
         let latest = records.last().expect("latest rollback record").clone();
         assert!(
             latest
@@ -619,10 +623,12 @@ mod tests {
             .rollback_storage
             .prepare_record("tool", &latest)
             .expect("prepare zstd rollback");
+
         assert_eq!(
             fs::read(prepared.artifact_source_path()).expect("read prepared artifact"),
             b"three"
         );
+
         drop(prepared);
         cleanup(&root).expect("cleanup");
     }
@@ -647,6 +653,7 @@ mod tests {
         let impact = manager
             .estimate_capture_impact(&package)
             .expect("capture impact");
+
         assert!(impact.bytes.is_some());
         assert_eq!(impact.confidence, SizeConfidence::Estimated);
         cleanup(&root).expect("cleanup");

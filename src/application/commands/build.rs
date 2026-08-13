@@ -48,6 +48,7 @@ pub async fn run(
             profile: build_profile,
         }),
     };
+
     run_plan(plan, dry_run, paths, app_config).await
 }
 
@@ -67,6 +68,7 @@ pub async fn run_plan(
             "Build command requires a build install plan"
         ));
     };
+
     let (tag, semver, branch) = source.selector.into_options();
     let context = CommandContext::new(paths, app_config)?;
     let mut package_database = context.package_database()?;
@@ -77,6 +79,7 @@ pub async fn run_plan(
         source.base_url.as_deref(),
         &package_database,
     )?;
+
     let mut operation = BuildOperation::new(
         &context.provider_manager,
         &mut package_database,

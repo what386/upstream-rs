@@ -97,6 +97,7 @@ impl<'a> ExportOperation<'a> {
         let config = ConfigStorage::new(&self.paths.config.config_file)?
             .get_config()
             .clone();
+
         let export = ProfileExport {
             version: PROFILE_EXPORT_VERSION,
             exported_at: exported_at.clone(),
@@ -104,6 +105,7 @@ impl<'a> ExportOperation<'a> {
             packages: packages_export(self.package_references()?, exported_at.clone()),
             keys: self.keys_export(exported_at)?,
         };
+
         write_json(output, &export, "profile export", progress_callback)
     }
 
@@ -214,6 +216,7 @@ mod tests {
         let paths = test_paths(&root);
         let storage =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
+
         let operation = ExportOperation::new(&storage, &paths);
         let output = root.join("packages.json");
         let mut progress: Option<fn(crate::services::packaging::OperationProgressEvent)> = None;
@@ -232,6 +235,7 @@ mod tests {
         let paths = test_paths(&root);
         let mut storage =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
+
         let mut package = Package::with_defaults(
             "tool".to_string(),
             "owner/tool".to_string(),
@@ -242,6 +246,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.version = Version::new(1, 2, 3, false);
         package.release_tag = Some("rust-v1.2.3-linux".to_string());
         package.install_path = Some(paths.install.binaries_dir.join("tool"));
@@ -281,6 +286,7 @@ mod tests {
             .expect("save config");
         let storage =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
+
         let operation = ExportOperation::new(&storage, &paths);
         let output = root.join("config.toml");
         let mut progress: Option<fn(crate::services::packaging::OperationProgressEvent)> = None;
@@ -306,6 +312,7 @@ mod tests {
             .expect("save config");
         let mut storage =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");
+
         let mut package = Package::with_defaults(
             "tool".to_string(),
             "owner/tool".to_string(),
@@ -316,6 +323,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.version = Version::new(1, 2, 3, false);
         package.install_path = Some(paths.install.binaries_dir.join("tool"));
         storage.upsert_package(&package).expect("store package");
@@ -335,6 +343,7 @@ mod tests {
             profile["packages"]["packages"][0]["name"].as_str(),
             Some("tool")
         );
+
         assert_eq!(profile["keys"]["version"].as_u64(), Some(1));
 
         cleanup(&root).expect("cleanup");

@@ -9,6 +9,7 @@ use crate::{
 };
 
 use super::gitlab_dtos::GitlabReleaseDto;
+
 #[derive(Debug, Deserialize)]
 struct GitlabCommitRefDto {
     id: String,
@@ -147,6 +148,7 @@ impl GitlabClient {
             "{}/api/v4/projects/{}/releases/{}",
             self.base_url, encoded_path, tag
         );
+
         self.get_json(&url)
             .await
             .context(format!("Failed to get release for tag {}", tag))
@@ -167,6 +169,7 @@ impl GitlabClient {
                 .get_releases_page(project_path, per_page, page)
                 .await
                 .context(format!("Failed to get releases page {}", page))?;
+
             let partial_page = batch.len() < per_page as usize;
 
             if batch.is_empty() {
@@ -203,6 +206,7 @@ impl GitlabClient {
             "{}/api/v4/projects/{}/releases?per_page={}&page={}",
             self.base_url, encoded_path, per_page, page
         );
+
         self.get_json(&url)
             .await
             .context(format!("Failed to get releases page {}", page))
@@ -215,10 +219,12 @@ impl GitlabClient {
             "{}/api/v4/projects/{}/repository/branches/{}",
             self.base_url, encoded_path, encoded_branch
         );
+
         let dto: GitlabBranchDto = self.get_json(&url).await.context(format!(
             "Failed to get branch head for {}/{}",
             project_path, branch
         ))?;
+
         Ok(dto.commit.id)
     }
 
@@ -229,16 +235,19 @@ impl GitlabClient {
             "Failed to get project metadata for {}",
             project_path
         ))?;
+
         let branch = project
             .default_branch
             .as_deref()
             .filter(|branch| !branch.trim().is_empty())
             .unwrap_or("main");
+
         let encoded_branch = Self::encode_project_path(branch);
         let url = format!(
             "{}/api/v4/projects/{}/repository/files/README.md/raw?ref={}",
             self.base_url, encoded_path, encoded_branch
         );
+
         self.get_text(&url)
             .await
             .context(format!("Failed to get README for {}", project_path))
@@ -254,6 +263,7 @@ mod tests {
     fn new_normalizes_base_url_without_scheme() {
         let client = GitlabClient::new(None, Some("gitlab.example.com"), Default::default())
             .expect("client");
+
         assert_eq!(client.base_url, "https://gitlab.example.com");
     }
 

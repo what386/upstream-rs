@@ -52,9 +52,11 @@ impl<'a> PackageRemover<'a> {
         if let Some(install_path) = package.install_path.as_ref() {
             paths.push(install_path.clone());
         }
+
         if let Some(icon_path) = package.icon_path.as_ref() {
             paths.push(icon_path.clone());
         }
+
         paths.push(self.paths.state.symlinks_dir.join(&package.name));
         paths.push(
             self.paths
@@ -99,6 +101,7 @@ impl<'a> PackageRemover<'a> {
         let package = package_database
             .get_package(package_name)?
             .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
+
         if let Some(callback) = progress_callback.as_mut() {
             callback(
                 package_name,
@@ -116,6 +119,7 @@ impl<'a> PackageRemover<'a> {
             if !force_option {
                 return Err(error);
             }
+
             if let Some(callback) = message_callback.as_mut() {
                 callback(&format!(
                     "{}",
@@ -133,6 +137,7 @@ impl<'a> PackageRemover<'a> {
                 PackageProgressEvent::Phase(PackagePhase::RemovingMetadata),
             );
         }
+
         package_database
             .remove_package(package_name)
             .context(format!(
@@ -149,12 +154,14 @@ impl<'a> PackageRemover<'a> {
         if !purge_option {
             return Ok(());
         }
+
         if let Some(callback) = progress_callback.as_mut() {
             callback(
                 package_name,
                 PackageProgressEvent::Phase(PackagePhase::PurgingPackageData),
             );
         }
+
         if let Err(error) = self
             .purge_configs(package_name, message_callback)
             .context(format!(
@@ -165,6 +172,7 @@ impl<'a> PackageRemover<'a> {
             if !force_option {
                 return Err(error);
             }
+
             if let Some(callback) = message_callback.as_mut() {
                 callback(&format!(
                     "{}",
@@ -175,6 +183,7 @@ impl<'a> PackageRemover<'a> {
                 ));
             }
         }
+
         Ok(())
     }
 
@@ -184,10 +193,12 @@ impl<'a> PackageRemover<'a> {
             candidates.push(config_dir.join(package_name));
             candidates.push(config_dir.join(package_name.to_lowercase()));
         }
+
         if let Some(cache_dir) = dirs::cache_dir() {
             candidates.push(cache_dir.join(package_name));
             candidates.push(cache_dir.join(package_name.to_lowercase()));
         }
+
         if let Some(data_dir) = dirs::data_local_dir() {
             candidates.push(data_dir.join(package_name));
             candidates.push(data_dir.join(package_name.to_lowercase()));
@@ -199,6 +210,7 @@ impl<'a> PackageRemover<'a> {
                 unique.push(path);
             }
         }
+
         unique
     }
 
@@ -231,6 +243,7 @@ impl<'a> PackageRemover<'a> {
                 "Removing directory: {}",
                 install_path.display()
             );
+
             fs::remove_dir_all(install_path).context(format!(
                 "Failed to remove installation directory at '{}'",
                 install_path.display()
@@ -241,6 +254,7 @@ impl<'a> PackageRemover<'a> {
                 "Removing file: {}",
                 install_path.display()
             );
+
             fs::remove_file(install_path).context(format!(
                 "Failed to remove installation file at '{}'",
                 install_path.display()
@@ -411,6 +425,7 @@ impl<'a> PackageRemover<'a> {
                 .and_then(|s| s.to_str())
                 .unwrap_or("")
                 .to_lowercase();
+
             if stem == package_name_lower {
                 self.remove_path_if_exists(&path, message_callback)?;
             }
@@ -540,6 +555,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(install_path.clone());
         package.exec_path = Some(exec_path);
         fs::create_dir_all(&exec_parent).expect("create exec parent");
@@ -570,6 +586,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(install_path.clone());
         package.exec_path = Some(install_path.clone());
         fs::create_dir_all(install_path.parent().expect("parent")).expect("create parent");

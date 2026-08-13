@@ -113,6 +113,7 @@ install notes
                 .iter()
                 .any(|section| section.heading == "Command Overview")
         );
+
         assert!(
             sections
                 .iter()

@@ -109,6 +109,7 @@ impl CompletionSnapshot {
                 })?;
             }
         }
+
         for (path, contents) in &self.files {
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent).with_context(|| {
@@ -118,10 +119,12 @@ impl CompletionSnapshot {
                     )
                 })?;
             }
+
             fs::write(path, contents).with_context(|| {
                 format!("Failed to restore completion file '{}'", path.display())
             })?;
         }
+
         Ok(())
     }
 }
@@ -177,6 +180,7 @@ impl<'a> CompletionManager<'a> {
                     .map(|candidate| (asset, candidate))
             })
             .collect();
+
         candidates.sort_by(|(asset_a, candidate_a), (asset_b, candidate_b)| {
             candidate_a
                 .priority
@@ -227,6 +231,7 @@ impl<'a> CompletionManager<'a> {
                 candidate.shell.label(),
                 asset.name
             );
+
             installed += 1;
         }
 
@@ -250,6 +255,7 @@ impl<'a> CompletionManager<'a> {
             .into_iter()
             .filter(|candidate| shell_is_available(candidate.shell))
             .collect();
+
         if candidates.is_empty() {
             return Ok(0);
         }
@@ -272,6 +278,7 @@ impl<'a> CompletionManager<'a> {
                 candidate.shell.label(),
                 candidate.path.display()
             );
+
             installed += 1;
         }
 
@@ -294,6 +301,7 @@ impl<'a> CompletionManager<'a> {
                 )
             })?;
         }
+
         fs::copy(source, &destination).with_context(|| {
             format!(
                 "Failed to copy completion from '{}' to '{}'",
@@ -338,6 +346,7 @@ impl<'a> CompletionManager<'a> {
             if !path_exists_no_follow(&path)? {
                 continue;
             }
+
             fs::remove_file(&path).with_context(|| {
                 format!("Failed to remove completion file '{}'", path.display())
             })?;
@@ -353,16 +362,20 @@ impl<'a> CompletionManager<'a> {
             self.completion_path(package_name, CompletionShell::Fish),
             self.completion_path(package_name, CompletionShell::Zsh),
         ];
+
         let mut files = Vec::new();
         for path in &candidates {
             if !path_exists_no_follow(path)? {
                 continue;
             }
+
             let contents = fs::read(path).with_context(|| {
                 format!("Failed to snapshot completion file '{}'", path.display())
             })?;
+
             files.push((path.clone(), contents));
         }
+
         Ok(CompletionSnapshot {
             destinations: candidates.into(),
             files,
@@ -404,6 +417,7 @@ impl<'a> CompletionManager<'a> {
             if !path_exists_no_follow(source)? {
                 continue;
             }
+
             if let Err(error) = fs::rename(source, destination) {
                 let rollback_error =
                     renamed
@@ -412,6 +426,7 @@ impl<'a> CompletionManager<'a> {
                         .find_map(|(old_path, new_path): &(PathBuf, PathBuf)| {
                             fs::rename(new_path, old_path).err()
                         });
+
                 return match rollback_error {
                     Some(rollback_error) => Err(anyhow!(
                         "Failed to rename completion '{}' to '{}': {}. Rollback also failed: {}",
@@ -429,6 +444,7 @@ impl<'a> CompletionManager<'a> {
                     }),
                 };
             }
+
             renamed.push((source.clone(), destination.clone()));
         }
 
@@ -454,6 +470,7 @@ impl<'a> CompletionManager<'a> {
             if !path_exists_no_follow(&path)? {
                 continue;
             }
+
             fs::remove_file(&path).with_context(|| {
                 format!("Failed to remove completion file '{}'", path.display())
             })?;
@@ -513,6 +530,7 @@ fn choose_one_per_shell(mut candidates: Vec<CompletionCandidate>) -> Vec<Complet
             selected.push(candidate);
         }
     }
+
     selected
 }
 
@@ -571,18 +589,21 @@ mod tests {
                 .shell,
             CompletionShell::Fish
         );
+
         assert_eq!(
             classify_completion_path("rg", Path::new("completions.bash"))
                 .expect("candidate")
                 .shell,
             CompletionShell::Bash
         );
+
         assert_eq!(
             classify_completion_path("rg", Path::new("completions/_rg.zsh"))
                 .expect("candidate")
                 .shell,
             CompletionShell::Zsh
         );
+
         assert!(classify_completion_path("rg", Path::new("README.md")).is_none());
     }
 
@@ -604,10 +625,12 @@ mod tests {
             CompletionShell::from_command("bash"),
             Some(CompletionShell::Bash)
         );
+
         assert_eq!(
             CompletionShell::from_command("fish"),
             Some(CompletionShell::Fish)
         );
+
         assert_eq!(CompletionShell::from_command("nu"), None);
     }
 
@@ -690,6 +713,7 @@ mod tests {
                 .join("rg.fish")
                 .exists()
         );
+
         assert!(!paths.integration.zsh_completions_dir.join("_rg").exists());
 
         fs::remove_dir_all(root).expect("cleanup");
@@ -709,6 +733,7 @@ mod tests {
         let snapshot = manager
             .snapshot_for_package("tool")
             .expect("snapshot completions");
+
         fs::write(&bash, "new bash\n").expect("replace bash");
         fs::write(&fish, "new fish\n").expect("write replacement-only fish");
 
@@ -734,6 +759,7 @@ mod tests {
                 .rename_for_package("old", "new")
                 .expect("rename completion")
         );
+
         assert!(!old.exists());
         assert_eq!(
             fs::read_to_string(&new).expect("read renamed"),
@@ -744,11 +770,13 @@ mod tests {
         let error = manager
             .rename_for_package("old", "new")
             .expect_err("existing destination must not be overwritten");
+
         assert!(error.to_string().contains("Refusing to claim"));
         assert_eq!(
             fs::read_to_string(&old).expect("old preserved"),
             "another old\n"
         );
+
         assert_eq!(
             fs::read_to_string(&new).expect("new preserved"),
             "old completion\n"

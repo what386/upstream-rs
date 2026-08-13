@@ -82,6 +82,7 @@ impl GiteaAdapter {
                     reached_from_version = true;
                     continue;
                 }
+
                 releases.push(release);
             }
 
@@ -118,6 +119,7 @@ impl GiteaAdapter {
         let assets: Vec<Asset> = dto.assets.into_iter().map(Self::convert_asset).collect();
         let version =
             Version::from_tag(&dto.tag_name).unwrap_or_else(|_| Version::new(0, 0, 0, false));
+
         Release {
             id: dto.id as u64,
             tag: dto.tag_name,
@@ -135,6 +137,7 @@ impl GiteaAdapter {
         if raw.trim().is_empty() {
             return DateTime::<Utc>::MIN_UTC;
         }
+
         raw.parse::<DateTime<Utc>>()
             .unwrap_or(DateTime::<Utc>::MIN_UTC)
     }
@@ -201,6 +204,7 @@ mod tests {
             GiteaAdapter::parse_timestamp(""),
             chrono::DateTime::<chrono::Utc>::MIN_UTC
         );
+
         assert_eq!(
             GiteaAdapter::parse_timestamp("bad"),
             chrono::DateTime::<chrono::Utc>::MIN_UTC
@@ -212,6 +216,7 @@ mod tests {
         let adapter = GiteaAdapter::new(
             GiteaClient::new(None, None, Default::default()).expect("gitea client"),
         );
+
         let dto = GiteaReleaseDto {
             id: 7,
             tag_name: "v3.1.4".to_string(),

@@ -79,6 +79,7 @@ impl<'a> SignatureVerifier<'a> {
             else {
                 continue;
             };
+
             saw_targeted_signature = true;
 
             let _ = &target.name;
@@ -92,6 +93,7 @@ impl<'a> SignatureVerifier<'a> {
                 .provider_manager
                 .download_asset(signature_asset, provider, self.download_cache, dl_progress)
                 .await?;
+
             let signature_contents = fs::read_to_string(signature_path)?;
 
             let minisign_status = verify_minisign_signature(
@@ -99,6 +101,7 @@ impl<'a> SignatureVerifier<'a> {
                 &signature_contents,
                 &trusted_keys.minisign_public_keys,
             )?;
+
             if let SignatureVerificationStatus::Verified { key_id, .. } = minisign_status {
                 return Ok(SignatureVerificationStatus::Verified {
                     scheme: SignatureScheme::Minisign,
@@ -113,6 +116,7 @@ impl<'a> SignatureVerifier<'a> {
                 &trusted_keys.cosign_public_keys,
             )
             .await?;
+
             if let SignatureVerificationStatus::Verified { key_id, .. } = cosign_status {
                 return Ok(SignatureVerificationStatus::Verified {
                     scheme: SignatureScheme::Cosign,
@@ -185,6 +189,7 @@ impl<'a> SignatureVerifier<'a> {
                     .provider_manager
                     .download_asset(target_asset, provider, self.download_cache, dl_progress)
                     .await?;
+
                 Ok(Some(ResolvedSignatureTarget {
                     name: target_asset.name.clone(),
                     path: target_path,
@@ -249,6 +254,7 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-signature-test-{name}-{nanos}"))
     }
 
@@ -292,6 +298,7 @@ mod tests {
                 Utc::now(),
             ),
         ];
+
         let release = release_with_assets(assets);
 
         let selected = find_signature_assets(&release, "tool.tar.gz");
@@ -319,6 +326,7 @@ mod tests {
 
         let target_name =
             signature_target_name("chezmoi_2.70.3_checksums.txt.sig").expect("target name");
+
         let selected = SignatureVerifier::resolve_signature_target_asset(
             &release,
             target_name,
@@ -364,6 +372,7 @@ mod tests {
 
         let target_name =
             signature_target_name("Nuclear-1.37.4-1.x86_64.rpm.sig").expect("target name");
+
         let selected = SignatureVerifier::resolve_signature_target_asset(
             &release,
             target_name,
@@ -404,9 +413,11 @@ mod tests {
             id: Some("k1".to_string()),
             key: "RWQx2345invalidbase64".to_string(),
         }];
+
         let signature = fixture_string("trust/signatures/malformed.minisig");
         let status = verify_minisign_signature(&asset_path, &signature, &keys)
             .expect("invalid signature must return status");
+
         assert!(matches!(
             status,
             SignatureVerificationStatus::InvalidSignature
@@ -454,6 +465,7 @@ mod tests {
             Default::default(),
         )
         .expect("pm");
+
         let verifier = SignatureVerifier::new(&manager, &root);
         let mut progress: Option<fn(u64, u64)> = None;
         let mut messages = Some(|_: &str| {});
@@ -477,6 +489,7 @@ mod tests {
             )
             .await
             .expect("status");
+
         assert!(matches!(
             status,
             SignatureVerificationStatus::MissingSignature

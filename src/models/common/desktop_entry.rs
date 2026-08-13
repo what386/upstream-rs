@@ -138,6 +138,7 @@ impl DesktopEntry {
             ) {
                 continue;
             }
+
             out.push_str(&format!("{key}={value}\n"));
         }
 

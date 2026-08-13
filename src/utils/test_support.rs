@@ -11,6 +11,7 @@ pub fn temp_root(prefix: &str, name: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
+
     std::env::temp_dir().join(format!("{prefix}-{name}-{nanos}"))
 }
 

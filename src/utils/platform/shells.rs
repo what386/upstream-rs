@@ -76,10 +76,12 @@ fn shell_commands_from_paths<'a>(shell_paths: impl IntoIterator<Item = &'a str>)
             .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("");
+
         if SUPPORTED_SHELLS.contains(&shell) {
             push_unique(&mut shells, shell.to_string());
         }
     }
+
     shells
 }
 
@@ -104,6 +106,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-shell-discovery-test-{name}-{nanos}"))
     }
 
@@ -111,6 +114,7 @@ mod tests {
         if path.exists() {
             fs::remove_dir_all(path)?;
         }
+
         Ok(())
     }
 

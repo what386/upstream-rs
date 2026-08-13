@@ -10,6 +10,7 @@ use std::{thread, time::Duration};
 
 #[cfg(windows)]
 const WINDOWS_RENAME_RETRIES: usize = 20;
+
 #[cfg(windows)]
 const WINDOWS_RENAME_RETRY_DELAY: Duration = Duration::from_millis(50);
 
@@ -18,6 +19,7 @@ const WINDOWS_RENAME_RETRY_DELAY: Duration = Duration::from_millis(50);
 pub fn move_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
     #[cfg(windows)]
     let rename_result = rename_with_retry(src, dst);
+
     #[cfg(not(windows))]
     let rename_result = fs::rename(src, dst);
 
@@ -45,6 +47,7 @@ fn rename_with_retry(src: &Path, dst: &Path) -> io::Result<()> {
             Err(error) => return Err(error),
         }
     }
+
     unreachable!("bounded rename loop always returns")
 }
 
@@ -66,6 +69,7 @@ fn is_retryable_windows_rename(error: &io::Error) -> bool {
 pub fn copy_file_or_dir(src: &Path, dst: &Path) -> Result<()> {
     let metadata = fs::metadata(src)
         .with_context(|| format!("Failed to read metadata for '{}'", src.display()))?;
+
     if metadata.is_dir() {
         copy_dir_recursive(src, dst)
             .with_context(|| format!("Failed to copy directory to '{}'", dst.display()))
@@ -166,8 +170,10 @@ fn copy_file_cancellable(src: &Path, dst: &Path) -> io::Result<()> {
         if count == 0 {
             break;
         }
+
         target.write_all(&buffer[..count])?;
     }
+
     target.flush()?;
     Ok(())
 }
@@ -186,6 +192,7 @@ fn copy_symlink(src: &Path, dst: &Path) -> io::Result<()> {
         if src.metadata()?.is_dir() {
             return std::os::windows::fs::symlink_dir(link_target, dst);
         }
+
         return std::os::windows::fs::symlink_file(link_target, dst);
     }
 }
@@ -202,6 +209,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-fs-move-test-{name}-{nanos}"))
     }
 
@@ -290,6 +298,7 @@ mod tests {
         while !ready.is_file() && std::time::Instant::now() < deadline {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
+
         assert!(ready.is_file(), "child did not become ready");
 
         move_file_or_dir(&source, &backup).expect("rename running executable");
@@ -320,6 +329,7 @@ mod tests {
                 &std::io::Error::from_raw_os_error(code as i32)
             ));
         }
+
         assert!(!is_retryable_windows_rename(
             &std::io::Error::from_raw_os_error(ERROR_FILE_NOT_FOUND as i32)
         ));

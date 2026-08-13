@@ -71,6 +71,7 @@ pub async fn run(
                         package.channel, package.repo_slug
                     )
                 })?;
+
             (release.version, release.published_at)
         }
         Some(tag) => {
@@ -89,6 +90,7 @@ pub async fn run(
                         tag, package.repo_slug
                     )
                 })?;
+
             (release.version, release.published_at)
         }
         None => (package.version.clone(), package.last_upgraded),
@@ -279,6 +281,7 @@ pub fn changelog_text_from_releases(
             changelog.push_str(release.body.trim());
             changelog.push('\n');
         }
+
         changelog.push('\n');
     }
 
@@ -308,6 +311,7 @@ pub fn changelog_text_for_release(package: &Package, release: &Release) -> Strin
         changelog.push_str(release.body.trim());
         changelog.push('\n');
     }
+
     changelog
 }
 
@@ -400,6 +404,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.version = Version::new(1, 0, 0, false);
         package
     }
@@ -425,6 +430,7 @@ mod tests {
             .iter()
             .map(|release| release.tag.as_str())
             .collect::<Vec<_>>();
+
         assert_eq!(tags, vec!["v1.1.0", "v1.2.0"]);
     }
 
@@ -449,6 +455,7 @@ mod tests {
             .iter()
             .map(|release| release.tag.as_str())
             .collect::<Vec<_>>();
+
         assert_eq!(tags, vec!["v1.1.0", "v1.2.0"]);
     }
 

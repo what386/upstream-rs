@@ -170,6 +170,7 @@ impl<'a> UpgradeOperation<'a> {
             let Some((idx, pkg)) = package_iter.next() else {
                 break;
             };
+
             checking_callback(&pkg.name);
             pending.push(self.check_package_at_index(idx, pkg));
         }
@@ -295,6 +296,7 @@ impl<'a> UpgradeOperation<'a> {
                 ));
             }
         }
+
         let packages = match names {
             Some(names) => names
                 .iter()
@@ -313,6 +315,7 @@ impl<'a> UpgradeOperation<'a> {
         let package_count = packages.len();
         let mut rows_by_index: Vec<Option<UpgradePreviewRow>> =
             (0..package_count).map(|_| None).collect();
+
         let mut package_iter = packages.into_iter().enumerate();
         let mut pending = FuturesUnordered::new();
 
@@ -320,6 +323,7 @@ impl<'a> UpgradeOperation<'a> {
             let Some((idx, package)) = package_iter.next() else {
                 break;
             };
+
             event_callback(UpgradePreviewEvent::Checking {
                 name: package.name.clone(),
             });
@@ -332,6 +336,7 @@ impl<'a> UpgradeOperation<'a> {
             if let Some(row) = row.clone() {
                 event_callback(UpgradePreviewEvent::Row(Box::new(row)));
             }
+
             rows_by_index[idx] = row;
 
             if let Some((next_idx, next_package)) = package_iter.next() {
@@ -413,9 +418,11 @@ impl<'a> UpgradeOperation<'a> {
                     .get_package(&row.name)?
                     .ok_or_else(|| anyhow!("Package '{}' is not installed", row.name))?
                     .clone();
+
                 let effective_trust_mode = self
                     .package_database
                     .effective_trust_mode(&row.name, trust_mode)?;
+
                 Ok((package, row.clone(), effective_trust_mode))
             })
             .collect::<Result<Vec<_>>>()?;
@@ -541,6 +548,7 @@ impl<'a> UpgradeOperation<'a> {
 
         let mut rows: Vec<Option<UpdateCheckRow>> =
             (0..package_names.len()).map(|_| None).collect();
+
         let mut selected_packages = Vec::new();
         let mut selected_indices = Vec::new();
 
@@ -570,6 +578,7 @@ impl<'a> UpgradeOperation<'a> {
         let checked_rows = self
             .check_installed_packages_detailed_with_callback(selected_packages, checking_callback)
             .await;
+
         for (row_idx, checked_row) in selected_indices.into_iter().zip(checked_rows) {
             rows[row_idx] = Some(checked_row);
         }
@@ -672,6 +681,7 @@ mod tests {
                 event: PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot),
             } if name == "ripgrep"
         ));
+
         assert!(matches!(
             &events[1],
             UpgradeProgressEvent::Package {
@@ -756,12 +766,14 @@ mod tests {
                         .get_package("tool")
                         .expect("read package in callback")
                         .expect("updated package");
+
                     assert_eq!(
                         package.version,
                         crate::models::common::Version::new(2, 0, 0, false)
                     );
                 }
             });
+
             let callback = Arc::new(Mutex::new(&mut callback));
 
             persist_upgrade_and_emit_complete(

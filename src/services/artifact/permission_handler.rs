@@ -188,6 +188,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-perm-test-{name}-{nanos}"))
     }
 
@@ -200,6 +201,7 @@ mod tests {
         {
             format!("{base}.exe")
         }
+
         #[cfg(not(windows))]
         {
             base.to_string()

@@ -40,6 +40,7 @@ fn display_package_list(storage: &PackageDatabase, filter: Option<&str>) -> Resu
             ),
             None => println!("{}", output::warning("No packages installed.")),
         }
+
         return Ok(());
     }
 
@@ -51,6 +52,7 @@ fn display_package_list(storage: &PackageDatabase, filter: Option<&str>) -> Resu
         ),
         None => format!("Packages ({})  Flags: D=desktop, P=pinned", packages.len()),
     };
+
     pager::page_text(Some(&title), &format_package_table(&packages))?;
 
     Ok(())
@@ -63,6 +65,7 @@ fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Resu
 
     let matches =
         name_match::ranked_matches(packages.iter().map(|package| package.name.as_str()), filter);
+
     if !matches.is_empty() {
         return Ok(matches
             .into_iter()
@@ -85,6 +88,7 @@ fn shorten_home_path(path: &str) -> String {
     {
         return path.replacen(home_str, "~", 1);
     }
+
     path.to_string()
 }
 
@@ -116,6 +120,7 @@ fn package_ref_label(package: &Package) -> String {
                 .as_deref()
                 .map(str::to_string)
                 .unwrap_or_else(|| package.version.to_string());
+
             match package.build_commit.as_deref() {
                 Some(commit) if !commit.is_empty() => format!("{label}@{}", short_commit(commit)),
                 _ => label,
@@ -143,26 +148,31 @@ impl ColumnWidths {
             .map(|p| p.name.chars().count())
             .max()
             .unwrap_or(4);
+
         let max_repo = packages
             .iter()
             .map(|p| p.repo_slug.chars().count())
             .max()
             .unwrap_or(4);
+
         let max_kind = packages
             .iter()
             .map(|p| package_kind_label(p).chars().count())
             .max()
             .unwrap_or("Kind".len());
+
         let max_ref = packages
             .iter()
             .map(|p| package_ref_label(p).chars().count())
             .max()
             .unwrap_or("Ref".len());
+
         let max_channel = packages
             .iter()
             .map(|p| p.channel.to_string().chars().count())
             .max()
             .unwrap_or(7);
+
         let max_provider = packages
             .iter()
             .map(|p| p.provider.to_string().chars().count())
@@ -190,6 +200,7 @@ impl ColumnWidths {
             + widths.flags
             + widths.updated
             + 8; // spaces between columns
+
         let min_path = 16;
         let max_path = 56;
 
@@ -268,11 +279,13 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
         &format_path(package.install_path.as_ref(), "-"),
         widths.path,
     );
+
     let desktop_indicator = if package.icon_path.is_some() {
         "D"
     } else {
         "-"
     };
+
     let pin_indicator = if package.is_pinned { "P" } else { "-" };
     let flags = format!("{desktop_indicator}{pin_indicator}");
     let last_updated = package.last_upgraded.format("%Y-%m-%d").to_string();
@@ -330,6 +343,7 @@ mod tests {
             .iter()
             .map(|package| package.name.as_str())
             .collect::<Vec<_>>();
+
         assert_eq!(names, vec!["codex", "vscode"]);
     }
 
@@ -349,6 +363,7 @@ mod tests {
             .iter()
             .map(|package| package.name.as_str())
             .collect::<Vec<_>>();
+
         assert_eq!(names, vec!["codex", "vscode", "cope"]);
     }
 }

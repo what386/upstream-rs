@@ -27,6 +27,7 @@ impl<'a> SourceDownloader<'a> {
         let checkout = self
             .cache_dir
             .join(cache_key(base_url, provider, repo_slug));
+
         Self::emit_status(
             status_callback,
             format!("Using cached git repository '{}'", checkout.display()),
@@ -46,6 +47,7 @@ impl<'a> SourceDownloader<'a> {
                     "Failed to fetch branch head for '{}' on '{}'",
                     branch_name, repo_slug
                 ))?;
+
             self.checkout_branch(&checkout, branch_name, status_callback)?;
             let release = branch_release(branch_name);
             let commit = self.current_commit(&checkout).ok().or(Some(head_commit));
@@ -76,6 +78,7 @@ impl<'a> SourceDownloader<'a> {
                 .await
                 .context(format!("fetch latest release for '{}'", repo_slug))?
         };
+
         self.checkout_tag(&checkout, &release.tag, status_callback)?;
         Ok(SourceDownload {
             workspace_path: Self::resolve_workspace_root(&checkout)?,
@@ -95,6 +98,7 @@ impl<'a> SourceDownloader<'a> {
             let existing_remote = self
                 .git_output(checkout, ["config", "--get", "remote.origin.url"])
                 .unwrap_or_default();
+
             if existing_remote.trim() != clone_url {
                 return Err(anyhow!(
                     "Cached repository '{}' points at '{}' instead of '{}'",
@@ -103,21 +107,25 @@ impl<'a> SourceDownloader<'a> {
                     clone_url
                 ));
             }
+
             Self::emit_status(status_callback, "Fetching git updates ...");
             return self.git(checkout, ["fetch", "--tags", "--prune", "origin"]);
         }
+
         if checkout.exists() {
             return Err(anyhow!(
                 "Build cache path '{}' exists but is not a git repository",
                 checkout.display()
             ));
         }
+
         if let Some(parent) = checkout.parent() {
             std::fs::create_dir_all(parent).context(format!(
                 "Failed to create build cache directory '{}'",
                 parent.display()
             ))?;
         }
+
         Self::emit_status(status_callback, "Cloning git repository ...");
         let checkout_arg = checkout.to_string_lossy().to_string();
         run_git(
@@ -161,6 +169,7 @@ impl<'a> SourceDownloader<'a> {
     fn reset_tracked_changes(&self, checkout: &Path) -> Result<()> {
         self.git(checkout, ["reset", "--hard", "HEAD"])
     }
+
     fn update_submodules(
         &self,
         checkout: &Path,
@@ -169,18 +178,22 @@ impl<'a> SourceDownloader<'a> {
         if !checkout.join(".gitmodules").is_file() {
             return Ok(());
         }
+
         Self::emit_status(status_callback, "Updating git submodules ...");
         self.git(checkout, ["submodule", "update", "--init", "--recursive"])
     }
+
     fn current_commit(&self, checkout: &Path) -> Result<String> {
         Ok(self
             .git_output(checkout, ["rev-parse", "HEAD"])?
             .trim()
             .to_string())
     }
+
     fn git<const N: usize>(&self, checkout: &Path, args: [&str; N]) -> Result<()> {
         run_git(Some(checkout), args)
     }
+
     fn git_output<const N: usize>(&self, checkout: &Path, args: [&str; N]) -> Result<String> {
         git_output(Some(checkout), args)
     }
@@ -233,10 +246,12 @@ fn run_git<const N: usize>(cwd: Option<&Path>, args: [&str; N]) -> Result<()> {
     if let Some(cwd) = cwd {
         command.current_dir(cwd);
     }
+
     let output = run_command_output(&mut command).context("Failed to execute git")?;
     if output.status.success() {
         return Ok(());
     }
+
     Err(anyhow!(
         "git failed with status {}: {}{}",
         output.status,
@@ -255,10 +270,12 @@ fn git_output<const N: usize>(cwd: Option<&Path>, args: [&str; N]) -> Result<Str
     if let Some(cwd) = cwd {
         command.current_dir(cwd);
     }
+
     let output = run_command_output(&mut command).context("Failed to execute git")?;
     if output.status.success() {
         return Ok(String::from_utf8_lossy(&output.stdout).to_string());
     }
+
     Err(anyhow!(
         "git failed with status {}: {}",
         output.status,
@@ -275,13 +292,16 @@ fn run_command_output(command: &mut Command) -> Result<std::process::Output> {
             let _ = child.wait();
             return Err(cancellation::Cancelled.into());
         }
+
         if let Some(status) = child.try_wait()? {
             let output = child
                 .wait_with_output()
                 .context("Failed to collect command output")?;
+
             debug_assert_eq!(output.status, status);
             return Ok(output);
         }
+
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }
@@ -297,6 +317,7 @@ mod tests {
             git_clone_url("owner/repo", &Provider::Github, None).expect("github"),
             "https://github.com/owner/repo.git"
         );
+
         assert_eq!(
             git_clone_url(
                 "group/repo",
@@ -306,6 +327,7 @@ mod tests {
             .expect("gitlab"),
             "https://gitlab.example.com/group/repo.git"
         );
+
         assert_eq!(
             git_clone_url("forge/repo", &Provider::Gitea, Some("codeberg.org")).expect("gitea"),
             "https://codeberg.org/forge/repo.git"
@@ -318,6 +340,7 @@ mod tests {
             cache_key(None, &Provider::Github, "owner/repo"),
             "github_owner_repo"
         );
+
         assert_eq!(
             cache_key(
                 Some("https://gitlab.example.com"),

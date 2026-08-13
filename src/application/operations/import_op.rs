@@ -149,6 +149,7 @@ impl<'a> ImportOperation<'a> {
             Ok(keys) => (keys.minisign_public_keys, keys.cosign_public_keys),
             Err(_) => Self::parse_signature_key_file(path)?,
         };
+
         self.import_key_values(minisign_keys, cosign_keys, progress_callback)
     }
 
@@ -183,8 +184,10 @@ impl<'a> ImportOperation<'a> {
     fn read_packages(path: &Path) -> Result<ImportPackages> {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read packages export from '{}'", path.display()))?;
+
         let packages: ImportPackages =
             serde_json::from_str(&content).context("Failed to parse packages export")?;
+
         Self::validate_packages(&packages)?;
         Ok(packages)
     }
@@ -192,28 +195,34 @@ impl<'a> ImportOperation<'a> {
     fn read_keys_export(path: &Path) -> Result<ImportKeys> {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read keys export from '{}'", path.display()))?;
+
         let keys: ImportKeys =
             serde_json::from_str(&content).context("Failed to parse keys export")?;
+
         if keys.version != crate::storage::system::trust::TRUST_STORAGE_VERSION {
             bail!(
                 "Unsupported keys export version {}. Upgrade upstream and try again.",
                 keys.version
             );
         }
+
         Ok(keys)
     }
 
     fn read_profile(path: &Path) -> Result<ImportProfile> {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read profile export from '{}'", path.display()))?;
+
         let profile: ImportProfile =
             serde_json::from_str(&content).context("Failed to parse profile export")?;
+
         if profile.version != PROFILE_EXPORT_VERSION {
             bail!(
                 "Unsupported profile export version {}. Upgrade upstream and try again.",
                 profile.version
             );
         }
+
         Self::validate_packages(&profile.packages)?;
         Self::validate_keys(&profile.keys)?;
         Ok(profile)
@@ -226,6 +235,7 @@ impl<'a> ImportOperation<'a> {
                 packages.version
             );
         }
+
         Ok(())
     }
 
@@ -236,6 +246,7 @@ impl<'a> ImportOperation<'a> {
                 keys.version
             );
         }
+
         Ok(())
     }
 
@@ -281,9 +292,11 @@ impl<'a> ImportOperation<'a> {
                 } else {
                     reference.version_tag.clone()
                 };
+
                 let trust_mode = reference.trust_mode;
                 eligible.push((reference.into_package(), version, trust_mode));
             }
+
             if skipped {
                 completed += 1;
                 emit_overall(progress_callback, completed, total);
@@ -301,6 +314,7 @@ impl<'a> ImportOperation<'a> {
                     .unwrap_or(0),
             });
         }
+
         let progress_state: ProgressState = Arc::new(Mutex::new(BTreeMap::new()));
         let warning_state: WarningState = Arc::new(Mutex::new(Vec::new()));
         let mut last_progress_events = BTreeMap::new();
@@ -313,6 +327,7 @@ impl<'a> ImportOperation<'a> {
             let Some((package, version, trust_mode)) = packages.next() else {
                 break;
             };
+
             pending.push(import_package(
                 self.provider_manager,
                 self.paths,
@@ -402,6 +417,7 @@ impl<'a> ImportOperation<'a> {
         if let Some(cb) = progress_callback.as_mut() {
             cb(ImportProgressEvent::Clear);
         }
+
         if let Some(err) = first_error {
             return Err(err);
         }
@@ -463,6 +479,7 @@ impl<'a> ImportOperation<'a> {
     ) -> Result<(Vec<MinisignPublicKey>, Vec<CosignPublicKey>)> {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read key file '{}'", path.display()))?;
+
         let mut minisign_keys = Vec::new();
         let mut cosign_keys = Vec::new();
         let mut in_pem = false;
@@ -473,9 +490,11 @@ impl<'a> ImportOperation<'a> {
             if line.is_empty() || line.starts_with('#') {
                 continue;
             }
+
             if line.to_ascii_lowercase().starts_with("untrusted comment:") {
                 continue;
             }
+
             if PublicKey::from_base64(line).is_ok() {
                 minisign_keys.push(MinisignPublicKey {
                     id: None,
@@ -497,6 +516,7 @@ impl<'a> ImportOperation<'a> {
                     if VerifyingKey::from_public_key_pem(&pem).is_ok() {
                         cosign_keys.push(CosignPublicKey { id: None, key: pem });
                     }
+
                     pem_lines.clear();
                 }
             }
@@ -571,8 +591,10 @@ fn record_progress_event(
         if let Ok(mut warnings) = warning_state.lock() {
             warnings.push((name.to_string(), message));
         }
+
         return;
     }
+
     if let Ok(mut state) = progress_state.lock() {
         state.insert(name.to_string(), event);
     }
@@ -590,6 +612,7 @@ fn emit_progress_updates<P>(
         .lock()
         .map(|mut warnings| warnings.drain(..).collect::<Vec<_>>())
         .unwrap_or_default();
+
     if let Some(cb) = progress_callback.as_mut() {
         for (name, message) in warnings {
             cb(ImportProgressEvent::Warning { name, message });
@@ -600,11 +623,13 @@ fn emit_progress_updates<P>(
         .lock()
         .map(|state| state.clone())
         .unwrap_or_default();
+
     for (name, event) in &snapshot {
         let changed = last_progress_events
             .get(name)
             .map(|previous| previous != event)
             .unwrap_or(true);
+
         if changed {
             if let Some(cb) = progress_callback.as_mut() {
                 cb(ImportProgressEvent::Package {
@@ -612,6 +637,7 @@ fn emit_progress_updates<P>(
                     event: event.clone(),
                 });
             }
+
             last_progress_events.insert(name.clone(), event.clone());
         }
     }
@@ -633,16 +659,19 @@ async fn import_package(
     let mut progress_callback = Some(move |event: PackageProgressEvent| {
         record_progress_event(&progress_state, &warning_state, &progress_name, event);
     });
+
     let mut installer = match PackageInstaller::new(provider_manager, paths) {
         Ok(installer) => installer,
         Err(error) => return (name, trust_mode, Err(error)),
     };
+
     let result: Result<Package> = match package.install_type {
         InstallType::Release => {
             async {
                 if let Some(callback) = progress_callback.as_mut() {
                     callback(PackageProgressEvent::Phase(PackagePhase::ResolvingRelease));
                 }
+
                 let mut no_download_progress: Option<fn(u64, u64)> = None;
                 let mut ignored_messages = Some(|_: &str| {});
                 let plan = installer
@@ -656,6 +685,7 @@ async fn import_package(
                         trust_mode: trust_mode.unwrap_or(TrustMode::BestEffort),
                     })
                     .await?;
+
                 installer
                     .materialize_install(
                         &trusted_keys,
@@ -672,6 +702,7 @@ async fn import_package(
             import_build_package(&mut installer, package, version, &mut progress_callback).await
         }
     };
+
     let result = result
         .and_then(|package| {
             installer
@@ -679,6 +710,7 @@ async fn import_package(
                 .map(|workspace| PreparedInstall::new(package, workspace))
         })
         .context(format!("Failed to import package '{name}'"));
+
     (name, trust_mode, result)
 }
 
@@ -696,6 +728,7 @@ where
             PackagePhase::RebuildingFromSource,
         ));
     }
+
     let worker = BuildWorker::new(installer.provider_manager(), installer.paths());
     let mut ignored_build_lines = Some(|_: &str| {});
     let output = worker
@@ -705,6 +738,7 @@ where
             &mut ignored_build_lines,
         )
         .await?;
+
     package.build_branch = output.branch.clone();
     package.build_commit = output.commit.clone();
     if package.build_branch.is_none() {
@@ -723,6 +757,7 @@ where
             trust_mode: TrustMode::BestEffort,
         })
         .await?;
+
     let mut no_download_progress: Option<fn(u64, u64)> = None;
     installer
         .materialize_install(
@@ -779,6 +814,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-import-test-{name}-{nanos}.json"))
     }
 
@@ -793,6 +829,7 @@ mod tests {
             err.to_string()
                 .contains("Unsupported packages export version")
         );
+
         let _ = fs::remove_file(path);
     }
 
@@ -855,6 +892,7 @@ mod tests {
             let mut callback = Some(|event: ImportProgressEvent| events.push(event));
             emit_progress_updates(&state, &warnings, &mut last_render, &mut callback);
         }
+
         assert!(events.iter().any(|event| matches!(
             event,
             ImportProgressEvent::Package {
@@ -867,6 +905,7 @@ mod tests {
             let mut callback = Some(|event: ImportProgressEvent| events.push(event));
             emit_progress_updates(&state, &warnings, &mut last_render, &mut callback);
         }
+
         assert_eq!(events.len(), 1);
     }
 
@@ -905,6 +944,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_type = InstallType::Build;
 
         let release_request = super::build_request_for_import(&package, Some("v1.2.3".to_string()));

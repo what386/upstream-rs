@@ -142,6 +142,7 @@ impl RegistryFiletype {
 pub(super) fn parse_index(bytes: &[u8]) -> Result<RegistryIndex> {
     let index: RegistryIndex =
         serde_json::from_slice(bytes).context("Failed to parse registry index JSON")?;
+
     if index.version != SUPPORTED_INDEX_VERSION {
         bail!(
             "Unsupported registry index version {}; this build supports version {}",
@@ -149,6 +150,7 @@ pub(super) fn parse_index(bytes: &[u8]) -> Result<RegistryIndex> {
             SUPPORTED_INDEX_VERSION
         );
     }
+
     if let Some((name, _)) = index
         .packages
         .iter()
@@ -156,6 +158,7 @@ pub(super) fn parse_index(bytes: &[u8]) -> Result<RegistryIndex> {
     {
         bail!("Registry package '{name}' has invalid revision 0");
     }
+
     let mut installed_names = BTreeMap::new();
     for (name, package) in &index.packages {
         let installed_name = package.binary.as_deref().unwrap_or(name);
@@ -163,6 +166,7 @@ pub(super) fn parse_index(bytes: &[u8]) -> Result<RegistryIndex> {
             bail!("Registry packages '{previous}' and '{name}' both install as '{installed_name}'");
         }
     }
+
     Ok(index)
 }
 
@@ -177,6 +181,7 @@ mod tests {
             index.packages["source"].install,
             RegistryInstall::Build { .. }
         ));
+
         assert!(matches!(
             index.packages["direct"].install,
             RegistryInstall::Http { .. }
@@ -191,6 +196,7 @@ mod tests {
                 .to_string()
                 .contains("Unsupported")
         );
+
         assert!(parse_index(br#"{"version":1,"packages":{"tool":{"revision":0,"desktop":false,"trust":"checksum","install":{"type":"release","repo":"o/tool","provider":"github"}}}}"#).unwrap_err().to_string().contains("revision 0"));
     }
 

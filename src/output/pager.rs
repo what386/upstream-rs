@@ -130,6 +130,7 @@ fn print_without_pager(title: Option<&str>, text: &str) -> Result<()> {
     if let Some(title) = title {
         println!("{}", style(title).cyan().bold());
     }
+
     print!("{text}");
     io::stdout().flush()?;
     Ok(())
@@ -148,23 +149,27 @@ fn page_lines(
         if rendered_lines > 0 {
             clear_rendered_view(term, rendered_lines)?;
         }
+
         rendered_lines = render_view(term, title, lines, &state, config.cols)?;
 
         let action = action_for_key(term.read_key_raw()?);
         if action == PagerAction::Quit {
             break;
         }
+
         if action == PagerAction::Interrupt {
             clear_rendered_view(term, rendered_lines)?;
             crate::application::cancellation::request();
             return Err(crate::application::cancellation::Cancelled.into());
         }
+
         state.apply(action);
     }
 
     if rendered_lines > 0 {
         clear_rendered_view(term, rendered_lines)?;
     }
+
     Ok(())
 }
 
@@ -200,6 +205,7 @@ fn clear_rendered_view(term: &Term, rendered_lines: usize) -> Result<()> {
     if rendered_lines > 1 {
         term.clear_last_lines(rendered_lines - 1)?;
     }
+
     Ok(())
 }
 
@@ -208,6 +214,7 @@ fn visible_lines<'a>(lines: &'a [String], state: &PagerState) -> &'a [String] {
         .top
         .saturating_add(state.visible_rows)
         .min(lines.len());
+
     &lines[state.top..end]
 }
 
@@ -217,10 +224,12 @@ fn footer_text(state: &PagerState) -> String {
     } else {
         state.top + 1
     };
+
     let end = state
         .top
         .saturating_add(state.visible_rows)
         .min(state.total_lines);
+
     format!(
         "-- {start}-{end}/{} -- Space/PgDn:next b/PgUp:prev j/k:line g/G:top/bottom q:quit",
         state.total_lines

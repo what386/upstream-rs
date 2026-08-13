@@ -56,6 +56,7 @@ impl DiscoveryResult {
         let Some(top) = self.candidates.first() else {
             return false;
         };
+
         let Some(next) = self.candidates.get(1) else {
             return false;
         };
@@ -172,6 +173,7 @@ pub fn normalize_source_for_provider(
             {
                 return slug;
             }
+
             if let Some(base) = base_url
                 && let Ok(base_url_parsed) = Url::parse(base)
                 && same_host(&url, &base_url_parsed)
@@ -189,6 +191,7 @@ pub fn normalize_source_for_provider(
             {
                 return slug;
             }
+
             if let Some(base) = base_url
                 && let Ok(base_url_parsed) = Url::parse(base)
                 && same_host(&url, &base_url_parsed)
@@ -384,6 +387,7 @@ fn filter_releases_by_channel(mut releases: Vec<Release>, channel: &Channel) -> 
         Channel::Preview => releases.retain(ProviderManager::is_preview_release),
         Channel::Nightly => releases.retain(|r| ProviderManager::is_nightly_release(&r.tag)),
     }
+
     releases
 }
 
@@ -460,6 +464,7 @@ mod tests {
             &Provider::Github,
             None,
         );
+
         assert_eq!(normalized, "sharkdp/bat");
     }
 
@@ -490,11 +495,13 @@ mod tests {
             super::infer_package_name("BurntSushi/ripgrep", None, None).expect("infer name"),
             Some("ripgrep".to_string())
         );
+
         assert_eq!(
             super::infer_package_name("https://github.com/sharkdp/bat.git", None, None)
                 .expect("infer name"),
             Some("bat".to_string())
         );
+
         assert_eq!(
             super::infer_package_name(
                 "https://gitlab.futo.org/videostreaming/Grayjay.Desktop",
@@ -513,6 +520,7 @@ mod tests {
                 .expect("infer name"),
             None
         );
+
         assert_eq!(
             super::infer_package_name("https://example.invalid/tool.tar.gz", None, None)
                 .expect("infer name"),
@@ -550,6 +558,7 @@ mod tests {
             version: Version::new(1, 0, 0, false),
             published_at: Utc::now(),
         };
+
         let source = DiscoveredSource {
             original: "https://example.invalid/downloads".to_string(),
             repo_slug: "https://example.invalid/downloads".to_string(),
@@ -557,6 +566,7 @@ mod tests {
             base_url: None,
             kind: SourceKind::DownloadPage,
         };
+
         let asset = Asset::new(
             "https://example.invalid/tool.tar.gz".to_string(),
             1,
@@ -564,6 +574,7 @@ mod tests {
             1000,
             Utc::now(),
         );
+
         let result = DiscoveryResult {
             source,
             releases: vec![release],

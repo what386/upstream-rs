@@ -41,6 +41,7 @@ pub fn determine_profile(
                 .map(|profile| profile_name(*profile))
                 .collect::<Vec<_>>()
                 .join(", ");
+
             Err(anyhow!(
                 "Build profile detection is ambiguous ({names}). Re-run with --build-profile."
             ))
@@ -104,8 +105,10 @@ mod tests {
                 detect_value: false,
             }),
         ];
+
         let resolved = determine_profile(Path::new("."), Some(BuildProfile::Dotnet), &handlers)
             .expect("must resolve explicit profile");
+
         assert_eq!(resolved, BuildProfile::Dotnet);
     }
 
@@ -133,6 +136,7 @@ mod tests {
                 detect_value: false,
             }),
         ];
+
         let err = determine_profile(Path::new("."), None, &handlers).expect_err("must fail");
         assert!(err.to_string().contains("Could not auto-detect"));
     }
@@ -161,6 +165,7 @@ mod tests {
                 detect_value: false,
             }),
         ];
+
         let err = determine_profile(Path::new("."), None, &handlers).expect_err("must fail");
         assert!(err.to_string().contains("ambiguous"));
     }
@@ -189,8 +194,10 @@ mod tests {
                 detect_value: false,
             }),
         ];
+
         let resolved =
             determine_profile(Path::new("."), None, &handlers).expect("must resolve profile");
+
         assert_eq!(resolved, BuildProfile::Rust);
     }
 }

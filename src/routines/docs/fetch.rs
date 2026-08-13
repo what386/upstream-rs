@@ -36,6 +36,7 @@ pub async fn fetch_project_readme(
                 package.name
             )
         })?;
+
         return Ok(ProjectReadme {
             document_name: "README.md".to_string(),
             contents,
@@ -187,10 +188,12 @@ mod tests {
             sanitize_cache_component("what386/upstream-rs"),
             "what386_upstream-rs"
         );
+
         assert_eq!(
             sanitize_cache_component("group/sub group/project"),
             "group_sub_group_project"
         );
+
         assert_eq!(sanitize_cache_component("///"), "repo");
     }
 

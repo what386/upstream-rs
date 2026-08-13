@@ -48,6 +48,7 @@ impl DoctorReport {
                 self.failures.push(msg.to_string());
             }
         }
+
         self.findings.push(DoctorFinding {
             level,
             message: msg.to_string(),
@@ -63,6 +64,7 @@ impl DoctorReport {
         if text.is_empty() {
             return;
         }
+
         if !self.hints.iter().any(|existing| existing == text) {
             self.hints.push(text.to_string());
         }
@@ -86,6 +88,7 @@ mod tests {
                 .hints
                 .contains(&"Run upstream hooks init".to_string())
         );
+
         assert!(report.hints.contains(&"Reinstall package".to_string()));
     }
 
@@ -105,6 +108,7 @@ mod tests {
             report.warnings,
             vec!["warn one".to_string(), "warn two".to_string()]
         );
+
         assert_eq!(report.failures, vec!["fail one".to_string()]);
         assert_eq!(report.findings.len(), 4);
         assert_eq!(report.findings[0].message, "ok");

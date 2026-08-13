@@ -29,6 +29,7 @@ impl<'a> SourceDownloader<'a> {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         let cache_dir = paths.dirs.cache_dir.join("build");
         let source_archive_cache_dir = paths.dirs.cache_dir.join("source");
         let archive_cache_dir = std::env::temp_dir().join(format!("upstream-build-{nonce}"));
@@ -124,6 +125,7 @@ impl<'a> SourceDownloader<'a> {
                 HumanBytes(total)
             )
         };
+
         Self::emit_status(status_callback, status);
     }
 }
@@ -147,6 +149,7 @@ pub(super) fn cache_key(base_url: Option<&str>, provider: &Provider, value: &str
     let base = base_url
         .map(normalize_base_url)
         .unwrap_or_else(|| provider.to_string());
+
     sanitize_path_component(&format!("{base}/{value}"))
 }
 

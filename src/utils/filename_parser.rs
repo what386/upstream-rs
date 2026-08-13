@@ -159,6 +159,7 @@ fn contains_marker(filename: &str, markers: &[&str]) -> bool {
             if filename.ends_with(marker) {
                 return true;
             }
+
             continue;
         }
 
@@ -178,6 +179,7 @@ fn contains_marker(filename: &str, markers: &[&str]) -> bool {
             search_start = index + 1;
         }
     }
+
     false
 }
 

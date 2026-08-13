@@ -33,6 +33,7 @@ impl<'a> PackageChecker<'a> {
                 .as_deref()
                 .map(|c| format!("branch:{}@{}", branch, c))
                 .unwrap_or_else(|| format!("branch:{}@unknown", branch));
+
             let latest = format!("branch:{}@{}", branch, head);
 
             if package

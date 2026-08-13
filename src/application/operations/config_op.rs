@@ -136,6 +136,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir()
             .join(format!("upstream-config-updater-test-{name}-{nanos}"))
             .join("config.toml")
@@ -149,6 +150,7 @@ mod tests {
                 Err(err) => return Err(err),
             }
         }
+
         Ok(())
     }
 
@@ -191,6 +193,7 @@ mod tests {
         let download = updater
             .get_key("download.low_threads")
             .expect("download key");
+
         assert_eq!(download, "7");
 
         cleanup(&config_file).expect("cleanup");

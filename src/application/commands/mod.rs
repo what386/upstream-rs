@@ -66,6 +66,7 @@ where
         if package_exists(name)? {
             bail!("Package '{}' already exists", name);
         }
+
         return Ok(name.to_string());
     }
 
@@ -80,6 +81,7 @@ where
             "{}",
             output::warning(format!("Package '{}' already exists.", name))
         );
+
         default = None;
     }
 }

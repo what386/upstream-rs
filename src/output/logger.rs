@@ -41,6 +41,7 @@ impl Logger {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
+
         let default_config = LoggerConfig::from(LoggingConfig::default());
         vacuum_file(path, default_config.vacuum, default_config.max_size_bytes);
         Ok(Self {
@@ -54,21 +55,26 @@ impl Logger {
         let Ok(config) = self.config.lock() else {
             return;
         };
+
         if !config.enabled || !level_enabled(record.level, config.level) {
             return;
         }
+
         let config = *config;
         let Ok(line) = serde_json::to_string(&record) else {
             return;
         };
+
         let Ok(mut file) = self.file.lock() else {
             return;
         };
+
         let _ = writeln!(file, "{line}");
         let oversized = config.max_size_bytes > 0
             && file
                 .metadata()
                 .is_ok_and(|metadata| metadata.len() > config.max_size_bytes);
+
         drop(file);
         if oversized {
             vacuum_file(&self.path, config.vacuum, config.max_size_bytes);
@@ -96,26 +102,32 @@ fn vacuum_file(path: &Path, limit: usize, max_size_bytes: u64) {
     let Ok(content) = fs::read_to_string(path) else {
         return;
     };
+
     let lines: Vec<&str> = content.lines().collect();
     let mut first = if limit == 0 {
         lines.len()
     } else {
         lines.len().saturating_sub(limit)
     };
+
     while first < lines.len() && max_size_bytes > 0 {
         let bytes = lines[first..]
             .iter()
             .map(|line| line.len() + 1)
             .sum::<usize>();
+
         if bytes as u64 <= max_size_bytes {
             break;
         }
+
         first += 1;
     }
+
     let mut output = lines[first..].join("\n");
     if !output.is_empty() {
         output.push('\n');
     }
+
     let _ = fs::write(path, output);
 }
 
@@ -129,6 +141,7 @@ pub fn configure(config: LoggingConfig) {
         if config.enabled {
             vacuum_file(&logger.path, config.vacuum, config.max_size_bytes);
         }
+
         if let Ok(mut current) = logger.config.lock() {
             *current = config;
         }
@@ -143,6 +156,7 @@ pub fn read_events(path: &Path) -> std::io::Result<Vec<HistoryRecord>> {
     if !path.exists() {
         return Ok(Vec::new());
     }
+
     let content = fs::read_to_string(path)?;
     Ok(content
         .lines()
@@ -168,6 +182,7 @@ pub fn status(subject: impl Into<String>, status: impl Into<String>, message: im
         "warn" => (LogLevel::Warning, Outcome::Success),
         _ => (LogLevel::Info, Outcome::Success),
     };
+
     warning_or_status(Some(subject.into()), level, outcome, message.into());
 }
 
@@ -199,6 +214,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
+
         let path = std::env::temp_dir().join(format!("upstream-log-{nonce}.jsonl"));
         fs::write(&path, "one\ntwo\nthree\n").expect("write log");
         vacuum_file(&path, 2, 0);

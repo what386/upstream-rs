@@ -72,9 +72,11 @@ pub async fn run(
                 &filters,
                 &results,
             );
+
             println!("{}", serde_json::to_string_pretty(&result)?);
             return Ok(());
         }
+
         println!("{}", output::warning("No repositories found."));
         return Ok(());
     }
@@ -88,6 +90,7 @@ pub async fn run(
             &filters,
             &results,
         );
+
         println!("{}", serde_json::to_string_pretty(&result)?);
         return Ok(());
     }
@@ -97,6 +100,7 @@ pub async fn run(
     } else {
         format!("Search: '{}' via {}", query, effective_provider)
     };
+
     pager::page_text(Some(&title), &format_results(&results))?;
 
     Ok(())
@@ -234,9 +238,11 @@ pub fn format_stars(stars: u64) -> String {
     if stars < 1_000 {
         return stars.to_string();
     }
+
     if stars < 1_000_000 {
         return format_with_suffix(stars, 1_000.0, "k");
     }
+
     format_with_suffix(stars, 1_000_000.0, "m")
 }
 
@@ -263,6 +269,7 @@ fn format_relative_updated_with_now(updated_at: DateTime<Utc>, now: DateTime<Utc
     if days == 0 {
         return "today".to_string();
     }
+
     if days < 30 {
         return if days == 1 {
             "1 day ago".to_string()
@@ -379,10 +386,12 @@ mod tests {
             format_relative_updated_with_now(now - Duration::days(2), now),
             "2 days ago"
         );
+
         assert_eq!(
             format_relative_updated_with_now(now - Duration::days(65), now),
             "2 months ago"
         );
+
         assert_eq!(
             format_relative_updated_with_now(now - Duration::days(800), now),
             "2 years ago"
@@ -425,6 +434,7 @@ mod tests {
                 updated_at,
             }],
         );
+
         let json = serde_json::to_value(result).expect("serialize search result");
 
         assert_eq!(json["query"], "ripgrep");
@@ -434,6 +444,7 @@ mod tests {
             json["results"][0]["updated_at"],
             "2026-06-12T01:02:03+00:00"
         );
+
         assert_eq!(json["filters"]["language"], "Rust");
         assert_eq!(json["filters"]["topic"], "cli");
         assert_eq!(json["filters"]["min_stars"], 100);

@@ -88,6 +88,7 @@ impl<'a> InstallOperation<'a> {
                 trust_mode: TrustMode::BestEffort,
             })
             .await?;
+
         plan.resolved_asset()
             .ok_or_else(|| anyhow!("Release install plan did not resolve an asset"))
     }
@@ -119,6 +120,7 @@ impl<'a> InstallOperation<'a> {
                 trust_mode: request.trust_mode,
             })
             .await?;
+
         self.installer
             .install(
                 self.package_database,
@@ -149,6 +151,7 @@ impl<'a> InstallOperation<'a> {
         if let Some(callback) = progress_callback.as_mut() {
             callback(PackageProgressEvent::Phase(PackagePhase::ResolvingRelease));
         }
+
         let plan = self
             .installer
             .plan_install(InstallRequest {
@@ -161,6 +164,7 @@ impl<'a> InstallOperation<'a> {
                 trust_mode: request.trust_mode,
             })
             .await?;
+
         self.installer
             .install(
                 self.package_database,
@@ -200,6 +204,7 @@ impl<'a> InstallOperation<'a> {
                 trust_mode: request.trust_mode,
             })
             .await?;
+
         self.installer
             .install(
                 self.package_database,
@@ -237,6 +242,7 @@ impl<'a> InstallOperation<'a> {
                 trust_mode: TrustMode::BestEffort,
             })
             .await?;
+
         let mut no_download_progress: Option<fn(u64, u64)> = None;
         self.installer
             .install(
@@ -288,8 +294,10 @@ mod tests {
 
         let provider_manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+
         let mut package_database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
+
         package_database
             .upsert_package(&test_package("tool"))
             .expect("store package");

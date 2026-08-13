@@ -42,6 +42,7 @@ impl PatternTable {
                 out.push(normalized);
             }
         }
+
         Self { patterns: out }
     }
 
@@ -67,6 +68,7 @@ impl PatternTable {
             .iter()
             .filter(|pattern| pattern_matches_value(value, pattern))
             .count();
+
         matched as f64 / self.patterns.len() as f64
     }
 }
@@ -140,6 +142,7 @@ impl<'de> Visitor<'de> for PatternTableVisitor {
         while let Some(value) = seq.next_element::<String>()? {
             patterns.push(value);
         }
+
         Ok(PatternTable::from_patterns(patterns))
     }
 }
@@ -207,6 +210,7 @@ fn push_asset_pattern_token(tokens: &mut Vec<String>, value: &str) {
     if normalized.is_empty() || is_semver_like_token(&normalized) {
         return;
     }
+
     tokens.push(normalized);
 }
 
@@ -244,6 +248,7 @@ pub fn generate_patterns_for_asset(
 ) -> GeneratedAssetPatterns {
     let package_tokens: HashSet<String> =
         pattern_tokens_for_asset(package_name).into_iter().collect();
+
     let mut selected_set = pattern_set_for_asset(&selected.name);
     selected_set.retain(|token| !package_tokens.contains(token));
 
@@ -279,9 +284,11 @@ fn asset_platform_tokens(asset: &Asset) -> Vec<String> {
     if let Some(os) = &asset.target_os {
         tokens.push(format!("{os:?}").to_ascii_lowercase());
     }
+
     if let Some(arch) = &asset.target_arch {
         tokens.push(format!("{arch:?}").to_ascii_lowercase());
     }
+
     tokens
 }
 
@@ -327,6 +334,7 @@ mod tests {
             ),
             1.0
         );
+
         assert_eq!(
             pattern_match_ratio(
                 "tool-x86_64-linux-gnu.tar.gz",
@@ -334,6 +342,7 @@ mod tests {
             ),
             3.0 / 4.0
         );
+
         assert_eq!(
             pattern_match_ratio(
                 "tool-aarch64-darwin.tar.gz",
@@ -358,6 +367,7 @@ mod tests {
             200_000,
             Utc::now(),
         );
+
         let release_assets = vec![
             selected.clone(),
             Asset::new(
@@ -376,24 +386,28 @@ mod tests {
                 .as_slice()
                 .contains(&"x86".to_string())
         );
+
         assert!(
             generated
                 .match_pattern
                 .as_slice()
                 .contains(&"64".to_string())
         );
+
         assert!(
             generated
                 .match_pattern
                 .as_slice()
                 .contains(&"linux".to_string())
         );
+
         assert!(
             generated
                 .match_pattern
                 .as_slice()
                 .contains(&"musl".to_string())
         );
+
         assert!(!generated.match_pattern.to_string().contains("1.2.3"));
         assert!(
             generated
@@ -412,6 +426,7 @@ mod tests {
             200_000,
             Utc::now(),
         );
+
         let release_assets = vec![
             selected.clone(),
             Asset::new(
@@ -437,12 +452,14 @@ mod tests {
                 .as_slice()
                 .contains(&"essentials".to_string())
         );
+
         assert!(
             generated
                 .exclude_pattern
                 .as_slice()
                 .contains(&"full".to_string())
         );
+
         assert!(
             generated
                 .exclude_pattern
@@ -462,6 +479,7 @@ mod tests {
             200_000,
             Utc::now(),
         );
+
         let generated = generate_patterns_for_asset(
             &selected,
             &[
@@ -477,6 +495,7 @@ mod tests {
             ],
             "tool",
         );
+
         let package = Package::with_defaults(
             "tool".to_string(),
             "owner/tool".to_string(),
@@ -487,6 +506,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         let future_release = make_release(
             vec![
                 Asset::new(
@@ -513,6 +533,7 @@ mod tests {
         let best = selector
             .find_recommended_asset(&future_release, &package)
             .expect("best asset");
+
         assert!(best.name.contains("musl"));
     }
 

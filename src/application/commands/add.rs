@@ -51,5 +51,6 @@ pub async fn run(
             },
         );
     }
+
     install::run_plan(plan, dry_run, paths, app_config).await
 }

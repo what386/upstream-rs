@@ -69,6 +69,7 @@ pub async fn run(
                 probe_result.channel
             ))
         );
+
         return Ok(());
     }
 
@@ -245,6 +246,7 @@ pub async fn run(
                     format!("installed {install_version}")
                 )
             );
+
             println!(
                 "{}",
                 output::success("Install complete: 1 installed, 0 failed.")
@@ -256,6 +258,7 @@ pub async fn run(
                 "{}",
                 output::status_line_text(Status::Fail, &install_name, output::error_summary(&err))
             );
+
             println!(
                 "{}",
                 output::warning("Install complete: 0 installed, 1 failed.")
@@ -852,6 +855,7 @@ mod tests {
                 .iter()
                 .any(|choice| choice.asset.name == "tool.tar.gz")
         );
+
         assert!(choices.iter().any(|choice| choice.asset.name == "tool.gz"));
 
         assert!(table.rows.iter().any(|row| row.contains("tool.tar.gz")));

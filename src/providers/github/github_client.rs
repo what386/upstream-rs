@@ -121,6 +121,7 @@ impl GithubClient {
             "https://api.github.com/repos/{}/releases/tags/{}",
             owner_repo, tag
         );
+
         self.get_json(&url)
             .await
             .context(format!("Failed to get release for tag {}", tag))
@@ -135,6 +136,7 @@ impl GithubClient {
                 .get_tags_page(owner_repo, per_page, page)
                 .await
                 .context(format!("Failed to get tags page {}", page))?;
+
             let partial_page = tags.len() < per_page as usize;
 
             if let Some(found) = tags.into_iter().find(|candidate| candidate.name == tag) {
@@ -154,6 +156,7 @@ impl GithubClient {
             "https://api.github.com/repos/{}/releases/latest",
             owner_repo
         );
+
         self.get_json(&url)
             .await
             .context(format!("Failed to get latest release for {}", owner_repo))
@@ -179,6 +182,7 @@ impl GithubClient {
             "https://api.github.com/repos/{}/tags?per_page={}&page={}",
             owner_repo, per_page, page
         );
+
         self.get_json(&url)
             .await
             .context(format!("Failed to get tags page {}", page))
@@ -199,6 +203,7 @@ impl GithubClient {
                 .get_releases_page(owner_repo, per_page, page)
                 .await
                 .context(format!("Failed to get releases page {}", page))?;
+
             let partial_page = batch.len() < per_page as usize;
 
             if batch.is_empty() {
@@ -235,6 +240,7 @@ impl GithubClient {
             "https://api.github.com/repos/{}/releases?per_page={}&page={}",
             owner_repo, per_page, page
         );
+
         self.get_json(&url)
             .await
             .context(format!("Failed to get releases page {}", page))
@@ -246,6 +252,7 @@ impl GithubClient {
             "https://api.github.com/repos/{}/branches/{}",
             owner_repo, encoded_branch
         );
+
         let response = self
             .client
             .get(&url)
@@ -260,6 +267,7 @@ impl GithubClient {
             {
                 anyhow::bail!("{message}");
             }
+
             if matches!(
                 status,
                 StatusCode::NOT_FOUND | StatusCode::UNPROCESSABLE_ENTITY
@@ -270,6 +278,7 @@ impl GithubClient {
                     owner_repo
                 );
             }
+
             http_status::error_for_status(&response, "GitHub API", &url)?;
         }
 
@@ -281,6 +290,7 @@ impl GithubClient {
                 "Failed to get branch head for {}/{}",
                 owner_repo, branch
             ))?;
+
         Ok(dto.commit.sha)
     }
 
@@ -301,6 +311,7 @@ impl GithubClient {
         let search_query = Self::build_repository_search_query(query, filters);
         let mut url = reqwest::Url::parse("https://api.github.com/search/repositories")
             .context("Failed to build GitHub search URL")?;
+
         url.query_pairs_mut()
             .append_pair("q", &search_query)
             .append_pair("per_page", &per_page.to_string());
@@ -320,24 +331,30 @@ impl GithubClient {
                 Self::format_search_qualifier_value(language)
             ));
         }
+
         if let Some(topic) = &filters.topic {
             parts.push(format!(
                 "topic:{}",
                 Self::format_search_qualifier_value(topic)
             ));
         }
+
         if let Some(min_stars) = filters.min_stars {
             parts.push(format!("stars:>={min_stars}"));
         }
+
         if let Some(max_stars) = filters.max_stars {
             parts.push(format!("stars:<={max_stars}"));
         }
+
         if let Some(pushed_after) = filters.pushed_after {
             parts.push(format!("pushed:>={pushed_after}"));
         }
+
         if filters.include_forks {
             parts.push("fork:true".to_string());
         }
+
         if !filters.include_archived {
             parts.push("archived:false".to_string());
         }
@@ -346,6 +363,7 @@ impl GithubClient {
             .into_iter()
             .filter(|part| !part.is_empty())
             .collect::<Vec<_>>();
+
         if parts.is_empty() {
             return "stars:>=0".to_string();
         }
@@ -392,6 +410,7 @@ mod tests {
 
         let parsed = serde_json::from_str::<GithubRepositorySearchResponseDto>(json)
             .expect("valid search JSON");
+
         assert_eq!(parsed.items.len(), 1);
         assert_eq!(parsed.items[0].description, "");
         assert_eq!(parsed.items[0].language, "");

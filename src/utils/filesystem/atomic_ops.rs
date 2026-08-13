@@ -63,6 +63,7 @@ fn sync_parent_directory(parent: &Path) -> Result<()> {
         .read(true)
         .open(parent)
         .with_context(|| format!("Failed to open directory '{}'", parent.display()))?;
+
     dir.sync_all()
         .with_context(|| format!("Failed to sync directory '{}'", parent.display()))
 }

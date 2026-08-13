@@ -21,6 +21,7 @@ impl<'a> SymlinkManager<'a> {
                         path.display()
                     );
                 }
+
                 fs::remove_file(path).context(context_message)?;
             }
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
@@ -139,6 +140,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-symlink-test-{name}-{nanos}"))
     }
 
@@ -164,6 +166,7 @@ mod tests {
             !link_path.exists(),
             "dangling symlink should not exist via exists()"
         );
+
         assert!(
             fs::symlink_metadata(&link_path).is_ok(),
             "dangling symlink should still be present on disk"
@@ -231,6 +234,7 @@ mod tests {
         let error = manager
             .rename_link("old", "new")
             .expect_err("existing link should be preserved");
+
         assert!(error.to_string().contains("Refusing to overwrite"));
         assert!(fs::symlink_metadata(symlinks_dir.join("old")).is_ok());
 

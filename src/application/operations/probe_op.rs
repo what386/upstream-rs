@@ -79,6 +79,7 @@ impl<'a> ProbeOperation<'a> {
         let mut releases = self
             .fetch_releases(&repo_slug, &provider, base_url.as_deref(), &request)
             .await?;
+
         releases.sort_by(|a, b| b.cmp_version_then_published(a));
 
         let probe_package = Package::with_defaults(
@@ -124,6 +125,7 @@ impl<'a> ProbeOperation<'a> {
             .choices
             .get(selected_index)
             .ok_or_else(|| anyhow!("Selected asset no longer exists"))?;
+
         let selected_release = result
             .releases
             .get(selected_choice.release_index)
@@ -147,6 +149,7 @@ impl<'a> ProbeOperation<'a> {
             result.provider.clone(),
             result.base_url.clone(),
         );
+
         package.name = install_name;
         package.repo_slug = result.repo_slug.clone();
         package.filetype = selected_asset.filetype;
@@ -182,6 +185,7 @@ impl<'a> ProbeOperation<'a> {
                 .get_release_by_tag(repo_slug, tag, provider, base_url)
                 .await
                 .map_err(|err| anyhow!("Failed to fetch release tag '{}': {}", tag, err))?;
+
             return Ok(vec![release]);
         }
 
@@ -190,6 +194,7 @@ impl<'a> ProbeOperation<'a> {
                 .provider_manager
                 .get_releases(repo_slug, provider, Some(limit), Some(limit), base_url)
                 .await?;
+
             return Ok(filter_by_channel(releases, &request.channel));
         }
 
@@ -197,6 +202,7 @@ impl<'a> ProbeOperation<'a> {
             .provider_manager
             .get_latest_release(repo_slug, provider, &request.channel, base_url)
             .await?;
+
         Ok(vec![release])
     }
 }
@@ -252,6 +258,7 @@ pub fn build_probe_rows(
         .map(|(idx, release)| {
             let candidates =
                 provider_manager.get_installable_candidate_assets(release, probe_package);
+
             let top_candidate = candidates
                 .first()
                 .map(|c| format!("{} ({})", c.asset.name, c.score))
@@ -280,6 +287,7 @@ pub fn filter_by_channel(mut releases: Vec<Release>, channel: &Channel) -> Vec<R
         Channel::Preview => releases.retain(ProviderManager::is_preview_release),
         Channel::Nightly => releases.retain(|r| ProviderManager::is_nightly_release(&r.tag)),
     }
+
     releases
 }
 

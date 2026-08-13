@@ -30,6 +30,7 @@ pub async fn run(
         query,
         &readme.contents,
     );
+
     Ok(DocsRunResult {
         search,
         readme_source: readme.source,

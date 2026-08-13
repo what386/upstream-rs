@@ -62,6 +62,7 @@ impl ProviderManager {
 
         let adapter = GithubClient::new(self.github_token.as_deref(), self.download_config)
             .map(GithubAdapter::new)?;
+
         Ok(self.github.get_or_init(|| adapter))
     }
 
@@ -72,6 +73,7 @@ impl ProviderManager {
 
         let adapter = GitlabClient::new(self.gitlab_token.as_deref(), None, self.download_config)
             .map(GitlabAdapter::new)?;
+
         Ok(self.gitlab.get_or_init(|| adapter))
     }
 
@@ -82,6 +84,7 @@ impl ProviderManager {
 
         let adapter = GiteaClient::new(self.gitea_token.as_deref(), None, self.download_config)
             .map(GiteaAdapter::new)?;
+
         Ok(self.gitea.get_or_init(|| adapter))
     }
 
@@ -117,6 +120,7 @@ impl ProviderManager {
                         Some(base),
                         self.download_config,
                     )?);
+
                     Ok(Box::new(adapter))
                 } else {
                     Ok(Box::new(self.gitlab_adapter()?))
@@ -129,6 +133,7 @@ impl ProviderManager {
                         Some(base),
                         self.download_config,
                     )?);
+
                     Ok(Box::new(adapter))
                 } else {
                     Ok(Box::new(self.gitea_adapter()?))
@@ -212,6 +217,7 @@ impl ProviderManager {
                 "Semantic version selection requires a semver value"
             ));
         }
+
         if matches!(provider, Provider::Direct | Provider::WebScraper) {
             return Err(anyhow!(
                 "Semantic version selection is not supported for {} sources",
@@ -249,6 +255,7 @@ impl ProviderManager {
         if let Some(release) = template_match {
             matches.push(release);
         }
+
         matches.sort_by(|a, b| a.tag.cmp(&b.tag));
         matches.dedup_by(|a, b| a.tag == b.tag);
 
@@ -431,6 +438,7 @@ impl ProviderManager {
         let callback = dl_progress
             .as_mut()
             .map(|cb| cb as &mut dyn FnMut(u64, u64));
+
         resolved
             .download_asset(asset, &download_filepath, callback)
             .await?;
@@ -495,11 +503,13 @@ mod tests {
             } else {
                 r#"[{"id":2,"tag_name":"v2.1.0-rc1","name":"preview","prerelease":true,"draft":false,"published_at":"2026-02-01T00:00:00Z","assets":[]}]"#
             };
+
             let response = format!(
                 "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
                 body.len(),
                 body
             );
+
             stream
                 .write_all(response.as_bytes())
                 .expect("write response");
@@ -558,6 +568,7 @@ mod tests {
         let base_url = spawn_gitea_release_server();
         let manager = ProviderManager::new(None, None, None, DownloadConfig::default())
             .expect("create provider manager");
+
         let package = Package::with_defaults(
             "tool".to_string(),
             "owner/tool".to_string(),

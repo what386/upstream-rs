@@ -32,12 +32,14 @@ pub fn run_set(name: String, assignments: Vec<String>, paths: &UpstreamPaths) ->
     let mut settings = package_database
         .get_package_settings(&name)?
         .unwrap_or_else(|| PackageSettings::new(&name));
+
     let mut seen = HashSet::new();
 
     for assignment in assignments {
         let (raw_key, value) = assignment
             .split_once('=')
             .ok_or_else(|| anyhow!("Invalid package setting '{assignment}'; expected key=value"))?;
+
         let key = parse_setting_key(raw_key)?;
         if !seen.insert(key) {
             bail!(
@@ -45,18 +47,21 @@ pub fn run_set(name: String, assignments: Vec<String>, paths: &UpstreamPaths) ->
                 setting_name(key)
             );
         }
+
         if value.trim().is_empty() {
             bail!(
                 "Package setting '{}' cannot be empty; use 'package unset' to clear it",
                 setting_name(key)
             );
         }
+
         match key {
             PackageSettingKey::MatchPattern => {
                 let patterns = PatternTable::from_comma_separated(value);
                 if patterns.is_empty() {
                     bail!("match_pattern must contain at least one non-empty pattern");
                 }
+
                 package.match_pattern = patterns;
             }
             PackageSettingKey::ExcludePattern => {
@@ -64,6 +69,7 @@ pub fn run_set(name: String, assignments: Vec<String>, paths: &UpstreamPaths) ->
                 if patterns.is_empty() {
                     bail!("exclude_pattern must contain at least one non-empty pattern");
                 }
+
                 package.exclude_pattern = patterns;
             }
             PackageSettingKey::TrustMode => {
@@ -92,6 +98,7 @@ pub fn run_get(
     let trust_mode = package_database
         .get_package_settings(&name)?
         .and_then(|settings| settings.trust_mode);
+
     let view = PackageSettingsView {
         match_pattern: package.match_pattern,
         exclude_pattern: package.exclude_pattern,
@@ -128,6 +135,7 @@ pub fn run_get(
                 }
             }
         }
+
         println!("{}", serde_json::to_string_pretty(&values)?);
         return Ok(());
     }
@@ -150,6 +158,7 @@ pub fn run_get(
             },
         }
     }
+
     Ok(())
 }
 
@@ -210,6 +219,7 @@ fn selected_setting_keys(keys: Vec<PackageSettingKey>) -> Vec<PackageSettingKey>
     } else {
         keys
     };
+
     let mut seen = HashSet::new();
     keys.into_iter().filter(|key| seen.insert(*key)).collect()
 }

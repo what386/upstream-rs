@@ -31,10 +31,12 @@ impl InstallWorkspace {
             .duration_since(UNIX_EPOCH)
             .map(|duration| duration.as_nanos())
             .unwrap_or(0);
+
         let root = paths
             .install
             .tmp_dir
             .join(format!("{package_name}-{nonce}"));
+
         let appimages_dir = root.join("appimages");
         let binaries_dir = root.join("binaries");
         let archives_dir = root.join("archives");

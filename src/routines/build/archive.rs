@@ -34,6 +34,7 @@ impl<'a> SourceDownloader<'a> {
                     "Failed to fetch branch head for '{}' on '{}'",
                     branch_name, repo_slug
                 ))?;
+
             let release = branch_release(branch_name);
             let workspace_path = self
                 .download_and_extract(
@@ -42,6 +43,7 @@ impl<'a> SourceDownloader<'a> {
                     status_callback,
                 )
                 .await?;
+
             Self::emit_status(status_callback, "Resolving source workspace ...");
             let workspace_path = Self::resolve_workspace_root(&workspace_path)?;
             let workspace_path = self.cache_archive_workspace(
@@ -52,6 +54,7 @@ impl<'a> SourceDownloader<'a> {
                 &workspace_path,
                 status_callback,
             )?;
+
             return Ok(SourceDownload {
                 workspace_path,
                 release,
@@ -59,6 +62,7 @@ impl<'a> SourceDownloader<'a> {
                 commit: Some(head_commit),
             });
         }
+
         let release = if let Some(tag_name) = tag {
             Self::emit_status(
                 status_callback,
@@ -78,11 +82,14 @@ impl<'a> SourceDownloader<'a> {
                 .await
                 .context(format!("fetch latest release for '{}'", repo_slug))?
         };
+
         let primary =
             self.make_source_archive_asset(repo_slug, provider, &release.tag, base_url)?;
+
         let downloaded_primary = self
             .download_asset(&primary, provider, status_callback)
             .await;
+
         let downloaded = match downloaded_primary {
             Ok(path) => path,
             Err(primary_err) => {
@@ -99,6 +106,7 @@ impl<'a> SourceDownloader<'a> {
                 }
             }
         };
+
         let extracted_path = self.extract(downloaded, status_callback)?;
         Self::emit_status(status_callback, "Resolving source workspace ...");
         let workspace_path = self.cache_archive_workspace(
@@ -109,6 +117,7 @@ impl<'a> SourceDownloader<'a> {
             &Self::resolve_workspace_root(&extracted_path)?,
             status_callback,
         )?;
+
         Ok(SourceDownload {
             workspace_path,
             release,
@@ -126,8 +135,10 @@ impl<'a> SourceDownloader<'a> {
         let downloaded = self
             .download_asset(asset, provider, status_callback)
             .await?;
+
         self.extract(downloaded, status_callback)
     }
+
     async fn download_asset(
         &self,
         asset: &Asset,
@@ -138,10 +149,12 @@ impl<'a> SourceDownloader<'a> {
         let mut progress = Some(|downloaded, total| {
             Self::emit_download_status(status_callback, downloaded, total)
         });
+
         self.provider_manager
             .download_asset(asset, provider, &self.archive_cache_dir, &mut progress)
             .await
     }
+
     fn extract(
         &self,
         downloaded: std::path::PathBuf,
@@ -156,6 +169,7 @@ impl<'a> SourceDownloader<'a> {
         compression_handler::decompress(&downloaded, &extract_root)
             .context("Failed to unpack source archive")
     }
+
     fn make_source_archive_asset(
         &self,
         repo_slug: &str,
@@ -182,6 +196,7 @@ impl<'a> SourceDownloader<'a> {
                 ));
             }
         };
+
         Ok(Asset::new(
             url,
             0,
@@ -205,6 +220,7 @@ fn branch_release(branch: &str) -> Release {
         version: crate::models::common::version::Version::new(0, 0, 0, false),
     }
 }
+
 fn find_release_source_asset(release: &Release) -> Option<&Asset> {
     release
         .assets

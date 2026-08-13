@@ -120,6 +120,7 @@ fn render_upgrade_progress_row(
         PackageProgressEvent::Checksum { .. } => "Checksumming...".to_string(),
         PackageProgressEvent::Warning(message) => output::truncate_end(&message, 96),
     };
+
     format!("{name:<name_width$}{detail}")
 }
 
@@ -150,6 +151,7 @@ pub async fn run(
     if check_option {
         return run_check(package_upgrade, names, machine_readable, json).await;
     }
+
     if dry_run {
         return run_dry_run(package_upgrade, names, force_option, trust_mode).await;
     }
@@ -177,33 +179,40 @@ pub async fn run(
                             if !printed_live_row {
                                 layout.print_header();
                             }
+
                             layout.print_row(&upgrade_transaction_row(&row));
                         });
                     } else {
                         if !printed_live_row {
                             layout.print_header();
                         }
+
                         layout.print_row(&upgrade_transaction_row(&row));
                     }
+
                     printed_live_row = true;
                 }
             }
         })
         .await;
+
     if let Some(pb) = &check_pb {
         pb.finish_and_clear();
     }
+
     let preview_rows = preview_result?;
 
     let impact = preview_rows.iter().fold(
         crate::services::packaging::disk_impact::DiskImpact::empty(),
         |total, row| total + row.disk_impact.clone(),
     );
+
     if let Some(layout) = &live_layout {
         if !printed_live_row {
             println!("No upgrades available.");
             return Ok(());
         }
+
         if preview_rows.iter().all(|row| row.source_build) {
             println!();
         } else {
@@ -216,6 +225,7 @@ pub async fn run(
             .iter()
             .map(upgrade_transaction_row)
             .collect::<Vec<_>>();
+
         if preview_rows.iter().all(|row| row.source_build) {
             output::print_transaction_table_without_size(&transaction_rows);
         } else {
@@ -229,6 +239,7 @@ pub async fn run(
             );
         }
     }
+
     confirm_or_show_changelog(&context.provider_manager, &preview_rows).await?;
 
     let overall_pb = ProgressBar::new(preview_rows.len() as u64);
@@ -274,6 +285,7 @@ pub async fn run(
                     message,
                     completion_subject_width,
                 );
+
                 progress_pb.suspend(|| println!("{row}"));
             }
             UpgradeProgressEvent::Complete { name, result } => {
@@ -286,6 +298,7 @@ pub async fn run(
                             format!("upgraded to {version}"),
                             completion_subject_width,
                         );
+
                         if let Some(preview) = preview_rows.iter().find(|row| row.name == name) {
                             history_op::record_version_item(
                                 name.clone(),
@@ -293,6 +306,7 @@ pub async fn run(
                                 version,
                             );
                         }
+
                         row
                     }
                     UpgradePackageResult::Failed { error } => output::status_line_text_with_width(
@@ -302,21 +316,25 @@ pub async fn run(
                         completion_subject_width,
                     ),
                 };
+
                 progress_pb.suspend(|| println!("{row}"));
             }
             UpgradeProgressEvent::Clear => {
                 active_progress_rows.clear();
             }
         }
+
         progress_pb.set_message(render_upgrade_progress(
             &active_progress_rows,
             completed_count,
             total_count,
         ));
     });
+
     let bulk_result = package_upgrade
         .upgrade_resolved_bulk(&preview_rows, trust_mode, &mut progress_callback)
         .await;
+
     let (upgraded, failed) = match bulk_result {
         Ok(result) => result,
         Err(err) => {
@@ -373,6 +391,7 @@ fn prompt_upgrade_action() -> Result<UpgradePromptAction> {
 
     let input =
         output::prompt_text_with_suffix("Proceed with installation?", " [Y/n/c] ", Some("y"))?;
+
     upgrade_prompt_action_from_input(&input)
 }
 
@@ -401,6 +420,7 @@ async fn show_upgrade_changelog(
         else {
             continue;
         };
+
         output::action_note(format!("fetching changelog for {}", row.name));
         match changelog_text_for_package(
             provider_manager,
@@ -433,6 +453,7 @@ async fn show_upgrade_changelog(
             "{}",
             output::warning("No release changelog is available for the planned upgrade(s).")
         );
+
         return Ok(());
     }
 
@@ -469,6 +490,7 @@ impl CheckTableLayout {
             .max()
             .unwrap_or("Name".len())
             .clamp("Name".len(), 18);
+
         let channel = rows
             .iter()
             .map(|row| {
@@ -480,6 +502,7 @@ impl CheckTableLayout {
             .max()
             .unwrap_or("Channel".len())
             .clamp("Channel".len(), 7);
+
         let source = rows
             .iter()
             .map(|row| {
@@ -580,6 +603,7 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
                 .as_ref()
                 .map(|c| c.to_string().to_lowercase())
                 .unwrap_or_else(|| "-".to_string());
+
             let remote = row
                 .provider
                 .as_ref()
@@ -609,6 +633,7 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
     if !display_rows.is_empty() {
         println!();
     }
+
     output::summary_line(
         status,
         format!(
@@ -697,6 +722,7 @@ async fn run_check(
         let rows = package_upgrade
             .check_detailed(names.as_deref(), &mut |_| {})
             .await?;
+
         let failed = check_failure_count(&rows);
         println!("{}", serde_json::to_string_pretty(&json_check_rows(rows))?);
         if failed > 0 {
@@ -706,12 +732,14 @@ async fn run_check(
         let rows = package_upgrade
             .check_detailed(names.as_deref(), &mut |_| {})
             .await?;
+
         let failed = check_failure_count(&rows);
         for row in &rows {
             if let UpdateCheckStatus::UpdateAvailable { current, latest } = &row.status {
                 println!("{} {current} {latest}", row.name);
             }
         }
+
         if failed > 0 {
             anyhow::bail!("{failed} update check(s) failed");
         }
@@ -720,9 +748,11 @@ async fn run_check(
         let mut checking_callback = |name: &str| {
             check_pb.set_message(format!("checking for updates: {name}"));
         };
+
         let rows_result = package_upgrade
             .check_detailed(names.as_deref(), &mut checking_callback)
             .await;
+
         check_pb.finish_and_clear();
         let rows = rows_result?;
 
@@ -752,12 +782,14 @@ async fn run_dry_run(
     let preview_rows = package_upgrade
         .preview_upgrade(names.as_deref(), force_option, &mut |_| {})
         .await;
+
     let (impact, rollback_impact) = match &preview_rows {
         Ok(rows) => {
             let impact = rows.iter().fold(
                 crate::services::packaging::disk_impact::DiskImpact::empty(),
                 |total, row| total + row.disk_impact.clone(),
             );
+
             (
                 impact,
                 package_upgrade.estimate_upgrade_rollback_impact(rows),
@@ -768,6 +800,7 @@ async fn run_dry_run(
             crate::services::packaging::disk_impact::SignedByteEstimate::unknown(),
         ),
     };
+
     let size_rows = rollback_size_rows(rollback_impact);
     output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
     output::action_note("resolve only (no download, no install, no metadata changes)");
@@ -807,6 +840,7 @@ async fn run_dry_run(
             .as_ref()
             .map(|c| c.to_string().to_lowercase())
             .unwrap_or_else(|| "-".to_string());
+
         let remote = row
             .provider
             .as_ref()
@@ -821,6 +855,7 @@ async fn run_dry_run(
                 } else {
                     format!("would upgrade {current} -> {latest}")
                 };
+
                 println!(
                     "{} {:<name$} {:<channel$} {:<source$} {}",
                     output::status_cell(Status::Plan),
@@ -888,6 +923,7 @@ async fn run_dry_run(
     } else {
         Status::Ok
     };
+
     output::status_line(
         status,
         "summary",
@@ -903,6 +939,7 @@ async fn run_dry_run(
             failed.saturating_add(not_installed)
         );
     }
+
     Ok(())
 }
 
@@ -920,14 +957,17 @@ mod tests {
             upgrade_prompt_action_from_input("c").expect("changelog"),
             UpgradePromptAction::Changelog
         ));
+
         assert!(matches!(
             upgrade_prompt_action_from_input("changelog").expect("changelog"),
             UpgradePromptAction::Changelog
         ));
+
         assert!(matches!(
             upgrade_prompt_action_from_input("").expect("default yes"),
             UpgradePromptAction::Proceed
         ));
+
         assert!(upgrade_prompt_action_from_input("n").is_err());
     }
 

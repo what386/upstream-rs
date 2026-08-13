@@ -365,6 +365,7 @@ impl<'a> RollbackArtifacts<'a> {
         let extraction_id = Utc::now()
             .timestamp_nanos_opt()
             .unwrap_or_else(|| Utc::now().timestamp_micros() * 1_000);
+
         let extract_dir = self.root.join(format!(
             ".restore-{}-{}-{}",
             package_name,
@@ -386,6 +387,7 @@ impl<'a> RollbackArtifacts<'a> {
                     archive_path.display()
                 )
             })?;
+
             let decoder = compressed_archive_reader(&record.artifact_format, archive_file)?;
             let mut archive = Archive::new(decoder);
 
@@ -488,8 +490,10 @@ fn capture_icon(
     let icon_name = icon_path
         .file_name()
         .ok_or_else(|| anyhow!("Icon path '{}' has no file name", icon_path.display()))?;
+
     let icon_entry_path =
         PathBuf::from("icon").join(format!("icon-{}", icon_name.to_string_lossy()));
+
     let icon_backup = capture_dir.join(&icon_entry_path);
 
     if let Some(parent) = icon_backup.parent() {
@@ -549,8 +553,10 @@ fn compress_capture_dir(
             archive_path.display()
         )
     })?;
+
     let encoder = ZstdEncoder::new(archive_file, zstd_level(level)?)
         .context("Failed to initialize rollback zstd encoder")?;
+
     let mut builder = Builder::new(encoder);
 
     append_capture_entry(&mut builder, capture_dir, Path::new("artifact"))?;
@@ -563,6 +569,7 @@ fn compress_capture_dir(
     let encoder = builder
         .into_inner()
         .context("Failed to finish rollback tar archive")?;
+
     encoder
         .finish()
         .context("Failed to finish rollback zstd archive")?;
@@ -630,6 +637,7 @@ fn cleanup_empty_rollback_ancestors(package_dir: &Path, start: Option<&Path>) ->
         let Some(parent) = current.parent() else {
             break;
         };
+
         current = parent;
     }
 
@@ -733,18 +741,21 @@ mod tests {
             let archive_file = File::open(&archive_path).expect("open legacy archive");
             let decoder = compressed_archive_reader(&RollbackArtifactFormat::Tgz, archive_file)
                 .expect("open legacy decoder");
+
             let mut archive = Archive::new(decoder);
             let mut entries = archive.entries().expect("read legacy entries");
             let mut entry = entries
                 .next()
                 .expect("legacy artifact entry")
                 .expect("read legacy artifact entry");
+
             let mut restored = Vec::new();
             entry
                 .read_to_end(&mut restored)
                 .expect("read legacy artifact");
             restored
         };
+
         assert_eq!(restored, contents);
 
         fs::remove_dir_all(root).expect("cleanup test root");

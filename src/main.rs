@@ -22,6 +22,7 @@ async fn main() {
             if cancellation::is_requested() {
                 std::process::exit(130);
             }
+
             std::process::exit(code);
         }
         Err(err) if cancellation::is_requested() => {
@@ -94,6 +95,7 @@ async fn run() -> anyhow::Result<()> {
             return Err(err);
         }
     };
+
     let app_config = config.get_config().clone();
     output::configure_logger(app_config.logging);
 
@@ -105,11 +107,13 @@ async fn run() -> anyhow::Result<()> {
             } else {
                 Outcome::Failure
             };
+
             let level = if outcome == Outcome::Cancelled {
                 LogLevel::Warning
             } else {
                 LogLevel::Error
             };
+
             history_op::finish(outcome, level, Some(output::error_summary(&err)));
             return Err(err);
         }

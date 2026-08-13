@@ -68,12 +68,14 @@ fn load_manifest(path: &Path) -> Result<ManifestFile> {
 
     let json = fs::read_to_string(path)
         .with_context(|| format!("Failed to read manifest '{}'", path.display()))?;
+
     if json.trim().is_empty() {
         return Ok(ManifestFile::default());
     }
 
     let manifest: ManifestFile = serde_json::from_str(&json)
         .with_context(|| format!("Failed to parse manifest '{}'", path.display()))?;
+
     if manifest.version != MANIFEST_VERSION {
         return Err(anyhow!(
             "Unsupported manifest version {} in '{}'. Expected {}.",
@@ -107,6 +109,7 @@ fn collect_entries(
         .with_context(|| format!("Failed to read source directory '{}'", current.display()))?
         .collect::<std::result::Result<Vec<_>, _>>()
         .with_context(|| format!("Failed to read source directory '{}'", current.display()))?;
+
     children.sort_by_key(std::fs::DirEntry::path);
 
     for child in children {
@@ -120,6 +123,7 @@ fn collect_entries(
         if file_type.is_symlink() {
             let target = fs::read_link(&path)
                 .with_context(|| format!("Failed to read symlink '{}'", path.display()))?;
+
             entries.insert(
                 relative,
                 ManifestEntry::Symlink {
@@ -147,9 +151,11 @@ fn remove_stale_entries(
         if current.entries.contains_key(relative) {
             continue;
         }
+
         let path = destination.join(relative);
         remove_manifest_entry(&path, entry)?;
     }
+
     Ok(())
 }
 
@@ -197,6 +203,7 @@ fn copy_current_entries(source: &Path, destination: &Path, manifest: &ManifestFi
             ManifestEntry::Symlink { target } => sync_symlink(&destination_path, target)?,
         }
     }
+
     Ok(())
 }
 
@@ -204,9 +211,11 @@ fn replace_non_directory(path: &Path) -> Result<()> {
     let Ok(metadata) = fs::symlink_metadata(path) else {
         return Ok(());
     };
+
     if metadata.is_dir() {
         return Ok(());
     }
+
     fs::remove_file(path).with_context(|| format!("Failed to remove file '{}'", path.display()))
 }
 
@@ -225,6 +234,7 @@ fn copy_file_if_changed(source: &Path, destination: &Path) -> Result<()> {
     let permissions = fs::metadata(source)
         .with_context(|| format!("Failed to inspect '{}'", source.display()))?
         .permissions();
+
     fs::set_permissions(destination, permissions)
         .with_context(|| format!("Failed to set permissions on '{}'", destination.display()))
 }
@@ -232,8 +242,10 @@ fn copy_file_if_changed(source: &Path, destination: &Path) -> Result<()> {
 fn copy_file_cancellable(source: &Path, destination: &Path) -> Result<()> {
     let mut source_file =
         fs::File::open(source).with_context(|| format!("Failed to read '{}'", source.display()))?;
+
     let mut destination_file = fs::File::create(destination)
         .with_context(|| format!("Failed to create '{}'", destination.display()))?;
+
     let mut buffer = [0_u8; 64 * 1024];
     loop {
         crate::application::cancellation::check()?;
@@ -241,8 +253,10 @@ fn copy_file_cancellable(source: &Path, destination: &Path) -> Result<()> {
         if count == 0 {
             break;
         }
+
         destination_file.write_all(&buffer[..count])?;
     }
+
     destination_file.flush()?;
     Ok(())
 }
@@ -251,9 +265,11 @@ fn replace_non_file(path: &Path) -> Result<()> {
     let Ok(metadata) = fs::symlink_metadata(path) else {
         return Ok(());
     };
+
     if metadata.is_file() && !metadata.file_type().is_symlink() {
         return Ok(());
     }
+
     if metadata.is_dir() {
         fs::remove_dir_all(path)
             .with_context(|| format!("Failed to remove directory '{}'", path.display()))
@@ -265,15 +281,20 @@ fn replace_non_file(path: &Path) -> Result<()> {
 fn files_equal(left: &Path, right: &Path) -> Result<bool> {
     let left_meta =
         fs::metadata(left).with_context(|| format!("Failed to inspect '{}'", left.display()))?;
+
     let right_meta =
         fs::metadata(right).with_context(|| format!("Failed to inspect '{}'", right.display()))?;
+
     if left_meta.len() != right_meta.len() {
         return Ok(false);
     }
+
     let mut left_file =
         fs::File::open(left).with_context(|| format!("Failed to read '{}'", left.display()))?;
+
     let mut right_file =
         fs::File::open(right).with_context(|| format!("Failed to read '{}'", right.display()))?;
+
     let mut left_buffer = [0_u8; 64 * 1024];
     let mut right_buffer = [0_u8; 64 * 1024];
     loop {
@@ -283,9 +304,11 @@ fn files_equal(left: &Path, right: &Path) -> Result<bool> {
         if left_count != right_count {
             return Ok(false);
         }
+
         if left_count == 0 {
             return Ok(true);
         }
+
         if left_buffer[..left_count] != right_buffer[..right_count] {
             return Ok(false);
         }
@@ -330,6 +353,7 @@ fn remove_existing_path(path: &Path) -> Result<()> {
     let Ok(metadata) = fs::symlink_metadata(path) else {
         return Ok(());
     };
+
     if metadata.is_dir() && !metadata.file_type().is_symlink() {
         fs::remove_dir_all(path)
             .with_context(|| format!("Failed to remove directory '{}'", path.display()))
@@ -348,6 +372,7 @@ fn prune_empty_stale_dirs(
         .iter()
         .filter_map(|(path, entry)| matches!(entry, ManifestEntry::Directory).then_some(path))
         .collect::<BTreeSet<_>>();
+
     let current_dirs = current
         .entries
         .iter()
@@ -358,6 +383,7 @@ fn prune_empty_stale_dirs(
         .difference(&current_dirs)
         .copied()
         .collect::<Vec<_>>();
+
     stale_dirs.sort_by_key(|relative| std::cmp::Reverse(relative.matches('/').count()));
 
     for relative in stale_dirs {
@@ -367,6 +393,7 @@ fn prune_empty_stale_dirs(
             let _ = fs::remove_dir(&path);
         }
     }
+
     Ok(())
 }
 
@@ -374,6 +401,7 @@ fn normalized_relative(root: &Path, path: &Path) -> Result<String> {
     let relative = path
         .strip_prefix(root)
         .with_context(|| format!("Failed to relativize '{}'", path.display()))?;
+
     if relative.as_os_str().is_empty() {
         return Err(anyhow!("Manifest entry cannot be empty"));
     }
@@ -404,6 +432,7 @@ mod tests {
             .duration_since(SystemTime::UNIX_EPOCH)
             .map(|duration| duration.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-manifest-sync-test-{name}-{nanos}"))
     }
 
@@ -433,10 +462,12 @@ mod tests {
             fs::read_to_string(destination.join("src/main.rs")).expect("read main"),
             "fn main() { println!(\"hi\"); }\n"
         );
+
         assert_eq!(
             fs::read_to_string(destination.join("src/lib.rs")).expect("read lib"),
             "pub fn lib() {}\n"
         );
+
         assert_eq!(
             fs::read_to_string(destination.join("target/cache.o")).expect("read build output"),
             "object"

@@ -48,6 +48,7 @@ impl WindowsPathManager {
             if entries.iter().any(|entry| normalize(entry) == expected) {
                 return false;
             }
+
             entries.insert(0, path.to_string());
             true
         })
@@ -92,6 +93,7 @@ impl WindowsPathManager {
                     return Err(error).context("Failed to read the user PATH registry value");
                 }
             };
+
             let decoded = match raw_before.as_ref() {
                 Some(raw) => decode_path_value(raw)?,
                 None => WindowsPathValue {
@@ -106,6 +108,7 @@ impl WindowsPathManager {
                 .filter(|entry| !entry.trim().is_empty())
                 .map(str::to_string)
                 .collect::<Vec<_>>();
+
             if !update(&mut entries) {
                 return Ok(false);
             }
@@ -117,6 +120,7 @@ impl WindowsPathManager {
                     return Err(error).context("Failed to re-read the user PATH registry value");
                 }
             };
+
             if raw_now != raw_before {
                 continue;
             }
@@ -125,18 +129,22 @@ impl WindowsPathManager {
                 value: entries.join(";"),
                 registry_type: decoded.registry_type,
             };
+
             let encoded = encode_path_value(&new_value);
             key.set_raw_value("Path", &encoded)
                 .context("Failed to write the user PATH registry value")?;
             let verified = key
                 .get_raw_value("Path")
                 .context("Failed to verify the user PATH registry value")?;
+
             if verified != encoded {
                 continue;
             }
+
             broadcast_environment_change();
             return Ok(true);
         }
+
         bail!("The user PATH changed concurrently; retry the command")
     }
 }
@@ -152,6 +160,7 @@ fn normalize(path: &str) -> String {
     while normalized.ends_with('\\') {
         normalized.pop();
     }
+
     normalized.to_ascii_lowercase()
 }
 
@@ -161,19 +170,24 @@ fn decode_path_value(raw: &RegValue<'_>) -> Result<WindowsPathValue> {
         REG_EXPAND_SZ => PathRegistryType::ExpandString,
         other => bail!("User PATH has unsupported registry type {other:?}"),
     };
+
     if raw.bytes.len() % 2 != 0 {
         bail!("User PATH registry data contains an incomplete UTF-16 code unit");
     }
+
     let mut words = raw
         .bytes
         .chunks_exact(2)
         .map(|bytes| u16::from_le_bytes([bytes[0], bytes[1]]))
         .collect::<Vec<_>>();
+
     while words.last() == Some(&0) {
         words.pop();
     }
+
     let value =
         String::from_utf16(&words).context("User PATH registry data is not valid UTF-16")?;
+
     Ok(WindowsPathValue {
         value,
         registry_type,
@@ -201,6 +215,7 @@ fn broadcast_environment_change() {
         .encode_wide()
         .chain(Some(0))
         .collect();
+
     unsafe {
         SendMessageTimeoutW(
             HWND_BROADCAST,
@@ -222,14 +237,17 @@ impl NamedMutex {
             .encode_wide()
             .chain(Some(0))
             .collect::<Vec<_>>();
+
         let handle = unsafe { CreateMutexW(ptr::null_mut(), FALSE, name.as_ptr()) };
         if handle.is_null() {
             return Err(io::Error::last_os_error()).context("Failed to create PATH writer mutex");
         }
+
         if unsafe { WaitForSingleObject(handle, INFINITE) } == WAIT_FAILED {
             unsafe { CloseHandle(handle) };
             return Err(io::Error::last_os_error()).context("Failed to acquire PATH writer mutex");
         }
+
         Ok(Self(handle))
     }
 }
@@ -254,6 +272,7 @@ mod tests {
                 value: r#"%USERPROFILE%\bin;C:\Tools"#.into(),
                 registry_type,
             };
+
             assert_eq!(
                 decode_path_value(&encode_path_value(&value)).unwrap(),
                 value
@@ -276,6 +295,7 @@ mod tests {
             vtype: REG_EXPAND_SZ,
         })
         .unwrap_err();
+
         assert!(error.to_string().contains("incomplete UTF-16"));
     }
 }

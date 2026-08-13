@@ -18,9 +18,11 @@ pub fn ranked_matches<'a>(names: impl IntoIterator<Item = &'a str>, query: &str)
             } else {
                 None
             };
+
             rank.map(|rank| (rank, distance, name.to_string()))
         })
         .collect::<Vec<_>>();
+
     candidates.sort();
     candidates.into_iter().map(|(_, _, name)| name).collect()
 }

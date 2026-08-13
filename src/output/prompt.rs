@@ -49,6 +49,7 @@ pub fn confirm_or_cancel(prompt: impl fmt::Display, default_yes: bool) -> anyhow
     if confirm_impl(prompt, default_yes)? {
         return Ok(());
     }
+
     anyhow::bail!("Cancelled")
 }
 
@@ -56,6 +57,7 @@ pub fn prompt_text(prompt: impl fmt::Display, default: Option<&str>) -> anyhow::
     let suffix = default
         .map(|value| format!(" [{value}] "))
         .unwrap_or_else(|| ": ".to_string());
+
     prompt_text_with_suffix(prompt, &suffix, default)
 }
 
@@ -92,6 +94,7 @@ fn prompt_term() -> anyhow::Result<Term> {
     if !term.is_term() {
         anyhow::bail!("Interactive input requires an attached terminal.");
     }
+
     Ok(term)
 }
 
@@ -200,6 +203,7 @@ fn select_from_list_with_term(
         if rendered_lines > 0 {
             clear_rendered_selection(term, rendered_lines)?;
         }
+
         rendered_lines =
             render_selection(term, prompt, headers, items, selected, &mut top, previews)?;
 
@@ -270,6 +274,7 @@ fn render_selection(
         } else {
             term.write_line(&line)?;
         }
+
         rendered += 1;
     }
 
@@ -281,6 +286,7 @@ fn render_selection(
         } else {
             term.write_line(&line)?;
         }
+
         rendered += 1;
     }
 
@@ -311,6 +317,7 @@ fn render_selection(
         ),
         cols,
     );
+
     term.write_str(&style(footer).dim().to_string())?;
     rendered += 1;
 
@@ -361,6 +368,7 @@ fn preview_content_rows(
         .saturating_add(selection_rows)
         .saturating_add(PREVIEW_CHROME_ROWS)
         .saturating_add(FOOTER_ROWS);
+
     term_rows.saturating_sub(used_rows).min(preview_line_count)
 }
 
@@ -416,6 +424,7 @@ fn selection_preview_layout(
         .min(MAX_PREVIEW_SELECTION_ROWS)
         .min(available_rows - 1)
         .max(1);
+
     let preview_rows = preview_content_rows(
         term_rows,
         prompt_rows,
@@ -484,6 +493,7 @@ fn clear_rendered_selection(term: &Term, rendered_lines: usize) -> anyhow::Resul
     if rendered_lines > 1 {
         term.clear_last_lines(rendered_lines - 1)?;
     }
+
     Ok(())
 }
 
@@ -527,30 +537,37 @@ mod tests {
             selection_action_for_key(Key::Enter),
             SelectionAction::Accept
         );
+
         assert_eq!(
             selection_action_for_key(Key::Char('q')),
             SelectionAction::Cancel
         );
+
         assert_eq!(
             selection_action_for_key(Key::Escape),
             SelectionAction::Cancel
         );
+
         assert_eq!(
             selection_action_for_key(Key::ArrowDown),
             SelectionAction::Next
         );
+
         assert_eq!(
             selection_action_for_key(Key::Char('j')),
             SelectionAction::Next
         );
+
         assert_eq!(
             selection_action_for_key(Key::ArrowUp),
             SelectionAction::Previous
         );
+
         assert_eq!(
             selection_action_for_key(Key::Char('k')),
             SelectionAction::Previous
         );
+
         assert_eq!(
             selection_action_for_key(Key::Unknown),
             SelectionAction::Ignore
@@ -574,6 +591,7 @@ mod tests {
                 preview_rows: 9,
             }
         );
+
         assert_eq!(
             selection_preview_layout(12, 1, 2, 100, 20),
             SelectionPreviewLayout {
@@ -581,6 +599,7 @@ mod tests {
                 preview_rows: 1,
             }
         );
+
         assert_eq!(
             selection_preview_layout(9, 1, 2, 100, 20),
             SelectionPreviewLayout {
@@ -588,6 +607,7 @@ mod tests {
                 preview_rows: 1,
             }
         );
+
         assert_eq!(
             selection_preview_layout(12, 2, 2, 100, 20),
             SelectionPreviewLayout {
@@ -606,6 +626,7 @@ mod tests {
                 preview_rows: 24,
             }
         );
+
         assert_eq!(
             selection_preview_layout(80, 2, 2, 100, 100),
             SelectionPreviewLayout {
@@ -613,6 +634,7 @@ mod tests {
                 preview_rows: 64,
             }
         );
+
         assert_eq!(
             selection_preview_layout(40, 2, 2, 100, 6),
             SelectionPreviewLayout {
@@ -628,6 +650,7 @@ mod tests {
             selection_preview_layout(80, 2, 2, 100, 100).selection_rows,
             8
         );
+
         assert_eq!(selection_preview_layout(80, 2, 2, 5, 100).selection_rows, 5);
     }
 
@@ -699,10 +722,12 @@ mod tests {
             resolve_text_prompt_value("", Some("ripgrep")).expect("resolve prompt"),
             "ripgrep"
         );
+
         assert_eq!(
             resolve_text_prompt_value("rg", Some("ripgrep")).expect("resolve prompt"),
             "rg"
         );
+
         assert!(resolve_text_prompt_value("", None).is_err());
     }
 }

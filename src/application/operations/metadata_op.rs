@@ -16,6 +16,7 @@ impl<'a> MetadataManager<'a> {
             if package.is_pinned {
                 return Ok(false);
             }
+
             package.is_pinned = true;
             Ok(true)
         })?;
@@ -28,6 +29,7 @@ impl<'a> MetadataManager<'a> {
             if !package.is_pinned {
                 return Ok(false);
             }
+
             package.is_pinned = false;
             Ok(true)
         })?;
@@ -50,6 +52,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir()
             .join(format!("upstream-metadata-test-{name}-{nanos}"))
             .join("packages.json")
@@ -72,6 +75,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::remove_dir_all(parent)?;
         }
+
         Ok(())
     }
 

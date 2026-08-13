@@ -39,8 +39,10 @@ fn normalized_link_package_name(path: &Path) -> Option<String> {
             .strip_suffix(".exe")
             .or_else(|| file_name.strip_suffix(".EXE"))
             .unwrap_or(&file_name);
+
         return Some(name.to_string());
     }
+
     #[cfg(not(windows))]
     {
         Some(file_name)
@@ -58,6 +60,7 @@ fn find_stale_symlink_names(symlinks_dir: &Path, installed_names: &HashSet<Strin
         let Ok(metadata) = fs::symlink_metadata(&path) else {
             continue;
         };
+
         let file_type = metadata.file_type();
         if !file_type.is_symlink() && !metadata.is_file() {
             continue;
@@ -66,6 +69,7 @@ fn find_stale_symlink_names(symlinks_dir: &Path, installed_names: &HashSet<Strin
         let Some(name) = normalized_link_package_name(&path) else {
             continue;
         };
+
         if !installed_names.contains(&name) {
             stale.push(name);
         }
@@ -208,6 +212,7 @@ pub(in crate::routines::doctor) fn check_untracked_package_artifacts(
         .iter()
         .filter_map(|package| package.install_path.clone())
         .collect();
+
     let orphan_install_entries = find_orphan_install_entries(
         &[
             paths.install.appimages_dir.as_path(),
@@ -225,6 +230,7 @@ pub(in crate::routines::doctor) fn check_untracked_package_artifacts(
             .map(|path| path.display().to_string())
             .collect::<Vec<_>>()
             .join(", ");
+
         report.line(
             Level::Warn,
             format!(
@@ -260,6 +266,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir().join(format!("upstream-doctor-test-{name}-{nanos}"))
     }
 
@@ -341,6 +348,7 @@ mod tests {
                 .iter()
                 .any(|failure| failure.contains("Config file is invalid"))
         );
+
         assert!(
             fs::read_to_string(&paths.config.config_file)
                 .expect("read config")
@@ -372,6 +380,7 @@ mod tests {
                 .iter()
                 .any(|failure| failure.contains("Config file is invalid"))
         );
+
         let content = fs::read_to_string(&paths.config.config_file).expect("read config");
         assert!(content.contains("version = 2"));
         assert!(content.contains("[extra]"));

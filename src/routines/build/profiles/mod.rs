@@ -92,6 +92,7 @@ pub fn run_command_with_line_callback(
                             callback(&line);
                         }
                     }
+
                     return Ok(status);
                 }
             }

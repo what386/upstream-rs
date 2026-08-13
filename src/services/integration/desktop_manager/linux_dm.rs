@@ -70,9 +70,11 @@ impl LinuxDesktopHandler {
                 .extractor
                 .extract(&name, install_path, message_callback)
                 .await?;
+
             let embedded = self
                 .find_and_parse_desktop_file(&squashfs_root, &name, message_callback)
                 .unwrap_or_default();
+
             Self::merge_embedded_entry(embedded, entry, &name)
         } else {
             entry.ensure_name(&name)
@@ -103,14 +105,17 @@ impl LinuxDesktopHandler {
             .as_deref()
             .ok_or_else(|| anyhow!("Desktop entry name is required"))?
             .to_string();
+
         let entry = if *filetype == Filetype::AppImage {
             let squashfs_root = self
                 .extractor
                 .extract(&name, staged_install_path, message_callback)
                 .await?;
+
             let embedded = self
                 .find_and_parse_desktop_file(&squashfs_root, &name, message_callback)
                 .unwrap_or_default();
+
             Self::merge_embedded_entry(embedded, entry, &name)
         } else {
             entry.ensure_name(&name)
@@ -121,6 +126,7 @@ impl LinuxDesktopHandler {
         if let Some(parent) = entry_path.parent() {
             fs::create_dir_all(parent)?;
         }
+
         crate::utils::filesystem::atomic_ops::write_atomic(
             entry_path,
             entry.to_desktop_file().as_bytes(),
@@ -133,6 +139,7 @@ impl LinuxDesktopHandler {
         if path.exists() {
             fs::remove_file(path)?;
         }
+
         Ok(())
     }
 
@@ -153,10 +160,12 @@ impl LinuxDesktopHandler {
             .as_deref()
             .filter(|value| !value.trim().is_empty())
             .map(str::to_owned);
+
         let mut merged = embedded.merge(generated).ensure_name(fallback_name);
         if embedded_name.is_some() {
             merged.name = embedded_name;
         }
+
         merged
     }
 
@@ -188,6 +197,7 @@ impl LinuxDesktopHandler {
             squashfs_root.join(format!("{name}.desktop")),
             squashfs_root.join(format!("usr/share/applications/{name}.desktop")),
         ];
+
         for path in &candidates {
             if path.exists() {
                 message!(message_callback, "Found .desktop file: {}", path.display());
@@ -203,6 +213,7 @@ impl LinuxDesktopHandler {
                     .file_stem()
                     .and_then(|value| value.to_str())
                     .unwrap_or("");
+
                 if stem.eq_ignore_ascii_case(name) {
                     0
                 } else {
@@ -214,6 +225,7 @@ impl LinuxDesktopHandler {
                 return Self::parse_desktop_file(path);
             }
         }
+
         message!(message_callback, "No .desktop file found in AppImage");
         None
     }
@@ -228,6 +240,7 @@ impl LinuxDesktopHandler {
                 in_desktop_entry = trimmed.eq_ignore_ascii_case("[Desktop Entry]");
                 continue;
             }
+
             if !in_desktop_entry
                 || trimmed.is_empty()
                 || trimmed.starts_with('#')
@@ -236,14 +249,17 @@ impl LinuxDesktopHandler {
             {
                 continue;
             }
+
             let Some((key, value)) = trimmed.split_once('=') else {
                 continue;
             };
+
             entry.set_field(
                 key.trim().trim_start_matches('\u{feff}'),
                 value.trim().to_string(),
             );
         }
+
         Some(entry)
     }
 }
@@ -273,6 +289,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|duration| duration.as_nanos())
             .unwrap_or_default();
+
         std::env::temp_dir().join(format!("upstream-desktop-manager-test-{name}-{nanos}"))
     }
 
@@ -363,6 +380,7 @@ mod tests {
                 .expect("managed desktop path")
                 .exists()
         );
+
         assert!(!paths.state.icons_dir.join("tool.svg").exists());
         fs::remove_dir_all(root).expect("cleanup");
     }

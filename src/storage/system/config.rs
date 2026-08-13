@@ -127,6 +127,7 @@ impl ConfigStorage {
     pub fn get_flattened_config(&self) -> HashMap<String, String> {
         let root =
             public_config_value(&self.config).unwrap_or(toml::Value::Table(Default::default()));
+
         Self::flatten_value(&root, "", 10, 0)
     }
 
@@ -168,6 +169,7 @@ impl ConfigStorage {
                     } else {
                         format!("{}.{}", prefix, key)
                     };
+
                     result.extend(Self::flatten_value(
                         val,
                         &new_prefix,
@@ -217,6 +219,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+
         std::env::temp_dir()
             .join(format!("upstream-config-test-{name}-{nanos}"))
             .join("config.toml")
@@ -226,6 +229,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::remove_dir_all(parent)?;
         }
+
         Ok(())
     }
 
@@ -258,6 +262,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         let mut storage = ConfigStorage::new(&path).expect("create storage");
 
         storage
@@ -273,9 +278,11 @@ mod tests {
         let low_threshold: u64 = storage
             .try_get_value("download.low_threshold_mb")
             .expect("read low threshold");
+
         let high_threads: usize = storage
             .try_get_value("download.high_threads")
             .expect("read high threads");
+
         let check_concurrency: usize = storage
             .try_get_value("concurrency.check_concurrency")
             .expect("read check concurrency");
@@ -293,10 +300,12 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         let mut storage = ConfigStorage::new(&path).expect("create storage");
         let err = storage
             .try_set_value("github.missing.field", "1")
             .expect_err("must reject unknown path");
+
         assert!(err.to_string().contains("Key path not found"));
 
         cleanup(&path).expect("cleanup");
@@ -308,6 +317,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         fs::write(&path, "[download]\nlow_threads = 6\n").expect("write config");
 
         let storage = ConfigStorage::new(&path).expect("config should load");
@@ -322,6 +332,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         fs::write(
             &path,
             "[logging]\nenabled = false\nlevel = 'error'\nvacuum = 50000\nmax_size_mb = 25\n",
@@ -343,6 +354,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         fs::write(&path, "[github]\napi_token = \"ghp_abc\"\n").expect("write config");
 
         let err = ConfigStorage::new(&path).expect_err("auth config should be rejected");
@@ -357,6 +369,7 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
+
         let mut storage = ConfigStorage::new(&path).expect("create storage");
         storage.reset_to_defaults().expect("reset defaults");
 

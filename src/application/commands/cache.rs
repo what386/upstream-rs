@@ -43,8 +43,10 @@ pub fn run_list(json: bool, paths: &UpstreamPaths) -> Result<()> {
         } else {
             format!("empty  {}", entry.path.display())
         };
+
         output::status_line(Status::Plan, entry.kind, detail);
     }
+
     println!("Total: {}", HumanBytes(report.total_bytes));
     Ok(())
 }
@@ -61,6 +63,7 @@ pub fn run_clean(categories: Vec<CacheKind>, dry_run: bool, paths: &UpstreamPath
             "Cache clean"
         })
     );
+
     for entry in &report.caches {
         output::status_line(
             if entry.exists {
@@ -72,6 +75,7 @@ pub fn run_clean(categories: Vec<CacheKind>, dry_run: bool, paths: &UpstreamPath
             format!("{}  {}", HumanBytes(entry.bytes), entry.path.display()),
         );
     }
+
     println!("Reclaimable: {}", HumanBytes(report.total_bytes));
 
     if dry_run || report.caches.iter().all(|entry| !entry.exists) {
@@ -88,10 +92,12 @@ pub fn run_clean(categories: Vec<CacheKind>, dry_run: bool, paths: &UpstreamPath
             .with_context(|| format!("Failed to clean {} cache", entry.kind))?;
         output::status_line(Status::Ok, entry.kind, "cleaned");
     }
+
     println!(
         "{}",
         output::success(format!("Reclaimed {}.", HumanBytes(report.total_bytes)))
     );
+
     Ok(())
 }
 
@@ -104,15 +110,18 @@ fn selected_kinds(categories: &[CacheKind]) -> Result<Vec<CacheKind>> {
             CacheKind::Registry,
         ]);
     }
+
     if categories.contains(&CacheKind::All) {
         bail!("Cache category 'all' cannot be combined with other categories");
     }
+
     let mut selected = Vec::new();
     for kind in categories {
         if !selected.contains(kind) {
             selected.push(*kind);
         }
     }
+
     Ok(selected)
 }
 
@@ -142,6 +151,7 @@ fn inspect_selected(paths: &UpstreamPaths, selected: &[CacheKind]) -> Result<Cac
             bytes,
         });
     }
+
     let total_bytes = caches.iter().map(|entry| entry.bytes).sum();
     Ok(CacheReport {
         caches,
@@ -157,6 +167,7 @@ fn cache_path(paths: &UpstreamPaths, kind: CacheKind) -> (&'static str, PathBuf)
         CacheKind::Registry => "registry",
         CacheKind::All => unreachable!("all is expanded before resolving paths"),
     };
+
     (child, paths.dirs.cache_dir.join(child))
 }
 
@@ -164,6 +175,7 @@ fn path_size_without_following(path: &Path) -> Result<u64> {
     let Ok(metadata) = fs::symlink_metadata(path) else {
         return Ok(0);
     };
+
     if metadata.file_type().is_symlink() || metadata.is_file() {
         return Ok(metadata.len());
     }
@@ -174,12 +186,15 @@ fn path_size_without_following(path: &Path) -> Result<u64> {
         if entry.path() == path {
             continue;
         }
+
         let metadata = fs::symlink_metadata(entry.path())
             .with_context(|| format!("Failed to inspect '{}'", entry.path().display()))?;
+
         if metadata.is_file() || metadata.file_type().is_symlink() {
             total = total.saturating_add(metadata.len());
         }
     }
+
     Ok(total)
 }
 
@@ -187,6 +202,7 @@ fn remove_path_without_following(path: &Path) -> Result<()> {
     let Ok(metadata) = fs::symlink_metadata(path) else {
         return Ok(());
     };
+
     if metadata.is_dir() && !metadata.file_type().is_symlink() {
         fs::remove_dir_all(path)
             .with_context(|| format!("Failed to remove directory '{}'", path.display()))
@@ -230,6 +246,7 @@ mod tests {
                 CacheKind::Registry,
             ]
         );
+
         assert!(selected_kinds(&[CacheKind::All, CacheKind::Docs]).is_err());
         assert_eq!(
             selected_kinds(&[CacheKind::Docs, CacheKind::Docs]).expect("deduplicate"),
