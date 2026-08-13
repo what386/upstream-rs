@@ -43,10 +43,11 @@ if ! git diff --cached --quiet; then
 fi
 
 cargo fmt
+cargo spaced
 
 git add src/
 if ! git diff --cached --quiet; then
-    git commit -m "cargo fmt"
+    git commit -m "formatting"
 fi
 
 tally semver "${version}"
