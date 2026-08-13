@@ -56,7 +56,7 @@ registry-import-pkg input="-":
 
 
 run *args:
-    cargo run --bin "upstream" -- "$0"
+    cargo run --bin "upstream" -- {{args}}
 
 testbin *args:
     ./tests/fakehome/.upstream/state/symlinks/upstream {{args}}
