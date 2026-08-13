@@ -1,5 +1,4 @@
 #![allow(async_fn_in_trait)]
-
 use std::path::Path;
 
 use anyhow::{Result, anyhow};
