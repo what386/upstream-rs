@@ -18,13 +18,14 @@
 - [ ] desktop manager is bad make it less bad
       @created 2026-08-11 20:15
 
-- [ ] feat: bold prompt questions
-      @created 2026-08-14 17:07
-
 
 ## Completed
 
 - [x] fix: table spacing
       @created 2026-08-14 17:02
       @completed 2026-08-14 17:02
+
+- [x] feat: bold prompt questions
+      @created 2026-08-14 17:07
+      @completed 2026-08-14 17:07
 
