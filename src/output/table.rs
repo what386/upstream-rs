@@ -166,7 +166,7 @@ impl TransactionTableLayout {
         );
 
         if self.show_new_version {
-            line.push_str(&format!(" {:<13}", "New Version"));
+            line.push_str(&format!(" {:<12}", "New Version"));
         }
 
         if self.show_net_change {
@@ -199,20 +199,21 @@ impl TransactionTableLayout {
 
         if self.show_new_version {
             line.push_str(&format!(
-                " {:<13}",
-                truncate_end(row.new_version.as_deref().unwrap_or("-"), 13)
+                " {:<12}",
+                truncate_end(row.new_version.as_deref().unwrap_or("-"), 12)
             ));
         }
 
         if self.show_net_change {
-            line.push_str(&format!(
-                " {}",
-                format_compact_signed_cell(row.net_change, self.net_magnitude_width)
+            line.push(' ');
+            line.push_str(&format_compact_signed_cell(
+                row.net_change,
+                self.net_magnitude_width + 1,
             ));
         }
 
         if self.show_download {
-            line.push_str(&format!(" {:>14}", format_compact_unsigned(row.download)));
+            line.push_str(&format!(" {:<14}", format_compact_unsigned(row.download)));
         }
 
         line
@@ -363,16 +364,24 @@ fn format_compact_delta(value: SignedByteEstimate) -> String {
     }
 }
 
-fn format_compact_signed_cell(value: SignedByteEstimate, magnitude_width: usize) -> String {
+fn format_compact_signed_cell(value: SignedByteEstimate, field_width: usize) -> String {
     match value.bytes {
         Some(bytes) => {
             let prefix = confidence_prefix(value.confidence);
-            let sign = if bytes < 0 { "-" } else { " " };
+            let sign = if bytes < 0 {
+                "-"
+            } else if prefix.is_empty() {
+                " "
+            } else {
+                ""
+            };
             let magnitude = HumanBytes(bytes.unsigned_abs() as u64);
-            let value_width = magnitude_width.saturating_sub(prefix.chars().count());
-            format!("{prefix}{sign}{magnitude:<value_width$}")
+            let value_width = field_width.saturating_sub(prefix.chars().count() + sign.len());
+            let magnitude = magnitude.to_string();
+            let padding = value_width.saturating_sub(magnitude.chars().count());
+            format!("{prefix}{sign}{magnitude}{}", " ".repeat(padding))
         }
-        None => format!(" {:<magnitude_width$}", "unknown"),
+        None => format!("{:>field_width$}", "unknown"),
     }
 }
 
@@ -462,6 +471,36 @@ mod tests {
         );
 
         assert!(layout.row_line(&row).contains("~-5.00 MiB"));
+    }
+
+    #[test]
+    fn net_change_magnitude_aligns_with_header() {
+        let layout = TransactionTableLayout::upgrade_preview("stable/forge".len());
+        let header = layout.header_line();
+        let header_start = header.find("Net Change").expect("net change header");
+
+        let estimated = TransactionRow::new(
+            "stable/forge",
+            "0.1.2",
+            "0.2.2",
+            SignedByteEstimate::estimated(0),
+            ByteEstimate::estimated(94_390_000),
+        );
+        let estimated_line = layout.row_line(&estimated);
+        assert_eq!(estimated_line.find("0 B"), Some(header_start));
+        assert_eq!(estimated_line.find('~'), Some(header_start - 1));
+        let download_header_start = header.find("Download Size").expect("download header");
+        assert_eq!(estimated_line.rfind('~'), Some(download_header_start - 1));
+
+        let exact = TransactionRow::new(
+            "stable/forge",
+            "0.1.2",
+            "0.2.2",
+            SignedByteEstimate::exact(0),
+            ByteEstimate::exact(0),
+        );
+        let exact_line = layout.row_line(&exact);
+        assert_eq!(exact_line.find("0 B"), Some(header_start));
     }
 
     #[test]
