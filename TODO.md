@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-12
+@modified: 2026-08-14
 
 
 ## Tasks
@@ -17,4 +17,7 @@
 
 - [ ] desktop manager is bad make it less bad
       @created 2026-08-11 20:15
+
+- [ ] fix: table spacing
+      @created 2026-08-14 17:02
 
