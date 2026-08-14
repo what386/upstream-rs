@@ -20,6 +20,10 @@ pub fn assume_yes() -> bool {
     ASSUME_YES.load(Ordering::Relaxed)
 }
 
+fn format_prompt(prompt: impl fmt::Display, suffix: &str) -> String {
+    format!("{}{}", style(prompt.to_string()).bold(), suffix)
+}
+
 fn confirm_impl(prompt: impl fmt::Display, default_yes: bool) -> anyhow::Result<bool> {
     if assume_yes() {
         return Ok(true);
@@ -33,7 +37,7 @@ fn confirm_impl(prompt: impl fmt::Display, default_yes: bool) -> anyhow::Result<
 
     let suffix = if default_yes { " [Y/n] " } else { " [y/N]: " };
     let term = prompt_term()?;
-    term.write_str(&format!("{prompt}{suffix}"))?;
+    term.write_str(&format_prompt(prompt, suffix))?;
     term.flush()?;
 
     let input = read_key_line(&term)?;
@@ -71,7 +75,7 @@ pub fn prompt_text_with_suffix(
     }
 
     let term = prompt_term()?;
-    term.write_str(&format!("{prompt}{suffix}"))?;
+    term.write_str(&format_prompt(prompt, suffix))?;
     term.flush()?;
 
     let input = read_key_line(&term)?;
@@ -525,11 +529,23 @@ fn selection_action_for_key(key: Key) -> SelectionAction {
 #[cfg(test)]
 mod tests {
     use super::{
-        SelectionAction, SelectionPreviewLayout, max_preview_line_count, prompt_lines,
-        resolve_text_prompt_value, selection_action_for_key, selection_marker,
+        SelectionAction, SelectionPreviewLayout, format_prompt, max_preview_line_count,
+        prompt_lines, resolve_text_prompt_value, selection_action_for_key, selection_marker,
         selection_preview_layout, selection_top, selection_visible_rows,
     };
     use console::Key;
+
+    #[test]
+    fn prompt_format_preserves_choice_suffix() {
+        assert_eq!(
+            console::strip_ansi_codes(&format_prompt("Proceed with installation?", " [Y/n/c] ")),
+            "Proceed with installation? [Y/n/c] "
+        );
+        assert_eq!(
+            console::strip_ansi_codes(&format_prompt("Proceed with removal?", " [Y/n] ")),
+            "Proceed with removal? [Y/n] "
+        );
+    }
 
     #[test]
     fn selection_keys_map_to_actions() {
