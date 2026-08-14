@@ -541,6 +541,7 @@ mod tests {
             console::strip_ansi_codes(&format_prompt("Proceed with installation?", " [Y/n/c] ")),
             "Proceed with installation? [Y/n/c] "
         );
+
         assert_eq!(
             console::strip_ansi_codes(&format_prompt("Proceed with removal?", " [Y/n] ")),
             "Proceed with removal? [Y/n] "
