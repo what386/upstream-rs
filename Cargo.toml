@@ -1,6 +1,6 @@
 [package]
 name = "upstream-rs"
-version = "2.16.1"
+version = "2.16.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -25,8 +25,8 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-rusqlite = { version = "0.40.1", features = ["bundled"] }
-sevenz-rust2 = { version = "0.21.3", default-features = false, features = ["util", "bzip2", "ppmd"] }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+sevenz-rust2 = { version = "0.21.5", default-features = false, features = ["util", "bzip2", "ppmd"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "io-util", "process", "sync", "time", "signal"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 futures-util = "0.3"
@@ -50,11 +50,11 @@ minisign-verify = "0.2.5"
 base64 = "0.22.1"
 p256 = { version = "0.14.0", features = ["ecdsa", "pem", "pkcs8"] }
 sigstore = { version = "0.14.0", default-features = false, features = ["cosign", "rustls-tls"] }
-async-trait = "0.1.91"
+async-trait = "0.1.92"
 strsim = "0.11.1"
 
 [dev-dependencies]
-sevenz-rust2 = { version = "0.21.3", default-features = false, features = ["util", "compress", "bzip2", "ppmd"] }
+sevenz-rust2 = { version = "0.21.5", default-features = false, features = ["util", "compress", "bzip2", "ppmd"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
