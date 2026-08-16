@@ -528,7 +528,11 @@ impl CheckTableLayout {
     }
 }
 
-fn render_check_table(rows: &[UpdateCheckRow]) {
+fn render_check_table(
+    rows: &[UpdateCheckRow],
+    preview_rows: &[crate::application::operations::upgrade_op::UpgradePreviewRow],
+    package_upgrade: &UpgradeOperation<'_>,
+) {
     if rows.is_empty() {
         println!("No installed packages to check.");
         return;
@@ -565,61 +569,45 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
 
     println!("{}", output::title("Checking for updates"));
 
-    if !display_rows.is_empty() {
-        let layout = CheckTableLayout::from_rows(&display_rows);
-        println!();
-        println!(
-            "{}",
-            output::section(format!(
-                "{:<8} {:<name$} {:<channel$} {:<source$} Version",
-                "State",
-                "Name",
-                "Channel",
-                "Source",
-                name = layout.name,
-                channel = layout.channel,
-                source = layout.source,
-            ))
+    if !preview_rows.is_empty() {
+        let transaction_rows = preview_rows
+            .iter()
+            .map(upgrade_transaction_row)
+            .collect::<Vec<_>>();
+        let impact = preview_rows.iter().fold(
+            crate::services::packaging::disk_impact::DiskImpact::empty(),
+            |total, row| total + row.disk_impact.clone(),
         );
+        let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(preview_rows);
+        let size_rows = rollback_size_rows(rollback_impact);
+        output::print_transaction_table_with_size_rows(
+            &transaction_rows,
+            &impact,
+            "Net disk change:",
+            &size_rows,
+        );
+    }
 
-        for row in &display_rows {
-            let (status, version) = match &row.status {
-                UpdateCheckStatus::UpdateAvailable { current, latest } => (
-                    output::status_cell(Status::Plan).to_string(),
-                    format!("{current} -> {latest}"),
-                ),
-                UpdateCheckStatus::Failed { error } => {
-                    (output::status_cell(Status::Fail).to_string(), error.clone())
-                }
-                UpdateCheckStatus::NotInstalled => (
-                    output::status_cell(Status::Fail).to_string(),
-                    "not installed".to_string(),
-                ),
-                UpdateCheckStatus::UpToDate { .. } => continue,
+    let failures = display_rows
+        .iter()
+        .filter(|row| !matches!(row.status, UpdateCheckStatus::UpdateAvailable { .. }))
+        .copied()
+        .collect::<Vec<_>>();
+    if !failures.is_empty() {
+        let layout = CheckTableLayout::from_rows(&failures);
+        println!("{}", output::section("Check errors"));
+        for row in failures {
+            let detail = match &row.status {
+                UpdateCheckStatus::Failed { error } => error.clone(),
+                UpdateCheckStatus::NotInstalled => "not installed".to_string(),
+                _ => unreachable!(),
             };
-
-            let branch = row
-                .channel
-                .as_ref()
-                .map(|c| c.to_string().to_lowercase())
-                .unwrap_or_else(|| "-".to_string());
-
-            let remote = row
-                .provider
-                .as_ref()
-                .map(std::string::ToString::to_string)
-                .unwrap_or_else(|| "-".to_string());
-
             println!(
-                "{} {:<name$} {:<channel$} {:<source$} {}",
-                status,
+                "{} {:<name$} {}",
+                output::status_cell(Status::Fail),
                 truncate_cell(&row.name, layout.name),
-                truncate_cell(&branch, layout.channel),
-                truncate_cell(&remote, layout.source),
-                version,
+                detail,
                 name = layout.name,
-                channel = layout.channel,
-                source = layout.source,
             );
         }
     }
@@ -629,10 +617,6 @@ fn render_check_table(rows: &[UpdateCheckRow]) {
     } else {
         Status::Ok
     };
-
-    if !display_rows.is_empty() {
-        println!();
-    }
 
     output::summary_line(
         status,
@@ -755,8 +739,22 @@ async fn run_check(
 
         check_pb.finish_and_clear();
         let rows = rows_result?;
+        let available_names = rows
+            .iter()
+            .filter_map(|row| match &row.status {
+                UpdateCheckStatus::UpdateAvailable { .. } => Some(row.name.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let preview_rows = if available_names.is_empty() {
+            Vec::new()
+        } else {
+            package_upgrade
+                .preview_upgrade(Some(&available_names), false, &mut |_| {})
+                .await?
+        };
 
-        render_check_table(&rows);
+        render_check_table(&rows, &preview_rows, &package_upgrade);
         let failed = check_failure_count(&rows);
         if failed > 0 {
             anyhow::bail!("{failed} update check(s) failed");
