@@ -18,9 +18,6 @@
 - [ ] desktop manager is bad make it less bad
       @created 2026-08-11 20:15
 
-- [ ] BREAKING: remove --skip-failed flag for imports
-      @created 2026-08-19 22:36
-
 
 ## Completed
 
@@ -31,4 +28,8 @@
 - [x] feat: bold prompt questions
       @created 2026-08-14 17:07
       @completed 2026-08-14 17:07
+
+- [x] BREAKING: remove --skip-failed flag for imports (now default)
+      @created 2026-08-19 22:36
+      @completed 2026-08-19 22:36
 
