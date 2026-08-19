@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-14
+@modified: 2026-08-19
 
 
 ## Tasks
@@ -17,6 +17,9 @@
 
 - [ ] desktop manager is bad make it less bad
       @created 2026-08-11 20:15
+
+- [ ] BREAKING: remove --skip-failed flag for imports
+      @created 2026-08-19 22:36
 
 
 ## Completed
