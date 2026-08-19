@@ -234,9 +234,9 @@ upstream export packages <path>
 upstream export keys <path>
 upstream export profile <path>
 upstream import config <path>
-upstream import packages <path> [--skip-failed] [--latest]
+upstream import packages <path> [--latest]
 upstream import keys <path>
-upstream import profile <path> [--skip-failed] [--latest]
+upstream import profile <path> [--latest]
 ```
 
 See [Configuration](configuration.md) and [Backup, import, and export](backup.md).

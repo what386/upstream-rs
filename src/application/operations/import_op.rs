@@ -129,7 +129,6 @@ impl<'a> ImportOperation<'a> {
     pub async fn import_packages<P>(
         &mut self,
         path: &Path,
-        skip_failed: bool,
         latest: bool,
         progress_callback: &mut Option<P>,
     ) -> Result<ImportSummary>
@@ -137,7 +136,7 @@ impl<'a> ImportOperation<'a> {
         P: FnMut(ImportProgressEvent),
     {
         let packages = Self::read_packages(path)?;
-        self.import_packages_from_export(packages, skip_failed, latest, progress_callback)
+        self.import_packages_from_export(packages, latest, progress_callback)
             .await
     }
 
@@ -160,7 +159,6 @@ impl<'a> ImportOperation<'a> {
     pub async fn import_profile<P>(
         &mut self,
         path: &Path,
-        skip_failed: bool,
         latest: bool,
         progress_callback: &mut Option<P>,
     ) -> Result<ImportSummary>
@@ -177,7 +175,7 @@ impl<'a> ImportOperation<'a> {
         )?;
         self.trusted_keys =
             TrustStorage::new(&self.paths.metadata.trust_file)?.trusted_signature_keys();
-        self.import_packages_from_export(profile.packages, skip_failed, latest, progress_callback)
+        self.import_packages_from_export(profile.packages, latest, progress_callback)
             .await
     }
 
@@ -253,7 +251,6 @@ impl<'a> ImportOperation<'a> {
     async fn import_packages_from_export<P>(
         &mut self,
         export: ImportPackages,
-        skip_failed: bool,
         latest: bool,
         progress_callback: &mut Option<P>,
     ) -> Result<ImportSummary>
@@ -320,8 +317,6 @@ impl<'a> ImportOperation<'a> {
         let mut last_progress_events = BTreeMap::new();
         let mut pending = FuturesUnordered::new();
         let mut packages = eligible.into_iter();
-        let mut stop_scheduling = false;
-        let mut first_error = None;
 
         for _ in 0..self.install_concurrency {
             let Some((package, version, trust_mode)) = packages.next() else {
@@ -378,28 +373,23 @@ impl<'a> ImportOperation<'a> {
                         Err(err) => {
                             summary.failed += 1;
                             emit_complete(progress_callback, name.clone(), ImportPackageResult::Failed { error: crate::output::error_summary(&err) });
-                            if !skip_failed && first_error.is_none() {
-                                stop_scheduling = true;
-                                first_error = Some(err.context(format!("Failed to import package '{name}'")));
-                            }
                         }
                     }
                     completed += 1;
                     emit_overall(progress_callback, completed, total);
 
-                    if !stop_scheduling
-                        && let Some((package, version, trust_mode)) = packages.next() {
-                            pending.push(import_package(
-                                self.provider_manager,
-                                self.paths,
-                                self.trusted_keys.clone(),
-                                package,
-                                version,
-                                trust_mode,
-                                Arc::clone(&progress_state),
-                                Arc::clone(&warning_state),
-                            ));
-                        }
+                    if let Some((package, version, trust_mode)) = packages.next() {
+                        pending.push(import_package(
+                            self.provider_manager,
+                            self.paths,
+                            self.trusted_keys.clone(),
+                            package,
+                            version,
+                            trust_mode,
+                            Arc::clone(&progress_state),
+                            Arc::clone(&warning_state),
+                        ));
+                    }
                 }
                 _ = ticker.tick() => {
                     emit_progress_updates(&progress_state, &warning_state, &mut last_progress_events, progress_callback);
@@ -416,10 +406,6 @@ impl<'a> ImportOperation<'a> {
 
         if let Some(cb) = progress_callback.as_mut() {
             cb(ImportProgressEvent::Clear);
-        }
-
-        if let Some(err) = first_error {
-            return Err(err);
         }
 
         emit_detail(
@@ -797,9 +783,12 @@ mod tests {
     use crate::{
         models::{
             common::enums::{Channel, Filetype, Provider},
-            upstream::{InstallType, Package},
+            upstream::{InstallType, Package, PackageReference},
         },
+        providers::provider_manager::ProviderManager,
         routines::build::scripts::BuildScriptAction,
+        storage::database::PackageDatabase,
+        utils::static_paths::UpstreamPaths,
     };
     use std::{
         collections::BTreeMap,
@@ -930,6 +919,81 @@ mod tests {
             [ImportProgressEvent::Warning { name, message }]
                 if name == "ripgrep" && message == "signature unavailable"
         ));
+    }
+
+    #[tokio::test]
+    async fn import_continues_scheduling_after_package_failure() {
+        let packages_path = temp_file("queue-failure-packages");
+        let database_path = temp_file("queue-failure-database");
+        let packages: Vec<PackageReference> = ["first", "second", "third"]
+            .into_iter()
+            .map(|name| {
+                PackageReference::from_package(Package::with_defaults(
+                    name.to_string(),
+                    "not-a-url".to_string(),
+                    Filetype::Binary,
+                    None,
+                    None,
+                    Channel::Stable,
+                    Provider::Direct,
+                    None,
+                ))
+            })
+            .collect();
+        let export = serde_json::json!({
+            "version": PACKAGES_EXPORT_VERSION,
+            "packages": packages,
+        });
+        fs::write(
+            &packages_path,
+            serde_json::to_string(&export).expect("serialize packages export"),
+        )
+        .expect("write packages export");
+
+        let paths = UpstreamPaths::new().expect("create upstream paths");
+        let provider_manager =
+            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+        let mut package_database = PackageDatabase::open(&database_path).expect("package database");
+        let mut operation = ImportOperation::new(
+            &provider_manager,
+            &mut package_database,
+            &paths,
+            crate::services::trust::TrustedSignatureKeys::default(),
+            1,
+        );
+        let mut events = Vec::new();
+        let mut progress_callback = Some(|event: ImportProgressEvent| events.push(event));
+
+        let summary = operation
+            .import_packages(&packages_path, false, &mut progress_callback)
+            .await
+            .expect("package failures are summarized after the queue drains");
+
+        assert_eq!(summary.installed, 0);
+        assert_eq!(summary.skipped, 0);
+        assert_eq!(summary.failed, 3);
+
+        let completed = events
+            .iter()
+            .filter_map(|event| match event {
+                ImportProgressEvent::Complete { name, .. } => Some(name.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(completed.len(), 3);
+        assert!(completed.contains(&"first"));
+        assert!(completed.contains(&"second"));
+        assert!(completed.contains(&"third"));
+        assert!(events.iter().any(|event| matches!(
+            event,
+            ImportProgressEvent::Overall {
+                completed: 3,
+                total: 3,
+            }
+        )));
+
+        let _ = fs::remove_file(packages_path);
+        let _ = fs::remove_file(PackageDatabase::database_path_for(&database_path));
     }
 
     #[test]

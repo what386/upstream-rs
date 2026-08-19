@@ -347,25 +347,12 @@ impl Cli {
                 ImportAction::Keys { path } => {
                     commands::import::run_import_keys(path, paths, app_config)
                 }
-                ImportAction::Packages {
-                    path,
-                    skip_failed,
-                    latest,
-                } => {
-                    commands::import::run_import_packages(
-                        path,
-                        skip_failed,
-                        latest,
-                        paths,
-                        app_config,
-                    )
-                    .await
+                ImportAction::Packages { path, latest } => {
+                    commands::import::run_import_packages(path, latest, paths, app_config).await
                 }
-                ImportAction::Profile {
-                    path,
-                    skip_failed,
-                    latest,
-                } => commands::import::run_import_profile(path, skip_failed, latest, paths).await,
+                ImportAction::Profile { path, latest } => {
+                    commands::import::run_import_profile(path, latest, paths).await
+                }
             },
             Commands::Doctor {
                 names,

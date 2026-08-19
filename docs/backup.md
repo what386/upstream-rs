@@ -83,9 +83,4 @@ Profiles are portable restore bundles. They do not include installed artifacts, 
 
 ## Partial Failures
 
-For package and profile imports, `--skip-failed` continues processing remaining packages if an individual package install fails:
-
-```bash
-upstream import packages ./packages.json --skip-failed
-upstream import profile ./profile.json --skip-failed
-```
+Package and profile imports continue processing remaining packages when an individual package install fails. They print a final installed/skipped/failed summary and exit unsuccessfully if any package failed.

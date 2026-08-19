@@ -1004,10 +1004,6 @@ pub enum ImportAction {
         /// Path to an upstream packages export
         path: std::path::PathBuf,
 
-        /// Continue installing remaining packages after a package import fails
-        #[arg(long, default_value_t = false)]
-        skip_failed: bool,
-
         /// Ignore exported tags and re-resolve release and non-branch build packages
         #[arg(long, default_value_t = false)]
         latest: bool,
@@ -1027,10 +1023,6 @@ pub enum ImportAction {
     Profile {
         /// Path to an upstream profile export
         path: std::path::PathBuf,
-
-        /// Continue installing remaining packages after a package import fails
-        #[arg(long, default_value_t = false)]
-        skip_failed: bool,
 
         /// Ignore exported tags and re-resolve release and non-branch build packages
         #[arg(long, default_value_t = false)]

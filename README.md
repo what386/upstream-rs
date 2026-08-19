@@ -297,8 +297,8 @@ upstream import profile ./profile.json --latest
 
 Package and profile exports contain reinstallable package references, not
 installed files, rollback artifacts, or cache contents. Use `--latest` to ignore
-recorded version tags during import, or `--skip-failed` to continue after an
-individual package fails.
+recorded version tags during import. Imports continue after individual package
+failures, print a final summary, and exit unsuccessfully if any package failed.
 
 ## Command Overview
 

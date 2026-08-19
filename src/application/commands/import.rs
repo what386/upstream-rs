@@ -93,7 +93,6 @@ fn render_import_progress_row(
 
 pub async fn run_import_packages(
     path: PathBuf,
-    skip_failed: bool,
     latest: bool,
     paths: &UpstreamPaths,
     app_config: &AppConfig,
@@ -115,7 +114,7 @@ pub async fn run_import_packages(
     println!("{}", output::title("Import packages"));
     output::action_note(format!("Source: {}", path.display()));
     let result = import_op
-        .import_packages(&path, skip_failed, latest, &mut progress_callback)
+        .import_packages(&path, latest, &mut progress_callback)
         .await;
 
     pb.finish_and_clear();
@@ -183,12 +182,7 @@ pub fn run_import_config(path: PathBuf, paths: &UpstreamPaths) -> Result<()> {
     Ok(())
 }
 
-pub async fn run_import_profile(
-    path: PathBuf,
-    skip_failed: bool,
-    latest: bool,
-    paths: &UpstreamPaths,
-) -> Result<()> {
+pub async fn run_import_profile(path: PathBuf, latest: bool, paths: &UpstreamPaths) -> Result<()> {
     let profile_config = ImportOperation::read_profile_config(&path)?;
     let auth = AuthStorage::new(&paths.metadata.auth_file)?;
     let provider_manager = ProviderManager::new(
@@ -214,7 +208,7 @@ pub async fn run_import_profile(
     println!("{}", output::title("Import profile"));
     output::action_note(format!("Source: {}", path.display()));
     let result = import_op
-        .import_profile(&path, skip_failed, latest, &mut progress_callback)
+        .import_profile(&path, latest, &mut progress_callback)
         .await;
 
     pb.finish_and_clear();
