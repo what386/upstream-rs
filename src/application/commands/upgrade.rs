@@ -574,10 +574,12 @@ fn render_check_table(
             .iter()
             .map(upgrade_transaction_row)
             .collect::<Vec<_>>();
+
         let impact = preview_rows.iter().fold(
             crate::services::packaging::disk_impact::DiskImpact::empty(),
             |total, row| total + row.disk_impact.clone(),
         );
+
         let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(preview_rows);
         let size_rows = rollback_size_rows(rollback_impact);
         output::print_transaction_table_with_size_rows(
@@ -593,6 +595,7 @@ fn render_check_table(
         .filter(|row| !matches!(row.status, UpdateCheckStatus::UpdateAvailable { .. }))
         .copied()
         .collect::<Vec<_>>();
+
     if !failures.is_empty() {
         let layout = CheckTableLayout::from_rows(&failures);
         println!("{}", output::section("Check errors"));
@@ -602,6 +605,7 @@ fn render_check_table(
                 UpdateCheckStatus::NotInstalled => "not installed".to_string(),
                 _ => unreachable!(),
             };
+
             println!(
                 "{} {:<name$} {}",
                 output::status_cell(Status::Fail),
@@ -746,6 +750,7 @@ async fn run_check(
                 _ => None,
             })
             .collect::<Vec<_>>();
+
         let preview_rows = if available_names.is_empty() {
             Vec::new()
         } else {

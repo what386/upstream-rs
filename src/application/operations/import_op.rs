@@ -940,10 +940,12 @@ mod tests {
                 ))
             })
             .collect();
+
         let export = serde_json::json!({
             "version": PACKAGES_EXPORT_VERSION,
             "packages": packages,
         });
+
         fs::write(
             &packages_path,
             serde_json::to_string(&export).expect("serialize packages export"),
@@ -953,6 +955,7 @@ mod tests {
         let paths = UpstreamPaths::new().expect("create upstream paths");
         let provider_manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+
         let mut package_database = PackageDatabase::open(&database_path).expect("package database");
         let mut operation = ImportOperation::new(
             &provider_manager,
@@ -961,6 +964,7 @@ mod tests {
             crate::services::trust::TrustedSignatureKeys::default(),
             1,
         );
+
         let mut events = Vec::new();
         let mut progress_callback = Some(|event: ImportProgressEvent| events.push(event));
 
@@ -980,6 +984,7 @@ mod tests {
                 _ => None,
             })
             .collect::<Vec<_>>();
+
         assert_eq!(completed.len(), 3);
         assert!(completed.contains(&"first"));
         assert!(completed.contains(&"second"));
