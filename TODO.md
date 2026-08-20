@@ -18,3 +18,10 @@
 - [ ] desktop manager is bad make it less bad
       @created 2026-08-11 20:15
 
+
+## Completed
+
+- [x] feat: assets with installer or setup are penalized
+      @created 2026-08-20 16:29
+      @completed 2026-08-20 16:29
+

@@ -426,6 +426,10 @@ impl AssetSelector {
             score -= 25;
         }
 
+        if has("setup") || has ("installer") {
+            score -= 25;
+        }
+
         if has("zsh") || has("bash") || has("fish") || has("completion") || has("completions") {
             score -= 25;
         }
