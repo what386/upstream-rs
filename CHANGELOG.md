@@ -2,6 +2,13 @@
 
 *Generated on 2026-08-20*
 
+## 2.16.4 — 2026-08-20
+
+### Changes
+
+- feat: assets with installer or setup are penalized
+
+
 ## 2.16.3 — 2026-08-20
 
 ### Changes
