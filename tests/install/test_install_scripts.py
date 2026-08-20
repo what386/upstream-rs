@@ -252,6 +252,34 @@ class PowerShellInstallerTests(unittest.TestCase):
                 ],
             )
 
+    def test_missing_visual_cpp_runtime_reports_microsoft_download(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = (INSTALLERS / "install.ps1").read_text(encoding="utf-8")
+            definitions = source.rsplit("\nMain", 1)[0]
+            harness = root / "runtime-test.ps1"
+            harness.write_text(
+                definitions
+                + "\nfunction Get-ItemProperty { throw 'registry entry not found' }\n"
+                + "try { Assert-VisualCppRuntime -Architecture x86_64; exit 2 } "
+                + "catch { Write-Output $_.Exception.Message; exit 0 }\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                ["pwsh", "-NoProfile", "-File", str(harness)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("Microsoft Visual C++ Redistributable", result.stdout)
+            self.assertIn(
+                "https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist",
+                result.stdout,
+            )
+
     def test_confirm_checksum_accepts_match_and_rejects_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

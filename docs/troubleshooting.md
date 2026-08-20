@@ -55,6 +55,10 @@ On Windows, `upstream doctor --fix` updates the user PATH registry value. A
 running shell still has its old environment, so start a new PowerShell session
 after the repair.
 
+## Microsoft Visual C++ Redistributable on Windows
+
+The Windows release requires the latest supported Microsoft Visual C++ v14 Redistributable. Install the package matching your system architecture from [Microsoft's latest supported Visual C++ Redistributable downloads](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist), then rerun the installer or repair command. The bootstrap installer checks for this runtime before downloading the Upstream binary.
+
 ## Startup migration and legacy data
 
 Migrations run automatically before the requested command. They create missing

@@ -36,6 +36,8 @@ curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/in
 iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.ps1 | iex
 ```
 
+Windows also requires the latest supported Microsoft Visual C++ v14 Redistributable. Install the package matching your architecture from [Microsoft](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) before running the installer.
+
 ### Cargo
 
 ```bash

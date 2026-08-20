@@ -79,6 +79,61 @@ function Detect-Arch {
     return "unknown"
 }
 
+function Get-VisualCppRuntimeArchitecture {
+    param(
+        [string]$Architecture
+    )
+
+    switch ($Architecture) {
+        "x86_64" { return "x64" }
+        "aarch64" { return "arm64" }
+        default { throw "Unsupported Visual C++ runtime architecture: $Architecture" }
+    }
+}
+
+function Test-VisualCppRuntimeInstalled {
+    param(
+        [string]$Architecture
+    )
+
+    $runtimeArchitecture = Get-VisualCppRuntimeArchitecture -Architecture $Architecture
+    $registryPaths = @(
+        "HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\$runtimeArchitecture",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\$runtimeArchitecture"
+    )
+
+    foreach ($registryPath in $registryPaths) {
+        try {
+            $runtime = Get-ItemProperty -LiteralPath $registryPath -ErrorAction Stop
+            if ($runtime.Installed -eq 1) {
+                return $true
+            }
+        } catch {
+            # The runtime may be registered in the other registry view.
+        }
+    }
+
+    return $false
+}
+
+function Assert-VisualCppRuntime {
+    param(
+        [string]$Architecture
+    )
+
+    if (Test-VisualCppRuntimeInstalled -Architecture $Architecture) {
+        return
+    }
+
+    $runtimeArchitecture = Get-VisualCppRuntimeArchitecture -Architecture $Architecture
+    throw @"
+Microsoft Visual C++ Redistributable is required to run Upstream, but the $runtimeArchitecture runtime was not found.
+Install the latest supported Visual C++ Redistributable from Microsoft:
+https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
+Then rerun this installer.
+"@
+}
+
 function Confirm-Checksum {
     param(
         [string]$Binary,
@@ -203,6 +258,13 @@ function Main {
     }
 
     Write-Host "Detected Architecture: $ARCH"
+
+    try {
+        Assert-VisualCppRuntime -Architecture $ARCH
+    } catch {
+        Write-ColorOutput "Error: $_" $RED
+        exit 1
+    }
 
     $ASSET_NAME = "${BINARY_NAME}-${ARCH}-pc-windows-msvc.exe"
     $DOWNLOAD_URL = "https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/latest/download/${ASSET_NAME}"

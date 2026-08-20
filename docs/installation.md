@@ -17,6 +17,8 @@ curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/in
 iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.ps1 | iex
 ```
 
+Windows installations require the latest supported Microsoft Visual C++ v14 Redistributable, matching the system architecture. Install the package from [Microsoft](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) before running the bootstrap script. The Windows installer checks for the runtime and stops with an actionable error before downloading Upstream when it is missing.
+
 If `$HOME/.upstream` already exists, the bootstrap script asks whether to keep or replace it. Keeping existing data reruns `upstream hooks init` and installs the managed `upstream` package only if it is not already present. Replacing removes `$HOME/.upstream` before reinitializing hooks and installing `upstream`.
 
 For unattended installs, set `UPSTREAM_EXISTING_DATA=keep` or `UPSTREAM_EXISTING_DATA=replace`.
