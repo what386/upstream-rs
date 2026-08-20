@@ -711,7 +711,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;import;packages' {
-            [CompletionResult]::new('--skip-failed', '--skip-failed', [CompletionResultType]::ParameterName, 'Continue installing remaining packages after a package import fails')
             [CompletionResult]::new('--latest', '--latest', [CompletionResultType]::ParameterName, 'Ignore exported tags and re-resolve release and non-branch build packages')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
@@ -721,7 +720,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;import;profile' {
-            [CompletionResult]::new('--skip-failed', '--skip-failed', [CompletionResultType]::ParameterName, 'Continue installing remaining packages after a package import fails')
             [CompletionResult]::new('--latest', '--latest', [CompletionResultType]::ParameterName, 'Ignore exported tags and re-resolve release and non-branch build packages')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')

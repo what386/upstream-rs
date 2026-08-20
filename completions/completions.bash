@@ -2462,7 +2462,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__import__subcmd__packages)
-            opts="-y -h --skip-failed --latest --yes --no-pager --help"
+            opts="-y -h --latest --yes --no-pager --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2476,7 +2476,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__import__subcmd__profile)
-            opts="-y -h --skip-failed --latest --yes --no-pager --help"
+            opts="-y -h --latest --yes --no-pager --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

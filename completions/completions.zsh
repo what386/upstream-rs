@@ -872,7 +872,6 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (packages)
 _arguments "${_arguments_options[@]}" : \
-'--skip-failed[Continue installing remaining packages after a package import fails]' \
 '--latest[Ignore exported tags and re-resolve release and non-branch build packages]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \
@@ -884,7 +883,6 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (profile)
 _arguments "${_arguments_options[@]}" : \
-'--skip-failed[Continue installing remaining packages after a package import fails]' \
 '--latest[Ignore exported tags and re-resolve release and non-branch build packages]' \
 '-y[Accept confirmation prompts automatically]' \
 '--yes[Accept confirmation prompts automatically]' \

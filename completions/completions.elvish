@@ -626,7 +626,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;import;packages'= {
-            cand --skip-failed 'Continue installing remaining packages after a package import fails'
             cand --latest 'Ignore exported tags and re-resolve release and non-branch build packages'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
@@ -635,7 +634,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;import;profile'= {
-            cand --skip-failed 'Continue installing remaining packages after a package import fails'
             cand --latest 'Ignore exported tags and re-resolve release and non-branch build packages'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
