@@ -47,7 +47,7 @@ walkdir = "2.5.0"
 clap_complete = { version = "4.6", optional = true }
 zstd = "0.13.3"
 minisign-verify = "0.2.5"
-base64 = "0.22.1"
+base64 = "0.23.1"
 p256 = { version = "0.14.0", features = ["ecdsa", "pem", "pkcs8"] }
 sigstore = { version = "0.14.0", default-features = false, features = ["cosign", "rustls-tls"] }
 async-trait = "0.1.92"
