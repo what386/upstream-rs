@@ -426,7 +426,7 @@ impl AssetSelector {
             score -= 25;
         }
 
-        if has("setup") || has ("installer") {
+        if has("setup") || has("installer") {
             score -= 25;
         }
 
