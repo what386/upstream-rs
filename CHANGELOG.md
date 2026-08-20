@@ -1,6 +1,15 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-08-12*
+*Generated on 2026-08-20*
+
+## 2.16.3 — 2026-08-20
+
+### Changes
+
+- fix: table spacing
+- feat: bold prompt questions
+- BREAKING: remove --skip-failed flag for imports (now default)
+
 
 ## 2.16.1 — 2026-08-12
 
