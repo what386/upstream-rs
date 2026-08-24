@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-20
+@modified: 2026-08-24
 
 
 ## Tasks
@@ -17,4 +17,7 @@
 
 - [ ] desktop manager is bad make it less bad
       @created 2026-08-11 20:15
+
+- [ ] feat: 'skip' specific updates via `package skip`
+      @created 2026-08-24 16:52
 
