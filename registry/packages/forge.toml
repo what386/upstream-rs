@@ -1,9 +1,0 @@
-name = "forge"
-revision = 2
-desktop = false
-trust = "checksum"
-
-[install]
-type = "release"
-repo = "https://github.com/what386/forge"
-provider = "github"

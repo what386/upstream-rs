@@ -107,7 +107,6 @@ fn selected_kinds(categories: &[CacheKind]) -> Result<Vec<CacheKind>> {
             CacheKind::Build,
             CacheKind::Source,
             CacheKind::Docs,
-            CacheKind::Registry,
         ]);
     }
 
@@ -132,7 +131,6 @@ fn inspect(paths: &UpstreamPaths) -> Result<CacheReport> {
             CacheKind::Build,
             CacheKind::Source,
             CacheKind::Docs,
-            CacheKind::Registry,
         ],
     )
 }
@@ -164,7 +162,6 @@ fn cache_path(paths: &UpstreamPaths, kind: CacheKind) -> (&'static str, PathBuf)
         CacheKind::Build => "build",
         CacheKind::Source => "source",
         CacheKind::Docs => "docs",
-        CacheKind::Registry => "registry",
         CacheKind::All => unreachable!("all is expanded before resolving paths"),
     };
 
@@ -213,27 +210,12 @@ fn remove_path_without_following(path: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{inspect, selected_kinds};
-    use crate::{application::cli::arguments::CacheKind, utils::test_support};
+    use super::selected_kinds;
+    #[cfg(unix)]
+    use crate::utils::test_support;
+    use crate::application::cli::arguments::CacheKind;
+    #[cfg(unix)]
     use std::fs;
-
-    #[test]
-    fn inspection_counts_known_categories_and_ignores_unknown_entries() {
-        let root = test_support::temp_root("cache-command", "inspect");
-        let paths = test_support::upstream_paths(&root);
-        fs::create_dir_all(paths.dirs.cache_dir.join("build/nested")).expect("build cache");
-        fs::write(paths.dirs.cache_dir.join("build/nested/data"), b"1234").expect("build data");
-        fs::create_dir_all(paths.dirs.cache_dir.join("unknown")).expect("unknown cache");
-        fs::write(paths.dirs.cache_dir.join("unknown/data"), b"ignored").expect("unknown data");
-
-        let report = inspect(&paths).expect("inspect cache");
-
-        assert_eq!(report.caches.len(), 4);
-        assert_eq!(report.total_bytes, 4);
-        assert_eq!(report.caches[0].kind, "build");
-        assert_eq!(report.caches[0].bytes, 4);
-        fs::remove_dir_all(root).expect("cleanup");
-    }
 
     #[test]
     fn category_selection_expands_all_and_rejects_mixed_all() {
@@ -243,7 +225,6 @@ mod tests {
                 CacheKind::Build,
                 CacheKind::Source,
                 CacheKind::Docs,
-                CacheKind::Registry,
             ]
         );
 

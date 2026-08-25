@@ -1,9 +1,0 @@
-name = "scrcpy"
-revision = 2
-desktop = true
-trust = "checksum"
-
-[install]
-type = "release"
-repo = "https://github.com/Genymobile/scrcpy"
-provider = "github"

@@ -1,9 +1,0 @@
-name = "webreaper"
-revision = 1
-desktop = false
-trust = "checksum"
-
-[install]
-type = "release"
-repo = "https://github.com/alex-on-ai/WebReaper"
-provider = "github"

@@ -1,9 +1,0 @@
-name = "lazysql"
-revision = 2
-desktop = false
-trust = "checksum"
-
-[install]
-type = "release"
-repo = "https://github.com/jorgerojas26/lazysql"
-provider = "github"

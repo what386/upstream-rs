@@ -1,9 +1,0 @@
-name = "just"
-revision = 2
-desktop = false
-trust = "checksum"
-
-[install]
-type = "release"
-repo = "https://github.com/casey/just"
-provider = "github"

@@ -36,27 +36,9 @@ verify-release:
     just test
     just install-script-tests
     just integration-tests
-    just registry-validate
 
 install-script-tests:
     python3 -m unittest discover -s tests/install -p 'test_*.py'
-
-registry-validate:
-    python3 scripts/registry/validate.py
-    python3 -m unittest discover -s tests/registry -p 'test_*.py'
-
-registry-audit *args:
-    python3 scripts/registry/audit_trust.py {{args}}
-
-registry-validate-revisions base_ref:
-    python3 scripts/registry/validate_revisions.py {{base_ref}}
-
-registry-gen-index:
-    python3 scripts/registry/build_index.py
-
-registry-import-pkg input="-":
-    python3 scripts/registry/import_list.py {{input}}
-
 
 run *args:
     cargo run --bin "upstream" -- {{args}}

@@ -1,9 +1,0 @@
-name = "bat"
-revision = 1
-desktop = false
-trust = "best-effort"
-
-[install]
-type = "release"
-repo = "https://github.com/sharkdp/bat"
-provider = "github"

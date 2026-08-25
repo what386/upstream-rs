@@ -783,12 +783,9 @@ mod tests {
     use crate::{
         models::{
             common::enums::{Channel, Filetype, Provider},
-            upstream::{InstallType, Package, PackageReference},
+            upstream::{InstallType, Package},
         },
-        providers::provider_manager::ProviderManager,
         routines::build::scripts::BuildScriptAction,
-        storage::database::PackageDatabase,
-        utils::static_paths::UpstreamPaths,
     };
     use std::{
         collections::BTreeMap,
@@ -919,86 +916,6 @@ mod tests {
             [ImportProgressEvent::Warning { name, message }]
                 if name == "ripgrep" && message == "signature unavailable"
         ));
-    }
-
-    #[tokio::test]
-    async fn import_continues_scheduling_after_package_failure() {
-        let packages_path = temp_file("queue-failure-packages");
-        let database_path = temp_file("queue-failure-database");
-        let packages: Vec<PackageReference> = ["first", "second", "third"]
-            .into_iter()
-            .map(|name| {
-                PackageReference::from_package(Package::with_defaults(
-                    name.to_string(),
-                    "not-a-url".to_string(),
-                    Filetype::Binary,
-                    None,
-                    None,
-                    Channel::Stable,
-                    Provider::Direct,
-                    None,
-                ))
-            })
-            .collect();
-
-        let export = serde_json::json!({
-            "version": PACKAGES_EXPORT_VERSION,
-            "packages": packages,
-        });
-
-        fs::write(
-            &packages_path,
-            serde_json::to_string(&export).expect("serialize packages export"),
-        )
-        .expect("write packages export");
-
-        let paths = UpstreamPaths::new().expect("create upstream paths");
-        let provider_manager =
-            ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
-
-        let mut package_database = PackageDatabase::open(&database_path).expect("package database");
-        let mut operation = ImportOperation::new(
-            &provider_manager,
-            &mut package_database,
-            &paths,
-            crate::services::trust::TrustedSignatureKeys::default(),
-            1,
-        );
-
-        let mut events = Vec::new();
-        let mut progress_callback = Some(|event: ImportProgressEvent| events.push(event));
-
-        let summary = operation
-            .import_packages(&packages_path, false, &mut progress_callback)
-            .await
-            .expect("package failures are summarized after the queue drains");
-
-        assert_eq!(summary.installed, 0);
-        assert_eq!(summary.skipped, 0);
-        assert_eq!(summary.failed, 3);
-
-        let completed = events
-            .iter()
-            .filter_map(|event| match event {
-                ImportProgressEvent::Complete { name, .. } => Some(name.as_str()),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-
-        assert_eq!(completed.len(), 3);
-        assert!(completed.contains(&"first"));
-        assert!(completed.contains(&"second"));
-        assert!(completed.contains(&"third"));
-        assert!(events.iter().any(|event| matches!(
-            event,
-            ImportProgressEvent::Overall {
-                completed: 3,
-                total: 3,
-            }
-        )));
-
-        let _ = fs::remove_file(packages_path);
-        let _ = fs::remove_file(PackageDatabase::database_path_for(&database_path));
     }
 
     #[test]

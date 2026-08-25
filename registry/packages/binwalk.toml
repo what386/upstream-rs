@@ -1,9 +1,0 @@
-name = "binwalk"
-revision = 2
-desktop = false
-trust = "none"
-
-[install]
-type = "build"
-repo = "https://github.com/ReFirmLabs/binwalk"
-provider = "github"

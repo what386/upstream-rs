@@ -307,7 +307,6 @@ failures, print a final summary, and exit unsuccessfully if any package failed.
 | Command     | Purpose                              |
 | ----------- | ------------------------------------ |
 | `install`   | Install from a release source        |
-| `add`       | Install a package from the registry  |
 | `build`     | Build and install from source        |
 | `upgrade`   | Upgrade packages                     |
 | `remove`    | Remove packages (`uninstall` alias)  |

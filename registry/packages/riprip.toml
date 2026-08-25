@@ -1,9 +1,0 @@
-name = "riprip"
-revision = 2
-desktop = false
-trust = "none"
-
-[install]
-type = "build"
-repo = "https://github.com/Blobfolio/riprip"
-provider = "github"

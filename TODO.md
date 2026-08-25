@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-24
+@modified: 2026-08-25
 
 
 ## Tasks
@@ -20,4 +20,11 @@
 
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
+
+
+## Completed
+
+- [x] BREAKING: remove add subcommand
+      @created 2026-08-25 17:29
+      @completed 2026-08-25 17:29
 

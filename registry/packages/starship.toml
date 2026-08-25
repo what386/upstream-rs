@@ -1,9 +1,0 @@
-name = "starship"
-revision = 2
-desktop = false
-trust = "checksum"
-
-[install]
-type = "release"
-repo = "https://github.com/starship/starship"
-provider = "github"

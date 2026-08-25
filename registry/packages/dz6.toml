@@ -1,9 +1,0 @@
-name = "dz6"
-revision = 2
-desktop = false
-trust = "checksum"
-
-[install]
-type = "release"
-repo = "https://github.com/mentebinaria/dz6"
-provider = "github"

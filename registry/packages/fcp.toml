@@ -1,9 +1,0 @@
-name = "fcp"
-revision = 2
-desktop = false
-trust = "none"
-
-[install]
-type = "build"
-repo = "https://github.com/Svetlitski/fcp"
-provider = "github"
