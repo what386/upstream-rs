@@ -5,9 +5,10 @@ use crate::{
     },
     providers::provider_manager::ProviderManager,
     services::packaging::{PackagePhase, PackageProgressEvent},
+    utils::filesystem::read_utf8_or_utf16,
 };
 use anyhow::{Result, anyhow};
-use std::{fs, path::Path};
+use std::path::Path;
 
 use super::{
     super::checksum_verifier::is_checksum_asset_name,
@@ -94,7 +95,7 @@ impl<'a> SignatureVerifier<'a> {
                 .download_asset(signature_asset, provider, self.download_cache, dl_progress)
                 .await?;
 
-            let signature_contents = fs::read_to_string(signature_path)?;
+            let signature_contents = read_utf8_or_utf16(&signature_path)?;
 
             let minisign_status = verify_minisign_signature(
                 &target.path,
