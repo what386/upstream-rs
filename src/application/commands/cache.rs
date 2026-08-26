@@ -103,11 +103,7 @@ pub fn run_clean(categories: Vec<CacheKind>, dry_run: bool, paths: &UpstreamPath
 
 fn selected_kinds(categories: &[CacheKind]) -> Result<Vec<CacheKind>> {
     if categories.is_empty() || categories == [CacheKind::All] {
-        return Ok(vec![
-            CacheKind::Build,
-            CacheKind::Source,
-            CacheKind::Docs,
-        ]);
+        return Ok(vec![CacheKind::Build, CacheKind::Source, CacheKind::Docs]);
     }
 
     if categories.contains(&CacheKind::All) {
@@ -127,11 +123,7 @@ fn selected_kinds(categories: &[CacheKind]) -> Result<Vec<CacheKind>> {
 fn inspect(paths: &UpstreamPaths) -> Result<CacheReport> {
     inspect_selected(
         paths,
-        &[
-            CacheKind::Build,
-            CacheKind::Source,
-            CacheKind::Docs,
-        ],
+        &[CacheKind::Build, CacheKind::Source, CacheKind::Docs],
     )
 }
 
@@ -211,9 +203,9 @@ fn remove_path_without_following(path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::selected_kinds;
+    use crate::application::cli::arguments::CacheKind;
     #[cfg(unix)]
     use crate::utils::test_support;
-    use crate::application::cli::arguments::CacheKind;
     #[cfg(unix)]
     use std::fs;
 
@@ -221,11 +213,7 @@ mod tests {
     fn category_selection_expands_all_and_rejects_mixed_all() {
         assert_eq!(
             selected_kinds(&[]).expect("default categories"),
-            vec![
-                CacheKind::Build,
-                CacheKind::Source,
-                CacheKind::Docs,
-            ]
+            vec![CacheKind::Build, CacheKind::Source, CacheKind::Docs,]
         );
 
         assert!(selected_kinds(&[CacheKind::All, CacheKind::Docs]).is_err());

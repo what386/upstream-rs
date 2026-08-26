@@ -36,7 +36,9 @@ fn decode_utf16(bytes: &[u8], decode_unit: fn([u8; 2]) -> u16, encoding: &str) -
 
     char::decode_utf16(
         bytes
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|chunk| decode_unit([chunk[0], chunk[1]])),
     )
     .collect::<std::result::Result<String, _>>()
