@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-08-20*
+*Generated on 2026-08-26*
+
+## 2.17.0 — 2026-08-26
+
+### Changes
+
+- BREAKING: remove add subcommand
+- fix: signature verification now supports utf16
+
 
 ## 2.16.4 — 2026-08-20
 
