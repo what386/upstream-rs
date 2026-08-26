@@ -35,13 +35,6 @@ fi
 
 cargo publish --dry-run --locked
 
-python3 scripts/registry/build_index.py
-
-git add registry/index.min.json
-if ! git diff --cached --quiet; then
-    git commit -m "Update registry index"
-fi
-
 cargo fmt
 cargo spaced
 
