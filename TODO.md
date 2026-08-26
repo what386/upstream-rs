@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-25
+@modified: 2026-08-26
 
 
 ## Tasks
@@ -20,6 +20,9 @@
 
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
+
+- [ ] fix: signature verification now supports utf16
+      @created 2026-08-26 19:30
 
 
 ## Completed
