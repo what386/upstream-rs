@@ -31,19 +31,7 @@ _upstream() {
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:upstream-command-$line[1]:"
         case $line[1] in
-            (add)
-_arguments "${_arguments_options[@]}" : \
-'--fetch[Refresh the local registry index before resolving the package]' \
-'--dry-run[Preview resolution without downloading or installing the package]' \
-'-y[Accept confirmation prompts automatically]' \
-'--yes[Accept confirmation prompts automatically]' \
-'--no-pager[Prevent paging long command outputs]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-'::name -- Package name in the registry:_default' \
-&& ret=0
-;;
-(install)
+            (install)
 _arguments "${_arguments_options[@]}" : \
 '-t+[Release tag to install (defaults to latest matching the channel)]:TAG:_default' \
 '--tag=[Release tag to install (defaults to latest matching the channel)]:TAG:_default' \
@@ -705,7 +693,7 @@ _arguments "${_arguments_options[@]}" : \
 '--no-pager[Prevent paging long command outputs]' \
 '-h[Print help]' \
 '--help[Print help]' \
-'*::categories -- Cache categories to remove; omitting them removes all known categories:(build source docs registry all)' \
+'*::categories -- Cache categories to remove; omitting them removes all known categories:(build source docs all)' \
 && ret=0
 ;;
 (help)
@@ -1070,11 +1058,7 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:upstream-help-command-$line[1]:"
         case $line[1] in
-            (add)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(install)
+            (install)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -1390,7 +1374,6 @@ esac
 (( $+functions[_upstream_commands] )) ||
 _upstream_commands() {
     local commands; commands=(
-'add:Install a package from the configured registry' \
 'install:Install a release asset or direct download' \
 'build:Build and install a package from source' \
 'remove:Remove installed package files and metadata' \
@@ -1417,11 +1400,6 @@ _upstream_commands() {
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__add_commands] )) ||
-_upstream__subcmd__add_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream add commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__auth_commands] )) ||
 _upstream__subcmd__auth_commands() {
@@ -1719,7 +1697,6 @@ _upstream__subcmd__find_commands() {
 (( $+functions[_upstream__subcmd__help_commands] )) ||
 _upstream__subcmd__help_commands() {
     local commands; commands=(
-'add:Install a package from the configured registry' \
 'install:Install a release asset or direct download' \
 'build:Build and install a package from source' \
 'remove:Remove installed package files and metadata' \
@@ -1745,11 +1722,6 @@ _upstream__subcmd__help_commands() {
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'upstream help commands' commands "$@"
-}
-(( $+functions[_upstream__subcmd__help__subcmd__add_commands] )) ||
-_upstream__subcmd__help__subcmd__add_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help add commands' commands "$@"
 }
 (( $+functions[_upstream__subcmd__help__subcmd__auth_commands] )) ||
 _upstream__subcmd__help__subcmd__auth_commands() {

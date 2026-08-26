@@ -25,7 +25,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
             cand -V 'Print version'
             cand --version 'Print version'
-            cand add 'Install a package from the configured registry'
             cand install 'Install a release asset or direct download'
             cand build 'Build and install a package from source'
             cand remove 'Remove installed package files and metadata'
@@ -50,15 +49,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand history 'Show recent grouped operation history'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
-        }
-        &'upstream;add'= {
-            cand --fetch 'Refresh the local registry index before resolving the package'
-            cand --dry-run 'Preview resolution without downloading or installing the package'
-            cand -y 'Accept confirmation prompts automatically'
-            cand --yes 'Accept confirmation prompts automatically'
-            cand --no-pager 'Prevent paging long command outputs'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;install'= {
             cand -t 'Release tag to install (defaults to latest matching the channel)'
@@ -740,7 +730,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --help 'Print help (see more with ''--help'')'
         }
         &'upstream;help'= {
-            cand add 'Install a package from the configured registry'
             cand install 'Install a release asset or direct download'
             cand build 'Build and install a package from source'
             cand remove 'Remove installed package files and metadata'
@@ -764,8 +753,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand history 'Show recent grouped operation history'
             cand doctor 'Run diagnostics to detect installation and integration issues'
             cand help 'Print this message or the help of the given subcommand(s)'
-        }
-        &'upstream;help;add'= {
         }
         &'upstream;help;install'= {
         }

@@ -28,7 +28,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
             [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
-            [CompletionResult]::new('add', 'add', [CompletionResultType]::ParameterValue, 'Install a package from the configured registry')
             [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a release asset or direct download')
             [CompletionResult]::new('build', 'build', [CompletionResultType]::ParameterValue, 'Build and install a package from source')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove installed package files and metadata')
@@ -53,16 +52,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('history', 'history', [CompletionResultType]::ParameterValue, 'Show recent grouped operation history')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
-            break
-        }
-        'upstream;add' {
-            [CompletionResult]::new('--fetch', '--fetch', [CompletionResultType]::ParameterName, 'Refresh the local registry index before resolving the package')
-            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview resolution without downloading or installing the package')
-            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
-            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
-            [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
             break
         }
         'upstream;install' {
@@ -846,7 +835,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help' {
-            [CompletionResult]::new('add', 'add', [CompletionResultType]::ParameterValue, 'Install a package from the configured registry')
             [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a release asset or direct download')
             [CompletionResult]::new('build', 'build', [CompletionResultType]::ParameterValue, 'Build and install a package from source')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove installed package files and metadata')
@@ -870,9 +858,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('history', 'history', [CompletionResultType]::ParameterValue, 'Show recent grouped operation history')
             [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Run diagnostics to detect installation and integration issues')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
-            break
-        }
-        'upstream;help;add' {
             break
         }
         'upstream;help;install' {

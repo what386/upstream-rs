@@ -16,9 +16,6 @@ _upstream() {
             ",$1")
                 cmd="upstream"
                 ;;
-            upstream,add)
-                cmd="upstream__subcmd__add"
-                ;;
             upstream,auth)
                 cmd="upstream__subcmd__auth"
                 ;;
@@ -210,9 +207,6 @@ _upstream() {
                 ;;
             upstream__subcmd__export__subcmd__help,profile)
                 cmd="upstream__subcmd__export__subcmd__help__subcmd__profile"
-                ;;
-            upstream__subcmd__help,add)
-                cmd="upstream__subcmd__help__subcmd__add"
                 ;;
             upstream__subcmd__help,auth)
                 cmd="upstream__subcmd__help__subcmd__auth"
@@ -500,22 +494,8 @@ _upstream() {
 
     case "${cmd}" in
         upstream)
-            opts="-y -h -V --yes --no-pager --help --version add install build remove uninstall rollback reinstall upgrade list info changelog docs probe search find config auth package cache hooks import export history doctor help"
+            opts="-y -h -V --yes --no-pager --help --version install build remove uninstall rollback reinstall upgrade list info changelog docs probe search find config auth package cache hooks import export history doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__add)
-            opts="-y -h --fetch --dry-run --yes --no-pager --help"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -782,7 +762,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__cache__subcmd__clean)
-            opts="-y -h --dry-run --yes --no-pager --help build source docs registry all"
+            opts="-y -h --dry-run --yes --no-pager --help build source docs all"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1350,22 +1330,8 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help)
-            opts="add install build remove rollback reinstall upgrade list info changelog docs probe search find config auth package cache hooks import export history doctor help"
+            opts="install build remove rollback reinstall upgrade list info changelog docs probe search find config auth package cache hooks import export history doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__help__subcmd__add)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
