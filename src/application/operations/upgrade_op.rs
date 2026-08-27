@@ -153,63 +153,13 @@ pub enum UpgradeProgressEvent {
 }
 
 impl<'a> UpgradeOperation<'a> {
-    async fn check_packages_parallel(
-        &self,
-        packages: Vec<crate::models::upstream::Package>,
-        checking_callback: &mut dyn FnMut(&str),
-    ) -> Vec<(
-        crate::models::upstream::Package,
-        Result<Option<(String, String)>>,
-    )> {
-        let package_count = packages.len();
-        let mut checked = Vec::with_capacity(package_count);
-        let mut package_iter = packages.into_iter().enumerate();
-        let mut pending = FuturesUnordered::new();
-
-        for _ in 0..self.concurrency_config.check_concurrency() {
-            let Some((idx, pkg)) = package_iter.next() else {
-                break;
-            };
-
-            checking_callback(&pkg.name);
-            pending.push(self.check_package_at_index(idx, pkg));
-        }
-
-        while let Some((idx, pkg, result)) = pending.next().await {
-            checked.push((idx, pkg, result));
-
-            if let Some((next_idx, next_pkg)) = package_iter.next() {
-                checking_callback(&next_pkg.name);
-                pending.push(self.check_package_at_index(next_idx, next_pkg));
-            }
-        }
-
-        checked.sort_by_key(|(idx, _, _)| *idx);
-        checked
-            .into_iter()
-            .map(|(_, pkg, result)| (pkg, result))
-            .collect()
-    }
-
-    async fn check_package_at_index(
-        &self,
-        idx: usize,
-        pkg: crate::models::upstream::Package,
-    ) -> (
-        usize,
-        crate::models::upstream::Package,
-        Result<Option<(String, String)>>,
-    ) {
-        let result = self.checker.check_one(&pkg).await;
-        (idx, pkg, result)
-    }
-
     async fn check_installed_packages_detailed_with_callback(
         &self,
         packages: Vec<crate::models::upstream::Package>,
         checking_callback: &mut dyn FnMut(&str),
     ) -> Vec<UpdateCheckRow> {
-        self.check_packages_parallel(packages, checking_callback)
+        self.checker
+            .check_many(packages, checking_callback)
             .await
             .into_iter()
             .map(|(pkg, result)| match result {
@@ -249,7 +199,7 @@ impl<'a> UpgradeOperation<'a> {
         let installer = PackageInstaller::new(provider_manager, paths)?;
         Ok(Self {
             upgrader: PackageUpgrader::new(provider_manager, installer, paths, trusted_keys),
-            checker: PackageChecker::new(provider_manager),
+            checker: PackageChecker::new(provider_manager, concurrency_config),
             paths,
             package_database,
             concurrency_config,
