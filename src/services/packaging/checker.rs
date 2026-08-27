@@ -149,6 +149,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.is_pinned = true;
         package
     }
@@ -157,6 +158,7 @@ mod tests {
     async fn check_many_suppresses_pinned_packages_and_preserves_order() {
         let provider_manager =
             ProviderManager::new(None, None, None, Default::default()).expect("provider manager");
+
         let checker = PackageChecker::new(&provider_manager, ConcurrencyConfig::default());
         let packages = vec![pinned_package("first"), pinned_package("second")];
         let mut checked_names = Vec::new();
@@ -173,6 +175,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["first", "second"]
         );
+
         assert!(
             results
                 .into_iter()
