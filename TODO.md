@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-26
+@modified: 2026-08-27
 
 
 ## Tasks
@@ -20,4 +20,7 @@
 
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
+
+- [ ] fix: check --machine-readable/--json no longer reports pinned packages as needing updates
+      @created 2026-08-27 19:33
 
