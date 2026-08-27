@@ -21,10 +21,3 @@
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
 
-
-## Completed
-
-- [x] fix: check --machine-readable/--json no longer reports pinned packages as needing updates
-      @created 2026-08-27 19:33
-      @completed 2026-08-27 19:33
-

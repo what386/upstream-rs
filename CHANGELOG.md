@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-08-26*
+*Generated on 2026-08-27*
+
+## 2.17.1 — 2026-08-27
+
+### Changes
+
+- fix: check --machine-readable/--json no longer reports pinned packages as needing updates
+
 
 ## 2.17.0 — 2026-08-26
 
