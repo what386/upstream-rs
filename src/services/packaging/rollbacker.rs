@@ -96,7 +96,7 @@ impl<'a> RollbackManager<'a> {
     where
         H: FnMut(&str),
     {
-        self.capture_backup_path_with_icon_source(
+        self.capture_backup(
             package,
             backup_path,
             package.icon_path.as_deref(),
@@ -106,7 +106,7 @@ impl<'a> RollbackManager<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn capture_backup_path_with_icon_source<H>(
+    pub fn capture_backup<H>(
         &mut self,
         package: &Package,
         backup_path: &Path,

@@ -99,7 +99,7 @@ pub fn run(
         })
         .collect::<Vec<_>>();
 
-    output::print_transaction_table_with_size_rows(
+    output::print_transaction_table_with_totals(
         &transaction_rows,
         &impact,
         "Net disk change:",

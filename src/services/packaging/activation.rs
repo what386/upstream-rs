@@ -447,7 +447,7 @@ impl<'a> PackageActivator<'a> {
         icon_source: Option<&Path>,
         source: RollbackSource,
     ) -> Result<()> {
-        RollbackManager::new(paths)?.capture_backup_path_with_icon_source(
+        RollbackManager::new(paths)?.capture_backup(
             package,
             backup_path,
             icon_source,

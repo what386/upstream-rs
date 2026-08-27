@@ -207,7 +207,7 @@ pub async fn run(
                 PackageProgressEvent::Download { .. } | PackageProgressEvent::Zsync { .. }
             )
         {
-            progress_pb.set_message(render_probe_install_progress_message(
+            progress_pb.set_message(format_install_progress(
                 &progress_name,
                 event,
                 progress_name_width,
@@ -271,11 +271,7 @@ pub async fn run(
     Ok(())
 }
 
-fn render_probe_install_progress_message(
-    name: &str,
-    event: PackageProgressEvent,
-    name_width: usize,
-) -> String {
+fn format_install_progress(name: &str, event: PackageProgressEvent, name_width: usize) -> String {
     format!(
         "Installing {name}\n{}",
         render_probe_install_progress_row(name, event, name_width)
@@ -665,8 +661,8 @@ fn truncate(value: &str, max: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        JsonProbeResult, ProbeAssetChoiceTable, json_probe_result,
-        render_probe_install_progress_message, render_probe_install_progress_row,
+        JsonProbeResult, ProbeAssetChoiceTable, format_install_progress, json_probe_result,
+        render_probe_install_progress_row,
     };
     use crate::{
         application::operations::probe_op::{
@@ -953,7 +949,7 @@ mod tests {
     #[test]
     fn probe_install_progress_message_uses_dynamic_name_width() {
         assert_eq!(
-            render_probe_install_progress_message(
+            format_install_progress(
                 "pnpm",
                 PackageProgressEvent::Phase(PackagePhase::InstallingPackage,),
                 5,

@@ -157,14 +157,12 @@ impl<'a> BuildOperation<'a> {
                     format!("{} ({})", resolved_repo_slug, resolved_provider),
                 );
                 output::kv("Ref", format!("branch {} @ {}", branch, commit));
-                output::print_transaction_table_without_size(&[
-                    output::TransactionRow::single_version(
-                        format!("{}/{}", resolved_provider, input.name),
-                        branch,
-                        disk_impact.net,
-                        disk_impact.download,
-                    ),
-                ]);
+                output::print_transaction_table_compact(&[output::TransactionRow::single_version(
+                    format!("{}/{}", resolved_provider, input.name),
+                    branch,
+                    disk_impact.net,
+                    disk_impact.download,
+                )]);
             } else {
                 let release = if let Some(tag) = input.tag.as_deref() {
                     self.provider_manager
@@ -198,14 +196,12 @@ impl<'a> BuildOperation<'a> {
                     format!("{} ({})", resolved_repo_slug, resolved_provider),
                 );
                 output::kv("Ref", format!("release {} ({})", release.name, release.tag));
-                output::print_transaction_table_without_size(&[
-                    output::TransactionRow::single_version(
-                        format!("{}/{}", resolved_provider, input.name),
-                        &release.tag,
-                        disk_impact.net,
-                        disk_impact.download,
-                    ),
-                ]);
+                output::print_transaction_table_compact(&[output::TransactionRow::single_version(
+                    format!("{}/{}", resolved_provider, input.name),
+                    &release.tag,
+                    disk_impact.net,
+                    disk_impact.download,
+                )]);
             }
 
             match input.build_profile {
@@ -233,7 +229,7 @@ impl<'a> BuildOperation<'a> {
             .or(input.tag.as_deref())
             .unwrap_or("latest");
 
-        output::print_transaction_table_without_size(&[output::TransactionRow::single_version(
+        output::print_transaction_table_compact(&[output::TransactionRow::single_version(
             format!("{}/{}", resolved_provider, input.name),
             new_version,
             disk_impact.net,

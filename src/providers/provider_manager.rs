@@ -171,10 +171,7 @@ impl ProviderManager {
         if matches!(package.provider, Provider::Direct | Provider::WebScraper) {
             let resolved = self.resolve_provider(&package.provider, package.base_url.as_deref())?;
             return resolved
-                .get_latest_release_if_modified_since(
-                    &package.repo_slug,
-                    Some(package.last_upgraded),
-                )
+                .get_latest_release_since(&package.repo_slug, Some(package.last_upgraded))
                 .await;
         }
 

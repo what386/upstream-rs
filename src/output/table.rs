@@ -62,10 +62,10 @@ impl TransactionRow {
 }
 
 pub fn print_transaction_table(rows: &[TransactionRow], totals: &DiskImpact, net_label: &str) {
-    print_transaction_table_with_size_rows(rows, totals, net_label, &[]);
+    print_transaction_table_with_totals(rows, totals, net_label, &[]);
 }
 
-pub fn print_transaction_table_without_size(rows: &[TransactionRow]) {
+pub fn print_transaction_table_compact(rows: &[TransactionRow]) {
     let layout = TransactionTableLayout::from_rows_without_size(rows);
     layout.print_header();
     for row in rows {
@@ -75,7 +75,7 @@ pub fn print_transaction_table_without_size(rows: &[TransactionRow]) {
     println!();
 }
 
-pub fn print_transaction_table_with_size_rows(
+pub fn print_transaction_table_with_totals(
     rows: &[TransactionRow],
     totals: &DiskImpact,
     net_label: &str,

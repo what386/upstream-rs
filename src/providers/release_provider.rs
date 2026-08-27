@@ -56,7 +56,7 @@ pub trait ReleaseProvider {
         ))
     }
 
-    async fn get_latest_release_if_modified_since(
+    async fn get_latest_release_since(
         &self,
         slug: &str,
         _last_upgraded: Option<DateTime<Utc>>,
@@ -123,14 +123,12 @@ where
         (*self).search_repositories(query, limit, filters).await
     }
 
-    async fn get_latest_release_if_modified_since(
+    async fn get_latest_release_since(
         &self,
         slug: &str,
         last_upgraded: Option<DateTime<Utc>>,
     ) -> Result<Option<Release>> {
-        (*self)
-            .get_latest_release_if_modified_since(slug, last_upgraded)
-            .await
+        (*self).get_latest_release_since(slug, last_upgraded).await
     }
 
     async fn download_asset(

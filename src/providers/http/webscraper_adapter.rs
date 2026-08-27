@@ -112,12 +112,12 @@ impl WebScraperAdapter {
     }
 
     pub async fn get_latest_release(&self, slug: &str) -> Result<Release> {
-        self.get_latest_release_if_modified_since(slug, None)
+        self.get_latest_release_since(slug, None)
             .await?
             .ok_or_else(|| anyhow!("Unexpected not-modified response for scraper provider"))
     }
 
-    pub async fn get_latest_release_if_modified_since(
+    pub async fn get_latest_release_since(
         &self,
         slug: &str,
         last_upgraded: Option<DateTime<Utc>>,
@@ -265,12 +265,12 @@ impl ReleaseProvider for WebScraperAdapter {
         WebScraperAdapter::get_release_by_tag(self, slug, tag).await
     }
 
-    async fn get_latest_release_if_modified_since(
+    async fn get_latest_release_since(
         &self,
         slug: &str,
         last_upgraded: Option<DateTime<Utc>>,
     ) -> Result<Option<Release>> {
-        WebScraperAdapter::get_latest_release_if_modified_since(self, slug, last_upgraded).await
+        WebScraperAdapter::get_latest_release_since(self, slug, last_upgraded).await
     }
 
     async fn download_asset(
@@ -587,7 +587,7 @@ mod tests {
             WebScraperAdapter::new(HttpClient::new(Default::default()).expect("http client"));
 
         let release = adapter
-            .get_latest_release_if_modified_since(&server, Some(Utc::now()))
+            .get_latest_release_since(&server, Some(Utc::now()))
             .await
             .expect("conditional release");
 

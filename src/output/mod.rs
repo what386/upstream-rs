@@ -27,8 +27,8 @@ pub use style::{
 };
 pub use table::{
     SizeImpactRow, TransactionRow, TransactionTableLayout, print_disk_impact,
-    print_disk_impact_with_size_rows, print_transaction_table,
-    print_transaction_table_with_size_rows, print_transaction_table_without_size,
+    print_disk_impact_with_size_rows, print_transaction_table, print_transaction_table_compact,
+    print_transaction_table_with_totals,
 };
 
 pub use other::{progress_name_width, shorten_upstream_package_path};

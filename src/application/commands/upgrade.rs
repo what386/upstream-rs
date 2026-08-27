@@ -227,11 +227,11 @@ pub async fn run(
             .collect::<Vec<_>>();
 
         if preview_rows.iter().all(|row| row.source_build) {
-            output::print_transaction_table_without_size(&transaction_rows);
+            output::print_transaction_table_compact(&transaction_rows);
         } else {
             let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(&preview_rows);
             let size_rows = rollback_size_rows(rollback_impact);
-            output::print_transaction_table_with_size_rows(
+            output::print_transaction_table_with_totals(
                 &transaction_rows,
                 &impact,
                 "Net disk change:",
@@ -582,7 +582,7 @@ fn render_check_table(
 
         let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(preview_rows);
         let size_rows = rollback_size_rows(rollback_impact);
-        output::print_transaction_table_with_size_rows(
+        output::print_transaction_table_with_totals(
             &transaction_rows,
             &impact,
             "Net disk change:",

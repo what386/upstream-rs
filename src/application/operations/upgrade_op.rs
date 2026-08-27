@@ -153,7 +153,7 @@ pub enum UpgradeProgressEvent {
 }
 
 impl<'a> UpgradeOperation<'a> {
-    async fn check_installed_packages_detailed_with_callback(
+    async fn check_packages(
         &self,
         packages: Vec<crate::models::upstream::Package>,
         checking_callback: &mut dyn FnMut(&str),
@@ -429,7 +429,7 @@ impl<'a> UpgradeOperation<'a> {
 
             match result {
                 Ok(updated) => {
-                    match persist_upgrade_and_emit_complete(
+                    match complete_upgrade(
                         self.paths,
                         self.package_database,
                         &progress_callback,
@@ -491,9 +491,7 @@ impl<'a> UpgradeOperation<'a> {
     ) -> Result<Vec<UpdateCheckRow>> {
         let Some(package_names) = package_names else {
             let packages = self.package_database.list_packages()?;
-            return Ok(self
-                .check_installed_packages_detailed_with_callback(packages, checking_callback)
-                .await);
+            return Ok(self.check_packages(packages, checking_callback).await);
         };
 
         let mut rows: Vec<Option<UpdateCheckRow>> =
@@ -526,7 +524,7 @@ impl<'a> UpgradeOperation<'a> {
         }
 
         let checked_rows = self
-            .check_installed_packages_detailed_with_callback(selected_packages, checking_callback)
+            .check_packages(selected_packages, checking_callback)
             .await;
 
         for (row_idx, checked_row) in selected_indices.into_iter().zip(checked_rows) {
@@ -537,7 +535,7 @@ impl<'a> UpgradeOperation<'a> {
     }
 }
 
-fn persist_upgrade_and_emit_complete<P>(
+fn complete_upgrade<P>(
     paths: &UpstreamPaths,
     package_database: &mut PackageDatabase,
     progress_callback: &SharedProgressCallback<'_, P>,
@@ -563,8 +561,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        UpgradePackageResult, UpgradeProgressEvent, emit_package_progress, emit_progress,
-        persist_upgrade_and_emit_complete, preview_package_width,
+        UpgradePackageResult, UpgradeProgressEvent, complete_upgrade, emit_package_progress,
+        emit_progress, preview_package_width,
     };
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
@@ -726,7 +724,7 @@ mod tests {
 
             let callback = Arc::new(Mutex::new(&mut callback));
 
-            persist_upgrade_and_emit_complete(
+            complete_upgrade(
                 &paths,
                 &mut database,
                 &callback,
