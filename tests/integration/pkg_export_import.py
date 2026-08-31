@@ -35,9 +35,11 @@ def main() -> None:
 
         assert "low_threads = 3" in config_path.read_text(encoding="utf-8")
         packages_export = read_json(packages_path)
-        assert packages_export["packages"][0]["name"] == PACKAGE, packages_export
+        assert packages_export["packages"][0]["id"].endswith(f"/{REPO.split('/')[-1]}"), packages_export
         profile_export = read_json(profile_path)
-        assert profile_export["packages"]["packages"][0]["name"] == PACKAGE, profile_export
+        assert profile_export["packages"]["packages"][0]["id"].endswith(
+            f"/{REPO.split('/')[-1]}"
+        ), profile_export
         assert read_json(keys_path)["version"] >= 1
 
         # Package and config/key imports are independently useful restore paths.

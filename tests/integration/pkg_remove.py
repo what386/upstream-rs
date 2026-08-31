@@ -19,7 +19,7 @@ def main() -> None:
 
     packages = run_upstream_json("list")
     assert isinstance(packages, list), packages
-    assert all(item.get("name") != PACKAGE for item in packages), packages
+    assert all(item.get("id") != package["id"] for item in packages), packages
     assert not executable.exists(), executable
 
     info = run_upstream_result("info", PACKAGE, "--json")

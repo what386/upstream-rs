@@ -224,7 +224,7 @@ function Test-UpstreamPackageInstalled {
         return $false
     }
 
-    return [bool]($packages | Where-Object { $_.name -eq "upstream" } | Select-Object -First 1)
+    return [bool]($packages | Where-Object { $_.id -eq "upstream" } | Select-Object -First 1)
 }
 
 function Install-UpstreamIfMissing {

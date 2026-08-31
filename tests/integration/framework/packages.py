@@ -12,17 +12,28 @@ def package_from_list(name: str) -> dict[str, object]:
     packages = run_upstream_json("list")
     if not isinstance(packages, list):
         raise AssertionError(f"expected package list, got {packages!r}")
-    matches = [package for package in packages if package.get("name") == name]
+    matches = [
+        package
+        for package in packages
+        if package.get("id") == name
+        or any(
+            isinstance(executable, dict) and executable.get("name") == name
+            for executable in package.get("executables", [])
+        )
+    ]
     if len(matches) != 1:
         raise AssertionError(f"expected one package named {name!r}, got {matches!r}")
     return matches[0]
 
 
 def package_path(package: dict[str, object]) -> Path:
-    value = package.get("exec_path") or package.get("install_path")
-    if not isinstance(value, str):
+    executables = package.get("executables")
+    if not isinstance(executables, list) or not executables:
+        raise AssertionError(f"package has no executables: {package!r}")
+    path = executables[0].get("path") if isinstance(executables[0], dict) else None
+    if not isinstance(path, str):
         raise AssertionError(f"package has no executable path: {package!r}")
-    return Path(value)
+    return Path(path)
 
 
 def install_package(repo: str, package: str, tag: str) -> dict[str, object]:

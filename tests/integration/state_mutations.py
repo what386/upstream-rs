@@ -40,7 +40,7 @@ def main() -> None:
 
     # Package metadata mutations do not reinstall the artifact.
     package = install_package(REPO, PACKAGE, TAG)
-    assert package["name"] == PACKAGE, package
+    assert package["id"].endswith(f"/{REPO.split('/')[-1]}"), package
     run_upstream("package", "pin", PACKAGE)
     assert package_from_list(PACKAGE)["is_pinned"] is True
     run_upstream("package", "unpin", PACKAGE)
@@ -72,13 +72,11 @@ def main() -> None:
     assert not docs_cache.exists()
 
     run_upstream("package", "rename", PACKAGE, RENAMED_PACKAGE)
-    assert package_from_list(RENAMED_PACKAGE)["name"] == RENAMED_PACKAGE
-    assert not any(
-        item.get("name") == PACKAGE for item in run_upstream_json("list")
-    )
+    assert package_from_list(RENAMED_PACKAGE)["id"] == package["id"]
+    assert sum(item.get("id") == package["id"] for item in run_upstream_json("list")) == 1
 
     run_upstream("package", "rename", RENAMED_PACKAGE, PACKAGE)
-    assert package_from_list(PACKAGE)["name"] == PACKAGE
+    assert package_from_list(PACKAGE)["id"] == package["id"]
 
     print("config, auth, package settings, cache, and package rename mutations passed")
 

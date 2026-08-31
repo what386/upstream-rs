@@ -23,7 +23,7 @@ def main() -> None:
     assert package_version(old_package) == (14, 1, 0), old_package
 
     check = run_upstream_json("upgrade", PACKAGE, "--check")
-    row = next((item for item in check if item.get("name") == PACKAGE), None)
+    row = next((item for item in check if item.get("name") == old_package["id"]), None)
     assert row is not None, check
     latest_tag = row["latest"]
     assert isinstance(latest_tag, str), row

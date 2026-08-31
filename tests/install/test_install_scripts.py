@@ -33,7 +33,7 @@ class PosixInstallerTests(unittest.TestCase):
         self.binary.write_text(
             "#!/bin/sh\n"
             'printf "%s\\n" "$*" >> "$MOCK_COMMAND_LOG"\n'
-            'if [ "$1" = "list" ]; then printf \'[{"name":"upstream"}]\\n\'; fi\n',
+            'if [ "$1" = "list" ]; then printf \'[{"id":"upstream"}]\\n\'; fi\n',
             encoding="utf-8",
         )
         self.binary.chmod(self.binary.stat().st_mode | stat.S_IXUSR)

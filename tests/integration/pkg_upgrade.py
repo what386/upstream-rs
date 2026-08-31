@@ -25,7 +25,7 @@ def main() -> None:
 
     check = run_upstream_json("upgrade", PACKAGE, "--check")
     assert isinstance(check, list), check
-    row = next((item for item in check if item.get("name") == PACKAGE), None)
+    row = next((item for item in check if item.get("name") == old_package["id"]), None)
     assert row is not None, check
     assert row["state"] == "update_available", row
     assert row["current"] == "14.1.0", row
