@@ -158,7 +158,7 @@ fn package_ref_label(package: &Package) -> String {
 }
 
 struct ColumnWidths {
-    name: usize,
+    id: usize,
     commands: usize,
     repo: usize,
     kind: usize,
@@ -172,7 +172,7 @@ struct ColumnWidths {
 
 impl ColumnWidths {
     fn from_packages(packages: &[Package], term_width: usize) -> Self {
-        let max_name = packages
+        let max_id = packages
             .iter()
             .map(|p| p.id.chars().count())
             .max()
@@ -214,7 +214,7 @@ impl ColumnWidths {
             .unwrap_or(8);
 
         let mut widths = Self {
-            name: max_name.clamp("Name".len(), 24),
+            id: max_id.clamp("ID".len(), 32),
             commands: max_commands.clamp("Commands".len(), 24),
             repo: max_repo.clamp("Repo".len(), 28),
             kind: max_kind.clamp("Kind".len(), "release".len()),
@@ -226,7 +226,7 @@ impl ColumnWidths {
             path: 30,
         };
 
-        let non_path_width = widths.name
+        let non_path_width = widths.id
             + widths.commands
             + widths.repo
             + widths.kind
@@ -272,7 +272,7 @@ fn format_package_table(packages: &[Package]) -> String {
 }
 
 fn table_width(widths: &ColumnWidths) -> usize {
-    widths.name
+    widths.id
         + widths.commands
         + widths.repo
         + widths.kind
@@ -288,8 +288,8 @@ fn table_width(widths: &ColumnWidths) -> usize {
 fn write_table_header(out: &mut String, widths: &ColumnWidths) {
     writeln!(
         out,
-        "{:<name$} {:<commands$} {:<repo$} {:<kind$} {:<reference$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
-        "Name",
+        "{:<id$} {:<commands$} {:<repo$} {:<kind$} {:<reference$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
+        "ID",
         "Commands",
         "Repo",
         "Kind",
@@ -299,7 +299,7 @@ fn write_table_header(out: &mut String, widths: &ColumnWidths) {
         "Flags",
         "Updated",
         "Install Path",
-        name = widths.name,
+        id = widths.id,
         commands = widths.commands,
         repo = widths.repo,
         kind = widths.kind,
@@ -332,8 +332,8 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
 
     writeln!(
         out,
-        "{:<name$} {:<commands$} {:<repo$} {:<kind$} {:<reference$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
-        output::truncate_end(&package.id, widths.name),
+        "{:<id$} {:<commands$} {:<repo$} {:<kind$} {:<reference$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
+        output::truncate_end(&package.id, widths.id),
         output::truncate_end(&package_commands(package), widths.commands),
         output::truncate_end(&package.repo_slug, widths.repo),
         package_kind_label(package),
@@ -343,7 +343,7 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
         flags,
         last_updated,
         install_path,
-        name = widths.name,
+        id = widths.id,
         commands = widths.commands,
         repo = widths.repo,
         kind = widths.kind,
