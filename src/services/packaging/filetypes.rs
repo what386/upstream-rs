@@ -30,19 +30,6 @@ fn set_executable_aliases(package: &mut Package, paths: Vec<std::path::PathBuf>)
             Some(PackageExecutable { path, name })
         })
         .collect();
-
-    if let Some(alias) = package.install_alias.take()
-        && let Some(primary) = package.executables.first()
-        && !package
-            .executables
-            .iter()
-            .any(|executable| executable.name == alias)
-    {
-        package.executables.push(PackageExecutable {
-            path: primary.path.clone(),
-            name: alias,
-        });
-    }
 }
 
 /// Best-effort completion install for a package root; failures are reported

@@ -57,8 +57,6 @@ pub struct Package {
     pub install_path: Option<PathBuf>,
     #[serde(default)]
     pub executables: Vec<PackageExecutable>,
-    #[serde(skip)]
-    pub install_alias: Option<String>,
 
     pub last_upgraded: DateTime<Utc>,
 }
@@ -97,7 +95,6 @@ impl Package {
             icon_path: None,
             install_path: None,
             executables: Vec::new(),
-            install_alias: None,
 
             last_upgraded: Utc::now(),
         }

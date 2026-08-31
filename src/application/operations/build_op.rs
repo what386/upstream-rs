@@ -25,7 +25,6 @@ pub struct BuildOperation<'a> {
 }
 
 pub struct BuildCommandInput {
-    pub name: String,
     pub repo_slug: String,
     pub tag: Option<String>,
     pub semver: Option<String>,
@@ -101,6 +100,14 @@ impl<'a> BuildOperation<'a> {
             bail!("Build supports forge providers only (github/gitlab/gitea)");
         }
 
+        let package_id = Package::key(&resolved_provider, &resolved_repo_slug);
+        let build_name = resolved_repo_slug
+            .rsplit('/')
+            .next()
+            .unwrap_or(&resolved_repo_slug)
+            .trim_end_matches(".git")
+            .to_string();
+
         if let Some(semver) = input.semver.as_deref() {
             let requested = crate::models::common::Version::parse(semver)
                 .with_context(|| format!("Invalid semantic version '{semver}'"))?;
@@ -151,14 +158,14 @@ impl<'a> BuildOperation<'a> {
                     ))?;
 
                 println!("{}", output::title("Build preview"));
-                output::kv("Package", &input.name);
+                output::kv("Package", &package_id);
                 output::kv(
                     "Source",
                     format!("{} ({})", resolved_repo_slug, resolved_provider),
                 );
                 output::kv("Ref", format!("branch {} @ {}", branch, commit));
                 output::print_transaction_table_compact(&[output::TransactionRow::single_version(
-                    format!("{}/{}", resolved_provider, input.name),
+                    package_id.clone(),
                     branch,
                     disk_impact.net,
                     disk_impact.download,
@@ -190,14 +197,14 @@ impl<'a> BuildOperation<'a> {
                 };
 
                 println!("{}", output::title("Build preview"));
-                output::kv("Package", &input.name);
+                output::kv("Package", &package_id);
                 output::kv(
                     "Source",
                     format!("{} ({})", resolved_repo_slug, resolved_provider),
                 );
                 output::kv("Ref", format!("release {} ({})", release.name, release.tag));
                 output::print_transaction_table_compact(&[output::TransactionRow::single_version(
-                    format!("{}/{}", resolved_provider, input.name),
+                    package_id.clone(),
                     &release.tag,
                     disk_impact.net,
                     disk_impact.download,
@@ -230,7 +237,7 @@ impl<'a> BuildOperation<'a> {
             .unwrap_or("latest");
 
         output::print_transaction_table_compact(&[output::TransactionRow::single_version(
-            format!("{}/{}", resolved_provider, input.name),
+            package_id,
             new_version,
             disk_impact.net,
             disk_impact.download,
@@ -244,7 +251,7 @@ impl<'a> BuildOperation<'a> {
         let build_result = worker
             .build(
                 BuildRequest {
-                    name: input.name.clone(),
+                    name: build_name,
                     repo_slug: resolved_repo_slug.clone(),
                     provider: resolved_provider.clone(),
                     base_url: resolved_base_url.clone(),
@@ -277,8 +284,6 @@ impl<'a> BuildOperation<'a> {
             resolved_provider,
             resolved_base_url,
         );
-        package.install_alias = (!input.name.is_empty()).then_some(input.name);
-
         package.install_type = InstallType::Build;
         package.build_branch = build_result.branch.clone();
         package.build_commit = build_result.commit.clone();

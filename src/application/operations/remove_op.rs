@@ -183,7 +183,7 @@ impl<'a> RemoveOperation<'a> {
                     .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
 
                 Ok((
-                    format!("{}/{}", package.provider, package.id),
+                    package.id.clone(),
                     package.version.to_string(),
                     self.remover.estimate_remove_impact(&package, purge_option),
                 ))

@@ -122,15 +122,15 @@ If completion directories are missing, run `upstream hooks init`.
 Preview before installing:
 
 ```bash
-upstream install owner/repo app --dry-run
+upstream install owner/repo --dry-run
 upstream probe owner/repo --dry-run
 ```
 
 Guide selection with:
 
 ```bash
-upstream install owner/repo app --kind archive
-upstream install owner/repo app --match-pattern x86_64 --exclude-pattern debug
+upstream install owner/repo --kind archive
+upstream install owner/repo --match-pattern x86_64 --exclude-pattern debug
 ```
 
 ## Upgrade Problems
@@ -203,7 +203,7 @@ artifacts and does not repair an active installation.
 Build installs require the language toolchain and project dependencies to already work locally. If auto-detection is ambiguous:
 
 ```bash
-upstream build owner/repo app --build-profile rust
+upstream build owner/repo --build-profile rust
 ```
 
 If a project needs custom build steps that do not fit the supported profiles, use a prebuilt release asset or add project install/upgrade scripts upstream can review and run.

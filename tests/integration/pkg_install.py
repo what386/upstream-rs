@@ -23,7 +23,6 @@ def main() -> None:
     run_upstream(
         "install",
         REPO,
-        PACKAGE,
         "--tag",
         TAG,
         "--yes",

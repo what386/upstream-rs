@@ -38,22 +38,29 @@ pub fn make_executable(_exec_path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Find executable files in an extracted artifact. The repository basename is
-/// preferred, but a single differently named command remains discoverable.
+/// Find executable files in an extracted artifact. A non-empty \`bin\` directory
+/// takes precedence over the artifact root; only one of those directories is
+/// scanned.
 pub fn find_executables(directory_path: &Path, preferred_name: &str) -> Vec<PathBuf> {
     let mut paths = Vec::new();
-    for directory in [directory_path.to_path_buf(), directory_path.join("bin")] {
-        let Ok(entries) = fs::read_dir(directory) else {
+    let bin_directory = directory_path.join("bin");
+    let directory =
+        if fs::read_dir(&bin_directory).is_ok_and(|mut entries| entries.next().is_some()) {
+            bin_directory
+        } else {
+            directory_path.to_path_buf()
+        };
+
+    let Ok(entries) = fs::read_dir(directory) else {
+        return paths;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(kind) = entry.file_type() else {
             continue;
         };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let Ok(kind) = entry.file_type() else {
-                continue;
-            };
-            if kind.is_file() && !is_shared_library(&path) && is_executable_file(&path) {
-                paths.push(path);
-            }
+        if kind.is_file() && !is_shared_library(&path) && is_executable_file(&path) {
+            paths.push(path);
         }
     }
     paths.sort_by(|left, right| {
@@ -134,7 +141,7 @@ mod tests {
     }
 
     #[test]
-    fn finds_root_and_bin_executables_without_descending() {
+    fn scans_only_non_empty_bin_directory() {
         let root = temp_root("direct");
         fs::create_dir_all(&root).expect("create root");
         let root_executable = root.join(executable_name("tool"));
@@ -154,7 +161,25 @@ mod tests {
         }
 
         let found = find_executables(&root, "tool");
-        assert_eq!(found, vec![root_executable, bin_executable]);
+        assert_eq!(found, vec![bin_executable]);
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn falls_back_to_root_when_bin_directory_is_empty() {
+        let root = temp_root("empty-bin");
+        fs::create_dir_all(root.join("bin")).expect("create bin");
+        let root_executable = root.join(executable_name("tool"));
+        fs::write(&root_executable, b"#!/bin/sh\n").expect("write executable");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&root_executable, fs::Permissions::from_mode(0o755))
+                .expect("make executable");
+        }
+
+        assert_eq!(find_executables(&root, "tool"), vec![root_executable]);
 
         cleanup(&root).expect("cleanup");
     }

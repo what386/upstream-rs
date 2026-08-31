@@ -119,7 +119,6 @@ impl<'a> ProbeOperation<'a> {
         &self,
         result: &ProbeResult,
         selected_index: usize,
-        install_name: String,
     ) -> Result<ProbeInstallSelection> {
         let selected_choice = result
             .choices
@@ -136,7 +135,7 @@ impl<'a> ProbeOperation<'a> {
         let generated = AssetSelector::new().generate_patterns_for_asset(
             &selected_asset,
             &selected_release.assets,
-            &install_name,
+            result.repo_slug.rsplit('/').next().unwrap_or_default(),
         );
 
         let mut package = Package::with_defaults(
@@ -150,7 +149,6 @@ impl<'a> ProbeOperation<'a> {
             result.base_url.clone(),
         );
 
-        package.install_alias = (!install_name.is_empty()).then_some(install_name);
         package.repo_slug = result.repo_slug.clone();
         package.filetype = selected_asset.filetype;
         package.channel = result.channel.clone();

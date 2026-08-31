@@ -4,10 +4,7 @@ use std::time::Duration;
 
 use crate::{
     application::operations::install_op::{InstallOperation, PlannedReleaseInstallRequest},
-    application::{
-        commands::{build, resolve_new_package_name},
-        context::CommandContext,
-    },
+    application::{commands::build, context::CommandContext},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         upstream::{
@@ -24,7 +21,6 @@ use crate::{
         provider_manager::ProviderManager,
     },
     services::packaging::PackageProgressEvent,
-    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -124,7 +120,6 @@ fn render_install_progress_row(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
-    name: Option<String>,
     repo_slug: String,
     kind: Filetype,
     version: Option<String>,
@@ -140,18 +135,7 @@ pub async fn run(
     paths: &UpstreamPaths,
     app_config: &AppConfig,
 ) -> Result<()> {
-    let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
-
-    let name = resolve_new_package_name(
-        name,
-        &repo_slug,
-        provider.as_ref(),
-        base_url.as_deref(),
-        &package_database,
-    )?;
-
     let plan = InstallPlan {
-        name,
         desktop: create_entry,
         source: InstallSource::Release(ReleaseInstallSource {
             source: repo_slug,
@@ -175,17 +159,12 @@ pub async fn run_plan(
     paths: &UpstreamPaths,
     app_config: &AppConfig,
 ) -> Result<()> {
-    let InstallPlan {
-        name,
-        desktop,
-        source,
-    } = plan;
+    let InstallPlan { desktop, source } = plan;
 
     match source {
         InstallSource::Build(source) => {
             build::run_plan(
                 InstallPlan {
-                    name,
                     desktop,
                     source: InstallSource::Build(source),
                 },
@@ -201,7 +180,6 @@ pub async fn run_plan(
             trust_mode,
         }) => {
             run_release_plan(
-                name,
                 desktop,
                 ReleaseInstallSource {
                     source: url,
@@ -221,13 +199,12 @@ pub async fn run_plan(
             .await
         }
         InstallSource::Release(source) => {
-            run_release_plan(name, desktop, source, dry_run, paths, app_config).await
+            run_release_plan(desktop, source, dry_run, paths, app_config).await
         }
     }
 }
 
 async fn run_release_plan(
-    name: String,
     create_entry: bool,
     source: ReleaseInstallSource,
     dry_run: bool,
@@ -238,18 +215,10 @@ async fn run_release_plan(
     let trust_mode = source.trust_mode;
     let context = CommandContext::new(paths, app_config)?;
     let mut package_database = context.package_database()?;
-    let name = resolve_new_package_name(
-        Some(name),
-        &source.source,
-        source.provider.as_ref(),
-        source.base_url.as_deref(),
-        &package_database,
-    )?;
 
     let trusted_keys = context.trusted_keys()?;
     let package = build_package(
         &context.provider_manager,
-        name,
         source.source,
         source.kind,
         source.provider,
@@ -294,7 +263,7 @@ async fn run_release_plan(
     }
 
     let transaction_rows = vec![TransactionRow::single_version(
-        format!("{}/{}", package.provider, package.id),
+        package.id.clone(),
         &preview.release.tag,
         preview.disk_impact.net,
         preview.disk_impact.download,
@@ -391,7 +360,6 @@ async fn run_release_plan(
 #[allow(clippy::too_many_arguments)]
 async fn build_package(
     provider_manager: &ProviderManager,
-    name: String,
     source: String,
     kind: Filetype,
     provider: Option<Provider>,
@@ -415,7 +383,7 @@ async fn build_package(
                 ))
             );
 
-            let mut package = Package::with_defaults(
+            let package = Package::with_defaults(
                 Package::key(&source_info.provider, &source_info.repo_slug),
                 source_info.repo_slug,
                 kind,
@@ -425,7 +393,6 @@ async fn build_package(
                 source_info.provider,
                 source_info.base_url,
             );
-            package.install_alias = (!name.is_empty()).then_some(name);
             return Ok(package);
         }
 
@@ -433,7 +400,12 @@ async fn build_package(
             .discover_source(DiscoveryRequest {
                 source,
                 channel: channel.clone(),
-                package_name: name.clone(),
+                package_name: source_info
+                    .repo_slug
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or_default()
+                    .to_string(),
                 filetype: kind,
                 match_pattern: match_pattern.clone(),
                 exclude_pattern: exclude_pattern.clone(),
@@ -445,7 +417,7 @@ async fn build_package(
         render_discovery_summary(&discovery);
         confirm_discovery_if_needed(&discovery)?;
 
-        let mut package = Package::with_defaults(
+        let package = Package::with_defaults(
             Package::key(&discovery.source.provider, &discovery.source.repo_slug),
             discovery.source.repo_slug,
             kind,
@@ -455,13 +427,12 @@ async fn build_package(
             discovery.source.provider,
             discovery.source.base_url,
         );
-        package.install_alias = (!name.is_empty()).then_some(name);
         return Ok(package);
     };
 
     let normalized_source = normalize_source_for_provider(&source, &provider, base_url.as_deref());
 
-    let mut package = Package::with_defaults(
+    let package = Package::with_defaults(
         Package::key(&provider, &normalized_source),
         normalized_source,
         kind,
@@ -471,7 +442,6 @@ async fn build_package(
         provider,
         base_url,
     );
-    package.install_alias = (!name.is_empty()).then_some(name);
     Ok(package)
 }
 

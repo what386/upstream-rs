@@ -21,6 +21,10 @@
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
 
-- [ ] multi-executable discovery for archives (excludes dynamic libs)
+
+## Completed
+
+- [x] multi-executable discovery for archives (excludes dynamic libs)
       @created 2026-08-31 20:14
+      @completed 2026-08-31 20:29
 

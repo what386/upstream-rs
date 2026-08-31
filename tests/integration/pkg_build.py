@@ -17,7 +17,6 @@ def main() -> None:
     run_upstream(
         "build",
         REPO,
-        PACKAGE,
         "--tag",
         TAG,
         "--build-profile",

@@ -544,7 +544,7 @@ async fn estimate_reinstall_impact_rows(
         };
 
         rows.push(ReinstallImpactRow {
-            package: format!("{}/{}", package.provider, package.id),
+            package: package.id.clone(),
             version: package.version.to_string(),
             impact: package_impact,
         });

@@ -31,7 +31,6 @@ impl Cli {
                 HooksAction::Purge => commands::hooks::run_hooks_purge(paths),
             },
             Commands::Install {
-                name,
                 repo_slug,
                 kind,
                 tag,
@@ -46,7 +45,6 @@ impl Cli {
                 dry_run,
             } => {
                 commands::install::run(
-                    name,
                     repo_slug,
                     kind,
                     tag,
@@ -65,7 +63,6 @@ impl Cli {
                 .await
             }
             Commands::Build {
-                name,
                 repo_slug,
                 tag,
                 semver,
@@ -78,7 +75,6 @@ impl Cli {
                 dry_run,
             } => {
                 commands::build::run(
-                    name,
                     repo_slug,
                     tag,
                     semver,
@@ -171,7 +167,6 @@ impl Cli {
 
             Commands::Probe {
                 repo_slug,
-                name,
                 provider,
                 base_url,
                 channel,
@@ -186,7 +181,6 @@ impl Cli {
             } => {
                 commands::probe::run(
                     repo_slug,
-                    name,
                     provider,
                     base_url,
                     channel,
@@ -247,7 +241,6 @@ impl Cli {
                 pushed_after,
                 include_forks,
                 include_archived,
-                name,
                 kind,
                 channel,
                 match_pattern,
@@ -268,7 +261,6 @@ impl Cli {
                     pushed_after,
                     include_forks,
                     include_archived,
-                    name,
                     kind,
                     channel,
                     match_pattern,

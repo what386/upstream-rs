@@ -1,14 +1,16 @@
 # Package Lifecycle
 
-Packages are tracked by a local alias, source metadata, selected file type, provider, channel, and installed paths. The alias is the name you pass after the source to `install` or `build`; for git repositories, upstream can fall back to the repository name when the alias is omitted.
+Packages are tracked by a canonical provider-and-slug ID, source metadata, selected
+file type, provider, channel, installed paths, and discovered executable aliases.
 
 ## Install
 
 ```bash
-upstream install <repo-or-url> [name]
+upstream install <repo-or-url>
 ```
 
-The canonical form provides `<repo-or-url> <name>`. When `<name>` is omitted, Upstream prompts for it and offers the repository name as the default for forge sources. Direct HTTP sources have no inferred default, so non-interactive use must provide `<name>`.
+Upstream derives the package ID from the resolved provider and source, then scans
+the archive root and `bin/` directory for executable files to register as aliases.
 
 The install flow:
 
@@ -28,8 +30,8 @@ Use `--dry-run` to inspect the selected release and asset before download.
 The default file type is `auto`. Upstream scores release assets using filename, OS, architecture, and file-type hints. Use these options when automatic selection needs steering:
 
 ```bash
-upstream install owner/repo app --kind archive
-upstream install owner/repo app --match-pattern linux --exclude-pattern debug
+upstream install owner/repo --kind archive
+upstream install owner/repo --match-pattern linux --exclude-pattern debug
 ```
 
 `--match-pattern` increases preference for matching assets. `--exclude-pattern` filters out matching assets.
@@ -39,8 +41,8 @@ upstream install owner/repo app --match-pattern linux --exclude-pattern debug
 Use `--desktop` for GUI applications:
 
 ```bash
-upstream install owner/repo app --desktop
-upstream build owner/repo app --desktop
+upstream install owner/repo --desktop
+upstream build owner/repo --desktop
 ```
 
 On Linux, Upstream creates a `.desktop` file under the user applications directory and copies a discovered icon when possible. If desktop integration fails during install or upgrade, Upstream rolls back the partial package install so metadata and files remain consistent.

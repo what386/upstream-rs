@@ -71,19 +71,19 @@ upstream hooks init
 Install a package:
 
 ```bash
-upstream install BurntSushi/ripgrep rg
+upstream install BurntSushi/ripgrep
 ```
 
 Install a specific asset kind:
 
 ```bash
-upstream install BurntSushi/ripgrep rg -k binary
+upstream install BurntSushi/ripgrep -k binary
 ```
 
 Preview an install without changing anything:
 
 ```bash
-upstream install BurntSushi/ripgrep rg --dry-run
+upstream install BurntSushi/ripgrep --dry-run
 ```
 
 Search for repositories:
@@ -197,42 +197,45 @@ Run `upstream doctor` after configuring tokens to verify that they work.
 ### Install from a release source
 
 ```bash
-upstream install <repo-or-url> [name]
+upstream install <repo-or-url>
 ```
 
-The canonical form provides `<repo-or-url> <name>`. When `<name>` is omitted, upstream prompts for it and offers the repository name as the default for forge sources. Direct URLs and scraped download pages have no inferred default, so non-interactive use must provide `<name>`.
+Packages are identified by their provider and repository slug. Upstream discovers
+the executables in the installed artifact and registers aliases from their filenames.
 
 Examples:
 
 ```bash
-upstream install sharkdp/fd fd
+upstream install sharkdp/fd
 upstream install BurntSushi/ripgrep
-upstream install neovim/neovim nvim --tag v0.11.0
-upstream install owner/repo app --desktop
+upstream install neovim/neovim --tag v0.11.0
+upstream install owner/repo --desktop
 ```
 
 Use `--match-pattern` and `--exclude-pattern` to guide asset selection:
 
 ```bash
-upstream install owner/repo app --match-pattern linux --exclude-pattern debug
-upstream install owner/repo app --match-pattern linux,x86_64 --exclude-pattern debug,symbols
+upstream install owner/repo --match-pattern linux --exclude-pattern debug
+upstream install owner/repo --match-pattern linux,x86_64 --exclude-pattern debug,symbols
 ```
 
 ### Build from source
 
 ```bash
-upstream build <repo-or-url> [name]
+upstream build <repo-or-url>
 ```
 
-Build accepts GitHub, GitLab, and Gitea repository slugs or URLs. The canonical form provides `<repo-or-url> <name>`; when `<name>` is omitted, upstream prompts with the repository name as the default. Non-interactive use must provide `<name>`.
+Build accepts GitHub, GitLab, and Gitea repository slugs or URLs. The package ID
+comes from the resolved provider and repository slug; the built executable name is
+derived from the repository name.
 
 Examples:
 
 ```bash
-upstream build BurntSushi/ripgrep rg
 upstream build BurntSushi/ripgrep
-upstream build BurntSushi/ripgrep rg --branch main
-upstream build owner/repo app --build-profile dotnet
+upstream build BurntSushi/ripgrep
+upstream build BurntSushi/ripgrep --branch main
+upstream build owner/repo --build-profile dotnet
 ```
 
 Git source builds use cached workspaces under `.upstream/cache/build/` so rebuilds and upgrades can reuse build output when the project build system supports it.

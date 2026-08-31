@@ -3,14 +3,13 @@ use chrono::NaiveDate;
 use std::fmt::Write as _;
 
 use crate::{
-    application::commands::{install, resolve_new_package_name, search},
+    application::commands::{install, search},
     models::{
         common::enums::{Channel, Filetype, Provider, TrustMode},
         provider::{RepositorySearchFilters, RepositorySearchResult},
         upstream::config::AppConfig,
     },
     output,
-    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -27,7 +26,6 @@ pub async fn run(
     pushed_after: Option<NaiveDate>,
     include_forks: bool,
     include_archived: bool,
-    name: Option<String>,
     kind: Filetype,
     channel: Channel,
     match_pattern: Option<String>,
@@ -77,22 +75,12 @@ pub async fn run(
     };
 
     let result = &search.results[selected];
-    let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
-    let install_name = resolve_new_package_name(
-        name,
-        &result.repo_slug,
-        Some(&search.provider),
-        search.base_url.as_deref(),
-        &package_database,
-    )?;
-
     println!(
         "{}",
-        output::title(format!("Selected {} as {}", result.repo_slug, install_name))
+        output::title(format!("Selected {}", result.repo_slug))
     );
 
     install::run(
-        Some(install_name),
         result.repo_slug.clone(),
         kind,
         None,

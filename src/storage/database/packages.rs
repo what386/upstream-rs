@@ -64,16 +64,6 @@ impl PackageConnection {
             .with_context(|| format!("Failed to check package '{}'", name))
     }
 
-    pub fn executable_alias_exists(&self, name: &str) -> Result<bool> {
-        self.conn
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM package_executables WHERE name = ?1)",
-                [name],
-                |row| row.get::<_, bool>(0),
-            )
-            .with_context(|| format!("Failed to check executable alias '{name}'"))
-    }
-
     pub fn get_package(&self, name: &str) -> Result<Option<Package>> {
         let package = self
             .conn

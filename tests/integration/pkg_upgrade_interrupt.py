@@ -19,7 +19,6 @@ def main() -> None:
         run_upstream(
             "install",
             server.url,
-            PACKAGE,
             "--kind",
             "archive",
             "--yes",

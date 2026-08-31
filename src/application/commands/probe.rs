@@ -4,7 +4,6 @@ use serde::Serialize;
 use std::time::Duration;
 
 use crate::{
-    application::commands::resolve_new_package_name,
     application::context::CommandContext,
     application::operations::install_op::{InstallOperation, SelectedAssetInstallRequest},
     application::operations::probe_op::{
@@ -25,7 +24,6 @@ const PROBE_PROGRESS_BAR_WIDTH: usize = 14;
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
     repo_slug: String,
-    name: Option<String>,
     provider: Option<Provider>,
     base_url: Option<String>,
     channel: Channel,
@@ -105,16 +103,8 @@ pub async fn run(
     };
 
     let mut package_database = context.package_database()?;
-    let install_name = resolve_new_package_name(
-        name,
-        &probe_result.repo_slug,
-        Some(&probe_result.provider),
-        probe_result.base_url.as_deref(),
-        &package_database,
-    )?;
 
-    let selection =
-        probe_operation.prepare_install_selection(&probe_result, selected, install_name)?;
+    let selection = probe_operation.prepare_install_selection(&probe_result, selected)?;
 
     println!("{}", output::title("Install preview"));
 
@@ -155,7 +145,7 @@ pub async fn run(
     output::print_disk_impact(&selection.disk_impact, true);
 
     let transaction_rows = vec![TransactionRow::single_version(
-        format!("{}/{}", selection.package.provider, selection.package.id),
+        selection.package.id.clone(),
         &selection.release.tag,
         selection.disk_impact.net,
         selection.disk_impact.download,

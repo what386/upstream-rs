@@ -37,7 +37,7 @@ def package_path(package: dict[str, object]) -> Path:
 
 
 def install_package(repo: str, package: str, tag: str) -> dict[str, object]:
-    run_upstream("install", repo, package, "--tag", tag, "--yes")
+    run_upstream("install", repo, "--tag", tag, "--yes")
     return package_from_list(package)
 
 

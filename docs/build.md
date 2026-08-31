@@ -3,10 +3,12 @@
 Use `upstream build` when a project publishes source releases but does not provide a suitable prebuilt artifact for your system.
 
 ```bash
-upstream build <repo-or-url> [name]
+upstream build <repo-or-url>
 ```
 
-Build accepts GitHub, GitLab, and Gitea repository slugs or URLs. The canonical form provides `<repo-or-url> <name>`; when `<name>` is omitted, upstream prompts with the repository name as the default. Non-interactive use must provide `<name>`.
+Build accepts GitHub, GitLab, and Gitea repository slugs or URLs. Upstream derives
+the canonical package ID from the resolved provider and repository slug, and uses
+the repository name for the build output target.
 
 ## Supported Profiles
 
@@ -23,7 +25,7 @@ Upstream can auto-detect or explicitly use these build profiles:
 Force a profile when detection is ambiguous:
 
 ```bash
-upstream build BurntSushi/ripgrep rg --build-profile rust
+upstream build BurntSushi/ripgrep --build-profile rust
 ```
 
 ## Tags, Branches, and Channels
@@ -31,13 +33,13 @@ upstream build BurntSushi/ripgrep rg --build-profile rust
 Build a release tag:
 
 ```bash
-upstream build owner/repo app --tag v1.2.3
+upstream build owner/repo --tag v1.2.3
 ```
 
 Build a branch head:
 
 ```bash
-upstream build owner/repo app --branch main
+upstream build owner/repo --branch main
 ```
 
 Without `--tag` or `--branch`, Upstream resolves the latest release for the selected channel.
@@ -91,7 +93,7 @@ The built artifact is staged and then installed through the same package install
 Use `--desktop` for GUI apps:
 
 ```bash
-upstream build owner/repo app --desktop
+upstream build owner/repo --desktop
 ```
 
 If desktop integration fails, Upstream rolls back the partial install.

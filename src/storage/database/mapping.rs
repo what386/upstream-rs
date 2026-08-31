@@ -102,7 +102,6 @@ pub(super) fn row_to_package(row: &Row<'_>) -> rusqlite::Result<Package> {
         icon_path: optional_path_from_db(row.get(19)?),
         install_path: optional_path_from_db(row.get(20)?),
         executables: Vec::new(),
-        install_alias: None,
         last_upgraded: parse_timestamp(last_upgraded, 21)?,
     })
 }

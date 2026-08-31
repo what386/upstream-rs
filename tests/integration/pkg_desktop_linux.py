@@ -32,7 +32,7 @@ def main() -> None:
         return
 
     reset_fakehome()
-    run_upstream("install", REPO, PACKAGE, "--tag", TAG, "--desktop", "--yes")
+    run_upstream("install", REPO, "--tag", TAG, "--desktop", "--yes")
     package = package_from_list(PACKAGE)
     executable = package_path(package)
 

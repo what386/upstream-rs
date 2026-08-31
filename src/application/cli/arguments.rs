@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
     download pages, and source repositories, then tracks them for upgrades, \
     rollback, trust verification, documentation lookup, and shell/desktop integration.\n\n\
     EXAMPLES:\n  \
-    upstream install BurntSushi/ripgrep rg -k binary\n  \
+    upstream install BurntSushi/ripgrep -k binary\n  \
     upstream find terminal emulator --limit 20\n  \
     upstream probe neovim/neovim\n  \
     upstream upgrade --check\n  \
@@ -40,20 +40,15 @@ pub enum Commands {
     #[command(long_about = "Install a release asset or direct download.\n\n\
         Resolves a compatible asset from the selected provider, channel, and tag, \
         downloads it, verifies it according to the selected trust mode, installs it, \
-        and records the package for future upgrades. If the name is omitted, upstream \
-        prompts for one, offering the repository name as the default for forge sources. \
-        Direct HTTP sources require terminal input because they have no inferred default.\n\n\
+        and records the package for future upgrades.\n\n\
         EXAMPLES:\n  \
-        upstream install BurntSushi/ripgrep rg -k binary\n  \
-        upstream install bootandy/dust       # prompts with dust as the default\n  \
-        upstream install neovim/neovim nvim --desktop\n  \
-        upstream install sharkdp/bat bat --tag v0.25.0")]
+        upstream install BurntSushi/ripgrep -k binary\n  \
+        upstream install bootandy/dust\n  \
+        upstream install neovim/neovim --desktop\n  \
+        upstream install sharkdp/bat --tag v0.25.0")]
     Install {
         /// Repository identifier or direct download URL
         repo_slug: String,
-
-        /// Name to register; omitted names are prompted for (forge repositories get an inferred default)
-        name: Option<String>,
 
         /// Release tag to install (defaults to latest matching the channel)
         #[arg(short, long)]
@@ -106,20 +101,15 @@ pub enum Commands {
         detected or requested build profile, installs the produced artifact, and records \
         the package for future rebuilds/upgrades. Use this when release artifacts are \
         unavailable or unsuitable. Build accepts GitHub, GitLab, or Gitea repository \
-        sources. If the name is omitted, upstream prompts with the repository name as \
-        the default.\n\n\
+        sources.\n\n\
         EXAMPLES:\n  \
-        upstream build BurntSushi/ripgrep rg\n  \
-        upstream build BurntSushi/ripgrep       # prompts with ripgrep as the default\n  \
-        upstream build BurntSushi/ripgrep rg --branch main\n  \
-        upstream build BurntSushi/ripgrep rg --build-profile rust\n  \
-        upstream build owner/repo app --build-profile dotnet --tag v1.2.3")]
+        upstream build BurntSushi/ripgrep\n  \
+        upstream build BurntSushi/ripgrep --branch main\n  \
+        upstream build BurntSushi/ripgrep --build-profile rust\n  \
+        upstream build owner/repo --build-profile dotnet --tag v1.2.3")]
     Build {
         /// GitHub, GitLab, or Gitea repository identifier or URL
         repo_slug: String,
-
-        /// Name to register; omitted names are prompted for with an inferred default
-        name: Option<String>,
 
         /// Release tag to build (defaults to latest matching the channel)
         #[arg(short, long, conflicts_with = "branch")]
@@ -398,7 +388,7 @@ pub enum Commands {
     /// Inspect releases, choose an asset, and install it
     #[command(long_about = "Inspect releases, choose an asset, and install it.\n\n\
         Probe lists compatible release assets for a repository or scraped download page, \
-        opens an interactive asset picker, prompts for a package name when needed, and \
+        opens an interactive asset picker and \
         installs the selected asset. In AUTO kind mode, probe shows installable asset \
         kinds for the current platform instead of forcing one kind. Use --dry-run to \
         follow the same interactive selection and preview flow, but stop before \
@@ -406,7 +396,7 @@ pub enum Commands {
         EXAMPLES:\n  \
         upstream probe neovim/neovim\n  \
         upstream probe https://ziglang.org/download/ -p scraper --limit 20\n  \
-        upstream probe owner/repo tool --desktop\n  \
+        upstream probe owner/repo --desktop\n  \
         upstream probe owner/repo --include-incompatible\n  \
         upstream probe owner/repo --limit 20\n  \
         upstream probe owner/repo --tag v1.2.3\n  \
@@ -416,9 +406,6 @@ pub enum Commands {
     Probe {
         /// Repository identifier or download page URL to inspect
         repo_slug: String,
-
-        /// Name to register the application under (prompts with inferred default when omitted)
-        name: Option<String>,
 
         /// Source provider (defaults to GitHub, or scraper for plain URLs)
         #[arg(short = 'p', long)]
@@ -530,15 +517,14 @@ pub enum Commands {
 
     /// Search repositories interactively and install one
     #[command(long_about = "Search repositories interactively and install one.\n\n\
-        Find runs provider search, opens a result picker, prompts for the package name \
-        using the selected repository name as the default, then installs the selected \
-        repository through the normal release-asset flow. Use --name to skip the name \
-        prompt. Defaults to GitHub when provider is omitted.\n\n\
+        Find runs provider search, opens a result picker, then installs the selected \
+        repository through the normal release-asset flow. Defaults to GitHub when provider \
+        is omitted.\n\n\
         EXAMPLES:\n  \
         upstream find ripgrep\n  \
         upstream find terminal emulator --limit 20\n  \
         upstream find cli --language Rust --topic cli\n  \
-        upstream find ripgrep --name rg -k binary\n  \
+        upstream find ripgrep -k binary\n  \
         upstream find app -p github --desktop --trust none")]
     Find {
         /// Query words
@@ -584,10 +570,6 @@ pub enum Commands {
         /// Include archived repositories in provider search results
         #[arg(long, default_value_t = false)]
         include_archived: bool,
-
-        /// Package name to register without prompting
-        #[arg(long)]
-        name: Option<String>,
 
         /// Asset kind to install
         #[arg(short, long, value_enum, default_value_t = Filetype::Auto)]
