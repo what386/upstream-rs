@@ -315,7 +315,19 @@ fn validate_package_relative_path(path: &Path, package_name: &str) -> Result<()>
         ));
     };
 
-    if first != std::ffi::OsStr::new(package_name)
+    let package_dir = package_name
+        .bytes()
+        .fold(String::new(), |mut encoded, byte| {
+            if byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-') {
+                encoded.push(byte as char);
+            } else {
+                encoded.push('%');
+                encoded.push_str(&format!("{byte:02X}"));
+            }
+            encoded
+        });
+
+    if first != std::ffi::OsStr::new(&package_dir)
         || components.any(|component| !matches!(component, std::path::Component::Normal(_)))
     {
         return Err(anyhow!(

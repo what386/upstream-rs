@@ -335,14 +335,18 @@ impl<'a> RollbackArtifacts<'a> {
             ));
         }
 
-        safe_package_dir(self.root, package_name)?;
+        let package_component = safe_package_dir(self.root, package_name)?
+            .file_name()
+            .expect("safe rollback package directory has a name")
+            .to_string_lossy()
+            .into_owned();
         let extraction_id = Utc::now()
             .timestamp_nanos_opt()
             .unwrap_or_else(|| Utc::now().timestamp_micros() * 1_000);
 
         let extract_dir = self.root.join(format!(
             ".restore-{}-{}-{}",
-            package_name,
+            package_component,
             std::process::id(),
             extraction_id
         ));
@@ -416,22 +420,33 @@ impl<'a> RollbackArtifacts<'a> {
 }
 
 fn safe_package_dir(root: &Path, package_name: &str) -> Result<PathBuf> {
-    let mut components = Path::new(package_name).components();
-    let Some(Component::Normal(_)) = components.next() else {
-        return Err(anyhow!(
-            "Package name '{}' is not safe for rollback storage",
-            package_name
-        ));
-    };
-
-    if components.next().is_some() {
+    if package_name.is_empty() {
         return Err(anyhow!(
             "Package name '{}' is not safe for rollback storage",
             package_name
         ));
     }
 
-    Ok(root.join(package_name))
+    // Package IDs are canonical references and may contain ':' and '/'. Keep
+    // them as one filesystem component while retaining a reversible,
+    // collision-free mapping for rollback artifacts.
+    let encoded = package_component(package_name);
+
+    Ok(root.join(encoded))
+}
+
+fn package_component(package_name: &str) -> String {
+    package_name
+        .bytes()
+        .fold(String::new(), |mut encoded, byte| {
+            if byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-') {
+                encoded.push(byte as char);
+            } else {
+                encoded.push('%');
+                encoded.push_str(&format!("{byte:02X}"));
+            }
+            encoded
+        })
 }
 
 fn rollback_capture_id(source: &RollbackSource) -> String {
@@ -689,7 +704,19 @@ mod tests {
     use crate::storage::rollback::RollbackArtifactFormat;
     use crate::utils::test_support;
 
-    use super::compressed_archive_reader;
+    use super::{compressed_archive_reader, safe_package_dir};
+
+    #[test]
+    fn canonical_package_ids_use_one_safe_storage_component() {
+        let root = test_support::temp_root("upstream-rollback-artifacts-test", "canonical-id");
+        let path = safe_package_dir(&root, "github:JustVugg/colibri").expect("safe path");
+
+        assert_eq!(path, root.join("github%3AJustVugg%2Fcolibri"));
+        assert_eq!(path.parent(), Some(root.as_path()));
+
+        fs::create_dir_all(&root).expect("create test root");
+        fs::remove_dir_all(root).expect("cleanup test root");
+    }
 
     #[test]
     fn legacy_tgz_reader_remains_supported() {
