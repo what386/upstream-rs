@@ -122,25 +122,7 @@ impl PackageDatabase {
     where
         F: FnOnce(&mut Package) -> Result<bool>,
     {
-        let mut package = self
-            .get_package(name)?
-            .ok_or_else(|| anyhow!("Package '{}' not found", name))?;
-
-        let changed = update(&mut package)?;
-        if !changed {
-            return Ok(false);
-        }
-
-        if package.id != name {
-            return Err(anyhow!(
-                "Package update changed '{}' to '{}'; use rename_package for package renames",
-                name,
-                package.id
-            ));
-        }
-
-        self.upsert_package(&package)?;
-        Ok(true)
+        self.connection()?.update_package(name, update)
     }
 
     pub fn rename_package(&mut self, old_name: &str, new_name: &str) -> Result<()> {

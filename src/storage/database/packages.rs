@@ -312,32 +312,37 @@ impl PackageConnection {
         Ok(affected > 0)
     }
 
-    pub fn update_package<F>(&mut self, name: &str, update: F) -> Result<()>
+    pub fn update_package<F>(&mut self, name: &str, update: F) -> Result<bool>
     where
-        F: FnOnce(&mut Package) -> Result<()>,
+        F: FnOnce(&mut Package) -> Result<bool>,
     {
         let mut package = self
             .get_package(name)?
             .ok_or_else(|| anyhow!("Package '{}' not found", name))?;
 
-        update(&mut package)?;
+        let changed = update(&mut package)?;
+        if !changed {
+            return Ok(false);
+        }
+
+        if package.id != name {
+            bail!(
+                "Package update changed '{}' to '{}'; use rename_package for package renames",
+                name,
+                package.id
+            );
+        }
 
         let tx = self
             .conn
             .transaction()
             .context("Failed to start package update transaction")?;
 
-        if package.id != name {
-            tx.execute(
-                "UPDATE packages SET id = ?1 WHERE id = ?2",
-                params![package.id, name],
-            )
-            .with_context(|| format!("Failed to rename package '{}' to '{}'", name, package.id))?;
-        }
-
         write_package(&tx, &package)?;
         tx.commit()
-            .with_context(|| format!("Failed to commit package '{}'", package.id))
+            .with_context(|| format!("Failed to commit package '{}'", package.id))?;
+
+        Ok(true)
     }
 
     pub fn rename_executable_alias(&mut self, old_name: &str, new_name: &str) -> Result<()> {
@@ -967,7 +972,7 @@ mod tests {
                 path: PathBuf::from("/new/tool"),
                 name: "tool".to_string(),
             }];
-            Ok(())
+            Ok(true)
         })
         .expect("update package");
 
@@ -981,37 +986,41 @@ mod tests {
     }
 
     #[test]
-    fn update_package_supports_rename() {
+    fn update_package_rejects_id_change() {
         let mut db = PackageConnection::open_in_memory().expect("open db");
         db.upsert_package(&test_package("old"))
             .expect("upsert package");
 
-        db.update_package("old", |package| {
-            package.id = "new".to_string();
-            Ok(())
-        })
-        .expect("rename package");
+        let error = db
+            .update_package("old", |package| {
+                package.id = "new".to_string();
+                Ok(true)
+            })
+            .expect_err("package id change should be rejected");
 
+        assert!(error.to_string().contains("use rename_package"));
         assert!(db.get_package("old").expect("load old").is_some());
-        assert!(db.get_package("new").expect("load new").is_some());
+        assert!(db.get_package("new").expect("load new").is_none());
     }
 
     #[test]
-    fn rename_package_cascades_path_entries() {
+    fn update_package_does_not_change_path_entry_identity() {
         let mut db = PackageConnection::open_in_memory().expect("open db");
         let path = PathBuf::from("/old/bin");
         db.upsert_package(&test_package("old"))
             .expect("upsert package");
         db.add_path_entry("old", &path).expect("add path entry");
 
-        db.update_package("old", |package| {
-            package.id = "new".to_string();
-            Ok(())
-        })
-        .expect("rename package");
+        let error = db
+            .update_package("old", |package| {
+                package.id = "new".to_string();
+                Ok(true)
+            })
+            .expect_err("package id change should be rejected");
 
-        assert!(!db.remove_path_entry("old").expect("remove old entry"));
-        assert!(db.remove_path_entry("new").expect("remove new entry"));
+        assert!(error.to_string().contains("use rename_package"));
+        assert!(db.remove_path_entry("old").expect("remove old entry"));
+        assert!(!db.remove_path_entry("new").expect("remove new entry"));
         assert!(
             db.list_path_entries()
                 .expect("list path entries")
@@ -1036,29 +1045,23 @@ mod tests {
             settings
         );
 
-        db.update_package("old", |package| {
-            package.id = "new".to_string();
-            Ok(())
-        })
-        .expect("rename package");
-
         assert!(
             db.get_package_settings("old")
                 .expect("load old settings")
-                .is_none()
+                .is_some()
         );
 
-        let renamed = db
-            .get_package_settings("new")
-            .expect("load renamed settings")
-            .expect("renamed settings exist");
+        assert_eq!(
+            db.get_package_settings("old")
+                .expect("load settings")
+                .expect("settings exist")
+                .trust_mode,
+            Some(TrustMode::Signature)
+        );
 
-        assert_eq!(renamed.package_name, "new");
-        assert_eq!(renamed.trust_mode, Some(TrustMode::Signature));
-
-        assert!(db.remove_package("new").expect("remove package"));
+        assert!(db.remove_package("old").expect("remove package"));
         assert!(
-            db.get_package_settings("new")
+            db.get_package_settings("old")
                 .expect("load removed settings")
                 .is_none()
         );
