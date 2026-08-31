@@ -21,6 +21,9 @@
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
 
+- [ ] several improvements to build profiles
+      @created 2026-08-31 23:30
+
 
 ## Completed
 
