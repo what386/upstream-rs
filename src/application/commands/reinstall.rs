@@ -349,7 +349,7 @@ async fn run_dry_run(
 
                                 output::status_line(
                                     Status::Plan,
-                                    &package.name,
+                                    &package.id,
                                     format!(
                                         "reinstall release {} ({}) asset {} ({:?})",
                                         release.name, release.tag, asset.name, resolved_filetype
@@ -357,7 +357,7 @@ async fn run_dry_run(
                                 );
                                 output::status_line(
                                     Status::Plan,
-                                    &package.name,
+                                    &package.id,
                                     "remove/install runtime files",
                                 );
                                 planned += 1;
@@ -365,7 +365,7 @@ async fn run_dry_run(
                             Err(err) => {
                                 output::status_line(
                                     Status::Fail,
-                                    &package.name,
+                                    &package.id,
                                     format!(
                                         "failed to select release asset {}: {err}",
                                         release.tag
@@ -378,7 +378,7 @@ async fn run_dry_run(
                     Err(err) => {
                         output::status_line(
                             Status::Fail,
-                            &package.name,
+                            &package.id,
                             format!("failed to resolve release: {err}"),
                         );
                         failed += 1;
@@ -399,7 +399,7 @@ async fn run_dry_run(
                         Ok(commit) => {
                             output::status_line(
                                 Status::Plan,
-                                &package.name,
+                                &package.id,
                                 format!(
                                     "rebuild {} ({}) branch {} @ {}",
                                     package.repo_slug, package.provider, branch, commit
@@ -407,7 +407,7 @@ async fn run_dry_run(
                             );
                             output::status_line(
                                 Status::Plan,
-                                &package.name,
+                                &package.id,
                                 "remove/install runtime files",
                             );
                             planned += 1;
@@ -415,7 +415,7 @@ async fn run_dry_run(
                         Err(err) => {
                             output::status_line(
                                 Status::Fail,
-                                &package.name,
+                                &package.id,
                                 format!("failed to resolve build branch {branch}: {err}"),
                             );
                             failed += 1;
@@ -426,7 +426,7 @@ async fn run_dry_run(
                         Ok(release) => {
                             output::status_line(
                                 Status::Plan,
-                                &package.name,
+                                &package.id,
                                 format!(
                                     "rebuild {} ({}) release {} ({})",
                                     package.repo_slug, package.provider, release.name, release.tag
@@ -434,7 +434,7 @@ async fn run_dry_run(
                             );
                             output::status_line(
                                 Status::Plan,
-                                &package.name,
+                                &package.id,
                                 "remove/install runtime files",
                             );
                             planned += 1;
@@ -442,7 +442,7 @@ async fn run_dry_run(
                         Err(err) => {
                             output::status_line(
                                 Status::Fail,
-                                &package.name,
+                                &package.id,
                                 format!("failed to resolve release: {err}"),
                             );
                             failed += 1;
@@ -544,7 +544,7 @@ async fn estimate_reinstall_impact_rows(
         };
 
         rows.push(ReinstallImpactRow {
-            package: format!("{}/{}", package.provider, package.name),
+            package: format!("{}/{}", package.provider, package.id),
             version: package.version.to_string(),
             impact: package_impact,
         });
@@ -560,8 +560,8 @@ async fn resolve_reinstall_release(
     let tag = package.installed_release_tag().ok_or_else(|| {
         anyhow!(
             "package '{}' is missing its installed release tag; run `upstream upgrade {} --force` to repair package metadata",
-            package.name,
-            package.name
+            package.id,
+            package.id
         )
     })?;
 
@@ -615,10 +615,7 @@ where
                 )
                 .await
                 .with_context(|| {
-                    format!(
-                        "Failed to resolve branch '{}' for '{}'",
-                        branch, package.name
-                    )
+                    format!("Failed to resolve branch '{}' for '{}'", branch, package.id)
                 })?;
 
             ResolvedUpgradeTarget::Branch {

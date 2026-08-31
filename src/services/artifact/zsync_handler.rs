@@ -70,7 +70,7 @@ where
         .map(|d| d.as_nanos())
         .unwrap_or(0);
 
-    let root = temp_dir.join(format!("upstream-zsync-{}-{nonce}", package.name));
+    let root = temp_dir.join(format!("upstream-zsync-{}-{nonce}", package.id));
     let cache = root.join("downloads");
     fs::create_dir_all(&cache).with_context(|| {
         format!(
@@ -98,8 +98,7 @@ where
     .await
     {
         let _ = fs::remove_dir_all(&root);
-        return Err(error)
-            .with_context(|| format!("Failed to update '{}' via zsync", package.name));
+        return Err(error).with_context(|| format!("Failed to update '{}' via zsync", package.id));
     }
 
     Ok(Some(UpdatedAsset { root, cache, path }))

@@ -82,11 +82,11 @@ impl PackageDatabase {
         package: &Package,
         settings: &PackageSettings,
     ) -> Result<()> {
-        if settings.package_name != package.name {
+        if settings.package_name != package.id {
             return Err(anyhow!(
                 "Package settings for '{}' cannot be stored with package '{}'",
                 settings.package_name,
-                package.name
+                package.id
             ));
         }
 
@@ -131,11 +131,11 @@ impl PackageDatabase {
             return Ok(false);
         }
 
-        if package.name != name {
+        if package.id != name {
             return Err(anyhow!(
                 "Package update changed '{}' to '{}'; use rename_package for package renames",
                 name,
-                package.name
+                package.id
             ));
         }
 
@@ -158,7 +158,7 @@ mod tests {
     use super::PackageDatabase;
     use crate::models::common::Version;
     use crate::models::common::enums::{Channel, Filetype, Provider, TrustMode};
-    use crate::models::upstream::Package;
+    use crate::models::upstream::{Package, PackageExecutable};
     use crate::storage::database::PackageSettings;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -299,20 +299,24 @@ mod tests {
     }
 
     #[test]
-    fn rename_package_updates_database_primary_key() {
+    fn rename_package_updates_executable_alias() {
         let path = temp_database_path("rename-package");
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
 
         let mut db = PackageDatabase::open(&path).expect("open database");
-        db.upsert_package(&test_package("old"))
-            .expect("store package");
+        let mut package = test_package("old");
+        package.executables.push(PackageExecutable {
+            path: PathBuf::from("/packages/old/bin/old"),
+            name: "old".to_string(),
+        });
+        db.upsert_package(&package).expect("store package");
 
         db.rename_package("old", "new").expect("rename package");
 
         let reloaded = PackageDatabase::open(&path).expect("reload database");
-        assert!(reloaded.get_package("old").expect("load old").is_none());
+        assert!(reloaded.get_package("old").expect("load old").is_some());
         assert!(reloaded.get_package("new").expect("load new").is_some());
 
         cleanup(&path).expect("cleanup");

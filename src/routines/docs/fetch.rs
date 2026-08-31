@@ -33,7 +33,7 @@ pub async fn fetch_project_readme(
         let contents = read_cached_readme(&cache_path).with_context(|| {
             format!(
                 "No cached README was available for '{}'. Re-run without --offline to fetch it.",
-                package.name
+                package.id
             )
         })?;
 
@@ -64,7 +64,7 @@ pub async fn fetch_project_readme(
             let contents = read_cached_readme(&cache_path).with_context(|| {
                 format!(
                     "Failed to fetch README for '{}' and no cached README was available",
-                    package.name
+                    package.id
                 )
             })?;
 
@@ -72,7 +72,7 @@ pub async fn fetch_project_readme(
                 return Err(fetch_error).with_context(|| {
                     format!(
                         "Failed to fetch README for '{}' and cached README is empty",
-                        package.name
+                        package.id
                     )
                 });
             }
@@ -98,7 +98,7 @@ pub async fn refetch_project_readme(
             package.base_url.as_deref(),
         )
         .await
-        .with_context(|| format!("Failed to fetch README for '{}'", package.name))?;
+        .with_context(|| format!("Failed to fetch README for '{}'", package.id))?;
 
     let cache_path = cache_path_for_package(cache_dir, package);
     write_cached_readme(&cache_path, &contents)?;
@@ -116,7 +116,7 @@ fn cache_path_for_package(cache_dir: &Path, package: &Package) -> PathBuf {
         .join(format!(
             "{}_{}",
             sanitize_cache_component(&package.repo_slug),
-            sanitize_cache_component(&package.name)
+            sanitize_cache_component(&package.id)
         ))
         .join("README.md")
 }

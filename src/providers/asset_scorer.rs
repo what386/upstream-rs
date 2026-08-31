@@ -328,7 +328,7 @@ impl AssetSelector {
                 .to_lowercase();
         }
 
-        package.name.trim().to_lowercase()
+        package.id.trim().to_lowercase()
     }
 
     fn primary_name_score(name: &str, package_name: &str) -> i32 {

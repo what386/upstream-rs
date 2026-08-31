@@ -273,7 +273,7 @@ async fn run_release_plan(
 
     if dry_run {
         println!("{}", output::title("Install preview"));
-        output::kv("Package", &package.name);
+        output::kv("Package", &package.id);
         output::kv(
             "Source",
             format!("{} ({})", package.repo_slug, package.provider),
@@ -294,7 +294,7 @@ async fn run_release_plan(
     }
 
     let transaction_rows = vec![TransactionRow::single_version(
-        format!("{}/{}", package.provider, package.name),
+        format!("{}/{}", package.provider, package.id),
         &preview.release.tag,
         preview.disk_impact.net,
         preview.disk_impact.download,
@@ -307,9 +307,9 @@ async fn run_release_plan(
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
     pb.enable_steady_tick(Duration::from_millis(120));
-    pb.set_message(format!("Installing {}", package.name));
+    pb.set_message(format!("Installing {}", package.id));
 
-    let install_name = package.name.clone();
+    let install_name = package.id.clone();
     let progress_name = install_name.clone();
     let progress_name_width = progress_name_width([progress_name.as_str()]);
     let install_version = preview.release.tag.clone();

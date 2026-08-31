@@ -80,7 +80,7 @@ pub fn is_asset(asset_name: &str, package: &Package) -> bool {
     };
 
     let repo_name = package.repo_slug.rsplit('/').next().unwrap_or("");
-    filename.eq_ignore_ascii_case(repo_name) || filename.eq_ignore_ascii_case(&package.name)
+    filename.eq_ignore_ascii_case(repo_name) || filename.eq_ignore_ascii_case(&package.id)
 }
 
 pub async fn resolve_selected_asset<H>(

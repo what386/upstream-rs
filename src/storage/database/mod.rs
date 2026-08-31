@@ -11,7 +11,7 @@ mod settings;
 pub use api::PackageDatabase;
 pub use settings::PackageSettings;
 
-pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 10;
+pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 11;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 
@@ -374,6 +374,22 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
                 )
                 .context("Failed to migrate package database schema from version 9 to 10")?;
                 current_version = 10;
+            }
+            10 => {
+                conn.execute_batch(
+                    "
+                    BEGIN;
+                    ALTER TABLE packages RENAME COLUMN name TO id;
+                    ALTER TABLE patterns RENAME COLUMN package_name TO package_id;
+                    ALTER TABLE path_entries RENAME COLUMN package_name TO package_id;
+                    ALTER TABLE package_settings RENAME COLUMN package_name TO package_id;
+                    ALTER TABLE package_executables RENAME COLUMN package_name TO package_id;
+                    PRAGMA user_version = 11;
+                    COMMIT;
+                    ",
+                )
+                .context("Failed to migrate package database schema from version 10 to 11")?;
+                current_version = 11;
             }
             version => bail!(
                 "Unsupported package database schema version {}. Expected version {} or earlier.",

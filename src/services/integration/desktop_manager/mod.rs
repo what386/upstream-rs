@@ -329,21 +329,21 @@ impl<'a> DesktopManager<'a> {
         let install_path = package
             .install_path
             .clone()
-            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
+            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.id))?;
 
         let previous_icon_path = package.icon_path.clone();
         let icon_path = self
             .backend
             .add_icon(
                 self.paths,
-                &package.name,
+                &package.id,
                 &install_path,
                 &package.filetype,
                 &self.paths.state.icons_dir,
                 message_callback,
             )
             .await
-            .context(format!("Failed to add icon for '{}'", package.name))?;
+            .context(format!("Failed to add icon for '{}'", package.id))?;
 
         let mut desktop_package = package.clone();
         desktop_package.icon_path = icon_path.clone();
@@ -361,7 +361,7 @@ impl<'a> DesktopManager<'a> {
             .await
             .context(format!(
                 "Failed to create desktop entry for '{}'",
-                desktop_package.name
+                desktop_package.id
             ))
         {
             if let Some(new_icon_path) = icon_path.as_ref()
@@ -402,17 +402,15 @@ impl<'a> DesktopManager<'a> {
     where
         H: FnMut(&str),
     {
-        let staged_install_path = staged_package.install_path.as_ref().ok_or_else(|| {
-            anyhow!(
-                "Staged package '{}' has no install path",
-                staged_package.name
-            )
-        })?;
+        let staged_install_path = staged_package
+            .install_path
+            .as_ref()
+            .ok_or_else(|| anyhow!("Staged package '{}' has no install path", staged_package.id))?;
 
         let final_install_path = final_package.install_path.as_ref().ok_or_else(|| {
             anyhow!(
                 "Replacement package '{}' has no install path",
-                final_package.name
+                final_package.id
             )
         })?;
 
@@ -420,17 +418,14 @@ impl<'a> DesktopManager<'a> {
             .backend
             .add_icon(
                 self.paths,
-                &final_package.name,
+                &final_package.id,
                 staged_install_path,
                 &final_package.filetype,
                 icons_dir,
                 message_callback,
             )
             .await
-            .context(format!(
-                "Failed to prepare icon for '{}'",
-                final_package.name
-            ))?;
+            .context(format!("Failed to prepare icon for '{}'", final_package.id))?;
 
         let final_icon = staged_icon.as_ref().map(|path| {
             self.paths
@@ -444,7 +439,7 @@ impl<'a> DesktopManager<'a> {
         let desktop_entry = crate::models::common::DesktopEntry::from_package(&desktop_package);
         self.backend
             .create_staged_entry(
-                &final_package.name,
+                &final_package.id,
                 staged_install_path,
                 staged_package
                     .primary_executable()
@@ -477,10 +472,10 @@ impl<'a> DesktopManager<'a> {
         }
 
         self.backend
-            .remove_entry(self.paths, &package.name)
+            .remove_entry(self.paths, &package.id)
             .context(format!(
                 "Failed to remove desktop entry for '{}'",
-                package.name
+                package.id
             ))?;
 
         if let Some(icon_path) = package.icon_path.take()
@@ -515,7 +510,7 @@ impl<'a> DesktopManager<'a> {
         paths: &UpstreamPaths,
         package: &Package,
     ) -> Result<DesktopSnapshot> {
-        let entry = FileSnapshot::capture(Self::managed_entry_path(paths, &package.name)?)?;
+        let entry = FileSnapshot::capture(Self::managed_entry_path(paths, &package.id)?)?;
         let icon = package
             .icon_path
             .as_ref()

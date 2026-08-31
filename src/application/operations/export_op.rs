@@ -118,7 +118,7 @@ impl<'a> ExportOperation<'a> {
                 let mut reference = PackageReference::from_package(package.clone());
                 reference.trust_mode = self
                     .package_database
-                    .get_package_settings(&package.name)?
+                    .get_package_settings(&package.id)?
                     .and_then(|settings| settings.trust_mode);
                 Ok(reference)
             })
@@ -268,7 +268,7 @@ mod tests {
 
         let content = fs::read_to_string(&output).expect("read packages");
         assert!(content.contains(&format!("\"version\": {PACKAGES_EXPORT_VERSION}")));
-        assert!(content.contains("\"name\": \"tool\""));
+        assert!(content.contains("\"id\": \"tool\""));
         assert!(content.contains("\"repo_slug\": \"owner/tool\""));
         assert!(content.contains("\"version_tag\": \"rust-v1.2.3-linux\""));
         assert!(content.contains("\"trust_mode\": \"Checksum\""));
@@ -340,7 +340,7 @@ mod tests {
         assert_eq!(profile["version"].as_u64(), Some(1));
         assert!(profile["config"]["version"].is_null());
         assert_eq!(
-            profile["packages"]["packages"][0]["name"].as_str(),
+            profile["packages"]["packages"][0]["id"].as_str(),
             Some("tool")
         );
 

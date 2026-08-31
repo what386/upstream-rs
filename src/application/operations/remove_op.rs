@@ -183,7 +183,7 @@ impl<'a> RemoveOperation<'a> {
                     .ok_or_else(|| anyhow!("Package '{}' is not installed", package_name))?;
 
                 Ok((
-                    format!("{}/{}", package.provider, package.name),
+                    format!("{}/{}", package.provider, package.id),
                     package.version.to_string(),
                     self.remover.estimate_remove_impact(&package, purge_option),
                 ))
@@ -333,7 +333,7 @@ mod tests {
         let mut msg = Some(|_: &str| {});
         let mut progress: Option<fn(&str, PackageProgressEvent)> = None;
 
-        op.remove_single(&package.name, &false, &false, &mut msg, &mut progress)
+        op.remove_single(&package.id, &false, &false, &mut msg, &mut progress)
             .expect("remove package");
 
         assert!(!install_path.exists());

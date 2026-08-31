@@ -47,7 +47,7 @@ pub async fn run(
         let changelog = changelog_text_for_release(&package, &release);
         let renderer = output::MarkdownRenderer::for_terminal();
         let changelog = renderer.render(&changelog);
-        pager::page_text(Some(&format!("Changelog: {}", package.name)), &changelog)?;
+        pager::page_text(Some(&format!("Changelog: {}", package.id)), &changelog)?;
         return Ok(());
     }
 
@@ -161,7 +161,7 @@ pub async fn run(
             "{}",
             output::warning(format!(
                 "No release notes found for '{}' from {} to {}.",
-                package.name, from_version, to_release.version
+                package.id, from_version, to_release.version
             ))
         );
 
@@ -170,7 +170,7 @@ pub async fn run(
 
     let renderer = output::MarkdownRenderer::for_terminal();
     let changelog = renderer.render(&changelog);
-    pager::page_text(Some(&format!("Changelog: {}", package.name)), &changelog)?;
+    pager::page_text(Some(&format!("Changelog: {}", package.id)), &changelog)?;
 
     Ok(())
 }

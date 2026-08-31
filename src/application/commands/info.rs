@@ -30,7 +30,7 @@ fn display_package_info(storage: &PackageDatabase, query: &str) -> Result<()> {
     let packages = storage.list_packages()?;
     let resolved = resolve_package_query(&packages, query)?;
 
-    let header = format!("Exact match: {}", resolved.name);
+    let header = format!("Exact match: {}", resolved.id);
 
     pager::page_text(Some(&header), &format_package_details(resolved))?;
 
@@ -73,7 +73,7 @@ fn write_detail_field(out: &mut String, label: &str, value: impl AsRef<str>) {
 
 fn resolve_package_query<'a>(packages: &'a [Package], query: &str) -> Result<&'a Package> {
     if let Some(package) = packages.iter().find(|package| {
-        package.name.eq_ignore_ascii_case(query)
+        package.id.eq_ignore_ascii_case(query)
             || package
                 .executables
                 .iter()
@@ -93,7 +93,7 @@ fn resolve_package_query<'a>(packages: &'a [Package], query: &str) -> Result<&'a
 
 fn package_query_candidates(packages: &[Package]) -> impl Iterator<Item = &str> {
     packages.iter().flat_map(|package| {
-        std::iter::once(package.name.as_str()).chain(
+        std::iter::once(package.id.as_str()).chain(
             package
                 .executables
                 .iter()
@@ -105,7 +105,7 @@ fn package_query_candidates(packages: &[Package]) -> impl Iterator<Item = &str> 
 fn package_detail_heading(package: &Package) -> String {
     format!(
         "{} {} ({})",
-        package.name,
+        package.id,
         package_ref_label(package),
         package.repo_slug
     )
@@ -269,7 +269,7 @@ mod tests {
 
         let resolved = resolve_package_query(&packages, "code").expect("resolve package");
 
-        assert_eq!(resolved.name, "code");
+        assert_eq!(resolved.id, "code");
     }
 
     #[test]
@@ -294,6 +294,6 @@ mod tests {
         let packages = [package];
         let resolved = resolve_package_query(&packages, "tool").expect("resolve alias");
 
-        assert_eq!(resolved.name, "github:owner/tool");
+        assert_eq!(resolved.id, "github:owner/tool");
     }
 }

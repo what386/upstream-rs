@@ -118,7 +118,7 @@ pub async fn run(
 
     println!("{}", output::title("Install preview"));
 
-    output::kv("Package", &selection.package.name);
+    output::kv("Package", &selection.package.id);
     output::kv(
         "Source",
         format!(
@@ -155,7 +155,7 @@ pub async fn run(
     output::print_disk_impact(&selection.disk_impact, true);
 
     let transaction_rows = vec![TransactionRow::single_version(
-        format!("{}/{}", selection.package.provider, selection.package.name),
+        format!("{}/{}", selection.package.provider, selection.package.id),
         &selection.release.tag,
         selection.disk_impact.net,
         selection.disk_impact.download,
@@ -186,11 +186,11 @@ pub async fn run(
     pb.set_draw_target(ProgressDrawTarget::stderr_with_hz(10));
     pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
     pb.enable_steady_tick(Duration::from_millis(120));
-    pb.set_message(format!("Installing {}", selection.package.name));
+    pb.set_message(format!("Installing {}", selection.package.id));
 
-    let progress_name = selection.package.name.clone();
+    let progress_name = selection.package.id.clone();
     let progress_name_width = output::progress_name_width([progress_name.as_str()]);
-    let install_name = selection.package.name.clone();
+    let install_name = selection.package.id.clone();
     let install_version = selection.release.tag.clone();
 
     let progress_pb = pb.clone();

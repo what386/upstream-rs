@@ -10,7 +10,7 @@ use crate::models::upstream::Package;
 use crate::providers::pattern_matcher::PatternTable;
 
 pub const PACKAGE_COLUMNS: &str = "
-    name,
+    id,
     repo_slug,
     filetype,
     version_major,
@@ -81,7 +81,7 @@ pub(super) fn row_to_package(row: &Row<'_>) -> rusqlite::Result<Package> {
     };
 
     Ok(Package {
-        name: row.get(0)?,
+        id: row.get(0)?,
         repo_slug: row.get(1)?,
         filetype: enum_from_db_value(row.get::<_, String>(2)?, 2)?,
         version,

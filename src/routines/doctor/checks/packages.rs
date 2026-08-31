@@ -107,7 +107,7 @@ pub(in crate::routines::doctor) fn select_packages(
         );
     } else {
         for name in names {
-            match all_packages.iter().find(|package| package.name == *name) {
+            match all_packages.iter().find(|package| package.id == *name) {
                 Some(package) => selected.push(package.clone()),
                 None => report.line(
                     Level::Fail,
@@ -143,7 +143,7 @@ pub(in crate::routines::doctor) async fn check_version_tag_templates(
         if package.release_tag.is_some() {
             report.line(
                 Level::Ok,
-                format!("package '{}' exact release tag exists", package.name),
+                format!("package '{}' exact release tag exists", package.id),
             );
             continue;
         }
@@ -151,24 +151,24 @@ pub(in crate::routines::doctor) async fn check_version_tag_templates(
         if package.version_tag_template.is_some() {
             report.line(
                 Level::Ok,
-                format!("package '{}' version tag template exists", package.name),
+                format!("package '{}' version tag template exists", package.id),
             );
             continue;
         }
 
         if fix {
-            package_database.update_package(&package.name, |package| {
+            package_database.update_package(&package.id, |package| {
                 package.version_tag_template = Some("v{}".to_string());
                 Ok(true)
             })?;
             report.line(
                 Level::Ok,
-                format!("package '{}' repaired version tag template", package.name),
+                format!("package '{}' repaired version tag template", package.id),
             );
         } else {
             report.line(
                 Level::Warn,
-                format!("package '{}' is missing version tag template", package.name),
+                format!("package '{}' is missing version tag template", package.id),
             );
             report.hint("Run `upstream doctor --fix` to repair version tag templates.");
         }
@@ -187,7 +187,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
     let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
 
     for package in selected {
-        let package_label = format!("package '{}'", package.name);
+        let package_label = format!("package '{}'", package.id);
 
         match &package.install_path {
             Some(path) if path.exists() => {
@@ -206,7 +206,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                 );
                 report.hint(format!(
                     "Package '{}' has stale metadata. Run `upstream remove {}` then reinstall.",
-                    package.name, package.name
+                    package.id, package.id
                 ));
             }
         }
@@ -218,7 +218,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
             );
             report.hint(format!(
                 "Try `upstream reinstall {}` to rebuild executable aliases.",
-                package.name
+                package.id
             ));
         }
 
@@ -423,7 +423,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                 let desktop_entry = paths
                     .integration
                     .xdg_applications_dir
-                    .join(format!("{}.desktop", package.name));
+                    .join(format!("{}.desktop", package.id));
 
                 if desktop_entry.exists() {
                     report.line(Level::Ok, format!("{} desktop entry exists", package_label));
@@ -438,7 +438,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                     );
                     report.hint(format!(
                         "Reinstall '{}' with desktop integration enabled to restore desktop entry.",
-                        package.name
+                        package.id
                     ));
                 }
             }

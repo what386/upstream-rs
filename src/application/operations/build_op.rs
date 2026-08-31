@@ -310,7 +310,7 @@ impl<'a> BuildOperation<'a> {
 
         println!(
             "{}",
-            output::success(format!("Build install complete for '{}'.", installed.name))
+            output::success(format!("Build install complete for '{}'.", installed.id))
         );
 
         Ok(())

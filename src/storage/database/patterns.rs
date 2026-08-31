@@ -7,19 +7,16 @@ use crate::models::upstream::Package;
 use crate::providers::pattern_matcher::PatternTable;
 
 pub(super) fn replace_patterns(tx: &Transaction<'_>, package: &Package) -> Result<()> {
-    tx.execute(
-        "DELETE FROM patterns WHERE package_name = ?1",
-        [&package.name],
-    )
-    .with_context(|| format!("Failed to replace patterns for package '{}'", package.name))?;
-    write_patterns(tx, &package.name, "match", &package.match_pattern)?;
-    write_patterns(tx, &package.name, "exclude", &package.exclude_pattern)?;
+    tx.execute("DELETE FROM patterns WHERE package_id = ?1", [&package.id])
+        .with_context(|| format!("Failed to replace patterns for package '{}'", package.id))?;
+    write_patterns(tx, &package.id, "match", &package.match_pattern)?;
+    write_patterns(tx, &package.id, "exclude", &package.exclude_pattern)?;
     Ok(())
 }
 
 pub(super) fn load_patterns(conn: &Connection, package: &mut Package) -> Result<()> {
-    package.match_pattern = load_pattern_kind(conn, &package.name, "match")?;
-    package.exclude_pattern = load_pattern_kind(conn, &package.name, "exclude")?;
+    package.match_pattern = load_pattern_kind(conn, &package.id, "match")?;
+    package.exclude_pattern = load_pattern_kind(conn, &package.id, "exclude")?;
     Ok(())
 }
 
@@ -29,9 +26,9 @@ pub(super) fn load_patterns_for_packages(
 ) -> Result<()> {
     let mut stmt = conn
         .prepare(
-            "SELECT package_name, kind, pattern
+            "SELECT package_id, kind, pattern
              FROM patterns
-             ORDER BY package_name, kind, position ASC",
+             ORDER BY package_id, kind, position ASC",
         )
         .context("Failed to prepare bulk pattern query")?;
 
@@ -57,7 +54,7 @@ pub(super) fn load_patterns_for_packages(
     }
 
     for package in packages {
-        if let Some(patterns) = patterns_by_package.remove(&package.name) {
+        if let Some(patterns) = patterns_by_package.remove(&package.id) {
             package.match_pattern = PatternTable::from_patterns(patterns.match_patterns);
             package.exclude_pattern = PatternTable::from_patterns(patterns.exclude_patterns);
         }
@@ -80,7 +77,7 @@ fn write_patterns(
 ) -> Result<()> {
     let mut stmt = tx
         .prepare(
-            "INSERT INTO patterns (package_name, kind, position, pattern)
+            "INSERT INTO patterns (package_id, kind, position, pattern)
              VALUES (?1, ?2, ?3, ?4)",
         )
         .context("Failed to prepare pattern insert")?;
@@ -98,7 +95,7 @@ fn load_pattern_kind(conn: &Connection, package_name: &str, kind: &str) -> Resul
         .prepare(
             "SELECT pattern
              FROM patterns
-             WHERE package_name = ?1 AND kind = ?2
+             WHERE package_id = ?1 AND kind = ?2
              ORDER BY position ASC",
         )
         .with_context(|| format!("Failed to prepare {kind} pattern query"))?;

@@ -82,7 +82,7 @@ impl PreparedInstall {
         let desktop_manager = DesktopManager::new(paths)?;
 
         let mut final_package = self.final_package(paths)?;
-        let desktop_path = self.workspace.desktop_path(&self.package.name)?;
+        let desktop_path = self.workspace.desktop_path(&self.package.id)?;
         desktop_manager
             .prepare_package_entry(
                 &self.package,
@@ -134,7 +134,7 @@ impl PreparedInstall {
     }
 
     fn install_completions(&self, paths: &UpstreamPaths) -> Result<()> {
-        let package_name = &self.package.name;
+        let package_name = &self.package.id;
         let candidates = [
             (
                 self.workspace.completions().bash_dir.join(package_name),
@@ -218,7 +218,7 @@ impl PreparedInstall {
         if let Some(staged_desktop_path) = self.staged_desktop_path.as_ref()
             && staged_desktop_path.exists()
         {
-            let destination = DesktopManager::managed_entry_path(paths, &self.package.name)?;
+            let destination = DesktopManager::managed_entry_path(paths, &self.package.id)?;
             if let Some(parent) = destination.parent() {
                 fs::create_dir_all(parent).with_context(|| {
                     format!("Failed to create desktop directory '{}'", parent.display())
@@ -325,13 +325,13 @@ impl ReplacementBackup {
 
     pub fn move_integrations(&mut self, paths: &UpstreamPaths) -> Result<()> {
         for path in
-            CompletionManager::new(paths).package_completion_paths(&self.previous_package.name)
+            CompletionManager::new(paths).package_completion_paths(&self.previous_package.id)
         {
             self.move_integration(path, "completions")?;
         }
 
         self.move_integration(
-            DesktopManager::managed_entry_path(paths, &self.previous_package.name)?,
+            DesktopManager::managed_entry_path(paths, &self.previous_package.id)?,
             "desktop",
         )?;
         if let Some(icon_path) = self.previous_package.icon_path.clone() {
@@ -379,18 +379,18 @@ impl<'a> PackageActivator<'a> {
         let mut errors = Vec::new();
         if runtime_link_activated
             && let Err(error) =
-                SymlinkManager::new(&self.paths.state.symlinks_dir).remove_link(&package.name)
+                SymlinkManager::new(&self.paths.state.symlinks_dir).remove_link(&package.id)
         {
             errors.push(format!("failed to remove runtime link: {error:#}"));
         }
 
         if let Err(error) =
-            CompletionManager::new(self.paths).remove_for_package(&package.name, message_callback)
+            CompletionManager::new(self.paths).remove_for_package(&package.id, message_callback)
         {
             errors.push(format!("failed to remove completions: {error:#}"));
         }
 
-        if let Err(error) = DesktopManager::remove_entry(self.paths, &package.name) {
+        if let Err(error) = DesktopManager::remove_entry(self.paths, &package.id) {
             errors.push(format!("failed to remove desktop entry: {error:#}"));
         }
 
@@ -545,8 +545,7 @@ impl<'a> PackageActivator<'a> {
         );
 
         let persist_result = if trust_mode.is_some() {
-            let mut settings =
-                crate::storage::database::PackageSettings::new(&updated_package.name);
+            let mut settings = crate::storage::database::PackageSettings::new(&updated_package.id);
 
             settings.trust_mode = trust_mode;
             package_database.upsert_package_with_settings(&updated_package, &settings)
@@ -563,14 +562,14 @@ impl<'a> PackageActivator<'a> {
 
             return Err(error).context(format!(
                 "Failed to save package '{}' to storage",
-                updated_package.name
+                updated_package.id
             ));
         }
 
         if let Err(error) = ShellManager::new(&self.paths.generated.paths_file)
             .regenerate_paths(package_database, self.paths)
         {
-            let _ = package_database.remove_package(&updated_package.name);
+            let _ = package_database.remove_package(&updated_package.id);
             let _ = self.undo_activation(
                 &updated_package,
                 runtime_link_activated,
@@ -579,7 +578,7 @@ impl<'a> PackageActivator<'a> {
 
             return Err(error).context(format!(
                 "Failed to refresh shell PATH after installing '{}'",
-                updated_package.name
+                updated_package.id
             ));
         }
 
@@ -618,7 +617,7 @@ impl<'a> PackageActivator<'a> {
             .ok_or_else(|| {
                 anyhow!(
                     "Package '{}' has no install path recorded",
-                    previous_package.name
+                    previous_package.id
                 )
             })?
             .clone();
@@ -638,7 +637,7 @@ impl<'a> PackageActivator<'a> {
             );
         }
 
-        let backup_dir = Self::backup_dir(self.paths, &previous_package.name)?;
+        let backup_dir = Self::backup_dir(self.paths, &previous_package.id)?;
         let mut backup = ReplacementBackup::new(
             previous_package.clone(),
             original_install_path.clone(),
@@ -751,7 +750,7 @@ impl<'a> PackageActivator<'a> {
                 backup,
                 error.context(format!(
                     "Failed to capture rollback for '{}'",
-                    previous_package.name
+                    previous_package.id
                 )),
                 "Failed to finalize replacement",
                 message_callback,
@@ -855,14 +854,14 @@ impl<'a> PackageActivator<'a> {
             return Err(anyhow!(
                 "{} for '{}': {failure:#}. Rollback encountered: {}",
                 failure_context,
-                backup.previous_package.name,
+                backup.previous_package.id,
                 errors.join("; ")
             ));
         }
 
         Err(failure).context(format!(
             "{} for '{}' (previous version restored)",
-            failure_context, backup.previous_package.name
+            failure_context, backup.previous_package.id
         ))
     }
 }
@@ -888,7 +887,7 @@ impl<'a> PackageActivator<'a> {
             .regenerate_paths(package_database, self.paths)
             .context(format!(
                 "Replacement for '{}' was persisted, but shell PATH files could not be refreshed",
-                replacement.name
+                replacement.id
             ))
     }
 
@@ -901,7 +900,7 @@ impl<'a> PackageActivator<'a> {
         let rollback_result = (|| {
             RollbackManager::new(self.paths)?.restore_replaced_package(
                 package_database,
-                &replacement.name,
+                &replacement.id,
                 replacement,
                 &mut None::<fn(&str)>,
             )
@@ -910,11 +909,11 @@ impl<'a> PackageActivator<'a> {
         match rollback_result {
             Ok(()) => Err(persistence_error).context(format!(
                 "Failed to persist replacement for '{}' (previous version restored)",
-                replacement.name
+                replacement.id
             )),
             Err(rollback_error) => Err(anyhow!(
                 "Failed to persist replacement for '{}': {}. Rollback also failed: {}",
-                replacement.name,
+                replacement.id,
                 persistence_error,
                 rollback_error
             )),

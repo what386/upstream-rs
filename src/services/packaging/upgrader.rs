@@ -150,7 +150,7 @@ impl<'a> PackageUpgrader<'a> {
             )
             .context("Failed to install zsync-updated artifact")?;
 
-        let name = installed.name.clone();
+        let name = installed.id.clone();
         let provider = installed.provider.clone();
         let result = installer
             .finish_verified_release_install(
@@ -208,10 +208,7 @@ impl<'a> PackageUpgrader<'a> {
                 )
                 .await
                 .with_context(|| {
-                    format!(
-                        "Failed to resolve branch '{}' for '{}'",
-                        branch, package.name
-                    )
+                    format!("Failed to resolve branch '{}' for '{}'", branch, package.id)
                 })?;
 
             let up_to_date = package
@@ -243,14 +240,14 @@ impl<'a> PackageUpgrader<'a> {
                     )
                     .await
                     .with_context(|| {
-                        format!("Failed to resolve latest release for '{}'", package.name)
+                        format!("Failed to resolve latest release for '{}'", package.id)
                     })?,
             )
         } else {
             self.provider_manager
                 .check_for_updates(package)
                 .await
-                .with_context(|| format!("Failed to check '{}' for updates", package.name))?
+                .with_context(|| format!("Failed to check '{}' for updates", package.id))?
         };
 
         let Some(release) = release else {
@@ -351,7 +348,7 @@ impl<'a> PackageUpgrader<'a> {
     {
         cancellation::check()?;
         if package.is_pinned && !allow_pinned {
-            bail!("Package '{}' is pinned", package.name);
+            bail!("Package '{}' is pinned", package.id);
         }
 
         let had_desktop_integration = package.icon_path.is_some();
@@ -359,14 +356,14 @@ impl<'a> PackageUpgrader<'a> {
         message!(
             message_callback,
             "{}",
-            style(format!("{action} '{}' ...", package.name)).cyan()
+            style(format!("{action} '{}' ...", package.id)).cyan()
         );
 
         let original_install_path = package
             .install_path
             .as_ref()
             .ok_or_else(|| {
-                anyhow::anyhow!("Package '{}' has no install path recorded", package.name)
+                anyhow::anyhow!("Package '{}' has no install path recorded", package.id)
             })?
             .clone();
 
@@ -375,7 +372,7 @@ impl<'a> PackageUpgrader<'a> {
             PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot)
         );
 
-        let workspace = InstallWorkspace::new(self.paths, &package.name)?;
+        let workspace = InstallWorkspace::new(self.paths, &package.id)?;
         let mut staging_installer =
             PackageInstaller::new_for_workspace(self.provider_manager, self.paths, workspace)?;
 
@@ -410,7 +407,7 @@ impl<'a> PackageUpgrader<'a> {
                 worker
                     .build(
                         BuildRequest {
-                            name: package.name.clone(),
+                            name: package.id.clone(),
                             repo_slug: package.repo_slug.clone(),
                             provider: package.provider.clone(),
                             base_url: package.base_url.clone(),
@@ -483,15 +480,13 @@ impl<'a> PackageUpgrader<'a> {
                         Err(err) => Err(err).context("Failed to prepare rebuilt version"),
                     }
                 }
-                Err(e) => {
-                    Err(e).context(format!("Failed to rebuild '{}' from source", package.name))
-                }
+                Err(e) => Err(e).context(format!("Failed to rebuild '{}' from source", package.id)),
             }
         } else {
             let ResolvedUpgradeTarget::Release(release) = &target else {
                 bail!(
                     "Resolved branch target cannot be used for release package '{}'",
-                    package.name
+                    package.id
                 );
             };
 
@@ -509,7 +504,7 @@ impl<'a> PackageUpgrader<'a> {
 
                     return Err(err).context(format!(
                         "Failed to resolve upgrade asset for '{}'",
-                        package.name
+                        package.id
                     ));
                 }
             };

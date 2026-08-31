@@ -189,14 +189,14 @@ fn derive_path_entries(
         right
             .last_upgraded
             .cmp(&left.last_upgraded)
-            .then_with(|| left.name.cmp(&right.name))
+            .then_with(|| left.id.cmp(&right.id))
     });
 
     let mut entries = Vec::new();
 
     for package in &packages {
         if let Some(path_entry) = derive_package_path_entry(paths, package) {
-            push_unique_package_path(&mut entries, package.name.clone(), path_entry);
+            push_unique_package_path(&mut entries, package.id.clone(), path_entry);
         }
     }
 

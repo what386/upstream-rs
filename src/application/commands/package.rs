@@ -316,6 +316,6 @@ fn load_installed_package(name: &str, paths: &UpstreamPaths) -> Result<(PackageD
 fn save_package(package_database: &mut PackageDatabase, package: &Package) -> Result<()> {
     package_database.upsert_package(package).context(format!(
         "Failed to save package '{}' to storage",
-        package.name
+        package.id
     ))
 }

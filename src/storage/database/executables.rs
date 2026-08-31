@@ -6,7 +6,7 @@ use rusqlite::{Connection, Transaction, params};
 use crate::models::upstream::{Package, PackageExecutable};
 
 pub(super) fn load_executables(conn: &Connection, package: &mut Package) -> Result<()> {
-    package.executables = list_executables(conn, &package.name)?;
+    package.executables = list_executables(conn, &package.id)?;
     Ok(())
 }
 
@@ -24,7 +24,7 @@ fn list_executables(conn: &Connection, package_name: &str) -> Result<Vec<Package
     let mut statement = conn
         .prepare(
             "SELECT path, name FROM package_executables
-             WHERE package_name = ?1 ORDER BY name",
+             WHERE package_id = ?1 ORDER BY name",
         )
         .with_context(|| format!("Failed to prepare executable query for '{package_name}'"))?;
 
@@ -42,10 +42,10 @@ fn list_executables(conn: &Connection, package_name: &str) -> Result<Vec<Package
 
 pub(super) fn replace_executables(tx: &Transaction<'_>, package: &Package) -> Result<()> {
     tx.execute(
-        "DELETE FROM package_executables WHERE package_name = ?1",
-        [&package.name],
+        "DELETE FROM package_executables WHERE package_id = ?1",
+        [&package.id],
     )
-    .with_context(|| format!("Failed to clear executable aliases for '{}'", package.name))?;
+    .with_context(|| format!("Failed to clear executable aliases for '{}'", package.id))?;
 
     for executable in &package.executables {
         let path = executable.path.to_str().ok_or_else(|| {
@@ -55,13 +55,13 @@ pub(super) fn replace_executables(tx: &Transaction<'_>, package: &Package) -> Re
             )
         })?;
         tx.execute(
-            "INSERT INTO package_executables (package_name, path, name) VALUES (?1, ?2, ?3)",
-            params![package.name, path, executable.name],
+            "INSERT INTO package_executables (package_id, path, name) VALUES (?1, ?2, ?3)",
+            params![package.id, path, executable.name],
         )
         .with_context(|| {
             format!(
                 "Failed to store executable alias '{}' for package '{}'",
-                executable.name, package.name
+                executable.name, package.id
             )
         })?;
     }

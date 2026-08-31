@@ -36,7 +36,7 @@ impl<'a> PackageRemover<'a> {
     pub fn estimate_remove_impact(&self, package: &Package, purge_option: bool) -> DiskImpact {
         let active_size = self.estimate_active_size(package).unwrap_or(0);
         let purge_size = if purge_option {
-            estimate_existing_paths(Self::purge_candidate_paths(&package.name)).unwrap_or(0)
+            estimate_existing_paths(Self::purge_candidate_paths(&package.id)).unwrap_or(0)
         } else {
             0
         };
@@ -57,30 +57,30 @@ impl<'a> PackageRemover<'a> {
             paths.push(icon_path.clone());
         }
 
-        paths.push(self.paths.state.symlinks_dir.join(&package.name));
+        paths.push(self.paths.state.symlinks_dir.join(&package.id));
         paths.push(
             self.paths
                 .integration
                 .xdg_applications_dir
-                .join(format!("{}.desktop", package.name)),
+                .join(format!("{}.desktop", package.id)),
         );
         paths.push(
             self.paths
                 .integration
                 .bash_completions_dir
-                .join(&package.name),
+                .join(&package.id),
         );
         paths.push(
             self.paths
                 .integration
                 .fish_completions_dir
-                .join(format!("{}.fish", package.name)),
+                .join(format!("{}.fish", package.id)),
         );
         paths.push(
             self.paths
                 .integration
                 .zsh_completions_dir
-                .join(format!("_{}", package.name)),
+                .join(format!("_{}", package.id)),
         );
         estimate_existing_paths(paths)
     }
@@ -226,7 +226,7 @@ impl<'a> PackageRemover<'a> {
         let install_path = package
             .install_path
             .as_ref()
-            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
+            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.id))?;
 
         self.remove_runtime_integrations(package, message_callback)?;
 
@@ -268,9 +268,9 @@ impl<'a> PackageRemover<'a> {
 
         if let Some(icon_path) = &package.icon_path {
             message!(message_callback, "Removing desktop entry ...");
-            DesktopManager::remove_entry(self.paths, &package.name).context(format!(
+            DesktopManager::remove_entry(self.paths, &package.id).context(format!(
                 "Failed to remove desktop entry for '{}'",
-                package.name
+                package.id
             ))?;
 
             fs::remove_file(icon_path).context(format!(
@@ -299,15 +299,15 @@ impl<'a> PackageRemover<'a> {
         let _ = package
             .install_path
             .as_ref()
-            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
+            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.id))?;
 
         self.remove_runtime_link(package, message_callback)?;
 
         CompletionManager::new(self.paths)
-            .remove_for_package(&package.name, message_callback)
+            .remove_for_package(&package.id, message_callback)
             .context(format!(
                 "Failed to remove completion files for '{}'",
-                package.name
+                package.id
             ))?;
 
         Ok(())
@@ -326,7 +326,7 @@ impl<'a> PackageRemover<'a> {
         let _ = package
             .install_path
             .as_ref()
-            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
+            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.id))?;
 
         for executable in &package.executables {
             message!(
@@ -356,7 +356,7 @@ impl<'a> PackageRemover<'a> {
         let _ = package
             .install_path
             .as_ref()
-            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
+            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.id))?;
 
         for executable in &package.executables {
             if executable.path.exists() {

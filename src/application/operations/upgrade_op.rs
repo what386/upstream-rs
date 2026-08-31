@@ -28,7 +28,7 @@ fn preview_package_source(package: &crate::models::upstream::Package) -> String 
 }
 
 fn preview_package_label(package: &crate::models::upstream::Package) -> String {
-    format!("{}/{}", preview_package_source(package), package.name)
+    format!("{}/{}", preview_package_source(package), package.id)
 }
 
 fn preview_package_width(packages: &[crate::models::upstream::Package]) -> usize {
@@ -164,13 +164,13 @@ impl<'a> UpgradeOperation<'a> {
             .into_iter()
             .map(|(pkg, result)| match result {
                 Ok(Some((current, latest))) => UpdateCheckRow {
-                    name: pkg.name,
+                    name: pkg.id,
                     channel: Some(pkg.channel),
                     provider: Some(pkg.provider),
                     status: UpdateCheckStatus::UpdateAvailable { current, latest },
                 },
                 Ok(None) => UpdateCheckRow {
-                    name: pkg.name,
+                    name: pkg.id,
                     channel: Some(pkg.channel),
                     provider: Some(pkg.provider),
                     status: UpdateCheckStatus::UpToDate {
@@ -178,7 +178,7 @@ impl<'a> UpgradeOperation<'a> {
                     },
                 },
                 Err(error) => UpdateCheckRow {
-                    name: pkg.name,
+                    name: pkg.id,
                     channel: Some(pkg.channel),
                     provider: Some(pkg.provider),
                     status: UpdateCheckStatus::Failed {
@@ -275,7 +275,7 @@ impl<'a> UpgradeOperation<'a> {
             };
 
             event_callback(UpgradePreviewEvent::Checking {
-                name: package.name.clone(),
+                name: package.id.clone(),
             });
             pending.push(self.preview_package_at_index(idx, package, force));
         }
@@ -291,7 +291,7 @@ impl<'a> UpgradeOperation<'a> {
 
             if let Some((next_idx, next_package)) = package_iter.next() {
                 event_callback(UpgradePreviewEvent::Checking {
-                    name: next_package.name.clone(),
+                    name: next_package.id.clone(),
                 });
                 pending.push(self.preview_package_at_index(next_idx, next_package, force));
             }
@@ -336,7 +336,7 @@ impl<'a> UpgradeOperation<'a> {
         };
 
         Ok(Some(UpgradePreviewRow {
-            name: package.name.clone(),
+            name: package.id.clone(),
             source: preview_package_source(&package),
             old_version,
             new_version,
@@ -391,7 +391,7 @@ impl<'a> UpgradeOperation<'a> {
             let progress_callback = Arc::clone(&progress_callback);
 
             async move {
-                let name = package.name.clone();
+                let name = package.id.clone();
                 let new_version = row.new_version.clone();
                 let progress_name = name.clone();
                 let package_progress_callback = Arc::clone(&progress_callback);

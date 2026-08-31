@@ -41,7 +41,7 @@ impl<'a> PackageChecker<'a> {
                 .await
                 .context(format!(
                     "Failed to fetch branch head for '{}' on '{}'",
-                    branch, package.name
+                    branch, package.id
                 ))?;
 
             let current = package
@@ -67,7 +67,7 @@ impl<'a> PackageChecker<'a> {
             .provider_manager
             .check_for_updates(package)
             .await
-            .context(format!("fetch latest release for '{}'", package.name))?
+            .context(format!("fetch latest release for '{}'", package.id))?
         else {
             return Ok(None);
         };
@@ -97,7 +97,7 @@ impl<'a> PackageChecker<'a> {
                 break;
             };
 
-            checking_callback(&package.name);
+            checking_callback(&package.id);
             pending.push(self.check_package_at_index(idx, package));
         }
 
@@ -105,7 +105,7 @@ impl<'a> PackageChecker<'a> {
             checked.push((idx, package, result));
 
             if let Some((next_idx, next_package)) = package_iter.next() {
-                checking_callback(&next_package.name);
+                checking_callback(&next_package.id);
                 pending.push(self.check_package_at_index(next_idx, next_package));
             }
         }
@@ -171,7 +171,7 @@ mod tests {
         assert_eq!(
             results
                 .iter()
-                .map(|(package, _)| package.name.as_str())
+                .map(|(package, _)| package.id.as_str())
                 .collect::<Vec<_>>(),
             ["first", "second"]
         );

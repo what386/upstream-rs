@@ -215,7 +215,7 @@ mod tests {
         let packages = super::load_legacy_package_metadata(&paths).expect("load packages");
 
         assert_eq!(packages.len(), 1);
-        assert_eq!(packages[0].name, "tool");
+        assert_eq!(packages[0].id, "tool");
 
         cleanup(&root).expect("cleanup");
     }

@@ -36,7 +36,7 @@ impl<'a> AssetSelector<'a> {
         H: FnMut(&str),
     {
         if let Some(descriptor) = dotslash_parser::find_asset(release, package) {
-            let cache_key = format!("{}-dotslash", package_cache_key(&package.name));
+            let cache_key = format!("{}-dotslash", package_cache_key(&package.id));
             let descriptor_cache = self.download_cache.join(cache_key);
             std::fs::create_dir_all(&descriptor_cache).context(format!(
                 "Failed to create DotSlash download cache '{}'",
@@ -53,7 +53,7 @@ impl<'a> AssetSelector<'a> {
         self.find_recommended_asset(release, package)
             .context(format!(
                 "Could not find a compatible asset for '{}' (filetype: {:?}, arch: detected automatically)",
-                package.name, package.filetype
+                package.id, package.filetype
             ))
     }
 

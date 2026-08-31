@@ -75,7 +75,7 @@ impl<'a> RollbackArtifacts<'a> {
             )
         })?;
 
-        let package_rollback_dir = safe_package_dir(self.root, &package.name)?;
+        let package_rollback_dir = safe_package_dir(self.root, &package.id)?;
         fs::create_dir_all(&package_rollback_dir).with_context(|| {
             format!(
                 "Failed to create rollback directory '{}'",
@@ -160,7 +160,7 @@ impl<'a> RollbackArtifacts<'a> {
             Err(capture_error) => {
                 let cleanup_result = remove_file_or_dir_if_exists(&capture_dir)
                     .and_then(|()| remove_file_or_dir_if_exists(&archive_path))
-                    .and_then(|()| self.cleanup_empty_package_dir(&package.name));
+                    .and_then(|()| self.cleanup_empty_package_dir(&package.id));
 
                 match cleanup_result {
                     Ok(()) => Err(capture_error),

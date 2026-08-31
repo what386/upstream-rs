@@ -66,12 +66,12 @@ impl<'a> RollbackManager<'a> {
         let install_path = package
             .install_path
             .as_ref()
-            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
+            .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.id))?;
 
         if !install_path.exists() {
             return Err(anyhow!(
                 "Package '{}' install path does not exist: {}",
-                package.name,
+                package.id,
                 install_path.display()
             ));
         }
@@ -161,7 +161,7 @@ impl<'a> RollbackManager<'a> {
         message!(
             message_callback,
             "Capturing rollback artifact for '{}' ...",
-            package.name
+            package.id
         );
 
         let capture = self.rollback_storage.capture_artifact(
@@ -176,7 +176,7 @@ impl<'a> RollbackManager<'a> {
         message!(
             message_callback,
             "Captured rollback artifact for '{}' at '{}'",
-            package.name,
+            package.id,
             capture.artifact_path.display()
         );
 
@@ -313,7 +313,7 @@ impl<'a> RollbackManager<'a> {
         drop(prepared);
 
         if let Some(mut settings) = package_settings {
-            settings.package_name = record.package_snapshot.name.clone();
+            settings.package_name = record.package_snapshot.id.clone();
             package_database.upsert_package_with_settings(&record.package_snapshot, &settings)?;
         } else {
             package_database.upsert_package(&record.package_snapshot)?;
@@ -370,7 +370,7 @@ impl<'a> RollbackManager<'a> {
             .map(ByteEstimate::estimated)
             .unwrap_or_else(|_| ByteEstimate::unknown());
 
-        let pruned_size = self.estimate_pruned_size(&package.name, options.stored_artifacts)?;
+        let pruned_size = self.estimate_pruned_size(&package.id, options.stored_artifacts)?;
 
         let Some(new_size) = new_capture_size.bytes else {
             return Ok(SignedByteEstimate::unknown());

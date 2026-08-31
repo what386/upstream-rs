@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS packages (
-    name TEXT PRIMARY KEY NOT NULL,
+    id TEXT PRIMARY KEY NOT NULL,
     repo_slug TEXT NOT NULL,
     filetype TEXT NOT NULL CHECK (
         filetype IN (
@@ -38,29 +38,29 @@ CREATE TABLE IF NOT EXISTS packages (
 );
 
 CREATE TABLE IF NOT EXISTS patterns (
-    package_name TEXT NOT NULL,
+    package_id TEXT NOT NULL,
     kind TEXT NOT NULL CHECK (kind IN ('match', 'exclude')),
     position INTEGER NOT NULL CHECK (position >= 0),
     pattern TEXT NOT NULL,
-    PRIMARY KEY (package_name, kind, position),
-    FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
+    PRIMARY KEY (package_id, kind, position),
+    FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_patterns_package_kind_position
-    ON patterns(package_name, kind, position);
+    ON patterns(package_id, kind, position);
 
 CREATE TABLE IF NOT EXISTS path_entries (
-    package_name TEXT PRIMARY KEY NOT NULL,
+    package_id TEXT PRIMARY KEY NOT NULL,
     path TEXT NOT NULL,
     position INTEGER NOT NULL,
-    FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_path_entries_position
     ON path_entries(position);
 
 CREATE TABLE IF NOT EXISTS package_settings (
-    package_name TEXT PRIMARY KEY NOT NULL,
+    package_id TEXT PRIMARY KEY NOT NULL,
     trust_mode TEXT CHECK (
         trust_mode IS NULL OR trust_mode IN (
             'None',
@@ -70,16 +70,16 @@ CREATE TABLE IF NOT EXISTS package_settings (
             'All'
         )
     ),
-    FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS package_executables (
-    package_name TEXT NOT NULL,
+    package_id TEXT NOT NULL,
     path TEXT NOT NULL,
     name TEXT NOT NULL UNIQUE,
-    PRIMARY KEY (package_name, path, name),
-    FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
+    PRIMARY KEY (package_id, path, name),
+    FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_package_executables_package
-    ON package_executables(package_name, name);
+    ON package_executables(package_id, name);

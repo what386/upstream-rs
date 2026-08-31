@@ -144,7 +144,7 @@ where
             .unwrap_or_else(|| executable_paths[0].display().to_string())
     );
 
-    install_completions_from_root(workspace, &package.name, &out_path, message_callback);
+    install_completions_from_root(workspace, &package.id, &out_path, message_callback);
     set_executable_aliases(&mut package, executable_paths);
     package.install_path = Some(out_path);
     package.last_upgraded = Utc::now();
@@ -211,7 +211,7 @@ where
 
     let completion_root = match crate::services::artifact::AppImageExtractor::new() {
         Ok(extractor) => match extractor
-            .extract(&package.name, &out_path, message_callback)
+            .extract(&package.id, &out_path, message_callback)
             .await
         {
             Ok(root) => Some(root),
@@ -237,7 +237,7 @@ where
     };
 
     if let Some(root) = completion_root {
-        install_completions_from_root(workspace, &package.name, &root, message_callback);
+        install_completions_from_root(workspace, &package.id, &root, message_callback);
     }
 
     package.install_path = Some(out_path.clone());

@@ -53,7 +53,7 @@ impl DesktopEntry {
     }
 
     pub fn from_package(package: &Package) -> DesktopEntry {
-        let mut entry = DesktopEntry::new(&package.name);
+        let mut entry = DesktopEntry::new(&package.id);
         entry.exec = package
             .primary_executable()
             .map(|executable| executable.path.display().to_string());

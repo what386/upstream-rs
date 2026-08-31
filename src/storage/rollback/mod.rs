@@ -78,14 +78,13 @@ impl RollbackStorage {
             compression_level,
         )?;
 
-        let pruned = match self.index.push_record(
-            &package.name,
-            created.record.clone(),
-            max_records,
-        ) {
+        let pruned = match self
+            .index
+            .push_record(&package.id, created.record.clone(), max_records)
+        {
             Ok(pruned) => pruned,
             Err(index_error) => {
-                return match artifacts.delete(&package.name, &created.record) {
+                return match artifacts.delete(&package.id, &created.record) {
                     Ok(()) => Err(index_error).context("Failed to persist rollback record"),
                     Err(cleanup_error) => Err(anyhow!(
                         "Failed to persist rollback record: {index_error:#}. Failed to clean unrecorded rollback artifact: {cleanup_error:#}"
@@ -96,10 +95,10 @@ impl RollbackStorage {
 
         let mut cleanup_warnings = Vec::new();
         for record in pruned {
-            if let Err(error) = artifacts.delete(&package.name, &record) {
+            if let Err(error) = artifacts.delete(&package.id, &record) {
                 cleanup_warnings.push(format!(
                     "failed to delete pruned rollback artifact for '{}': {error:#}",
-                    package.name
+                    package.id
                 ));
             }
         }

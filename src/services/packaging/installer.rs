@@ -103,7 +103,7 @@ impl<'a> PackageInstaller<'a> {
         if request.package.install_path.is_some() {
             return Err(anyhow!(
                 "Package '{}' is already installed",
-                request.package.name
+                request.package.id
             ));
         }
 
@@ -177,7 +177,7 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
-        self.ensure_name_available(package_database, &plan.package.name)?;
+        self.ensure_name_available(package_database, &plan.package.id)?;
         let add_entry = plan.add_entry;
         let installed = self
             .materialize_install(
@@ -215,7 +215,7 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
-        self.ensure_workspace(&plan.package.name)?;
+        self.ensure_workspace(&plan.package.id)?;
         match plan.source {
             PlannedInstallSource::Release { release, asset } => {
                 self.install_selected_asset(
@@ -347,11 +347,11 @@ impl<'a> PackageInstaller<'a> {
         P: FnMut(PackageProgressEvent),
     {
         if package.install_path.is_some() {
-            return Err(anyhow!("Package '{}' is already installed", package.name));
+            return Err(anyhow!("Package '{}' is already installed", package.id));
         }
 
-        self.ensure_workspace(&package.name)?;
-        let package_name = package.name.clone();
+        self.ensure_workspace(&package.id)?;
+        let package_name = package.id.clone();
         let installed_package = {
             let progress_callback = std::cell::RefCell::new(progress_callback.as_mut());
             let mut bridged_progress = Some(|event: PackageProgressEvent| {
@@ -409,7 +409,7 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
-        self.ensure_workspace(&package.name)?;
+        self.ensure_workspace(&package.id)?;
         let installed_package = self
             .install_local_artifact_files(package, artifact_path, version, message_callback)
             .context("Failed to install local artifact")?;
@@ -430,7 +430,7 @@ impl<'a> PackageInstaller<'a> {
         semver: &Option<String>,
     ) -> Result<ResolvedAssetInstall> {
         if package.install_path.is_some() {
-            return Err(anyhow!("Package '{}' is already installed", package.name));
+            return Err(anyhow!("Package '{}' is already installed", package.id));
         }
 
         let release = if let Some(version_tag) = version {
@@ -549,7 +549,7 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
-        let cache_key = package_cache_key(&package.name);
+        let cache_key = package_cache_key(&package.id);
         let package_download_cache = self.download_cache.join(&cache_key);
         let package_extract_cache = self.extract_cache.join(&cache_key);
         fs::create_dir_all(&package_download_cache).context(format!(
@@ -718,7 +718,7 @@ impl<'a> PackageInstaller<'a> {
         );
 
         package.record_release(release);
-        let package_name = package.name.clone();
+        let package_name = package.id.clone();
         let package_provider = package.provider.clone();
 
         let installed_package = match package.filetype {
@@ -1022,7 +1022,9 @@ mod tests {
         for dir in [musl_dir, gnu_dir, glibc_dir] {
             let payload = extracted.join(dir);
             fs::create_dir_all(&payload).expect("create payload");
-            fs::write(payload.join("tool"), b"bin").expect("write payload binary");
+            let binary = payload.join("tool");
+            fs::write(&binary, b"bin").expect("write payload binary");
+            set_executable(&binary);
         }
 
         let selected_musl = archive_layout::select_nested_archive_root(
@@ -1040,6 +1042,12 @@ mod tests {
 
         assert!(selected_glibc.ends_with(musl_dir));
         fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[cfg(unix)]
+    fn set_executable(path: &std::path::Path) {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o755)).expect("make executable");
     }
 
     #[test]

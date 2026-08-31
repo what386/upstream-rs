@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 /// `Package::with_defaults` — no install state and no paths.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageReference {
-    pub name: String,
+    #[serde(alias = "name")]
+    pub id: String,
     pub repo_slug: String,
     pub filetype: Filetype,
     pub channel: Channel,
@@ -28,7 +29,7 @@ pub struct PackageReference {
 impl PackageReference {
     pub fn into_package(self) -> Package {
         let mut package = Package::with_defaults(
-            self.name,
+            self.id,
             self.repo_slug,
             self.filetype,
             None,
@@ -49,7 +50,7 @@ impl PackageReference {
     pub fn from_package(package: Package) -> Self {
         let version_tag = release_version_tag(&package);
         Self {
-            name: package.name,
+            id: package.id,
             repo_slug: package.repo_slug,
             filetype: package.filetype,
             channel: package.channel,
@@ -88,7 +89,7 @@ mod tests {
 
     fn reference() -> PackageReference {
         PackageReference {
-            name: "fd".to_string(),
+            id: "fd".to_string(),
             repo_slug: "sharkdp/fd".to_string(),
             filetype: Filetype::Archive,
             channel: Channel::Stable,
@@ -108,7 +109,7 @@ mod tests {
     fn into_package_keeps_install_inputs_and_applies_runtime_defaults() {
         let package = reference().into_package();
 
-        assert_eq!(package.name, "fd");
+        assert_eq!(package.id, "fd");
         assert_eq!(package.repo_slug, "sharkdp/fd");
         assert_eq!(package.filetype, Filetype::Archive);
         assert_eq!(package.channel, Channel::Stable);
@@ -141,7 +142,7 @@ mod tests {
         package.build_commit = Some("0123456789abcdef".to_string());
 
         let reference = PackageReference::from_package(package);
-        assert_eq!(reference.name, "ripgrep");
+        assert_eq!(reference.id, "ripgrep");
         assert_eq!(reference.repo_slug, "BurntSushi/ripgrep");
         assert_eq!(reference.filetype, Filetype::Binary);
         assert_eq!(reference.channel, Channel::Preview);

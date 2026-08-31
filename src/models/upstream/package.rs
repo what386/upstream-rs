@@ -27,7 +27,9 @@ pub struct PackageExecutable {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Package {
-    pub name: String,
+    /// Canonical package identity, for example `github:owner/repo`.
+    #[serde(alias = "name")]
+    pub id: String,
     pub repo_slug: String,
 
     pub filetype: Filetype,
@@ -64,7 +66,7 @@ pub struct Package {
 impl Package {
     #[allow(clippy::too_many_arguments)]
     pub fn with_defaults(
-        name: String,
+        id: String,
         repo_slug: String,
         filetype: Filetype,
         match_pattern: Option<String>,
@@ -74,7 +76,7 @@ impl Package {
         base_url: Option<String>,
     ) -> Self {
         Self {
-            name,
+            id,
             repo_slug,
 
             filetype,
@@ -105,7 +107,7 @@ impl Package {
         self.provider == other.provider
             && self.repo_slug == other.repo_slug
             && self.channel == other.channel
-            && self.name == other.name
+            && self.id == other.id
             && self.base_url == other.base_url
     }
 
@@ -178,12 +180,12 @@ impl Package {
     pub fn primary_executable_name(&self) -> &str {
         self.primary_executable()
             .map(|executable| executable.name.as_str())
-            .unwrap_or(&self.name)
+            .unwrap_or(&self.id)
     }
 
     /// A filesystem-safe, reversible representation of the canonical key.
     pub fn storage_key(&self) -> String {
-        self.name
+        self.id
             .bytes()
             .flat_map(|byte| match byte {
                 b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' => {
@@ -267,7 +269,7 @@ mod tests {
         b.match_pattern = PatternTable::from_patterns(["x86_64"]);
         assert!(a.is_same_as(&b));
 
-        a.name = "rg".to_string();
+        a.id = "rg".to_string();
         assert!(!a.is_same_as(&b));
     }
 

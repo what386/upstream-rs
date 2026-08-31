@@ -282,7 +282,7 @@ impl RollbackIndex {
 
         let mut renamed_records = original_records.clone();
         for record in &mut renamed_records {
-            record.package_snapshot.name = new_name.to_string();
+            record.package_snapshot.id = new_name.to_string();
             record.artifact_relative_path =
                 rebase_package_path(&record.artifact_relative_path, old_name, new_name)?;
             record.icon_relative_path = record
@@ -322,11 +322,11 @@ fn rebase_package_path(path: &Path, old_name: &str, new_name: &str) -> Result<Pa
 }
 
 fn validate_rollback_record(package_name: &str, record: &RollbackRecord) -> Result<()> {
-    if record.package_snapshot.name != package_name {
+    if record.package_snapshot.id != package_name {
         return Err(anyhow!(
             "Rollback record key '{}' does not match snapshot package '{}'",
             package_name,
-            record.package_snapshot.name
+            record.package_snapshot.id
         ));
     }
 
@@ -489,7 +489,7 @@ mod tests {
 
         let reloaded = RollbackIndex::new(&path).expect("reload");
         let loaded = reloaded.get_record("tool").expect("record");
-        assert_eq!(loaded.package_snapshot.name, "tool");
+        assert_eq!(loaded.package_snapshot.id, "tool");
         assert_eq!(
             loaded.package_snapshot.release_tag.as_deref(),
             Some("opaque-release")

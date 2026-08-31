@@ -70,7 +70,7 @@ fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Resu
         let mut selected = Vec::new();
         for name in matches {
             let Some(package) = packages.iter().find(|package| {
-                package.name == name
+                package.id == name
                     || package
                         .executables
                         .iter()
@@ -80,7 +80,7 @@ fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Resu
             };
             if !selected
                 .iter()
-                .any(|selected: &Package| selected.name == package.name)
+                .any(|selected: &Package| selected.id == package.id)
             {
                 selected.push(package.clone());
             }
@@ -92,7 +92,7 @@ fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Resu
 }
 
 fn package_query_candidates(package: &Package) -> impl Iterator<Item = &str> {
-    std::iter::once(package.name.as_str()).chain(
+    std::iter::once(package.id.as_str()).chain(
         package
             .executables
             .iter()
@@ -174,7 +174,7 @@ impl ColumnWidths {
     fn from_packages(packages: &[Package], term_width: usize) -> Self {
         let max_name = packages
             .iter()
-            .map(|p| p.name.chars().count())
+            .map(|p| p.id.chars().count())
             .max()
             .unwrap_or(4);
         let max_commands = packages
@@ -333,7 +333,7 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
     writeln!(
         out,
         "{:<name$} {:<commands$} {:<repo$} {:<kind$} {:<reference$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
-        output::truncate_end(&package.name, widths.name),
+        output::truncate_end(&package.id, widths.name),
         output::truncate_end(&package_commands(package), widths.commands),
         output::truncate_end(&package.repo_slug, widths.repo),
         package_kind_label(package),
@@ -383,7 +383,7 @@ mod tests {
         let filtered = filter_packages_by_name(packages, Some("code")).expect("substring matches");
         let names = filtered
             .iter()
-            .map(|package| package.name.as_str())
+            .map(|package| package.id.as_str())
             .collect::<Vec<_>>();
 
         assert_eq!(names, vec!["codex", "vscode"]);
@@ -394,7 +394,7 @@ mod tests {
         let packages = vec![package("ripgrep"), package("bat")];
         let filtered = filter_packages_by_name(packages, Some("ripgerp")).expect("fuzzy match");
         assert_eq!(filtered.len(), 1);
-        assert_eq!(filtered[0].name, "ripgrep");
+        assert_eq!(filtered[0].id, "ripgrep");
     }
 
     #[test]
@@ -403,7 +403,7 @@ mod tests {
         let filtered = filter_packages_by_name(packages, Some("code")).expect("ranked matches");
         let names = filtered
             .iter()
-            .map(|package| package.name.as_str())
+            .map(|package| package.id.as_str())
             .collect::<Vec<_>>();
 
         assert_eq!(names, vec!["codex", "vscode", "cope"]);
@@ -420,6 +420,6 @@ mod tests {
         let filtered = filter_packages_by_name(vec![package], Some("tool"))
             .expect("filter by executable alias");
 
-        assert_eq!(filtered[0].name, "github:owner/tool");
+        assert_eq!(filtered[0].id, "github:owner/tool");
     }
 }

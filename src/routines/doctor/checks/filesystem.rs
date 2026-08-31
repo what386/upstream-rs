@@ -188,7 +188,7 @@ pub(in crate::routines::doctor) fn check_untracked_package_artifacts(
     all_packages: &[Package],
     report: &mut DoctorReport,
 ) {
-    let installed_names: HashSet<String> = all_packages.iter().map(|p| p.name.clone()).collect();
+    let installed_names: HashSet<String> = all_packages.iter().map(|p| p.id.clone()).collect();
 
     let stale_links = find_stale_symlink_names(&paths.state.symlinks_dir, &installed_names);
     if stale_links.is_empty() {

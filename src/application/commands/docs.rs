@@ -105,7 +105,7 @@ async fn run_fetch_readmes(
     }
 
     println!("{}", output::title("Refreshing README docs"));
-    let width = output::status_subject_width(targets.iter().map(|package| package.name.as_str()));
+    let width = output::status_subject_width(targets.iter().map(|package| package.id.as_str()));
     let overall_pb = ProgressBar::new(targets.len() as u64);
     overall_pb.set_style(ProgressStyle::with_template(
         "{spinner:.green} Fetched {pos}/{len} READMEs{msg}",
@@ -127,29 +127,29 @@ async fn run_fetch_readmes(
         };
 
         active_rows.insert(
-            package.name.clone(),
-            render_docs_fetch_progress_row(&package.name),
+            package.id.clone(),
+            render_docs_fetch_progress_row(&package.id),
         );
         overall_pb.set_message(render_docs_fetch_progress(&completed_rows, &active_rows));
         pending.push(fetch_readme_task(context, package));
     }
 
     while let Some((package, result)) = pending.next().await {
-        active_rows.remove(&package.name);
+        active_rows.remove(&package.id);
         overall_pb.inc(1);
 
-        let (row, failed) = render_docs_fetch_result_row(&package.name, result, width);
+        let (row, failed) = render_docs_fetch_result_row(&package.id, result, width);
         if failed {
             failures += 1;
         }
 
-        completed_rows.insert(package.name.clone(), row.clone());
+        completed_rows.insert(package.id.clone(), row.clone());
         completion_rows.push(row);
 
         if let Some(next_package) = package_iter.next() {
             active_rows.insert(
-                next_package.name.clone(),
-                render_docs_fetch_progress_row(&next_package.name),
+                next_package.id.clone(),
+                render_docs_fetch_progress_row(&next_package.id),
             );
             pending.push(fetch_readme_task(context, next_package));
         }
@@ -271,7 +271,7 @@ fn resolve_fetch_targets(
     }
 
     let mut targets = packages.to_vec();
-    targets.sort_by(|left, right| left.name.cmp(&right.name));
+    targets.sort_by(|left, right| left.id.cmp(&right.id));
     Ok(targets)
 }
 
@@ -281,7 +281,7 @@ fn packages_for_names(packages: &[Package], names: &[String]) -> Result<Vec<Pack
         .map(|name| {
             packages
                 .iter()
-                .find(|package| package.name == *name)
+                .find(|package| package.id == *name)
                 .cloned()
                 .ok_or_else(|| anyhow!("Package '{}' is not installed", name))
         })
@@ -494,7 +494,7 @@ mod tests {
         assert_eq!(
             targets
                 .iter()
-                .map(|package| package.name.as_str())
+                .map(|package| package.id.as_str())
                 .collect::<Vec<_>>(),
             vec!["bat", "zoxide"]
         );
@@ -508,7 +508,7 @@ mod tests {
             resolve_fetch_targets(&packages, Some("rg".to_string()), Vec::new(), Vec::new())
                 .expect("targets");
 
-        assert_eq!(targets[0].name, "rg");
+        assert_eq!(targets[0].id, "rg");
     }
 
     #[test]
@@ -526,7 +526,7 @@ mod tests {
         assert_eq!(
             targets
                 .iter()
-                .map(|package| package.name.as_str())
+                .map(|package| package.id.as_str())
                 .collect::<Vec<_>>(),
             vec!["bat", "fd"]
         );

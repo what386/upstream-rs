@@ -107,7 +107,7 @@ impl<'a> InstallOperation<'a> {
     {
         cancellation::check()?;
         self.installer
-            .ensure_name_available(self.package_database, &request.package.name)?;
+            .ensure_name_available(self.package_database, &request.package.id)?;
         let plan = self
             .installer
             .plan_install(InstallRequest {
@@ -147,7 +147,7 @@ impl<'a> InstallOperation<'a> {
     {
         cancellation::check()?;
         self.installer
-            .ensure_name_available(self.package_database, &request.package.name)?;
+            .ensure_name_available(self.package_database, &request.package.id)?;
         if let Some(callback) = progress_callback.as_mut() {
             callback(PackageProgressEvent::Phase(PackagePhase::ResolvingRelease));
         }
@@ -191,7 +191,7 @@ impl<'a> InstallOperation<'a> {
     {
         cancellation::check()?;
         self.installer
-            .ensure_name_available(self.package_database, &request.package.name)?;
+            .ensure_name_available(self.package_database, &request.package.id)?;
         let plan = self
             .installer
             .plan_install(InstallRequest {
@@ -229,7 +229,7 @@ impl<'a> InstallOperation<'a> {
     {
         cancellation::check()?;
         self.installer
-            .ensure_name_available(self.package_database, &request.package.name)?;
+            .ensure_name_available(self.package_database, &request.package.id)?;
         let plan = self
             .installer
             .plan_install(InstallRequest {

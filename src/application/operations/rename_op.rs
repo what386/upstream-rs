@@ -130,33 +130,34 @@ mod tests {
         assert!(database.get_package("new").expect("load new").is_some());
         assert!(paths.state.symlinks_dir.join("new").exists());
         assert!(!paths.state.symlinks_dir.join("old").exists());
-        assert!(paths.integration.bash_completions_dir.join("new").exists());
+        assert!(paths.integration.bash_completions_dir.join("old").exists());
         assert!(
             paths
                 .integration
                 .xdg_applications_dir
-                .join("new.desktop")
+                .join("old.desktop")
                 .exists()
         );
 
         let rollback_manager = RollbackManager::new(&paths).expect("reload rollback manager");
-        assert!(rollback_manager.rollback_record("old").is_none());
+        assert!(rollback_manager.rollback_record("old").is_some());
+        assert!(rollback_manager.rollback_record("new").is_none());
         assert_eq!(
             rollback_manager
-                .rollback_record("new")
-                .expect("renamed rollback")
+                .rollback_record("old")
+                .expect("existing rollback")
                 .package_snapshot
-                .name,
-            "new"
+                .id,
+            "old"
         );
 
-        assert!(paths.state.rollback_dir.join("new").exists());
+        assert!(paths.state.rollback_dir.join("old").exists());
 
         fs::remove_dir_all(root).expect("cleanup");
     }
 
     #[test]
-    fn rename_collision_reverts_integrations_and_preserves_database_name() {
+    fn rename_only_changes_the_executable_alias() {
         let root = test_support::temp_root("upstream-rename-op-test", "rename-collision");
         let paths = test_support::upstream_paths(&root);
         seed_package(&paths, "old");
@@ -168,34 +169,16 @@ mod tests {
             b"old completion",
         )
         .expect("write old completion");
-        fs::write(
-            paths.integration.xdg_applications_dir.join("new.desktop"),
-            b"unrelated desktop",
-        )
-        .expect("write colliding desktop");
-
         let mut database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
 
-        let error = rename_package(&mut database, &paths, "old", "new")
-            .expect_err("desktop collision should fail rename");
-
-        assert!(
-            error
-                .to_string()
-                .contains("integration changes were reverted")
-        );
+        rename_package(&mut database, &paths, "old", "new").expect("rename alias");
 
         assert!(database.get_package("old").expect("load old").is_some());
-        assert!(database.get_package("new").expect("load new").is_none());
-        assert!(paths.state.symlinks_dir.join("old").exists());
-        assert!(!paths.state.symlinks_dir.join("new").exists());
+        assert!(database.get_package("new").expect("load new").is_some());
+        assert!(!paths.state.symlinks_dir.join("old").exists());
+        assert!(paths.state.symlinks_dir.join("new").exists());
         assert!(paths.integration.bash_completions_dir.join("old").exists());
-        assert_eq!(
-            fs::read(paths.integration.xdg_applications_dir.join("new.desktop"))
-                .expect("read colliding desktop"),
-            b"unrelated desktop"
-        );
 
         fs::remove_dir_all(root).expect("cleanup");
     }

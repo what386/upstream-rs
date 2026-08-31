@@ -284,7 +284,7 @@ fn restore_preview(
             let record = manager.rollback_record(name)?;
             let pkg = &record.package_snapshot;
             Some(RollbackPreviewRow {
-                package: format!("{}/{}", pkg.provider, pkg.name),
+                package: format!("{}/{}", pkg.provider, pkg.id),
                 version: pkg.version.to_string(),
                 net_change: manager
                     .estimate_restore_impact(package_database, name)
@@ -314,7 +314,7 @@ fn prune_preview(names: &[String], manager: &RollbackManager<'_>) -> RollbackPre
             let record = manager.rollback_record(name)?;
             let pkg = &record.package_snapshot;
             Some(RollbackPreviewRow {
-                package: format!("{}/{}", pkg.provider, pkg.name),
+                package: format!("{}/{}", pkg.provider, pkg.id),
                 version: pkg.version.to_string(),
                 net_change: manager
                     .estimate_prune_impact(name)

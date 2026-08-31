@@ -112,24 +112,31 @@ fn refresh_symlinks(
     let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
 
     for package in packages {
-        let target = package
-            .primary_executable()
-            .map(|executable| &executable.path)
-            .or(package.install_path.as_ref());
-        let Some(target) = target else {
-            report.skipped_symlinks += 1;
-            continue;
+        let executables = if package.executables.is_empty() {
+            package
+                .install_path
+                .as_ref()
+                .map(|path| vec![(path, package.id.as_str())])
+                .unwrap_or_default()
+        } else {
+            package
+                .executables
+                .iter()
+                .map(|executable| (&executable.path, executable.name.as_str()))
+                .collect()
         };
 
-        if !target.exists() {
-            report.skipped_symlinks += 1;
-            continue;
-        }
+        for (target, name) in executables {
+            if !target.exists() {
+                report.skipped_symlinks += 1;
+                continue;
+            }
 
-        symlink_manager
-            .add_link(target, &package.name)
-            .with_context(|| format!("Failed to refresh symlink for '{}'", package.name))?;
-        report.refreshed_symlinks += 1;
+            symlink_manager
+                .add_link(target, name)
+                .with_context(|| format!("Failed to refresh symlink for '{}'", name))?;
+            report.refreshed_symlinks += 1;
+        }
     }
 
     Ok(())

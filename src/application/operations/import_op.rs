@@ -267,20 +267,16 @@ impl<'a> ImportOperation<'a> {
         for reference in export.packages {
             cancellation::check()?;
             let mut skipped = false;
-            if self.package_database.package_exists(&reference.name)? {
+            if self.package_database.package_exists(&reference.id)? {
+                summary.skipped += 1;
+                skipped = true;
+                emit_warning(progress_callback, &reference.id, "already exists; skipping");
+            } else if !queued_names.insert(reference.id.clone()) {
                 summary.skipped += 1;
                 skipped = true;
                 emit_warning(
                     progress_callback,
-                    &reference.name,
-                    "already exists; skipping",
-                );
-            } else if !queued_names.insert(reference.name.clone()) {
-                summary.skipped += 1;
-                skipped = true;
-                emit_warning(
-                    progress_callback,
-                    &reference.name,
+                    &reference.id,
                     "is duplicated in the export; skipping",
                 );
             } else {
@@ -306,7 +302,7 @@ impl<'a> ImportOperation<'a> {
             cb(ImportProgressEvent::Started {
                 package_width: eligible
                     .iter()
-                    .map(|(package, _, _)| package.name.chars().count())
+                    .map(|(package, _, _)| package.id.chars().count())
                     .max()
                     .unwrap_or(0),
             });
@@ -640,7 +636,7 @@ async fn import_package(
     progress_state: ProgressState,
     warning_state: WarningState,
 ) -> (String, Option<TrustMode>, Result<PreparedInstall>) {
-    let name = package.name.clone();
+    let name = package.id.clone();
     let progress_name = name.clone();
     let mut progress_callback = Some(move |event: PackageProgressEvent| {
         record_progress_event(&progress_state, &warning_state, &progress_name, event);
@@ -758,7 +754,7 @@ where
 
 fn build_request_for_import(package: &Package, version_tag: Option<String>) -> BuildRequest {
     BuildRequest {
-        name: package.name.clone(),
+        name: package.id.clone(),
         repo_slug: package.repo_slug.clone(),
         provider: package.provider.clone(),
         base_url: package.base_url.clone(),

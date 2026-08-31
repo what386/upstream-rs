@@ -57,7 +57,7 @@ impl PackageConnection {
     pub fn package_exists(&self, name: &str) -> Result<bool> {
         self.conn
             .query_row(
-                "SELECT EXISTS(SELECT 1 FROM packages WHERE name = ?1)",
+                "SELECT EXISTS(SELECT 1 FROM packages WHERE id = ?1)",
                 [name],
                 |row| row.get::<_, bool>(0),
             )
@@ -126,9 +126,9 @@ impl PackageConnection {
         self.conn
             .query_row(
                 "
-                SELECT package_name, trust_mode
+                SELECT package_id, trust_mode
                 FROM package_settings
-                WHERE package_name = ?1
+                WHERE package_id = ?1
                 ",
                 [package_name],
                 |row| {
@@ -167,11 +167,11 @@ impl PackageConnection {
         package: &Package,
         settings: &PackageSettings,
     ) -> Result<()> {
-        if package.name != settings.package_name {
+        if package.id != settings.package_name {
             return Err(anyhow!(
                 "Package settings name '{}' does not match package '{}'",
                 settings.package_name,
-                package.name
+                package.id
             ));
         }
 
@@ -183,7 +183,7 @@ impl PackageConnection {
         write_package(&tx, package)?;
         write_package_settings(&tx, settings)?;
         tx.commit()
-            .with_context(|| format!("Failed to commit settings for package '{}'", package.name))
+            .with_context(|| format!("Failed to commit settings for package '{}'", package.id))
     }
 
     pub fn upsert_package(&mut self, package: &Package) -> Result<()> {
@@ -194,7 +194,7 @@ impl PackageConnection {
 
         write_package(&tx, package)?;
         tx.commit()
-            .with_context(|| format!("Failed to commit package '{}'", package.name))
+            .with_context(|| format!("Failed to commit package '{}'", package.id))
     }
 
     pub fn add_path_entry(&mut self, package_name: &str, path: &Path) -> Result<bool> {
@@ -206,7 +206,7 @@ impl PackageConnection {
 
         let existing_path = tx
             .query_row(
-                "SELECT path FROM path_entries WHERE package_name = ?1",
+                "SELECT path FROM path_entries WHERE package_id = ?1",
                 [package_name],
                 |row| row.get::<_, String>(0),
             )
@@ -221,7 +221,7 @@ impl PackageConnection {
 
         if existing_path.is_some() {
             tx.execute(
-                "UPDATE path_entries SET path = ?1 WHERE package_name = ?2",
+                "UPDATE path_entries SET path = ?1 WHERE package_id = ?2",
                 params![path, package_name],
             )
             .with_context(|| format!("Failed to update PATH entry for '{}'", package_name))?;
@@ -239,7 +239,7 @@ impl PackageConnection {
             .context("Failed to determine PATH entry position")?;
 
         tx.execute(
-            "INSERT INTO path_entries (package_name, path, position) VALUES (?1, ?2, ?3)",
+            "INSERT INTO path_entries (package_id, path, position) VALUES (?1, ?2, ?3)",
             params![package_name, path, position],
         )
         .with_context(|| format!("Failed to add PATH entry for '{}'", package_name))?;
@@ -256,7 +256,7 @@ impl PackageConnection {
 
         let affected = tx
             .execute(
-                "DELETE FROM path_entries WHERE package_name = ?1",
+                "DELETE FROM path_entries WHERE package_id = ?1",
                 [package_name],
             )
             .with_context(|| format!("Failed to remove PATH entry for '{}'", package_name))?;
@@ -277,7 +277,7 @@ impl PackageConnection {
         for (position, (package_name, path)) in entries.iter().enumerate() {
             let path = path_to_db(path)?;
             tx.execute(
-                "INSERT INTO path_entries (package_name, path, position) VALUES (?1, ?2, ?3)",
+                "INSERT INTO path_entries (package_id, path, position) VALUES (?1, ?2, ?3)",
                 params![package_name, path, position as i64],
             )
             .context("Failed to insert PATH entry")?;
@@ -306,7 +306,7 @@ impl PackageConnection {
     pub fn remove_package(&mut self, name: &str) -> Result<bool> {
         let affected = self
             .conn
-            .execute("DELETE FROM packages WHERE name = ?1", [name])
+            .execute("DELETE FROM packages WHERE id = ?1", [name])
             .with_context(|| format!("Failed to remove package '{}'", name))?;
 
         Ok(affected > 0)
@@ -327,19 +327,17 @@ impl PackageConnection {
             .transaction()
             .context("Failed to start package update transaction")?;
 
-        if package.name != name {
+        if package.id != name {
             tx.execute(
-                "UPDATE packages SET name = ?1 WHERE name = ?2",
-                params![package.name, name],
+                "UPDATE packages SET id = ?1 WHERE id = ?2",
+                params![package.id, name],
             )
-            .with_context(|| {
-                format!("Failed to rename package '{}' to '{}'", name, package.name)
-            })?;
+            .with_context(|| format!("Failed to rename package '{}' to '{}'", name, package.id))?;
         }
 
         write_package(&tx, &package)?;
         tx.commit()
-            .with_context(|| format!("Failed to commit package '{}'", package.name))
+            .with_context(|| format!("Failed to commit package '{}'", package.id))
     }
 
     pub fn rename_executable_alias(&mut self, old_name: &str, new_name: &str) -> Result<()> {
@@ -368,7 +366,7 @@ impl PackageConnection {
 fn write_package_settings(tx: &Transaction<'_>, settings: &PackageSettings) -> Result<()> {
     let Some(trust_mode) = settings.trust_mode.as_ref() else {
         tx.execute(
-            "DELETE FROM package_settings WHERE package_name = ?1",
+            "DELETE FROM package_settings WHERE package_id = ?1",
             [&settings.package_name],
         )
         .with_context(|| {
@@ -383,9 +381,9 @@ fn write_package_settings(tx: &Transaction<'_>, settings: &PackageSettings) -> R
     let trust_mode = enum_to_db(trust_mode)?;
     tx.execute(
         "
-        INSERT INTO package_settings (package_name, trust_mode)
+        INSERT INTO package_settings (package_id, trust_mode)
         VALUES (?1, ?2)
-        ON CONFLICT(package_name) DO UPDATE SET trust_mode = excluded.trust_mode
+        ON CONFLICT(package_id) DO UPDATE SET trust_mode = excluded.trust_mode
         ",
         params![settings.package_name, trust_mode],
     )
@@ -407,15 +405,15 @@ fn path_to_db(path: &Path) -> Result<String> {
 fn select_package_by_name_query() -> String {
     format!(
         "SELECT {PACKAGE_COLUMNS} FROM packages
-         WHERE packages.name = ?1 OR packages.name = (
-             SELECT package_name FROM package_executables WHERE name = ?1
+         WHERE packages.id = ?1 OR packages.id = (
+             SELECT package_id FROM package_executables WHERE name = ?1
          )
          LIMIT 1"
     )
 }
 
 fn list_packages_query() -> String {
-    format!("SELECT {PACKAGE_COLUMNS} FROM packages ORDER BY lower(name), name")
+    format!("SELECT {PACKAGE_COLUMNS} FROM packages ORDER BY lower(id), id")
 }
 
 fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
@@ -433,7 +431,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
     let release_tag = package.installed_release_tag();
     tx.execute(
         "INSERT INTO packages (
-            name,
+            id,
             repo_slug,
             filetype,
             version_major,
@@ -458,7 +456,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
         ) VALUES (
             ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22
         )
-        ON CONFLICT(name) DO UPDATE SET
+        ON CONFLICT(id) DO UPDATE SET
             repo_slug = excluded.repo_slug,
             filetype = excluded.filetype,
             version_major = excluded.version_major,
@@ -481,7 +479,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             install_path = excluded.install_path,
             last_upgraded = excluded.last_upgraded",
         params![
-            package.name,
+            package.id,
             package.repo_slug,
             enum_to_db(&package.filetype)?,
             version_major,
@@ -505,7 +503,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             package.last_upgraded.to_rfc3339(),
         ],
     )
-    .with_context(|| format!("Failed to write package '{}'", package.name))?;
+    .with_context(|| format!("Failed to write package '{}'", package.id))?;
 
     replace_patterns(tx, package)?;
     replace_executables(tx, package)
@@ -706,6 +704,11 @@ mod tests {
             .expect("create current schema");
         conn.execute_batch(
             "
+            ALTER TABLE packages RENAME COLUMN id TO name;
+            ALTER TABLE patterns RENAME COLUMN package_id TO package_name;
+            ALTER TABLE path_entries RENAME COLUMN package_id TO package_name;
+            ALTER TABLE package_settings RENAME COLUMN package_id TO package_name;
+            ALTER TABLE package_executables RENAME COLUMN package_id TO package_name;
             DROP TABLE package_settings;
             PRAGMA user_version = 5;
             ",
@@ -740,6 +743,11 @@ mod tests {
             .expect("create current schema");
         conn.execute_batch(
             "
+            ALTER TABLE packages RENAME COLUMN id TO name;
+            ALTER TABLE patterns RENAME COLUMN package_id TO package_name;
+            ALTER TABLE path_entries RENAME COLUMN package_id TO package_name;
+            ALTER TABLE package_settings RENAME COLUMN package_id TO package_name;
+            ALTER TABLE package_executables RENAME COLUMN package_id TO package_name;
             INSERT INTO packages (
                 name, repo_slug, filetype, version_major, version_minor, version_patch,
                 version_is_prerelease, version_kind, version_value, release_tag,
@@ -781,7 +789,7 @@ mod tests {
             .expect("load package")
             .expect("package exists");
 
-        assert_eq!(stored.name, package.name);
+        assert_eq!(stored.id, package.id);
         assert_eq!(stored.repo_slug, package.repo_slug);
         assert_eq!(stored.filetype, package.filetype);
         assert_eq!(stored.version, package.version);
@@ -920,7 +928,7 @@ mod tests {
         let packages = db.list_packages().expect("list packages");
         let names = packages
             .iter()
-            .map(|package| package.name.as_str())
+            .map(|package| package.id.as_str())
             .collect::<Vec<_>>();
 
         assert_eq!(names, vec!["alpha", "zulu"]);
@@ -979,7 +987,7 @@ mod tests {
             .expect("upsert package");
 
         db.update_package("old", |package| {
-            package.name = "new".to_string();
+            package.id = "new".to_string();
             Ok(())
         })
         .expect("rename package");
@@ -997,7 +1005,7 @@ mod tests {
         db.add_path_entry("old", &path).expect("add path entry");
 
         db.update_package("old", |package| {
-            package.name = "new".to_string();
+            package.id = "new".to_string();
             Ok(())
         })
         .expect("rename package");
@@ -1029,7 +1037,7 @@ mod tests {
         );
 
         db.update_package("old", |package| {
-            package.name = "new".to_string();
+            package.id = "new".to_string();
             Ok(())
         })
         .expect("rename package");
