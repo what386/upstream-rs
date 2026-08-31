@@ -231,32 +231,6 @@ impl<'a> RollbackArtifacts<'a> {
         self.cleanup_empty_package_dir(package_name)
     }
 
-    pub(crate) fn rename_package_dir(&self, old_name: &str, new_name: &str) -> Result<bool> {
-        let source_dir = safe_package_dir(self.root, old_name)?;
-        let destination_dir = safe_package_dir(self.root, new_name)?;
-
-        if path_exists_no_follow(&destination_dir)? {
-            return Err(anyhow!(
-                "Rollback directory already exists for package '{}'",
-                new_name
-            ));
-        }
-
-        if !path_exists_no_follow(&source_dir)? {
-            return Ok(false);
-        }
-
-        fs::rename(&source_dir, &destination_dir).with_context(|| {
-            format!(
-                "Failed to rename rollback directory '{}' to '{}'",
-                source_dir.display(),
-                destination_dir.display()
-            )
-        })?;
-
-        Ok(true)
-    }
-
     pub(crate) fn rollback_record_size(&self, record: &RollbackRecord) -> Result<u64> {
         let artifact_path = self.root.join(&record.artifact_relative_path);
         let mut total = estimate_path_size(&artifact_path)?;

@@ -104,7 +104,7 @@ upstream rollback --prune
 upstream rollback --prune <name>
 ```
 
-## Pinning and Renaming
+## Pinning and Aliases
 
 ```bash
 upstream package pin <name>
@@ -118,7 +118,7 @@ upstream package get <name>
 upstream package unset <name> trust_mode
 ```
 
-Pinned packages do not upgrade until unpinned. Rename changes the local alias and related metadata without reinstalling the package.
+Package operations accept the friendly repository name (for example, `cooltool` for `github:devguy/cooltool`). HTTP sources use the site name (for example, `ziglang` for `ziglang.org/whatever`). If that name is ambiguous, use the full provider reference. Pinned packages do not upgrade until unpinned. `package rename` changes only an executable alias and does not change package identity or reinstall the package.
 
 Entry actions manually create or remove launcher integration for an installed package.
 

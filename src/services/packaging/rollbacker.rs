@@ -335,10 +335,6 @@ impl<'a> RollbackManager<'a> {
         self.rollback_storage.prune_package(package_name)
     }
 
-    pub fn rename_package(&mut self, old_name: &str, new_name: &str) -> Result<bool> {
-        self.rollback_storage.rename_package(old_name, new_name)
-    }
-
     pub fn rollback_packages(&self) -> Vec<String> {
         let mut names: Vec<String> = self
             .rollback_storage

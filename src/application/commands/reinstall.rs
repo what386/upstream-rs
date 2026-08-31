@@ -212,7 +212,8 @@ pub async fn run(
             }
         };
 
-        let effective_trust_mode = package_database.effective_trust_mode(name, trust_mode)?;
+        let effective_trust_mode =
+            package_database.effective_trust_mode(&package.id, trust_mode)?;
 
         if let Err(err) = reinstall_one(
             &context.provider_manager,

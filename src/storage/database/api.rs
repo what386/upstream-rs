@@ -42,6 +42,10 @@ impl PackageDatabase {
         self.connection()?.get_package(name)
     }
 
+    pub fn resolve_package_id(&self, name: &str) -> Result<Option<String>> {
+        self.connection()?.resolve_package_id(name)
+    }
+
     pub fn list_packages(&self) -> Result<Vec<Package>> {
         self.connection()?.list_packages()
     }
@@ -121,9 +125,13 @@ impl PackageDatabase {
         self.connection()?.update_package(name, update)
     }
 
-    pub fn rename_package(&mut self, old_name: &str, new_name: &str) -> Result<()> {
+    pub fn rename_alias(&mut self, old_name: &str, new_name: &str) -> Result<()> {
         self.connection()?
             .rename_executable_alias(old_name, new_name)
+    }
+
+    pub fn executable_alias_exists(&self, name: &str) -> Result<bool> {
+        self.connection()?.executable_alias_exists(name)
     }
 
     fn connection(&self) -> Result<PackageConnection> {
@@ -277,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn rename_package_updates_executable_alias() {
+    fn rename_alias_updates_executable_alias() {
         let path = temp_database_path("rename-package");
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
@@ -291,11 +299,20 @@ mod tests {
         });
         db.upsert_package(&package).expect("store package");
 
-        db.rename_package("old", "new").expect("rename package");
+        db.rename_alias("old", "new").expect("rename alias");
 
         let reloaded = PackageDatabase::open(&path).expect("reload database");
-        assert!(reloaded.get_package("old").expect("load old").is_some());
-        assert!(reloaded.get_package("new").expect("load new").is_some());
+        assert!(reloaded.get_package("old").expect("load package").is_some());
+        assert!(
+            !reloaded
+                .executable_alias_exists("old")
+                .expect("check old alias")
+        );
+        assert!(
+            reloaded
+                .executable_alias_exists("new")
+                .expect("check new alias")
+        );
 
         cleanup(&path).expect("cleanup");
     }

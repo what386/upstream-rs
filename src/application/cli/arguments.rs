@@ -1245,10 +1245,10 @@ pub enum PackageAction {
         name: String,
     },
 
-    /// Rename an installed package record and aliases
-    #[command(long_about = "Rename an installed package record and aliases.\n\n\
-        This changes the local package name stored by upstream and updates integration \
-        aliases such as symlinks when possible. It does not reinstall the package.\n\n\
+    /// Rename an installed executable alias
+    #[command(long_about = "Rename an installed executable alias.\n\n\
+        This changes the local command name used by upstream and updates the corresponding \
+        runtime alias when possible. It does not change the package identity or reinstall it.\n\n\
         EXAMPLE:\n  \
         upstream package rename nvim neovim")]
     Rename {

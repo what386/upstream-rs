@@ -3,7 +3,7 @@ use crate::{
         cli::arguments::PackageSettingKey,
         operations::{
             metadata_op::MetadataManager,
-            rename_op::{RenameOutcome, rename_package},
+            rename_op::{RenameOutcome, rename_alias},
         },
     },
     models::{common::enums::TrustMode, upstream::Package},
@@ -30,8 +30,8 @@ pub fn run_set(name: String, assignments: Vec<String>, paths: &UpstreamPaths) ->
     let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let mut package = load_package(&package_database, &name)?;
     let mut settings = package_database
-        .get_package_settings(&name)?
-        .unwrap_or_else(|| PackageSettings::new(&name));
+        .get_package_settings(&package.id)?
+        .unwrap_or_else(|| PackageSettings::new(&package.id));
 
     let mut seen = HashSet::new();
 
@@ -96,7 +96,7 @@ pub fn run_get(
     let package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let package = load_package(&package_database, &name)?;
     let trust_mode = package_database
-        .get_package_settings(&name)?
+        .get_package_settings(&package.id)?
         .and_then(|settings| settings.trust_mode);
 
     let view = PackageSettingsView {
@@ -166,8 +166,8 @@ pub fn run_unset(name: String, keys: Vec<PackageSettingKey>, paths: &UpstreamPat
     let mut package_database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let mut package = load_package(&package_database, &name)?;
     let mut settings = package_database
-        .get_package_settings(&name)?
-        .unwrap_or_else(|| PackageSettings::new(&name));
+        .get_package_settings(&package.id)?
+        .unwrap_or_else(|| PackageSettings::new(&package.id));
 
     for key in selected_setting_keys(keys) {
         match key {
@@ -255,8 +255,7 @@ pub fn run_rename(old_name: String, new_name: String, paths: &UpstreamPaths) -> 
 
     println!("{}", output::title("Package rename"));
 
-    if rename_package(&mut package_database, paths, &old_name, &new_name)?
-        == RenameOutcome::Unchanged
+    if rename_alias(&mut package_database, paths, &old_name, &new_name)? == RenameOutcome::Unchanged
     {
         output::status_line(Status::Skip, &old_name, "old and new names are identical");
         return Ok(());

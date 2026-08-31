@@ -3,6 +3,7 @@ use crate::{
     output,
     output::pager,
     output::shorten_upstream_package_path,
+    providers::discovery::friendly_name,
     storage::database::PackageDatabase,
     utils::{name_match, static_paths::UpstreamPaths},
 };
@@ -63,18 +64,20 @@ fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Resu
         return Ok(packages);
     };
 
-    let matches =
-        name_match::ranked_matches(packages.iter().flat_map(package_query_candidates), filter);
+    let candidates: Vec<String> = packages.iter().flat_map(package_query_candidates).collect();
+    let matches = name_match::ranked_matches(candidates.iter().map(String::as_str), filter);
 
     if !matches.is_empty() {
         let mut selected = Vec::new();
         for name in matches {
             let Some(package) = packages.iter().find(|package| {
                 package.id == name
-                    || package
-                        .executables
-                        .iter()
-                        .any(|executable| executable.name == name)
+                    || friendly_name(
+                        &package.provider,
+                        &package.repo_slug,
+                        package.base_url.as_deref(),
+                    )
+                    .is_some_and(|friendly| friendly == name)
             }) else {
                 continue;
             };
@@ -91,13 +94,17 @@ fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Resu
     Err(anyhow!("No installed packages match '{}'.", filter))
 }
 
-fn package_query_candidates(package: &Package) -> impl Iterator<Item = &str> {
-    std::iter::once(package.id.as_str()).chain(
-        package
-            .executables
-            .iter()
-            .map(|executable| executable.name.as_str()),
-    )
+fn package_query_candidates(package: &Package) -> Vec<String> {
+    std::iter::once(package.id.clone())
+        .chain(
+            friendly_name(
+                &package.provider,
+                &package.repo_slug,
+                package.base_url.as_deref(),
+            )
+            .into_iter(),
+        )
+        .collect()
 }
 
 fn package_commands(package: &Package) -> String {
@@ -410,16 +417,13 @@ mod tests {
     }
 
     #[test]
-    fn package_list_filter_matches_executable_aliases() {
-        let mut package = package("github:owner/tool");
+    fn package_list_filter_does_not_match_executable_aliases() {
+        let mut package = package("github:owner/other");
         package.executables.push(PackageExecutable {
             path: PathBuf::from("/packages/tool/bin/tool"),
             name: "tool".to_string(),
         });
 
-        let filtered = filter_packages_by_name(vec![package], Some("tool"))
-            .expect("filter by executable alias");
-
-        assert_eq!(filtered[0].id, "github:owner/tool");
+        assert!(filter_packages_by_name(vec![package], Some("tool")).is_err());
     }
 }

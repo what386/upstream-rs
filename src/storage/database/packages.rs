@@ -6,6 +6,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 use crate::models::common::Version;
 use crate::models::upstream::Package;
+use crate::providers::discovery::friendly_name;
 
 use super::executables::{load_executables, load_executables_for_packages, replace_executables};
 use super::mapping::{
@@ -55,19 +56,21 @@ impl PackageConnection {
     }
 
     pub fn package_exists(&self, name: &str) -> Result<bool> {
-        self.conn
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM packages WHERE id = ?1)",
-                [name],
-                |row| row.get::<_, bool>(0),
-            )
-            .with_context(|| format!("Failed to check package '{}'", name))
+        Ok(self.resolve_package_id(name)?.is_some())
     }
 
     pub fn get_package(&self, name: &str) -> Result<Option<Package>> {
+        let Some(package_id) = self.resolve_package_id(name)? else {
+            return Ok(None);
+        };
+
         let package = self
             .conn
-            .query_row(&select_package_by_name_query(), [name], row_to_package)
+            .query_row(
+                &format!("SELECT {PACKAGE_COLUMNS} FROM packages WHERE id = ?1"),
+                [package_id],
+                row_to_package,
+            )
             .optional()
             .with_context(|| format!("Failed to load package '{}'", name))?;
 
@@ -78,6 +81,37 @@ impl PackageConnection {
                 Ok(Some(package))
             }
             None => Ok(None),
+        }
+    }
+
+    pub fn resolve_package_id(&self, name: &str) -> Result<Option<String>> {
+        let packages = self.list_packages()?;
+        if let Some(package) = packages.iter().find(|package| package.id == name) {
+            return Ok(Some(package.id.clone()));
+        }
+
+        let mut matches: Vec<String> = packages
+            .iter()
+            .filter(|package| {
+                friendly_name(
+                    &package.provider,
+                    &package.repo_slug,
+                    package.base_url.as_deref(),
+                )
+                .is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
+            })
+            .map(|package| package.id.clone())
+            .collect();
+        matches.sort();
+
+        match matches.as_slice() {
+            [] => Ok(None),
+            [package_id] => Ok(Some(package_id.clone())),
+            _ => bail!(
+                "Package name '{}' is ambiguous; use a full package reference: {}",
+                name,
+                matches.join(", ")
+            ),
         }
     }
 
@@ -113,6 +147,10 @@ impl PackageConnection {
     }
 
     pub fn get_package_settings(&self, package_name: &str) -> Result<Option<PackageSettings>> {
+        let Some(package_id) = self.resolve_package_id(package_name)? else {
+            return Ok(None);
+        };
+
         self.conn
             .query_row(
                 "
@@ -120,7 +158,7 @@ impl PackageConnection {
                 FROM package_settings
                 WHERE package_id = ?1
                 ",
-                [package_name],
+                [package_id],
                 |row| {
                     let trust_mode = row
                         .get::<_, Option<String>>(1)?
@@ -294,9 +332,13 @@ impl PackageConnection {
     }
 
     pub fn remove_package(&mut self, name: &str) -> Result<bool> {
+        let Some(package_id) = self.resolve_package_id(name)? else {
+            return Ok(false);
+        };
+
         let affected = self
             .conn
-            .execute("DELETE FROM packages WHERE id = ?1", [name])
+            .execute("DELETE FROM packages WHERE id = ?1", [package_id])
             .with_context(|| format!("Failed to remove package '{}'", name))?;
 
         Ok(affected > 0)
@@ -309,16 +351,17 @@ impl PackageConnection {
         let mut package = self
             .get_package(name)?
             .ok_or_else(|| anyhow!("Package '{}' not found", name))?;
+        let original_id = package.id.clone();
 
         let changed = update(&mut package)?;
         if !changed {
             return Ok(false);
         }
 
-        if package.id != name {
+        if package.id != original_id {
             bail!(
-                "Package update changed '{}' to '{}'; use rename_package for package renames",
-                name,
+                "Package ID changed from '{}' to '{}'; package IDs are immutable",
+                original_id,
                 package.id
             );
         }
@@ -351,6 +394,16 @@ impl PackageConnection {
         }
 
         Ok(())
+    }
+
+    pub fn executable_alias_exists(&self, name: &str) -> Result<bool> {
+        self.conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM package_executables WHERE name = ?1)",
+                [name],
+                |row| row.get::<_, bool>(0),
+            )
+            .with_context(|| format!("Failed to check executable alias '{}'", name))
     }
 
     fn initialize(&mut self) -> Result<()> {
@@ -395,16 +448,6 @@ fn path_to_db(path: &Path) -> Result<String> {
     path.to_str()
         .map(ToOwned::to_owned)
         .ok_or_else(|| anyhow!("Path '{}' is not valid UTF-8", path.display()))
-}
-
-fn select_package_by_name_query() -> String {
-    format!(
-        "SELECT {PACKAGE_COLUMNS} FROM packages
-         WHERE packages.id = ?1 OR packages.id = (
-             SELECT package_id FROM package_executables WHERE name = ?1
-         )
-         LIMIT 1"
-    )
 }
 
 fn list_packages_query() -> String {
@@ -512,7 +555,7 @@ mod tests {
             Version,
             enums::{Channel, Filetype, Provider, TrustMode},
         },
-        upstream::{InstallType, Package},
+        upstream::{InstallType, Package, PackageExecutable},
     };
     use crate::providers::pattern_matcher::PatternTable;
     use crate::storage::database::{PACKAGE_DB_SCHEMA_VERSION, PackageSettings};
@@ -951,6 +994,66 @@ mod tests {
     }
 
     #[test]
+    fn friendly_names_resolve_for_updates_settings_and_removal_but_aliases_do_not() {
+        let mut db = PackageConnection::open_in_memory().expect("open db");
+        let mut package = test_package("github:owner/tool");
+        package.executables.push(PackageExecutable {
+            path: PathBuf::from("/packages/tool/bin/tool"),
+            name: "command".to_string(),
+        });
+        db.upsert_package(&package).expect("upsert package");
+
+        assert_eq!(
+            db.resolve_package_id("tool")
+                .expect("resolve friendly name")
+                .as_deref(),
+            Some("github:owner/tool")
+        );
+        assert!(
+            db.resolve_package_id("command")
+                .expect("resolve alias")
+                .is_none()
+        );
+        assert_eq!(
+            db.get_package("tool")
+                .expect("get friendly name")
+                .expect("package")
+                .id,
+            "github:owner/tool"
+        );
+
+        let mut settings = PackageSettings::new("github:owner/tool");
+        settings.trust_mode = Some(TrustMode::Checksum);
+        db.upsert_package_settings(&settings).expect("settings");
+        assert_eq!(
+            db.get_package_settings("tool")
+                .expect("get settings")
+                .expect("settings")
+                .trust_mode,
+            Some(TrustMode::Checksum)
+        );
+
+        db.update_package("tool", |package| {
+            package.is_pinned = true;
+            Ok(true)
+        })
+        .expect("update by alias");
+        assert!(
+            db.get_package("github:owner/tool")
+                .expect("get")
+                .unwrap()
+                .is_pinned
+        );
+
+        assert!(db.remove_package("tool").expect("remove by friendly name"));
+        assert!(
+            db.get_package("github:owner/tool")
+                .expect("get removed")
+                .is_none()
+        );
+    }
+
+    #[test]
     fn update_package_mutates_one_package() {
         let mut db = PackageConnection::open_in_memory().expect("open db");
         db.upsert_package(&test_package("tool"))
@@ -988,7 +1091,7 @@ mod tests {
             })
             .expect_err("package id change should be rejected");
 
-        assert!(error.to_string().contains("use rename_package"));
+        assert!(error.to_string().contains("package IDs are immutable"));
         assert!(db.get_package("old").expect("load old").is_some());
         assert!(db.get_package("new").expect("load new").is_none());
     }
@@ -1008,7 +1111,7 @@ mod tests {
             })
             .expect_err("package id change should be rejected");
 
-        assert!(error.to_string().contains("use rename_package"));
+        assert!(error.to_string().contains("package IDs are immutable"));
         assert!(db.remove_path_entry("old").expect("remove old entry"));
         assert!(!db.remove_path_entry("new").expect("remove new entry"));
         assert!(

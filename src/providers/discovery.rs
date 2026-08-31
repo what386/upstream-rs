@@ -217,7 +217,9 @@ pub fn infer_package_name(
                 let repo_slug = normalize_source_for_provider(source, provider, base_url);
                 return Ok(repo_name_from_slug(&repo_slug).map(str::to_string));
             }
-            Provider::Direct | Provider::WebScraper => return Ok(None),
+            Provider::Direct | Provider::WebScraper => {
+                return Ok(friendly_name(provider, source, base_url));
+            }
         }
     } else {
         infer_source(source)?
@@ -233,7 +235,48 @@ pub fn infer_package_name(
         return Ok(repo_name_from_slug(&source_info.repo_slug).map(str::to_string));
     }
 
-    Ok(None)
+    Ok(friendly_name(
+        &source_info.provider,
+        &source_info.repo_slug,
+        source_info.base_url.as_deref(),
+    ))
+}
+
+/// Returns the human-facing package name used by package operations.
+pub fn friendly_name(provider: &Provider, source: &str, _base_url: Option<&str>) -> Option<String> {
+    match provider {
+        Provider::Github | Provider::Gitlab | Provider::Gitea => {
+            repo_name_from_slug(source).map(str::to_string)
+        }
+        Provider::Direct | Provider::WebScraper => {
+            let url = Url::parse(source).ok()?;
+            let host = url.host_str()?.trim_end_matches('.').to_ascii_lowercase();
+            let host = host.strip_prefix("www.").unwrap_or(&host);
+            if host.parse::<std::net::IpAddr>().is_ok() {
+                return None;
+            }
+            let labels: Vec<&str> = host.split('.').filter(|label| !label.is_empty()).collect();
+            if labels.len() < 2 {
+                return None;
+            }
+            let multi_label_suffix = labels.len() >= 3
+                && matches!(
+                    (labels[labels.len() - 2], labels[labels.len() - 1]),
+                    ("co", "uk")
+                        | ("org", "uk")
+                        | ("com", "au")
+                        | ("net", "au")
+                        | ("co", "nz")
+                        | ("co", "jp")
+                        | ("com", "br")
+                        | ("com", "cn")
+                        | ("com", "in")
+                        | ("co", "in")
+                );
+            let index = labels.len() - if multi_label_suffix { 3 } else { 2 };
+            Some(labels[index].to_string())
+        }
+    }
 }
 
 fn repo_name_from_slug(repo_slug: &str) -> Option<&str> {
@@ -514,17 +557,29 @@ mod tests {
     }
 
     #[test]
-    fn infer_package_name_returns_none_for_http_sources() {
+    fn infer_package_name_uses_http_site_name() {
         assert_eq!(
             super::infer_package_name("https://example.invalid/downloads", None, None)
                 .expect("infer name"),
-            None
+            Some("example".to_string())
         );
 
         assert_eq!(
             super::infer_package_name("https://example.invalid/tool.tar.gz", None, None)
                 .expect("infer name"),
-            None
+            Some("example".to_string())
+        );
+
+        assert_eq!(
+            super::infer_package_name("https://downloads.ziglang.org/whatever", None, None)
+                .expect("infer name"),
+            Some("ziglang".to_string())
+        );
+
+        assert_eq!(
+            super::infer_package_name("https://www.example.co.uk/download", None, None)
+                .expect("infer name"),
+            Some("example".to_string())
         );
     }
 

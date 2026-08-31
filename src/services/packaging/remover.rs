@@ -1,6 +1,7 @@
 use crate::{
     models::upstream::Package,
     output,
+    providers::discovery::friendly_name,
     services::{
         integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
         packaging::{
@@ -139,7 +140,7 @@ impl<'a> PackageRemover<'a> {
         }
 
         package_database
-            .remove_package(package_name)
+            .remove_package(&package.id)
             .context(format!(
                 "Failed to remove '{}' from package storage",
                 package_name
@@ -155,6 +156,13 @@ impl<'a> PackageRemover<'a> {
             return Ok(());
         }
 
+        let purge_name = friendly_name(
+            &package.provider,
+            &package.repo_slug,
+            package.base_url.as_deref(),
+        )
+        .unwrap_or_else(|| package.id.clone());
+
         if let Some(callback) = progress_callback.as_mut() {
             callback(
                 package_name,
@@ -163,7 +171,7 @@ impl<'a> PackageRemover<'a> {
         }
 
         if let Err(error) = self
-            .purge_configs(package_name, message_callback)
+            .purge_configs(&purge_name, message_callback)
             .context(format!(
                 "Failed to purge configuration files for '{}'",
                 package_name

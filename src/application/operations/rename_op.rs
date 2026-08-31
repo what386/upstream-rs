@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, bail};
 
 use crate::{
     services::integration::SymlinkManager, storage::database::PackageDatabase,
@@ -11,27 +11,27 @@ pub enum RenameOutcome {
     Unchanged,
 }
 
-pub fn rename_package(
+pub fn rename_alias(
     package_database: &mut PackageDatabase,
     paths: &UpstreamPaths,
     old_name: &str,
     new_name: &str,
 ) -> Result<RenameOutcome> {
-    package_database
-        .get_package(old_name)?
-        .ok_or_else(|| anyhow!("Package '{}' not found", old_name))?;
+    if !package_database.executable_alias_exists(old_name)? {
+        bail!("Executable alias '{}' not found", old_name);
+    }
 
     if old_name == new_name {
         return Ok(RenameOutcome::Unchanged);
     }
 
-    if package_database.get_package(new_name)?.is_some() {
-        bail!("Package '{}' already exists", new_name);
+    if package_database.executable_alias_exists(new_name)? {
+        bail!("Executable alias '{}' already exists", new_name);
     }
 
     let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
     let renamed_link = symlink_manager.rename_link(old_name, new_name)?;
-    if let Err(error) = package_database.rename_package(old_name, new_name) {
+    if let Err(error) = package_database.rename_alias(old_name, new_name) {
         if renamed_link {
             let _ = symlink_manager.rename_link(new_name, old_name);
         }
@@ -43,7 +43,7 @@ pub fn rename_package(
 
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
-    use super::{RenameOutcome, rename_package};
+    use super::{RenameOutcome, rename_alias};
     use crate::{
         models::{
             common::enums::{Channel, Filetype, Provider},
@@ -122,12 +122,16 @@ mod tests {
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
 
         assert_eq!(
-            rename_package(&mut database, &paths, "old", "new").expect("rename package"),
+            rename_alias(&mut database, &paths, "old", "new").expect("rename alias"),
             RenameOutcome::Renamed
         );
 
         assert!(database.get_package("old").expect("load old").is_some());
-        assert!(database.get_package("new").expect("load new").is_some());
+        assert!(
+            database
+                .executable_alias_exists("new")
+                .expect("load new alias")
+        );
         assert!(paths.state.symlinks_dir.join("new").exists());
         assert!(!paths.state.symlinks_dir.join("old").exists());
         assert!(paths.integration.bash_completions_dir.join("old").exists());
@@ -172,10 +176,14 @@ mod tests {
         let mut database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
 
-        rename_package(&mut database, &paths, "old", "new").expect("rename alias");
+        rename_alias(&mut database, &paths, "old", "new").expect("rename alias");
 
         assert!(database.get_package("old").expect("load old").is_some());
-        assert!(database.get_package("new").expect("load new").is_some());
+        assert!(
+            database
+                .executable_alias_exists("new")
+                .expect("load new alias")
+        );
         assert!(!paths.state.symlinks_dir.join("old").exists());
         assert!(paths.state.symlinks_dir.join("new").exists());
         assert!(paths.integration.bash_completions_dir.join("old").exists());

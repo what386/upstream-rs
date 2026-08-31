@@ -2,6 +2,7 @@ use crate::{
     models::upstream::{InstallType, Package},
     output,
     output::pager,
+    providers::discovery::friendly_name,
     storage::database::PackageDatabase,
     utils::{name_match, static_paths::UpstreamPaths},
 };
@@ -21,14 +22,14 @@ pub fn run(query: String, json: bool, paths: &UpstreamPaths) -> Result<()> {
 fn print_info_json(storage: &PackageDatabase, query: &str) -> Result<()> {
     let packages = storage.list_packages()?;
 
-    let resolved = resolve_package_query(&packages, query)?;
+    let resolved = resolve_package_query(storage, &packages, query)?;
     println!("{}", serde_json::to_string_pretty(resolved)?);
     Ok(())
 }
 
 fn display_package_info(storage: &PackageDatabase, query: &str) -> Result<()> {
     let packages = storage.list_packages()?;
-    let resolved = resolve_package_query(&packages, query)?;
+    let resolved = resolve_package_query(storage, &packages, query)?;
 
     let header = format!("Exact match: {}", resolved.id);
 
@@ -71,18 +72,19 @@ fn write_detail_field(out: &mut String, label: &str, value: impl AsRef<str>) {
     writeln!(out, "{label:<10} {}", value.as_ref()).expect("write package detail field");
 }
 
-fn resolve_package_query<'a>(packages: &'a [Package], query: &str) -> Result<&'a Package> {
-    if let Some(package) = packages.iter().find(|package| {
-        package.id.eq_ignore_ascii_case(query)
-            || package
-                .executables
-                .iter()
-                .any(|executable| executable.name.eq_ignore_ascii_case(query))
-    }) {
+fn resolve_package_query<'a>(
+    storage: &PackageDatabase,
+    packages: &'a [Package],
+    query: &str,
+) -> Result<&'a Package> {
+    if let Some(package_id) = storage.resolve_package_id(query)?
+        && let Some(package) = packages.iter().find(|package| package.id == package_id)
+    {
         return Ok(package);
     }
 
-    let suggestions = name_match::suggestions(package_query_candidates(packages), query, 3);
+    let candidates = package_query_candidates(packages);
+    let suggestions = name_match::suggestions(candidates.iter().map(String::as_str), query, 3);
 
     Err(anyhow!(
         "No installed package matches '{}'.{}",
@@ -91,15 +93,23 @@ fn resolve_package_query<'a>(packages: &'a [Package], query: &str) -> Result<&'a
     ))
 }
 
-fn package_query_candidates(packages: &[Package]) -> impl Iterator<Item = &str> {
-    packages.iter().flat_map(|package| {
-        std::iter::once(package.id.as_str()).chain(
-            package
-                .executables
-                .iter()
-                .map(|executable| executable.name.as_str()),
-        )
-    })
+fn package_query_candidates(packages: &[Package]) -> Vec<String> {
+    let mut candidates = packages
+        .iter()
+        .flat_map(|package| {
+            std::iter::once(package.id.clone()).chain(
+                friendly_name(
+                    &package.provider,
+                    &package.repo_slug,
+                    package.base_url.as_deref(),
+                )
+                .into_iter(),
+            )
+        })
+        .collect::<Vec<_>>();
+    candidates.sort();
+    candidates.dedup();
+    candidates
 }
 
 fn package_detail_heading(package: &Package) -> String {
@@ -238,7 +248,8 @@ mod tests {
     use super::resolve_package_query;
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::{Package, PackageExecutable};
-    use std::path::PathBuf;
+    use crate::storage::database::PackageDatabase;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     fn package(name: &str) -> Package {
         Package::with_defaults(
@@ -253,10 +264,27 @@ mod tests {
         )
     }
 
+    fn database(packages: &[Package]) -> PackageDatabase {
+        let path = std::env::temp_dir().join(format!(
+            "upstream-info-test-{}.db",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let mut database = PackageDatabase::open(&path).expect("open database");
+        for package in packages {
+            database.upsert_package(package).expect("store package");
+        }
+        database
+    }
+
     #[test]
     fn package_query_suggests_unique_substring_without_selecting_it() {
         let packages = vec![package("codex"), package("ripgrep")];
-        let error = resolve_package_query(&packages, "code").expect_err("must remain exact");
+        let database = database(&packages);
+        let error =
+            resolve_package_query(&database, &packages, "code").expect_err("must remain exact");
         assert_eq!(
             error.to_string(),
             "No installed package matches 'code'. Did you mean: codex?"
@@ -266,8 +294,10 @@ mod tests {
     #[test]
     fn package_query_prefers_exact_match_over_substring_matches() {
         let packages = vec![package("code"), package("codex")];
+        let database = database(&packages);
 
-        let resolved = resolve_package_query(&packages, "code").expect("resolve package");
+        let resolved =
+            resolve_package_query(&database, &packages, "code").expect("resolve package");
 
         assert_eq!(resolved.id, "code");
     }
@@ -275,7 +305,9 @@ mod tests {
     #[test]
     fn package_query_lists_multiple_suggestions() {
         let packages = vec![package("codex"), package("vscode")];
-        let error = resolve_package_query(&packages, "code").expect_err("ambiguous query");
+        let database = database(&packages);
+        let error =
+            resolve_package_query(&database, &packages, "code").expect_err("ambiguous query");
 
         assert_eq!(
             error.to_string(),
@@ -284,16 +316,16 @@ mod tests {
     }
 
     #[test]
-    fn package_query_accepts_an_executable_alias() {
+    fn package_query_does_not_accept_an_executable_alias() {
         let mut package = package("github:owner/tool");
+        package.repo_slug = "owner/other".to_string();
         package.executables.push(PackageExecutable {
-            path: PathBuf::from("/packages/tool/bin/tool"),
+            path: std::path::PathBuf::from("/packages/tool/bin/tool"),
             name: "tool".to_string(),
         });
-
         let packages = [package];
-        let resolved = resolve_package_query(&packages, "tool").expect("resolve alias");
-
-        assert_eq!(resolved.id, "github:owner/tool");
+        let database = database(&packages);
+        let error = resolve_package_query(&database, &packages, "tool").expect_err("reject alias");
+        assert!(error.to_string().contains("No installed package matches"));
     }
 }

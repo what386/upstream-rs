@@ -29,7 +29,16 @@ pub async fn run(
     let package_database = context.package_database()?;
     if let Some(fetch_names) = fetch {
         let packages = package_database.list_packages()?;
-        return run_fetch_readmes(&context, &packages, name, keywords, offline, fetch_names).await;
+        return run_fetch_readmes(
+            &context,
+            &package_database,
+            &packages,
+            name,
+            keywords,
+            offline,
+            fetch_names,
+        )
+        .await;
     }
 
     let name = name.ok_or_else(|| anyhow!("Package name is required unless --fetch is used"))?;
@@ -87,6 +96,7 @@ pub async fn run(
 
 async fn run_fetch_readmes(
     context: &CommandContext<'_>,
+    package_database: &crate::storage::database::PackageDatabase,
     packages: &[Package],
     leading_name: Option<String>,
     keywords: Vec<String>,
@@ -97,6 +107,13 @@ async fn run_fetch_readmes(
         bail!("--offline cannot be used with --fetch");
     }
 
+    let leading_name = leading_name
+        .map(|name| canonical_package_name(package_database, &name))
+        .transpose()?;
+    let fetch_names = fetch_names
+        .into_iter()
+        .map(|name| canonical_package_name(package_database, &name))
+        .collect::<Result<Vec<_>>>()?;
     let targets = resolve_fetch_targets(packages, leading_name, keywords, fetch_names)?;
 
     if targets.is_empty() {
@@ -170,6 +187,16 @@ async fn run_fetch_readmes(
     }
 
     Ok(())
+}
+
+fn canonical_package_name(
+    package_database: &crate::storage::database::PackageDatabase,
+    name: &str,
+) -> Result<String> {
+    package_database
+        .get_package(name)?
+        .map(|package| package.id)
+        .ok_or_else(|| anyhow!("Package '{}' is not installed", name))
 }
 
 fn fetch_readme_task<'a>(

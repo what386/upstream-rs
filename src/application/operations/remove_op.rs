@@ -308,7 +308,7 @@ mod tests {
         fs::write(&install_path, b"binary").expect("write install");
 
         let mut package = Package::with_defaults(
-            "tool".to_string(),
+            "github:owner/tool".to_string(),
             "owner/tool".to_string(),
             Filetype::Binary,
             None,
@@ -333,10 +333,16 @@ mod tests {
         let mut msg = Some(|_: &str| {});
         let mut progress: Option<fn(&str, PackageProgressEvent)> = None;
 
-        op.remove_single(&package.id, &false, &false, &mut msg, &mut progress)
+        op.remove_single("tool", &false, &false, &mut msg, &mut progress)
             .expect("remove package");
 
         assert!(!install_path.exists());
+        assert!(
+            storage
+                .get_package("github:owner/tool")
+                .expect("reload package")
+                .is_none()
+        );
         assert!(!paths.state.rollback_dir.join("tool").exists());
         assert!(!paths.dirs.metadata_dir.join("rollback.json").exists());
 

@@ -2,6 +2,7 @@ use anyhow::{Result, anyhow};
 
 use crate::{
     output,
+    providers::discovery::friendly_name,
     services::packaging::{
         RollbackManager,
         disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate},
@@ -91,8 +92,9 @@ impl<'a> RollbackOperation<'a> {
             ));
         }
 
+        let names = self.resolve_rollback_names(names)?;
         let manager = &self.rollback_manager;
-        let preview = restore_preview(names, manager, &self.package_database);
+        let preview = restore_preview(&names, manager, &self.package_database);
         let targets = names
             .iter()
             .filter_map(|name| {
@@ -135,13 +137,12 @@ impl<'a> RollbackOperation<'a> {
             .collect()
     }
 
-    pub fn restorable_names(&mut self, names: &[String]) -> Vec<String> {
-        let manager = &self.rollback_manager;
-        names
-            .iter()
-            .filter(|name| manager.rollback_record(name).is_some())
-            .cloned()
-            .collect()
+    pub fn restorable_names(&mut self, names: &[String]) -> Result<Vec<String>> {
+        Ok(self
+            .resolve_rollback_names(names)?
+            .into_iter()
+            .filter(|name| self.rollback_manager.rollback_record(name).is_some())
+            .collect())
     }
 
     pub fn restore<H>(
@@ -152,7 +153,7 @@ impl<'a> RollbackOperation<'a> {
     where
         H: FnMut(&str, &str),
     {
-        let restorable_names = self.restorable_names(names);
+        let restorable_names = self.restorable_names(names)?;
 
         let mut restored = 0_u32;
         let mut failed = 0_u32;
@@ -199,20 +200,20 @@ impl<'a> RollbackOperation<'a> {
         })
     }
 
-    pub fn prune_preview(&mut self, names: Vec<String>) -> RollbackPrunePreview {
+    pub fn prune_preview(&mut self, names: Vec<String>) -> Result<RollbackPrunePreview> {
         let manager = &self.rollback_manager;
         let target_names = if names.is_empty() {
             manager.rollback_packages()
         } else {
-            names
+            self.resolve_rollback_names(&names)?
         };
 
         let preview = prune_preview(&target_names, manager);
 
-        RollbackPrunePreview {
+        Ok(RollbackPrunePreview {
             target_names,
             preview,
-        }
+        })
     }
 
     pub fn prune<H>(
@@ -270,6 +271,48 @@ impl<'a> RollbackOperation<'a> {
             missing,
             packages,
         })
+    }
+
+    fn resolve_rollback_names(&self, names: &[String]) -> Result<Vec<String>> {
+        names
+            .iter()
+            .map(|name| {
+                if let Some(id) = self.package_database.resolve_package_id(name)? {
+                    return Ok(id);
+                }
+                if self.rollback_manager.rollback_record(name).is_some() {
+                    return Ok(name.clone());
+                }
+
+                let mut matches = self
+                    .rollback_manager
+                    .rollback_packages()
+                    .into_iter()
+                    .filter(|record_name| {
+                        self.rollback_manager
+                            .rollback_record(record_name)
+                            .and_then(|record| {
+                                friendly_name(
+                                    &record.package_snapshot.provider,
+                                    &record.package_snapshot.repo_slug,
+                                    record.package_snapshot.base_url.as_deref(),
+                                )
+                            })
+                            .is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
+                    })
+                    .collect::<Vec<_>>();
+                matches.sort();
+                match matches.as_slice() {
+                    [resolved] => Ok(resolved.clone()),
+                    [] => Ok(name.clone()),
+                    _ => Err(anyhow!(
+                        "Package name '{}' is ambiguous; use a full package reference: {}",
+                        name,
+                        matches.join(", ")
+                    )),
+                }
+            })
+            .collect()
     }
 }
 

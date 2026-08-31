@@ -166,7 +166,7 @@ upstream package get <name> [keys...] [--json]
 upstream package unset <name> [match_pattern|exclude_pattern|trust_mode]...
 ```
 
-Pinning prevents upgrades. Renaming changes the local alias without reinstalling. Entry actions manually create or remove launcher integration for an installed package.
+Package operations use friendly repository/site names and require the full provider reference when a name is ambiguous. Pinning prevents upgrades. Renaming changes only the local executable alias without reinstalling. Entry actions manually create or remove launcher integration for an installed package.
 
 Package settings support `match_pattern`, `exclude_pattern`, and `trust_mode`. Patterns are comma-separated. An explicit `upgrade` or `reinstall --trust` value overrides the stored trust mode; otherwise the stored value applies, falling back to `best-effort`.
 

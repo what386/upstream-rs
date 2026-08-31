@@ -261,64 +261,6 @@ impl RollbackIndex {
 
         Ok(removed)
     }
-
-    pub(crate) fn rename_package(&mut self, old_name: &str, new_name: &str) -> Result<bool> {
-        let _guard = rollback_storage_lock()
-            .lock()
-            .map_err(|_| anyhow!("Rollback storage lock is poisoned"))?;
-
-        self.load()?;
-
-        if self.file.records.contains_key(new_name) {
-            return Err(anyhow!(
-                "Rollback data already exists for package '{}'",
-                new_name
-            ));
-        }
-
-        let Some(original_records) = self.file.records.get(old_name).cloned() else {
-            return Ok(false);
-        };
-
-        let mut renamed_records = original_records.clone();
-        for record in &mut renamed_records {
-            record.package_snapshot.id = new_name.to_string();
-            record.artifact_relative_path =
-                rebase_package_path(&record.artifact_relative_path, old_name, new_name)?;
-            record.icon_relative_path = record
-                .icon_relative_path
-                .as_deref()
-                .map(|path| rebase_package_path(path, old_name, new_name))
-                .transpose()?;
-        }
-
-        self.file.records.remove(old_name);
-        self.file
-            .records
-            .insert(new_name.to_string(), renamed_records);
-
-        if let Err(error) = self.save() {
-            self.file.records.remove(new_name);
-            self.file
-                .records
-                .insert(old_name.to_string(), original_records);
-            return Err(error).context(format!(
-                "Failed to persist rollback rename from '{}' to '{}'",
-                old_name, new_name
-            ));
-        }
-
-        Ok(true)
-    }
-}
-
-fn rebase_package_path(path: &Path, old_name: &str, new_name: &str) -> Result<PathBuf> {
-    validate_package_relative_path(path, old_name)?;
-    let mut components = path.components();
-    let _ = components.next();
-    let mut rebased = PathBuf::from(new_name);
-    rebased.extend(components);
-    Ok(rebased)
 }
 
 fn validate_rollback_record(package_name: &str, record: &RollbackRecord) -> Result<()> {

@@ -30,7 +30,12 @@ pub async fn run(names: Vec<String>, fix: bool, paths: &UpstreamPaths) -> Result
     };
 
     checks::check_untracked_package_artifacts(paths, &all_packages, &mut report);
-    let selected = checks::select_packages(&names, &all_packages, &mut report);
+    let selected = checks::select_packages(
+        &names,
+        package_database.as_ref(),
+        &all_packages,
+        &mut report,
+    );
 
     if app_config.is_some() {
         checks::check_provider_tokens(auth.get_auth(), &all_packages, &mut report).await;

@@ -95,6 +95,7 @@ fn inspect_unix_link(link_path: &Path, expected_target: &Path) -> LinkStatus {
 
 pub(in crate::routines::doctor) fn select_packages(
     names: &[String],
+    package_database: Option<&PackageDatabase>,
     all_packages: &[Package],
     report: &mut DoctorReport,
 ) -> Vec<Package> {
@@ -107,8 +108,8 @@ pub(in crate::routines::doctor) fn select_packages(
         );
     } else {
         for name in names {
-            match all_packages.iter().find(|package| package.id == *name) {
-                Some(package) => selected.push(package.clone()),
+            match package_database.and_then(|database| database.get_package(name).ok().flatten()) {
+                Some(package) => selected.push(package),
                 None => report.line(
                     Level::Fail,
                     format!("Requested package '{}' is not installed", name),

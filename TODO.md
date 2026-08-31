@@ -21,13 +21,14 @@
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
 
-- [ ] named ops now use friendly id (repo name) instead of executable name
-      @created 2026-08-31 21:28
-
 
 ## Completed
 
 - [x] multi-executable discovery for archives (excludes dynamic libs)
       @created 2026-08-31 20:14
       @completed 2026-08-31 20:29
+
+- [x] named ops now use friendly id (repo name) instead of executable name
+      @created 2026-08-31 21:28
+      @completed 2026-08-31 21:28
 

@@ -164,7 +164,7 @@ fn run_restore(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperat
     }
 
     show_restore_preview(&preview.preview);
-    let restorable_names = operation.restorable_names(&names);
+    let restorable_names = operation.restorable_names(&names)?;
     if restorable_names.is_empty() {
         println!(
             "{}",
@@ -240,7 +240,7 @@ fn run_list(operation: &mut RollbackOperation) -> Result<()> {
 }
 
 fn run_prune(names: Vec<String>, dry_run: bool, operation: &mut RollbackOperation) -> Result<()> {
-    let preview = operation.prune_preview(names);
+    let preview = operation.prune_preview(names)?;
 
     if dry_run {
         show_prune_preview(&preview.preview, true);

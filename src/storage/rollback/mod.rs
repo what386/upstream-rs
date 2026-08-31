@@ -138,30 +138,6 @@ impl RollbackStorage {
         Ok(!removed.is_empty())
     }
 
-    pub(crate) fn rename_package(&mut self, old_name: &str, new_name: &str) -> Result<bool> {
-        let artifacts = RollbackArtifacts::new(&self.artifacts_dir);
-        let moved_directory = artifacts.rename_package_dir(old_name, new_name)?;
-
-        match self.index.rename_package(old_name, new_name) {
-            Ok(renamed_metadata) => Ok(moved_directory || renamed_metadata),
-            Err(index_error) => {
-                if moved_directory
-                    && let Err(rollback_error) = artifacts.rename_package_dir(new_name, old_name)
-                {
-                    return Err(anyhow!(
-                        "Failed to rename rollback metadata from '{}' to '{}': {}. Directory rollback also failed: {}",
-                        old_name,
-                        new_name,
-                        index_error,
-                        rollback_error
-                    ));
-                }
-
-                Err(index_error)
-            }
-        }
-    }
-
     pub(crate) fn rollback_record_size(&self, record: &RollbackRecord) -> Result<u64> {
         RollbackArtifacts::new(&self.artifacts_dir).rollback_record_size(record)
     }

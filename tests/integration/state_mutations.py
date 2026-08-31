@@ -78,7 +78,7 @@ def main() -> None:
     run_upstream("package", "rename", RENAMED_PACKAGE, PACKAGE)
     assert package_from_list(PACKAGE)["id"] == package["id"]
 
-    print("config, auth, package settings, cache, and package rename mutations passed")
+    print("config, auth, package settings, cache, and alias rename mutations passed")
 
 
 if __name__ == "__main__":

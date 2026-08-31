@@ -371,7 +371,7 @@ impl<'a> UpgradeOperation<'a> {
 
                 let effective_trust_mode = self
                     .package_database
-                    .effective_trust_mode(&row.name, trust_mode)?;
+                    .effective_trust_mode(&package.id, trust_mode)?;
 
                 Ok((package, row.clone(), effective_trust_mode))
             })
