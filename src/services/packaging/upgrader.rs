@@ -6,7 +6,7 @@ use crate::{
         upstream::{InstallType, Package},
     },
     output,
-    providers::provider_manager::ProviderManager,
+    providers::{discovery::friendly_name, provider_manager::ProviderManager},
     routines::build::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         artifact::zsync_handler,
@@ -407,7 +407,12 @@ impl<'a> PackageUpgrader<'a> {
                 worker
                     .build(
                         BuildRequest {
-                            name: package.id.clone(),
+                            target_hint: friendly_name(
+                                &package.provider,
+                                &package.repo_slug,
+                                package.base_url.as_deref(),
+                            )
+                            .unwrap_or_else(|| package.id.clone()),
                             repo_slug: package.repo_slug.clone(),
                             provider: package.provider.clone(),
                             base_url: package.base_url.clone(),

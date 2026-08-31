@@ -4,7 +4,7 @@ use crate::{
         common::enums::TrustMode,
         upstream::{InstallType, Package, PackageReference, config::AppConfig},
     },
-    providers::provider_manager::ProviderManager,
+    providers::{discovery::friendly_name, provider_manager::ProviderManager},
     routines::build::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         packaging::{
@@ -754,7 +754,12 @@ where
 
 fn build_request_for_import(package: &Package, version_tag: Option<String>) -> BuildRequest {
     BuildRequest {
-        name: package.id.clone(),
+        target_hint: friendly_name(
+            &package.provider,
+            &package.repo_slug,
+            package.base_url.as_deref(),
+        )
+        .unwrap_or_else(|| package.id.clone()),
         repo_slug: package.repo_slug.clone(),
         provider: package.provider.clone(),
         base_url: package.base_url.clone(),

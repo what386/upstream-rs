@@ -11,15 +11,16 @@ use crate::routines::build::{
 pub struct GoProfile;
 
 impl GoProfile {
-    fn binary_name(package_name: &str) -> String {
+    fn binary_name(target: &str) -> String {
+        let name = target.rsplit('/').next().unwrap_or(target);
         #[cfg(windows)]
         {
-            format!("{package_name}.exe")
+            format!("{name}.exe")
         }
 
         #[cfg(not(windows))]
         {
-            package_name.to_string()
+            name.to_string()
         }
     }
 
@@ -31,12 +32,45 @@ impl GoProfile {
         }
     }
 
-    fn command_target(project_dir: &Path, package_name: &str) -> Option<String> {
-        let command_dir = project_dir.join("cmd").join(package_name);
-        if command_dir.is_dir() {
-            Some(format!("./cmd/{package_name}"))
-        } else {
-            None
+    fn command_target(project_dir: &Path, preferred_name: &str) -> Result<String> {
+        let output = Command::new("go")
+            .arg("list")
+            .arg("-buildvcs=false")
+            .arg("-f")
+            .arg("{{if eq .Name \"main\"}}{{.ImportPath}}{{end}}")
+            .arg("./...")
+            .current_dir(project_dir)
+            .output()
+            .context("Failed to inspect Go packages. Is Go installed?")?;
+        if !output.status.success() {
+            bail!(
+                "Go package inspection failed: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+        }
+
+        let mut commands: Vec<String> = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(str::to_string)
+            .collect();
+        commands.sort_unstable();
+        commands.dedup();
+
+        match commands.as_slice() {
+            [command] => Ok(command.clone()),
+            commands => commands
+                .iter()
+                .find(|command| command.rsplit('/').next() == Some(preferred_name))
+                .cloned()
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Go module has multiple main packages ({}); none matches '{}'",
+                        commands.join(", "),
+                        preferred_name
+                    )
+                }),
         }
     }
 
@@ -81,9 +115,10 @@ impl BuildProfileHandler for GoProfile {
             )
         })?;
 
+        let target = Self::command_target(&project_dir, package_name)?;
         let artifact = project_dir
             .join(".upstream-build")
-            .join(Self::binary_name(package_name));
+            .join(Self::binary_name(&target));
 
         if let Some(parent) = artifact.parent() {
             std::fs::create_dir_all(parent).context(format!(
@@ -92,7 +127,6 @@ impl BuildProfileHandler for GoProfile {
             ))?;
         }
 
-        let target = Self::command_target(&project_dir, package_name).unwrap_or_else(|| ".".into());
         let context = format!("Failed to run 'go build -o <artifact> {target}'. Is Go installed?");
         emit_line_callback(
             line_callback,
@@ -102,6 +136,7 @@ impl BuildProfileHandler for GoProfile {
         let status = run_command_with_line_callback(
             Command::new("go")
                 .arg("build")
+                .arg("-buildvcs=false")
                 .arg("-o")
                 .arg(&artifact)
                 .arg(&target)

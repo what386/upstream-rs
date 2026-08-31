@@ -1,0 +1,8 @@
+[package]
+name = "fixture-single"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "single-fixture"
+path = "src/main.rs"

@@ -21,9 +21,6 @@
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
 
-- [ ] several improvements to build profiles
-      @created 2026-08-31 23:30
-
 
 ## Completed
 
@@ -34,4 +31,8 @@
 - [x] named ops now use friendly id (repo name) instead of executable name
       @created 2026-08-31 21:28
       @completed 2026-08-31 21:28
+
+- [x] several improvements to build profiles
+      @created 2026-08-31 23:30
+      @completed 2026-08-31 23:30
 

@@ -251,7 +251,7 @@ impl<'a> BuildOperation<'a> {
         let build_result = worker
             .build(
                 BuildRequest {
-                    name: build_name,
+                    target_hint: build_name,
                     repo_slug: resolved_repo_slug.clone(),
                     provider: resolved_provider.clone(),
                     base_url: resolved_base_url.clone(),

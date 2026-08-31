@@ -7,8 +7,10 @@ upstream build <repo-or-url>
 ```
 
 Build accepts GitHub, GitLab, and Gitea repository slugs or URLs. Upstream derives
-the canonical package ID from the resolved provider and repository slug, and uses
-the repository name for the build output target.
+the canonical package ID from the resolved provider and repository slug. Build
+profiles inspect their project metadata to select the declared executable target
+and its actual output path; the repository name is used only to disambiguate
+multiple targets.
 
 ## Supported Profiles
 
@@ -16,11 +18,11 @@ Upstream can auto-detect or explicitly use these build profiles:
 
 | Profile | Detection | Default output expectation |
 | --- | --- | --- |
-| `rust` | `Cargo.toml` | `target/release/<name>` |
-| `dotnet` | `.sln` or `.csproj` | `.upstream-build/publish/<name>` |
-| `go` | `go.mod` | `.upstream-build/<name>` |
-| `zig` | `build.zig` | `zig-out/bin/<name>` |
-| `cmake` | `CMakeLists.txt` | `.upstream-build/cmake/<name>` |
+| `rust` | Cargo metadata | Cargo-reported target directory and binary target |
+| `dotnet` | MSBuild project metadata | Publish directory and evaluated `AssemblyName` |
+| `go` | `go list` package metadata | Controlled output path for the selected `main` package |
+| `zig` | Literal executable/install declarations in `build.zig` | `zig-out/bin/<declared executable name>` |
+| `cmake` | CMake File API codemodel | Artifact path reported by the executable target |
 
 Force a profile when detection is ambiguous:
 

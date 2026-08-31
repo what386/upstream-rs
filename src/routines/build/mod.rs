@@ -18,7 +18,8 @@ pub use crate::models::common::enums::BuildProfile;
 
 #[derive(Debug, Clone)]
 pub struct BuildRequest {
-    pub name: String,
+    /// Friendly target hint used only to disambiguate build-system targets.
+    pub target_hint: String,
     pub repo_slug: String,
     pub provider: Provider,
     pub base_url: Option<String>,
