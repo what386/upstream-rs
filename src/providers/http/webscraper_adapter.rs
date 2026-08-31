@@ -6,7 +6,7 @@ use crate::models::common::{Version, enums::Filetype};
 use crate::models::provider::{Asset, Release};
 use crate::providers::http::http_client::{ConditionalDiscoveryResult, HttpAssetInfo, HttpClient};
 use crate::providers::release_provider::ReleaseProvider;
-use crate::utils::filename_parser::parse_filetype;
+use crate::utils::filenames::parser::parse_filetype;
 
 #[derive(Debug, Clone)]
 pub struct WebScraperAdapter {

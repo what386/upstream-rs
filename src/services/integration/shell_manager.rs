@@ -208,28 +208,8 @@ fn derive_package_path_entry(
     paths: &crate::utils::static_paths::UpstreamPaths,
     package: &crate::models::upstream::Package,
 ) -> Option<PathBuf> {
-    let install_path = package.install_path.as_ref()?;
-
-    if package.filetype != crate::models::common::enums::Filetype::Archive
-        || !install_path.starts_with(&paths.install.archives_dir)
-    {
-        return None;
-    }
-
-    if install_path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| ext.eq_ignore_ascii_case("app"))
-        .unwrap_or(false)
-    {
-        return None;
-    }
-
-    package
-        .exec_path
-        .as_ref()
-        .and_then(|exec_path| exec_path.parent().map(Path::to_path_buf))
-        .or_else(|| Some(install_path.to_path_buf()))
+    let _ = (paths, package);
+    None
 }
 
 #[cfg(unix)]
@@ -578,7 +558,10 @@ mod tests {
         );
 
         older.install_path = Some(paths.install.archives_dir.join("older"));
-        older.exec_path = Some(older_install.clone());
+        older.executables = vec![crate::models::upstream::PackageExecutable {
+            path: older_install.clone(),
+            name: "old".to_string(),
+        }];
         older.last_upgraded = chrono::Utc::now() - chrono::Duration::days(1);
 
         let mut newer = Package::with_defaults(
@@ -593,7 +576,10 @@ mod tests {
         );
 
         newer.install_path = Some(paths.install.archives_dir.join("newer"));
-        newer.exec_path = Some(newer_install.clone());
+        newer.executables = vec![crate::models::upstream::PackageExecutable {
+            path: newer_install.clone(),
+            name: "new".to_string(),
+        }];
         newer.last_upgraded = chrono::Utc::now();
 
         package_database.upsert_package(&older).expect("seed older");
@@ -609,21 +595,7 @@ mod tests {
 
         assert_eq!(
             parse_nushell_paths_file(&nushell_content),
-            vec![
-                paths.state.symlinks_dir.display().to_string(),
-                paths
-                    .install
-                    .archives_dir
-                    .join("newer")
-                    .to_string_lossy()
-                    .to_string(),
-                paths
-                    .install
-                    .archives_dir
-                    .join("older")
-                    .to_string_lossy()
-                    .to_string(),
-            ]
+            vec![paths.state.symlinks_dir.display().to_string()]
         );
 
         cleanup(&root).expect("cleanup");

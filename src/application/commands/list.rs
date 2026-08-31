@@ -64,21 +64,49 @@ fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Resu
     };
 
     let matches =
-        name_match::ranked_matches(packages.iter().map(|package| package.name.as_str()), filter);
+        name_match::ranked_matches(packages.iter().flat_map(package_query_candidates), filter);
 
     if !matches.is_empty() {
-        return Ok(matches
-            .into_iter()
-            .filter_map(|name| {
-                packages
-                    .iter()
-                    .find(|package| package.name == name)
-                    .cloned()
-            })
-            .collect());
+        let mut selected = Vec::new();
+        for name in matches {
+            let Some(package) = packages.iter().find(|package| {
+                package.name == name
+                    || package
+                        .executables
+                        .iter()
+                        .any(|executable| executable.name == name)
+            }) else {
+                continue;
+            };
+            if !selected
+                .iter()
+                .any(|selected: &Package| selected.name == package.name)
+            {
+                selected.push(package.clone());
+            }
+        }
+        return Ok(selected);
     }
 
     Err(anyhow!("No installed packages match '{}'.", filter))
+}
+
+fn package_query_candidates(package: &Package) -> impl Iterator<Item = &str> {
+    std::iter::once(package.name.as_str()).chain(
+        package
+            .executables
+            .iter()
+            .map(|executable| executable.name.as_str()),
+    )
+}
+
+fn package_commands(package: &Package) -> String {
+    package
+        .executables
+        .iter()
+        .map(|executable| executable.name.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn shorten_home_path(path: &str) -> String {
@@ -131,6 +159,7 @@ fn package_ref_label(package: &Package) -> String {
 
 struct ColumnWidths {
     name: usize,
+    commands: usize,
     repo: usize,
     kind: usize,
     reference: usize,
@@ -148,6 +177,11 @@ impl ColumnWidths {
             .map(|p| p.name.chars().count())
             .max()
             .unwrap_or(4);
+        let max_commands = packages
+            .iter()
+            .map(|package| package_commands(package).chars().count())
+            .max()
+            .unwrap_or(8);
 
         let max_repo = packages
             .iter()
@@ -181,6 +215,7 @@ impl ColumnWidths {
 
         let mut widths = Self {
             name: max_name.clamp("Name".len(), 24),
+            commands: max_commands.clamp("Commands".len(), 24),
             repo: max_repo.clamp("Repo".len(), 28),
             kind: max_kind.clamp("Kind".len(), "release".len()),
             reference: max_ref.clamp("Ref".len(), 18),
@@ -192,6 +227,7 @@ impl ColumnWidths {
         };
 
         let non_path_width = widths.name
+            + widths.commands
             + widths.repo
             + widths.kind
             + widths.reference
@@ -237,6 +273,7 @@ fn format_package_table(packages: &[Package]) -> String {
 
 fn table_width(widths: &ColumnWidths) -> usize {
     widths.name
+        + widths.commands
         + widths.repo
         + widths.kind
         + widths.reference
@@ -251,8 +288,9 @@ fn table_width(widths: &ColumnWidths) -> usize {
 fn write_table_header(out: &mut String, widths: &ColumnWidths) {
     writeln!(
         out,
-        "{:<name$} {:<repo$} {:<kind$} {:<reference$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
+        "{:<name$} {:<commands$} {:<repo$} {:<kind$} {:<reference$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
         "Name",
+        "Commands",
         "Repo",
         "Kind",
         "Ref",
@@ -262,6 +300,7 @@ fn write_table_header(out: &mut String, widths: &ColumnWidths) {
         "Updated",
         "Install Path",
         name = widths.name,
+        commands = widths.commands,
         repo = widths.repo,
         kind = widths.kind,
         reference = widths.reference,
@@ -293,8 +332,9 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
 
     writeln!(
         out,
-        "{:<name$} {:<repo$} {:<kind$} {:<reference$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
+        "{:<name$} {:<commands$} {:<repo$} {:<kind$} {:<reference$} {:<chan$} {:<prov$} {:<flags$} {:<updated$} {:<path$}",
         output::truncate_end(&package.name, widths.name),
+        output::truncate_end(&package_commands(package), widths.commands),
         output::truncate_end(&package.repo_slug, widths.repo),
         package_kind_label(package),
         output::truncate_end(&package_ref, widths.reference),
@@ -304,6 +344,7 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
         last_updated,
         install_path,
         name = widths.name,
+        commands = widths.commands,
         repo = widths.repo,
         kind = widths.kind,
         reference = widths.reference,
@@ -320,7 +361,8 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
 mod tests {
     use super::filter_packages_by_name;
     use crate::models::common::enums::{Channel, Filetype, Provider};
-    use crate::models::upstream::Package;
+    use crate::models::upstream::{Package, PackageExecutable};
+    use std::path::PathBuf;
 
     fn package(name: &str) -> Package {
         Package::with_defaults(
@@ -365,5 +407,19 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(names, vec!["codex", "vscode", "cope"]);
+    }
+
+    #[test]
+    fn package_list_filter_matches_executable_aliases() {
+        let mut package = package("github:owner/tool");
+        package.executables.push(PackageExecutable {
+            path: PathBuf::from("/packages/tool/bin/tool"),
+            name: "tool".to_string(),
+        });
+
+        let filtered = filter_packages_by_name(vec![package], Some("tool"))
+            .expect("filter by executable alias");
+
+        assert_eq!(filtered[0].name, "github:owner/tool");
     }
 }

@@ -10,7 +10,7 @@ use crate::providers::pattern_matcher::{
     GeneratedAssetPatterns, generate_patterns_for_asset, pattern_match_ratio,
 };
 use crate::utils::platform::platform_info::{ArchitectureInfo, CpuArch, format_arch, format_os};
-use crate::utils::{filename_parser::is_unsupported_artifact_name, math::median_sorted};
+use crate::utils::{filenames::parser::is_unsupported_artifact_name, math::median_sorted};
 
 #[derive(Debug, Clone)]
 pub struct AssetCandidate {

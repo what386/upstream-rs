@@ -31,7 +31,6 @@ pub const PACKAGE_COLUMNS: &str = "
     is_pinned,
     icon_path,
     install_path,
-    exec_path,
     last_upgraded";
 
 pub(super) fn row_to_package(row: &Row<'_>) -> rusqlite::Result<Package> {
@@ -42,7 +41,7 @@ pub(super) fn row_to_package(row: &Row<'_>) -> rusqlite::Result<Package> {
     let version_kind: String = row.get(7)?;
     let version_value: Option<String> = row.get(8)?;
     let release_published_at: Option<String> = row.get(10)?;
-    let last_upgraded: String = row.get(22)?;
+    let last_upgraded: String = row.get(21)?;
 
     let version = match version_kind.as_str() {
         "Unknown" => Version::new(0, 0, 0, false),
@@ -102,8 +101,9 @@ pub(super) fn row_to_package(row: &Row<'_>) -> rusqlite::Result<Package> {
         exclude_pattern: PatternTable::empty(),
         icon_path: optional_path_from_db(row.get(19)?),
         install_path: optional_path_from_db(row.get(20)?),
-        exec_path: optional_path_from_db(row.get(21)?),
-        last_upgraded: parse_timestamp(last_upgraded, 22)?,
+        executables: Vec::new(),
+        install_alias: None,
+        last_upgraded: parse_timestamp(last_upgraded, 21)?,
     })
 }
 

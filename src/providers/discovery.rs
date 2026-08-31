@@ -8,7 +8,7 @@ use crate::{
         upstream::Package,
     },
     providers::{asset_scorer::AssetCandidate, provider_manager::ProviderManager},
-    utils::filename_parser::parse_filetype,
+    utils::filenames::parser::parse_filetype,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

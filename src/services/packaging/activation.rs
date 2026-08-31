@@ -64,11 +64,9 @@ impl PreparedInstall {
             .as_deref()
             .map(|path| self.remap_path(paths, path))
             .transpose()?;
-        package.exec_path = package
-            .exec_path
-            .as_deref()
-            .map(|path| self.remap_path(paths, path))
-            .transpose()?;
+        for executable in &mut package.executables {
+            executable.path = self.remap_path(paths, &executable.path)?;
+        }
         package.icon_path = self.final_icon_path.clone();
         Ok(package)
     }
@@ -512,9 +510,9 @@ impl<'a> PackageActivator<'a> {
         let updated_package = prepared.activate_payload(self.paths)?;
         let mut runtime_link_activated = false;
         let activation_result = (|| {
-            if let Some(exec_path) = updated_package.exec_path.as_ref() {
+            for executable in &updated_package.executables {
                 SymlinkManager::new(&self.paths.state.symlinks_dir)
-                    .add_link(exec_path, &updated_package.name)
+                    .add_link(&executable.path, &executable.name)
                     .context("Failed to activate runtime link")?;
                 runtime_link_activated = true;
             }
@@ -691,16 +689,17 @@ impl<'a> PackageActivator<'a> {
         };
 
         backup.set_partial_package(updated_package.clone());
-        if let Some(exec_path) = updated_package.exec_path.as_ref()
-            && let Err(error) = SymlinkManager::new(&self.paths.state.symlinks_dir)
-                .add_link(exec_path, &updated_package.name)
-        {
-            return self.restore_after_failure(
-                backup,
-                error.context("Failed to activate runtime link"),
-                "Failed to activate prepared replacement",
-                message_callback,
-            );
+        for executable in &updated_package.executables {
+            if let Err(error) = SymlinkManager::new(&self.paths.state.symlinks_dir)
+                .add_link(&executable.path, &executable.name)
+            {
+                return self.restore_after_failure(
+                    backup,
+                    error.context("Failed to activate runtime link"),
+                    "Failed to activate prepared replacement",
+                    message_callback,
+                );
+            }
         }
 
         backup.mark_runtime_link_activated();
@@ -971,7 +970,10 @@ mod tests {
         );
 
         package.install_path = Some(staged_path.clone());
-        package.exec_path = Some(staged_path);
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            path: staged_path,
+            name: "tool".to_string(),
+        }];
 
         let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("open package database");
@@ -1045,7 +1047,10 @@ mod tests {
         );
 
         package.install_path = Some(staged_path.clone());
-        package.exec_path = Some(staged_path);
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            path: staged_path,
+            name: "tool".to_string(),
+        }];
 
         let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("open package database");
@@ -1103,7 +1108,10 @@ mod tests {
         );
 
         previous.install_path = Some(install_path.clone());
-        previous.exec_path = Some(install_path.clone());
+        previous.executables = vec![crate::models::upstream::PackageExecutable {
+            path: install_path.clone(),
+            name: "tool".to_string(),
+        }];
         let old_icon = paths.state.icons_dir.join("tool.png");
         fs::write(&old_icon, b"old icon").expect("write old icon");
         previous.icon_path = Some(old_icon.clone());
@@ -1115,7 +1123,10 @@ mod tests {
         fs::write(&staged_path, b"new binary").expect("write staged binary");
         let mut candidate = previous.clone();
         candidate.install_path = Some(staged_path.clone());
-        candidate.exec_path = Some(staged_path);
+        candidate.executables = vec![crate::models::upstream::PackageExecutable {
+            path: staged_path,
+            name: "tool".to_string(),
+        }];
 
         assert_eq!(
             fs::read(&install_path).expect("read active before cutover"),
@@ -1195,13 +1206,19 @@ mod tests {
         );
 
         previous.install_path = Some(install_path.clone());
-        previous.exec_path = Some(install_path.clone());
+        previous.executables = vec![crate::models::upstream::PackageExecutable {
+            path: install_path.clone(),
+            name: "tool".to_string(),
+        }];
 
         let workspace = InstallWorkspace::new(&paths, "tool").expect("create workspace");
         let missing_staged_path = workspace.root().join("binaries/tool");
         let mut candidate = previous.clone();
         candidate.install_path = Some(missing_staged_path.clone());
-        candidate.exec_path = Some(missing_staged_path);
+        candidate.executables = vec![crate::models::upstream::PackageExecutable {
+            path: missing_staged_path,
+            name: "tool".to_string(),
+        }];
 
         let error = PackageActivator::new(&paths)
             .replace(
@@ -1257,7 +1274,10 @@ mod tests {
 
         previous.version = Version::new(1, 0, 0, false);
         previous.install_path = Some(install_path.clone());
-        previous.exec_path = Some(install_path.clone());
+        previous.executables = vec![crate::models::upstream::PackageExecutable {
+            path: install_path.clone(),
+            name: "tool".to_string(),
+        }];
 
         let mut database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");

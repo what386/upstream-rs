@@ -415,8 +415,8 @@ async fn build_package(
                 ))
             );
 
-            return Ok(Package::with_defaults(
-                name,
+            let mut package = Package::with_defaults(
+                Package::key(&source_info.provider, &source_info.repo_slug),
                 source_info.repo_slug,
                 kind,
                 match_pattern,
@@ -424,7 +424,9 @@ async fn build_package(
                 channel,
                 source_info.provider,
                 source_info.base_url,
-            ));
+            );
+            package.install_alias = (!name.is_empty()).then_some(name);
+            return Ok(package);
         }
 
         let discovery = provider_manager
@@ -443,8 +445,8 @@ async fn build_package(
         render_discovery_summary(&discovery);
         confirm_discovery_if_needed(&discovery)?;
 
-        return Ok(Package::with_defaults(
-            name,
+        let mut package = Package::with_defaults(
+            Package::key(&discovery.source.provider, &discovery.source.repo_slug),
             discovery.source.repo_slug,
             kind,
             match_pattern,
@@ -452,13 +454,15 @@ async fn build_package(
             channel,
             discovery.source.provider,
             discovery.source.base_url,
-        ));
+        );
+        package.install_alias = (!name.is_empty()).then_some(name);
+        return Ok(package);
     };
 
     let normalized_source = normalize_source_for_provider(&source, &provider, base_url.as_deref());
 
-    Ok(Package::with_defaults(
-        name,
+    let mut package = Package::with_defaults(
+        Package::key(&provider, &normalized_source),
         normalized_source,
         kind,
         match_pattern,
@@ -466,7 +470,9 @@ async fn build_package(
         channel,
         provider,
         base_url,
-    ))
+    );
+    package.install_alias = (!name.is_empty()).then_some(name);
+    Ok(package)
 }
 
 fn render_discovery_summary(discovery: &DiscoveryResult) {

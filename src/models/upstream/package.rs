@@ -1,7 +1,6 @@
-use std::path::PathBuf;
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 use crate::models::common::{
     enums::{Channel, Filetype, Provider},
@@ -14,6 +13,16 @@ use crate::providers::pattern_matcher::PatternTable;
 pub enum InstallType {
     Release,
     Build,
+}
+
+/// A command exposed by a managed package.
+///
+/// `name` is the user-facing command alias; `path` is the executable inside
+/// the installed artifact. They intentionally do not have to match.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PackageExecutable {
+    pub path: PathBuf,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,7 +53,10 @@ pub struct Package {
     pub exclude_pattern: PatternTable,
     pub icon_path: Option<PathBuf>,
     pub install_path: Option<PathBuf>,
-    pub exec_path: Option<PathBuf>,
+    #[serde(default)]
+    pub executables: Vec<PackageExecutable>,
+    #[serde(skip)]
+    pub install_alias: Option<String>,
 
     pub last_upgraded: DateTime<Utc>,
 }
@@ -82,7 +94,8 @@ impl Package {
             exclude_pattern: PatternTable::from_cli_arg(exclude_pattern),
             icon_path: None,
             install_path: None,
-            exec_path: None,
+            executables: Vec::new(),
+            install_alias: None,
 
             last_upgraded: Utc::now(),
         }
@@ -148,6 +161,37 @@ impl Package {
 
     pub fn version_tag_template_from_tag(tag: &str, version: &Version) -> Option<String> {
         VersionTagTemplate::from_tag(tag, version).map(|template| template.as_str().to_string())
+    }
+}
+
+impl Package {
+    /// Stable package identity. The provider is part of the key so identical
+    /// slugs from different forges do not collide.
+    pub fn key(provider: &Provider, repo_slug: &str) -> String {
+        format!("{provider}:{}", repo_slug.trim_matches('/'))
+    }
+
+    pub fn primary_executable(&self) -> Option<&PackageExecutable> {
+        self.executables.first()
+    }
+
+    pub fn primary_executable_name(&self) -> &str {
+        self.primary_executable()
+            .map(|executable| executable.name.as_str())
+            .unwrap_or(&self.name)
+    }
+
+    /// A filesystem-safe, reversible representation of the canonical key.
+    pub fn storage_key(&self) -> String {
+        self.name
+            .bytes()
+            .flat_map(|byte| match byte {
+                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' => {
+                    format!("{}", byte as char).chars().collect::<Vec<_>>()
+                }
+                _ => format!("_{byte:02x}").chars().collect(),
+            })
+            .collect()
     }
 }
 

@@ -268,7 +268,7 @@ impl<'a> BuildOperation<'a> {
         );
 
         let mut package = Package::with_defaults(
-            input.name,
+            Package::key(&resolved_provider, &resolved_repo_slug),
             resolved_repo_slug,
             Filetype::Binary,
             None,
@@ -277,6 +277,7 @@ impl<'a> BuildOperation<'a> {
             resolved_provider,
             resolved_base_url,
         );
+        package.install_alias = (!input.name.is_empty()).then_some(input.name);
 
         package.install_type = InstallType::Build;
         package.build_branch = build_result.branch.clone();

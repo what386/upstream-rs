@@ -445,7 +445,10 @@ mod tests {
         );
 
         package.install_path = Some(install_path);
-        package.exec_path = Some(exec_path);
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            path: exec_path,
+            name: name.to_string(),
+        }];
         package
     }
 

@@ -353,10 +353,16 @@ mod tests {
         let final_exec = final_root.join("tool");
         let mut staged = package("tool", Filetype::Archive);
         staged.install_path = Some(staged_root);
-        staged.exec_path = Some(staged_exec);
+        staged.executables = vec![crate::models::upstream::PackageExecutable {
+            path: staged_exec,
+            name: "tool".to_string(),
+        }];
         let mut final_package = staged.clone();
         final_package.install_path = Some(final_root);
-        final_package.exec_path = Some(final_exec.clone());
+        final_package.executables = vec![crate::models::upstream::PackageExecutable {
+            path: final_exec.clone(),
+            name: "tool".to_string(),
+        }];
 
         let staged_entry = root.join("workspace/desktop/tool.desktop");
         let staged_icons = root.join("workspace/icons");

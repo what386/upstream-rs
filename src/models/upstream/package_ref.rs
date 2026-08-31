@@ -118,7 +118,7 @@ mod tests {
         assert_eq!(package.build_branch.as_deref(), Some("main"));
         assert_eq!(package.build_commit.as_deref(), Some("abcdef123456"));
         assert!(package.install_path.is_none());
-        assert!(package.exec_path.is_none());
+        assert!(package.executables.is_empty());
         assert_eq!(package.version.to_string(), "0.0.0");
     }
 

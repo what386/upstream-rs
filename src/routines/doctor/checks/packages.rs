@@ -179,7 +179,7 @@ pub(in crate::routines::doctor) async fn check_version_tag_templates(
 
 pub(in crate::routines::doctor) fn check_installed_packages(
     paths: &UpstreamPaths,
-    package_database: &mut PackageDatabase,
+    _package_database: &mut PackageDatabase,
     selected: &[Package],
     fix: bool,
     report: &mut DoctorReport,
@@ -187,9 +187,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
     let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
 
     for package in selected {
-        let package_name = package.name.clone();
         let package_label = format!("package '{}'", package.name);
-        let mut resolved_exec_path = package.exec_path.clone();
 
         match &package.install_path {
             Some(path) if path.exists() => {
@@ -213,17 +211,27 @@ pub(in crate::routines::doctor) fn check_installed_packages(
             }
         }
 
-        match &resolved_exec_path {
-            Some(path) if path.exists() => {
+        if package.executables.is_empty() {
+            report.line(
+                Level::Warn,
+                format!("{} has no executable aliases recorded", package_label),
+            );
+            report.hint(format!(
+                "Try `upstream reinstall {}` to rebuild executable aliases.",
+                package.name
+            ));
+        }
+
+        for executable in &package.executables {
+            let executable_label = format!("{} executable '{}'", package_label, executable.name);
+            let path = &executable.path;
+            if path.exists() {
                 if is_executable(path) {
-                    report.line(
-                        Level::Ok,
-                        format!("{} executable path is valid", package_label),
-                    );
+                    report.line(Level::Ok, format!("{} path is valid", executable_label));
                 } else {
                     report.line(
                         Level::Warn,
-                        format!("{} executable path is not marked executable", package_label),
+                        format!("{} is not marked executable", executable_label),
                     );
                     if fix {
                         if let Err(err) = permission_handler::make_executable(path) {
@@ -231,73 +239,27 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                                 Level::Warn,
                                 format!(
                                     "{} failed to set executable bit during fix: {}",
-                                    package_label, err
+                                    executable_label, err
                                 ),
                             );
                         } else {
                             report.line(
                                 Level::Ok,
-                                format!("{} executable bit repaired", package_label),
+                                format!("{} executable bit repaired", executable_label),
                             );
                         }
                     }
                 }
-            }
-            Some(path) => {
+            } else {
                 report.line(
                     Level::Fail,
-                    format!(
-                        "{} executable path missing: {}",
-                        package_label,
-                        path.display()
-                    ),
+                    format!("{} path missing: {}", executable_label, path.display()),
                 );
             }
-            None => {
-                report.line(
-                    Level::Warn,
-                    format!("{} has no executable path recorded", package_label),
-                );
-                report.hint(format!(
-                    "Try `upstream reinstall {}` to rebuild executable metadata.",
-                    package.name
-                ));
-                if fix && let Some(install_path) = &package.install_path {
-                    let rediscovered = if install_path.is_file() {
-                        Some(install_path.clone())
-                    } else {
-                        permission_handler::find_executable(install_path, &package.name)
-                    };
-
-                    if let Some(path) = rediscovered {
-                        resolved_exec_path = Some(path.clone());
-                        report.line(
-                            Level::Ok,
-                            format!(
-                                "{} rediscovered executable path: {}",
-                                package_label,
-                                path.display()
-                            ),
-                        );
-                    } else {
-                        report.line(
-                            Level::Warn,
-                            format!("{} could not rediscover executable path", package_label),
-                        );
-                    }
-                }
-            }
-        }
-
-        if resolved_exec_path.is_some() {
-            let link_path = expected_link_path(&paths.state.symlinks_dir, &package.name);
+            let link_path = expected_link_path(&paths.state.symlinks_dir, &executable.name);
             #[cfg(unix)]
             {
-                let Some(exec_path) = &resolved_exec_path else {
-                    unreachable!("checked above");
-                };
-
-                match inspect_unix_link(&link_path, exec_path) {
+                match inspect_unix_link(&link_path, path) {
                     LinkStatus::Target {
                         raw_target,
                         resolved_target,
@@ -309,7 +271,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                                 Level::Warn,
                                 format!(
                                     "{} symlink target is missing ({} -> {}, resolved: {})",
-                                    package_label,
+                                    executable_label,
                                     link_path.display(),
                                     raw_target.display(),
                                     resolved_target.display()
@@ -317,22 +279,22 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                             );
                             report.hint(format!(
                                 "Try `upstream reinstall {}` to recreate broken symlinks.",
-                                package.name
+                                executable.name
                             ));
                         } else if matches_expected {
                             report.line(
                                 Level::Ok,
-                                format!("{} symlink points to executable", package_label),
+                                format!("{} symlink points to executable", executable_label),
                             );
                         } else {
                             report.line(
                                 Level::Warn,
                                 format!(
                                     "{} symlink target differs ({} -> {}, expected {})",
-                                    package_label,
+                                    executable_label,
                                     link_path.display(),
                                     raw_target.display(),
-                                    exec_path.display()
+                                    path.display()
                                 ),
                             );
                         }
@@ -342,27 +304,27 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                             Level::Warn,
                             format!(
                                 "{} link missing in symlinks dir ({})",
-                                package_label,
+                                executable_label,
                                 link_path.display()
                             ),
                         );
                         report.hint(format!(
                             "Try `upstream reinstall {}` to recreate missing links.",
-                            package.name
+                            executable.name
                         ));
                         if fix {
-                            if let Err(err) = symlink_manager.add_link(exec_path, &package.name) {
+                            if let Err(err) = symlink_manager.add_link(path, &executable.name) {
                                 report.line(
                                     Level::Warn,
                                     format!(
                                         "{} failed to recreate symlink: {}",
-                                        package_label, err
+                                        executable_label, err
                                     ),
                                 );
                             } else {
                                 report.line(
                                     Level::Ok,
-                                    format!("{} recreated missing symlink", package_label),
+                                    format!("{} recreated missing symlink", executable_label),
                                 );
                             }
                         }
@@ -372,35 +334,35 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                             Level::Warn,
                             format!(
                                 "{} link path exists but is not a symlink ({})",
-                                package_label,
+                                executable_label,
                                 link_path.display()
                             ),
                         );
                         report.hint(format!(
                             "Remove '{}' and run `upstream reinstall {}`.",
                             link_path.display(),
-                            package.name
+                            executable.name
                         ));
                         if fix {
-                            if let Err(err) = symlink_manager.add_link(exec_path, &package.name) {
+                            if let Err(err) = symlink_manager.add_link(path, &executable.name) {
                                 report.line(
                                     Level::Warn,
                                     format!(
                                         "{} failed to replace non-symlink link path: {}",
-                                        package_label, err
+                                        executable_label, err
                                     ),
                                 );
                             } else {
                                 report.line(
                                     Level::Ok,
-                                    format!("{} repaired link path", package_label),
+                                    format!("{} repaired link path", executable_label),
                                 );
                             }
                         }
                     }
                     LinkStatus::Unreadable(e) => report.line(
                         Level::Warn,
-                        format!("{} symlink unreadable: {}", package_label, e),
+                        format!("{} symlink unreadable: {}", executable_label, e),
                     ),
                 }
             }
@@ -408,42 +370,38 @@ pub(in crate::routines::doctor) fn check_installed_packages(
             #[cfg(not(unix))]
             {
                 if link_path.exists() {
-                    report.line(Level::Ok, format!("{} link entry exists", package_label));
+                    report.line(Level::Ok, format!("{} link entry exists", executable_label));
                 } else {
                     report.line(
                         Level::Warn,
                         format!(
                             "{} link missing in symlinks dir ({})",
-                            package_label,
+                            executable_label,
                             link_path.display()
                         ),
                     );
                     report.hint(format!(
                         "Try `upstream reinstall {}` to recreate missing links.",
-                        package.name
+                        executable.name
                     ));
-                    if fix && let Some(exec_path) = &resolved_exec_path {
-                        if let Err(err) = symlink_manager.add_link(exec_path, &package.name) {
+                    if fix {
+                        if let Err(err) = symlink_manager.add_link(path, &executable.name) {
                             report.line(
                                 Level::Warn,
-                                format!("{} failed to recreate link entry: {}", package_label, err),
+                                format!(
+                                    "{} failed to recreate link entry: {}",
+                                    executable_label, err
+                                ),
                             );
                         } else {
                             report.line(
                                 Level::Ok,
-                                format!("{} recreated missing link", package_label),
+                                format!("{} recreated missing link", executable_label),
                             );
                         }
                     }
                 }
             }
-        }
-
-        if fix && resolved_exec_path != package.exec_path {
-            package_database.update_package(&package_name, |package| {
-                package.exec_path = resolved_exec_path.clone();
-                Ok(true)
-            })?;
         }
 
         if let Some(icon_path) = &package.icon_path {

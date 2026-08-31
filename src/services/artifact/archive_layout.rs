@@ -7,7 +7,7 @@ use crate::{
     models::upstream::Package,
     services::artifact::permission_handler,
     utils::{
-        filename_parser::{parse_arch, parse_os},
+        filenames::parser::{parse_arch, parse_os},
         platform::platform_info::{ArchitectureInfo, CpuArch, OSKind},
     },
 };
@@ -46,7 +46,10 @@ pub fn select_nested_archive_root(extracted_path: &Path, package: &Package) -> O
             }
 
             let arch_score = nested_arch_score(&architecture.cpu_arch, &target_arch)?;
-            permission_handler::find_executable(&entry.path(), &package.name)?;
+            let preferred_name = package.repo_slug.rsplit('/').next().unwrap_or_default();
+            if permission_handler::find_executables(&entry.path(), preferred_name).is_empty() {
+                return None;
+            }
             let score = nested_archive_score(&name, &target_os, arch_score, &package.match_pattern);
             Some((score, name, entry.path()))
         })

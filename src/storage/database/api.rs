@@ -38,6 +38,10 @@ impl PackageDatabase {
         self.connection()?.package_exists(name)
     }
 
+    pub fn executable_alias_exists(&self, name: &str) -> Result<bool> {
+        self.connection()?.executable_alias_exists(name)
+    }
+
     pub fn get_package(&self, name: &str) -> Result<Option<Package>> {
         self.connection()?.get_package(name)
     }
@@ -140,14 +144,8 @@ impl PackageDatabase {
     }
 
     pub fn rename_package(&mut self, old_name: &str, new_name: &str) -> Result<()> {
-        if self.package_exists(new_name)? {
-            return Err(anyhow!("Package '{}' already exists", new_name));
-        }
-
-        self.connection()?.update_package(old_name, |package| {
-            package.name = new_name.to_string();
-            Ok(())
-        })
+        self.connection()?
+            .rename_executable_alias(old_name, new_name)
     }
 
     fn connection(&self) -> Result<PackageConnection> {

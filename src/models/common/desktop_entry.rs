@@ -55,9 +55,8 @@ impl DesktopEntry {
     pub fn from_package(package: &Package) -> DesktopEntry {
         let mut entry = DesktopEntry::new(&package.name);
         entry.exec = package
-            .exec_path
-            .as_ref()
-            .map(|path| path.display().to_string());
+            .primary_executable()
+            .map(|executable| executable.path.display().to_string());
         entry.icon = Some(
             package
                 .icon_path

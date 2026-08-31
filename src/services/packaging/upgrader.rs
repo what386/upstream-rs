@@ -137,7 +137,7 @@ impl<'a> PackageUpgrader<'a> {
 
         let mut staged = package;
         staged.install_path = None;
-        staged.exec_path = None;
+        staged.executables.clear();
         staged.icon_path = None;
         staged.version = release.version.clone();
         staged.record_release(release);
@@ -429,7 +429,7 @@ impl<'a> PackageUpgrader<'a> {
                 Ok(output) => {
                     let mut install_pkg = package.clone();
                     install_pkg.install_path = None;
-                    install_pkg.exec_path = None;
+                    install_pkg.executables.clear();
                     install_pkg.icon_path = None;
                     install_pkg.build_branch = output.branch.clone();
                     install_pkg.build_commit = output.commit.or(branch_head_commit.clone());
@@ -532,7 +532,7 @@ impl<'a> PackageUpgrader<'a> {
                 Ok(None) => {
                     let mut install_pkg = package.clone();
                     install_pkg.install_path = None;
-                    install_pkg.exec_path = None;
+                    install_pkg.executables.clear();
                     install_pkg.icon_path = None;
                     staging_installer
                         .install_selected_asset(
@@ -563,7 +563,7 @@ impl<'a> PackageUpgrader<'a> {
                     message!(message_callback, "{}", warning);
                     let mut install_pkg = package.clone();
                     install_pkg.install_path = None;
-                    install_pkg.exec_path = None;
+                    install_pkg.executables.clear();
                     install_pkg.icon_path = None;
                     staging_installer
                         .install_selected_asset(
@@ -698,7 +698,10 @@ mod tests {
         );
 
         package.install_path = Some(install_path.clone());
-        package.exec_path = Some(install_path);
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            path: install_path,
+            name: name.to_string(),
+        }];
         package
     }
 

@@ -112,7 +112,10 @@ fn refresh_symlinks(
     let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
 
     for package in packages {
-        let target = package.exec_path.as_ref().or(package.install_path.as_ref());
+        let target = package
+            .primary_executable()
+            .map(|executable| &executable.path)
+            .or(package.install_path.as_ref());
         let Some(target) = target else {
             report.skipped_symlinks += 1;
             continue;
@@ -169,7 +172,10 @@ mod tests {
         );
 
         package.install_path = Some(install_path);
-        package.exec_path = Some(exec_path);
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            path: exec_path,
+            name: name.to_string(),
+        }];
         package
     }
 
@@ -228,7 +234,9 @@ mod tests {
         );
 
         assert_eq!(
-            migrated_package.exec_path.as_deref(),
+            migrated_package
+                .primary_executable()
+                .map(|executable| executable.path.as_path()),
             Some(binary.as_path())
         );
 

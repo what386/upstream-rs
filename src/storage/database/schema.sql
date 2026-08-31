@@ -34,7 +34,6 @@ CREATE TABLE IF NOT EXISTS packages (
     is_pinned INTEGER NOT NULL CHECK (is_pinned IN (0, 1)),
     icon_path TEXT,
     install_path TEXT,
-    exec_path TEXT,
     last_upgraded TEXT NOT NULL
 );
 
@@ -73,3 +72,14 @@ CREATE TABLE IF NOT EXISTS package_settings (
     ),
     FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS package_executables (
+    package_name TEXT NOT NULL,
+    path TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
+    PRIMARY KEY (package_name, path, name),
+    FOREIGN KEY (package_name) REFERENCES packages(name) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_package_executables_package
+    ON package_executables(package_name, name);

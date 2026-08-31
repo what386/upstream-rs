@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 
 use crate::models::common::enums::Filetype;
-use crate::utils::filename_parser::{parse_arch, parse_filetype, parse_os};
+use crate::utils::filenames::parser::{parse_arch, parse_filetype, parse_os};
 use crate::utils::platform::platform_info::{CpuArch, OSKind};
 
 #[derive(Debug, Clone)]

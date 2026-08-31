@@ -9,5 +9,5 @@ pub use install_plan::{
     BuildInstallSource, BuildSelector, HttpInstallSource, InstallPlan, InstallSource,
     ReleaseInstallSource, ReleaseSelector,
 };
-pub use package::{InstallType, Package};
+pub use package::{InstallType, Package, PackageExecutable};
 pub use package_ref::PackageReference;

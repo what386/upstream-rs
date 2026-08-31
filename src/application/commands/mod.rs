@@ -23,10 +23,7 @@ pub mod upgrade;
 
 use anyhow::{Result, bail};
 
-use crate::{
-    models::common::enums::Provider, output, providers::discovery::infer_package_name,
-    storage::database::PackageDatabase,
-};
+use crate::{models::common::enums::Provider, output, storage::database::PackageDatabase};
 
 pub fn resolve_new_package_name(
     override_name: Option<String>,
@@ -40,7 +37,7 @@ pub fn resolve_new_package_name(
         source,
         provider,
         base_url,
-        |name| database.package_exists(name),
+        |name| database.executable_alias_exists(name),
         |default| output::prompt_text("Package name", default),
     )
 }
@@ -51,7 +48,7 @@ fn resolve_new_package_name_with<E, P>(
     provider: Option<&Provider>,
     base_url: Option<&str>,
     mut package_exists: E,
-    mut prompt: P,
+    prompt: P,
 ) -> Result<String>
 where
     E: FnMut(&str) -> Result<bool>,
@@ -69,20 +66,8 @@ where
         return Ok(name.to_string());
     }
 
-    let mut default = infer_package_name(source, provider, base_url)?;
-    loop {
-        let name = prompt(default.as_deref())?;
-        if !package_exists(&name)? {
-            return Ok(name);
-        }
-
-        println!(
-            "{}",
-            output::warning(format!("Package '{}' already exists.", name))
-        );
-
-        default = None;
-    }
+    let _ = (source, provider, base_url, package_exists, prompt);
+    Ok(String::new())
 }
 
 #[cfg(test)]
@@ -133,25 +118,27 @@ mod package_name_tests {
     }
 
     #[test]
-    fn inferred_name_is_used_as_prompt_default() {
+    fn omitted_name_does_not_prompt_or_create_an_alias() {
+        let prompted = Cell::new(false);
         let name = resolve_new_package_name_with(
             None,
             "owner/repo",
             Some(&Provider::Github),
             None,
             |_| Ok(false),
-            |default| {
-                assert_eq!(default, Some("repo"));
-                Ok(default.expect("inferred default").to_string())
+            |_| {
+                prompted.set(true);
+                Ok("unused".to_string())
             },
         )
         .expect("resolve inferred name");
 
-        assert_eq!(name, "repo");
+        assert_eq!(name, "");
+        assert!(!prompted.get());
     }
 
     #[test]
-    fn duplicate_prompted_name_reprompts_without_the_conflicting_default() {
+    fn omitted_name_does_not_check_or_prompt_for_alias_collisions() {
         let prompt_count = Cell::new(0);
         let name = resolve_new_package_name_with(
             None,
@@ -177,25 +164,22 @@ mod package_name_tests {
         )
         .expect("resolve replacement name");
 
-        assert_eq!(name, "tool-alt");
-        assert_eq!(prompt_count.get(), 2);
+        assert_eq!(name, "");
+        assert_eq!(prompt_count.get(), 0);
     }
 
     #[test]
-    fn source_without_inferred_name_prompts_without_a_default() {
+    fn direct_source_without_name_does_not_prompt() {
         let name = resolve_new_package_name_with(
             None,
             "https://example.invalid/tool.tar.gz",
             Some(&Provider::Direct),
             None,
             |_| Ok(false),
-            |default| {
-                assert_eq!(default, None);
-                Ok("tool".to_string())
-            },
+            |_| Ok("tool".to_string()),
         )
         .expect("resolve prompted name");
 
-        assert_eq!(name, "tool");
+        assert_eq!(name, "");
     }
 }

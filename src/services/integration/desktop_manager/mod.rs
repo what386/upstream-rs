@@ -446,9 +446,13 @@ impl<'a> DesktopManager<'a> {
             .create_staged_entry(
                 &final_package.name,
                 staged_install_path,
-                staged_package.exec_path.as_deref(),
+                staged_package
+                    .primary_executable()
+                    .map(|executable| executable.path.as_path()),
                 final_install_path,
-                final_package.exec_path.as_deref(),
+                final_package
+                    .primary_executable()
+                    .map(|executable| executable.path.as_path()),
                 &final_package.filetype,
                 desktop_entry,
                 entry_path,

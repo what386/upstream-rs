@@ -1,12 +1,13 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 use crate::models::common::Version;
 use crate::models::upstream::Package;
 
+use super::executables::{load_executables, load_executables_for_packages, replace_executables};
 use super::mapping::{
     PACKAGE_COLUMNS, bool_to_db, enum_from_db_value, enum_to_db, optional_path_to_db,
     row_to_package,
@@ -63,6 +64,16 @@ impl PackageConnection {
             .with_context(|| format!("Failed to check package '{}'", name))
     }
 
+    pub fn executable_alias_exists(&self, name: &str) -> Result<bool> {
+        self.conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM package_executables WHERE name = ?1)",
+                [name],
+                |row| row.get::<_, bool>(0),
+            )
+            .with_context(|| format!("Failed to check executable alias '{name}'"))
+    }
+
     pub fn get_package(&self, name: &str) -> Result<Option<Package>> {
         let package = self
             .conn
@@ -73,6 +84,7 @@ impl PackageConnection {
         match package {
             Some(mut package) => {
                 load_patterns(&self.conn, &mut package)?;
+                load_executables(&self.conn, &mut package)?;
                 Ok(Some(package))
             }
             None => Ok(None),
@@ -94,6 +106,7 @@ impl PackageConnection {
         drop(stmt);
 
         load_patterns_for_packages(&self.conn, &mut packages)?;
+        load_executables_for_packages(&self.conn, &mut packages)?;
         Ok(packages)
     }
 
@@ -329,6 +342,24 @@ impl PackageConnection {
             .with_context(|| format!("Failed to commit package '{}'", package.name))
     }
 
+    pub fn rename_executable_alias(&mut self, old_name: &str, new_name: &str) -> Result<()> {
+        let affected = self
+            .conn
+            .execute(
+                "UPDATE package_executables SET name = ?1 WHERE name = ?2",
+                params![new_name, old_name],
+            )
+            .with_context(|| {
+                format!("Failed to rename executable alias '{old_name}' to '{new_name}'")
+            })?;
+
+        if affected == 0 {
+            bail!("Executable alias '{}' not found", old_name);
+        }
+
+        Ok(())
+    }
+
     fn initialize(&mut self) -> Result<()> {
         super::initialize(&self.conn)
     }
@@ -374,7 +405,13 @@ fn path_to_db(path: &Path) -> Result<String> {
 }
 
 fn select_package_by_name_query() -> String {
-    format!("SELECT {PACKAGE_COLUMNS} FROM packages WHERE name = ?1")
+    format!(
+        "SELECT {PACKAGE_COLUMNS} FROM packages
+         WHERE packages.name = ?1 OR packages.name = (
+             SELECT package_name FROM package_executables WHERE name = ?1
+         )
+         LIMIT 1"
+    )
 }
 
 fn list_packages_query() -> String {
@@ -417,10 +454,9 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             is_pinned,
             icon_path,
             install_path,
-            exec_path,
             last_upgraded
         ) VALUES (
-            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23
+            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22
         )
         ON CONFLICT(name) DO UPDATE SET
             repo_slug = excluded.repo_slug,
@@ -443,7 +479,6 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             is_pinned = excluded.is_pinned,
             icon_path = excluded.icon_path,
             install_path = excluded.install_path,
-            exec_path = excluded.exec_path,
             last_upgraded = excluded.last_upgraded",
         params![
             package.name,
@@ -467,13 +502,13 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             bool_to_db(package.is_pinned),
             optional_path_to_db(&package.icon_path)?,
             optional_path_to_db(&package.install_path)?,
-            optional_path_to_db(&package.exec_path)?,
             package.last_upgraded.to_rfc3339(),
         ],
     )
     .with_context(|| format!("Failed to write package '{}'", package.name))?;
 
-    replace_patterns(tx, package)
+    replace_patterns(tx, package)?;
+    replace_executables(tx, package)
 }
 
 #[cfg(test)]
@@ -520,7 +555,10 @@ mod tests {
         package.exclude_pattern = PatternTable::from_patterns(["debug", "symbols"]);
         package.icon_path = Some(PathBuf::from("/icons/tool.png"));
         package.install_path = Some(PathBuf::from("/packages/tool"));
-        package.exec_path = Some(PathBuf::from("/packages/tool/bin/tool"));
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            path: PathBuf::from("/packages/tool/bin/tool"),
+            name: name.to_string(),
+        }];
         package.last_upgraded = Utc
             .with_ymd_and_hms(2026, 6, 21, 12, 30, 0)
             .single()
@@ -707,11 +745,11 @@ mod tests {
                 version_is_prerelease, version_kind, version_value, release_tag,
                 release_published_at, version_tag_template, channel, provider, base_url,
                 install_type, build_branch, build_commit, is_pinned, icon_path, install_path,
-                exec_path, last_upgraded
+                last_upgraded
             ) VALUES (
                 'tool', 'owner/tool', 'Archive', 1, 2, 3, 0, 'Semver', NULL, NULL, NULL,
                 'rust-v{}-linux', 'Stable', 'Github', NULL, 'Release', NULL, NULL, 0, NULL,
-                '/packages/tool', '/packages/tool/tool', '2026-06-21T12:30:00Z'
+                '/packages/tool', '2026-06-21T12:30:00Z'
             );
             PRAGMA user_version = 7;
             ",
@@ -720,13 +758,16 @@ mod tests {
 
         let db = PackageConnection::from_connection(conn).expect("migrate v7 schema");
         let package = db
-            .get_package("tool")
+            .get_package("github:owner/tool")
             .expect("load package")
             .expect("package exists");
 
         assert_eq!(package.release_tag.as_deref(), Some("rust-v1.2.3-linux"));
         assert!(package.release_published_at.is_none());
-        assert_eq!(db.schema_version().expect("schema version"), 9);
+        assert_eq!(
+            db.schema_version().expect("schema version"),
+            PACKAGE_DB_SCHEMA_VERSION
+        );
     }
 
     #[test]
@@ -766,7 +807,7 @@ mod tests {
 
         assert_eq!(stored.icon_path, package.icon_path);
         assert_eq!(stored.install_path, package.install_path);
-        assert_eq!(stored.exec_path, package.exec_path);
+        assert_eq!(stored.executables, package.executables);
         assert_eq!(stored.last_upgraded, package.last_upgraded);
     }
 
@@ -914,7 +955,10 @@ mod tests {
 
         db.update_package("tool", |package| {
             package.is_pinned = false;
-            package.exec_path = Some(PathBuf::from("/new/tool"));
+            package.executables = vec![crate::models::upstream::PackageExecutable {
+                path: PathBuf::from("/new/tool"),
+                name: "tool".to_string(),
+            }];
             Ok(())
         })
         .expect("update package");
@@ -925,7 +969,7 @@ mod tests {
             .expect("package exists");
 
         assert!(!stored.is_pinned);
-        assert_eq!(stored.exec_path, Some(PathBuf::from("/new/tool")));
+        assert_eq!(stored.executables[0].path, PathBuf::from("/new/tool"));
     }
 
     #[test]
@@ -940,7 +984,7 @@ mod tests {
         })
         .expect("rename package");
 
-        assert!(db.get_package("old").expect("load old").is_none());
+        assert!(db.get_package("old").expect("load old").is_some());
         assert!(db.get_package("new").expect("load new").is_some());
     }
 

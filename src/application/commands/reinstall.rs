@@ -332,7 +332,7 @@ async fn run_dry_run(
             InstallType::Release => {
                 let mut preview_package = package.clone();
                 preview_package.install_path = None;
-                preview_package.exec_path = None;
+                preview_package.executables.clear();
                 preview_package.icon_path = None;
 
                 match resolve_reinstall_release(provider_manager, &preview_package).await {
@@ -515,7 +515,7 @@ async fn estimate_reinstall_impact_rows(
             InstallType::Release => {
                 let mut preview_package = package.clone();
                 preview_package.install_path = None;
-                preview_package.exec_path = None;
+                preview_package.executables.clear();
                 preview_package.icon_path = None;
                 match resolve_reinstall_release(provider_manager, &preview_package)
                     .await

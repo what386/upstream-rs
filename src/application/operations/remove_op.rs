@@ -319,7 +319,10 @@ mod tests {
         );
 
         package.install_path = Some(install_path.clone());
-        package.exec_path = Some(install_path.clone());
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            path: install_path.clone(),
+            name: "tool".to_string(),
+        }];
 
         let mut storage =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("storage");

@@ -1,11 +1,7 @@
 use anyhow::{Context, Result, anyhow, bail};
 
 use crate::{
-    services::{
-        integration::{CompletionManager, DesktopManager, SymlinkManager},
-        packaging::RollbackManager,
-    },
-    storage::database::PackageDatabase,
+    services::integration::SymlinkManager, storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -13,14 +9,6 @@ use crate::{
 pub enum RenameOutcome {
     Renamed,
     Unchanged,
-}
-
-#[derive(Default)]
-struct RenameIntegrationSteps {
-    runtime_link: bool,
-    completions: bool,
-    desktop_entry: bool,
-    rollback: bool,
 }
 
 pub fn rename_package(
@@ -41,76 +29,16 @@ pub fn rename_package(
         bail!("Package '{}' already exists", new_name);
     }
 
-    let mut rollback_manager = RollbackManager::new(paths)?;
     let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
-    let completion_manager = CompletionManager::new(paths);
-    let mut steps = RenameIntegrationSteps::default();
-
-    let rename_result = (|| {
-        steps.runtime_link = symlink_manager.rename_link(old_name, new_name)?;
-        steps.completions = completion_manager.rename_for_package(old_name, new_name)?;
-        steps.desktop_entry = DesktopManager::rename_entry(paths, old_name, new_name)?;
-        steps.rollback = rollback_manager.rename_package(old_name, new_name)?;
-        package_database.rename_package(old_name, new_name)
-    })();
-
-    if let Err(error) = rename_result {
-        let rollback_result =
-            rollback_integrations(paths, &mut rollback_manager, old_name, new_name, steps);
-
-        return match rollback_result {
-            Ok(()) => {
-                Err(error).context("Package rename failed; integration changes were reverted")
-            }
-            Err(rollback_error) => Err(anyhow!(
-                "Package rename failed: {}. Integration rollback also failed: {}",
-                error,
-                rollback_error
-            )),
-        };
+    let renamed_link = symlink_manager.rename_link(old_name, new_name)?;
+    if let Err(error) = package_database.rename_package(old_name, new_name) {
+        if renamed_link {
+            let _ = symlink_manager.rename_link(new_name, old_name);
+        }
+        return Err(error).context("Executable alias rename failed; runtime link was reverted");
     }
 
     Ok(RenameOutcome::Renamed)
-}
-
-fn rollback_integrations(
-    paths: &UpstreamPaths,
-    rollback_manager: &mut RollbackManager<'_>,
-    old_name: &str,
-    new_name: &str,
-    steps: RenameIntegrationSteps,
-) -> Result<()> {
-    let mut errors = Vec::new();
-    if steps.rollback
-        && let Err(error) = rollback_manager.rename_package(new_name, old_name)
-    {
-        errors.push(format!("rollback data: {error}"));
-    }
-
-    if steps.desktop_entry
-        && let Err(error) = DesktopManager::rename_entry(paths, new_name, old_name)
-    {
-        errors.push(format!("desktop entry: {error}"));
-    }
-
-    if steps.completions
-        && let Err(error) = CompletionManager::new(paths).rename_for_package(new_name, old_name)
-    {
-        errors.push(format!("completions: {error}"));
-    }
-
-    if steps.runtime_link
-        && let Err(error) =
-            SymlinkManager::new(&paths.state.symlinks_dir).rename_link(new_name, old_name)
-    {
-        errors.push(format!("runtime link: {error}"));
-    }
-
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        bail!("{}", errors.join("; "))
-    }
 }
 
 #[cfg(all(test, target_os = "linux"))]
@@ -144,7 +72,10 @@ mod tests {
         );
 
         package.install_path = Some(install_path.clone());
-        package.exec_path = Some(install_path.clone());
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            path: install_path.clone(),
+            name: name.to_string(),
+        }];
         let mut database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
 
@@ -195,7 +126,7 @@ mod tests {
             RenameOutcome::Renamed
         );
 
-        assert!(database.get_package("old").expect("load old").is_none());
+        assert!(database.get_package("old").expect("load old").is_some());
         assert!(database.get_package("new").expect("load new").is_some());
         assert!(paths.state.symlinks_dir.join("new").exists());
         assert!(!paths.state.symlinks_dir.join("old").exists());

@@ -4,13 +4,13 @@ use console::style;
 use std::path::Path;
 
 use crate::{
-    models::upstream::Package,
+    models::upstream::{Package, PackageExecutable},
     services::{
         artifact::{archive_layout, compression_handler, permission_handler},
         integration::CompletionManager,
         packaging::staging::InstallWorkspace,
     },
-    utils::filesystem::safe_move,
+    utils::{filenames::simplify::executable_alias, filesystem::safe_move},
 };
 
 macro_rules! message {
@@ -19,6 +19,30 @@ macro_rules! message {
             cb(&format!($($arg)*));
         }
     }};
+}
+
+fn set_executable_aliases(package: &mut Package, paths: Vec<std::path::PathBuf>) {
+    package.executables = paths
+        .into_iter()
+        .filter_map(|path| {
+            let filename = path.file_name()?.to_string_lossy();
+            let name = executable_alias(&filename, package.match_pattern.as_slice());
+            Some(PackageExecutable { path, name })
+        })
+        .collect();
+
+    if let Some(alias) = package.install_alias.take()
+        && let Some(primary) = package.executables.first()
+        && !package
+            .executables
+            .iter()
+            .any(|executable| executable.name == alias)
+    {
+        package.executables.push(PackageExecutable {
+            path: primary.path.clone(),
+            name: alias,
+        });
+    }
 }
 
 /// Best-effort completion install for a package root; failures are reported
@@ -95,36 +119,33 @@ where
 
     message!(message_callback, "Searching for executable ...");
 
-    let Some(exec_path) = permission_handler::find_executable(&out_path, &package.name) else {
-        message!(
-            message_callback,
-            "{}",
-            style("Could not automatically locate executable").yellow()
+    let preferred_name = package.repo_slug.rsplit('/').next().unwrap_or_default();
+    let executable_paths = permission_handler::find_executables(&out_path, preferred_name);
+    if executable_paths.is_empty() {
+        anyhow::bail!(
+            "Archive '{}' contains no executable file in its root or bin directory",
+            out_path.display()
         );
+    }
 
-        install_completions_from_root(workspace, &package.name, &out_path, message_callback);
-        package.exec_path = None;
-        package.install_path = Some(out_path);
-        package.last_upgraded = Utc::now();
-        return Ok(package);
-    };
-
-    permission_handler::make_executable(&exec_path).context(format!(
-        "Failed to make '{}' executable",
-        exec_path.display()
-    ))?;
+    for exec_path in &executable_paths {
+        permission_handler::make_executable(exec_path).context(format!(
+            "Failed to make '{}' executable",
+            exec_path.display()
+        ))?;
+    }
 
     message!(
         message_callback,
         "Added executable permission for '{}'",
-        exec_path
+        executable_paths[0]
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| exec_path.display().to_string())
+            .unwrap_or_else(|| executable_paths[0].display().to_string())
     );
 
     install_completions_from_root(workspace, &package.name, &out_path, message_callback);
-    package.exec_path = Some(exec_path);
+    set_executable_aliases(&mut package, executable_paths);
     package.install_path = Some(out_path);
     package.last_upgraded = Utc::now();
     Ok(package)
@@ -220,7 +241,7 @@ where
     }
 
     package.install_path = Some(out_path.clone());
-    package.exec_path = Some(out_path);
+    set_executable_aliases(&mut package, vec![out_path]);
     package.last_upgraded = Utc::now();
     Ok(package)
 }
@@ -257,7 +278,7 @@ where
     message!(message_callback, "Made '{}' executable", filename.display());
 
     package.install_path = Some(out_path.clone());
-    package.exec_path = Some(out_path);
+    set_executable_aliases(&mut package, vec![out_path]);
     package.last_upgraded = Utc::now();
     Ok(package)
 }

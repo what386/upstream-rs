@@ -328,10 +328,20 @@ impl<'a> PackageRemover<'a> {
             .as_ref()
             .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
 
-        message!(message_callback, "Removing symlink for '{}'", package.name);
-        SymlinkManager::new(&self.paths.state.symlinks_dir)
-            .remove_link(&package.name)
-            .context(format!("Failed to remove symlink for '{}'", package.name))
+        for executable in &package.executables {
+            message!(
+                message_callback,
+                "Removing symlink for '{}'",
+                executable.name
+            );
+            SymlinkManager::new(&self.paths.state.symlinks_dir)
+                .remove_link(&executable.name)
+                .context(format!(
+                    "Failed to remove symlink for '{}'",
+                    executable.name
+                ))?;
+        }
+        Ok(())
     }
 
     /// Restore PATH and symlink state for a previously installed package.
@@ -348,13 +358,20 @@ impl<'a> PackageRemover<'a> {
             .as_ref()
             .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.name))?;
 
-        if let Some(exec_path) = package.exec_path.as_ref()
-            && exec_path.exists()
-        {
-            message!(message_callback, "Restoring symlink for '{}'", package.name);
-            SymlinkManager::new(&self.paths.state.symlinks_dir)
-                .add_link(exec_path, &package.name)
-                .context(format!("Failed to restore symlink for '{}'", package.name))?;
+        for executable in &package.executables {
+            if executable.path.exists() {
+                message!(
+                    message_callback,
+                    "Restoring symlink for '{}'",
+                    executable.name
+                );
+                SymlinkManager::new(&self.paths.state.symlinks_dir)
+                    .add_link(&executable.path, &executable.name)
+                    .context(format!(
+                        "Failed to restore symlink for '{}'",
+                        executable.name
+                    ))?;
+            }
         }
 
         Ok(())
@@ -491,9 +508,8 @@ mod tests {
         }
 
         package
-            .exec_path
-            .as_ref()
-            .and_then(|exec_path| exec_path.parent().map(Path::to_path_buf))
+            .primary_executable()
+            .and_then(|executable| executable.path.parent().map(Path::to_path_buf))
             .or_else(|| Some(install_path.to_path_buf()))
     }
 
@@ -557,7 +573,10 @@ mod tests {
         );
 
         package.install_path = Some(install_path.clone());
-        package.exec_path = Some(exec_path);
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            path: exec_path,
+            name: "tool".to_string(),
+        }];
         fs::create_dir_all(&exec_parent).expect("create exec parent");
 
         let remover = PackageRemover::new(&paths);
@@ -588,7 +607,10 @@ mod tests {
         );
 
         package.install_path = Some(install_path.clone());
-        package.exec_path = Some(install_path.clone());
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            path: install_path.clone(),
+            name: "tool".to_string(),
+        }];
         fs::create_dir_all(install_path.parent().expect("parent")).expect("create parent");
         fs::write(&install_path, b"bin").expect("write binary");
 

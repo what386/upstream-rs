@@ -72,24 +72,34 @@ fn write_detail_field(out: &mut String, label: &str, value: impl AsRef<str>) {
 }
 
 fn resolve_package_query<'a>(packages: &'a [Package], query: &str) -> Result<&'a Package> {
-    if let Some(package) = packages
-        .iter()
-        .find(|package| package.name.eq_ignore_ascii_case(query))
-    {
+    if let Some(package) = packages.iter().find(|package| {
+        package.name.eq_ignore_ascii_case(query)
+            || package
+                .executables
+                .iter()
+                .any(|executable| executable.name.eq_ignore_ascii_case(query))
+    }) {
         return Ok(package);
     }
 
-    let suggestions = name_match::suggestions(
-        packages.iter().map(|package| package.name.as_str()),
-        query,
-        3,
-    );
+    let suggestions = name_match::suggestions(package_query_candidates(packages), query, 3);
 
     Err(anyhow!(
         "No installed package matches '{}'.{}",
         query,
         name_match::did_you_mean(&suggestions)
     ))
+}
+
+fn package_query_candidates(packages: &[Package]) -> impl Iterator<Item = &str> {
+    packages.iter().flat_map(|package| {
+        std::iter::once(package.name.as_str()).chain(
+            package
+                .executables
+                .iter()
+                .map(|executable| executable.name.as_str()),
+        )
+    })
 }
 
 fn package_detail_heading(package: &Package) -> String {
@@ -156,8 +166,13 @@ fn format_package_details(package: &Package) -> String {
     );
     write_detail_field(
         &mut out,
-        "Command",
-        format_path(package.exec_path.as_ref(), "-"),
+        "Commands",
+        package
+            .executables
+            .iter()
+            .map(|executable| format!("{} -> {}", executable.name, executable.path.display()))
+            .collect::<Vec<_>>()
+            .join(", "),
     );
     write_detail_field(
         &mut out,
@@ -222,7 +237,8 @@ fn package_ref_label(package: &Package) -> String {
 mod tests {
     use super::resolve_package_query;
     use crate::models::common::enums::{Channel, Filetype, Provider};
-    use crate::models::upstream::Package;
+    use crate::models::upstream::{Package, PackageExecutable};
+    use std::path::PathBuf;
 
     fn package(name: &str) -> Package {
         Package::with_defaults(
@@ -265,5 +281,19 @@ mod tests {
             error.to_string(),
             "No installed package matches 'code'. Did you mean: codex, vscode?"
         );
+    }
+
+    #[test]
+    fn package_query_accepts_an_executable_alias() {
+        let mut package = package("github:owner/tool");
+        package.executables.push(PackageExecutable {
+            path: PathBuf::from("/packages/tool/bin/tool"),
+            name: "tool".to_string(),
+        });
+
+        let packages = [package];
+        let resolved = resolve_package_query(&packages, "tool").expect("resolve alias");
+
+        assert_eq!(resolved.name, "github:owner/tool");
     }
 }

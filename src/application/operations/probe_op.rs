@@ -140,7 +140,7 @@ impl<'a> ProbeOperation<'a> {
         );
 
         let mut package = Package::with_defaults(
-            install_name.clone(),
+            Package::key(&result.provider, &result.repo_slug),
             result.repo_slug.clone(),
             selected_asset.filetype,
             Some(generated.match_pattern.to_string()),
@@ -150,7 +150,7 @@ impl<'a> ProbeOperation<'a> {
             result.base_url.clone(),
         );
 
-        package.name = install_name;
+        package.install_alias = (!install_name.is_empty()).then_some(install_name);
         package.repo_slug = result.repo_slug.clone();
         package.filetype = selected_asset.filetype;
         package.channel = result.channel.clone();
