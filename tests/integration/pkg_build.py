@@ -8,7 +8,7 @@ from framework.environment import reset_fakehome
 from framework.packages import assert_executable_version, package_from_list, package_version
 
 REPO = "BurntSushi/ripgrep"
-PACKAGE = "rg"
+PACKAGE = "ripgrep"
 TAG = "15.1.0"
 
 

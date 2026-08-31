@@ -7,7 +7,7 @@ from framework.commands import run_upstream, run_upstream_json, run_upstream_res
 from framework.packages import package_from_list, package_path
 
 
-PACKAGE = "rg"
+PACKAGE = "ripgrep"
 
 
 def main() -> None:

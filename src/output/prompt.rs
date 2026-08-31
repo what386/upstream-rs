@@ -685,7 +685,7 @@ mod tests {
 
     #[test]
     fn prompt_lines_preserve_multiline_headers() {
-        assert_eq!(prompt_lines("package: rg\nqueries: usage").len(), 2);
+        assert_eq!(prompt_lines("package: ripgrep\nqueries: usage").len(), 2);
         assert_eq!(prompt_lines("").len(), 1);
     }
 

@@ -138,13 +138,13 @@ upstream list
 Show details for an installed package:
 
 ```bash
-upstream info rg
+upstream info ripgrep
 ```
 
 Remove a package:
 
 ```bash
-upstream remove rg
+upstream remove ripgrep
 ```
 
 Run diagnostics:
@@ -157,7 +157,7 @@ Inspect recent command and package history:
 
 ```bash
 upstream history
-upstream history --package rg
+upstream history --package ripgrep
 upstream history --status failed --json
 upstream history --since 2d
 upstream history --today
@@ -166,8 +166,8 @@ upstream history --today
 Search installed package documentation:
 
 ```bash
-upstream docs rg usage
-upstream docs rg --offline usage
+upstream docs ripgrep usage
+upstream docs ripgrep --offline usage
 ```
 
 ## API Tokens
@@ -254,7 +254,7 @@ cmake
 
 ```bash
 upstream upgrade
-upstream upgrade nvim rg
+upstream upgrade nvim ripgrep
 upstream upgrade --check
 upstream upgrade --check --machine-readable
 ```
@@ -262,9 +262,9 @@ upstream upgrade --check --machine-readable
 ### Manage packages
 
 ```bash
-upstream remove rg
-upstream reinstall rg
-upstream rollback rg
+upstream remove ripgrep
+upstream reinstall ripgrep
+upstream rollback ripgrep
 upstream rollback --list
 upstream rollback --prune
 upstream package pin nvim

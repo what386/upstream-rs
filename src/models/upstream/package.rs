@@ -266,7 +266,7 @@ mod tests {
         b.match_pattern = PatternTable::from_patterns(["x86_64"]);
         assert!(a.is_same_as(&b));
 
-        a.id = "rg".to_string();
+        a.id = "github:other/tool".to_string();
         assert!(!a.is_same_as(&b));
     }
 

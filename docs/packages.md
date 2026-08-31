@@ -51,7 +51,7 @@ On Linux, Upstream creates a `.desktop` file under the user applications directo
 
 ```bash
 upstream upgrade
-upstream upgrade rg fd
+upstream upgrade ripgrep fd
 ```
 
 Upgrade checks installed package metadata, resolves newer releases or branch heads, previews the transaction, and applies the upgrade after confirmation. Use:

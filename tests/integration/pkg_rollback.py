@@ -13,7 +13,7 @@ from framework.packages import (
 )
 
 REPO = "BurntSushi/ripgrep"
-PACKAGE = "rg"
+PACKAGE = "ripgrep"
 OLD_TAG = "14.1.0"
 
 

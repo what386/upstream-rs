@@ -12,7 +12,7 @@ from framework.packages import package_from_list, package_path
 
 
 REPO = "BurntSushi/ripgrep"
-PACKAGE = "rg"
+PACKAGE = "ripgrep"
 TAG = "15.1.0"
 DESKTOP_ENTRY = FAKEHOME / ".local/share/applications" / f"{PACKAGE}.desktop"
 

@@ -158,9 +158,9 @@ pub enum Commands {
         file cleanup fails.\n\n\
         EXAMPLES:\n  \
         upstream remove nvim\n  \
-        upstream remove rg fd bat --purge\n  \
-        upstream remove rg --force\n  \
-        upstream remove rg --dry-run"
+        upstream remove ripgrep fd bat --purge\n  \
+        upstream remove ripgrep --force\n  \
+        upstream remove ripgrep --dry-run"
     )]
     Remove {
         /// Names of packages to remove
@@ -186,11 +186,11 @@ pub enum Commands {
         --prune <names...> to delete selected packages, or --prune all to make the \
         all-packages intent explicit.\n\n\
         EXAMPLES:\n  \
-        upstream rollback rg\n  \
-        upstream rollback rg fd --dry-run\n  \
+        upstream rollback ripgrep\n  \
+        upstream rollback ripgrep fd --dry-run\n  \
         upstream rollback --list\n  \
         upstream rollback --prune\n  \
-        upstream rollback --prune rg")]
+        upstream rollback --prune ripgrep")]
     Rollback {
         /// Package names to restore
         #[arg(num_args(0..), value_name = "NAMES")]
@@ -217,9 +217,9 @@ pub enum Commands {
         Use --dry-run to preview resolution without touching files.\n\n\
         EXAMPLES:\n  \
         upstream reinstall nvim\n  \
-        upstream reinstall rg fd\n  \
-        upstream reinstall rg --force\n  \
-        upstream reinstall rg --trust none"
+        upstream reinstall ripgrep fd\n  \
+        upstream reinstall ripgrep --force\n  \
+        upstream reinstall ripgrep --trust none"
     )]
     Reinstall {
         /// Installed package names to reinstall
@@ -247,7 +247,7 @@ pub enum Commands {
         enter c to view release notes before deciding.\n\n\
         EXAMPLES:\n  \
         upstream upgrade              # Upgrade all\n  \
-        upstream upgrade nvim rg      # Upgrade specific packages\n  \
+        upstream upgrade nvim ripgrep      # Upgrade specific packages\n  \
         upstream upgrade --check      # Check for updates\n  \
         upstream upgrade --check --json # Check for updates as JSON\n  \
         upstream upgrade --check --machine-readable # Script-friendly output\n  \
@@ -362,11 +362,11 @@ pub enum Commands {
         --fetch [names...] to refresh cached READMEs without opening the picker; \
         omitting names refreshes all installed packages.\n\n\
         EXAMPLES:\n  \
-        upstream docs rg\n  \
-        upstream docs rg usage\n  \
-        upstream docs rg --offline usage\n  \
+        upstream docs ripgrep\n  \
+        upstream docs ripgrep usage\n  \
+        upstream docs ripgrep --offline usage\n  \
         upstream docs --fetch\n  \
-        upstream docs --fetch rg bat\n  \
+        upstream docs --fetch ripgrep bat\n  \
         upstream docs ripgrep configuration file\n  \
         upstream docs bat themes syntax")]
     Docs {

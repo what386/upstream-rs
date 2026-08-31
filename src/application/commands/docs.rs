@@ -454,7 +454,7 @@ mod tests {
 
     fn result() -> DocsSearchResult {
         DocsSearchResult {
-            package_name: "rg".to_string(),
+            package_name: "ripgrep".to_string(),
             document_name: "README.md".to_string(),
             query: "usage".to_string(),
             sections: vec![DocsSectionMatch {
@@ -487,7 +487,7 @@ mod tests {
 
         let output = format_selected_section(&result, &result.sections[0], &renderer);
 
-        assert!(output.contains("package: rg  doc: README.md"));
+        assert!(output.contains("package: ripgrep  doc: README.md"));
         assert!(output.contains("queries: usage"));
         assert!(!output.contains("Document:"));
         assert!(!output.contains("Query:"));
@@ -529,18 +529,22 @@ mod tests {
 
     #[test]
     fn fetch_targets_support_single_leading_package_name() {
-        let packages = vec![package("rg"), package("bat")];
+        let packages = vec![package("ripgrep"), package("bat")];
 
-        let targets =
-            resolve_fetch_targets(&packages, Some("rg".to_string()), Vec::new(), Vec::new())
-                .expect("targets");
+        let targets = resolve_fetch_targets(
+            &packages,
+            Some("ripgrep".to_string()),
+            Vec::new(),
+            Vec::new(),
+        )
+        .expect("targets");
 
-        assert_eq!(targets[0].id, "rg");
+        assert_eq!(targets[0].id, "ripgrep");
     }
 
     #[test]
     fn fetch_targets_support_names_after_fetch_flag() {
-        let packages = vec![package("rg"), package("bat"), package("fd")];
+        let packages = vec![package("ripgrep"), package("bat"), package("fd")];
 
         let targets = resolve_fetch_targets(
             &packages,
@@ -561,11 +565,11 @@ mod tests {
 
     #[test]
     fn fetch_targets_reject_search_keywords() {
-        let packages = vec![package("rg")];
+        let packages = vec![package("ripgrep")];
 
         let err = resolve_fetch_targets(
             &packages,
-            Some("rg".to_string()),
+            Some("ripgrep".to_string()),
             vec!["usage".to_string()],
             Vec::new(),
         )
@@ -580,15 +584,15 @@ mod tests {
         let mut active_rows = std::collections::BTreeMap::new();
         completed_rows.insert("bat".to_string(), "[ok] bat cached README.md".to_string());
         active_rows.insert(
-            "rg".to_string(),
-            super::render_docs_fetch_progress_row("rg"),
+            "ripgrep".to_string(),
+            super::render_docs_fetch_progress_row("ripgrep"),
         );
 
         let output = super::render_docs_fetch_progress(&completed_rows, &active_rows);
 
         assert!(output.starts_with('\n'));
         assert!(output.contains("[ok] bat cached README.md"));
-        assert!(output.contains("rg"));
+        assert!(output.contains("ripgrep"));
         assert!(output.contains("fetching README.md"));
     }
 
@@ -609,8 +613,11 @@ mod tests {
 
     #[test]
     fn docs_fetch_result_fails_for_fetch_errors() {
-        let (row, failed) =
-            super::render_docs_fetch_result_row("rg", Err(anyhow::anyhow!("rate limited")), 10);
+        let (row, failed) = super::render_docs_fetch_result_row(
+            "ripgrep",
+            Err(anyhow::anyhow!("rate limited")),
+            10,
+        );
 
         assert!(failed);
         assert!(console::strip_ansi_codes(&row).contains("[fail]"));

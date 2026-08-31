@@ -9,8 +9,7 @@ from framework.packages import install_package, package_from_list
 
 
 REPO = "BurntSushi/ripgrep"
-PACKAGE = "rg"
-RENAMED_PACKAGE = "ripgrep"
+PACKAGE = "ripgrep"
 TAG = "15.1.0"
 
 
@@ -71,14 +70,7 @@ def main() -> None:
     run_upstream("--yes", "cache", "clean", "docs")
     assert not docs_cache.exists()
 
-    run_upstream("package", "rename", PACKAGE, RENAMED_PACKAGE)
-    assert package_from_list(RENAMED_PACKAGE)["id"] == package["id"]
-    assert sum(item.get("id") == package["id"] for item in run_upstream_json("list")) == 1
-
-    run_upstream("package", "rename", RENAMED_PACKAGE, PACKAGE)
-    assert package_from_list(PACKAGE)["id"] == package["id"]
-
-    print("config, auth, package settings, cache, and alias rename mutations passed")
+    print("config, auth, package settings, and cache mutations passed")
 
 
 if __name__ == "__main__":

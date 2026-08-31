@@ -98,10 +98,10 @@ Examples:
 
 ```bash
 upstream upgrade
-upstream upgrade nvim rg
+upstream upgrade nvim ripgrep
 upstream upgrade --check
 upstream upgrade --check --machine-readable
-upstream upgrade rg --force
+upstream upgrade ripgrep --force
 ```
 
 ## Remove

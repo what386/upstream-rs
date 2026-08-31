@@ -12,7 +12,7 @@ from framework.packages import assert_executable_version, install_package, packa
 
 
 REPO = "BurntSushi/ripgrep"
-PACKAGE = "rg"
+PACKAGE = "ripgrep"
 TAG = "15.1.0"
 
 

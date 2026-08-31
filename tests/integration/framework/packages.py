@@ -16,6 +16,7 @@ def package_from_list(name: str) -> dict[str, object]:
         package
         for package in packages
         if package.get("id") == name
+        or package.get("repo_slug", "").rsplit("/", 1)[-1].casefold() == name.casefold()
         or any(
             isinstance(executable, dict) and executable.get("name") == name
             for executable in package.get("executables", [])

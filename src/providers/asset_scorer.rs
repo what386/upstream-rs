@@ -637,7 +637,7 @@ mod tests {
     #[test]
     fn forge_asset_identity_uses_repository_name_instead_of_local_alias() {
         let package = Package::with_defaults(
-            "rg".to_string(),
+            "ripgrep".to_string(),
             "BurntSushi/ripgrep".to_string(),
             Filetype::Auto,
             None,
