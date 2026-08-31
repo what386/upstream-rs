@@ -51,7 +51,7 @@ pub fn find_executables(directory_path: &Path, preferred_name: &str) -> Vec<Path
             let Ok(kind) = entry.file_type() else {
                 continue;
             };
-            if kind.is_file() && is_executable_file(&path) {
+            if kind.is_file() && !is_shared_library(&path) && is_executable_file(&path) {
                 paths.push(path);
             }
         }
@@ -68,6 +68,17 @@ pub fn find_executables(directory_path: &Path, preferred_name: &str) -> Vec<Path
             .then_with(|| left.cmp(right))
     });
     paths
+}
+
+fn is_shared_library(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "so" | "dll" | "dylib"
+            )
+        })
 }
 
 #[cfg(unix)]
@@ -144,6 +155,28 @@ mod tests {
 
         let found = find_executables(&root, "tool");
         assert_eq!(found, vec![root_executable, bin_executable]);
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn ignores_executable_shared_libraries() {
+        let root = temp_root("libraries");
+        fs::create_dir_all(&root).expect("create root");
+        let command = root.join(executable_name("tool"));
+        let shared_objects = [root.join("libtool.so"), root.join("helper.dll")];
+
+        for path in std::iter::once(&command).chain(shared_objects.iter()) {
+            fs::write(path, b"not a real executable").expect("write file");
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(path, fs::Permissions::from_mode(0o755))
+                    .expect("make executable");
+            }
+        }
+
+        assert_eq!(find_executables(&root, "tool"), vec![command]);
 
         cleanup(&root).expect("cleanup");
     }
