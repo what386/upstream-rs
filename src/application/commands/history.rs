@@ -3,6 +3,7 @@ use anyhow::Result;
 use crate::{
     application::operations::history_op::{self, HistoryFilter},
     output,
+    storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -22,6 +23,18 @@ pub fn run(
         .map(history_op::parse_since)
         .transpose()
         .map_err(anyhow::Error::msg)?;
+
+    let package = if let Some(name) = package {
+        let database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
+        Some(
+            database
+                .get_package(&name)?
+                .map(|package| package.id)
+                .unwrap_or(name),
+        )
+    } else {
+        None
+    };
 
     let filter = HistoryFilter {
         package,

@@ -113,12 +113,7 @@ fn package_query_candidates(packages: &[Package]) -> Vec<String> {
 }
 
 fn package_detail_heading(package: &Package) -> String {
-    format!(
-        "{} {} ({})",
-        package.id,
-        package_ref_label(package),
-        package.repo_slug
-    )
+    format!("{} {}", package.id, package_ref_label(package))
 }
 
 fn format_package_details(package: &Package) -> String {
