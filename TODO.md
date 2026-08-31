@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-27
+@modified: 2026-08-31
 
 
 ## Tasks
@@ -20,4 +20,7 @@
 
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
+
+- [ ] multi-executable discovery for archives (excludes dynamic libs)
+      @created 2026-08-31 20:14
 
