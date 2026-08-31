@@ -1,4 +1,4 @@
-pub mod filename_parser;
+pub mod filenames;
 pub mod filesystem;
 pub mod math;
 pub mod name_match;

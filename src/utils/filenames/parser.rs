@@ -1,3 +1,4 @@
+use super::markers;
 use crate::models::common::enums::Filetype;
 use crate::utils::platform::platform_info::{CpuArch, OSKind};
 
@@ -17,47 +18,42 @@ pub fn parse_os(filename: &str) -> Option<OSKind> {
     let name = filename.to_lowercase();
 
     // Windows
-    if contains_marker(
-        &name,
-        &[
-            ".exe", ".msi", ".dll", "windows", "win64", "win32", "win", "msvc", ".nsis",
-        ],
-    ) {
+    if markers::contains_marker(&name, markers::WINDOWS) {
         return Some(OSKind::Windows);
     }
 
     // iOS
-    if contains_marker(&name, &["ios", "iphone", "ipad"]) {
+    if markers::contains_marker(&name, markers::IOS) {
         return Some(OSKind::Ios);
     }
 
     // macOS/Darwin
-    if contains_marker(&name, &["macos", "darwin", "osx", "mac"]) {
+    if markers::contains_marker(&name, markers::MACOS) {
         return Some(OSKind::MacOS);
     }
 
     // Android
-    if contains_marker(&name, &["android", ".apk", ".aab"]) {
+    if markers::contains_marker(&name, markers::ANDROID) {
         return Some(OSKind::Android);
     }
 
     // Linux
-    if contains_marker(&name, &["linux", "gnu", ".appimage", "musl"]) {
+    if markers::contains_marker(&name, markers::LINUX) {
         return Some(OSKind::Linux);
     }
 
     // FreeBSD
-    if contains_marker(&name, &["freebsd", "fbsd"]) {
+    if markers::contains_marker(&name, markers::FREEBSD) {
         return Some(OSKind::FreeBSD);
     }
 
     // OpenBSD
-    if contains_marker(&name, &["openbsd", "obsd"]) {
+    if markers::contains_marker(&name, markers::OPENBSD) {
         return Some(OSKind::OpenBSD);
     }
 
     // NetBSD
-    if contains_marker(&name, &["netbsd", "nbsd"]) {
+    if markers::contains_marker(&name, markers::NETBSD) {
         return Some(OSKind::NetBSD);
     }
 
@@ -70,24 +66,24 @@ pub fn parse_os(filename: &str) -> Option<OSKind> {
 pub fn parse_arch(filename: &str) -> Option<CpuArch> {
     let name = filename.to_lowercase();
 
-    if contains_marker(&name, &["aarch64", "arm64", "armv8"]) {
+    if markers::contains_marker(&name, markers::AARCH64) {
         return Some(CpuArch::Aarch64);
     }
 
-    if contains_marker(&name, &["armv7", "armv7l", "armv6", "arm"]) {
+    if markers::contains_marker(&name, markers::ARM) {
         return Some(CpuArch::Arm);
     }
 
-    if contains_marker(&name, &["x86_64", "x86-64", "amd64", "x64", "win64"]) {
+    if markers::contains_marker(&name, markers::X86_64) {
         return Some(CpuArch::X86_64);
     }
 
-    if contains_marker(&name, &["x86_32", "x86-32", "win32"]) {
+    if markers::contains_marker(&name, &markers::X86[..3]) {
         return Some(CpuArch::X86);
     }
 
     // Ambiguous "x86"
-    if contains_marker(&name, &["x86"]) {
+    if markers::contains_marker(&name, &markers::X86[3..]) {
         return Some(CpuArch::X86);
     }
 
@@ -148,39 +144,6 @@ pub fn is_unsupported_artifact_name(filename: &str) -> bool {
     ]
     .iter()
     .any(|extension| filename.ends_with(extension))
-}
-
-/// Match token markers with word-boundary checks to reduce false positives.
-///
-/// Extension markers (starting with `.`) are treated as suffix matches.
-fn contains_marker(filename: &str, markers: &[&str]) -> bool {
-    for marker in markers {
-        if marker.starts_with('.') {
-            if filename.ends_with(marker) {
-                return true;
-            }
-
-            continue;
-        }
-
-        let mut search_start = 0usize;
-        while let Some(offset) = filename[search_start..].find(marker) {
-            let index = search_start + offset;
-            let bytes = filename.as_bytes();
-            let marker_end = index + marker.len();
-
-            let valid_start = index == 0 || !bytes[index - 1].is_ascii_alphanumeric();
-            let valid_end = marker_end >= bytes.len() || !bytes[marker_end].is_ascii_alphanumeric();
-
-            if valid_start && valid_end {
-                return true;
-            }
-
-            search_start = index + 1;
-        }
-    }
-
-    false
 }
 
 #[cfg(test)]
