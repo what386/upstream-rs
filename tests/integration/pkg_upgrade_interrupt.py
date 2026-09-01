@@ -26,16 +26,17 @@ def main() -> None:
             "none",
         )
         old = package_from_list(PACKAGE)
+        package_id = old["id"]
         assert_working(old)
 
         server.publish_update()
-        process = start_upstream("upgrade", PACKAGE, "--yes", "--trust", "none")
+        process = start_upstream("upgrade", package_id, "--yes", "--trust", "none")
         server.wait_for_update_request()
         process.send_signal(signal.CTRL_C_EVENT if os.name == "nt" else signal.SIGINT)
         stdout, stderr = process.communicate(timeout=30)
         assert process.returncode == 130, (process.returncode, stdout, stderr)
 
-        restored = run_upstream_json("info", PACKAGE)
+        restored = run_upstream_json("info", package_id)
         assert restored["version"] == {
             "major": 1,
             "minor": 0,

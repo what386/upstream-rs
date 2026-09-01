@@ -25,13 +25,14 @@ def main() -> None:
             "none",
         )
         old = package_from_list(PACKAGE)
+        package_id = old["id"]
         assert_working(old)
 
         server.publish_update()
-        result = run_upstream("upgrade", PACKAGE, "--yes", "--trust", "none")
+        result = run_upstream("upgrade", package_id, "--yes", "--trust", "none")
         assert "failed" in result.stdout.lower(), result.stdout
 
-        restored = run_upstream_json("info", PACKAGE)
+        restored = run_upstream_json("info", package_id)
         assert restored["version"] == {
             "major": 1,
             "minor": 0,
