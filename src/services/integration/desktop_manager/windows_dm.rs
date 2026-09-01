@@ -1,6 +1,6 @@
 use crate::{
     models::common::{DesktopEntry, enums::Filetype},
-    utils::static_paths::UpstreamPaths,
+    utils::{filenames::filesystem_name, static_paths::UpstreamPaths},
 };
 use anyhow::{Context, Result, anyhow};
 use std::{
@@ -107,7 +107,7 @@ impl WindowsDesktopHandler {
         let shortcut_dir =
             dirs::desktop_dir().unwrap_or_else(|| paths.dirs.data_dir.join("shortcuts"));
 
-        shortcut_dir.join(format!("{name}.lnk"))
+        shortcut_dir.join(format!("{}.lnk", filesystem_name(name)))
     }
 
     fn create_shortcut(

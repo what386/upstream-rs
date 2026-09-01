@@ -22,7 +22,7 @@ use crate::{
             TrustVerificationStatus, TrustVerifier, TrustedSignatureKeys,
         },
     },
-    utils::static_paths::UpstreamPaths,
+    utils::{filenames::filesystem_name, static_paths::UpstreamPaths},
 };
 use anyhow::{Context, Result, anyhow};
 use console::style;
@@ -72,18 +72,7 @@ pub(super) fn package_cache_key(package_name: &str) -> String {
         .map(|d| d.as_nanos())
         .unwrap_or(0);
 
-    let sanitized = package_name
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>();
-
-    format!("{}-{}", sanitized, timestamp)
+    format!("{}-{timestamp}", filesystem_name(package_name))
 }
 
 impl<'a> PackageInstaller<'a> {

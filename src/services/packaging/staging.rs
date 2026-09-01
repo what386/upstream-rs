@@ -8,7 +8,10 @@ use std::{
 use anyhow::anyhow;
 use anyhow::{Context, Result};
 
-use crate::{services::integration::CompletionPaths, utils::static_paths::UpstreamPaths};
+use crate::{
+    services::integration::CompletionPaths,
+    utils::{filenames::filesystem_name, static_paths::UpstreamPaths},
+};
 
 /// Temporary filesystem owned by one package preparation operation.
 ///
@@ -35,7 +38,7 @@ impl InstallWorkspace {
         let root = paths
             .install
             .tmp_dir
-            .join(format!("{package_name}-{nonce}"));
+            .join(format!("{}-{nonce}", filesystem_name(package_name)));
 
         let appimages_dir = root.join("appimages");
         let binaries_dir = root.join("binaries");
@@ -87,7 +90,9 @@ impl InstallWorkspace {
 
     #[cfg(target_os = "linux")]
     pub fn desktop_path(&self, package_name: &str) -> Result<PathBuf> {
-        Ok(self.desktop_dir.join(format!("{package_name}.desktop")))
+        Ok(self
+            .desktop_dir
+            .join(format!("{}.desktop", filesystem_name(package_name))))
     }
 
     #[cfg(target_os = "macos")]
@@ -97,7 +102,9 @@ impl InstallWorkspace {
 
     #[cfg(windows)]
     pub fn desktop_path(&self, package_name: &str) -> Result<PathBuf> {
-        Ok(self.desktop_dir.join(format!("{package_name}.lnk")))
+        Ok(self
+            .desktop_dir
+            .join(format!("{}.lnk", filesystem_name(package_name))))
     }
 }
 

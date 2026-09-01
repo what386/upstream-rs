@@ -1,7 +1,7 @@
 use crate::{
     models::common::{DesktopEntry, enums::Filetype},
     services::artifact::AppImageExtractor,
-    utils::static_paths::UpstreamPaths,
+    utils::{filenames::filesystem_name, static_paths::UpstreamPaths},
 };
 use anyhow::{Context, Result, anyhow};
 use std::{
@@ -147,7 +147,7 @@ impl LinuxDesktopHandler {
         paths
             .integration
             .xdg_applications_dir
-            .join(format!("{name}.desktop"))
+            .join(format!("{}.desktop", filesystem_name(name)))
     }
 
     fn merge_embedded_entry(

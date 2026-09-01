@@ -10,7 +10,7 @@ use crate::{
         },
     },
     storage::database::PackageDatabase,
-    utils::static_paths::UpstreamPaths,
+    utils::{filenames::filesystem_name, static_paths::UpstreamPaths},
 };
 use anyhow::{Context, Result, anyhow};
 use dirs;
@@ -49,6 +49,7 @@ impl<'a> PackageRemover<'a> {
     }
 
     pub fn estimate_active_size(&self, package: &Package) -> Result<u64> {
+        let package_name = filesystem_name(&package.id);
         let mut paths = Vec::new();
         if let Some(install_path) = package.install_path.as_ref() {
             paths.push(install_path.clone());
@@ -58,30 +59,30 @@ impl<'a> PackageRemover<'a> {
             paths.push(icon_path.clone());
         }
 
-        paths.push(self.paths.state.symlinks_dir.join(&package.id));
+        paths.push(self.paths.state.symlinks_dir.join(&package_name));
         paths.push(
             self.paths
                 .integration
                 .xdg_applications_dir
-                .join(format!("{}.desktop", package.id)),
+                .join(format!("{package_name}.desktop")),
         );
         paths.push(
             self.paths
                 .integration
                 .bash_completions_dir
-                .join(&package.id),
+                .join(&package_name),
         );
         paths.push(
             self.paths
                 .integration
                 .fish_completions_dir
-                .join(format!("{}.fish", package.id)),
+                .join(format!("{package_name}.fish")),
         );
         paths.push(
             self.paths
                 .integration
                 .zsh_completions_dir
-                .join(format!("_{}", package.id)),
+                .join(format!("_{package_name}")),
         );
         estimate_existing_paths(paths)
     }

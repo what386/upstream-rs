@@ -11,7 +11,7 @@ use crate::{
         },
     },
     storage::{database::PackageDatabase, rollback::RollbackSource},
-    utils::{filesystem::safe_move, static_paths::UpstreamPaths},
+    utils::{filenames::filesystem_name, filesystem::safe_move, static_paths::UpstreamPaths},
 };
 use std::{
     fs, io,
@@ -134,11 +134,11 @@ impl PreparedInstall {
     }
 
     fn install_completions(&self, paths: &UpstreamPaths) -> Result<()> {
-        let package_name = &self.package.id;
+        let package_name = filesystem_name(&self.package.id);
         let candidates = [
             (
-                self.workspace.completions().bash_dir.join(package_name),
-                paths.integration.bash_completions_dir.join(package_name),
+                self.workspace.completions().bash_dir.join(&package_name),
+                paths.integration.bash_completions_dir.join(&package_name),
             ),
             (
                 self.workspace
@@ -775,7 +775,10 @@ impl<'a> PackageActivator<'a> {
             "Failed to create replacement temp directory '{}'",
             paths.install.tmp_dir.display()
         ))?;
-        let backup_dir = paths.install.tmp_dir.join(format!("{package_name}.old"));
+        let backup_dir = paths
+            .install
+            .tmp_dir
+            .join(format!("{}.old", filesystem_name(package_name)));
         if fs::symlink_metadata(&backup_dir).is_ok() {
             bail!(
                 "Transient snapshot '{}' already exists",

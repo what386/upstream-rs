@@ -17,7 +17,11 @@ TAG = "15.1.0"
 
 
 def desktop_entry_path(package_id: str) -> Path:
-    return FAKEHOME / ".local/share/applications" / f"{package_id}.desktop"
+    filesystem_name = "".join(
+        character if character.isascii() and (character.isalnum() or character in "-_.") else "_"
+        for character in package_id
+    )
+    return FAKEHOME / ".local/share/applications" / f"{filesystem_name}.desktop"
 
 
 def assert_desktop_entry(package_id: str, executable: Path) -> None:

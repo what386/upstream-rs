@@ -7,8 +7,8 @@ use crate::{
     models::{common::enums::Provider, provider::Release},
     providers::provider_manager::ProviderManager,
     utils::{
-        filesystem::path_exists_no_follow, platform::shells::installed_shell_commands,
-        static_paths::UpstreamPaths,
+        filenames::filesystem_name, filesystem::path_exists_no_follow,
+        platform::shells::installed_shell_commands, static_paths::UpstreamPaths,
     },
 };
 
@@ -321,6 +321,7 @@ impl<'a> CompletionManager<'a> {
     }
 
     fn completion_path(&self, package_name: &str, shell: CompletionShell) -> PathBuf {
+        let package_name = filesystem_name(package_name);
         match shell {
             CompletionShell::Bash => self.completion_dir(shell).join(package_name),
             CompletionShell::Fish => self

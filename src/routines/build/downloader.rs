@@ -7,7 +7,7 @@ use indicatif::HumanBytes;
 use crate::models::common::enums::{Channel, Provider};
 use crate::models::provider::Release;
 use crate::providers::provider_manager::ProviderManager;
-use crate::utils::static_paths::UpstreamPaths;
+use crate::utils::{filenames::filesystem_name, static_paths::UpstreamPaths};
 
 pub struct SourceDownload {
     pub workspace_path: PathBuf,
@@ -150,18 +150,5 @@ pub(super) fn cache_key(base_url: Option<&str>, provider: &Provider, value: &str
         .map(normalize_base_url)
         .unwrap_or_else(|| provider.to_string());
 
-    sanitize_path_component(&format!("{base}/{value}"))
-}
-
-fn sanitize_path_component(value: &str) -> String {
-    value
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
-                ch
-            } else {
-                '_'
-            }
-        })
-        .collect()
+    filesystem_name(&format!("{base}/{value}"))
 }
