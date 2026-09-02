@@ -310,11 +310,34 @@ fn decompress_zip(
 
             let mut out = File::create(&out_path)?;
             std::io::copy(&mut file, &mut out)?;
+            restore_zip_permissions(&file, &out_path)?;
             paths.push(out_path);
         }
     }
 
     common_root(&paths, extract_dir)
+}
+
+#[cfg(unix)]
+fn restore_zip_permissions<R: Read + ?Sized>(
+    file: &zip::read::ZipFile<'_, R>,
+    path: &Path,
+) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    if let Some(mode) = file.unix_mode() {
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode & 0o7777))?;
+    }
+
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn restore_zip_permissions<R: Read + ?Sized>(
+    _file: &zip::read::ZipFile<'_, R>,
+    _path: &Path,
+) -> Result<()> {
+    Ok(())
 }
 
 // ---------------- 7Z ----------------
@@ -497,6 +520,8 @@ mod tests {
     use flate2::{Compression, write::GzEncoder};
     #[cfg(not(windows))]
     use tar::{Builder, Header};
+    #[cfg(unix)]
+    use zip::{ZipWriter, write::SimpleFileOptions};
 
     fn temp_root(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
@@ -599,6 +624,40 @@ mod tests {
         );
 
         assert!(!extracted_root.join("pkg").exists());
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn decompress_zip_restores_unix_executable_permissions() {
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = temp_root("zip-permissions");
+        let input = root.join("yazi-x86_64-unknown-linux-musl.zip");
+        let output = root.join("out");
+        fs::create_dir_all(&root).expect("create root");
+
+        let file = fs::File::create(&input).expect("create archive");
+        let mut archive = ZipWriter::new(file);
+        let options = SimpleFileOptions::default().unix_permissions(0o755);
+        archive
+            .start_file("yazi-x86_64-unknown-linux-musl/yazi", options)
+            .expect("start binary");
+        archive.write_all(b"binary").expect("write binary");
+        archive.finish().expect("finish archive");
+
+        let extracted_root = decompress(&input, &output).expect("decompress zip");
+        let binary = extracted_root.join("yazi");
+        assert_eq!(
+            fs::metadata(binary)
+                .expect("stat binary")
+                .permissions()
+                .mode()
+                & 0o777,
+            0o755
+        );
+
         cleanup(&root).expect("cleanup");
     }
 
