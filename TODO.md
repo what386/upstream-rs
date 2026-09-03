@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-08-31
+@modified: 2026-09-03
 
 
 ## Tasks
@@ -20,19 +20,4 @@
 
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
-
-
-## Completed
-
-- [x] multi-executable discovery for archives (excludes dynamic libs)
-      @created 2026-08-31 20:14
-      @completed 2026-08-31 20:29
-
-- [x] named ops now use friendly id (repo name) instead of executable name
-      @created 2026-08-31 21:28
-      @completed 2026-08-31 21:28
-
-- [x] several improvements to build profiles
-      @created 2026-08-31 23:30
-      @completed 2026-08-31 23:30
 

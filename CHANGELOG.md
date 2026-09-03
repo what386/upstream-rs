@@ -1,6 +1,15 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-08-27*
+*Generated on 2026-09-03*
+
+## 2.18.0 — 2026-09-03
+
+### Changes
+
+- multi-executable discovery for archives (excludes dynamic libs)
+- named ops now use friendly id (repo name) instead of executable name
+- several improvements to build profiles
+
 
 ## 2.17.1 — 2026-08-27
 
