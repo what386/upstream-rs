@@ -254,7 +254,7 @@ impl BuildProfileHandler for CmakeProfile {
 mod tests {
     use super::CmakeProfile;
     use std::fs;
-    use std::path::{PathBuf, Path};
+    use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_root(name: &str) -> PathBuf {
