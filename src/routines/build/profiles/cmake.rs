@@ -254,7 +254,7 @@ impl BuildProfileHandler for CmakeProfile {
 mod tests {
     use super::CmakeProfile;
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{PathBuf, Path};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_root(name: &str) -> PathBuf {
@@ -268,7 +268,7 @@ mod tests {
         root
     }
 
-    fn write_codemodel(root: &PathBuf, targets: &[(&str, &str)]) {
+    fn write_codemodel(root: &Path, targets: &[(&str, &str)]) {
         let reply = root.join(".cmake/api/v1/reply");
         fs::create_dir_all(&reply).expect("create reply directory");
         let mut target_entries = Vec::new();
