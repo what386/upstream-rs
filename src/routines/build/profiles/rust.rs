@@ -127,14 +127,13 @@ impl RustProfile {
                         .and_then(toml::Value::as_str)
                         .map(str::to_string)
                 }));
-            } else if package_dir.join("src/main.rs").is_file() {
-                if let Some(name) = package
+            } else if package_dir.join("src/main.rs").is_file()
+                && let Some(name) = package
                     .get("package")
                     .and_then(|package| package.get("name"))
                     .and_then(toml::Value::as_str)
-                {
-                    targets.push(name.to_string());
-                }
+            {
+                targets.push(name.to_string());
             }
         }
 
