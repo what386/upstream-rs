@@ -204,7 +204,6 @@ complete -c upstream -n "__fish_upstream_using_subcommand find" -l topic -d 'Res
 complete -c upstream -n "__fish_upstream_using_subcommand find" -l min-stars -d 'Restrict results to repositories with at least this many stars' -r
 complete -c upstream -n "__fish_upstream_using_subcommand find" -l max-stars -d 'Restrict results to repositories with at most this many stars' -r
 complete -c upstream -n "__fish_upstream_using_subcommand find" -l pushed-after -d 'Restrict results to repositories pushed on or after YYYY-MM-DD' -r
-complete -c upstream -n "__fish_upstream_using_subcommand find" -l name -d 'Package name to register without prompting' -r
 complete -c upstream -n "__fish_upstream_using_subcommand find" -s k -l kind -d 'Asset kind to install' -r -f -a "app-image\t''
 archive\t''
 compressed\t''
@@ -297,7 +296,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fis
 complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fish_seen_subcommand_from set get unset pin unpin rename add-entry rm-entry help" -f -a "unset" -d 'Clear user-controlled settings for an installed package'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fish_seen_subcommand_from set get unset pin unpin rename add-entry rm-entry help" -f -a "pin" -d 'Mark an installed package as pinned'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fish_seen_subcommand_from set get unset pin unpin rename add-entry rm-entry help" -f -a "unpin" -d 'Clear the pinned flag on an installed package'
-complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fish_seen_subcommand_from set get unset pin unpin rename add-entry rm-entry help" -f -a "rename" -d 'Rename an installed package record and aliases'
+complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fish_seen_subcommand_from set get unset pin unpin rename add-entry rm-entry help" -f -a "rename" -d 'Rename an installed executable alias'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fish_seen_subcommand_from set get unset pin unpin rename add-entry rm-entry help" -f -a "add-entry" -d 'Add a desktop launcher entry for an installed package'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fish_seen_subcommand_from set get unset pin unpin rename add-entry rm-entry help" -f -a "rm-entry" -d 'Remove an upstream-managed desktop launcher entry'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and not __fish_seen_subcommand_from set get unset pin unpin rename add-entry rm-entry help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
@@ -331,7 +330,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_se
 complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from help" -f -a "unset" -d 'Clear user-controlled settings for an installed package'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from help" -f -a "pin" -d 'Mark an installed package as pinned'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from help" -f -a "unpin" -d 'Clear the pinned flag on an installed package'
-complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from help" -f -a "rename" -d 'Rename an installed package record and aliases'
+complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from help" -f -a "rename" -d 'Rename an installed executable alias'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from help" -f -a "add-entry" -d 'Add a desktop launcher entry for an installed package'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from help" -f -a "rm-entry" -d 'Remove an upstream-managed desktop launcher entry'
 complete -c upstream -n "__fish_upstream_using_subcommand package; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
@@ -483,7 +482,7 @@ complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from package" -f -a "unset" -d 'Clear user-controlled settings for an installed package'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from package" -f -a "pin" -d 'Mark an installed package as pinned'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from package" -f -a "unpin" -d 'Clear the pinned flag on an installed package'
-complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from package" -f -a "rename" -d 'Rename an installed package record and aliases'
+complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from package" -f -a "rename" -d 'Rename an installed executable alias'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from package" -f -a "add-entry" -d 'Add a desktop launcher entry for an installed package'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from package" -f -a "rm-entry" -d 'Remove an upstream-managed desktop launcher entry'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from cache" -f -a "list" -d 'Show known cache categories and their disk usage'

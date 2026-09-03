@@ -1240,7 +1240,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__find)
-            opts="-p -k -c -m -e -d -y -h --provider --base-url --limit --language --topic --min-stars --max-stars --pushed-after --include-forks --include-archived --name --kind --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --no-pager --help"
+            opts="-p -k -c -m -e -d -y -h --provider --base-url --limit --language --topic --min-stars --max-stars --pushed-after --include-forks --include-archived --kind --channel --match-pattern --exclude-pattern --desktop --trust --dry-run --yes --no-pager --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1279,10 +1279,6 @@ _upstream() {
                     return 0
                     ;;
                 --pushed-after)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --name)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

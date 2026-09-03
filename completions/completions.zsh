@@ -58,7 +58,6 @@ _arguments "${_arguments_options[@]}" : \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':repo_slug -- Repository identifier or direct download URL:_default' \
-'::name -- Name to register; omitted names are prompted for (forge repositories get an inferred default):_default' \
 && ret=0
 ;;
 (build)
@@ -83,7 +82,6 @@ _arguments "${_arguments_options[@]}" : \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':repo_slug -- GitHub, GitLab, or Gitea repository identifier or URL:_default' \
-'::name -- Name to register; omitted names are prompted for with an inferred default:_default' \
 && ret=0
 ;;
 (remove)
@@ -173,7 +171,7 @@ _arguments "${_arguments_options[@]}" : \
 '--no-pager[Prevent paging long command outputs]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':query -- Exact installed package name for detailed information:_default' \
+':query -- Installed package friendly name or canonical reference for detailed information:_default' \
 && ret=0
 ;;
 (changelog)
@@ -225,7 +223,6 @@ _arguments "${_arguments_options[@]}" : \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 ':repo_slug -- Repository identifier or download page URL to inspect:_default' \
-'::name -- Name to register the application under (prompts with inferred default when omitted):_default' \
 && ret=0
 ;;
 (search)
@@ -261,7 +258,6 @@ _arguments "${_arguments_options[@]}" : \
 '--min-stars=[Restrict results to repositories with at least this many stars]:N:_default' \
 '--max-stars=[Restrict results to repositories with at most this many stars]:N:_default' \
 '--pushed-after=[Restrict results to repositories pushed on or after YYYY-MM-DD]:YYYY-MM-DD:_default' \
-'--name=[Package name to register without prompting]:NAME:_default' \
 '-k+[Asset kind to install]:KIND:(app-image archive compressed binary win-exe checksum auto)' \
 '--kind=[Asset kind to install]:KIND:(app-image archive compressed binary win-exe checksum auto)' \
 '-c+[Release channel to track for upgrades]:CHANNEL:(stable preview nightly)' \
@@ -1961,7 +1957,7 @@ _upstream__subcmd__help__subcmd__package_commands() {
 'unset:Clear user-controlled settings for an installed package' \
 'pin:Mark an installed package as pinned' \
 'unpin:Clear the pinned flag on an installed package' \
-'rename:Rename an installed package record and aliases' \
+'rename:Rename an installed executable alias' \
 'add-entry:Add a desktop launcher entry for an installed package' \
 'rm-entry:Remove an upstream-managed desktop launcher entry' \
     )
@@ -2199,7 +2195,7 @@ _upstream__subcmd__package_commands() {
 'unset:Clear user-controlled settings for an installed package' \
 'pin:Mark an installed package as pinned' \
 'unpin:Clear the pinned flag on an installed package' \
-'rename:Rename an installed package record and aliases' \
+'rename:Rename an installed executable alias' \
 'add-entry:Add a desktop launcher entry for an installed package' \
 'rm-entry:Remove an upstream-managed desktop launcher entry' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -2224,7 +2220,7 @@ _upstream__subcmd__package__subcmd__help_commands() {
 'unset:Clear user-controlled settings for an installed package' \
 'pin:Mark an installed package as pinned' \
 'unpin:Clear the pinned flag on an installed package' \
-'rename:Rename an installed package record and aliases' \
+'rename:Rename an installed executable alias' \
 'add-entry:Add a desktop launcher entry for an installed package' \
 'rm-entry:Remove an upstream-managed desktop launcher entry' \
 'help:Print this message or the help of the given subcommand(s)' \
