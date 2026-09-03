@@ -1,3 +1,8 @@
+// These tests intentionally run real external build toolchains. They are gated to Linux because
+// cargo xwin executes the test binary under Wine, where the host's Cargo, Go, Zig, CMake, and
+// .NET installations are not available.
+#![cfg(target_os = "linux")]
+
 use std::{
     fs,
     path::{Path, PathBuf},
