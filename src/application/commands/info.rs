@@ -97,14 +97,11 @@ fn package_query_candidates(packages: &[Package]) -> Vec<String> {
     let mut candidates = packages
         .iter()
         .flat_map(|package| {
-            std::iter::once(package.id.clone()).chain(
-                friendly_name(
-                    &package.provider,
-                    &package.repo_slug,
-                    package.base_url.as_deref(),
-                )
-                .into_iter(),
-            )
+            std::iter::once(package.id.clone()).chain(friendly_name(
+                &package.provider,
+                &package.repo_slug,
+                package.base_url.as_deref(),
+            ))
         })
         .collect::<Vec<_>>();
 

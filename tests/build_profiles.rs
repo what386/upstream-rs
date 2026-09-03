@@ -25,6 +25,7 @@ fn copy_fixture(name: &str) -> (PathBuf, impl Drop) {
             .expect("system clock")
             .as_nanos()
     ));
+
     let source = fixture_path(name);
 
     for entry in WalkDir::new(&source) {
@@ -69,6 +70,7 @@ fn build_fixture<P: BuildProfileHandler>(
         artifact.file_name().and_then(|name| name.to_str()),
         Some(expected_artifact)
     );
+
     assert!(
         artifact.is_file(),
         "missing artifact at {}",

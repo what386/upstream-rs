@@ -98,14 +98,11 @@ fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Resu
 
 fn package_query_candidates(package: &Package) -> Vec<String> {
     std::iter::once(package.id.clone())
-        .chain(
-            friendly_name(
-                &package.provider,
-                &package.repo_slug,
-                package.base_url.as_deref(),
-            )
-            .into_iter(),
-        )
+        .chain(friendly_name(
+            &package.provider,
+            &package.repo_slug,
+            package.base_url.as_deref(),
+        ))
         .collect()
 }
 

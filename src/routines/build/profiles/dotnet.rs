@@ -146,7 +146,7 @@ impl BuildProfileHandler for DotnetProfile {
                 .arg("-o")
                 .arg(&publish_dir)
                 .arg("-p:UseAppHost=true")
-                .current_dir(&project_dir),
+                .current_dir(project_dir),
             "Failed to run 'dotnet publish'. Is .NET SDK installed?",
             line_callback,
         )?;
