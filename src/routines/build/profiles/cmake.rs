@@ -274,9 +274,12 @@ mod tests {
         let mut target_entries = Vec::new();
         for (index, (name, artifact)) in targets.iter().enumerate() {
             let file = format!("target-{index}.json");
+            let artifact = serde_json::to_string(artifact).expect("serialize artifact path");
             fs::write(
                 reply.join(&file),
-                format!(r#"{{"type":"EXECUTABLE","name":"{name}","artifacts":[{{"path":"{artifact}"}}]}}"#),
+                format!(
+                    r#"{{"type":"EXECUTABLE","name":"{name}","artifacts":[{{"path":{artifact}}}]}}"#
+                ),
             )
             .expect("write target metadata");
             target_entries.push(format!(r#"{{"name":"{name}","jsonFile":"{file}"}}"#));

@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::{fs, process::Command};
 
 use anyhow::{Context, Result, anyhow, bail};
 
@@ -31,51 +31,112 @@ impl RustProfile {
         }
     }
 
-    fn cargo_binary_target(project_dir: &Path, preferred_name: &str) -> Result<(String, PathBuf)> {
-        let metadata = Command::new("cargo")
-            .arg("metadata")
-            .arg("--no-deps")
-            .arg("--format-version")
-            .arg("1")
-            .current_dir(project_dir)
-            .output()
-            .context("Failed to inspect Cargo metadata. Is Cargo installed?")?;
-
-        if !metadata.status.success() {
-            bail!(
-                "Cargo metadata failed: {}",
-                String::from_utf8_lossy(&metadata.stderr).trim()
-            );
+    fn target_directory(project_dir: &Path) -> PathBuf {
+        if let Some(target_dir) = std::env::var_os("CARGO_TARGET_DIR") {
+            return PathBuf::from(target_dir);
         }
 
-        let metadata: serde_json::Value =
-            serde_json::from_slice(&metadata.stdout).context("Cargo returned invalid metadata")?;
+        let mut configured = None;
+        let mut ancestors = project_dir.ancestors().collect::<Vec<_>>();
+        ancestors.reverse();
+        for ancestor in ancestors {
+            for file_name in ["config.toml", "config"] {
+                let path = ancestor.join(".cargo").join(file_name);
+                let Ok(contents) = fs::read_to_string(&path) else {
+                    continue;
+                };
 
-        let targets: Vec<String> = metadata
-            .get("packages")
-            .and_then(serde_json::Value::as_array)
-            .into_iter()
-            .flatten()
-            .flat_map(|package| {
-                package
-                    .get("targets")
-                    .and_then(serde_json::Value::as_array)
-                    .into_iter()
-                    .flatten()
-                    .filter(|target| {
-                        target
-                            .get("kind")
-                            .and_then(serde_json::Value::as_array)
-                            .is_some_and(|kinds| kinds.iter().any(|kind| kind == "bin"))
-                    })
-                    .filter_map(|target| {
-                        target
-                            .get("name")
-                            .and_then(serde_json::Value::as_str)
-                            .map(str::to_string)
-                    })
-            })
-            .collect();
+                let Ok(config): std::result::Result<toml::Value, _> = toml::from_str(&contents)
+                else {
+                    continue;
+                };
+
+                if let Some(target_dir) = config
+                    .get("build")
+                    .and_then(|build| build.get("target-dir"))
+                    .and_then(toml::Value::as_str)
+                {
+                    let target_dir = PathBuf::from(target_dir);
+                    configured = Some(if target_dir.is_absolute() {
+                        target_dir
+                    } else {
+                        path.parent().unwrap().parent().unwrap().join(target_dir)
+                    });
+                }
+            }
+        }
+
+        configured.unwrap_or_else(|| project_dir.join("target"))
+    }
+
+    fn cargo_binary_target(project_dir: &Path, preferred_name: &str) -> Result<(String, PathBuf)> {
+        let manifest_path = project_dir.join("Cargo.toml");
+        let manifest: toml::Value =
+            toml::from_str(&fs::read_to_string(&manifest_path).with_context(|| {
+                format!(
+                    "Failed to read Cargo manifest '{}'.",
+                    manifest_path.display()
+                )
+            })?)
+            .with_context(|| format!("Failed to parse '{}'.", manifest_path.display()))?;
+
+        let mut package_dirs = vec![project_dir.to_path_buf()];
+        if let Some(members) = manifest
+            .get("workspace")
+            .and_then(|workspace| workspace.get("members"))
+            .and_then(toml::Value::as_array)
+        {
+            for member in members.iter().filter_map(toml::Value::as_str) {
+                let pattern = project_dir.join(member);
+                let pattern = pattern.to_string_lossy();
+                if member.contains('*') || member.contains('?') || member.contains('[') {
+                    package_dirs.extend(
+                        glob::glob(&pattern)
+                            .with_context(|| {
+                                format!("Invalid workspace member pattern '{member}'")
+                            })?
+                            .flatten()
+                            .filter(|path| path.join("Cargo.toml").is_file()),
+                    );
+                } else if pattern.as_ref().ends_with("Cargo.toml") {
+                    package_dirs.push(
+                        PathBuf::from(pattern.as_ref())
+                            .parent()
+                            .unwrap()
+                            .to_path_buf(),
+                    );
+                } else {
+                    package_dirs.push(PathBuf::from(pattern.as_ref()));
+                }
+            }
+        }
+
+        let mut targets = Vec::new();
+        for package_dir in package_dirs {
+            let path = package_dir.join("Cargo.toml");
+            let Ok(package) = fs::read_to_string(&path) else {
+                continue;
+            };
+
+            let package: toml::Value = toml::from_str(&package)
+                .with_context(|| format!("Failed to parse '{}'.", path.display()))?;
+
+            if let Some(bins) = package.get("bin").and_then(toml::Value::as_array) {
+                targets.extend(bins.iter().filter_map(|bin| {
+                    bin.get("name")
+                        .and_then(toml::Value::as_str)
+                        .map(str::to_string)
+                }));
+            } else if package_dir.join("src/main.rs").is_file() {
+                if let Some(name) = package
+                    .get("package")
+                    .and_then(|package| package.get("name"))
+                    .and_then(toml::Value::as_str)
+                {
+                    targets.push(name.to_string());
+                }
+            }
+        }
 
         let target = match targets.as_slice() {
             [] => bail!("Cargo workspace has no binary target."),
@@ -98,11 +159,7 @@ impl RustProfile {
             }
         };
 
-        let target_directory = metadata
-            .get("target_directory")
-            .and_then(serde_json::Value::as_str)
-            .map(PathBuf::from)
-            .ok_or_else(|| anyhow!("Cargo metadata did not provide a target directory"))?;
+        let target_directory = Self::target_directory(project_dir);
 
         Ok((target, target_directory))
     }
