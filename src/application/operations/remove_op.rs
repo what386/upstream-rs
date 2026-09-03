@@ -343,6 +343,7 @@ mod tests {
                 .expect("reload package")
                 .is_none()
         );
+
         assert!(!paths.state.rollback_dir.join("tool").exists());
         assert!(!paths.dirs.metadata_dir.join("rollback.json").exists());
 

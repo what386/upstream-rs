@@ -393,6 +393,7 @@ async fn build_package(
                 source_info.provider,
                 source_info.base_url,
             );
+
             return Ok(package);
         }
 
@@ -427,6 +428,7 @@ async fn build_package(
             discovery.source.provider,
             discovery.source.base_url,
         );
+
         return Ok(package);
     };
 
@@ -442,6 +444,7 @@ async fn build_package(
         provider,
         base_url,
     );
+
     Ok(package)
 }
 

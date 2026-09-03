@@ -22,6 +22,7 @@ impl ZigProfile {
     fn installed_executable_name(project_dir: &Path, preferred_name: &str) -> Result<String> {
         let source = std::fs::read_to_string(project_dir.join("build.zig"))
             .context("Failed to read build.zig")?;
+
         let mut declarations = Vec::new();
         let mut offset = 0;
         while let Some(relative) = source[offset..].find("addExecutable") {
@@ -29,37 +30,45 @@ impl ZigProfile {
             let Some(object_start) = source[start..].find(".{") else {
                 break;
             };
+
             let object_start = start + object_start;
             let Some(object_end) = source[object_start..].find("});") else {
                 break;
             };
+
             let object = &source[object_start..object_start + object_end];
             let Some(name_start) = object.find(".name") else {
                 offset = object_start + 2;
                 continue;
             };
+
             let Some(quote_start) = object[name_start..].find('"') else {
                 offset = object_start + 2;
                 continue;
             };
+
             let value = &object[name_start + quote_start + 1..];
             let Some(quote_end) = value.find('"') else {
                 offset = object_start + 2;
                 continue;
             };
+
             let statement = &source[..start];
             let Some(const_start) = statement.rfind("const ") else {
                 offset = object_start + 2;
                 continue;
             };
+
             let binding = statement[const_start + "const ".len()..]
                 .split_whitespace()
                 .next()
                 .unwrap_or_default()
                 .trim_end_matches('=');
+
             if !binding.is_empty() {
                 declarations.push((binding.to_string(), value[..quote_end].to_string()));
             }
+
             offset = object_start + 2;
         }
 
@@ -68,6 +77,7 @@ impl ZigProfile {
             .filter(|(binding, _)| source.contains(&format!("installArtifact({binding})")))
             .map(|(_, name)| name.clone())
             .collect::<Vec<_>>();
+
         installed.sort();
         installed.dedup();
         match installed.as_slice() {
@@ -145,6 +155,7 @@ impl BuildProfileHandler for ZigProfile {
                 artifact.display()
             ));
         }
+
         Ok(artifact)
     }
 }
@@ -161,6 +172,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
+
         let root = std::env::temp_dir().join(format!("upstream-zig-profile-{nonce}"));
         fs::create_dir_all(&root).expect("create root");
         root
@@ -180,6 +192,7 @@ b.installArtifact(exe);"#,
             ZigProfile::installed_executable_name(&root, "friendly-name").expect("name"),
             "actual-bin"
         );
+
         fs::remove_dir_all(root).expect("cleanup");
     }
 

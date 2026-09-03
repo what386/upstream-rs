@@ -255,10 +255,12 @@ pub fn friendly_name(provider: &Provider, source: &str, _base_url: Option<&str>)
             if host.parse::<std::net::IpAddr>().is_ok() {
                 return None;
             }
+
             let labels: Vec<&str> = host.split('.').filter(|label| !label.is_empty()).collect();
             if labels.len() < 2 {
                 return None;
             }
+
             let multi_label_suffix = labels.len() >= 3
                 && matches!(
                     (labels[labels.len() - 2], labels[labels.len() - 1]),
@@ -273,6 +275,7 @@ pub fn friendly_name(provider: &Provider, source: &str, _base_url: Option<&str>)
                         | ("com", "in")
                         | ("co", "in")
                 );
+
             let index = labels.len() - if multi_label_suffix { 3 } else { 2 };
             Some(labels[index].to_string())
         }

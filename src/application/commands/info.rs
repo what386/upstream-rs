@@ -107,6 +107,7 @@ fn package_query_candidates(packages: &[Package]) -> Vec<String> {
             )
         })
         .collect::<Vec<_>>();
+
     candidates.sort();
     candidates.dedup();
     candidates
@@ -267,10 +268,12 @@ mod tests {
                 .expect("clock")
                 .as_nanos()
         ));
+
         let mut database = PackageDatabase::open(&path).expect("open database");
         for package in packages {
             database.upsert_package(package).expect("store package");
         }
+
         database
     }
 
@@ -280,6 +283,7 @@ mod tests {
         let database = database(&packages);
         let error =
             resolve_package_query(&database, &packages, "code").expect_err("must remain exact");
+
         assert_eq!(
             error.to_string(),
             "No installed package matches 'code'. Did you mean: codex?"

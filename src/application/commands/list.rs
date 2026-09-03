@@ -81,6 +81,7 @@ fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Resu
             }) else {
                 continue;
             };
+
             if !selected
                 .iter()
                 .any(|selected: &Package| selected.id == package.id)
@@ -88,6 +89,7 @@ fn filter_packages_by_name(packages: Vec<Package>, filter: Option<&str>) -> Resu
                 selected.push(package.clone());
             }
         }
+
         return Ok(selected);
     }
 
@@ -184,6 +186,7 @@ impl ColumnWidths {
             .map(|p| p.id.chars().count())
             .max()
             .unwrap_or(4);
+
         let max_commands = packages
             .iter()
             .map(|package| package_commands(package).chars().count())

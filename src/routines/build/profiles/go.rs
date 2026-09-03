@@ -42,6 +42,7 @@ impl GoProfile {
             .current_dir(project_dir)
             .output()
             .context("Failed to inspect Go packages. Is Go installed?")?;
+
         if !output.status.success() {
             bail!(
                 "Go package inspection failed: {}",
@@ -55,6 +56,7 @@ impl GoProfile {
             .filter(|line| !line.is_empty())
             .map(str::to_string)
             .collect();
+
         commands.sort_unstable();
         commands.dedup();
 

@@ -40,6 +40,7 @@ fn identifier_contains(value: &str, identifier: &str) -> bool {
             })
             .collect::<String>()
     };
+
     let value = normalize(value);
     let identifier = normalize(identifier);
     value == identifier
@@ -54,6 +55,7 @@ fn is_version_identifier(value: &str) -> bool {
     let Some(first) = segments.next() else {
         return false;
     };
+
     first.chars().all(|character| character.is_ascii_digit())
         && segments
             .next()
@@ -70,6 +72,7 @@ mod tests {
             executable_alias("code-x86_64-unknown-linux-musl", &[]),
             "code"
         );
+
         assert_eq!(executable_alias("yq_linux_amd64", &[]), "yq");
         assert_eq!(executable_alias("bat-v0.26.1", &[]), "bat");
     }
@@ -80,6 +83,7 @@ mod tests {
             executable_alias("code-portable", &["portable".to_string()]),
             "code"
         );
+
         assert_eq!(executable_alias("code-helper", &[]), "code-helper");
     }
 }

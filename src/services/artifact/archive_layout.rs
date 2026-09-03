@@ -50,6 +50,7 @@ pub fn select_nested_archive_root(extracted_path: &Path, package: &Package) -> O
             if permission_handler::find_executables(&entry.path(), preferred_name).is_empty() {
                 return None;
             }
+
             let score = nested_archive_score(&name, &target_os, arch_score, &package.match_pattern);
             Some((score, name, entry.path()))
         })

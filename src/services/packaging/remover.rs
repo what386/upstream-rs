@@ -343,6 +343,7 @@ impl<'a> PackageRemover<'a> {
                 "Removing symlink for '{}'",
                 executable.name
             );
+
             SymlinkManager::new(&self.paths.state.symlinks_dir)
                 .remove_link(&executable.name)
                 .context(format!(
@@ -350,6 +351,7 @@ impl<'a> PackageRemover<'a> {
                     executable.name
                 ))?;
         }
+
         Ok(())
     }
 
@@ -374,6 +376,7 @@ impl<'a> PackageRemover<'a> {
                     "Restoring symlink for '{}'",
                     executable.name
                 );
+
                 SymlinkManager::new(&self.paths.state.symlinks_dir)
                     .add_link(&executable.path, &executable.name)
                     .context(format!(

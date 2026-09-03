@@ -25,6 +25,7 @@ impl CmakeProfile {
             .join("api")
             .join("v1")
             .join("query");
+
         std::fs::create_dir_all(&query_dir).context(format!(
             "Failed to create CMake File API query directory '{}'",
             query_dir.display()
@@ -39,6 +40,7 @@ impl CmakeProfile {
             .join("api")
             .join("v1")
             .join("reply");
+
         let mut indexes = std::fs::read_dir(&reply_dir)
             .context(format!(
                 "Failed to read CMake File API reply directory '{}'",
@@ -55,12 +57,15 @@ impl CmakeProfile {
                 })
             })
             .collect::<Vec<_>>();
+
         indexes.sort();
         let index = indexes
             .last()
             .ok_or_else(|| anyhow!("CMake did not produce a File API reply"))?;
+
         let index: serde_json::Value = serde_json::from_slice(&std::fs::read(index)?)
             .context("CMake returned invalid File API index")?;
+
         let codemodel_file = index
             .get("reply")
             .and_then(|reply| {
@@ -85,9 +90,11 @@ impl CmakeProfile {
                     .and_then(|reply| reply.get("jsonFile").and_then(serde_json::Value::as_str))
             })
             .ok_or_else(|| anyhow!("CMake File API reply omitted the codemodel"))?;
+
         let codemodel: serde_json::Value =
             serde_json::from_slice(&std::fs::read(reply_dir.join(codemodel_file))?)
                 .context("CMake returned invalid codemodel")?;
+
         let configuration = codemodel
             .get("configurations")
             .and_then(serde_json::Value::as_array)
@@ -106,6 +113,7 @@ impl CmakeProfile {
                     .and_then(|configurations| configurations.first())
             })
             .ok_or_else(|| anyhow!("CMake codemodel contains no configurations"))?;
+
         let mut targets = Vec::new();
         for target in configuration
             .get("targets")
@@ -116,15 +124,19 @@ impl CmakeProfile {
             let Some(json_file) = target.get("jsonFile").and_then(serde_json::Value::as_str) else {
                 continue;
             };
+
             let target: serde_json::Value =
                 serde_json::from_slice(&std::fs::read(reply_dir.join(json_file))?)
                     .context("CMake returned invalid target metadata")?;
+
             if target.get("type").and_then(serde_json::Value::as_str) != Some("EXECUTABLE") {
                 continue;
             }
+
             let Some(name) = target.get("name").and_then(serde_json::Value::as_str) else {
                 continue;
             };
+
             let Some(path) = target
                 .get("artifacts")
                 .and_then(serde_json::Value::as_array)
@@ -134,14 +146,17 @@ impl CmakeProfile {
             else {
                 continue;
             };
+
             let artifact = PathBuf::from(path);
             let artifact = if artifact.is_absolute() {
                 artifact
             } else {
                 build_dir.join(artifact)
             };
+
             targets.push((name.to_string(), artifact));
         }
+
         targets.sort_by(|left, right| left.0.cmp(&right.0));
         match targets.as_slice() {
             [] => bail!("CMake codemodel contains no executable targets"),
@@ -266,6 +281,7 @@ mod tests {
             .expect("write target metadata");
             target_entries.push(format!(r#"{{"name":"{name}","jsonFile":"{file}"}}"#));
         }
+
         fs::write(
             reply.join("codemodel.json"),
             format!(

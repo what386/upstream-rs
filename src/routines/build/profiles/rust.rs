@@ -40,6 +40,7 @@ impl RustProfile {
             .current_dir(project_dir)
             .output()
             .context("Failed to inspect Cargo metadata. Is Cargo installed?")?;
+
         if !metadata.status.success() {
             bail!(
                 "Cargo metadata failed: {}",
@@ -49,6 +50,7 @@ impl RustProfile {
 
         let metadata: serde_json::Value =
             serde_json::from_slice(&metadata.stdout).context("Cargo returned invalid metadata")?;
+
         let targets: Vec<String> = metadata
             .get("packages")
             .and_then(serde_json::Value::as_array)
@@ -83,6 +85,7 @@ impl RustProfile {
                     .iter()
                     .filter(|target| target.as_str() == preferred_name)
                     .collect::<Vec<_>>();
+
                 if matches.len() == 1 {
                     matches[0].clone()
                 } else {
@@ -129,6 +132,7 @@ impl BuildProfileHandler for RustProfile {
 
         let (target_name, target_directory) =
             Self::cargo_binary_target(&project_dir, package_name)?;
+
         let status = {
             emit_line_callback(line_callback, "Running cargo build --release --bin ...");
             run_command_with_line_callback(
@@ -177,6 +181,7 @@ mod tests {
                 .expect("clock")
                 .as_nanos()
         ));
+
         fs::create_dir_all(root.join("riprip/src")).expect("create member");
         fs::create_dir_all(root.join("riprip_core/src")).expect("create core member");
         fs::write(
@@ -200,6 +205,7 @@ mod tests {
 
         let (target, _) = RustProfile::cargo_binary_target(&root, "friendly-name")
             .expect("resolve workspace binary");
+
         assert_eq!(target, "actual-riprip");
 
         fs::remove_dir_all(root).expect("cleanup");

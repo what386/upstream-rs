@@ -280,6 +280,7 @@ impl<'a> RollbackOperation<'a> {
                 if let Some(id) = self.package_database.resolve_package_id(name)? {
                     return Ok(id);
                 }
+
                 if self.rollback_manager.rollback_record(name).is_some() {
                     return Ok(name.clone());
                 }
@@ -301,6 +302,7 @@ impl<'a> RollbackOperation<'a> {
                             .is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
                     })
                     .collect::<Vec<_>>();
+
                 matches.sort();
                 match matches.as_slice() {
                     [resolved] => Ok(resolved.clone()),

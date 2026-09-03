@@ -308,6 +308,7 @@ mod tests {
                 .executable_alias_exists("old")
                 .expect("check old alias")
         );
+
         assert!(
             reloaded
                 .executable_alias_exists("new")

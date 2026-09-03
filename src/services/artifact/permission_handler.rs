@@ -54,22 +54,27 @@ pub fn find_executables(directory_path: &Path, preferred_name: &str) -> Vec<Path
     let Ok(entries) = fs::read_dir(directory) else {
         return paths;
     };
+
     for entry in entries.flatten() {
         let path = entry.path();
         let Ok(kind) = entry.file_type() else {
             continue;
         };
+
         if kind.is_file() && !is_shared_library(&path) && is_executable_file(&path) {
             paths.push(path);
         }
     }
+
     paths.sort_by(|left, right| {
         let left_preferred = left
             .file_name()
             .is_some_and(|name| name.eq_ignore_ascii_case(preferred_name));
+
         let right_preferred = right
             .file_name()
             .is_some_and(|name| name.eq_ignore_ascii_case(preferred_name));
+
         right_preferred
             .cmp(&left_preferred)
             .then_with(|| left.cmp(right))

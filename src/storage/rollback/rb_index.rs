@@ -324,6 +324,7 @@ fn validate_package_relative_path(path: &Path, package_name: &str) -> Result<()>
                 encoded.push('%');
                 encoded.push_str(&format!("{byte:02X}"));
             }
+
             encoded
         });
 

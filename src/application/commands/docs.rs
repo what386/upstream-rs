@@ -110,10 +110,12 @@ async fn run_fetch_readmes(
     let leading_name = leading_name
         .map(|name| canonical_package_name(package_database, &name))
         .transpose()?;
+
     let fetch_names = fetch_names
         .into_iter()
         .map(|name| canonical_package_name(package_database, &name))
         .collect::<Result<Vec<_>>>()?;
+
     let targets = resolve_fetch_targets(packages, leading_name, keywords, fetch_names)?;
 
     if targets.is_empty() {

@@ -225,6 +225,7 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
                 } else {
                     "NULL"
                 };
+
                 conn.execute_batch(
                     &format!(
                     "
@@ -286,6 +287,7 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
                 } else {
                     "NULL"
                 };
+
                 let duplicate: Option<String> = conn
                     .query_row(
                         "SELECT lower(provider) || ':' || trim(repo_slug, '/')

@@ -67,6 +67,7 @@ impl PreparedInstall {
         for executable in &mut package.executables {
             executable.path = self.remap_path(paths, &executable.path)?;
         }
+
         package.icon_path = self.final_icon_path.clone();
         Ok(package)
     }
@@ -779,6 +780,7 @@ impl<'a> PackageActivator<'a> {
             .install
             .tmp_dir
             .join(format!("{}.old", filesystem_name(package_name)));
+
         if fs::symlink_metadata(&backup_dir).is_ok() {
             bail!(
                 "Transient snapshot '{}' already exists",

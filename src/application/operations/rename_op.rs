@@ -35,6 +35,7 @@ pub fn rename_alias(
         if renamed_link {
             let _ = symlink_manager.rename_link(new_name, old_name);
         }
+
         return Err(error).context("Executable alias rename failed; runtime link was reverted");
     }
 
@@ -132,6 +133,7 @@ mod tests {
                 .executable_alias_exists("new")
                 .expect("load new alias")
         );
+
         assert!(paths.state.symlinks_dir.join("new").exists());
         assert!(!paths.state.symlinks_dir.join("old").exists());
         assert!(paths.integration.bash_completions_dir.join("old").exists());
@@ -184,6 +186,7 @@ mod tests {
                 .executable_alias_exists("new")
                 .expect("load new alias")
         );
+
         assert!(!paths.state.symlinks_dir.join("old").exists());
         assert!(paths.state.symlinks_dir.join("new").exists());
         assert!(paths.integration.bash_completions_dir.join("old").exists());

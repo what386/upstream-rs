@@ -340,6 +340,7 @@ impl<'a> RollbackArtifacts<'a> {
             .expect("safe rollback package directory has a name")
             .to_string_lossy()
             .into_owned();
+
         let extraction_id = Utc::now()
             .timestamp_nanos_opt()
             .unwrap_or_else(|| Utc::now().timestamp_micros() * 1_000);
@@ -445,6 +446,7 @@ fn package_component(package_name: &str) -> String {
                 encoded.push('%');
                 encoded.push_str(&format!("{byte:02X}"));
             }
+
             encoded
         })
 }

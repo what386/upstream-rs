@@ -18,6 +18,7 @@ impl DotnetProfile {
             .map(|entry| entry.path())
             .filter(|path| path.extension().is_some_and(|ext| ext == "csproj"))
             .collect::<Vec<_>>();
+
         projects.sort();
         if let [project] = projects.as_slice() {
             return Some(project.clone());
@@ -32,6 +33,7 @@ impl DotnetProfile {
                     .is_some_and(|ext| ext == "sln" || ext == "slnx")
             })
             .collect::<Vec<_>>();
+
         solutions.sort();
         let solution = solutions.first()?;
         let contents = std::fs::read_to_string(solution).ok()?;
@@ -52,6 +54,7 @@ impl DotnetProfile {
                 .map(|path| workspace.join(path.replace('\\', "/")))
                 .collect::<Vec<_>>()
         };
+
         (projects.len() == 1).then(|| projects[0].clone())
     }
 
@@ -64,34 +67,41 @@ impl DotnetProfile {
             .arg("-getProperty:AssemblyName")
             .output()
             .context("Failed to inspect .NET project metadata. Is .NET SDK installed?")?;
+
         if !output.status.success() {
             bail!(
                 ".NET project metadata inspection failed: {}",
                 String::from_utf8_lossy(&output.stderr).trim()
             );
         }
+
         let properties: serde_json::Value = serde_json::from_slice(&output.stdout)
             .context(".NET returned invalid project metadata")?;
+
         let values = properties
             .get("Properties")
             .ok_or_else(|| anyhow!(".NET project metadata omitted Properties"))?;
+
         let output_type = values
             .get("OutputType")
             .and_then(serde_json::Value::as_str)
             .unwrap_or_default()
             .to_string();
+
         if !matches!(output_type.as_str(), "Exe" | "WinExe") {
             bail!(
                 ".NET project output type '{}' is not executable",
                 output_type
             );
         }
+
         let assembly_name = values
             .get("AssemblyName")
             .and_then(serde_json::Value::as_str)
             .filter(|name| !name.is_empty())
             .ok_or_else(|| anyhow!(".NET project metadata omitted AssemblyName"))?
             .to_string();
+
         Ok((output_type, assembly_name))
     }
 }
@@ -147,8 +157,10 @@ impl BuildProfileHandler for DotnetProfile {
 
         #[cfg(windows)]
         let artifact_name = format!("{assembly_name}.exe");
+
         #[cfg(not(windows))]
         let artifact_name = assembly_name;
+
         let artifact = publish_dir.join(artifact_name);
         if !artifact.is_file() {
             return Err(anyhow!(
@@ -156,6 +168,7 @@ impl BuildProfileHandler for DotnetProfile {
                 artifact.display()
             ));
         }
+
         Ok(artifact)
     }
 }

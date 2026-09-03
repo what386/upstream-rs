@@ -17,6 +17,7 @@ pub(super) fn load_executables_for_packages(
     for package in packages {
         load_executables(conn, package)?;
     }
+
     Ok(())
 }
 
@@ -54,6 +55,7 @@ pub(super) fn replace_executables(tx: &Transaction<'_>, package: &Package) -> Re
                 executable.path.display()
             )
         })?;
+
         tx.execute(
             "INSERT INTO package_executables (package_id, path, name) VALUES (?1, ?2, ?3)",
             params![package.id, path, executable.name],

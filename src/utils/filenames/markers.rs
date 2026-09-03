@@ -1,6 +1,7 @@
 pub const WINDOWS: &[&str] = &[
     ".exe", ".msi", ".dll", "windows", "win64", "win32", "win", "msvc", ".nsis",
 ];
+
 pub const IOS: &[&str] = &["ios", "iphone", "ipad"];
 pub const MACOS: &[&str] = &["macos", "darwin", "osx", "mac"];
 pub const ANDROID: &[&str] = &["android", ".apk", ".aab"];
@@ -30,6 +31,7 @@ pub fn contains_marker(filename: &str, markers: &[&str]) -> bool {
             if filename.ends_with(marker) {
                 return true;
             }
+
             continue;
         }
 
@@ -43,8 +45,10 @@ pub fn contains_marker(filename: &str, markers: &[&str]) -> bool {
             if valid_start && valid_end {
                 return true;
             }
+
             search_start = index + 1;
         }
     }
+
     false
 }

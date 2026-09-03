@@ -372,6 +372,7 @@ fn rewrite_package_paths(package: &mut Package, rewrites: &[PathRewrite]) -> boo
             executable.path = path;
         }
     }
+
     changed
 }
 

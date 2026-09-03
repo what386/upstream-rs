@@ -257,6 +257,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                     format!("{} path missing: {}", executable_label, path.display()),
                 );
             }
+
             let link_path = expected_link_path(&paths.state.symlinks_dir, &executable.name);
             #[cfg(unix)]
             {

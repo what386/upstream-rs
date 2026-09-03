@@ -284,6 +284,7 @@ impl<'a> BuildOperation<'a> {
             resolved_provider,
             resolved_base_url,
         );
+
         package.install_type = InstallType::Build;
         package.build_branch = build_result.branch.clone();
         package.build_commit = build_result.commit.clone();

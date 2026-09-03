@@ -102,6 +102,7 @@ impl PackageConnection {
             })
             .map(|package| package.id.clone())
             .collect();
+
         matches.sort();
 
         match matches.as_slice() {
@@ -351,6 +352,7 @@ impl PackageConnection {
         let mut package = self
             .get_package(name)?
             .ok_or_else(|| anyhow!("Package '{}' not found", name))?;
+
         let original_id = package.id.clone();
 
         let changed = update(&mut package)?;
@@ -1009,11 +1011,13 @@ mod tests {
                 .as_deref(),
             Some("github:owner/tool")
         );
+
         assert!(
             db.resolve_package_id("command")
                 .expect("resolve alias")
                 .is_none()
         );
+
         assert_eq!(
             db.get_package("tool")
                 .expect("get friendly name")
