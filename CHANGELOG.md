@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-09-03*
+*Generated on 2026-09-04*
+
+## 2.18.1 — 2026-09-04
+
+### Changes
+
+- fix: desktop entries now declare alias and icon path if available
+- fix: icons now use primary alias instead of pkg id
+
 
 ## 2.18.0 — 2026-09-03
 
