@@ -21,3 +21,9 @@
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
 
+- [ ] fix: handle Windows transient replacement cleanup failures (high) #packaging #windows
+      @created 2026-09-04 19:19
+
+- [ ] maintenance: clean stale Windows replacement snapshots with doctor #doctor #packaging
+      @created 2026-09-04 19:20
+
