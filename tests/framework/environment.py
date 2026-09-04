@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 FAKEHOME = ROOT / "tests" / "fakehome"
 RESET_TESTHOME = ROOT / "scripts" / "test" / "reset-testhome.sh"
 
