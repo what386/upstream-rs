@@ -540,6 +540,9 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        #[cfg(not(target_os = "linux"))]
+        let _ = add_entry;
+
         let cache_key = package_cache_key(&package.id);
         let package_download_cache = self.download_cache.join(&cache_key);
         let package_extract_cache = self.extract_cache.join(&cache_key);

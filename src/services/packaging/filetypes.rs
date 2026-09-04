@@ -288,6 +288,7 @@ where
     Ok(package)
 }
 
+#[cfg(target_os = "linux")]
 fn appimage_try_exec(root: &Path, name: &str) -> Option<String> {
     let mut candidates = vec![
         root.join(format!("{name}.desktop")),
@@ -330,6 +331,7 @@ fn appimage_try_exec(root: &Path, name: &str) -> Option<String> {
 }
 
 #[cfg(test)]
+#[cfg(target_os = "linux")]
 mod tests {
     use super::{appimage_try_exec, set_executable_aliases};
     use crate::models::{
