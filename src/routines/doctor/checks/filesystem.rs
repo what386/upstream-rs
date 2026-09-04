@@ -126,6 +126,54 @@ pub(in crate::routines::doctor) fn check_local_layout(
     }
 }
 
+pub(in crate::routines::doctor) fn check_transient_snapshots(
+    paths: &UpstreamPaths,
+    fix: bool,
+    report: &mut DoctorReport,
+) {
+    let snapshots =
+        match crate::services::packaging::PackageActivator::transient_snapshot_paths(paths) {
+            Ok(snapshots) => snapshots,
+            Err(error) => {
+                report.line(
+                    Level::Fail,
+                    format!("failed to inspect replacement temp directory: {error:#}"),
+                );
+                return;
+            }
+        };
+
+    if snapshots.is_empty() {
+        report.line(Level::Ok, "no stale replacement snapshots found");
+        return;
+    }
+
+    for snapshot in snapshots {
+        if !fix {
+            report.line(
+                Level::Warn,
+                format!("stale replacement snapshot remains: {}", snapshot.display()),
+            );
+            report.hint("Run `upstream doctor --fix` to remove stale replacement snapshots.");
+            continue;
+        }
+
+        match crate::services::packaging::PackageActivator::remove_path_if_exists(&snapshot) {
+            Ok(()) => report.line(
+                Level::Ok,
+                format!("removed stale replacement snapshot: {}", snapshot.display()),
+            ),
+            Err(error) => report.line(
+                Level::Fail,
+                format!(
+                    "failed to remove stale replacement snapshot '{}': {error:#}",
+                    snapshot.display()
+                ),
+            ),
+        }
+    }
+}
+
 pub(in crate::routines::doctor) fn check_app_config(
     paths: &UpstreamPaths,
     _fix: bool,
@@ -254,8 +302,8 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::{
-        HOOKS_INIT_DIR_HINT, check_app_config, find_orphan_install_entries,
-        find_stale_symlink_names,
+        HOOKS_INIT_DIR_HINT, check_app_config, check_transient_snapshots,
+        find_orphan_install_entries, find_stale_symlink_names,
     };
     use crate::routines::doctor::DoctorReport;
     use crate::routines::doctor::checks::packages::expected_link_path;
@@ -354,6 +402,32 @@ mod tests {
                 .expect("read config")
                 .contains("version = 2")
         );
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn check_transient_snapshots_warns_without_fix_and_removes_with_fix() {
+        let root = test_support::temp_root("upstream-doctor-test", "transient-snapshot");
+        let paths = test_support::upstream_paths(&root);
+        let snapshot = paths.install.tmp_dir.join("package.old");
+        let unrelated = paths.install.tmp_dir.join("download.tmp");
+        fs::create_dir_all(snapshot.join("package")).expect("create snapshot");
+        fs::write(snapshot.join("package/tool"), b"old").expect("write snapshot");
+        fs::write(&unrelated, b"keep").expect("write unrelated temp file");
+
+        let mut report = DoctorReport::new();
+        check_transient_snapshots(&paths, false, &mut report);
+        assert_eq!(report.warn, 1);
+        assert!(snapshot.exists());
+        assert!(unrelated.exists());
+
+        let mut report = DoctorReport::new();
+        check_transient_snapshots(&paths, true, &mut report);
+        assert_eq!(report.fail, 0);
+        assert_eq!(report.ok, 1);
+        assert!(!snapshot.exists());
+        assert!(unrelated.exists());
 
         cleanup(&root).expect("cleanup");
     }

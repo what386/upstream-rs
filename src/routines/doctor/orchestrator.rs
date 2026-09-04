@@ -10,6 +10,7 @@ use super::{DoctorReport, checks};
 pub async fn run(names: Vec<String>, fix: bool, paths: &UpstreamPaths) -> Result<DoctorReport> {
     let mut report = DoctorReport::new();
     checks::check_local_layout(paths, &mut report);
+    checks::check_transient_snapshots(paths, fix, &mut report);
     checks::check_completion_directories(paths, &mut report);
     let app_config = checks::check_app_config(paths, fix, &mut report);
     let auth = AuthStorage::new(&paths.metadata.auth_file)?;

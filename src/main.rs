@@ -10,6 +10,9 @@ use upstream_rs::storage::system::config::ConfigStorage;
 use upstream_rs::storage::system::lock::LockStorage;
 use upstream_rs::utils::static_paths::UpstreamPaths;
 
+#[cfg(windows)]
+use upstream_rs::services::packaging::PackageActivator;
+
 #[tokio::main]
 async fn main() {
     let cancellation = cancellation::current();
@@ -56,6 +59,17 @@ async fn run() -> anyhow::Result<()> {
     let paths = UpstreamPaths::new()?;
     output::init_logger(paths.dirs.data_dir.join("log.jsonl"));
     history_op::begin(cli.command.to_string(), cli.command.records_history());
+
+    #[cfg(windows)]
+    if let Err(error) = PackageActivator::cleanup_transient_snapshots(&paths) {
+        eprintln!(
+            "{}",
+            output::warning(format!(
+                "Could not remove a previous replacement snapshot: {error:#}.\n
+                Run `upstream doctor --fix` after the conflicting process exits."
+            ))
+        );
+    }
 
     if let Err(err) = run_startup_migrations(&paths) {
         history_op::finish(

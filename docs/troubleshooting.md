@@ -164,10 +164,12 @@ upstream doctor <name> --verbose
 upstream history --package <name> --status failed
 ```
 
-An interrupted operation may leave a temporary `.old` recovery copy while
-cleanup finishes. Leave that file in place and rerun the command or `doctor`; it
-is transaction recovery data, not the persistent artifact managed by
-`upstream rollback`.
+An interrupted operation may leave a temporary `.old` recovery copy. Run
+`upstream doctor --fix` after the operation has stopped to remove it; it is
+transaction recovery data, not the persistent artifact managed by
+`upstream rollback`. On Windows, an upgrade can also leave this copy when the
+running executable still has it locked. The upgrade reports a warning and the
+copy can be removed after exiting Upstream.
 
 Press Ctrl-C once to request cancellation and allow cleanup or rollback to
 finish. Press it a second time only when immediate termination is necessary;

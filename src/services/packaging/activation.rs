@@ -439,6 +439,43 @@ impl<'a> PackageActivator<'a> {
         Ok(())
     }
 
+    pub fn transient_snapshot_paths(paths: &UpstreamPaths) -> Result<Vec<PathBuf>> {
+        let entries = match fs::read_dir(&paths.install.tmp_dir) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => {
+                return Err(error).context(format!(
+                    "Failed to inspect replacement temp directory '{}'",
+                    paths.install.tmp_dir.display()
+                ));
+            }
+        };
+
+        let mut snapshots = entries
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.ends_with(".old"))
+            })
+            .collect::<Vec<_>>();
+
+        snapshots.sort();
+        Ok(snapshots)
+    }
+
+    pub fn cleanup_transient_snapshots(paths: &UpstreamPaths) -> Result<()> {
+        for snapshot in Self::transient_snapshot_paths(paths)? {
+            Self::remove_path_if_exists(&snapshot).context(format!(
+                "Failed to remove transient snapshot '{}'",
+                snapshot.display()
+            ))?;
+        }
+
+        Ok(())
+    }
+
     pub fn capture_rollback_snapshot(
         paths: &UpstreamPaths,
         package: &Package,
@@ -759,13 +796,21 @@ impl<'a> PackageActivator<'a> {
         }
 
         if let Err(error) = Self::remove_path_if_exists(&backup_dir) {
+            #[cfg(windows)]
             progress!(
                 progress_callback,
                 PackageProgressEvent::Warning(format!(
-                    "Replacement succeeded, but transient backup '{}' could not be removed: {error:#}",
+                    "Replacement succeeded, but Windows could not remove the transient backup '{}'.\n
+                    Run `upstream doctor --fix` after exiting upstream: {error:#}",
                     backup_dir.display()
                 ))
             );
+
+            #[cfg(not(windows))]
+            return Err(error).context(format!(
+                "Replacement succeeded, but transient backup '{}' could not be removed",
+                backup_dir.display()
+            ));
         }
 
         Ok(updated_package)

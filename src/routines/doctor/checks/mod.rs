@@ -5,7 +5,7 @@ mod packages;
 mod tokens;
 
 pub(super) use filesystem::{
-    check_app_config, check_local_layout, check_package_metadata_file,
+    check_app_config, check_local_layout, check_package_metadata_file, check_transient_snapshots,
     check_untracked_package_artifacts,
 };
 pub(super) use integration::{check_completion_directories, check_path_integration};
