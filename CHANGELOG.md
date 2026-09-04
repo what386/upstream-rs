@@ -2,6 +2,17 @@
 
 *Generated on 2026-09-04*
 
+## 2.18.2 — 2026-09-04
+
+### High Priority
+
+- fix: handle Windows transient replacement cleanup failures `packaging`, `windows`
+
+### Changes
+
+- maintenance: clean stale Windows replacement snapshots with doctor `doctor`, `packaging`
+
+
 ## 2.18.1 — 2026-09-04
 
 ### Changes
