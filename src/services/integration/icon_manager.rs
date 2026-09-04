@@ -320,6 +320,7 @@ impl<'a> IconManager<'a> {
             let Ok(content) = fs::read_to_string(&desktop_file) else {
                 continue;
             };
+
             let mut in_desktop_entry = false;
             let mut icon = None;
 
@@ -354,6 +355,7 @@ impl<'a> IconManager<'a> {
                     "Found embedded icon: {}",
                     icon_path.display()
                 );
+
                 return Some(icon_path.to_path_buf());
             }
 
@@ -364,6 +366,7 @@ impl<'a> IconManager<'a> {
                     "Found embedded icon: {}",
                     relative_icon.display()
                 );
+
                 return Some(relative_icon);
             }
 
@@ -386,6 +389,7 @@ impl<'a> IconManager<'a> {
                     matches.extend(entries.flatten());
                 }
             }
+
             if let Some(found) = matches
                 .into_iter()
                 .max_by_key(|path| Self::score_icon(path, icon_name))

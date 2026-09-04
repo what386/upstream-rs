@@ -38,6 +38,7 @@ fn set_executable_aliases(
             } else {
                 executable_alias(&filename, package.match_pattern.as_slice()).to_lowercase()
             };
+
             Some(PackageExecutable { path, name })
         })
         .collect();
@@ -304,6 +305,7 @@ fn appimage_try_exec(root: &Path, name: &str) -> Option<String> {
             .file_stem()
             .and_then(|value| value.to_str())
             .unwrap_or("");
+
         (!stem.eq_ignore_ascii_case(name), path.clone())
     });
 
@@ -311,6 +313,7 @@ fn appimage_try_exec(root: &Path, name: &str) -> Option<String> {
         let Ok(content) = std::fs::read_to_string(path) else {
             continue;
         };
+
         let mut in_entry = false;
         for line in content.lines() {
             let trimmed = line.trim();
@@ -318,6 +321,7 @@ fn appimage_try_exec(root: &Path, name: &str) -> Option<String> {
                 in_entry = trimmed.eq_ignore_ascii_case("[Desktop Entry]");
                 continue;
             }
+
             if in_entry && let Some(value) = trimmed.strip_prefix("TryExec=") {
                 let value = value.trim();
                 if !value.is_empty() && !value.contains('/') {
@@ -367,6 +371,7 @@ mod tests {
             "upstream-appimage-desktop-test-{}",
             std::process::id()
         ));
+
         fs::create_dir_all(root.join("usr/share/applications")).expect("create root");
         fs::write(
             root.join("usr/share/applications/WezTerm.desktop"),
