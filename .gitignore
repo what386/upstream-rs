@@ -4,3 +4,6 @@ tests/metadata/fakehome-template/.upstream/state/symlinks/upstream
 .release-state
 __pycache__/
 *.py[cod]
+obj/
+build/
+bin/
