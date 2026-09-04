@@ -33,7 +33,10 @@ class PosixInstallerTests(unittest.TestCase):
         self.binary.write_text(
             "#!/bin/sh\n"
             'printf "%s\\n" "$*" >> "$MOCK_COMMAND_LOG"\n'
-            'if [ "$1" = "list" ]; then printf \'[{"id":"upstream"}]\\n\'; fi\n',
+            'if [ "$1" = "list" ]; then\n'
+            '    if [ "$MOCK_PACKAGE_INSTALLED" = "yes" ]; then '
+            "printf '[{\"id\":\"upstream\"}]\\n'; else exit 1; fi\n"
+            "fi\n",
             encoding="utf-8",
         )
         self.binary.chmod(self.binary.stat().st_mode | stat.S_IXUSR)
@@ -79,6 +82,8 @@ esac
         *,
         architecture: str = "x86_64",
         valid_checksum: bool = True,
+        existing_data: str = "keep",
+        package_installed: bool = True,
     ) -> subprocess.CompletedProcess[str]:
         environment = os.environ.copy()
         environment.update(
@@ -93,7 +98,8 @@ esac
                 ),
                 "MOCK_COMMAND_LOG": str(self.command_log),
                 "MOCK_DOWNLOAD_LOG": str(self.download_log),
-                "UPSTREAM_EXISTING_DATA": "keep",
+                "MOCK_PACKAGE_INSTALLED": "yes" if package_installed else "no",
+                "UPSTREAM_EXISTING_DATA": existing_data,
             }
         )
         return subprocess.run(
@@ -115,6 +121,74 @@ esac
         ]
         self.assertTrue(destinations)
         self.assertTrue(all(not destination.parent.exists() for destination in destinations))
+
+    def test_keep_existing_data_preserves_user_files_and_skips_package_install(self) -> None:
+        result = self.run_installer("bash", "install.bash", "upstream-x86_64-unknown-linux-gnu")
+
+        self.assert_successful_install(result)
+        self.assertEqual(
+            self.command_log.read_text(encoding="utf-8").splitlines(),
+            ["hooks init", "list upstream --json"],
+        )
+        self.assertEqual(self.existing_marker.read_text(encoding="utf-8"), "existing")
+
+    def test_replace_existing_data_removes_stale_files_before_refreshing(self) -> None:
+        result = self.run_installer(
+            "bash",
+            "install.bash",
+            "upstream-x86_64-unknown-linux-gnu",
+            existing_data="replace",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(self.existing_marker.exists())
+        self.assertEqual(
+            self.command_log.read_text(encoding="utf-8").splitlines(),
+            ["hooks init", "list upstream --json"],
+        )
+
+    def test_invalid_existing_data_setting_fails_before_running_upstream(self) -> None:
+        result = self.run_installer(
+            "bash",
+            "install.bash",
+            "upstream-x86_64-unknown-linux-gnu",
+            existing_data="invalid",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("UPSTREAM_EXISTING_DATA must be 'keep' or 'replace'", result.stderr)
+        self.assertFalse(self.command_log.exists())
+
+    def test_existing_data_path_that_is_a_file_fails_before_running_upstream(self) -> None:
+        self.existing_marker.unlink()
+        data_path = self.home / ".upstream"
+        data_path.rmdir()
+        data_path.write_text("not a directory", encoding="utf-8")
+
+        result = self.run_installer("bash", "install.bash", "upstream-x86_64-unknown-linux-gnu")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("exists but is not a directory", result.stderr)
+        self.assertFalse(self.command_log.exists())
+        self.assertEqual(data_path.read_text(encoding="utf-8"), "not a directory")
+
+    def test_missing_managed_package_runs_install_once(self) -> None:
+        result = self.run_installer(
+            "bash",
+            "install.bash",
+            "upstream-x86_64-unknown-linux-gnu",
+            package_installed=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(
+            self.command_log.read_text(encoding="utf-8").splitlines(),
+            [
+                "hooks init",
+                "list upstream --json",
+                "--yes install what386/upstream-rs upstream -k binary",
+            ],
+        )
 
     def test_bash_verifies_checksum_before_running_binary(self) -> None:
         result = self.run_installer(

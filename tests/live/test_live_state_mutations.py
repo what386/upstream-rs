@@ -3,9 +3,11 @@
 
 from __future__ import annotations
 
-from framework.commands import run_upstream, run_upstream_json
-from framework.environment import FAKEHOME, reset_fakehome
-from framework.packages import install_package, package_from_list
+import unittest
+
+from tests.framework.commands import run_upstream, run_upstream_json
+from tests.framework.environment import FAKEHOME, reset_fakehome
+from tests.framework.packages import install_package, package_from_list
 
 
 REPO = "BurntSushi/ripgrep"
@@ -13,7 +15,7 @@ PACKAGE = "ripgrep"
 TAG = "15.1.0"
 
 
-def main() -> None:
+def scenario() -> None:
     reset_fakehome()
 
     # Config and auth updates persist through their respective read paths, and
@@ -73,5 +75,10 @@ def main() -> None:
     print("config, auth, package settings, and cache mutations passed")
 
 
+class LiveStateMutationTests(unittest.TestCase):
+    def test_state_mutations(self) -> None:
+        scenario()
+
+
 if __name__ == "__main__":
-    main()
+    unittest.main()

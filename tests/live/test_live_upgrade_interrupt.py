@@ -5,14 +5,15 @@ from __future__ import annotations
 
 import signal
 import os
+import unittest
 
-from framework.commands import run_upstream, run_upstream_json, start_upstream
-from framework.environment import reset_fakehome
-from framework.packages import assert_executable_version, package_from_list, package_path
-from framework.rollback_server import PACKAGE, RollbackServer
+from tests.framework.commands import run_upstream, run_upstream_json, start_upstream
+from tests.framework.environment import reset_fakehome
+from tests.framework.packages import assert_executable_version, package_from_list, package_path
+from tests.framework.rollback_server import PACKAGE, RollbackServer
 
 
-def main() -> None:
+def scenario() -> None:
     reset_fakehome()
     server = RollbackServer(throttle_update=True)
     try:
@@ -57,5 +58,10 @@ def assert_working(package: dict[str, object]) -> None:
         assert_executable_version(package, "rollback-tool 1.0.0")
 
 
+class LiveUpgradeInterruptTests(unittest.TestCase):
+    def test_interrupted_upgrade_restores_previous_install(self) -> None:
+        scenario()
+
+
 if __name__ == "__main__":
-    main()
+    unittest.main()

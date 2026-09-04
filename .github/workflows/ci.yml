@@ -29,3 +29,9 @@ jobs:
 
       - name: Run tests
         run: cargo test --all-targets --all-features
+
+      - name: Run Python integration tests
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          python3 -m unittest discover -s tests/install -p 'test_*.py'
+          python3 -m unittest discover -s tests/integration -p 'test_*.py'

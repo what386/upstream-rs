@@ -3,15 +3,16 @@
 
 from __future__ import annotations
 
-from framework.commands import run_upstream, run_upstream_json
-from framework.environment import reset_fakehome
+from tests.framework.commands import run_upstream, run_upstream_json
+from tests.framework.environment import reset_fakehome
 import os
+import unittest
 
-from framework.packages import assert_executable_version, package_from_list, package_path
-from framework.rollback_server import PACKAGE, RollbackServer
+from tests.framework.packages import assert_executable_version, package_from_list, package_path
+from tests.framework.rollback_server import PACKAGE, RollbackServer
 
 
-def main() -> None:
+def scenario() -> None:
     reset_fakehome()
     server = RollbackServer()
     try:
@@ -53,5 +54,10 @@ def assert_working(package: dict[str, object]) -> None:
         assert_executable_version(package, "rollback-tool 1.0.0")
 
 
+class LiveUpgradeFailureTests(unittest.TestCase):
+    def test_failed_upgrade_restores_previous_install(self) -> None:
+        scenario()
+
+
 if __name__ == "__main__":
-    main()
+    unittest.main()
