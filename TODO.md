@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-09-03
+@modified: 2026-09-04
 
 
 ## Tasks
@@ -20,4 +20,15 @@
 
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
+
+
+## Completed
+
+- [x] fix: desktop entries now declare alias and icon path if available
+      @created 2026-09-04 04:28
+      @completed 2026-09-04 04:28
+
+- [x] fix: icons now use primary alias instead of pkg id
+      @created 2026-09-04 04:27
+      @completed 2026-09-04 04:28
 

@@ -336,7 +336,7 @@ impl<'a> DesktopManager<'a> {
             .backend
             .add_icon(
                 self.paths,
-                &package.id,
+                package.primary_executable_name(),
                 &install_path,
                 &package.filetype,
                 &self.paths.state.icons_dir,
@@ -418,7 +418,7 @@ impl<'a> DesktopManager<'a> {
             .backend
             .add_icon(
                 self.paths,
-                &final_package.id,
+                final_package.primary_executable_name(),
                 staged_install_path,
                 &final_package.filetype,
                 icons_dir,

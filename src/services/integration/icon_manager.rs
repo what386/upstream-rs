@@ -68,7 +68,10 @@ impl<'a> IconManager<'a> {
                     let squashfs_root =
                         self.extractor.extract(name, path, message_callback).await?;
 
-                    Self::search_for_best_icon(&squashfs_root, name, message_callback)
+                    Self::search_embedded_icon(&squashfs_root, message_callback)
+                        .or_else(|| {
+                            Self::search_for_best_icon(&squashfs_root, name, message_callback)
+                        })
                         .or_else(|| Self::search_system_icons(name, message_callback))
                 }
 
@@ -77,7 +80,8 @@ impl<'a> IconManager<'a> {
                     anyhow::bail!("AppImage integration is only supported on Linux hosts");
                 }
             }
-            Filetype::Archive => Self::search_for_best_icon(path, name, message_callback)
+            Filetype::Archive => Self::search_embedded_icon(path, message_callback)
+                .or_else(|| Self::search_for_best_icon(path, name, message_callback))
                 .or_else(|| Self::search_system_icons(name, message_callback)),
             _ => Self::search_system_icons(name, message_callback),
         };
@@ -302,6 +306,96 @@ impl<'a> IconManager<'a> {
         }
 
         best
+    }
+
+    fn search_embedded_icon<H>(dir: &Path, message_callback: &mut Option<H>) -> Option<PathBuf>
+    where
+        H: FnMut(&str),
+    {
+        let desktop_files = glob::glob(&format!("{}/**/*.desktop", dir.display())).ok()?;
+        let mut desktop_files: Vec<_> = desktop_files.flatten().collect();
+        desktop_files.sort();
+
+        for desktop_file in desktop_files {
+            let Ok(content) = fs::read_to_string(&desktop_file) else {
+                continue;
+            };
+            let mut in_desktop_entry = false;
+            let mut icon = None;
+
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.starts_with('[') {
+                    in_desktop_entry = trimmed.eq_ignore_ascii_case("[Desktop Entry]");
+                    continue;
+                }
+
+                if in_desktop_entry {
+                    icon = trimmed
+                        .strip_prefix("Icon=")
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty());
+                    if icon.is_some() {
+                        break;
+                    }
+                }
+            }
+
+            let Some(icon) = icon else { continue };
+            let icon_path = Path::new(icon);
+            let icon_name = icon_path
+                .file_stem()
+                .and_then(|value| value.to_str())
+                .unwrap_or(icon);
+
+            if icon_path.is_absolute() && icon_path.is_file() {
+                message!(
+                    message_callback,
+                    "Found embedded icon: {}",
+                    icon_path.display()
+                );
+                return Some(icon_path.to_path_buf());
+            }
+
+            let relative_icon = dir.join(icon);
+            if relative_icon.is_file() {
+                message!(
+                    message_callback,
+                    "Found embedded icon: {}",
+                    relative_icon.display()
+                );
+                return Some(relative_icon);
+            }
+
+            if let Some(found) = [".svg", ".png", ".xpm", ".ico"].iter().find_map(|ext| {
+                let candidate = dir.join(format!("{icon_name}{ext}"));
+                candidate.is_file().then_some(candidate)
+            }) {
+                message!(message_callback, "Found embedded icon: {}", found.display());
+                return Some(found);
+            }
+
+            let mut matches = Vec::new();
+            for ext in [".svg", ".png", ".xpm", ".ico"] {
+                if let Ok(entries) = glob::glob(&format!(
+                    "{}/**/*{}*{}",
+                    dir.display(),
+                    icon_name.to_lowercase(),
+                    ext
+                )) {
+                    matches.extend(entries.flatten());
+                }
+            }
+            if let Some(found) = matches
+                .into_iter()
+                .max_by_key(|path| Self::score_icon(path, icon_name))
+            {
+                message!(message_callback, "Found embedded icon: {}", found.display());
+                return Some(found);
+            }
+        }
+
+        None
     }
 
     fn score_icon(path: &Path, app_name: &str) -> i32 {

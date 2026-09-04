@@ -363,6 +363,7 @@ impl<'a> PackageInstaller<'a> {
                 package,
                 release,
                 asset,
+                *add_entry,
                 trust_mode,
                 trusted_keys,
                 &mut bridged_download_progress,
@@ -527,6 +528,7 @@ impl<'a> PackageInstaller<'a> {
         mut package: Package,
         release: &Release,
         asset: &Asset,
+        add_entry: bool,
         trust_mode: TrustMode,
         trusted_keys: &TrustedSignatureKeys,
         download_progress_callback: &mut Option<F>,
@@ -718,6 +720,7 @@ impl<'a> PackageInstaller<'a> {
                         self.workspace(),
                         &download_path,
                         package,
+                        add_entry,
                         message_callback,
                     )
                     .await
