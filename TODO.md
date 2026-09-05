@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-09-04
+@modified: 2026-09-05
 
 
 ## Tasks
@@ -20,4 +20,7 @@
 
 - [ ] feat: 'skip' specific updates via `package skip`
       @created 2026-08-24 16:52
+
+- [ ] feat: systemd unit integrations
+      @created 2026-09-05 03:40
 
