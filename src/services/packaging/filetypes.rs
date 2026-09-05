@@ -366,6 +366,18 @@ mod tests {
     }
 
     #[test]
+    fn embedded_try_exec_remains_the_primary_alias() {
+        let mut package = package();
+        set_executable_aliases(
+            &mut package,
+            vec![PathBuf::from("/tmp/WezTerm")],
+            Some("wezterm".to_string()),
+        );
+
+        assert_eq!(package.primary_executable_name(), "wezterm");
+    }
+
+    #[test]
     fn appimage_try_exec_is_used_as_primary_alias() {
         let root = std::env::temp_dir().join(format!(
             "upstream-appimage-desktop-test-{}",

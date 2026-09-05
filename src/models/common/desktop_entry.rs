@@ -134,6 +134,7 @@ impl DesktopEntry {
                     | "Comment"
                     | "Categories"
                     | "Terminal"
+                    | "TryExec"
             ) {
                 continue;
             }
@@ -168,5 +169,23 @@ mod tests {
         assert_eq!(entry.name.as_deref(), Some("tool"));
         assert_eq!(entry.exec, None);
         assert_eq!(entry.icon.as_deref(), Some(""));
+    }
+
+    #[test]
+    fn to_desktop_file_omits_try_exec_but_preserves_other_extra_fields() {
+        let mut entry = DesktopEntry::new("Tool");
+        entry.exec = Some("/home/user/.local/bin/tool.AppImage".to_string());
+        entry
+            .extras
+            .insert("TryExec".to_string(), "tool".to_string());
+        entry
+            .extras
+            .insert("StartupWMClass".to_string(), "org.example.Tool".to_string());
+
+        let rendered = entry.to_desktop_file();
+
+        assert!(rendered.contains("Exec=/home/user/.local/bin/tool.AppImage\n"));
+        assert!(!rendered.contains("TryExec="));
+        assert!(rendered.contains("StartupWMClass=org.example.Tool\n"));
     }
 }
