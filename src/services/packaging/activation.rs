@@ -800,15 +800,14 @@ impl<'a> PackageActivator<'a> {
             progress!(
                 progress_callback,
                 PackageProgressEvent::Warning(format!(
-                    "Replacement succeeded, but Windows could not remove the transient backup '{}'.\n
-                    Run `upstream doctor --fix` after exiting upstream: {error:#}",
+                    "Replacement succeeded, but temp couldn't removed (is the program running?): '{}'\nRun 'upstream doctor --fix' to try removing it again.",
                     backup_dir.display()
                 ))
             );
 
             #[cfg(not(windows))]
             return Err(error).context(format!(
-                "Replacement succeeded, but transient backup '{}' could not be removed",
+                "Replacement succeeded, but temp couldn't be removed: '{}'",
                 backup_dir.display()
             ));
         }
