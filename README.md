@@ -38,6 +38,11 @@ iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/ins
 
 Windows also requires the latest supported Microsoft Visual C++ v14 Redistributable. Install the package matching your architecture from [Microsoft](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) before running the installer.
 
+## Platform Support
+
+Linux is the primary supported platform. Windows and macOS support are experimental, with Windows currently more supported and tested than macOS.
+MacOS is likely to lack behind in feature support: for example, you cannot create desktop entries on MacOS (though this is planned for the future).
+
 ### Cargo
 
 ```bash
