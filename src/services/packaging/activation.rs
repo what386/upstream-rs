@@ -805,6 +805,9 @@ impl<'a> PackageActivator<'a> {
                 ))
             );
 
+            #[cfg(windows)]
+            drop(error);
+
             #[cfg(not(windows))]
             return Err(error).context(format!(
                 "Replacement succeeded, but temp couldn't be removed: '{}'",
