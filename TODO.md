@@ -18,10 +18,3 @@
 - [ ] feat: systemd unit integrations
       @created 2026-09-05 03:40
 
-
-## Completed
-
-- [x] fix macOS releases with statically linked liblzma
-      @created 2026-09-09 21:09
-      @completed 2026-09-09 21:10
-

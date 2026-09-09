@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-09-04*
+*Generated on 2026-09-09*
+
+## 2.18.3 — 2026-09-09
+
+### Changes
+
+- fix macOS releases with statically linked liblzma
+
 
 ## 2.18.2 — 2026-09-04
 
