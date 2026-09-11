@@ -20,45 +20,6 @@ usable binary, it can build the project from source.
 * Imports and exports package lists, profiles, configuration, and trusted keys
 * Keeps shell hooks, cached documentation, and diagnostics in one place
 
-## Usage
-
-    $ upstream
-    Fetch package updates directly from the source
-
-    Usage: upstream [OPTIONS] <COMMAND>
-
-    Commands:
-      install     Install a package from a release source
-      build       Build and install a package from source
-      upgrade     Upgrade installed packages
-      remove      Remove installed packages
-      reinstall   Reinstall packages using stored metadata
-      rollback    Restore or prune rollback artifacts
-      list        List installed packages
-      info        Show package metadata
-      search      Search provider repositories
-      find        Search and interactively install a repository
-      probe       Choose and install a release asset
-      changelog   Show upstream release notes
-      docs        Search installed package documentation
-      package     Manage package settings and aliases
-      cache       Inspect or clean reusable cache data
-      config      Manage configuration
-      auth        Manage provider API tokens
-      hooks       Manage shell integration
-      import      Import configuration or package data
-      export      Export configuration or package data
-      doctor      Check installation health
-
-    Options:
-      -y, --yes       Accept confirmation prompts
-          --no-pager  Do not open long output in a pager
-      -h, --help      Print help
-      -V, --version   Print version
-
-Use `upstream <command> --help` for the exact options for a command.
-Most commands that change package state support `--dry-run`.
-
 ## Installation
 
 There are a couple of ways to install Upstream.
@@ -110,7 +71,7 @@ then make the binary executable (on Unix systems):
 chmod +x upstream
 ```
 
-## Getting started
+## Examples
 
 Initialize shell integration:
 
