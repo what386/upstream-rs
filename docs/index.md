@@ -1,14 +1,13 @@
-# Upstream Documentation
+# Upstream Developer Documentation
 
-Detailed reference material for Upstream:
+The README is the user guide. `upstream --help` and each subcommand's help are
+the CLI reference. This directory records contracts and implementation
+decisions that are easy to lose when changing the code.
 
 ## Pages
 
-- [Installation and paths](installation.md): install methods, shell hooks, and on-disk layout.
-- [Command reference](commands.md): full command overview with common options.
-- [Package lifecycle](packages.md): install, upgrade, remove, reinstall, rollback, and pinning.
-- [Building from source](build.md): source-build behavior and supported build profiles.
-- [Configuration](configuration.md): config file layout, provider tokens, and package metadata.
-- [Trust and verification](trust.md): checksum/signature modes and trusted key imports.
-- [Backup, import, and export](backup.md): config, package, key, and profile export/import workflows.
-- [Troubleshooting](troubleshooting.md): diagnostics and common failure modes.
+- [Architecture](architecture.md): module boundaries and operation flow.
+- [Build profiles](build.md): source-build detection and artifact contracts.
+- [Configuration and storage](configuration.md): persistent paths and schemas.
+- [Testing](testing.md): test tiers, fixtures, and verification commands.
+- [Contributing](contributing.md): local workflow and release boundaries.

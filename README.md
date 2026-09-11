@@ -1,47 +1,96 @@
 # Upstream
 
-**Upstream** is a rootless package manager for installing software directly from upstream release sources.
+Upstream is a rootless package manager for installing software directly from
+upstream release sources.
 
-It installs binaries, archives, AppImages, and other release artifacts from sources like GitHub, GitLab, Gitea, direct URLs, and scraped download pages. It can also build from source when prebuilt artifacts are unavailable.
+It fetches binaries, archives, AppImages, and other release artifacts from
+GitHub, GitLab, Gitea, direct URLs, and download pages. When nobody published a
+usable binary, it can build the project from source.
 
-## Features
+## What it does
 
-* Install packages without root
-* Automatically select assets for your OS and architecture
-* Upgrade, remove, reinstall, and roll back packages
-* Build from source using Rust, .NET, Go, Zig, or CMake
-* Track `stable`, `preview`, or `nightly` channels
-* Pin packages to prevent upgrades
-* Create desktop entries for GUI apps
-* Import/export package lists and trusted keys
-* Optional checksum and signature verification
-* Shell integration hooks and diagnostics
+* Installs software without root
+* Finds the right release asset for your OS and architecture
+* Installs from GitHub, GitLab, Gitea, URLs, and scraped download pages
+* Upgrades, reinstalls, removes, and rolls back packages
+* Builds Rust, .NET, Go, Zig, and CMake projects from source
+* Tracks stable, preview, and nightly release channels
+* Creates desktop entries for graphical applications
+* Verifies downloads with checksums and signatures when available
+* Imports and exports package lists, profiles, configuration, and trusted keys
+* Keeps shell hooks, cached documentation, and diagnostics in one place
+
+## Usage
+
+    $ upstream
+    Fetch package updates directly from the source
+
+    Usage: upstream [OPTIONS] <COMMAND>
+
+    Commands:
+      install     Install a package from a release source
+      build       Build and install a package from source
+      upgrade     Upgrade installed packages
+      remove      Remove installed packages
+      reinstall   Reinstall packages using stored metadata
+      rollback    Restore or prune rollback artifacts
+      list        List installed packages
+      info        Show package metadata
+      search      Search provider repositories
+      find        Search and interactively install a repository
+      probe       Choose and install a release asset
+      changelog   Show upstream release notes
+      docs        Search installed package documentation
+      package     Manage package settings and aliases
+      cache       Inspect or clean reusable cache data
+      config      Manage configuration
+      auth        Manage provider API tokens
+      hooks       Manage shell integration
+      import      Import configuration or package data
+      export      Export configuration or package data
+      doctor      Check installation health
+
+    Options:
+      -y, --yes       Accept confirmation prompts
+          --no-pager  Do not open long output in a pager
+      -h, --help      Print help
+      -V, --version   Print version
+
+Use `upstream <command> --help` for the exact options for a command.
+Most commands that change package state support `--dry-run`.
 
 ## Installation
 
-### Recommended
+There are a couple of ways to install Upstream.
+
+### Binary installers
 
 #### Linux
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.bash | bash
 ```
 
 #### macOS
+
 ```zsh
 curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.zsh | zsh
 ```
 
 #### Windows
-```ps1
+
+```powershell
 iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.ps1 | iex
 ```
 
-Windows also requires the latest supported Microsoft Visual C++ v14 Redistributable. Install the package matching your architecture from [Microsoft](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) before running the installer.
+Windows also requires the latest supported Microsoft Visual C++ v14
+Redistributable. Install the package matching your architecture from
+[Microsoft](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
+before running the installer.
 
-## Platform Support
-
-Linux is the primary supported platform. Windows and macOS support are experimental, with Windows currently more supported and tested than macOS.
-MacOS is likely to lack behind in feature support: for example, you cannot create desktop entries on MacOS (though this is planned for the future).
+Linux is the primary supported platform. Windows and macOS support are experimental.
+Windows is currently more supported and tested than macOS (which is to say not at all)
+MacOS is also missing some features, including desktop-entry creation.
 
 ### Cargo
 
@@ -49,23 +98,19 @@ MacOS is likely to lack behind in feature support: for example, you cannot creat
 cargo install upstream-rs
 ```
 
-Cargo installs do not support `upstream upgrade` self-updates.
+Cargo installs work normally, but they cannot update themselves with `upstream upgrade`.
 
-### Manual
+### Manual installation
 
-Download a release from:
-
-```text
-https://github.com/what386/upstream-rs/releases/latest
-```
-
-Then make it executable:
+Download a release from the
+[latest GitHub release](https://github.com/what386/upstream-rs/releases/latest),
+then make the binary executable (on Unix systems):
 
 ```bash
 chmod +x upstream
 ```
 
-## Quick Start
+## Getting started
 
 Initialize shell integration:
 
@@ -73,286 +118,140 @@ Initialize shell integration:
 upstream hooks init
 ```
 
-Install a package:
+Install something:
 
 ```bash
 upstream install BurntSushi/ripgrep
 ```
 
-Install a specific asset kind:
-
-```bash
-upstream install BurntSushi/ripgrep -k binary
-```
-
-Preview an install without changing anything:
+Preview the install first:
 
 ```bash
 upstream install BurntSushi/ripgrep --dry-run
 ```
 
-Search for repositories:
-
-```bash
-upstream search ripgrep --language Rust
-```
-
-Search interactively and install a selected result:
+Find software interactively:
 
 ```bash
 upstream find ripgrep
 ```
 
-Probe releases, choose an asset, and install it:
+Choose a release asset interactively:
 
 ```bash
 upstream probe BurntSushi/ripgrep
 ```
 
-Inspect parsed releases without installing:
-
-```bash
-upstream probe BurntSushi/ripgrep --dry-run
-upstream probe BurntSushi/ripgrep --json
-```
-
-Upgrade installed packages:
+Upgrade everything, or check without changing anything:
 
 ```bash
 upstream upgrade
-```
-
-Check for available updates:
-
-```bash
 upstream upgrade --check
 ```
 
-Check for updates in a script-friendly format:
-
-```bash
-upstream upgrade --check --machine-readable
-```
-
-List installed packages:
+List, inspect, remove, and diagnose:
 
 ```bash
 upstream list
-```
-
-Show details for an installed package:
-
-```bash
 upstream info ripgrep
-```
-
-Remove a package:
-
-```bash
 upstream remove ripgrep
-```
-
-Run diagnostics:
-
-```bash
 upstream doctor
 ```
 
-Inspect recent command and package history:
+## Common workflows
 
-```bash
-upstream history
-upstream history --package ripgrep
-upstream history --status failed --json
-upstream history --since 2d
-upstream history --today
-```
-
-Search installed package documentation:
-
-```bash
-upstream docs ripgrep usage
-upstream docs ripgrep --offline usage
-```
-
-## API Tokens
-
-Provider API tokens are optional, but they help avoid anonymous rate limits and are required for private repositories.
-
-Set a GitHub token with:
-
-```bash
-upstream auth set github.api_token=github_pat_xxx
-```
-
-For GitHub, open your profile menu, then go to **Settings > Developer settings > Personal access tokens**.
-
-Tokens are stored separately in `auth.toml`, not included in config or profile
-exports, and can be inspected with `upstream auth list` or `upstream auth get`.
-
-Both of these token types work:
-
-* A fine-grained personal access token that can read the repositories you use.
-* An unscoped classic token for public data, or a `repo`-scoped classic token when private repository access is required.
-
-Run `upstream doctor` after configuring tokens to verify that they work.
-
-## Common Workflows
-
-### Install from a release source
-
-```bash
-upstream install <repo-or-url>
-```
-
-Packages are identified by their provider and repository slug. Upstream discovers
-the executables in the installed artifact and registers aliases from their filenames.
-
-Examples:
+### Install a release
 
 ```bash
 upstream install sharkdp/fd
-upstream install BurntSushi/ripgrep
 upstream install neovim/neovim --tag v0.11.0
 upstream install owner/repo --desktop
-```
-
-Use `--match-pattern` and `--exclude-pattern` to guide asset selection:
-
-```bash
 upstream install owner/repo --match-pattern linux --exclude-pattern debug
-upstream install owner/repo --match-pattern linux,x86_64 --exclude-pattern debug,symbols
 ```
+
+Packages are identified by their provider and repository slug. Upstream
+discovers executable aliases from the installed artifact, so a project does
+not need to use the same name for its repository and its binary.
 
 ### Build from source
 
 ```bash
-upstream build <repo-or-url>
-```
-
-Build accepts GitHub, GitLab, and Gitea repository slugs or URLs. The package ID
-comes from the resolved provider and repository slug; the built executable name is
-derived from the repository name.
-
-Examples:
-
-```bash
 upstream build BurntSushi/ripgrep
-upstream build BurntSushi/ripgrep
-upstream build BurntSushi/ripgrep --branch main
+upstream build owner/repo --branch main
 upstream build owner/repo --build-profile dotnet
 ```
 
-Git source builds use cached workspaces under `.upstream/cache/build/` so rebuilds and upgrades can reuse build output when the project build system supports it.
-
-Supported build profiles:
-
-```text
-rust
-dotnet
-go
-zig
-cmake
-```
-
-### Upgrade packages
-
-```bash
-upstream upgrade
-upstream upgrade nvim ripgrep
-upstream upgrade --check
-upstream upgrade --check --machine-readable
-```
+Supported build profiles are `rust`, `dotnet`, `go`, `zig`, and `cmake`.
+Build workspaces are cached under `.upstream/cache/build/` when the project
+build system allows rebuilds to reuse its output.
 
 ### Manage packages
 
 ```bash
-upstream remove ripgrep
+upstream upgrade nvim ripgrep
 upstream reinstall ripgrep
 upstream rollback ripgrep
 upstream rollback --list
-upstream rollback --prune
 upstream package pin nvim
-upstream package unpin nvim
 upstream package rename nvim neovim
-upstream package add-entry nvim
-upstream package rm-entry nvim
 upstream package set nvim match_pattern=linux,x86_64 trust_mode=checksum
-upstream package get nvim
-upstream package unset nvim exclude_pattern
 upstream cache list
 upstream cache clean docs
 ```
-
-Rollback is package-name-specific. Local data migrations are applied automatically
-when Upstream starts.
 
 ### Import and export
 
 ```bash
 upstream export config ./config.toml
 upstream import config ./config.toml
-
 upstream export packages ./packages.json
-upstream import packages ./packages.json
 upstream import packages ./packages.json --latest
-
+upstream export profile ./profile.json
+upstream import profile ./profile.json --latest
 upstream export keys ./keys.json
 upstream import keys ./keys.json
-
-upstream export profile ./profile.json
-upstream import profile ./profile.json
-upstream import profile ./profile.json --latest
 ```
 
-Package and profile exports contain reinstallable package references, not
-installed files, rollback artifacts, or cache contents. Use `--latest` to ignore
-recorded version tags during import. Imports continue after individual package
-failures, print a final summary, and exit unsuccessfully if any package failed.
+Exports contain reinstallable references and metadata. They do not contain
+installed files, rollback artifacts, or cache contents.
 
-## Command Overview
+## API tokens
 
-| Command     | Purpose                              |
-| ----------- | ------------------------------------ |
-| `install`   | Install from a release source        |
-| `build`     | Build and install from source        |
-| `upgrade`   | Upgrade packages                     |
-| `remove`    | Remove packages (`uninstall` alias)  |
-| `reinstall` | Reinstall using stored metadata      |
-| `rollback`  | Manage rollback artifacts            |
-| `list`      | Show installed packages              |
-| `info`      | Show one package's exact metadata    |
-| `changelog` | Show upstream release notes          |
-| `docs`      | Search cached or fetched package documentation |
-| `search`    | Search provider repositories         |
-| `find`      | Pick and install a search result     |
-| `probe`     | Pick and install a release asset     |
-| `config`    | Manage configuration                 |
-| `auth`      | Manage provider API tokens           |
-| `package`   | Pin, unpin, or rename packages       |
-| `cache`     | Inspect or clean reusable cache data |
-| `hooks`     | Manage shell integration             |
-| `import`    | Import config, trusted keys, or exported packages |
-| `export`    | Export config, trusted keys, or installed packages |
-| `doctor`    | Check installation health            |
+Provider tokens are optional. They help avoid anonymous rate limits,
+but are required for private repositories.
 
-Use `-y` or `--yes` to accept confirmation prompts automatically. Use
-`--no-pager` to prevent long output from opening a pager. Most commands that
-change package state also support `--dry-run`.
+```bash
+upstream auth set github.api_token=github_pat_xxx
+upstream auth list
+upstream doctor
+```
+
+For GitHub, create a token under **Settings > Developer settings > Personal
+access tokens**. Tokens are stored separately in `auth.toml` and are not
+included in configuration or profile exports.
 
 ## Documentation
 
-Detailed documentation is available in [`docs/`](docs/):
+Developer documentation is in [`docs/`](docs/):
 
 * [Documentation index](docs/index.md)
-* [Installation and paths](docs/installation.md)
-* [Command reference](docs/commands.md)
-* [Package lifecycle](docs/packages.md)
-* [Building from source](docs/build.md)
-* [Configuration](docs/configuration.md)
-* [Trust and verification](docs/trust.md)
-* [Backup, import, and export](docs/backup.md)
-* [Troubleshooting](docs/troubleshooting.md)
+* [Architecture](docs/architecture.md)
+* [Build profiles](docs/build.md)
+* [Configuration and storage](docs/configuration.md)
+* [Testing](docs/testing.md)
+* [Contributing](docs/contributing.md)
+
+## FAQ
+
+### Why not just use my distribution's package manager?
+
+You should use it when it has the package and version you want. Upstream is for
+the gaps: small projects, portable binaries, newer versions, private
+repositories, or projects that are expected to be built from source.
+
+### Why Rust?
+
+Because it's 🚀🚀🚀 BLAZINGLY FAST 🚀🚀🚀 and 💾💾💾 MEMORY SAFE 💾💾💾 and 🔒🔒🔒 ZERO-COST ABSTRACTIONS 🔒🔒🔒 and ⚡⚡⚡ FEARLESSLY CONCURRENT ⚡⚡⚡ an
 
 ## License
 
