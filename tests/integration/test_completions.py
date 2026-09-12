@@ -37,7 +37,7 @@ class CompletionIntegrationTests(unittest.TestCase):
             self.assertIn(expected_marker, path.read_text(encoding="utf-8"), str(path))
 
         fish = (ROOT / "completions" / "completions.fish").read_text(encoding="utf-8")
-        self.assertIn('__upstream_using_subcommand $command" -f -a', fish)
+        self.assertIn("-f -a '(__upstream_dynamic)'", fish)
 
     @unittest.skipUnless(
         subprocess.run(["bash", "--version"], capture_output=True).returncode == 0,
