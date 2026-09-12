@@ -2338,3 +2338,18 @@ if [ "$funcstack[1]" = "_upstream" ]; then
 else
     compdef _upstream upstream
 fi
+
+
+_upstream_dynamic() {
+    _upstream "$@"
+    local command=${words[2]}
+    case "$command" in
+        changelog|docs|doctor|history|info|list|package|reinstall|remove|rollback|upgrade) ;;
+        *) return ;;
+    esac
+    local cursor=$((CURRENT - 3))
+    local -a dynamic
+    dynamic=(${(f)"$(command upstream __complete "$command" "$cursor" -- ${words[@]:3})"})
+    compadd -- $dynamic
+}
+compdef _upstream_dynamic upstream

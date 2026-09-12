@@ -499,3 +499,21 @@ complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from export" -f -a "keys" -d 'Export trusted minisign and cosign public keys'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from export" -f -a "packages" -d 'Export installed package references'
 complete -c upstream -n "__fish_upstream_using_subcommand help; and __fish_seen_subcommand_from export" -f -a "profile" -d 'Export config, trust keys, and package references'
+
+
+function __upstream_dynamic
+    set -l words (commandline -opc)
+    set -e words[1]
+    test (count $words) -gt 0; or return
+    set -l command $words[1]
+    set -e words[1]
+    set -a words (commandline -ct)
+    set -l cursor (math (count $words) - 1)
+    switch $command
+        case changelog docs doctor history info list package reinstall remove rollback upgrade
+            command upstream __complete $command $cursor -- $words
+    end
+end
+for command in changelog docs doctor history info list package reinstall remove rollback upgrade
+    complete -c upstream -n "__fish_upstream_using_subcommand $command" -a '(__upstream_dynamic)'
+end

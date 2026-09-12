@@ -3003,3 +3003,21 @@ if [[ "${BASH_VERSINFO[0]}" -eq 4 && "${BASH_VERSINFO[1]}" -ge 4 || "${BASH_VERS
 else
     complete -F _upstream -o bashdefault -o default upstream
 fi
+
+
+# Dynamic values are supplied by upstream's reduced completion startup.
+_upstream_dynamic() {
+    _upstream "$@"
+    local command="${COMP_WORDS[1]}"
+    case "$command" in
+        changelog|docs|doctor|history|info|list|package|reinstall|remove|rollback|upgrade) ;;
+        *) return ;;
+    esac
+    local offset=2
+    local cursor=$((COMP_CWORD - offset))
+    local -a words=("${COMP_WORDS[@]:offset}")
+    local -a dynamic
+    mapfile -t dynamic < <(command upstream __complete "$command" "$cursor" -- "${words[@]}")
+    COMPREPLY+=("${dynamic[@]}")
+}
+complete -F _upstream_dynamic -o nosort -o bashdefault -o default upstream

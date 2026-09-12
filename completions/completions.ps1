@@ -19,7 +19,19 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         $element.Value
     }) -join ';'
 
-    $completions = @(switch ($command) {
+    $dynamicCompletions = @()
+    $dynamicCommand = $command.Split(';')[-1]
+    if ($dynamicCommand -in @('changelog', 'docs', 'doctor', 'history', 'info', 'list', 'package', 'reinstall', 'remove', 'rollback', 'upgrade')) {
+        $dynamicWords = @()
+        for ($i = 2; $i -lt $commandElements.Count; $i++) {
+            $dynamicWords += $commandElements[$i].Value
+        }
+        $dynamicCursor = [Math]::Max(0, $dynamicWords.Count - 1)
+        $dynamicCompletions = @(& upstream __complete $dynamicCommand $dynamicCursor -- $dynamicWords | ForEach-Object {
+            [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, 'Installed package')
+        })
+    }
+
         'upstream' {
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
@@ -1058,6 +1070,12 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
         }
     })
 
+    $completions += $dynamicCompletions
+
     $completions.Where{ $_.CompletionText -like "$wordToComplete*" } |
         Sort-Object -Property ListItemText
 }
+
+
+# Dynamic package values are delegated to the reduced native completer.
+# The generated static completer remains responsible for flags and commands.

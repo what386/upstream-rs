@@ -896,5 +896,19 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;help'= {
         }
     ]
+    var dynamic_command = (str:split ';' $command)[-1]
+    if (or (== $dynamic_command 'changelog') (== $dynamic_command 'docs') (== $dynamic_command 'doctor') (== $dynamic_command 'history') (== $dynamic_command 'info') (== $dynamic_command 'list') (== $dynamic_command 'package') (== $dynamic_command 'reinstall') (== $dynamic_command 'remove') (== $dynamic_command 'rollback') (== $dynamic_command 'upgrade')) {
+        var dynamic_words = $words[2..-1]
+        var dynamic_cursor = (- (count $dynamic_words) 1)
+        var dynamic_values = (upstream __complete $dynamic_command $dynamic_cursor -- $dynamic_words | slurp | str:split '\n')
+        for value $dynamic_values {
+            if (not (== $value '')) {
+                cand $value 'Installed package'
+            }
+        }
+    }
     $completions[$command]
 }
+
+
+# Dynamic package values are delegated to the reduced native completer.
