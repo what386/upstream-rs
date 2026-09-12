@@ -153,12 +153,12 @@ Run the binary.
         let result = search_readme(
             "upstream",
             "README.md",
-            "command overview",
+            "common workflows",
             include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md")),
         );
 
         assert_eq!(result.document_name, "README.md");
-        assert_eq!(result.sections[0].heading, "Command Overview");
+        assert_eq!(result.sections[0].heading, "Common workflows");
         assert!(result.sections[0].body.contains("install"));
     }
 }
