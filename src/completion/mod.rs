@@ -87,10 +87,12 @@ pub fn run(args: &[String]) -> Result<()> {
     let cursor = cursor
         .parse::<usize>()
         .map_err(|_| anyhow::anyhow!("invalid completion cursor '{cursor}'"))?;
+
     let words = rest
         .strip_prefix(&["--".to_string()])
         .unwrap_or(rest)
         .to_vec();
+
     let request = CompletionRequest::new(words, cursor)?;
     let startup = CompletionStartup::new()?;
 

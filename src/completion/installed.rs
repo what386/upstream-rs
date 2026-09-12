@@ -31,6 +31,7 @@ pub fn package_names(
             )
         })
         .collect::<Vec<_>>();
+
     let mut friendly_name_counts = HashMap::new();
     for (_, friendly) in &package_names {
         if let Some(friendly) = friendly {
@@ -50,6 +51,7 @@ pub fn package_names(
             let is_ambiguous = friendly_name_counts
                 .get(&friendly.to_ascii_lowercase())
                 .is_some_and(|count| *count > 1);
+
             if is_ambiguous {
                 vec![friendly, id.to_string()]
             } else {

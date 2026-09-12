@@ -70,6 +70,7 @@ fn generate_for_shell<G: Generator>(
                 "    })\n\n    $completions.Where",
                 "    })\n\n    $completions += $dynamicCompletions\n\n    $completions.Where",
             );
+
         out.write_all(generated.as_bytes())
             .expect("write generated PowerShell completion");
     } else if shell == "elvish" {
@@ -90,12 +91,14 @@ fn generate_for_shell<G: Generator>(
     $completions[$command]
 }"#,
         );
+
         out.write_all(generated.as_bytes())
             .expect("write generated Elvish completion");
     } else {
         out.write_all(&generated)
             .expect("write generated completion");
     }
+
     let _ = write_dynamic_hook(shell, out);
 }
 

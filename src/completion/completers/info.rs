@@ -27,8 +27,10 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock before epoch")
             .as_nanos();
+
         let path =
             std::env::temp_dir().join(format!("upstream-completion-info-{unique}/packages.db"));
+
         let mut database = PackageDatabase::open(&path).expect("open package database");
         database
             .upsert_package(&Package::with_defaults(
