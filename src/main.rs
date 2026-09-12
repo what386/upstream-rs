@@ -57,8 +57,8 @@ async fn signal_supervisor(cancellation: Cancellation) {
 
 async fn run() -> anyhow::Result<()> {
     let raw_args = std::env::args().skip(1).collect::<Vec<_>>();
-    if raw_args.first().is_some_and(|arg| arg == "__complete") {
-        return completion::run(&raw_args[1..]);
+    if let Some(index) = raw_args.iter().position(|arg| arg == "__complete") {
+        return completion::run(&raw_args[index + 1..]);
     }
 
     let cli = Cli::parse();
