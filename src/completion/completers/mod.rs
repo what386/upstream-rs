@@ -1,0 +1,13 @@
+mod installed;
+
+pub mod changelog;
+pub mod docs;
+pub mod doctor;
+pub mod history;
+pub mod info;
+pub mod list;
+pub mod package;
+pub mod reinstall;
+pub mod remove;
+pub mod rollback;
+pub mod upgrade;

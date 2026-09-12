@@ -62,7 +62,7 @@ winapi = { version = "0.3", features = ["winuser", "processthreadsapi", "handlea
 
 [[bin]]
 name = "completions"
-path = "src/completions.rs"
+path = "src/completion/generator.rs"
 required-features = ["shell-completions"]
 
 [[bin]]

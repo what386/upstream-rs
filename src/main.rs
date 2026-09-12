@@ -4,6 +4,7 @@ use console::style;
 use upstream_rs::application::cancellation::{self, Cancellation};
 use upstream_rs::application::cli::arguments::Cli;
 use upstream_rs::application::operations::history_op::{self, LogLevel, Outcome};
+use upstream_rs::completion;
 use upstream_rs::output;
 use upstream_rs::routines::migrate;
 use upstream_rs::storage::system::config::ConfigStorage;
@@ -55,6 +56,11 @@ async fn signal_supervisor(cancellation: Cancellation) {
 }
 
 async fn run() -> anyhow::Result<()> {
+    let raw_args = std::env::args().skip(1).collect::<Vec<_>>();
+    if raw_args.first().is_some_and(|arg| arg == "__complete") {
+        return completion::run(&raw_args[1..]);
+    }
+
     let cli = Cli::parse();
     let paths = UpstreamPaths::new()?;
     output::init_logger(paths.dirs.data_dir.join("log.jsonl"));
