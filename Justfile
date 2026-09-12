@@ -26,6 +26,9 @@ integration-tests:
 integration-tests-hermetic:
     python3 -m unittest discover -s tests/integration -p 'test_*.py'
 
+integration-test test:
+    python3 -m unittest {{test}}
+
 integration-tests-live:
     python3 -m unittest discover -s tests/live -p 'test_*.py'
 
