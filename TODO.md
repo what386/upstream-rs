@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-09-09
+@modified: 2026-09-12
 
 
 ## Tasks
@@ -17,4 +17,11 @@
 
 - [ ] feat: systemd unit integrations
       @created 2026-09-05 03:40
+
+
+## Completed
+
+- [x] cli: add dynamic completion support
+      @created 2026-09-12 01:03
+      @completed 2026-09-12 01:04
 
