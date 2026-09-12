@@ -1,4 +1,5 @@
 pub mod completers;
+pub mod installed;
 pub mod startup;
 
 use anyhow::Result;

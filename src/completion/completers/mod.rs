@@ -1,5 +1,3 @@
-mod installed;
-
 pub mod changelog;
 pub mod docs;
 pub mod doctor;

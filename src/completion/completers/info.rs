@@ -3,7 +3,7 @@ use anyhow::Result;
 use super::super::{CompletionCandidate, CompletionRequest};
 use crate::completion::startup::CompletionStartup;
 
-use super::installed;
+use super::super::installed;
 
 /// Completes the installed package query accepted by `upstream info`.
 pub fn complete(
@@ -63,8 +63,31 @@ mod tests {
     }
 
     #[test]
-    fn returns_canonical_id_too() {
+    fn omits_unique_canonical_id() {
         let database = database();
+        let startup = CompletionStartup::from_database(database);
+        let request = CompletionRequest::new(vec!["github:".into()], 0).expect("request");
+
+        let candidates = complete(&request, &startup).expect("complete");
+
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn includes_canonical_ids_for_ambiguous_friendly_names() {
+        let mut database = database();
+        database
+            .upsert_package(&Package::with_defaults(
+                "gitlab:BurntSushi/ripgrep".into(),
+                "BurntSushi/ripgrep".into(),
+                Filetype::Binary,
+                None,
+                None,
+                Channel::Stable,
+                Provider::Gitlab,
+                None,
+            ))
+            .expect("insert ambiguous package");
         let startup = CompletionStartup::from_database(database);
         let request = CompletionRequest::new(vec!["github:".into()], 0).expect("request");
 

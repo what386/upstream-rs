@@ -1,7 +1,7 @@
 use anyhow::Result;
 
+use super::super::installed;
 use super::super::{CompletionCandidate, CompletionRequest, startup::CompletionStartup};
-use super::installed;
 
 pub fn complete(
     request: &CompletionRequest,
