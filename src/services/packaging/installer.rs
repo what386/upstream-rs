@@ -712,7 +712,6 @@ impl<'a> PackageInstaller<'a> {
         );
 
         package.record_release(release);
-        let package_name = package.id.clone();
         let package_provider = package.provider.clone();
 
         let installed_package = match package.filetype {
@@ -786,7 +785,6 @@ impl<'a> PackageInstaller<'a> {
 
         self.finish_verified_release_install(
             installed_package,
-            &package_name,
             &package_provider,
             release,
             &package_download_cache,
@@ -805,7 +803,6 @@ impl<'a> PackageInstaller<'a> {
     pub async fn finish_verified_release_install<H, P>(
         &self,
         installed_package: Package,
-        package_name: &str,
         package_provider: &crate::models::common::enums::Provider,
         release: &Release,
         artifact_cache: &Path,
@@ -821,11 +818,12 @@ impl<'a> PackageInstaller<'a> {
             PackageProgressEvent::Phase(PackagePhase::InstallingCompletions)
         );
 
+        let executable_name = installed_package.primary_executable_name().to_owned();
         if let Err(err) = crate::services::integration::CompletionManager::with_paths(
             self.workspace().completions.clone(),
         )
         .install_from_release_assets(
-            package_name,
+            &executable_name,
             release,
             self.provider_manager,
             package_provider,

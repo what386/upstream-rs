@@ -49,7 +49,7 @@ impl<'a> PackageRemover<'a> {
     }
 
     pub fn estimate_active_size(&self, package: &Package) -> Result<u64> {
-        let package_name = filesystem_name(&package.id);
+        let package_name = filesystem_name(package.primary_executable_name());
         let mut paths = Vec::new();
         if let Some(install_path) = package.install_path.as_ref() {
             paths.push(install_path.clone());
@@ -163,6 +163,7 @@ impl<'a> PackageRemover<'a> {
             package.base_url.as_deref(),
         )
         .unwrap_or_else(|| package.id.clone());
+        let executable_name = package.primary_executable_name().to_owned();
 
         if let Some(callback) = progress_callback.as_mut() {
             callback(
@@ -172,7 +173,7 @@ impl<'a> PackageRemover<'a> {
         }
 
         if let Err(error) = self
-            .purge_configs(&purge_name, message_callback)
+            .purge_configs(&purge_name, &executable_name, message_callback)
             .context(format!(
                 "Failed to purge configuration files for '{}'",
                 package_name
@@ -313,7 +314,7 @@ impl<'a> PackageRemover<'a> {
         self.remove_runtime_link(package, message_callback)?;
 
         CompletionManager::new(self.paths)
-            .remove_for_package(&package.id, message_callback)
+            .remove_for_package(package.primary_executable_name(), message_callback)
             .context(format!(
                 "Failed to remove completion files for '{}'",
                 package.id
@@ -393,6 +394,7 @@ impl<'a> PackageRemover<'a> {
     pub fn purge_configs<H>(
         &self,
         package_name: &str,
+        executable_name: &str,
         message_callback: &mut Option<H>,
     ) -> Result<()>
     where
@@ -410,7 +412,7 @@ impl<'a> PackageRemover<'a> {
             package_name
         ))?;
         CompletionManager::new(self.paths)
-            .remove_for_package(package_name, message_callback)
+            .remove_for_package(executable_name, message_callback)
             .context(format!(
                 "Failed to remove completion files for '{}'",
                 package_name

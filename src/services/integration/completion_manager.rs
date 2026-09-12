@@ -162,7 +162,7 @@ impl<'a> CompletionManager<'a> {
 
     pub async fn install_from_release_assets<H>(
         &self,
-        package_name: &str,
+        executable_name: &str,
         release: &Release,
         provider_manager: &ProviderManager,
         provider: &Provider,
@@ -176,7 +176,7 @@ impl<'a> CompletionManager<'a> {
             .assets
             .iter()
             .filter_map(|asset| {
-                classify_completion_path(package_name, Path::new(&asset.name))
+                classify_completion_path(executable_name, Path::new(&asset.name))
                     .map(|candidate| (asset, candidate))
             })
             .collect();
@@ -207,7 +207,7 @@ impl<'a> CompletionManager<'a> {
             return Ok(0);
         }
 
-        self.remove_installed_completion_files(package_name)?;
+        self.remove_installed_completion_files(executable_name)?;
 
         let mut installed = 0_usize;
         for (asset, candidate) in selected_assets {
@@ -217,7 +217,7 @@ impl<'a> CompletionManager<'a> {
                 .await
                 .with_context(|| format!("Failed to download completion asset '{}'", asset.name))?;
 
-            self.install_completion(package_name, candidate.shell, &downloaded_path)
+            self.install_completion(executable_name, candidate.shell, &downloaded_path)
                 .with_context(|| {
                     format!(
                         "Failed to install '{}' completion from '{}'",
@@ -240,7 +240,7 @@ impl<'a> CompletionManager<'a> {
 
     pub fn install_from_root<H>(
         &self,
-        package_name: &str,
+        executable_name: &str,
         root: &Path,
         message_callback: &mut Option<H>,
     ) -> Result<usize>
@@ -251,7 +251,7 @@ impl<'a> CompletionManager<'a> {
             return Ok(0);
         }
 
-        let candidates: Vec<_> = choose_one_per_shell(find_completion_files(package_name, root))
+        let candidates: Vec<_> = choose_one_per_shell(find_completion_files(executable_name, root))
             .into_iter()
             .filter(|candidate| shell_is_available(candidate.shell))
             .collect();
@@ -260,11 +260,11 @@ impl<'a> CompletionManager<'a> {
             return Ok(0);
         }
 
-        self.remove_installed_completion_files(package_name)?;
+        self.remove_installed_completion_files(executable_name)?;
 
         let mut installed = 0_usize;
         for candidate in candidates {
-            self.install_completion(package_name, candidate.shell, &candidate.path)
+            self.install_completion(executable_name, candidate.shell, &candidate.path)
                 .with_context(|| {
                     format!(
                         "Failed to install '{}' completion from '{}'",
@@ -287,11 +287,11 @@ impl<'a> CompletionManager<'a> {
 
     fn install_completion(
         &self,
-        package_name: &str,
+        executable_name: &str,
         shell: CompletionShell,
         source: &Path,
     ) -> Result<()> {
-        let destination = self.completion_path(package_name, shell);
+        let destination = self.completion_path(executable_name, shell);
 
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent).with_context(|| {
@@ -320,27 +320,29 @@ impl<'a> CompletionManager<'a> {
         }
     }
 
-    fn completion_path(&self, package_name: &str, shell: CompletionShell) -> PathBuf {
-        let package_name = filesystem_name(package_name);
+    fn completion_path(&self, executable_name: &str, shell: CompletionShell) -> PathBuf {
+        let executable_name = filesystem_name(executable_name);
         match shell {
-            CompletionShell::Bash => self.completion_dir(shell).join(package_name),
+            CompletionShell::Bash => self.completion_dir(shell).join(executable_name),
             CompletionShell::Fish => self
                 .completion_dir(shell)
-                .join(format!("{package_name}.fish")),
-            CompletionShell::Zsh => self.completion_dir(shell).join(format!("_{package_name}")),
+                .join(format!("{executable_name}.fish")),
+            CompletionShell::Zsh => self
+                .completion_dir(shell)
+                .join(format!("_{executable_name}")),
         }
     }
 
-    pub fn package_completion_paths(&self, package_name: &str) -> [PathBuf; 3] {
+    pub fn package_completion_paths(&self, executable_name: &str) -> [PathBuf; 3] {
         [
-            self.completion_path(package_name, CompletionShell::Bash),
-            self.completion_path(package_name, CompletionShell::Fish),
-            self.completion_path(package_name, CompletionShell::Zsh),
+            self.completion_path(executable_name, CompletionShell::Bash),
+            self.completion_path(executable_name, CompletionShell::Fish),
+            self.completion_path(executable_name, CompletionShell::Zsh),
         ]
     }
 
-    fn remove_installed_completion_files(&self, package_name: &str) -> Result<usize> {
-        let candidates = self.package_completion_paths(package_name);
+    fn remove_installed_completion_files(&self, executable_name: &str) -> Result<usize> {
+        let candidates = self.package_completion_paths(executable_name);
 
         let mut removed = 0_usize;
         for path in candidates {
@@ -357,11 +359,11 @@ impl<'a> CompletionManager<'a> {
         Ok(removed)
     }
 
-    pub fn snapshot_for_package(&self, package_name: &str) -> Result<CompletionSnapshot> {
+    pub fn snapshot_for_package(&self, executable_name: &str) -> Result<CompletionSnapshot> {
         let candidates = [
-            self.completion_path(package_name, CompletionShell::Bash),
-            self.completion_path(package_name, CompletionShell::Fish),
-            self.completion_path(package_name, CompletionShell::Zsh),
+            self.completion_path(executable_name, CompletionShell::Bash),
+            self.completion_path(executable_name, CompletionShell::Fish),
+            self.completion_path(executable_name, CompletionShell::Zsh),
         ];
 
         let mut files = Vec::new();
@@ -454,16 +456,16 @@ impl<'a> CompletionManager<'a> {
 
     pub fn remove_for_package<H>(
         &self,
-        package_name: &str,
+        executable_name: &str,
         message_callback: &mut Option<H>,
     ) -> Result<usize>
     where
         H: FnMut(&str),
     {
         let candidates = [
-            self.completion_path(package_name, CompletionShell::Bash),
-            self.completion_path(package_name, CompletionShell::Fish),
-            self.completion_path(package_name, CompletionShell::Zsh),
+            self.completion_path(executable_name, CompletionShell::Bash),
+            self.completion_path(executable_name, CompletionShell::Fish),
+            self.completion_path(executable_name, CompletionShell::Zsh),
         ];
 
         let mut removed = 0_usize;
@@ -494,13 +496,13 @@ fn installed_completion_shells() -> Vec<CompletionShell> {
         .collect()
 }
 
-fn find_completion_files(package_name: &str, root: &Path) -> Vec<CompletionCandidate> {
+fn find_completion_files(executable_name: &str, root: &Path) -> Vec<CompletionCandidate> {
     WalkDir::new(root)
         .follow_links(false)
         .into_iter()
         .filter_map(std::result::Result::ok)
         .filter(|entry| entry.file_type().is_file())
-        .filter_map(|entry| classify_completion_path(package_name, entry.path()))
+        .filter_map(|entry| classify_completion_path(executable_name, entry.path()))
         .collect()
 }
 
@@ -535,14 +537,14 @@ fn choose_one_per_shell(mut candidates: Vec<CompletionCandidate>) -> Vec<Complet
     selected
 }
 
-fn classify_completion_path(package_name: &str, path: &Path) -> Option<CompletionCandidate> {
+fn classify_completion_path(executable_name: &str, path: &Path) -> Option<CompletionCandidate> {
     let file_name = path.file_name()?.to_string_lossy();
     let extension = path.extension()?.to_string_lossy();
     let shell = CompletionShell::from_extension(&extension)?;
     let lower_file_name = file_name.to_ascii_lowercase();
-    let lower_package = package_name.to_ascii_lowercase();
+    let lower_executable = executable_name.to_ascii_lowercase();
 
-    if lower_file_name == format!("{lower_package}.{extension}") {
+    if lower_file_name == format!("{lower_executable}.{extension}") {
         return Some(CompletionCandidate {
             shell,
             path: path.to_path_buf(),
@@ -642,26 +644,30 @@ mod tests {
         let source_root = root.join("source");
         fs::create_dir_all(source_root.join("completions")).expect("create source");
         fs::write(
-            source_root.join("completions/rg.bash"),
+            source_root.join("completions/ripgrep.bash"),
             "complete -F _rg rg\n",
         )
         .expect("write bash");
-        fs::write(source_root.join("completions/rg.fish"), "complete -c rg\n").expect("write fish");
+        fs::write(
+            source_root.join("completions/ripgrep.fish"),
+            "complete -c rg\n",
+        )
+        .expect("write fish");
 
         let mut no_messages: Option<fn(&str)> = None;
         CompletionManager::new(&paths)
-            .install_from_root("rg", &source_root, &mut no_messages)
+            .install_from_root("ripgrep", &source_root, &mut no_messages)
             .expect("install completions");
 
         for shell in CompletionManager::installed_shells() {
             match shell {
                 CompletionShell::Bash => assert_eq!(
-                    fs::read_to_string(paths.integration.bash_completions_dir.join("rg"))
+                    fs::read_to_string(paths.integration.bash_completions_dir.join("ripgrep"))
                         .expect("bash installed"),
                     "complete -F _rg rg\n"
                 ),
                 CompletionShell::Fish => assert_eq!(
-                    fs::read_to_string(paths.integration.fish_completions_dir.join("rg.fish"))
+                    fs::read_to_string(paths.integration.fish_completions_dir.join("ripgrep.fish"))
                         .expect("fish installed"),
                     "complete -c rg\n"
                 ),

@@ -49,14 +49,14 @@ fn set_executable_aliases(
 /// completions should never fail an otherwise-successful install.
 pub(super) fn install_completions_from_root<H>(
     workspace: &InstallWorkspace,
-    package_name: &str,
+    executable_name: &str,
     root: &Path,
     message_callback: &mut Option<H>,
 ) where
     H: FnMut(&str),
 {
     if let Err(err) = CompletionManager::with_paths(workspace.completions.clone())
-        .install_from_root(package_name, root, message_callback)
+        .install_from_root(executable_name, root, message_callback)
     {
         message!(
             message_callback,
@@ -143,8 +143,13 @@ where
             .unwrap_or_else(|| executable_paths[0].display().to_string())
     );
 
-    install_completions_from_root(workspace, &package.id, &out_path, message_callback);
     set_executable_aliases(&mut package, executable_paths, None);
+    install_completions_from_root(
+        workspace,
+        package.primary_executable_name(),
+        &out_path,
+        message_callback,
+    );
     package.install_path = Some(out_path);
     package.last_upgraded = Utc::now();
     Ok(package)
@@ -242,12 +247,16 @@ where
             .flatten()
     });
 
-    if let Some(root) = completion_root {
-        install_completions_from_root(workspace, &package.id, &root, message_callback);
-    }
-
     package.install_path = Some(out_path.clone());
     set_executable_aliases(&mut package, vec![out_path], primary_alias);
+    if let Some(root) = completion_root {
+        install_completions_from_root(
+            workspace,
+            package.primary_executable_name(),
+            &root,
+            message_callback,
+        );
+    }
     package.last_upgraded = Utc::now();
     Ok(package)
 }

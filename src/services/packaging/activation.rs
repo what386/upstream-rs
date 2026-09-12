@@ -135,31 +135,34 @@ impl PreparedInstall {
     }
 
     fn install_completions(&self, paths: &UpstreamPaths) -> Result<()> {
-        let package_name = filesystem_name(&self.package.id);
+        let executable_name = filesystem_name(self.package.primary_executable_name());
         let candidates = [
             (
-                self.workspace.completions().bash_dir.join(&package_name),
-                paths.integration.bash_completions_dir.join(&package_name),
+                self.workspace.completions().bash_dir.join(&executable_name),
+                paths
+                    .integration
+                    .bash_completions_dir
+                    .join(&executable_name),
             ),
             (
                 self.workspace
                     .completions()
                     .fish_dir
-                    .join(format!("{package_name}.fish")),
+                    .join(format!("{executable_name}.fish")),
                 paths
                     .integration
                     .fish_completions_dir
-                    .join(format!("{package_name}.fish")),
+                    .join(format!("{executable_name}.fish")),
             ),
             (
                 self.workspace
                     .completions()
                     .zsh_dir
-                    .join(format!("_{package_name}")),
+                    .join(format!("_{executable_name}")),
                 paths
                     .integration
                     .zsh_completions_dir
-                    .join(format!("_{package_name}")),
+                    .join(format!("_{executable_name}")),
             ),
         ];
 
@@ -325,8 +328,8 @@ impl ReplacementBackup {
     }
 
     pub fn move_integrations(&mut self, paths: &UpstreamPaths) -> Result<()> {
-        for path in
-            CompletionManager::new(paths).package_completion_paths(&self.previous_package.id)
+        for path in CompletionManager::new(paths)
+            .package_completion_paths(self.previous_package.primary_executable_name())
         {
             self.move_integration(path, "completions")?;
         }
@@ -385,8 +388,8 @@ impl<'a> PackageActivator<'a> {
             errors.push(format!("failed to remove runtime link: {error:#}"));
         }
 
-        if let Err(error) =
-            CompletionManager::new(self.paths).remove_for_package(&package.id, message_callback)
+        if let Err(error) = CompletionManager::new(self.paths)
+            .remove_for_package(package.primary_executable_name(), message_callback)
         {
             errors.push(format!("failed to remove completions: {error:#}"));
         }

@@ -150,12 +150,10 @@ impl<'a> PackageUpgrader<'a> {
             )
             .context("Failed to install zsync-updated artifact")?;
 
-        let name = installed.id.clone();
         let provider = installed.provider.clone();
         let result = installer
             .finish_verified_release_install(
                 installed,
-                &name,
                 &provider,
                 release,
                 updated.cache(),
