@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-09-09*
+*Generated on 2026-09-12*
+
+## 2.19.0 — 2026-09-12
+
+### Changes
+
+- cli: add dynamic completion support
+
 
 ## 2.18.3 — 2026-09-09
 
