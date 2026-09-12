@@ -163,6 +163,7 @@ impl<'a> PackageRemover<'a> {
             package.base_url.as_deref(),
         )
         .unwrap_or_else(|| package.id.clone());
+
         let executable_name = package.primary_executable_name().to_owned();
 
         if let Some(callback) = progress_callback.as_mut() {

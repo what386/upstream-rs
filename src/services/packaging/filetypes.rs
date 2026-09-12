@@ -257,6 +257,7 @@ where
             message_callback,
         );
     }
+
     package.last_upgraded = Utc::now();
     Ok(package)
 }
