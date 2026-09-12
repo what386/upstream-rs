@@ -18,3 +18,10 @@
 - [ ] feat: systemd unit integrations
       @created 2026-09-05 03:40
 
+
+## Completed
+
+- [x] fix: completions now use proper exec name
+      @created 2026-09-12 02:33
+      @completed 2026-09-12 02:33
+
