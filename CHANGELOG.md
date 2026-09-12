@@ -2,6 +2,13 @@
 
 *Generated on 2026-09-12*
 
+## 2.19.1 — 2026-09-12
+
+### Changes
+
+- fix: completions now use proper exec name
+
+
 ## 2.19.0 — 2026-09-12
 
 ### Changes
