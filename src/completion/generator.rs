@@ -139,7 +139,7 @@ function __upstream_dynamic
     end
 end
 for command in changelog docs doctor history info list package reinstall remove rollback upgrade
-    complete -c upstream -n "__fish_upstream_using_subcommand $command" -a '(__upstream_dynamic)'
+    complete -c upstream -n "__fish_upstream_using_subcommand $command" -f -a '(__upstream_dynamic)'
 end
 "#
         }
