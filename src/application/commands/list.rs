@@ -54,7 +54,8 @@ fn display_package_list(storage: &PackageDatabase, filter: Option<&str>) -> Resu
         None => format!("Packages ({})  Flags: D=desktop, P=pinned", packages.len()),
     };
 
-    pager::page_text(Some(&title), &format_package_table(&packages))?;
+    let (table_header, table_body) = format_package_table(&packages);
+    pager::page_table(&table_header, &title, &table_body)?;
 
     Ok(())
 }
@@ -261,35 +262,21 @@ impl ColumnWidths {
     }
 }
 
-fn format_package_table(packages: &[Package]) -> String {
+fn format_package_table(packages: &[Package]) -> (String, String) {
     let terminal_cols = Term::stdout().size().1 as usize;
     let term_width = terminal_cols.max(80);
     let widths = ColumnWidths::from_packages(packages, term_width);
-    let mut out = String::new();
+    let mut header = String::new();
+    let mut body = String::new();
 
-    write_table_header(&mut out, &widths);
-    writeln!(out, "{}", output::divider(table_width(&widths))).expect("write table divider");
+    write_table_header(&mut header, &widths);
 
     for package in packages {
-        write_package_row(&mut out, package, &widths);
+        write_package_row(&mut body, package, &widths);
     }
 
-    out.push('\n');
-    out
-}
-
-fn table_width(widths: &ColumnWidths) -> usize {
-    widths.id
-        + widths.commands
-        + widths.repo
-        + widths.kind
-        + widths.reference
-        + widths.channel
-        + widths.provider
-        + widths.flags
-        + widths.updated
-        + widths.path
-        + 8
+    body.push('\n');
+    (header, body)
 }
 
 fn write_table_header(out: &mut String, widths: &ColumnWidths) {

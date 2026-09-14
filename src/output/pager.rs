@@ -26,11 +26,10 @@ impl PagerConfig {
         }
     }
 
-    fn content_rows(&self, has_title: bool) -> usize {
-        let title_rows = usize::from(has_title);
+    fn content_rows(&self, header_rows: usize) -> usize {
         self.rows
             .saturating_sub(FOOTER_ROWS)
-            .saturating_sub(title_rows)
+            .saturating_sub(header_rows)
             .max(MIN_VISIBLE_ROWS)
     }
 }
@@ -123,30 +122,63 @@ fn no_pager() -> bool {
 }
 
 pub fn page_text(title: Option<&str>, text: &str) -> Result<()> {
+    page_text_with_header(title, None, false, false, text)
+}
+
+pub fn page_table(header: &str, footer_right: &str, text: &str) -> Result<()> {
+    page_text_with_header(Some(header), Some(footer_right), true, true, text)
+}
+
+fn page_text_with_header(
+    header: Option<&str>,
+    footer_right: Option<&str>,
+    scroll_header_horizontally: bool,
+    add_header_separator: bool,
+    text: &str,
+) -> Result<()> {
     if no_pager() {
-        print_without_pager(title, text)?;
+        print_without_pager(header, text, add_header_separator)?;
+        print_footer_metadata(footer_right);
         return Ok(());
     }
 
     let term = Term::stdout();
     if !term.is_term() {
-        print_without_pager(title, text)?;
+        print_without_pager(header, text, add_header_separator)?;
+        print_footer_metadata(footer_right);
         return Ok(());
     }
 
     let config = PagerConfig::from_term(&term);
     let lines = text.lines().map(ToString::to_string).collect::<Vec<_>>();
-    if lines.len() <= config.content_rows(title.is_some()) {
-        print_without_pager(title, text)?;
+    let header_rows =
+        header.map_or(0, |value| value.lines().count()) + usize::from(add_header_separator);
+    if lines.len() <= config.content_rows(header_rows) {
+        print_without_pager(header, text, add_header_separator)?;
+        print_footer_metadata(footer_right);
         return Ok(());
     }
 
-    page_lines(&term, title, &lines, config)
+    page_lines(
+        &term,
+        header,
+        footer_right,
+        scroll_header_horizontally,
+        add_header_separator,
+        &lines,
+        config,
+    )
 }
 
-fn print_without_pager(title: Option<&str>, text: &str) -> Result<()> {
-    if let Some(title) = title {
-        println!("{}", style(title).cyan().bold());
+fn print_without_pager(header: Option<&str>, text: &str, add_header_separator: bool) -> Result<()> {
+    if let Some(header) = header {
+        for line in header.lines() {
+            println!("{}", style(line).cyan().bold());
+        }
+        if add_header_separator {
+            let cols = Term::stdout().size().1 as usize;
+            println!("{}", "-".repeat(cols));
+        }
     }
 
     print!("{text}");
@@ -154,20 +186,44 @@ fn print_without_pager(title: Option<&str>, text: &str) -> Result<()> {
     Ok(())
 }
 
+fn print_footer_metadata(value: Option<&str>) {
+    let Some(value) = value else {
+        return;
+    };
+
+    let cols = Term::stdout().size().1 as usize;
+    let value = truncate_width(value, cols);
+    println!("{:>width$}", value, width = cols);
+}
+
 fn page_lines(
     term: &Term,
-    title: Option<&str>,
+    header: Option<&str>,
+    footer_right: Option<&str>,
+    scroll_header_horizontally: bool,
+    add_header_separator: bool,
     lines: &[String],
     config: PagerConfig,
 ) -> Result<()> {
     let max_width = lines
         .iter()
         .map(|line| line.chars().count())
+        .chain(if scroll_header_horizontally {
+            header
+                .into_iter()
+                .flat_map(str::lines)
+                .map(|line| line.chars().count())
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        })
         .max()
         .unwrap_or_default();
     let mut state = PagerState::new(
         lines.len(),
-        config.content_rows(title.is_some()),
+        config.content_rows(
+            header.map_or(0, |value| value.lines().count()) + usize::from(add_header_separator),
+        ),
         max_width,
         config.cols,
     );
@@ -178,7 +234,16 @@ fn page_lines(
             clear_rendered_view(term, rendered_lines)?;
         }
 
-        rendered_lines = render_view(term, title, lines, &state, config.cols)?;
+        rendered_lines = render_view(
+            term,
+            header,
+            footer_right,
+            scroll_header_horizontally,
+            add_header_separator,
+            lines,
+            &state,
+            config.cols,
+        )?;
 
         let action = action_for_key(term.read_key_raw()?);
         if action == PagerAction::Quit {
@@ -203,17 +268,30 @@ fn page_lines(
 
 fn render_view(
     term: &Term,
-    title: Option<&str>,
+    header: Option<&str>,
+    footer_right: Option<&str>,
+    scroll_header_horizontally: bool,
+    add_header_separator: bool,
     lines: &[String],
     state: &PagerState,
     cols: usize,
 ) -> Result<usize> {
     let mut rendered = 0;
 
-    if let Some(title) = title {
-        let title = truncate_width(title, cols);
-        term.write_line(&style(title).cyan().bold().to_string())?;
-        rendered += 1;
+    if let Some(header) = header {
+        for line in header.lines() {
+            let line = if scroll_header_horizontally {
+                horizontal_window(line, state.left, cols)
+            } else {
+                truncate_width(line, cols)
+            };
+            term.write_line(&style(line).cyan().bold().to_string())?;
+            rendered += 1;
+        }
+        if add_header_separator {
+            term.write_line(&"-".repeat(cols))?;
+            rendered += 1;
+        }
     }
 
     for line in visible_lines(lines, state) {
@@ -221,7 +299,7 @@ fn render_view(
         rendered += 1;
     }
 
-    let footer = truncate_width(&footer_text(state), cols);
+    let footer = footer_line(&footer_text(state), footer_right, cols);
     term.write_str(&style(footer).dim().to_string())?;
     rendered += 1;
 
@@ -264,6 +342,17 @@ fn footer_text(state: &PagerState) -> String {
     )
 }
 
+fn footer_line(left: &str, right: Option<&str>, cols: usize) -> String {
+    let Some(right) = right else {
+        return truncate_width(left, cols);
+    };
+
+    let right = truncate_width(right, cols);
+    let left_width = cols.saturating_sub(right.chars().count() + 1);
+    let left = truncate_width(left, left_width);
+    format!("{left:<left_width$} {right}")
+}
+
 fn truncate_width(value: &str, cols: usize) -> String {
     truncate_visible(value, cols)
 }
@@ -291,7 +380,9 @@ fn action_for_key(key: Key) -> PagerAction {
 
 #[cfg(test)]
 mod tests {
-    use super::{PagerAction, PagerState, action_for_key, footer_text, page_text, visible_lines};
+    use super::{
+        PagerAction, PagerState, action_for_key, footer_line, footer_text, page_text, visible_lines,
+    };
     use console::Key;
 
     fn lines(count: usize) -> Vec<String> {
@@ -361,6 +452,13 @@ mod tests {
         let mut state = PagerState::new(12, 5, 10, 10);
         state.apply(PagerAction::NextPage);
         assert!(footer_text(&state).starts_with("-- 6-10/12 --"));
+    }
+
+    #[test]
+    fn footer_metadata_is_right_aligned() {
+        let footer = footer_line("-- 1-5/12 --", Some("Packages (12)"), 40);
+        assert_eq!(footer.chars().count(), 40);
+        assert!(footer.ends_with("Packages (12)"));
     }
 
     #[test]
