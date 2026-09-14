@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-09-12
+@modified: 2026-09-14
 
 
 ## Tasks
@@ -17,4 +17,14 @@
 
 - [ ] feat: systemd unit integrations
       @created 2026-09-05 03:40
+
+- [ ] bug: list output not invoking pager + cutting off long text
+      @created 2026-09-12 19:43
+
+
+## Completed
+
+- [x] feat: pager output is now horizontally scrollable
+      @created 2026-09-14 16:19
+      @completed 2026-09-14 16:26
 

@@ -39,6 +39,8 @@ impl PagerConfig {
 pub enum PagerAction {
     NextLine,
     PreviousLine,
+    NextColumn,
+    PreviousColumn,
     NextPage,
     PreviousPage,
     Top,
@@ -51,21 +53,31 @@ pub enum PagerAction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PagerState {
     top: usize,
+    left: usize,
     total_lines: usize,
     visible_rows: usize,
+    max_width: usize,
+    visible_cols: usize,
 }
 
 impl PagerState {
-    fn new(total_lines: usize, visible_rows: usize) -> Self {
+    fn new(total_lines: usize, visible_rows: usize, max_width: usize, visible_cols: usize) -> Self {
         Self {
             top: 0,
+            left: 0,
             total_lines,
             visible_rows: visible_rows.max(MIN_VISIBLE_ROWS),
+            max_width,
+            visible_cols,
         }
     }
 
     fn last_top(&self) -> usize {
         self.total_lines.saturating_sub(self.visible_rows)
+    }
+
+    fn last_left(&self) -> usize {
+        self.max_width.saturating_sub(self.visible_cols)
     }
 
     fn apply(&mut self, action: PagerAction) {
@@ -75,6 +87,12 @@ impl PagerState {
             }
             PagerAction::PreviousLine => {
                 self.top = self.top.saturating_sub(1);
+            }
+            PagerAction::NextColumn => {
+                self.left = (self.left + 1).min(self.last_left());
+            }
+            PagerAction::PreviousColumn => {
+                self.left = self.left.saturating_sub(1);
             }
             PagerAction::NextPage => {
                 self.top = self
@@ -142,7 +160,17 @@ fn page_lines(
     lines: &[String],
     config: PagerConfig,
 ) -> Result<()> {
-    let mut state = PagerState::new(lines.len(), config.content_rows(title.is_some()));
+    let max_width = lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or_default();
+    let mut state = PagerState::new(
+        lines.len(),
+        config.content_rows(title.is_some()),
+        max_width,
+        config.cols,
+    );
     let mut rendered_lines = 0;
 
     loop {
@@ -189,7 +217,7 @@ fn render_view(
     }
 
     for line in visible_lines(lines, state) {
-        term.write_line(&truncate_width(line, cols))?;
+        term.write_line(&horizontal_window(line, state.left, cols))?;
         rendered += 1;
     }
 
@@ -231,13 +259,18 @@ fn footer_text(state: &PagerState) -> String {
         .min(state.total_lines);
 
     format!(
-        "-- {start}-{end}/{} -- Space/PgDn:next b/PgUp:prev j/k:line g/G:top/bottom q:quit",
+        "-- {start}-{end}/{} -- Space/PgDn:next b/PgUp:prev hjkl/arrows:scroll g:top G:bottom q:quit",
         state.total_lines
     )
 }
 
 fn truncate_width(value: &str, cols: usize) -> String {
     truncate_visible(value, cols)
+}
+
+fn horizontal_window(value: &str, left: usize, cols: usize) -> String {
+    let window = value.chars().skip(left).take(cols).collect::<String>();
+    truncate_width(&window, cols)
 }
 
 fn action_for_key(key: Key) -> PagerAction {
@@ -248,6 +281,8 @@ fn action_for_key(key: Key) -> PagerAction {
         Key::Char('b') | Key::PageUp => PagerAction::PreviousPage,
         Key::Char('j') | Key::ArrowDown | Key::Enter => PagerAction::NextLine,
         Key::Char('k') | Key::ArrowUp => PagerAction::PreviousLine,
+        Key::Char('h') | Key::ArrowLeft => PagerAction::PreviousColumn,
+        Key::Char('l') | Key::ArrowRight => PagerAction::NextColumn,
         Key::Char('g') | Key::Home => PagerAction::Top,
         Key::Char('G') | Key::End => PagerAction::Bottom,
         _ => PagerAction::Ignore,
@@ -265,7 +300,7 @@ mod tests {
 
     #[test]
     fn next_and_previous_page_clamp_to_bounds() {
-        let mut state = PagerState::new(10, 3);
+        let mut state = PagerState::new(10, 3, 10, 10);
         state.apply(PagerAction::NextPage);
         assert_eq!(state.top, 3);
         state.apply(PagerAction::NextPage);
@@ -282,7 +317,7 @@ mod tests {
 
     #[test]
     fn line_navigation_clamps_to_bounds() {
-        let mut state = PagerState::new(4, 2);
+        let mut state = PagerState::new(4, 2, 10, 10);
         state.apply(PagerAction::PreviousLine);
         assert_eq!(state.top, 0);
         state.apply(PagerAction::NextLine);
@@ -292,8 +327,21 @@ mod tests {
     }
 
     #[test]
+    fn horizontal_navigation_clamps_to_bounds() {
+        let mut state = PagerState::new(1, 2, 12, 5);
+        state.apply(PagerAction::PreviousColumn);
+        assert_eq!(state.left, 0);
+        for _ in 0..20 {
+            state.apply(PagerAction::NextColumn);
+        }
+        assert_eq!(state.left, 7);
+        state.apply(PagerAction::PreviousColumn);
+        assert_eq!(state.left, 6);
+    }
+
+    #[test]
     fn top_and_bottom_jump_to_expected_offsets() {
-        let mut state = PagerState::new(10, 4);
+        let mut state = PagerState::new(10, 4, 10, 10);
         state.apply(PagerAction::Bottom);
         assert_eq!(state.top, 6);
         state.apply(PagerAction::Top);
@@ -303,14 +351,14 @@ mod tests {
     #[test]
     fn visible_lines_returns_current_window() {
         let lines = lines(5);
-        let mut state = PagerState::new(lines.len(), 2);
+        let mut state = PagerState::new(lines.len(), 2, 10, 10);
         state.apply(PagerAction::NextPage);
         assert_eq!(visible_lines(&lines, &state), &lines[2..4]);
     }
 
     #[test]
     fn footer_describes_visible_range() {
-        let mut state = PagerState::new(12, 5);
+        let mut state = PagerState::new(12, 5, 10, 10);
         state.apply(PagerAction::NextPage);
         assert!(footer_text(&state).starts_with("-- 6-10/12 --"));
     }
@@ -322,6 +370,10 @@ mod tests {
         assert_eq!(action_for_key(Key::Char('b')), PagerAction::PreviousPage);
         assert_eq!(action_for_key(Key::Char('j')), PagerAction::NextLine);
         assert_eq!(action_for_key(Key::Char('k')), PagerAction::PreviousLine);
+        assert_eq!(action_for_key(Key::Char('h')), PagerAction::PreviousColumn);
+        assert_eq!(action_for_key(Key::Char('l')), PagerAction::NextColumn);
+        assert_eq!(action_for_key(Key::ArrowLeft), PagerAction::PreviousColumn);
+        assert_eq!(action_for_key(Key::ArrowRight), PagerAction::NextColumn);
         assert_eq!(action_for_key(Key::Char('g')), PagerAction::Top);
         assert_eq!(action_for_key(Key::Char('G')), PagerAction::Bottom);
         assert_eq!(action_for_key(Key::Unknown), PagerAction::Ignore);

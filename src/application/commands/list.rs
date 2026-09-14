@@ -321,10 +321,7 @@ fn write_table_header(out: &mut String, widths: &ColumnWidths) {
 }
 
 fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths) {
-    let install_path = output::truncate_middle(
-        &format_path(package.install_path.as_ref(), "-"),
-        widths.path,
-    );
+    let install_path = format_path(package.install_path.as_ref(), "-");
 
     let desktop_indicator = if package.icon_path.is_some() {
         "D"
