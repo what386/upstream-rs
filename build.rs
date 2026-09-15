@@ -1,4 +1,8 @@
 fn main() {
+    set_git_rev();
+}
+
+fn set_git_rev() {
     // Fetch the short commit hash at compile time
     let output = std::process::Command::new("git")
         .args(["rev-parse", "--short", "HEAD"])
