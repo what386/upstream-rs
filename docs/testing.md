@@ -15,7 +15,7 @@ over mocked metadata when testing build discovery or artifact installation.
 The Python suites exercise the installed CLI and filesystem-visible lifecycle:
 
 - `tests/integration/test_*.py` uses local fixtures and is hermetic.
-- `tests/live/test_live_*.py` contacts real providers and is intentionally
+- `tests/live/test_*.py` contacts real providers and is intentionally
   separate from normal CI.
 - `tests/install/test_*.py` covers installer lifecycle behavior.
 - `tests/framework/` contains fake-home, command, package, and local-server
