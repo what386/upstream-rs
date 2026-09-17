@@ -8,17 +8,19 @@ import unittest
 from tests.framework.commands import run_upstream, run_upstream_json
 from tests.framework.environment import reset_fakehome
 from tests.framework.packages import assert_executable_version, package_from_list, package_path
-from tests.framework.rollback_server import PACKAGE, RollbackServer
+from tests.framework.server import PACKAGE, Server, write_release_page, write_rollback_fixtures
 
 
 class FixtureLifecycleTests(unittest.TestCase):
     def test_failed_upgrade_preserves_previous_package(self) -> None:
         reset_fakehome()
-        server = RollbackServer()
+        server = Server(start=False)
+        write_rollback_fixtures(server)
+        server.start()
         try:
             run_upstream(
                 "install",
-                server.url,
+                server.url_for("releases.html"),
                 "--kind",
                 "archive",
                 "--yes",
@@ -30,7 +32,7 @@ class FixtureLifecycleTests(unittest.TestCase):
             self.assertIsInstance(package_id, str)
             self._assert_working(package)
 
-            server.publish_update()
+            write_release_page(server, 2)
             result = run_upstream("upgrade", package_id, "--yes", "--trust", "none")
             self.assertIn("failed", result.stdout.lower())
 

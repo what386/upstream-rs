@@ -9,16 +9,18 @@ import os
 import unittest
 
 from tests.framework.packages import assert_executable_version, package_from_list, package_path
-from tests.framework.rollback_server import PACKAGE, RollbackServer
+from tests.framework.server import PACKAGE, Server, write_release_page, write_rollback_fixtures
 
 
 def scenario() -> None:
     reset_fakehome()
-    server = RollbackServer()
+    server = Server(start=False)
+    write_rollback_fixtures(server)
+    server.start()
     try:
         run_upstream(
             "install",
-            server.url,
+            server.url_for("releases.html"),
             "--kind",
             "archive",
             "--yes",
@@ -29,7 +31,7 @@ def scenario() -> None:
         package_id = old["id"]
         assert_working(old)
 
-        server.publish_update()
+        write_release_page(server, 2)
         result = run_upstream("upgrade", package_id, "--yes", "--trust", "none")
         assert "failed" in result.stdout.lower(), result.stdout
 

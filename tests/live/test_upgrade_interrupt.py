@@ -10,16 +10,18 @@ import unittest
 from tests.framework.commands import run_upstream, run_upstream_json, start_upstream
 from tests.framework.environment import reset_fakehome
 from tests.framework.packages import assert_executable_version, package_from_list, package_path
-from tests.framework.rollback_server import PACKAGE, RollbackServer
+from tests.framework.server import PACKAGE, Server, write_release_page, write_rollback_fixtures
 
 
 def scenario() -> None:
     reset_fakehome()
-    server = RollbackServer(throttle_update=True)
+    server = Server(throttle_pattern="v2.0.0", throttle_delay=0.05, start=False)
+    write_rollback_fixtures(server)
+    server.start()
     try:
         run_upstream(
             "install",
-            server.url,
+            server.url_for("releases.html"),
             "--kind",
             "archive",
             "--yes",
@@ -30,9 +32,9 @@ def scenario() -> None:
         package_id = old["id"]
         assert_working(old)
 
-        server.publish_update()
+        write_release_page(server, 2)
         process = start_upstream("upgrade", package_id, "--yes", "--trust", "none")
-        server.wait_for_update_request()
+        server.wait_for_request()
         process.send_signal(signal.CTRL_C_EVENT if os.name == "nt" else signal.SIGINT)
         stdout, stderr = process.communicate(timeout=30)
         assert process.returncode == 130, (process.returncode, stdout, stderr)

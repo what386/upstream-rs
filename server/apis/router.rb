@@ -9,12 +9,12 @@ module LocalArtifactServer
       @routes = {}
     end
 
-    def get(path, &handler)
-      register('GET', path, &handler)
+    def get(path, &)
+      register('GET', path, &)
     end
 
-    def head(path, &handler)
-      register('HEAD', path, &handler)
+    def head(path, &)
+      register('HEAD', path, &)
     end
 
     def register(method, path, &handler)
