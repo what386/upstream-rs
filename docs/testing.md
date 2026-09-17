@@ -42,6 +42,19 @@ Use the narrowest relevant test first, then run broader checks before handoff.
 Native Windows behavior requires Windows CI or a Windows toolchain; Linux
 compilation alone is not runtime proof for Windows.
 
+## Local artifact server
+
+The Ruby server in `server/` provides a localhost endpoint for
+direct-download tests without contacting an external provider:
+
+```text
+just server
+```
+
+Put files in `server/artifacts/` and reference them as
+`http://127.0.0.1:8000/artifacts/<filename>`. Set `SERVER_HOST` or
+`SERVER_PORT` when a different listener is needed.
+
 ## Fixtures
 
 Keep fixtures small, deterministic, and named for the behavior they exercise.
