@@ -19,6 +19,12 @@ test:
     cargo nextest run --all
     cargo xwin test --all --target x86_64-pc-windows-msvc
 
+start-artifact-server:
+    ruby server/main.rb
+
+test-artifact-server:
+    ruby server/test.rb
+
 integration-tests:
     just integration-tests-hermetic
     just integration-tests-live
