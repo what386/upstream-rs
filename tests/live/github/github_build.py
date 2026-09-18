@@ -14,7 +14,7 @@ PACKAGE = "ripgrep"
 TAG = "15.1.0"
 
 
-class LiveBuildTests(unittest.TestCase):
+class GithubBuildTests(unittest.TestCase):
     def test_build_pinned_release(self) -> None:
         reset_fakehome()
         run_upstream(

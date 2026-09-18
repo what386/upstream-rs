@@ -14,15 +14,13 @@ over mocked metadata when testing build discovery or artifact installation.
 
 The Python suites exercise the installed CLI and filesystem-visible lifecycle:
 
-- `tests/integration/test_*.py` uses local fixtures and is hermetic.
-- `tests/live/test_*.py` contacts real providers and is intentionally
-  separate from normal CI.
-- `tests/install/test_*.py` covers installer lifecycle behavior.
-- `tests/framework/` contains fake-home, command, package, and local-server
-  helpers.
+- `tests/integration/test_*.py` covers fast hermetic CLI and state behavior.
+- `tests/end2end/test_*.py` covers end-to-end installs using the local http server
+- `tests/other/test_*.py` covers other miscellaneous tests.
+- `tests/live/test_*.py` contacts real providers with live network requests.
+- `tests/framework/` contains fake-home, package and command helpers.
 
-Keep live-provider tests independently runnable. Do not make hermetic tests
-depend on network access or a developer's real home directory.
+Keep live-provider tests independently runnable.
 
 ## Verification
 

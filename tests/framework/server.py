@@ -129,6 +129,14 @@ def write_rollback_fixtures(server: Server) -> None:
     write_release_page(server, 1)
 
 
+def start_rollback_server() -> Server:
+    """Start a local server with the valid and corrupt rollback fixtures."""
+    server = Server(start=False)
+    write_rollback_fixtures(server)
+    server.start()
+    return server
+
+
 def write_release_page(server: Server, version: int) -> None:
     """Store a release page exposing the requested fixture versions."""
     releases = range(1, version + 1)

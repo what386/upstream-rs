@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install a corrupt update and verify the previous working package is restored."""
+"""Install a corrupt local update and verify the previous package is restored."""
 
 from __future__ import annotations
 
@@ -43,6 +43,9 @@ def scenario() -> None:
             "is_prerelease": False,
         }, restored
         assert_working(restored)
+        assert not any(
+            path.name.endswith(".part") for path in package_path(restored).parent.iterdir()
+        )
     finally:
         server.close()
 
@@ -56,7 +59,7 @@ def assert_working(package: dict[str, object]) -> None:
         assert_executable_version(package, "rollback-tool 1.0.0")
 
 
-class LiveUpgradeFailureTests(unittest.TestCase):
+class EndToEndUpgradeFailureTests(unittest.TestCase):
     def test_failed_upgrade_restores_previous_install(self) -> None:
         scenario()
 

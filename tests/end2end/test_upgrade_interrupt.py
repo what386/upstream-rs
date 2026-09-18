@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interrupt an upgrade during download and verify the old install survives."""
+"""Interrupt a local upgrade during download and verify the old install survives."""
 
 from __future__ import annotations
 
@@ -60,7 +60,7 @@ def assert_working(package: dict[str, object]) -> None:
         assert_executable_version(package, "rollback-tool 1.0.0")
 
 
-class LiveUpgradeInterruptTests(unittest.TestCase):
+class EndToEndUpgradeInterruptTests(unittest.TestCase):
     def test_interrupted_upgrade_restores_previous_install(self) -> None:
         scenario()
 

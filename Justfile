@@ -25,27 +25,26 @@ start-artifact-server:
 test-artifact-server:
     ruby server/test.rb
 
-integration-tests:
-    just integration-tests-hermetic
-    just integration-tests-live
+fetch-artifacts:
+    scripts/test/fetch-artifacts.sh
 
-integration-tests-hermetic:
-    python3 -m unittest discover -s tests/integration -p 'test_*.py'
+test-all:
+    just run-tests integration
+    just run-tests end2end
+    just run-tests live
 
-integration-test test:
+run-test test:
     python3 -m unittest {{test}}
 
-integration-tests-live:
-    python3 -m unittest discover -s tests/live -p 'test_*.py'
+[arg('type', pattern='integration|end2end|live|other')]
+run-tests *type:
+    python3 -m unittest discover -s tests/{{type}} -p 'test_*.py'
 
 verify-release:
     just lint
     just test
     just install-script-tests
     just integration-tests
-
-install-script-tests:
-    python3 -m unittest discover -s tests/install -p 'test_*.py'
 
 run *args:
     cargo run --bin "upstream" -- {{args}}

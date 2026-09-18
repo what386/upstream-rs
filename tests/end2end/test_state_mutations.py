@@ -7,12 +7,11 @@ import unittest
 
 from tests.framework.commands import run_upstream, run_upstream_json
 from tests.framework.environment import FAKEHOME, reset_fakehome
-from tests.framework.packages import install_package, package_from_list
+from tests.framework.packages import package_from_list
+from tests.framework.server import start_rollback_server
 
 
-REPO = "BurntSushi/ripgrep"
-PACKAGE = "ripgrep"
-TAG = "15.1.0"
+PACKAGE = "rollback-tool"
 
 
 def scenario() -> None:
@@ -39,30 +38,44 @@ def scenario() -> None:
     run_upstream("hooks", "check")
     run_upstream("hooks", "clean")
 
-    # Package metadata mutations do not reinstall the artifact.
-    package = install_package(REPO, PACKAGE, TAG)
-    assert package["id"].endswith(f"/{REPO.split('/')[-1]}"), package
-    run_upstream("package", "pin", PACKAGE)
-    assert package_from_list(PACKAGE)["is_pinned"] is True
-    run_upstream("package", "unpin", PACKAGE)
-    assert package_from_list(PACKAGE)["is_pinned"] is False
+    server = start_rollback_server()
+    try:
+        # Package metadata mutations do not reinstall the artifact.
+        run_upstream(
+            "install",
+            server.url_for("releases.html"),
+            "--kind",
+            "archive",
+            "--yes",
+            "--trust",
+            "none",
+        )
+        package = package_from_list(PACKAGE)
+        package_id = package["id"]
+        assert package["executables"][0]["name"] == PACKAGE, package
+        run_upstream("package", "pin", package_id)
+        assert package_from_list(PACKAGE)["is_pinned"] is True
+        run_upstream("package", "unpin", package_id)
+        assert package_from_list(PACKAGE)["is_pinned"] is False
 
-    run_upstream(
-        "package",
-        "set",
-        PACKAGE,
-        "match_pattern=linux,x86_64,linux",
-        "exclude_pattern=debug",
-        "trust_mode=checksum",
-    )
-    settings = run_upstream_json("package", "get", PACKAGE)
-    assert settings["match_pattern"] == ["linux", "x86_64"], settings
-    assert settings["exclude_pattern"] == ["debug"], settings
-    assert settings["trust_mode"] == "Checksum", settings
-    run_upstream("package", "unset", PACKAGE, "exclude_pattern", "trust_mode")
-    settings = run_upstream_json("package", "get", PACKAGE)
-    assert settings["exclude_pattern"] == [], settings
-    assert settings["trust_mode"] is None, settings
+        run_upstream(
+            "package",
+            "set",
+            package_id,
+            "match_pattern=linux,x86_64,linux",
+            "exclude_pattern=debug",
+            "trust_mode=checksum",
+        )
+        settings = run_upstream_json("package", "get", package_id)
+        assert settings["match_pattern"] == ["linux", "x86_64"], settings
+        assert settings["exclude_pattern"] == ["debug"], settings
+        assert settings["trust_mode"] == "Checksum", settings
+        run_upstream("package", "unset", package_id, "exclude_pattern", "trust_mode")
+        settings = run_upstream_json("package", "get", package_id)
+        assert settings["exclude_pattern"] == [], settings
+        assert settings["trust_mode"] is None, settings
+    finally:
+        server.close()
 
     docs_cache = FAKEHOME / ".upstream" / "cache" / "docs"
     docs_cache.mkdir(parents=True, exist_ok=True)
@@ -75,7 +88,7 @@ def scenario() -> None:
     print("config, auth, package settings, and cache mutations passed")
 
 
-class LiveStateMutationTests(unittest.TestCase):
+class EndToEndStateMutationTests(unittest.TestCase):
     def test_state_mutations(self) -> None:
         scenario()
 
