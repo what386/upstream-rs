@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-# Future provider API mocks can register handlers here without changing the
-# HTTP transport or artifact-serving code.
+# Page routes can register handlers here without changing the HTTP transport
+# or artifact-serving code.
 module LocalArtifactServer
-  # Dispatches future provider mock handlers by method and path.
-  class ApiRouter
+  # Dispatches page handlers by HTTP method and path.
+  class PageRouter
     def initialize
       @routes = {}
     end
@@ -18,7 +18,7 @@ module LocalArtifactServer
     end
 
     def register(method, path, &handler)
-      raise ArgumentError, 'a route handler is required' unless handler
+      raise ArgumentError, 'a page handler is required' unless handler
 
       @routes[[method.upcase, path]] = handler
     end

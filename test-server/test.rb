@@ -24,14 +24,14 @@ class LocalArtifactServerTest < Minitest::Test
   def build_server
     LocalArtifactServer::HttpServer.new(
       host: '127.0.0.1', port: 0, artifact_root: @root,
-      api_router: build_api_router, logger: StringIO.new
+      page_router: build_page_router, logger: StringIO.new
     )
   end
 
-  def build_api_router
-    router = LocalArtifactServer::ApiRouter.new
-    router.get('/api/example') do
-      LocalArtifactServer::Response.new(status: 200, body: 'mocked', content_type: 'text/plain')
+  def build_page_router
+    router = LocalArtifactServer::PageRouter.new
+    router.get('/download') do
+      LocalArtifactServer::Response.new(status: 200, body: '<h1>Downloads</h1>', content_type: 'text/html')
     end
     router
   end
@@ -72,9 +72,9 @@ class LocalArtifactServerTest < Minitest::Test
     assert_includes request('POST', '/artifacts/tool.tar.gz'), '405 Method Not Allowed'
   end
 
-  def test_dispatches_future_api_routes
-    response = request('GET', '/api/example')
+  def test_dispatches_page_routes
+    response = request('GET', '/download')
     assert_includes response, 'HTTP/1.1 200 OK'
-    assert response.end_with?('mocked')
+    assert response.end_with?('<h1>Downloads</h1>')
   end
 end

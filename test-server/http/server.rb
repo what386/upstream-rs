@@ -2,19 +2,19 @@
 
 require 'socket'
 
-require_relative '../apis/router'
 require_relative 'request'
 require_relative 'response'
 require_relative '../artifacts/store'
+require_relative '../pages/router'
 
 module LocalArtifactServer
-  # Owns socket lifecycle and dispatches requests to the artifact/API handlers.
+  # Owns socket lifecycle and dispatches requests to artifact/page handlers.
   class HttpServer
-    def initialize(host:, port:, artifact_root:, api_router: ApiRouter.new, logger: $stdout)
+    def initialize(host:, port:, artifact_root:, page_router: PageRouter.new, logger: $stdout)
       @host = host
       @port = Integer(port)
       @artifact_store = ArtifactStore.new(artifact_root)
-      @api_router = api_router
+      @page_router = page_router
       @logger = logger
       @server = TCPServer.new(@host, @port)
       @stopping = false
@@ -75,11 +75,9 @@ module LocalArtifactServer
         return Response.new(status: 405, body: "method not allowed\n", content_type: 'text/plain; charset=utf-8')
       end
 
-      if request.path.start_with?('/api/') || request.path == '/api'
-        return @api_router.call(request) || ArtifactStore::NOT_FOUND
-      end
+      return @artifact_store.call(request) if request.path.start_with?(ArtifactStore::PREFIX)
 
-      @artifact_store.call(request)
+      @page_router.call(request) || ArtifactStore::NOT_FOUND
     end
 
     def log(message)
