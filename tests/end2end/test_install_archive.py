@@ -11,7 +11,7 @@ from tests.framework.packages import package_from_list, package_path, package_ve
 from tests.framework.server import Server
 
 
-FIXTURE_ARCHIVE = ROOT / "server" / "artifacts" / "archives" / (
+FIXTURE_ARCHIVE = ROOT / "test-server" / "artifacts" / "archives" / (
     "fixture-tool-1.0.0-linux-x86_64.tar.gz"
 )
 

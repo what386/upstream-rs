@@ -77,7 +77,7 @@ class Server:
             )
 
         self.process = subprocess.Popen(
-            ["ruby", str(ROOT / "server" / "main.rb")],
+            ["ruby", str(ROOT / "test-server" / "main.rb")],
             cwd=ROOT,
             env=environment,
             stdout=subprocess.PIPE,

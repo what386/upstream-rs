@@ -10,8 +10,8 @@ __pycache__/
 .ruby-lsp
 
 # artifacts
-server/artifacts/*
-!server/artifacts/*.rb
+test-server/artifacts/*
+!test-server/artifacts/*.rb
 
 # ci
 .release-state

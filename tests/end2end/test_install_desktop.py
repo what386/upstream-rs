@@ -12,7 +12,7 @@ from tests.framework.packages import package_from_list, package_path
 from tests.framework.server import Server
 
 
-FIXTURE_APPIMAGE = ROOT / "server" / "artifacts" / "appimages" / (
+FIXTURE_APPIMAGE = ROOT / "test-server" / "artifacts" / "appimages" / (
     "fixture-tool-desktop-1.0.0-x86_64.AppImage"
 )
 

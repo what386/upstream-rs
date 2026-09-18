@@ -14,7 +14,7 @@ from tests.framework.server import Server
 
 
 PACKAGE = "fixture-tool"
-FIXTURE_APPIMAGE = ROOT / "server" / "artifacts" / "appimages" / (
+FIXTURE_APPIMAGE = ROOT / "test-server" / "artifacts" / "appimages" / (
     "fixture-tool-desktop-1.0.0-x86_64.AppImage"
 )
 

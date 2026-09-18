@@ -20,10 +20,10 @@ test:
     cargo xwin test --all --target x86_64-pc-windows-msvc
 
 start-artifact-server:
-    ruby server/main.rb
+    ruby test-server/main.rb
 
 test-artifact-server:
-    ruby server/test.rb
+    ruby test-server/test.rb
 
 generate-artifacts:
     scripts/test/generate-artifacts.py

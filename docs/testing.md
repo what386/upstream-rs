@@ -42,14 +42,14 @@ compilation alone is not runtime proof for Windows.
 
 ## Local artifact server
 
-The Ruby server in `server/` provides a localhost endpoint for
+The Ruby server in `test-server/` provides a localhost endpoint for
 direct-download tests without contacting an external provider:
 
 ```text
 just server
 ```
 
-Put files in `server/artifacts/` and reference them as
+Put files in `test-server/artifacts/` and reference them as
 `http://127.0.0.1:8000/artifacts/<filename>`. Set `SERVER_HOST` or
 `SERVER_PORT` when a different listener is needed.
 

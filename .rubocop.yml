@@ -3,7 +3,7 @@ AllCops:
   NewCops: enable
   SuggestExtensions: false
   Include:
-    - server/**/*.rb
+    - test-server/**/*.rb
 
 Layout/LineLength:
   Max: 120

@@ -18,7 +18,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_TOOL_SOURCE = ROOT / "tests" / "fixtures" / "artifacts" / "fixture-tool"
-OUTPUT = ROOT / "server" / "artifacts"
+OUTPUT = ROOT / "test-server" / "artifacts"
 VERSION = "1.0.0"
 APPIMAGE_ARCH = "x86_64"
 APPIMAGE_RUNTIME = Path(__file__).with_name(f"runtime-{APPIMAGE_ARCH}")
