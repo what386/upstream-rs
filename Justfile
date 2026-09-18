@@ -25,8 +25,8 @@ start-artifact-server:
 test-artifact-server:
     ruby server/test.rb
 
-fetch-artifacts:
-    scripts/test/fetch-artifacts.sh
+generate-artifacts:
+    scripts/test/generate-artifacts.py
 
 test-all:
     just run-tests integration

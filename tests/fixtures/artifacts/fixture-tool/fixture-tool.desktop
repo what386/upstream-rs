@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Fixture Tool Desktop
+Comment=Generated upstream test application
+Exec=fixture-tool
+TryExec=fixture-tool
+Icon=fixture-tool
+Categories=Utility;
+Terminal=true

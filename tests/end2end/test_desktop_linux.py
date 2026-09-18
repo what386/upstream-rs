@@ -13,9 +13,9 @@ from tests.framework.packages import package_from_list, package_path
 from tests.framework.server import Server
 
 
-PACKAGE = "wezterm"
-REAL_APPIMAGE = ROOT / "server" / "artifacts" / "appimages" / (
-    "WezTerm-20240203-110809-5046fc22-Ubuntu20.04.AppImage"
+PACKAGE = "fixture-tool"
+FIXTURE_APPIMAGE = ROOT / "server" / "artifacts" / "appimages" / (
+    "fixture-tool-desktop-1.0.0-x86_64.AppImage"
 )
 
 
@@ -32,7 +32,7 @@ def assert_desktop_entry(package_id: str, executable: Path) -> None:
     assert desktop_entry.is_file(), desktop_entry
     contents = desktop_entry.read_text(encoding="utf-8")
     assert "[Desktop Entry]" in contents, contents
-    assert "Name=WezTerm" in contents, contents
+    assert "Name=Fixture Tool Desktop" in contents, contents
     assert f"Exec={executable}" in contents, contents
     assert "Terminal=false" in contents, contents
 
@@ -44,8 +44,8 @@ class EndToEndDesktopTests(unittest.TestCase):
 
         server = Server()
         try:
-            artifact_name = f"appimages/{REAL_APPIMAGE.name}"
-            server.write_bytes(artifact_name, REAL_APPIMAGE.read_bytes())
+            artifact_name = f"appimages/{FIXTURE_APPIMAGE.name}"
+            server.write_bytes(artifact_name, FIXTURE_APPIMAGE.read_bytes())
             run_upstream(
                 "install",
                 server.url_for(artifact_name),

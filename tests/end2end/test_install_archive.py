@@ -1,4 +1,4 @@
-"""Install the real ripgrep archive through the direct HTTP provider."""
+"""Install the generated archive through the local HTTP server."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from tests.framework.packages import package_from_list, package_path, package_ve
 from tests.framework.server import Server
 
 
-REAL_ARCHIVE = ROOT / "server" / "artifacts" / "archives" / (
-    "ripgrep-15.2.0-x86_64-unknown-linux-musl.tar.gz"
+FIXTURE_ARCHIVE = ROOT / "server" / "artifacts" / "archives" / (
+    "fixture-tool-1.0.0-linux-x86_64.tar.gz"
 )
 
 
@@ -22,8 +22,8 @@ class DirectInstallTests(unittest.TestCase):
 
         server = Server()
         try:
-            artifact_name = f"archives/{REAL_ARCHIVE.name}"
-            server.write_bytes(artifact_name, REAL_ARCHIVE.read_bytes())
+            artifact_name = f"archives/{FIXTURE_ARCHIVE.name}"
+            server.write_bytes(artifact_name, FIXTURE_ARCHIVE.read_bytes())
             run_upstream(
                 "install",
                 server.url_for(artifact_name),
@@ -32,7 +32,7 @@ class DirectInstallTests(unittest.TestCase):
                 "none",
             )
 
-            package = package_from_list("rg")
+            package = package_from_list("fixture-tool")
             self.assertEqual(package["filetype"], "Archive", package)
             self.assertEqual(package_version(package), (15, 2, 0), package)
             executable = package_path(package)
@@ -43,7 +43,7 @@ class DirectInstallTests(unittest.TestCase):
                 text=True,
                 capture_output=True,
             )
-            self.assertTrue(result.stdout.startswith("ripgrep 15.2.0"), result.stdout)
+            self.assertTrue(result.stdout.startswith("fixture-tool 1.0.0"), result.stdout)
         finally:
             server.close()
 
