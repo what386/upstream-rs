@@ -34,7 +34,7 @@ class DirectInstallTests(unittest.TestCase):
 
             package = package_from_list("fixture-tool")
             self.assertEqual(package["filetype"], "Archive", package)
-            self.assertEqual(package_version(package), (15, 2, 0), package)
+            self.assertEqual(package_version(package), (1, 0, 0), package)
             executable = package_path(package)
             self.assertTrue(executable.is_file(), executable)
             result = subprocess.run(

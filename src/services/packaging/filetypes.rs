@@ -214,8 +214,20 @@ where
 
     message!(message_callback, "Made '{}' executable", filename.display());
 
-    let completion_root = match crate::services::artifact::AppImageExtractor::new() {
-        Ok(extractor) => match extractor
+    let extractor = match crate::services::artifact::AppImageExtractor::new() {
+        Ok(extractor) => Some(extractor),
+        Err(err) => {
+            message!(
+                message_callback,
+                "{}",
+                style(format!("AppImage completion scan skipped: {err}")).yellow()
+            );
+
+            None
+        }
+    };
+    let completion_root = if let Some(extractor) = &extractor {
+        match extractor
             .extract(&package.id, &out_path, message_callback)
             .await
         {
@@ -229,16 +241,9 @@ where
 
                 None
             }
-        },
-        Err(err) => {
-            message!(
-                message_callback,
-                "{}",
-                style(format!("AppImage completion scan skipped: {err}")).yellow()
-            );
-
-            None
         }
+    } else {
+        None
     };
 
     let primary_alias = completion_root.as_deref().and_then(|root| {
