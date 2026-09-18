@@ -1,9 +1,20 @@
+# build output
 target/
-tests/fakehome/*
-tests/metadata/fakehome-template/.upstream/state/symlinks/upstream
-.release-state
-__pycache__/
-*.py[cod]
 obj/
 build/
 bin/
+
+# cache
+__pycache__/
+*.py[cod]
+.ruby-lsp
+
+# artifacts
+server/artifacts/*
+!server/artifacts/*.rb
+!server/artifacts/*.md
+
+# ci
+tests/fakehome/*
+tests/metadata/fakehome-template/.upstream/state/symlinks/upstream
+.release-state

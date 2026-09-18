@@ -17,7 +17,7 @@ The Python suites exercise the installed CLI and filesystem-visible lifecycle:
 - `tests/integration/test_*.py` covers fast hermetic CLI and state behavior.
 - `tests/end2end/test_*.py` covers end-to-end installs using the local http server
 - `tests/other/test_*.py` covers other miscellaneous tests.
-- `tests/live/test_*.py` contacts real providers with live network requests.
+- `tests/live/github/github_*.py` contacts GitHub with live network requests.
 - `tests/framework/` contains fake-home, package and command helpers.
 
 Keep live-provider tests independently runnable.
@@ -34,7 +34,7 @@ just integration-tests-hermetic
 just install-script-tests
 ```
 
-`just integration-tests-live` is opt-in because it uses external services.
+`just run-tests-live` is opt-in because it uses external services.
 `just verify-release` is the release-level aggregate and includes the live tier.
 Use the narrowest relevant test first, then run broader checks before handoff.
 Native Windows behavior requires Windows CI or a Windows toolchain; Linux

@@ -36,15 +36,17 @@ test-all:
 run-test test:
     python3 -m unittest {{test}}
 
-[arg('type', pattern='integration|end2end|live|other')]
+[arg('type', pattern='integration|end2end|live')]
 run-tests *type:
     python3 -m unittest discover -s tests/{{type}} -p 'test_*.py'
+
+run-tests-live:
+    python3 -m unittest discover -s tests/live -p 'github_*.py'
 
 verify-release:
     just lint
     just test
-    just install-script-tests
-    just integration-tests
+    just test-all
 
 run *args:
     cargo run --bin "upstream" -- {{args}}
