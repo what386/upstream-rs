@@ -13,6 +13,7 @@ List what you ran and on which platform(s).
 ## Checklist
 
 - [ ] I added or updated tests for my changes, if applicable.
+- [ ] I made sure to run the end to end tests, if applicable.
 - [ ] I considered cross-platform behavior, if applicable.
 - [ ] I updated docs/help text if behavior has changed.
 - [ ] I have ensured there are no existing pull requests for this.
