@@ -31,17 +31,17 @@ fetch-artifacts:
 test-all:
     just run-tests integration
     just run-tests end2end
-    just run-tests live
+    just run-tests-live
 
 run-test test:
     python3 -m unittest {{test}}
 
-[arg('type', pattern='integration|end2end|live')]
+[arg('type', pattern='integration|end2end')]
 run-tests *type:
     python3 -m unittest discover -s tests/{{type}} -p 'test_*.py'
 
 run-tests-live:
-    python3 -m unittest discover -s tests/live -p 'github_*.py'
+    python3 -m unittest discover -s tests/live/github -p 'github_*.py'
 
 verify-release:
     just lint
