@@ -1,2 +1,3 @@
 - desktop manager backend is evil and it should be less evil
 - not enough end2end tests :(
+- scraper reports non asset links, and maybe it should follow links too

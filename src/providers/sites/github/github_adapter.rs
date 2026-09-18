@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
-use crate::providers::sites::release_provider::ReleaseProvider;
+use crate::providers::sites::ReleaseProvider;
 
 use super::github_client::GithubClient;
 use super::github_dtos::{

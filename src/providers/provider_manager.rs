@@ -13,7 +13,7 @@ use crate::providers::sites::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::sites::github::{GithubAdapter, GithubClient};
 use crate::providers::sites::gitlab::{GitlabAdapter, GitlabClient};
 use crate::providers::sites::http::{DirectAdapter, HttpClient, WebScraperAdapter};
-use crate::providers::sites::release_provider::ReleaseProvider;
+use crate::providers::sites::ReleaseProvider;
 
 use anyhow::{Result, anyhow};
 

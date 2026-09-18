@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
 use crate::providers::sites::http::http_client::{ConditionalProbeResult, HttpClient};
-use crate::providers::sites::release_provider::ReleaseProvider;
+use crate::providers::sites::ReleaseProvider;
 
 #[derive(Debug, Clone)]
 pub struct DirectAdapter {
