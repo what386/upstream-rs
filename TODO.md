@@ -28,7 +28,7 @@
       @created 2026-09-14 16:19
       @completed 2026-09-14 16:26
 
-- [x] fix: retain AppImage extraction while reading embedded desktop metadata #appimage #desktop
+- [x] fix: retain AppImage extraction while reading embedded desktop metadata
       @created 2026-09-18 18:35
       @completed 2026-09-18 18:35
 
