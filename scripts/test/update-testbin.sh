@@ -7,9 +7,10 @@ cd "$repo_root"
 cargo build --features testing_donotuseinrelease
 
 host="$(rustc -vV | sed -n 's/^host: //p')"
-binary_dir="$repo_root/tests/fakehome/.upstream/packages/binaries"
+fakehome="$("$repo_root/scripts/test/testhome.sh")"
+binary_dir="$fakehome/.upstream/packages/binaries"
 binary_path="$binary_dir/upstream-$host"
-symlink_path="$repo_root/tests/fakehome/.upstream/state/symlinks/upstream"
+symlink_path="$fakehome/.upstream/state/symlinks/upstream"
 
 mkdir -p "$binary_dir"
 rm -f "$binary_path"

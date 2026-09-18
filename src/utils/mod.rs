@@ -5,7 +5,7 @@ pub mod name_match;
 pub mod platform;
 
 #[cfg(feature = "testing_donotuseinrelease")]
-#[path = "../../tests/metadata/test_paths.rs"]
+#[path = "../../tests/test_paths.rs"]
 pub mod static_paths;
 
 #[cfg(not(feature = "testing_donotuseinrelease"))]

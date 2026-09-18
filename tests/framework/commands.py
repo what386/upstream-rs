@@ -14,6 +14,7 @@ def upstream_environment() -> dict[str, str]:
     env = os.environ.copy()
     host_home = env.get("HOME")
     env["HOME"] = str(FAKEHOME)
+    env["UPSTREAM_TEST_HOME"] = str(FAKEHOME)
     # Deliberately re-add the caller's Rust toolchain and Cargo registry so
     # integration packages can build while Upstream itself uses FAKEHOME state.
     if host_home:

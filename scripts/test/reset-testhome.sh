@@ -4,14 +4,14 @@ set -euo pipefail
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
 
-fakehome="$repo_root/tests/fakehome"
-fakehome_template="$repo_root/tests/metadata/fakehome-template"
+fakehome="$("$repo_root/scripts/test/testhome.sh")"
 
 rm -rf "$fakehome"
-mkdir -p "$fakehome"
-cp -a "$fakehome_template"/. "$fakehome"/
+mkdir -p "$fakehome/.config"
 
 cargo build --features testing_donotuseinrelease
+
+UPSTREAM_TEST_HOME="$fakehome" "$repo_root/target/debug/upstream" --no-pager hooks init
 
 host="$(rustc -vV | sed -n 's/^host: //p')"
 binary_dir="$fakehome/.upstream/packages/binaries"

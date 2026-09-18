@@ -2,17 +2,27 @@
 
 from __future__ import annotations
 
+import getpass
+import os
 from pathlib import Path
 import subprocess
+import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[2]
-FAKEHOME = ROOT / "tests" / "fakehome"
+FAKEHOME = Path(
+    os.environ.get(
+        "UPSTREAM_TEST_HOME",
+        str(Path(tempfile.gettempdir()) / f"upstream-rs-test-{getpass.getuser()}"),
+    )
+)
 RESET_TESTHOME = ROOT / "scripts" / "test" / "reset-testhome.sh"
 
 
 def reset_fakehome() -> None:
-    subprocess.run(["bash", str(RESET_TESTHOME)], cwd=ROOT, check=True)
+    env = os.environ.copy()
+    env["UPSTREAM_TEST_HOME"] = str(FAKEHOME)
+    subprocess.run(["bash", str(RESET_TESTHOME)], cwd=ROOT, env=env, check=True)
 
 
 def upstream_binary() -> Path:

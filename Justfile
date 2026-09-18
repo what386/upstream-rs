@@ -52,7 +52,7 @@ run *args:
     cargo run --bin "upstream" -- {{args}}
 
 testbin *args:
-    ./tests/fakehome/.upstream/state/symlinks/upstream {{args}}
+    "$(scripts/test/testhome.sh)/.upstream/state/symlinks/upstream" {{args}}
 
 prepare version:
     scripts/release/prepare.sh {{version}}
@@ -77,4 +77,4 @@ gen-completions:
     done
 
 inspect-db:
-    lazysql ./tests/fakehome/.upstream/metadata/packages.db
+    lazysql "$(scripts/test/testhome.sh)/.upstream/metadata/packages.db"
