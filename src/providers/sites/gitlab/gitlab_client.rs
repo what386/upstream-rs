@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::{
     models::upstream::config::DownloadConfig,
-    providers::{download_handler, http::http_status},
+    providers::shared::{download_handler, http_status},
 };
 
 use super::gitlab_dtos::GitlabReleaseDto;
@@ -257,7 +257,7 @@ impl GitlabClient {
 #[cfg(test)]
 mod tests {
     use super::GitlabClient;
-    use crate::providers::gitlab::gitlab_dtos::GitlabReleaseDto;
+    use crate::providers::sites::gitlab::gitlab_dtos::GitlabReleaseDto;
 
     #[test]
     fn new_normalizes_base_url_without_scheme() {
@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn gitlab_release_dto_deserializes_minimal_valid_payload() {
-        let json = include_str!("../../../tests/fixtures/providers/gitlab-release-minimal.json");
+        let json = include_str!("../../../../tests/fixtures/providers/gitlab-release-minimal.json");
 
         let parsed = serde_json::from_str::<GitlabReleaseDto>(json).expect("parse release");
         assert_eq!(parsed.tag_name, "v1.0.0");

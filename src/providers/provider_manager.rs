@@ -9,11 +9,11 @@ use crate::models::common::{
 use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
 use crate::models::upstream::{Package, config::DownloadConfig};
 use crate::providers::asset_scorer::{AssetCandidate, AssetSelector};
-use crate::providers::gitea::{GiteaAdapter, GiteaClient};
-use crate::providers::github::{GithubAdapter, GithubClient};
-use crate::providers::gitlab::{GitlabAdapter, GitlabClient};
-use crate::providers::http::{DirectAdapter, HttpClient, WebScraperAdapter};
-use crate::providers::release_provider::ReleaseProvider;
+use crate::providers::sites::gitea::{GiteaAdapter, GiteaClient};
+use crate::providers::sites::github::{GithubAdapter, GithubClient};
+use crate::providers::sites::gitlab::{GitlabAdapter, GitlabClient};
+use crate::providers::sites::http::{DirectAdapter, HttpClient, WebScraperAdapter};
+use crate::providers::sites::release_provider::ReleaseProvider;
 
 use anyhow::{Result, anyhow};
 

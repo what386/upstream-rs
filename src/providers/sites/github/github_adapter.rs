@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
-use crate::providers::release_provider::ReleaseProvider;
+use crate::providers::sites::release_provider::ReleaseProvider;
 
 use super::github_client::GithubClient;
 use super::github_dtos::{
@@ -275,8 +275,8 @@ impl ReleaseProvider for GithubAdapter {
 #[cfg(test)]
 mod tests {
     use super::GithubAdapter;
-    use crate::providers::github::github_client::GithubClient;
-    use crate::providers::github::github_dtos::{
+    use crate::providers::sites::github::github_client::GithubClient;
+    use crate::providers::sites::github::github_dtos::{
         GithubAssetDto, GithubReleaseDto, GithubRepositorySearchItemDto, GithubTagDto,
     };
 

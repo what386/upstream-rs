@@ -4,8 +4,8 @@ use std::path::Path;
 
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
-use crate::providers::http::http_client::{ConditionalProbeResult, HttpClient};
-use crate::providers::release_provider::ReleaseProvider;
+use crate::providers::sites::http::http_client::{ConditionalProbeResult, HttpClient};
+use crate::providers::sites::release_provider::ReleaseProvider;
 
 #[derive(Debug, Clone)]
 pub struct DirectAdapter {
@@ -154,7 +154,7 @@ impl ReleaseProvider for DirectAdapter {
 mod tests {
     use super::DirectAdapter;
     use crate::models::common::Version;
-    use crate::providers::http::HttpClient;
+    use crate::providers::sites::http::HttpClient;
     use chrono::Utc;
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;

@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
-use crate::providers::release_provider::ReleaseProvider;
+use crate::providers::sites::release_provider::ReleaseProvider;
 
 use super::gitlab_client::GitlabClient;
 use super::gitlab_dtos::GitlabReleaseDto;
@@ -233,8 +233,8 @@ impl ReleaseProvider for GitlabAdapter {
 #[cfg(test)]
 mod tests {
     use super::GitlabAdapter;
-    use crate::providers::gitlab::gitlab_client::GitlabClient;
-    use crate::providers::gitlab::gitlab_dtos::{
+    use crate::providers::sites::gitlab::gitlab_client::GitlabClient;
+    use crate::providers::sites::gitlab::gitlab_dtos::{
         GitlabAssetsDto, GitlabLinkDto, GitlabReleaseDto, GitlabSourceDto,
     };
 

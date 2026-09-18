@@ -7,7 +7,8 @@ use crate::{
         upstream::{AuthenticationConfig, Package},
     },
     providers::{
-        gitea::GiteaClient, github::GithubClient, gitlab::GitlabClient, http::http_status,
+        shared::http_status,
+        sites::{gitea::GiteaClient, github::GithubClient, gitlab::GitlabClient},
     },
 };
 

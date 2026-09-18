@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::{
     models::{provider::RepositorySearchFilters, upstream::config::DownloadConfig},
-    providers::{download_handler, http::http_status},
+    providers::shared::{download_handler, http_status},
 };
 
 use super::github_dtos::{
@@ -385,15 +385,16 @@ mod tests {
     use chrono::NaiveDate;
 
     use crate::models::provider::RepositorySearchFilters;
-    use crate::providers::github::GithubClient;
-    use crate::providers::github::github_dtos::{
+    use crate::providers::sites::github::GithubClient;
+    use crate::providers::sites::github::github_dtos::{
         GithubReleaseDto, GithubRepositorySearchResponseDto,
     };
 
     #[test]
     fn github_release_dto_accepts_nullable_string_fields() {
-        let json =
-            include_str!("../../../tests/fixtures/providers/github-release-nullable-fields.json");
+        let json = include_str!(
+            "../../../../tests/fixtures/providers/github-release-nullable-fields.json"
+        );
 
         let parsed = serde_json::from_str::<GithubReleaseDto>(json).expect("valid release JSON");
         assert_eq!(parsed.name, "");
@@ -406,7 +407,7 @@ mod tests {
     #[test]
     fn github_search_dto_accepts_nullable_string_fields() {
         let json =
-            include_str!("../../../tests/fixtures/providers/github-search-nullable-fields.json");
+            include_str!("../../../../tests/fixtures/providers/github-search-nullable-fields.json");
 
         let parsed = serde_json::from_str::<GithubRepositorySearchResponseDto>(json)
             .expect("valid search JSON");

@@ -1,11 +1,6 @@
 pub mod asset_scorer;
 pub mod discovery;
-pub mod download_handler;
 pub mod pattern_matcher;
 pub mod provider_manager;
-pub mod release_provider;
-
-pub mod gitea;
-pub mod github;
-pub mod gitlab;
-pub mod http;
+pub mod shared;
+pub mod sites;

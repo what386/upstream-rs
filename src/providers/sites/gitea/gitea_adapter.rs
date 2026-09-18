@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::models::common::Version;
 use crate::models::provider::{Asset, Release};
-use crate::providers::release_provider::ReleaseProvider;
+use crate::providers::sites::release_provider::ReleaseProvider;
 
 use super::gitea_client::GiteaClient;
 use super::gitea_dtos::{GiteaAssetDto, GiteaReleaseDto};
@@ -195,8 +195,8 @@ impl ReleaseProvider for GiteaAdapter {
 #[cfg(test)]
 mod tests {
     use super::GiteaAdapter;
-    use crate::providers::gitea::gitea_client::GiteaClient;
-    use crate::providers::gitea::gitea_dtos::{GiteaAssetDto, GiteaReleaseDto};
+    use crate::providers::sites::gitea::gitea_client::GiteaClient;
+    use crate::providers::sites::gitea::gitea_dtos::{GiteaAssetDto, GiteaReleaseDto};
 
     #[test]
     fn parse_timestamp_returns_min_on_invalid_inputs() {

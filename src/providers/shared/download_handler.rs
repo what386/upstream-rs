@@ -14,7 +14,7 @@ use tokio::task::JoinSet;
 
 use crate::application::cancellation;
 use crate::models::upstream::config::DownloadConfig;
-use crate::providers::http::http_status;
+use crate::providers::shared::http_status;
 
 #[derive(Debug, Clone, Copy)]
 struct ByteRange {

@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::{
     models::upstream::config::DownloadConfig,
-    providers::{download_handler, http::http_status},
+    providers::shared::{download_handler, http_status},
 };
 
 use super::gitea_dtos::GiteaReleaseDto;
@@ -266,7 +266,7 @@ impl GiteaClient {
 #[cfg(test)]
 mod tests {
     use super::GiteaClient;
-    use crate::providers::gitea::gitea_dtos::GiteaReleaseDto;
+    use crate::providers::sites::gitea::gitea_dtos::GiteaReleaseDto;
 
     #[test]
     fn new_normalizes_base_url_without_scheme() {
@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn nullable_string_fields_deserialize_to_empty_strings() {
         let json =
-            include_str!("../../../tests/fixtures/providers/gitea-release-nullable-fields.json");
+            include_str!("../../../../tests/fixtures/providers/gitea-release-nullable-fields.json");
 
         let parsed = serde_json::from_str::<GiteaReleaseDto>(json).expect("parse release");
         assert_eq!(parsed.tag_name, "");

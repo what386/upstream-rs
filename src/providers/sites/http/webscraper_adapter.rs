@@ -4,8 +4,10 @@ use std::path::Path;
 
 use crate::models::common::{Version, enums::Filetype};
 use crate::models::provider::{Asset, Release};
-use crate::providers::http::http_client::{ConditionalDiscoveryResult, HttpAssetInfo, HttpClient};
-use crate::providers::release_provider::ReleaseProvider;
+use crate::providers::sites::http::http_client::{
+    ConditionalDiscoveryResult, HttpAssetInfo, HttpClient,
+};
+use crate::providers::sites::release_provider::ReleaseProvider;
 use crate::utils::filenames::parser::parse_filetype;
 
 #[derive(Debug, Clone)]
@@ -288,7 +290,7 @@ impl ReleaseProvider for WebScraperAdapter {
 mod tests {
     use super::{HttpAssetInfo, WebScraperAdapter};
     use crate::models::common::Version;
-    use crate::providers::http::HttpClient;
+    use crate::providers::sites::http::HttpClient;
     use chrono::Utc;
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;
@@ -412,8 +414,9 @@ mod tests {
 
     #[tokio::test]
     async fn get_latest_release_selects_assets_for_latest_detected_version() {
-        let html = include_str!("../../../tests/fixtures/providers/http/latest-version-links.html")
-            .to_string();
+        let html =
+            include_str!("../../../../tests/fixtures/providers/http/latest-version-links.html")
+                .to_string();
 
         let html_len = html.len().to_string();
         let html_for_server = html.clone();
@@ -446,7 +449,7 @@ mod tests {
     #[tokio::test]
     async fn get_latest_release_keeps_extensionless_file_before_version_filter() {
         let html = include_str!(
-            "../../../tests/fixtures/providers/http/extensionless-and-versioned-links.html"
+            "../../../../tests/fixtures/providers/http/extensionless-and-versioned-links.html"
         )
         .to_string();
 
@@ -484,7 +487,7 @@ mod tests {
 
     #[tokio::test]
     async fn fixture_ffmpeg_builds_page_keeps_latest_release_downloads() {
-        let html = include_str!("../../../tests/fixtures/providers/http/ffmpeg.html");
+        let html = include_str!("../../../../tests/fixtures/providers/http/ffmpeg.html");
         let server = spawn_test_server(1, move |method, _| {
             assert_eq!(method, "GET");
             fixture_response(html)
@@ -514,7 +517,7 @@ mod tests {
 
     #[tokio::test]
     async fn fixture_zig_builds_page_selects_current_build_assets() {
-        let html = include_str!("../../../tests/fixtures/providers/http/zig.html");
+        let html = include_str!("../../../../tests/fixtures/providers/http/zig.html");
         let server = spawn_test_server(1, move |method, _| {
             assert_eq!(method, "GET");
             fixture_response(html)
@@ -540,7 +543,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_latest_release_uses_html_last_modified_for_unversioned_links() {
-        let html = include_str!("../../../tests/fixtures/providers/http/unversioned-link.html")
+        let html = include_str!("../../../../tests/fixtures/providers/http/unversioned-link.html")
             .to_string();
 
         let html_len = html.len().to_string();
