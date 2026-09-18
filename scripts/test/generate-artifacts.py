@@ -20,9 +20,11 @@ ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_TOOL_SOURCE = ROOT / "tests" / "fixtures" / "artifacts" / "fixture-tool"
 OUTPUT = ROOT / "server" / "artifacts"
 VERSION = "1.0.0"
+APPIMAGE_ARCH = "x86_64"
+APPIMAGE_RUNTIME = Path(__file__).with_name(f"runtime-{APPIMAGE_ARCH}")
 BINARY_NAME = f"fixture-tool-{VERSION}"
-ARCHIVE_STEM = f"fixture-tool-{VERSION}-linux-x86_64"
-APPIMAGE_NAME = f"fixture-tool-desktop-{VERSION}-x86_64.AppImage"
+ARCHIVE_STEM = f"fixture-tool-{VERSION}-linux-{APPIMAGE_ARCH}"
+APPIMAGE_NAME = f"fixture-tool-desktop-{VERSION}-{APPIMAGE_ARCH}.AppImage"
 
 def run(command: list[str], *, cwd: Path | None = None) -> None:
     print("+", " ".join(command))
@@ -55,7 +57,6 @@ def compile_binary(destination: Path) -> None:
 def payload_files(binary: Path) -> dict[str, bytes]:
     return {
         "bin/fixture-tool": binary.read_bytes(),
-        "README.txt": (FIXTURE_TOOL_SOURCE / "README.txt").read_bytes(),
         "config.toml": (FIXTURE_TOOL_SOURCE / "config.toml").read_bytes(),
     }
 
@@ -96,14 +97,8 @@ def build_appimage(binary: Path, destination: Path) -> None:
         raise SystemExit(
             "generator requires appimagetool to build the genuine AppImage fixture"
         )
-    runtime = os.environ.get("APPIMAGE_RUNTIME_FILE")
-    if not runtime:
-        raise SystemExit(
-            "generator requires APPIMAGE_RUNTIME_FILE for the genuine AppImage fixture"
-        )
-    runtime_path = Path(runtime)
-    if not runtime_path.is_file():
-        raise SystemExit(f"APPIMAGE_RUNTIME_FILE does not exist: {runtime_path}")
+    if not APPIMAGE_RUNTIME.is_file():
+        raise SystemExit(f"missing AppImage runtime: {APPIMAGE_RUNTIME}")
 
     with tempfile.TemporaryDirectory(prefix="upstream-generator-") as temporary:
         appdir = Path(temporary) / "FixtureTool.AppDir"
@@ -119,7 +114,6 @@ def build_appimage(binary: Path, destination: Path) -> None:
         icon = FIXTURE_TOOL_SOURCE / "fixture-tool.png"
         shutil.copyfile(icon, appdir / icon.name)
         shutil.copyfile(icon, icon_dir / icon.name)
-        (appdir / "README.txt").write_bytes((FIXTURE_TOOL_SOURCE / "README.txt").read_bytes())
         (appdir / "config.toml").write_bytes((FIXTURE_TOOL_SOURCE / "config.toml").read_bytes())
         destination.parent.mkdir(parents=True, exist_ok=True)
         run(
@@ -127,7 +121,7 @@ def build_appimage(binary: Path, destination: Path) -> None:
                 appimagetool,
                 "--no-appstream",
                 "--runtime-file",
-                str(runtime_path),
+                str(APPIMAGE_RUNTIME),
                 str(appdir),
                 str(destination),
             ]
