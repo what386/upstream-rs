@@ -1,7 +1,7 @@
-mod direct_adapter;
+mod direct_download;
 mod http_client;
-mod webscraper_adapter;
+mod web_scraper;
 
-pub use direct_adapter::DirectAdapter;
-pub use http_client::HttpClient;
-pub use webscraper_adapter::WebScraperAdapter;
+pub use direct_download::DirectAdapter;
+pub use web_scraper::WebScraperAdapter;
+pub use http_client::{ConditionalDocumentResult, HttpAssetInfo, HttpClient};

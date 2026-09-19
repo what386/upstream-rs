@@ -5,7 +5,6 @@ use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
-
 pub mod gitea;
 pub mod github;
 pub mod gitlab;

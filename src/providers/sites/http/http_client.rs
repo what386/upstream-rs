@@ -1,13 +1,10 @@
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Utc};
 use reqwest::{Client, StatusCode, header};
-use std::collections::HashSet;
 use std::path::Path;
 
-use crate::models::common::enums::Filetype;
 use crate::models::upstream::config::DownloadConfig;
 use crate::providers::shared::download_handler;
-use crate::utils::filenames::parser::parse_filetype;
 
 use crate::providers::shared::http_status;
 
@@ -18,6 +15,7 @@ pub struct HttpAssetInfo {
     pub size: u64,
     pub last_modified: Option<DateTime<Utc>>,
     pub etag: Option<String>,
+    pub content_type: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -27,9 +25,17 @@ pub enum ConditionalProbeResult {
 }
 
 #[derive(Debug, Clone)]
-pub enum ConditionalDiscoveryResult {
+pub enum ConditionalDocumentResult {
     NotModified,
-    Assets(Vec<HttpAssetInfo>),
+    Document(HttpDocument),
+}
+
+#[derive(Debug, Clone)]
+pub struct HttpDocument {
+    pub url: String,
+    pub content_type: String,
+    pub headers: header::HeaderMap,
+    pub body: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -69,23 +75,6 @@ impl HttpClient {
             .filter(|s| !s.is_empty())
     }
 
-    fn attribute_has_boundary(html: &str, index: usize, attribute: &str) -> bool {
-        let bytes = html.as_bytes();
-        let valid_start = index == 0
-            || bytes
-                .get(index.saturating_sub(1))
-                .map(|b| !b.is_ascii_alphanumeric() && *b != b'-')
-                .unwrap_or(true);
-
-        let end = index + attribute.len();
-        let valid_end = bytes
-            .get(end)
-            .map(|b| *b == b'=' || b.is_ascii_whitespace())
-            .unwrap_or(false);
-
-        valid_start && valid_end
-    }
-
     pub fn new(download_config: DownloadConfig) -> Result<Self> {
         let mut headers = header::HeaderMap::new();
 
@@ -117,105 +106,9 @@ impl HttpClient {
         }
     }
 
-    /// Extract likely download URL attribute values from HTML without a full DOM parser.
-    fn extract_link_values(html: &str) -> Vec<String> {
-        let attributes = [
-            "href",
-            "src",
-            "data-href",
-            "data-url",
-            "data-download",
-            "data-download-url",
-        ];
-
-        let mut values = Vec::new();
-        let lower = html.to_lowercase();
-        let bytes = lower.as_bytes();
-        let mut i = 0_usize;
-
-        while i < bytes.len() {
-            let Some((attribute, attr_offset)) = attributes
-                .iter()
-                .filter_map(|attribute| {
-                    lower[i..]
-                        .find(attribute)
-                        .map(|offset| (*attribute, offset))
-                })
-                .min_by(|(left_attr, left_offset), (right_attr, right_offset)| {
-                    left_offset
-                        .cmp(right_offset)
-                        .then_with(|| right_attr.len().cmp(&left_attr.len()))
-                })
-            else {
-                break;
-            };
-
-            i += attr_offset;
-            if !Self::attribute_has_boundary(&lower, i, attribute) {
-                i += 1;
-                continue;
-            }
-
-            let mut j = i + attribute.len();
-            while j < bytes.len() && bytes[j].is_ascii_whitespace() {
-                j += 1;
-            }
-
-            if j >= bytes.len() || bytes[j] != b'=' {
-                i += 1;
-                continue;
-            }
-
-            j += 1;
-            while j < bytes.len() && bytes[j].is_ascii_whitespace() {
-                j += 1;
-            }
-
-            if j >= bytes.len() {
-                break;
-            }
-
-            let quote = bytes[j];
-            if quote == b'"' || quote == b'\'' {
-                let start = j + 1;
-                let mut end = start;
-                while end < bytes.len() && bytes[end] != quote {
-                    end += 1;
-                }
-
-                if end <= html.len() && start <= end {
-                    let href = html[start..end].trim();
-                    if !href.is_empty() {
-                        values.push(href.to_string());
-                    }
-                }
-
-                i = end.saturating_add(1);
-                continue;
-            }
-
-            let start = j;
-            let mut end = start;
-            while end < bytes.len() && !bytes[end].is_ascii_whitespace() && bytes[end] != b'>' {
-                end += 1;
-            }
-
-            if end <= html.len() && start < end {
-                let href = html[start..end].trim();
-                if !href.is_empty() {
-                    values.push(href.to_string());
-                }
-            }
-
-            i = j.saturating_add(1);
-        }
-
-        values
-    }
-
-    fn to_asset_info(url: &str, headers: &header::HeaderMap) -> HttpAssetInfo {
+    pub fn asset_info(url: &str, headers: &header::HeaderMap) -> HttpAssetInfo {
         HttpAssetInfo {
-            name: Self::file_name_from_url(url),
+            name: Self::file_name_from_headers_or_url(url, headers),
             download_url: url.to_string(),
             size: headers
                 .get(header::CONTENT_LENGTH)
@@ -224,69 +117,65 @@ impl HttpClient {
                 .unwrap_or(0),
             last_modified: Self::parse_last_modified(headers.get(header::LAST_MODIFIED)),
             etag: Self::parse_etag(headers.get(header::ETAG)),
+            content_type: headers
+                .get(header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_ascii_lowercase),
         }
     }
 
-    /// Convert discovered links into unique, non-checksum HTTP assets.
-    fn extract_assets_from_html(
-        base: &reqwest::Url,
-        html: &str,
-        page_headers: &header::HeaderMap,
-    ) -> Vec<HttpAssetInfo> {
-        let hrefs = Self::extract_link_values(html);
-        let page_last_modified = Self::parse_last_modified(page_headers.get(header::LAST_MODIFIED));
-        let page_etag = Self::parse_etag(page_headers.get(header::ETAG));
+    fn file_name_from_headers_or_url(url: &str, headers: &header::HeaderMap) -> String {
+        let filename = headers
+            .get(header::CONTENT_DISPOSITION)
+            .and_then(|value| value.to_str().ok())
+            .and_then(Self::filename_from_content_disposition);
+        filename.unwrap_or_else(|| Self::file_name_from_url(url))
+    }
 
-        let mut seen = HashSet::new();
-        let mut assets = Vec::new();
-        for href in hrefs {
-            if href.starts_with('#')
-                || href.starts_with("javascript:")
-                || href.starts_with("mailto:")
-                || href.starts_with("tel:")
+    fn filename_from_content_disposition(value: &str) -> Option<String> {
+        value.split(';').skip(1).find_map(|part| {
+            let (key, value) = part.trim().split_once('=')?;
+            let value = value.trim().trim_matches('"');
+            if key.eq_ignore_ascii_case("filename") {
+                return (!value.is_empty()).then(|| value.to_string());
+            }
+            if key.eq_ignore_ascii_case("filename*") {
+                let encoded = value.rsplit("''").next()?;
+                return Some(Self::percent_decode(encoded));
+            }
+            None
+        })
+    }
+
+    fn percent_decode(value: &str) -> String {
+        let bytes = value.as_bytes();
+        let mut decoded = Vec::with_capacity(bytes.len());
+        let mut index = 0;
+        while index < bytes.len() {
+            if bytes[index] == b'%'
+                && index + 2 < bytes.len()
+                && let (Some(high), Some(low)) = (
+                    char::from(bytes[index + 1]).to_digit(16),
+                    char::from(bytes[index + 2]).to_digit(16),
+                )
             {
+                decoded.push((high * 16 + low) as u8);
+                index += 3;
                 continue;
             }
-
-            let Ok(joined) = base.join(&href) else {
-                continue;
-            };
-
-            if joined.scheme() != "http" && joined.scheme() != "https" {
-                continue;
-            }
-
-            let joined_str = joined.to_string();
-            let name = Self::file_name_from_url(&joined_str);
-            if name.is_empty() {
-                continue;
-            }
-
-            if parse_filetype(&name) == Filetype::Checksum {
-                continue;
-            }
-
-            if seen.insert(joined_str.clone()) {
-                assets.push(HttpAssetInfo {
-                    download_url: joined_str,
-                    name,
-                    size: 0,
-                    last_modified: page_last_modified,
-                    etag: page_etag.clone(),
-                });
-            }
+            decoded.push(bytes[index]);
+            index += 1;
         }
-
-        assets
+        String::from_utf8_lossy(&decoded).into_owned()
     }
 
-    /// Discover downloadable assets from an HTTP endpoint with optional
-    /// `If-Modified-Since` behavior.
-    pub async fn discover_assets_if_modified_since(
+    /// Fetch a page or direct artifact. HTML interpretation belongs to the
+    /// scraper provider; this client only owns HTTP transport and metadata.
+    pub async fn fetch_document_if_modified_since(
         &self,
         url_or_slug: &str,
         last_upgraded: Option<DateTime<Utc>>,
-    ) -> Result<ConditionalDiscoveryResult> {
+    ) -> Result<ConditionalDocumentResult> {
         let url = Self::normalize_url(url_or_slug);
         let response = Self::add_if_modified_since(self.client.get(&url), last_upgraded)
             .send()
@@ -294,7 +183,7 @@ impl HttpClient {
             .context(format!("Failed to send request to {}", url))?;
 
         if response.status() == StatusCode::NOT_MODIFIED {
-            return Ok(ConditionalDiscoveryResult::NotModified);
+            return Ok(ConditionalDocumentResult::NotModified);
         }
 
         http_status::error_for_status(&response, "HTTP server", &url)?;
@@ -309,25 +198,16 @@ impl HttpClient {
 
         let response_headers = response.headers().clone();
 
-        if !content_type.contains("text/html") {
-            return Ok(ConditionalDiscoveryResult::Assets(vec![
-                Self::to_asset_info(&final_url, response.headers()),
-            ]));
-        }
-
-        let base = reqwest::Url::parse(&final_url)
-            .context(format!("Failed to parse URL '{}'", final_url))?;
-
-        let body = response.text().await.context("Failed to read HTML body")?;
-        let assets = Self::extract_assets_from_html(&base, &body, &response_headers);
-
-        if assets.is_empty() {
-            Ok(ConditionalDiscoveryResult::Assets(vec![
-                Self::to_asset_info(&final_url, &response_headers),
-            ]))
-        } else {
-            Ok(ConditionalDiscoveryResult::Assets(assets))
-        }
+        let body = response
+            .bytes()
+            .await
+            .context("Failed to read HTTP response body")?;
+        Ok(ConditionalDocumentResult::Document(HttpDocument {
+            url: final_url,
+            content_type,
+            headers: response_headers,
+            body: body.to_vec(),
+        }))
     }
 
     /// Derive a filename from URL path segments with a safe fallback.
@@ -370,36 +250,31 @@ impl HttpClient {
             .send()
             .await;
 
-        let (size, last_modified, etag) = match head_resp {
+        let (url, headers) = match head_resp {
             Ok(resp) if resp.status() == StatusCode::NOT_MODIFIED => {
                 return Ok(ConditionalProbeResult::NotModified);
             }
             Ok(resp) if resp.status().is_success() => {
-                let last_modified =
-                    Self::parse_last_modified(resp.headers().get(header::LAST_MODIFIED));
-
-                let etag = Self::parse_etag(resp.headers().get(header::ETAG));
-                (resp.content_length().unwrap_or(0), last_modified, etag)
+                (resp.url().to_string(), resp.headers().clone())
             }
             Ok(resp)
                 if resp.status() == StatusCode::METHOD_NOT_ALLOWED
                     || resp.status() == StatusCode::NOT_IMPLEMENTED =>
             {
-                let get_resp = Self::add_if_modified_since(self.client.get(&url), last_upgraded)
-                    .send()
-                    .await
-                    .context(format!("Failed to send request to {}", url))?;
+                let get_resp = Self::add_if_modified_since(
+                    self.client.get(&url).header(header::RANGE, "bytes=0-0"),
+                    last_upgraded,
+                )
+                .send()
+                .await
+                .context(format!("Failed to send request to {}", url))?;
 
                 if get_resp.status() == StatusCode::NOT_MODIFIED {
                     return Ok(ConditionalProbeResult::NotModified);
                 }
 
                 http_status::error_for_status(&get_resp, "HTTP server", &url)?;
-                let last_modified =
-                    Self::parse_last_modified(get_resp.headers().get(header::LAST_MODIFIED));
-
-                let etag = Self::parse_etag(get_resp.headers().get(header::ETAG));
-                (get_resp.content_length().unwrap_or(0), last_modified, etag)
+                (get_resp.url().to_string(), get_resp.headers().clone())
             }
             Ok(resp) => {
                 if let Some(message) = http_status::rate_limit_message(
@@ -414,31 +289,26 @@ impl HttpClient {
                 bail!("HTTP server returned {} for {}", resp.status(), url);
             }
             Err(_) => {
-                let get_resp = Self::add_if_modified_since(self.client.get(&url), last_upgraded)
-                    .send()
-                    .await
-                    .context(format!("Failed to send request to {}", url))?;
+                let get_resp = Self::add_if_modified_since(
+                    self.client.get(&url).header(header::RANGE, "bytes=0-0"),
+                    last_upgraded,
+                )
+                .send()
+                .await
+                .context(format!("Failed to send request to {}", url))?;
 
                 if get_resp.status() == StatusCode::NOT_MODIFIED {
                     return Ok(ConditionalProbeResult::NotModified);
                 }
 
                 http_status::error_for_status(&get_resp, "HTTP server", &url)?;
-                let last_modified =
-                    Self::parse_last_modified(get_resp.headers().get(header::LAST_MODIFIED));
-
-                let etag = Self::parse_etag(get_resp.headers().get(header::ETAG));
-                (get_resp.content_length().unwrap_or(0), last_modified, etag)
+                (get_resp.url().to_string(), get_resp.headers().clone())
             }
         };
 
-        Ok(ConditionalProbeResult::Asset(HttpAssetInfo {
-            name: Self::file_name_from_url(&url),
-            download_url: url,
-            size,
-            last_modified,
-            etag,
-        }))
+        Ok(ConditionalProbeResult::Asset(Self::asset_info(
+            &url, &headers,
+        )))
     }
 
     pub async fn download_file<F>(
@@ -463,7 +333,7 @@ impl HttpClient {
 
 #[cfg(test)]
 mod tests {
-    use super::{ConditionalDiscoveryResult, ConditionalProbeResult, HttpClient};
+    use super::{ConditionalDocumentResult, ConditionalProbeResult, HttpClient};
     use chrono::Utc;
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;
@@ -568,10 +438,26 @@ mod tests {
         );
     }
 
+    #[test]
+    fn content_disposition_filename_overrides_opaque_download_url() {
+        let headers = reqwest::header::HeaderMap::from_iter([(
+            reqwest::header::CONTENT_DISPOSITION,
+            reqwest::header::HeaderValue::from_static(
+                "attachment; filename*=UTF-8''tool%20v1.2.3.zip",
+            ),
+        )]);
+
+        assert_eq!(
+            HttpClient::asset_info("https://example.invalid/download?id=42", &headers).name,
+            "tool v1.2.3.zip"
+        );
+    }
+
     #[tokio::test]
-    async fn discover_assets_extracts_and_filters_html_links() {
+    async fn fetch_document_preserves_html_response() {
         let html = include_str!("../../../../tests/fixtures/providers/http/discovery-links.html");
         let body = html.to_string();
+        let response_body = body.clone();
         let last_modified = "Tue, 10 Feb 2026 15:04:05 GMT".to_string();
         let server = spawn_test_server(1, move |_, _| {
             http_response(
@@ -579,52 +465,25 @@ mod tests {
                 &[
                     ("Content-Type", "text/html"),
                     ("Last-Modified", &last_modified),
-                    ("Content-Length", &body.len().to_string()),
+                    ("Content-Length", &response_body.len().to_string()),
                     ("Connection", "close"),
                 ],
-                &body,
+                &response_body,
             )
         });
 
         let client = HttpClient::new(Default::default()).expect("client");
 
         let result = client
-            .discover_assets_if_modified_since(&server, None)
+            .fetch_document_if_modified_since(&server, None)
             .await
-            .expect("discover assets");
-
-        match result {
-            ConditionalDiscoveryResult::NotModified => panic!("unexpected not modified"),
-            ConditionalDiscoveryResult::Assets(assets) => {
-                assert_eq!(assets.len(), 4);
-                assert!(
-                    assets
-                        .iter()
-                        .any(|a| a.name.ends_with("tool-v1.2.3-linux.tar.gz"))
-                );
-
-                assert!(assets.iter().all(|a| !a.name.ends_with(".sha256")));
-                assert!(assets.iter().all(|a| a.last_modified.is_some()));
-                assert!(
-                    assets
-                        .iter()
-                        .any(|a| a.name.ends_with("tool-v1.2.3-windows.zip"))
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn extract_link_values_accepts_spaced_and_unquoted_attributes() {
-        let html =
-            include_str!("../../../../tests/fixtures/providers/http/spaced-link-attributes.html");
-
-        let values = HttpClient::extract_link_values(html);
-
-        assert!(values.contains(&"tool-a.zip".to_string()));
-        assert!(values.contains(&"tool-b.tar.gz".to_string()));
-        assert!(values.contains(&"tool-c.7z".to_string()));
-        assert!(values.contains(&"/tool-d.zip".to_string()));
+            .expect("fetch");
+        let ConditionalDocumentResult::Document(document) = result else {
+            panic!("unexpected not modified");
+        };
+        assert!(document.content_type.contains("text/html"));
+        assert_eq!(document.url, format!("{server}/"));
+        assert_eq!(document.body, body.as_bytes());
     }
 
     #[tokio::test]
