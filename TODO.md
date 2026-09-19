@@ -21,6 +21,12 @@
 - [ ] bug: list output not invoking pager + cutting off long text
       @created 2026-09-12 19:43
 
+- [ ] feat: add macOS desktop launcher support (low) #desktop #macos
+      @created 2026-09-19 16:51
+
+- [ ] feat: add tracked type with manifests that preserves untracked files #packaging
+      @created 2026-09-19 17:12
+
 
 ## Completed
 
@@ -35,4 +41,8 @@
 - [x] BREAKING: remove rollback command as its seemingly not used much
       @created 2026-09-19 01:22
       @completed 2026-09-19 01:30
+
+- [x] feat: improve scraper reliability
+      @created 2026-09-19 17:39
+      @completed 2026-09-19 17:39
 
