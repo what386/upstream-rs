@@ -106,23 +106,16 @@ mod tests {
         std::env::temp_dir().join(format!("upstream-downloader-test-{name}-{nanos}"))
     }
 
-    fn fixture_path(relative: &str) -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("fixtures")
-            .join(relative)
-    }
-
-    fn copy_fixture(relative: &str, destination: &Path) {
-        fs::create_dir_all(destination.parent().expect("fixture parent"))
-            .expect("create fixture parent");
-        fs::copy(fixture_path(relative), destination).expect("copy fixture");
+    fn write_manifest(destination: &Path, contents: &str) {
+        fs::create_dir_all(destination.parent().expect("manifest parent"))
+            .expect("create manifest parent");
+        fs::write(destination, contents).expect("write manifest");
     }
 
     #[test]
     fn build_root_markers_are_detected() {
         let root = temp_root("markers");
-        copy_fixture("builder/rust-single.Cargo.toml", &root.join("Cargo.toml"));
+        write_manifest(&root.join("Cargo.toml"), "[package]\nname = \"fixture\"\n");
         assert!(is_build_root(&root));
         let _ = fs::remove_dir_all(root);
     }
@@ -130,7 +123,7 @@ mod tests {
     #[test]
     fn resolve_workspace_root_uses_root_when_manifest_exists() {
         let root = temp_root("rust-single");
-        copy_fixture("builder/rust-single.Cargo.toml", &root.join("Cargo.toml"));
+        write_manifest(&root.join("Cargo.toml"), "[package]\nname = \"fixture\"\n");
         assert_eq!(
             SourceDownloader::resolve_workspace_root(&root).expect("resolve"),
             root
@@ -142,9 +135,9 @@ mod tests {
     #[test]
     fn resolve_workspace_root_selects_single_child_repo() {
         let root = temp_root("single-child");
-        copy_fixture(
-            "builder/pax-noise.Cargo.toml",
+        write_manifest(
             &root.join("child/Cargo.toml"),
+            "[package]\nname = \"fixture\"\n",
         );
         fs::write(root.join("pax_global_header"), "").expect("write noise");
         assert_eq!(
@@ -158,10 +151,10 @@ mod tests {
     #[test]
     fn resolve_workspace_root_errors_on_ambiguous_children() {
         let root = temp_root("ambiguous");
-        copy_fixture("builder/ambiguous-multi.go.mod", &root.join("go/go.mod"));
-        copy_fixture(
-            "builder/ambiguous-multi.Cargo.toml",
+        write_manifest(&root.join("go/go.mod"), "module fixture\n");
+        write_manifest(
             &root.join("rust/Cargo.toml"),
+            "[package]\nname = \"fixture\"\n",
         );
         let error = SourceDownloader::resolve_workspace_root(&root).expect_err("ambiguous");
         assert!(error.to_string().contains("ambiguous"));
