@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import time
@@ -117,6 +118,14 @@ class Server:
 PACKAGE = "fixture-tool"
 
 
+def platform_archive_suffix() -> str:
+    if os.name == "nt":
+        return "windows-x86_64.zip"
+    if sys.platform == "darwin":
+        return "macos-x86_64.tar.gz"
+    return "linux-x86_64.tar.gz"
+
+
 def write_upgrade_fixtures(server: Server) -> None:
     """Store the versioned archive fixtures used by lifecycle tests."""
     old_executable = (
@@ -140,7 +149,7 @@ def start_fixture_server() -> Server:
 def write_release_page(server: Server, version: int) -> None:
     """Store a release page exposing the requested fixture versions."""
     releases = range(1, version + 1)
-    suffix = "windows-x86_64.zip" if os.name == "nt" else "linux-x86_64.tar.gz"
+    suffix = platform_archive_suffix()
     links = "".join(
         f'<a href="/artifacts/{PACKAGE}-v{release}.0.0-{suffix}">v{release}</a>'
         for release in releases
@@ -149,7 +158,7 @@ def write_release_page(server: Server, version: int) -> None:
 
 
 def _write_archive(server: Server, version: int, executable: bytes) -> None:
-    suffix = "windows-x86_64.zip" if os.name == "nt" else "linux-x86_64.tar.gz"
+    suffix = platform_archive_suffix()
     name = f"{PACKAGE}-v{version}.0.0-{suffix}"
     if version == 2:
         server.write_bytes(name, executable)

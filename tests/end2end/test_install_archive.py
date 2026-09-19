@@ -2,18 +2,40 @@
 
 from __future__ import annotations
 
+import io
+import os
 import subprocess
+import sys
+import tarfile
 import unittest
+import zipfile
 
 from tests.framework.commands import run_upstream
-from tests.framework.environment import ROOT, reset_fakehome
+from tests.framework.environment import reset_fakehome, upstream_binary
 from tests.framework.packages import package_from_list, package_path, package_version
 from tests.framework.server import Server
 
 
-FIXTURE_ARCHIVE = ROOT / "test-server" / "artifacts" / "archives" / (
-    "fixture-tool-1.0.0-linux-x86_64.tar.gz"
-)
+def write_archive(server: Server) -> str:
+    if os.name == "nt":
+        name = "fixture-tool-1.0.0-windows-x86_64.zip"
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w") as contents:
+            contents.writestr("fixture-tool.exe", upstream_binary().read_bytes())
+        server.write_bytes(name, archive.getvalue())
+        return name
+
+    platform = "macos" if sys.platform == "darwin" else "linux"
+    name = f"fixture-tool-1.0.0-{platform}-x86_64.tar.gz"
+    archive = io.BytesIO()
+    with tarfile.open(fileobj=archive, mode="w:gz") as contents:
+        executable = b"#!/bin/sh\nprintf 'fixture-tool 1.0.0\\n'\n"
+        info = tarfile.TarInfo("fixture-tool")
+        info.mode = 0o755
+        info.size = len(executable)
+        contents.addfile(info, io.BytesIO(executable))
+    server.write_bytes(name, archive.getvalue())
+    return name
 
 
 class DirectInstallTests(unittest.TestCase):
@@ -22,8 +44,7 @@ class DirectInstallTests(unittest.TestCase):
 
         server = Server()
         try:
-            artifact_name = f"archives/{FIXTURE_ARCHIVE.name}"
-            server.write_bytes(artifact_name, FIXTURE_ARCHIVE.read_bytes())
+            artifact_name = write_archive(server)
             run_upstream(
                 "install",
                 server.url_for(artifact_name),
@@ -37,13 +58,14 @@ class DirectInstallTests(unittest.TestCase):
             self.assertEqual(package_version(package), (1, 0, 0), package)
             executable = package_path(package)
             self.assertTrue(executable.is_file(), executable)
-            result = subprocess.run(
-                [str(executable), "--version"],
-                check=True,
-                text=True,
-                capture_output=True,
-            )
-            self.assertTrue(result.stdout.startswith("fixture-tool 1.0.0"), result.stdout)
+            if os.name != "nt":
+                result = subprocess.run(
+                    [str(executable), "--version"],
+                    check=True,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertTrue(result.stdout.startswith("fixture-tool 1.0.0"), result.stdout)
         finally:
             server.close()
 

@@ -10,15 +10,16 @@ handling, packaging transactions, build profiles, and platform-gated code.
 repository fixtures. Prefer real fixture repositories and behavior-level tests
 over mocked metadata when testing build discovery or artifact installation.
 
-## Python integration tests
+## CLI tests
 
 The Python suites exercise the installed CLI and filesystem-visible lifecycle:
 
-- `tests/integration/test_*.py` covers fast hermetic CLI and state behavior.
-- `tests/end2end/test_*.py` covers end-to-end installs using the local http server
-- `tests/other/test_*.py` covers other miscellaneous tests.
-- `tests/live/test_*.py` probes providers with live network requests.
-- `tests/framework/` contains fake-home, package and command helpers.
+- `tests/integration/test_*.py` is fast local CLI and state coverage.
+- `tests/end2end/test_*.py` installs from the local test server and checks the
+  full package lifecycle.
+- `tests/live/test_*.py` probes real providers. Run these when you intend to
+  use the network.
+- `tests/framework/` contains the shared fake-home and command helpers.
 
 Keep live-provider tests independently runnable.
 
@@ -27,15 +28,21 @@ Keep live-provider tests independently runnable.
 The standard local checks are exposed through `Justfile`:
 
 ```text
-just fmt
-just lint
-just test
-just integration-tests-hermetic
-just install-script-tests
+just lint       # formatting, Clippy, and Windows cross-checks
+just test       # Rust tests
+just test-all   # local CLI, end-to-end, and live-provider tests
 ```
 
-Native Windows behavior requires Windows CI or a Windows toolchain; Linux
-compilation alone is not runtime proof for Windows.
+Run one local CLI test group when you are working on it:
+
+```text
+just run-tests integration
+just run-tests end2end
+just run-tests live
+```
+
+The live group needs network access. Native Windows behavior still needs a
+Windows runner or machine; building on Linux is not the same thing.
 
 ## Local artifact server
 
@@ -43,7 +50,7 @@ The Ruby server in `test-server/` provides a localhost endpoint for
 direct-download tests without contacting an external provider:
 
 ```text
-just server
+just start-artifact-server
 ```
 
 Put files in `test-server/artifacts/` and reference them as
