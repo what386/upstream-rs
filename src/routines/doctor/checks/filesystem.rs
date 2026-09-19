@@ -21,7 +21,6 @@ fn required_directory_checks(paths: &UpstreamPaths) -> Vec<(&'static str, &Path)
         ("cache directory", paths.dirs.cache_dir.as_path()),
         ("metadata directory", paths.dirs.metadata_dir.as_path()),
         ("state directory", paths.dirs.state_dir.as_path()),
-        ("rollback directory", paths.state.rollback_dir.as_path()),
         ("symlinks directory", paths.state.symlinks_dir.as_path()),
         ("icons directory", paths.state.icons_dir.as_path()),
         ("appimages directory", paths.install.appimages_dir.as_path()),

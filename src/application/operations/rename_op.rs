@@ -50,8 +50,8 @@ mod tests {
             common::enums::{Channel, Filetype, Provider},
             upstream::Package,
         },
-        services::{integration::SymlinkManager, packaging::RollbackManager},
-        storage::{database::PackageDatabase, rollback::RollbackSource},
+        services::integration::SymlinkManager,
+        storage::database::PackageDatabase,
         utils::test_support,
     };
     use std::fs;
@@ -88,10 +88,10 @@ mod tests {
     }
 
     #[test]
-    fn rename_moves_package_owned_integrations_and_rollback_data() {
+    fn rename_moves_package_owned_integrations() {
         let root = test_support::temp_root("upstream-rename-op-test", "rename");
         let paths = test_support::upstream_paths(&root);
-        let package = seed_package(&paths, "old");
+        seed_package(&paths, "old");
         fs::create_dir_all(&paths.integration.bash_completions_dir).expect("create completion dir");
         fs::create_dir_all(&paths.integration.xdg_applications_dir)
             .expect("create applications dir");
@@ -105,19 +105,6 @@ mod tests {
             b"desktop",
         )
         .expect("write desktop");
-
-        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp");
-        fs::write(paths.install.tmp_dir.join("tool.old"), b"rollback")
-            .expect("write rollback source");
-        let mut rollback_manager = RollbackManager::new(&paths).expect("open rollback manager");
-        rollback_manager
-            .capture_backup_path(
-                &package,
-                &paths.install.tmp_dir.join("tool.old"),
-                RollbackSource::Upgrade,
-                &mut None::<fn(&str)>,
-            )
-            .expect("capture rollback");
 
         let mut database =
             PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
@@ -144,20 +131,6 @@ mod tests {
                 .join("old.desktop")
                 .exists()
         );
-
-        let rollback_manager = RollbackManager::new(&paths).expect("reload rollback manager");
-        assert!(rollback_manager.rollback_record("old").is_some());
-        assert!(rollback_manager.rollback_record("new").is_none());
-        assert_eq!(
-            rollback_manager
-                .rollback_record("old")
-                .expect("existing rollback")
-                .package_snapshot
-                .id,
-            "old"
-        );
-
-        assert!(paths.state.rollback_dir.join("old").exists());
 
         fs::remove_dir_all(root).expect("cleanup");
     }

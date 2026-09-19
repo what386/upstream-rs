@@ -69,7 +69,6 @@ pub fn complete(
         "package" => completers::package::complete(request, startup),
         "reinstall" => completers::reinstall::complete(request, startup),
         "remove" => completers::remove::complete(request, startup),
-        "rollback" => completers::rollback::complete(request, startup),
         "upgrade" => completers::upgrade::complete(request, startup),
         _ => Ok(Vec::new()),
     }

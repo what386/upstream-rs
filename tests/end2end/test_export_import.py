@@ -10,16 +10,16 @@ from pathlib import Path
 from tests.framework.commands import read_json, run_upstream
 from tests.framework.environment import reset_fakehome
 from tests.framework.packages import assert_executable_version, package_from_list, package_version
-from tests.framework.server import start_rollback_server
+from tests.framework.server import start_fixture_server
 
 
-PACKAGE = "rollback-tool"
+PACKAGE = "fixture-tool"
 
 
 class EndToEndExportImportTests(unittest.TestCase):
     def test_export_import(self) -> None:
         reset_fakehome()
-        server = start_rollback_server()
+        server = start_fixture_server()
         try:
             run_upstream(
                 "install",
@@ -70,7 +70,7 @@ class EndToEndExportImportTests(unittest.TestCase):
                 run_upstream("import", "packages", str(packages_path))
                 restored = package_from_list(PACKAGE)
                 assert package_version(restored) == (1, 0, 0), restored
-                assert_executable_version(restored, "rollback-tool 1.0.0")
+                assert_executable_version(restored, "fixture-tool 1.0.0")
         finally:
             server.close()
 

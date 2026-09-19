@@ -7,7 +7,7 @@ use crate::{
         UpgradePreviewEvent, UpgradeProgressEvent,
     },
     models::{common::enums::TrustMode, upstream::config::AppConfig},
-    output::{self, SizeImpactRow, Status, TransactionRow, TransactionTableLayout},
+    output::{self, Status, TransactionRow, TransactionTableLayout},
     providers::provider_manager::ProviderManager,
     services::packaging::{PackagePhase, PackageProgressEvent},
     utils::static_paths::UpstreamPaths,
@@ -216,9 +216,7 @@ pub async fn run(
         if preview_rows.iter().all(|row| row.source_build) {
             println!();
         } else {
-            let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(&preview_rows);
-            let size_rows = rollback_size_rows(rollback_impact);
-            layout.print_totals(&impact, "Net disk change:", &size_rows);
+            layout.print_totals(&impact, "Net disk change:", &[]);
         }
     } else {
         let transaction_rows = preview_rows
@@ -229,13 +227,11 @@ pub async fn run(
         if preview_rows.iter().all(|row| row.source_build) {
             output::print_transaction_table_compact(&transaction_rows);
         } else {
-            let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(&preview_rows);
-            let size_rows = rollback_size_rows(rollback_impact);
             output::print_transaction_table_with_totals(
                 &transaction_rows,
                 &impact,
                 "Net disk change:",
-                &size_rows,
+                &[],
             );
         }
     }
@@ -461,16 +457,6 @@ async fn show_upgrade_changelog(
     Ok(())
 }
 
-fn rollback_size_rows(
-    rollback_impact: crate::services::packaging::disk_impact::SignedByteEstimate,
-) -> Vec<SizeImpactRow> {
-    if matches!(rollback_impact.bytes, Some(0)) {
-        Vec::new()
-    } else {
-        vec![SizeImpactRow::new("Rollback storage", rollback_impact)]
-    }
-}
-
 fn truncate_cell(value: &str, max: usize) -> String {
     output::truncate_end(value, max)
 }
@@ -531,7 +517,7 @@ impl CheckTableLayout {
 fn render_check_table(
     rows: &[UpdateCheckRow],
     preview_rows: &[crate::application::operations::upgrade_op::UpgradePreviewRow],
-    package_upgrade: &UpgradeOperation<'_>,
+    _package_upgrade: &UpgradeOperation<'_>,
 ) {
     if rows.is_empty() {
         println!("No installed packages to check.");
@@ -580,13 +566,11 @@ fn render_check_table(
             |total, row| total + row.disk_impact.clone(),
         );
 
-        let rollback_impact = package_upgrade.estimate_upgrade_rollback_impact(preview_rows);
-        let size_rows = rollback_size_rows(rollback_impact);
         output::print_transaction_table_with_totals(
             &transaction_rows,
             &impact,
             "Net disk change:",
-            &size_rows,
+            &[],
         );
     }
 
@@ -786,26 +770,19 @@ async fn run_dry_run(
         .preview_upgrade(names.as_deref(), force_option, &mut |_| {})
         .await;
 
-    let (impact, rollback_impact) = match &preview_rows {
+    let impact = match &preview_rows {
         Ok(rows) => {
             let impact = rows.iter().fold(
                 crate::services::packaging::disk_impact::DiskImpact::empty(),
                 |total, row| total + row.disk_impact.clone(),
             );
 
-            (
-                impact,
-                package_upgrade.estimate_upgrade_rollback_impact(rows),
-            )
+            impact
         }
-        Err(_) => (
-            crate::services::packaging::disk_impact::DiskImpact::unknown(),
-            crate::services::packaging::disk_impact::SignedByteEstimate::unknown(),
-        ),
+        Err(_) => crate::services::packaging::disk_impact::DiskImpact::unknown(),
     };
 
-    let size_rows = rollback_size_rows(rollback_impact);
-    output::print_disk_impact_with_size_rows(&impact, &size_rows, true);
+    output::print_disk_impact_with_size_rows(&impact, &[], true);
     output::action_note("resolve only (no download, no install, no metadata changes)");
     println!();
     let rows = package_upgrade

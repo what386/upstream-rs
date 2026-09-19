@@ -34,7 +34,6 @@ pub fn current_package_layout_incomplete(paths: &UpstreamPaths) -> bool {
         paths.install.appimages_dir.as_path(),
         paths.install.binaries_dir.as_path(),
         paths.install.archives_dir.as_path(),
-        paths.state.rollback_dir.as_path(),
         paths.state.symlinks_dir.as_path(),
         paths.state.icons_dir.as_path(),
     ]
@@ -182,7 +181,6 @@ mod tests {
         fs::create_dir_all(&paths.dirs.packages_dir).expect("create packages");
         fs::create_dir_all(&paths.dirs.cache_dir).expect("create cache");
         fs::create_dir_all(&paths.dirs.state_dir).expect("create state");
-        fs::create_dir_all(&paths.state.rollback_dir).expect("create rollback");
         fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks");
         fs::create_dir_all(&paths.state.icons_dir).expect("create icons");
         fs::create_dir_all(&paths.install.appimages_dir).expect("create appimages");

@@ -76,9 +76,6 @@ _upstream() {
             upstream,remove)
                 cmd="upstream__subcmd__remove"
                 ;;
-            upstream,rollback)
-                cmd="upstream__subcmd__rollback"
-                ;;
             upstream,search)
                 cmd="upstream__subcmd__search"
                 ;;
@@ -267,9 +264,6 @@ _upstream() {
                 ;;
             upstream__subcmd__help,remove)
                 cmd="upstream__subcmd__help__subcmd__remove"
-                ;;
-            upstream__subcmd__help,rollback)
-                cmd="upstream__subcmd__help__subcmd__rollback"
                 ;;
             upstream__subcmd__help,search)
                 cmd="upstream__subcmd__help__subcmd__search"
@@ -494,7 +488,7 @@ _upstream() {
 
     case "${cmd}" in
         upstream)
-            opts="-y -h -V --yes --no-pager --help --version install build remove uninstall rollback reinstall upgrade list info changelog docs probe search find config auth package cache hooks import export history doctor help"
+            opts="-y -h -V --yes --no-pager --help --version install build remove uninstall reinstall upgrade list info changelog docs probe search find config auth package cache hooks import export history doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1326,7 +1320,7 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help)
-            opts="install build remove rollback reinstall upgrade list info changelog docs probe search find config auth package cache hooks import export history doctor help"
+            opts="install build remove reinstall upgrade list info changelog docs probe search find config auth package cache hooks import export history doctor help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2054,20 +2048,6 @@ _upstream() {
             return 0
             ;;
         upstream__subcmd__help__subcmd__remove)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        upstream__subcmd__help__subcmd__rollback)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -2909,24 +2889,6 @@ _upstream() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        upstream__subcmd__rollback)
-            opts="-y -h --list --prune --dry-run --yes --no-pager --help"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                --prune)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
         upstream__subcmd__search)
             opts="-p -y -h --provider --base-url --limit --language --topic --min-stars --max-stars --pushed-after --include-forks --include-archived --json --yes --no-pager --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
@@ -3010,7 +2972,7 @@ _upstream_dynamic() {
     _upstream "$@"
     local command="${COMP_WORDS[1]}"
     case "$command" in
-        changelog|docs|doctor|history|info|list|package|reinstall|remove|rollback|upgrade) ;;
+        changelog|docs|doctor|history|info|list|package|reinstall|remove|upgrade) ;;
         *) return ;;
     esac
     local offset=2

@@ -6,11 +6,10 @@ use crate::{
     services::{
         integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
         packaging::{
-            PackagePhase, PackageProgressEvent, PackageRemover, RollbackManager,
-            staging::InstallWorkspace,
+            PackagePhase, PackageProgressEvent, PackageRemover, staging::InstallWorkspace,
         },
     },
-    storage::{database::PackageDatabase, rollback::RollbackSource},
+    storage::database::PackageDatabase,
     utils::{filenames::filesystem_name, filesystem::safe_move, static_paths::UpstreamPaths},
 };
 use std::{
@@ -242,6 +241,7 @@ impl PreparedInstall {
     }
 }
 
+#[derive(Debug)]
 pub struct ReplacementBackup {
     previous_package: Package,
     partially_installed_package: Option<Package>,
@@ -352,13 +352,19 @@ impl ReplacementBackup {
     fn mark_runtime_link_activated(&mut self) {
         self.runtime_link_activated = true;
     }
+}
 
-    fn rollback_icon_path(&self) -> Option<&Path> {
-        let original_icon = self.previous_package.icon_path.as_ref()?;
-        self.moved_integrations
-            .iter()
-            .find(|(original, _)| original == original_icon)
-            .map(|(_, stored)| stored.as_path())
+/// A fully activated replacement whose transient snapshot is retained until
+/// package metadata has been persisted.
+#[derive(Debug)]
+pub struct PendingReplacement {
+    package: Package,
+    backup: ReplacementBackup,
+}
+
+impl PendingReplacement {
+    pub fn package(&self) -> &Package {
+        &self.package
     }
 }
 
@@ -478,26 +484,10 @@ impl<'a> PackageActivator<'a> {
 
         Ok(())
     }
-
-    pub fn capture_rollback_snapshot(
-        paths: &UpstreamPaths,
-        package: &Package,
-        backup_path: &Path,
-        icon_source: Option<&Path>,
-        source: RollbackSource,
-    ) -> Result<()> {
-        RollbackManager::new(paths)?.capture_backup(
-            package,
-            backup_path,
-            icon_source,
-            source,
-            &mut None::<fn(&str)>,
-        )
-    }
 }
 
 // Activate a package with no existing install.
-// No previous version, no backup, no rollback snapshot — failure just means
+// No previous version or backup — failure just means
 // undoing whatever partial activation happened and leaving no trace.
 impl<'a> PackageActivator<'a> {
     pub async fn install_new<H, P>(
@@ -636,10 +626,9 @@ impl<'a> PackageActivator<'a> {
         previous_package: &Package,
         mut prepared: PreparedInstall,
         restore_desktop: bool,
-        rollback_source: RollbackSource,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
-    ) -> Result<Package>
+    ) -> Result<PendingReplacement>
     where
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
@@ -775,50 +764,10 @@ impl<'a> PackageActivator<'a> {
             backup.set_partial_package(updated_package.clone());
         }
 
-        if let Err(error) = Self::capture_rollback_snapshot(
-            self.paths,
-            previous_package,
-            &backup.package_backup_path,
-            backup.rollback_icon_path(),
-            rollback_source,
-        ) {
-            progress!(
-                progress_callback,
-                PackageProgressEvent::Phase(PackagePhase::RollingBack)
-            );
-
-            return self.restore_after_failure(
-                backup,
-                error.context(format!(
-                    "Failed to capture rollback for '{}'",
-                    previous_package.id
-                )),
-                "Failed to finalize replacement",
-                message_callback,
-            );
-        }
-
-        if let Err(error) = Self::remove_path_if_exists(&backup_dir) {
-            #[cfg(windows)]
-            progress!(
-                progress_callback,
-                PackageProgressEvent::Warning(format!(
-                    "Replacement succeeded, but temp couldn't removed (is the program running?): '{}'\nRun 'upstream doctor --fix' to try removing it again.",
-                    backup_dir.display()
-                ))
-            );
-
-            #[cfg(windows)]
-            drop(error);
-
-            #[cfg(not(windows))]
-            return Err(error).context(format!(
-                "Replacement succeeded, but temp couldn't be removed: '{}'",
-                backup_dir.display()
-            ));
-        }
-
-        Ok(updated_package)
+        Ok(PendingReplacement {
+            package: updated_package,
+            backup,
+        })
     }
 
     fn backup_dir(paths: &UpstreamPaths, package_name: &str) -> Result<PathBuf> {
@@ -907,7 +856,7 @@ impl<'a> PackageActivator<'a> {
 
         if !errors.is_empty() {
             return Err(anyhow!(
-                "{} for '{}': {failure:#}. Rollback encountered: {}",
+                "{} for '{}': {failure:#}. Recovery encountered: {}",
                 failure_context,
                 backup.previous_package.id,
                 errors.join("; ")
@@ -928,51 +877,44 @@ impl<'a> PackageActivator<'a> {
     pub fn persist(
         &self,
         package_database: &mut PackageDatabase,
-        replacement: &Package,
-    ) -> Result<()> {
-        if let Err(persistence_error) = package_database.upsert_package(replacement) {
-            return self.rollback_failed_database_commit(
-                package_database,
-                replacement,
+        replacement: PendingReplacement,
+    ) -> Result<Package> {
+        if let Err(persistence_error) = package_database.upsert_package(&replacement.package) {
+            return self.restore_after_failure(
+                replacement.backup,
                 persistence_error,
+                "Failed to persist replacement",
+                &mut None::<fn(&str)>,
             );
+        }
+
+        let package = replacement.package;
+        let backup_dir = replacement.backup.backup_dir;
+        if let Err(error) = Self::remove_path_if_exists(&backup_dir) {
+            #[cfg(windows)]
+            eprintln!(
+                "Replacement succeeded, but transient snapshot couldn't be removed: '{}'. Run `upstream doctor --fix` after the conflicting process exits.",
+                backup_dir.display()
+            );
+
+            #[cfg(windows)]
+            drop(error);
+
+            #[cfg(not(windows))]
+            return Err(error).context(format!(
+                "Replacement succeeded, but transient snapshot couldn't be removed: '{}'",
+                backup_dir.display()
+            ));
         }
 
         ShellManager::new(&self.paths.generated.paths_file)
             .regenerate_paths(package_database, self.paths)
             .context(format!(
                 "Replacement for '{}' was persisted, but shell PATH files could not be refreshed",
-                replacement.id
-            ))
-    }
+                package.id
+            ))?;
 
-    fn rollback_failed_database_commit(
-        &self,
-        package_database: &mut PackageDatabase,
-        replacement: &Package,
-        persistence_error: anyhow::Error,
-    ) -> Result<()> {
-        let rollback_result = (|| {
-            RollbackManager::new(self.paths)?.restore_replaced_package(
-                package_database,
-                &replacement.id,
-                replacement,
-                &mut None::<fn(&str)>,
-            )
-        })();
-
-        match rollback_result {
-            Ok(()) => Err(persistence_error).context(format!(
-                "Failed to persist replacement for '{}' (previous version restored)",
-                replacement.id
-            )),
-            Err(rollback_error) => Err(anyhow!(
-                "Failed to persist replacement for '{}': {}. Rollback also failed: {}",
-                replacement.id,
-                persistence_error,
-                rollback_error
-            )),
-        }
+        Ok(package)
     }
 }
 
@@ -981,20 +923,12 @@ mod tests {
     use super::{InstallWorkspace, PackageActivator, PreparedInstall};
     use crate::{
         models::{
-            common::{
-                Version,
-                enums::{Channel, Filetype, Provider, TrustMode},
-            },
+            common::enums::{Channel, Filetype, Provider},
             upstream::Package,
         },
-        services::{integration::SymlinkManager, packaging::RollbackManager},
-        storage::{
-            database::{PackageDatabase, PackageSettings},
-            rollback::RollbackSource,
-        },
+        storage::database::PackageDatabase,
         utils::test_support,
     };
-    use rusqlite::Connection;
     use std::fs;
 
     #[tokio::test]
@@ -1142,11 +1076,6 @@ mod tests {
         fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks");
         fs::create_dir_all(&paths.state.icons_dir).expect("create icons");
         fs::create_dir_all(&paths.dirs.config_dir).expect("create config");
-        fs::write(
-            &paths.config.config_file,
-            "[rollback]\ncompression_level = \"none\"\nstored_artifacts = 1\n",
-        )
-        .expect("write rollback config");
 
         let install_path = paths.install.binaries_dir.join("tool");
         fs::write(&install_path, b"old binary").expect("write active binary");
@@ -1192,7 +1121,6 @@ mod tests {
                 &previous,
                 PreparedInstall::new(candidate, workspace),
                 false,
-                RollbackSource::Upgrade,
                 &mut None::<fn(&str)>,
                 &mut None::<fn(crate::services::packaging::PackageProgressEvent)>,
             )
@@ -1200,7 +1128,7 @@ mod tests {
             .expect("replace staged package");
 
         assert_eq!(
-            updated.install_path.as_deref(),
+            updated.package().install_path.as_deref(),
             Some(install_path.as_path())
         );
 
@@ -1209,31 +1137,19 @@ mod tests {
             b"new binary"
         );
 
+        let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)
+            .expect("open package database");
+        PackageActivator::new(&paths)
+            .persist(&mut database, updated)
+            .expect("persist replacement");
+        assert!(!old_icon.exists());
+
         assert!(
             fs::read_dir(&paths.install.tmp_dir)
                 .expect("read temp")
                 .flatten()
                 .all(|entry| !entry.file_name().to_string_lossy().ends_with(".old"))
         );
-
-        let rollback_manager = RollbackManager::new(&paths).expect("open rollback manager");
-        let rollback_record = rollback_manager
-            .rollback_record("tool")
-            .expect("rollback record");
-
-        let rollback_icon = paths.state.rollback_dir.join(
-            rollback_record
-                .icon_relative_path
-                .as_ref()
-                .expect("rollback icon"),
-        );
-
-        assert_eq!(
-            fs::read(rollback_icon).expect("read rollback icon"),
-            b"old icon"
-        );
-
-        assert!(!old_icon.exists());
 
         fs::remove_dir_all(root).expect("cleanup");
     }
@@ -1279,7 +1195,6 @@ mod tests {
                 &previous,
                 PreparedInstall::new(candidate, workspace),
                 false,
-                RollbackSource::Upgrade,
                 &mut None::<fn(&str)>,
                 &mut None::<fn(crate::services::packaging::PackageProgressEvent)>,
             )
@@ -1297,117 +1212,6 @@ mod tests {
                 .expect("read temp")
                 .flatten()
                 .all(|entry| !entry.file_name().to_string_lossy().ends_with(".old"))
-        );
-
-        fs::remove_dir_all(root).expect("cleanup");
-    }
-
-    #[test]
-    fn failed_database_commit_restores_previous_files_and_metadata() {
-        let root = test_support::temp_root("upstream-package-replacement-test", "rollback");
-        let paths = test_support::upstream_paths(&root);
-        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries");
-        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp");
-        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks");
-        fs::create_dir_all(&paths.dirs.metadata_dir).expect("create metadata");
-
-        let install_path = paths.install.binaries_dir.join("tool");
-        let backup_path = paths.install.tmp_dir.join("tool.old");
-        fs::write(&backup_path, b"old binary").expect("write backup");
-
-        let mut previous = Package::with_defaults(
-            "tool".to_string(),
-            "owner/tool".to_string(),
-            Filetype::Binary,
-            None,
-            None,
-            Channel::Stable,
-            Provider::Github,
-            None,
-        );
-
-        previous.version = Version::new(1, 0, 0, false);
-        previous.install_path = Some(install_path.clone());
-        previous.executables = vec![crate::models::upstream::PackageExecutable {
-            path: install_path.clone(),
-            name: "tool".to_string(),
-        }];
-
-        let mut database =
-            PackageDatabase::open(&paths.metadata.packages_database_file).expect("open database");
-
-        let mut settings = PackageSettings::new("tool");
-        settings.trust_mode = Some(TrustMode::Signature);
-        database
-            .upsert_package_with_settings(&previous, &settings)
-            .expect("store previous package and settings");
-        let mut rollback_manager = RollbackManager::new(&paths).expect("open rollback manager");
-        rollback_manager
-            .capture_backup_path(
-                &previous,
-                &backup_path,
-                RollbackSource::Upgrade,
-                &mut None::<fn(&str)>,
-            )
-            .expect("capture rollback");
-
-        fs::write(&install_path, b"new binary").expect("write replacement");
-        SymlinkManager::new(&paths.state.symlinks_dir)
-            .add_link(&install_path, "tool")
-            .expect("create replacement link");
-        let mut replacement = previous.clone();
-        replacement.version = Version::new(2, 0, 0, false);
-
-        let database_path =
-            PackageDatabase::database_path_for(&paths.metadata.packages_database_file);
-
-        Connection::open(&database_path)
-            .expect("open trigger connection")
-            .execute_batch(
-                "
-                CREATE TRIGGER reject_v2
-                BEFORE UPDATE ON packages
-                WHEN NEW.version_major = 2
-                BEGIN
-                    SELECT RAISE(ABORT, 'reject test replacement');
-                END;
-                ",
-            )
-            .expect("create trigger");
-
-        let error = PackageActivator::new(&paths)
-            .persist(&mut database, &replacement)
-            .expect_err("replacement persistence should fail");
-
-        assert!(error.to_string().contains("previous version restored"));
-        assert_eq!(
-            fs::read(&install_path).expect("read restored binary"),
-            b"old binary"
-        );
-
-        assert_eq!(
-            database
-                .get_package("tool")
-                .expect("load package")
-                .expect("stored package")
-                .version,
-            Version::new(1, 0, 0, false)
-        );
-
-        assert_eq!(
-            database
-                .get_package_settings("tool")
-                .expect("load settings")
-                .expect("stored settings")
-                .trust_mode,
-            Some(TrustMode::Signature)
-        );
-
-        assert!(
-            RollbackManager::new(&paths)
-                .expect("reload rollback manager")
-                .rollback_record("tool")
-                .is_none()
         );
 
         fs::remove_dir_all(root).expect("cleanup");

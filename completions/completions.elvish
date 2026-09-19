@@ -29,7 +29,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand build 'Build and install a package from source'
             cand remove 'Remove installed package files and metadata'
             cand uninstall 'Remove installed package files and metadata'
-            cand rollback 'Restore or prune stored rollback artifacts'
             cand reinstall 'Reinstall packages from their stored source metadata'
             cand upgrade 'Check for or install package updates'
             cand list 'List installed packages'
@@ -111,16 +110,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand --purge 'Remove package-owned cached data as well as active files'
             cand --force 'Remove metadata even when uninstall cleanup fails'
             cand --dry-run 'Preview removal actions without deleting files or metadata'
-            cand -y 'Accept confirmation prompts automatically'
-            cand --yes 'Accept confirmation prompts automatically'
-            cand --no-pager 'Prevent paging long command outputs'
-            cand -h 'Print help (see more with ''--help'')'
-            cand --help 'Print help (see more with ''--help'')'
-        }
-        &'upstream;rollback'= {
-            cand --prune 'Delete rollback artifacts for all packages or selected package names'
-            cand --list 'List available rollback artifacts'
-            cand --dry-run 'Preview rollback restore or prune actions without modifying files or metadata'
             cand -y 'Accept confirmation prompts automatically'
             cand --yes 'Accept confirmation prompts automatically'
             cand --no-pager 'Prevent paging long command outputs'
@@ -732,7 +721,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
             cand install 'Install a release asset or direct download'
             cand build 'Build and install a package from source'
             cand remove 'Remove installed package files and metadata'
-            cand rollback 'Restore or prune stored rollback artifacts'
             cand reinstall 'Reinstall packages from their stored source metadata'
             cand upgrade 'Check for or install package updates'
             cand list 'List installed packages'
@@ -758,8 +746,6 @@ set edit:completion:arg-completer[upstream] = {|@words|
         &'upstream;help;build'= {
         }
         &'upstream;help;remove'= {
-        }
-        &'upstream;help;rollback'= {
         }
         &'upstream;help;reinstall'= {
         }
@@ -897,7 +883,7 @@ set edit:completion:arg-completer[upstream] = {|@words|
         }
     ]
     var dynamic_command = (str:split ';' $command)[-1]
-    if (or (== $dynamic_command 'changelog') (== $dynamic_command 'docs') (== $dynamic_command 'doctor') (== $dynamic_command 'history') (== $dynamic_command 'info') (== $dynamic_command 'list') (== $dynamic_command 'package') (== $dynamic_command 'reinstall') (== $dynamic_command 'remove') (== $dynamic_command 'rollback') (== $dynamic_command 'upgrade')) {
+    if (or (== $dynamic_command 'changelog') (== $dynamic_command 'docs') (== $dynamic_command 'doctor') (== $dynamic_command 'history') (== $dynamic_command 'info') (== $dynamic_command 'list') (== $dynamic_command 'package') (== $dynamic_command 'reinstall') (== $dynamic_command 'remove') (== $dynamic_command 'upgrade')) {
         var dynamic_words = $words[2..-1]
         var dynamic_cursor = (- (count $dynamic_words) 1)
         var dynamic_values = (upstream __complete $dynamic_command $dynamic_cursor -- $dynamic_words | slurp | str:split '\n')

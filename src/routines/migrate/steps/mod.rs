@@ -1,6 +1,7 @@
 mod v2_0_0;
 mod v2_11_0;
 mod v2_12_0;
+mod v2_20_0;
 mod v2_3_0;
 mod v2_6_0;
 
@@ -19,5 +20,6 @@ pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result
     v2_6_0::run(paths, report)?;
     v2_11_0::run(paths, report)?;
     v2_12_0::run(paths, report)?;
+    v2_20_0::run(paths, report)?;
     Ok(())
 }

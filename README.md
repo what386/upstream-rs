@@ -151,8 +151,6 @@ build system allows rebuilds to reuse its output.
 ```bash
 upstream upgrade nvim ripgrep
 upstream reinstall ripgrep
-upstream rollback ripgrep
-upstream rollback --list
 upstream package pin nvim
 upstream package rename nvim neovim
 upstream package set nvim match_pattern=linux,x86_64 trust_mode=checksum
@@ -174,7 +172,7 @@ upstream import keys ./keys.json
 ```
 
 Exports contain reinstallable references and metadata. They do not contain
-installed files, rollback artifacts, or cache contents.
+installed files or cache contents.
 
 ## API tokens
 

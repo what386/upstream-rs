@@ -10,13 +10,13 @@ import unittest
 from tests.framework.commands import run_upstream, run_upstream_json, start_upstream
 from tests.framework.environment import reset_fakehome
 from tests.framework.packages import assert_executable_version, package_from_list, package_path
-from tests.framework.server import PACKAGE, Server, write_release_page, write_rollback_fixtures
+from tests.framework.server import PACKAGE, Server, write_release_page, write_upgrade_fixtures
 
 
 def scenario() -> None:
     reset_fakehome()
     server = Server(throttle_pattern="v2.0.0", throttle_delay=0.05, start=False)
-    write_rollback_fixtures(server)
+    write_upgrade_fixtures(server)
     server.start()
     try:
         run_upstream(
@@ -57,7 +57,7 @@ def assert_working(package: dict[str, object]) -> None:
     if os.name == "nt":
         assert package_path(package).is_file(), package
     else:
-        assert_executable_version(package, "rollback-tool 1.0.0")
+        assert_executable_version(package, "fixture-tool 1.0.0")
 
 
 class EndToEndUpgradeInterruptTests(unittest.TestCase):

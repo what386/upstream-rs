@@ -12,13 +12,13 @@ use crate::{
         artifact::zsync_handler,
         packaging::{
             PackageActivator, PackageInstaller, PackagePhase, PackageProgressEvent, PackageRemover,
+            PendingReplacement,
             activation::PreparedInstall,
             disk_impact::{DiskImpact, SignedByteEstimate, asset_size_estimate, estimate_upgrade},
             staging::InstallWorkspace,
         },
         trust::{TrustVerifier, TrustedSignatureKeys},
     },
-    storage::rollback::RollbackSource,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -276,7 +276,7 @@ impl<'a> PackageUpgrader<'a> {
         download_progress: &mut Option<F>,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
-    ) -> Result<Package>
+    ) -> Result<PendingReplacement>
     where
         F: FnMut(u64, u64),
         H: FnMut(&str),
@@ -287,7 +287,6 @@ impl<'a> PackageUpgrader<'a> {
             target,
             trust_mode,
             false,
-            RollbackSource::Upgrade,
             "Upgrading",
             download_progress,
             message_callback,
@@ -306,7 +305,7 @@ impl<'a> PackageUpgrader<'a> {
         download_progress: &mut Option<F>,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
-    ) -> Result<Package>
+    ) -> Result<PendingReplacement>
     where
         F: FnMut(u64, u64),
         H: FnMut(&str),
@@ -317,7 +316,6 @@ impl<'a> PackageUpgrader<'a> {
             target,
             trust_mode,
             force,
-            RollbackSource::Reinstall,
             "Reinstalling",
             download_progress,
             message_callback,
@@ -333,12 +331,11 @@ impl<'a> PackageUpgrader<'a> {
         target: ResolvedUpgradeTarget,
         trust_mode: TrustMode,
         allow_pinned: bool,
-        rollback_source: RollbackSource,
         action: &'static str,
         download_progress: &mut Option<F>,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
-    ) -> Result<Package>
+    ) -> Result<PendingReplacement>
     where
         F: FnMut(u64, u64),
         H: FnMut(&str),
@@ -474,7 +471,6 @@ impl<'a> PackageUpgrader<'a> {
                                     package,
                                     PreparedInstall::new(updated_package, workspace),
                                     false,
-                                    rollback_source.clone(),
                                     message_callback,
                                     progress_callback,
                                 )
@@ -597,7 +593,6 @@ impl<'a> PackageUpgrader<'a> {
                     package,
                     PreparedInstall::new(updated_package, workspace),
                     had_desktop_integration,
-                    rollback_source,
                     message_callback,
                     progress_callback,
                 )
@@ -715,8 +710,8 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn rollback_failed_upgrade_removes_partial_install_and_restores_previous_binary() {
-        let root = temp_root("rollback-desktop-failure");
+    fn recovery_after_failed_upgrade_removes_partial_install_and_restores_previous_binary() {
+        let root = temp_root("recovery-desktop-failure");
         let paths = test_paths(&root);
         fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
         fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
@@ -746,27 +741,27 @@ mod tests {
         partial.icon_path = Some(new_icon_path.clone());
         let completion_path = paths.integration.bash_completions_dir.join("tool");
         fs::write(&completion_path, b"old completion").expect("write old completion");
-        let mut rollback_guard =
+        let mut recovery_guard =
             ReplacementBackup::new(previous, install_path.clone(), backup_dir.clone())
                 .expect("create replacement backup");
 
-        rollback_guard
+        recovery_guard
             .move_integrations(&paths)
             .expect("move integrations");
-        rollback_guard.set_partial_package(partial);
+        recovery_guard.set_partial_package(partial);
         fs::write(&completion_path, b"new completion").expect("write new completion");
         fs::write(&desktop_path, b"new desktop").expect("write new desktop");
         fs::write(&new_icon_path, b"new icon").expect("write new icon");
         let mut msg = Some(|_: &str| {});
 
         let result: anyhow::Result<()> = PackageActivator::new(&paths).restore_after_failure(
-            rollback_guard,
+            recovery_guard,
             anyhow::anyhow!("desktop failed"),
             "Failed to restore desktop integration",
             &mut msg,
         );
 
-        let err = result.expect_err("rollback helper returns original failure");
+        let err = result.expect_err("recovery helper returns original failure");
 
         assert!(err.to_string().contains("previous version restored"));
         assert_eq!(
@@ -792,64 +787,6 @@ mod tests {
         );
 
         assert!(!new_icon_path.exists());
-
-        cleanup(&root).expect("cleanup");
-    }
-
-    #[tokio::test]
-    async fn rollback_capture_failure_restores_previous_install() {
-        let root = temp_root("capture-failure");
-        let paths = test_paths(&root);
-        fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
-        fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
-        fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks dir");
-        fs::create_dir_all(&paths.dirs.config_dir).expect("create config dir");
-        fs::write(
-            &paths.config.config_file,
-            "[rollback]\ncompression_level = \"low\"\nstored_artifacts = 1\n",
-        )
-        .expect("write rollback config");
-
-        let install_path = paths.install.binaries_dir.join("tool");
-        let backup_dir = paths.install.tmp_dir.join("tool.old");
-        let backup_path = backup_dir.join("package/tool");
-        fs::write(&install_path, b"new").expect("write replacement");
-        fs::create_dir_all(backup_path.parent().expect("backup parent"))
-            .expect("create backup directory");
-        fs::write(&backup_path, b"old").expect("write backup");
-        let guard_previous = test_package("tool", install_path.clone());
-        let mut previous = guard_previous.clone();
-        let invalid_icon = root.join("icon-directory");
-        fs::create_dir_all(&invalid_icon).expect("create invalid icon directory");
-        previous.icon_path = Some(invalid_icon);
-        let updated = test_package("tool", install_path.clone());
-        let mut guard =
-            ReplacementBackup::new(guard_previous, install_path.clone(), backup_dir.clone())
-                .expect("create replacement backup");
-
-        guard.set_partial_package(updated.clone());
-
-        let capture_error = PackageActivator::capture_rollback_snapshot(
-            &paths,
-            &previous,
-            &backup_path,
-            previous.icon_path.as_deref(),
-            crate::storage::rollback::RollbackSource::Upgrade,
-        )
-        .expect_err("post-copy icon failure should prevent rollback capture");
-
-        let result: anyhow::Result<()> = PackageActivator::new(&paths).restore_after_failure(
-            guard,
-            capture_error,
-            "Failed to finalize replacement",
-            &mut None::<fn(&str)>,
-        );
-
-        let error = result.expect_err("post-copy icon failure should prevent rollback capture");
-
-        assert!(error.to_string().contains("previous version restored"));
-        assert_eq!(fs::read(&install_path).expect("read restored"), b"old");
-        assert!(!backup_dir.exists());
 
         cleanup(&root).expect("cleanup");
     }

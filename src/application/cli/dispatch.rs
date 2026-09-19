@@ -98,13 +98,6 @@ impl Cli {
                 dry_run,
             } => commands::remove::run(names, purge_option, force, dry_run, paths),
 
-            Commands::Rollback {
-                names,
-                list,
-                prune,
-                dry_run,
-            } => commands::rollback::run(names, list, prune, dry_run, paths),
-
             Commands::Reinstall {
                 names,
                 trust_mode,

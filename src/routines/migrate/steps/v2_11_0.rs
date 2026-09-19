@@ -1,24 +1,14 @@
-use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
 
 use crate::models::upstream::Package;
 use crate::routines::migrate::MigrationReport;
 use crate::routines::migrate::step::Step;
 use crate::storage::database::PackageDatabase;
-use crate::storage::rollback::RollbackRecord;
-use crate::utils::filesystem::atomic_ops::write_atomic;
-use crate::utils::filesystem::safe_move;
+use crate::utils::filesystem::{atomic_ops::write_atomic, safe_move};
 use crate::utils::static_paths::UpstreamPaths;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct RollbackStorageFile {
-    version: u32,
-    records: HashMap<String, Vec<RollbackRecord>>,
-}
 
 pub struct V2_11_0;
 
@@ -28,12 +18,10 @@ pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result
 
 impl Step for V2_11_0 {
     fn check(paths: &UpstreamPaths) -> Result<bool> {
-        let old_rollback_dir = paths.dirs.data_dir.join("rollback");
         let old_symlinks_dir = paths.dirs.data_dir.join("symlinks");
         let old_icons_dir = paths.dirs.data_dir.join("icons");
 
-        if legacy_state_dir_needs_migration(&old_rollback_dir, &paths.state.rollback_dir)?
-            || legacy_state_dir_needs_migration(&old_symlinks_dir, &paths.state.symlinks_dir)?
+        if legacy_state_dir_needs_migration(&old_symlinks_dir, &paths.state.symlinks_dir)?
             || legacy_state_dir_needs_migration(&old_icons_dir, &paths.state.icons_dir)?
         {
             return Ok(true);
@@ -42,7 +30,6 @@ impl Step for V2_11_0 {
         if file_contains_path(&paths.generated.paths_file, &old_symlinks_dir)?
             || file_contains_path(&paths.generated.paths_nu_file, &old_symlinks_dir)?
             || package_database_contains_icon_path(paths, &old_icons_dir)?
-            || rollback_storage_contains_icon_path(paths, &old_icons_dir)?
             || desktop_entries_contain_icon_path(paths, &old_icons_dir)?
         {
             return Ok(true);
@@ -57,12 +44,10 @@ impl Step for V2_11_0 {
 }
 
 fn apply(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
-    let old_rollback_dir = paths.dirs.data_dir.join("rollback");
     let old_symlinks_dir = paths.dirs.data_dir.join("symlinks");
     let old_icons_dir = paths.dirs.data_dir.join("icons");
 
     create_state_directories(paths, report)?;
-    move_legacy_state_dir(&old_rollback_dir, &paths.state.rollback_dir, report)?;
     move_legacy_state_dir(&old_symlinks_dir, &paths.state.symlinks_dir, report)?;
     move_legacy_state_dir(&old_icons_dir, &paths.state.icons_dir, report)?;
 
@@ -86,7 +71,6 @@ fn apply(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
         &paths.state.symlinks_dir,
     )?;
     rewrite_package_database_icons(paths, &old_icons_dir, report)?;
-    rewrite_rollback_storage(paths, &old_icons_dir, report)?;
     rewrite_desktop_entries(paths, &old_icons_dir, &paths.state.icons_dir)?;
 
     Ok(())
@@ -124,14 +108,6 @@ fn package_database_contains_icon_path(
     }))
 }
 
-fn rollback_storage_contains_icon_path(
-    paths: &UpstreamPaths,
-    old_icons_dir: &Path,
-) -> Result<bool> {
-    let rollback_file = paths.dirs.metadata_dir.join("rollback.json");
-    file_contains_path(&rollback_file, old_icons_dir)
-}
-
 fn desktop_entries_contain_icon_path(paths: &UpstreamPaths, old_icons_dir: &Path) -> Result<bool> {
     let applications_dir = &paths.integration.xdg_applications_dir;
     if !applications_dir.exists() {
@@ -159,7 +135,6 @@ fn desktop_entries_contain_icon_path(paths: &UpstreamPaths, old_icons_dir: &Path
 fn create_state_directories(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
     for dir in [
         paths.dirs.state_dir.as_path(),
-        paths.state.rollback_dir.as_path(),
         paths.state.symlinks_dir.as_path(),
         paths.state.icons_dir.as_path(),
     ] {
@@ -315,65 +290,6 @@ fn rewrite_package_icon_path(
     true
 }
 
-fn rewrite_rollback_storage(
-    paths: &UpstreamPaths,
-    old_icons_dir: &Path,
-    report: &mut MigrationReport,
-) -> Result<()> {
-    let rollback_file = paths.dirs.metadata_dir.join("rollback.json");
-    if !rollback_file.exists() {
-        return Ok(());
-    }
-
-    let json = fs::read_to_string(&rollback_file).with_context(|| {
-        format!(
-            "Failed to read rollback storage '{}'",
-            rollback_file.display()
-        )
-    })?;
-
-    if json.trim().is_empty() {
-        return Ok(());
-    }
-
-    let mut storage: RollbackStorageFile = serde_json::from_str(&json).with_context(|| {
-        format!(
-            "Failed to parse rollback storage '{}'",
-            rollback_file.display()
-        )
-    })?;
-
-    let mut changed = false;
-    let mut updated_records = 0;
-    for records in storage.records.values_mut() {
-        for record in records {
-            if rewrite_package_icon_path(
-                &mut record.package_snapshot,
-                old_icons_dir,
-                &paths.state.icons_dir,
-            ) {
-                changed = true;
-                updated_records += 1;
-            }
-        }
-    }
-
-    if changed {
-        let updated_json = serde_json::to_string_pretty(&storage)
-            .context("Failed to serialize rollback storage")?;
-
-        write_atomic(&rollback_file, updated_json.as_bytes()).with_context(|| {
-            format!(
-                "Failed to write rollback storage '{}'",
-                rollback_file.display()
-            )
-        })?;
-        report.updated_rollback_records += updated_records;
-    }
-
-    Ok(())
-}
-
 fn rewrite_desktop_entries(
     paths: &UpstreamPaths,
     old_icons_dir: &Path,
@@ -420,7 +336,6 @@ mod tests {
     use crate::routines::migrate::step::Step;
     use crate::storage::database::PackageDatabase;
     use crate::utils::test_support;
-    use serde_json::json;
     use std::path::{Path, PathBuf};
     use std::{fs, io};
 
@@ -467,7 +382,6 @@ mod tests {
     fn check_skips_current_layout_without_legacy_references() {
         let root = temp_root("check-current");
         let paths = test_support::upstream_paths(&root);
-        fs::create_dir_all(&paths.state.rollback_dir).expect("create rollback");
         fs::create_dir_all(&paths.state.symlinks_dir).expect("create symlinks");
         fs::create_dir_all(&paths.state.icons_dir).expect("create icons");
 
@@ -483,10 +397,8 @@ mod tests {
         fs::create_dir_all(&paths.dirs.config_dir).expect("create config dir");
         fs::create_dir_all(&paths.dirs.metadata_dir).expect("create metadata");
 
-        let old_rollback_dir = paths.dirs.data_dir.join("rollback");
         let old_symlinks_dir = paths.dirs.data_dir.join("symlinks");
         let old_icons_dir = paths.dirs.data_dir.join("icons");
-        fs::create_dir_all(&old_rollback_dir).expect("create rollback dir");
         fs::create_dir_all(&old_symlinks_dir).expect("create symlinks dir");
         fs::create_dir_all(&old_icons_dir).expect("create icons dir");
         fs::write(old_symlinks_dir.join("tool"), b"link").expect("write symlink placeholder");
@@ -505,30 +417,6 @@ mod tests {
         package_db
             .replace_all_packages(&[package.clone()])
             .expect("seed database");
-
-        let rollback_file = paths.dirs.metadata_dir.join("rollback.json");
-        fs::create_dir_all(rollback_file.parent().expect("rollback parent"))
-            .expect("create rollback parent");
-        fs::write(
-            &rollback_file,
-            serde_json::to_vec_pretty(&json!({
-                "version": 1,
-                "records": {
-                    "tool": [{
-                        "package_snapshot": package,
-                        "artifact_relative_path": "tool/artifact.tgz",
-                        "icon_relative_path": null,
-                        "artifact_format": "tgz",
-                        "artifact_entry_path": null,
-                        "icon_entry_path": null,
-                        "source": "Upgrade",
-                        "created_at": "2026-07-06T00:00:00Z"
-                    }]
-                }
-            }))
-            .expect("serialize rollback"),
-        )
-        .expect("write rollback");
 
         fs::create_dir_all(paths.generated.paths_file.parent().expect("paths parent"))
             .expect("create paths parent");
@@ -559,16 +447,13 @@ mod tests {
         let mut report = MigrationReport::default();
         run(&paths, &mut report).expect("run migration");
 
-        assert!(!old_rollback_dir.exists());
         assert!(!old_symlinks_dir.exists());
         assert!(!old_icons_dir.exists());
-        assert!(paths.state.rollback_dir.exists());
         assert!(paths.state.symlinks_dir.exists());
         assert!(paths.state.icons_dir.exists());
         assert!(!V2_11_0::check(&paths).expect("check migration after migration"));
         assert_eq!(report.moved_entries, 2);
         assert!(report.updated_packages >= 1);
-        assert_eq!(report.updated_rollback_records, 1);
 
         let migrated_config =
             fs::read_to_string(&paths.generated.paths_file).expect("read paths.sh");
@@ -590,15 +475,6 @@ mod tests {
         assert_eq!(
             migrated_package.icon_path.as_deref(),
             Some(expected_icon_path.as_path())
-        );
-
-        let migrated_rollback: serde_json::Value =
-            serde_json::from_slice(&fs::read(&rollback_file).expect("read rollback"))
-                .expect("parse rollback");
-
-        assert_eq!(
-            migrated_rollback["records"]["tool"][0]["package_snapshot"]["icon_path"].as_str(),
-            Some(expected_icon_path.to_str().expect("utf8 path"))
         );
 
         let migrated_desktop =

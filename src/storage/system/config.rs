@@ -38,7 +38,19 @@ impl ConfigStorage {
         let toml_str =
             fs::read_to_string(&self.config_file).context("Failed to load config file")?;
 
-        self.config = toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
+        let mut raw: toml::Value =
+            toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
+        if raw
+            .as_table_mut()
+            .is_some_and(|table| table.remove("rollback").is_some())
+        {
+            let normalized = toml::to_string_pretty(&raw)
+                .context("Failed to remove obsolete rollback configuration")?;
+            write_atomic(&self.config_file, normalized.as_bytes()).with_context(|| {
+                format!("Failed to update config '{}'", self.config_file.display())
+            })?;
+        }
+        self.config = raw.try_into().context("Tried to parse an invalid config")?;
         Ok(())
     }
 
@@ -344,6 +356,30 @@ mod tests {
         assert_eq!(storage.get_config().logging.level, LoggingLevel::Error);
         assert_eq!(storage.get_config().logging.vacuum, 50000);
         assert_eq!(storage.get_config().logging.max_size_mb, 25);
+
+        cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn load_removes_obsolete_rollback_section() {
+        let path = temp_config_file("obsolete-rollback");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+
+        fs::write(
+            &path,
+            "[download]\nlow_threads = 6\n\n[rollback]\nenabled = true\n",
+        )
+        .expect("write config");
+
+        let storage = ConfigStorage::new(&path).expect("config should load");
+        assert_eq!(storage.get_config().download.low_threads, 6);
+        assert!(
+            !fs::read_to_string(&path)
+                .expect("read normalized config")
+                .contains("rollback")
+        );
 
         cleanup(&path).expect("cleanup");
     }

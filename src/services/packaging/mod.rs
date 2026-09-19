@@ -5,7 +5,6 @@ mod filetypes;
 mod installer;
 pub mod progress;
 mod remover;
-pub mod rollbacker;
 mod selection;
 mod staging;
 mod upgrader;
@@ -95,13 +94,12 @@ impl InstallPlan {
     }
 }
 
-pub use activation::{PackageActivator, PreparedInstall};
+pub use activation::{PackageActivator, PendingReplacement, PreparedInstall};
 pub use checker::PackageChecker;
 pub use installer::PackageInstaller;
 pub use installer::ResolvedAssetInstall;
 pub use progress::{OperationPhase, OperationProgressEvent, PackagePhase, PackageProgressEvent};
 pub use remover::PackageRemover;
-pub use rollbacker::RollbackManager;
 pub use staging::InstallWorkspace;
 pub use upgrader::PackageUpgrader;
 pub use upgrader::ResolvedUpgradeTarget;

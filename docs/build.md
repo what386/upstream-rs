@@ -3,7 +3,7 @@
 `src/services/packaging/` owns package installation; build-specific behavior is
 implemented by the profile logic used by `application/operations/build_op.rs`.
 The important boundary is that a profile returns a staged executable, while the
-normal installer owns activation, metadata, rollback, and integrations.
+normal installer owns activation, metadata, recovery, and integrations.
 
 Builds persist the resolved provider/repository plus the selected branch or
 release tag. Package identity is the canonical provider and repository slug;
@@ -44,7 +44,7 @@ corresponding `upgrade` prefix and fall back to install scripts when absent.
 
 The staged artifact is handed to the same installer used for release assets.
 That keeps replacement atomic and ensures build installs participate in the
-same rollback and integration cleanup paths.
+same recovery and integration cleanup paths.
 
 ## Constraints
 

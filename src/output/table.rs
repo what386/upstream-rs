@@ -570,7 +570,7 @@ mod tests {
         let total = total_disk_change(
             SignedByteEstimate::exact(-10),
             &[SizeImpactRow::new(
-                "Rollback storage",
+                "Auxiliary storage",
                 SignedByteEstimate::exact(10),
             )],
         );

@@ -21,7 +21,7 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
 
     $dynamicCompletions = @()
     $dynamicCommand = $command.Split(';')[-1]
-    if ($dynamicCommand -in @('changelog', 'docs', 'doctor', 'history', 'info', 'list', 'package', 'reinstall', 'remove', 'rollback', 'upgrade')) {
+    if ($dynamicCommand -in @('changelog', 'docs', 'doctor', 'history', 'info', 'list', 'package', 'reinstall', 'remove', 'upgrade')) {
         $dynamicWords = @()
         for ($i = 2; $i -lt $commandElements.Count; $i++) {
             $dynamicWords += $commandElements[$i].Value
@@ -44,7 +44,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('build', 'build', [CompletionResultType]::ParameterValue, 'Build and install a package from source')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove installed package files and metadata')
             [CompletionResult]::new('uninstall', 'uninstall', [CompletionResultType]::ParameterValue, 'Remove installed package files and metadata')
-            [CompletionResult]::new('rollback', 'rollback', [CompletionResultType]::ParameterValue, 'Restore or prune stored rollback artifacts')
             [CompletionResult]::new('reinstall', 'reinstall', [CompletionResultType]::ParameterValue, 'Reinstall packages from their stored source metadata')
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Check for or install package updates')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages')
@@ -130,17 +129,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('--purge', '--purge', [CompletionResultType]::ParameterName, 'Remove package-owned cached data as well as active files')
             [CompletionResult]::new('--force', '--force', [CompletionResultType]::ParameterName, 'Remove metadata even when uninstall cleanup fails')
             [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview removal actions without deleting files or metadata')
-            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
-            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
-            [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help (see more with ''--help'')')
-            break
-        }
-        'upstream;rollback' {
-            [CompletionResult]::new('--prune', '--prune', [CompletionResultType]::ParameterName, 'Delete rollback artifacts for all packages or selected package names')
-            [CompletionResult]::new('--list', '--list', [CompletionResultType]::ParameterName, 'List available rollback artifacts')
-            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview rollback restore or prune actions without modifying files or metadata')
             [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
             [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Accept confirmation prompts automatically')
             [CompletionResult]::new('--no-pager', '--no-pager', [CompletionResultType]::ParameterName, 'Prevent paging long command outputs')
@@ -849,7 +837,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             [CompletionResult]::new('install', 'install', [CompletionResultType]::ParameterValue, 'Install a release asset or direct download')
             [CompletionResult]::new('build', 'build', [CompletionResultType]::ParameterValue, 'Build and install a package from source')
             [CompletionResult]::new('remove', 'remove', [CompletionResultType]::ParameterValue, 'Remove installed package files and metadata')
-            [CompletionResult]::new('rollback', 'rollback', [CompletionResultType]::ParameterValue, 'Restore or prune stored rollback artifacts')
             [CompletionResult]::new('reinstall', 'reinstall', [CompletionResultType]::ParameterValue, 'Reinstall packages from their stored source metadata')
             [CompletionResult]::new('upgrade', 'upgrade', [CompletionResultType]::ParameterValue, 'Check for or install package updates')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List installed packages')
@@ -878,9 +865,6 @@ Register-ArgumentCompleter -Native -CommandName 'upstream' -ScriptBlock {
             break
         }
         'upstream;help;remove' {
-            break
-        }
-        'upstream;help;rollback' {
             break
         }
         'upstream;help;reinstall' {

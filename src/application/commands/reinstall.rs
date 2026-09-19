@@ -640,7 +640,7 @@ where
         )
         .await?;
 
-    PackageActivator::new(paths).persist(package_database, &updated)?;
+    PackageActivator::new(paths).persist(package_database, updated)?;
 
     Ok(())
 }

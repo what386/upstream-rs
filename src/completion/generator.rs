@@ -54,7 +54,7 @@ fn generate_for_shell<G: Generator>(
                 "    $completions = @(switch ($command) {",
                 r#"    $dynamicCompletions = @()
     $dynamicCommand = $command.Split(';')[-1]
-    if ($dynamicCommand -in @('changelog', 'docs', 'doctor', 'history', 'info', 'list', 'package', 'reinstall', 'remove', 'rollback', 'upgrade')) {
+    if ($dynamicCommand -in @('changelog', 'docs', 'doctor', 'history', 'info', 'list', 'package', 'reinstall', 'remove', 'upgrade')) {
         $dynamicWords = @()
         for ($i = 2; $i -lt $commandElements.Count; $i++) {
             $dynamicWords += $commandElements[$i].Value
@@ -78,7 +78,7 @@ fn generate_for_shell<G: Generator>(
         let generated = generated.replace(
             "    $completions[$command]\n}",
             r#"    var dynamic_command = (str:split ';' $command)[-1]
-    if (or (== $dynamic_command 'changelog') (== $dynamic_command 'docs') (== $dynamic_command 'doctor') (== $dynamic_command 'history') (== $dynamic_command 'info') (== $dynamic_command 'list') (== $dynamic_command 'package') (== $dynamic_command 'reinstall') (== $dynamic_command 'remove') (== $dynamic_command 'rollback') (== $dynamic_command 'upgrade')) {
+    if (or (== $dynamic_command 'changelog') (== $dynamic_command 'docs') (== $dynamic_command 'doctor') (== $dynamic_command 'history') (== $dynamic_command 'info') (== $dynamic_command 'list') (== $dynamic_command 'package') (== $dynamic_command 'reinstall') (== $dynamic_command 'remove') (== $dynamic_command 'upgrade')) {
         var dynamic_words = $words[2..-1]
         var dynamic_cursor = (- (count $dynamic_words) 1)
         var dynamic_values = (upstream __complete $dynamic_command $dynamic_cursor -- $dynamic_words | slurp | str:split '\n')
@@ -112,7 +112,7 @@ _upstream_dynamic() {
     _upstream "$@"
     local command="${COMP_WORDS[1]}"
     case "$command" in
-        changelog|docs|doctor|history|info|list|package|reinstall|remove|rollback|upgrade) ;;
+        changelog|docs|doctor|history|info|list|package|reinstall|remove|upgrade) ;;
         *) return ;;
     esac
     local offset=2
@@ -137,11 +137,11 @@ function __upstream_dynamic
     set -a words (commandline -ct)
     set -l cursor (math (count $words) - 1)
     switch $command
-        case changelog docs doctor history info list package reinstall remove rollback upgrade
+        case changelog docs doctor history info list package reinstall remove upgrade
             command upstream __complete $command $cursor -- $words
     end
 end
-for command in changelog docs doctor history info list package reinstall remove rollback upgrade
+for command in changelog docs doctor history info list package reinstall remove upgrade
     complete -c upstream -n "__fish_upstream_using_subcommand $command" -f -a '(__upstream_dynamic)'
 end
 "#
@@ -153,7 +153,7 @@ _upstream_dynamic() {
     _upstream "$@"
     local command=${words[2]}
     case "$command" in
-        changelog|docs|doctor|history|info|list|package|reinstall|remove|rollback|upgrade) ;;
+        changelog|docs|doctor|history|info|list|package|reinstall|remove|upgrade) ;;
         *) return ;;
     esac
     local cursor=$((CURRENT - 3))

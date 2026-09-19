@@ -229,7 +229,6 @@ fn summarize(record: &HistoryRecord) -> String {
                 "upgrade" => "upgraded",
                 "import" => "imported",
                 "remove" => "removed",
-                "rollback" => "restored",
                 "reinstall" => "reinstalled",
                 "install" | "build" | "find" | "probe" => "installed",
                 _ => "completed",

@@ -30,7 +30,6 @@ class InitializationIntegrationTests(unittest.TestCase):
             data / "packages" / "archives",
             data / "packages" / "binaries",
             data / "state" / "icons",
-            data / "state" / "rollback",
             data / "state" / "symlinks",
         ):
             self.assertTrue(path.is_dir(), path)

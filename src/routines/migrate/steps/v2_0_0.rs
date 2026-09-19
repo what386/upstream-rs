@@ -1,10 +1,9 @@
-use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::models::upstream::Package;
 use crate::routines::doctor::checks::legacy;
@@ -12,13 +11,11 @@ use crate::routines::migrate::MigrationReport;
 use crate::routines::migrate::step::Step;
 use crate::services::integration::SymlinkManager;
 use crate::storage::manifest::{CURRENT_LAYOUT_VERSION, ManifestStorage};
-use crate::storage::rollback::RollbackRecord;
 use crate::utils::filesystem::atomic_ops::write_atomic;
 use crate::utils::filesystem::safe_move;
 use crate::utils::static_paths::UpstreamPaths;
 
 const PACKAGE_STORAGE_VERSION: u32 = 1;
-const ROLLBACK_STORAGE_VERSION: u32 = 1;
 
 #[derive(Debug, Clone)]
 struct PathRewrite {
@@ -32,18 +29,6 @@ struct PackageStorageFile {
     packages: Vec<Package>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct RollbackStorageFile {
-    version: u32,
-    records: HashMap<String, Vec<RollbackRecord>>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct LegacyRollbackStorageFile {
-    version: u32,
-    records: HashMap<String, RollbackRecord>,
-}
-
 pub struct V2_0_0;
 
 pub(super) fn run(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
@@ -54,7 +39,6 @@ impl Step for V2_0_0 {
     fn check(paths: &UpstreamPaths) -> Result<bool> {
         Ok(legacy::legacy_package_dirs_exist(paths)
             || package_json_needs_path_rewrite(paths)?
-            || rollback_metadata_needs_migration(paths)?
             || migration_manifest_needs_migration(paths)?)
     }
 
@@ -71,7 +55,6 @@ impl Step for V2_0_0 {
         create_required_dirs(paths, report)?;
         move_legacy_package_dirs(&rewrites, report)?;
         let packages = migrate_package_json_metadata(paths, &rewrites, report)?;
-        migrate_rollback_metadata(paths, &rewrites, report)?;
         refresh_symlinks(paths, &packages, report)?;
         manifest_storage.record_migration_from(previous_layout_version, CURRENT_LAYOUT_VERSION)?;
 
@@ -88,42 +71,6 @@ fn migration_manifest_needs_migration(paths: &UpstreamPaths) -> Result<bool> {
         .is_some_and(|manifest| manifest.layout_version < CURRENT_LAYOUT_VERSION))
 }
 
-fn rollback_metadata_needs_migration(paths: &UpstreamPaths) -> Result<bool> {
-    let rollback_file = paths.dirs.metadata_dir.join("rollback.json");
-    if !rollback_file.exists() {
-        return Ok(false);
-    }
-
-    let json = fs::read_to_string(&rollback_file).with_context(|| {
-        format!(
-            "Failed to read rollback metadata '{}'",
-            rollback_file.display()
-        )
-    })?;
-
-    if json.trim().is_empty() {
-        return Ok(false);
-    }
-
-    if serde_json::from_str::<LegacyRollbackStorageFile>(&json).is_ok() {
-        return Ok(true);
-    }
-
-    let storage: RollbackStorageFile = serde_json::from_str(&json).with_context(|| {
-        format!(
-            "Failed to parse rollback metadata '{}'",
-            rollback_file.display()
-        )
-    })?;
-
-    let rewrites = package_path_rewrites(paths);
-    Ok(storage.records.values().any(|records| {
-        records
-            .iter()
-            .any(|record| package_references_rewrite(&record.package_snapshot, &rewrites))
-    }))
-}
-
 fn create_required_dirs(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
     for dir in [
         paths.dirs.config_dir.as_path(),
@@ -136,7 +83,6 @@ fn create_required_dirs(paths: &UpstreamPaths, report: &mut MigrationReport) -> 
         paths.install.binaries_dir.as_path(),
         paths.install.archives_dir.as_path(),
         paths.install.tmp_dir.as_path(),
-        paths.state.rollback_dir.as_path(),
         paths.state.icons_dir.as_path(),
         paths.state.symlinks_dir.as_path(),
     ] {
@@ -292,74 +238,6 @@ fn migrate_package_json_metadata(
     }
 
     Ok(packages)
-}
-
-fn migrate_rollback_metadata(
-    paths: &UpstreamPaths,
-    rewrites: &[PathRewrite],
-    report: &mut MigrationReport,
-) -> Result<()> {
-    let rollback_file = paths.dirs.metadata_dir.join("rollback.json");
-    if !rollback_file.exists() {
-        return Ok(());
-    }
-
-    let json = fs::read_to_string(&rollback_file).with_context(|| {
-        format!(
-            "Failed to read rollback metadata '{}'",
-            rollback_file.display()
-        )
-    })?;
-
-    if json.trim().is_empty() {
-        return Ok(());
-    }
-
-    let mut storage: RollbackStorageFile = serde_json::from_str(&json)
-        .or_else(|_| parse_legacy_rollback_storage(&json))
-        .with_context(|| {
-            format!(
-                "Failed to parse rollback metadata '{}'",
-                rollback_file.display()
-            )
-        })?;
-
-    if storage.version != ROLLBACK_STORAGE_VERSION {
-        return Err(anyhow!(
-            "Unsupported rollback storage version {} in '{}'. Expected version {}.",
-            storage.version,
-            rollback_file.display(),
-            ROLLBACK_STORAGE_VERSION
-        ));
-    }
-
-    let mut changed = false;
-    for records in storage.records.values_mut() {
-        for record in records {
-            if rewrite_package_paths(&mut record.package_snapshot, rewrites) {
-                changed = true;
-                report.updated_rollback_records += 1;
-            }
-        }
-    }
-
-    if changed {
-        write_json(&rollback_file, &storage)?;
-    }
-
-    Ok(())
-}
-
-fn parse_legacy_rollback_storage(json: &str) -> serde_json::Result<RollbackStorageFile> {
-    let legacy: LegacyRollbackStorageFile = serde_json::from_str(json)?;
-    Ok(RollbackStorageFile {
-        version: legacy.version,
-        records: legacy
-            .records
-            .into_iter()
-            .map(|(name, record)| (name, vec![record]))
-            .collect(),
-    })
 }
 
 fn rewrite_package_paths(package: &mut Package, rewrites: &[PathRewrite]) -> bool {

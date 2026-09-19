@@ -114,25 +114,25 @@ class Server:
         shutil.rmtree(self.directory, ignore_errors=True)
 
 
-PACKAGE = "rollback-tool"
+PACKAGE = "fixture-tool"
 
 
-def write_rollback_fixtures(server: Server) -> None:
+def write_upgrade_fixtures(server: Server) -> None:
     """Store the versioned archive fixtures used by lifecycle tests."""
     old_executable = (
         upstream_binary().read_bytes()
         if os.name == "nt"
-        else b"#!/bin/sh\nprintf 'rollback-tool 1.0.0\\n'\n"
+        else b"#!/bin/sh\nprintf 'fixture-tool 1.0.0\\n'\n"
     )
     _write_archive(server, 1, old_executable)
     _write_archive(server, 2, b"not a tar archive\n" + b"x" * (4 * 1024 * 1024))
     write_release_page(server, 1)
 
 
-def start_rollback_server() -> Server:
-    """Start a local server with the valid and corrupt rollback fixtures."""
+def start_fixture_server() -> Server:
+    """Start a local server with versioned lifecycle fixtures."""
     server = Server(start=False)
-    write_rollback_fixtures(server)
+    write_upgrade_fixtures(server)
     server.start()
     return server
 

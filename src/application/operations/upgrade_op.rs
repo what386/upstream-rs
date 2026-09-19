@@ -9,8 +9,7 @@ use crate::{
     services::{
         packaging::{
             PackageActivator, PackageChecker, PackageInstaller, PackageProgressEvent,
-            PackageUpgrader, ResolvedUpgradeTarget, RollbackManager,
-            disk_impact::{DiskImpact, SignedByteEstimate},
+            PackageUpgrader, PendingReplacement, ResolvedUpgradeTarget, disk_impact::DiskImpact,
         },
         trust::TrustedSignatureKeys,
     },
@@ -204,28 +203,6 @@ impl<'a> UpgradeOperation<'a> {
             package_database,
             concurrency_config,
         })
-    }
-
-    pub fn estimate_upgrade_rollback_impact(
-        &self,
-        rows: &[UpgradePreviewRow],
-    ) -> SignedByteEstimate {
-        let Ok(manager) = RollbackManager::new(self.paths) else {
-            return SignedByteEstimate::unknown();
-        };
-
-        rows.iter()
-            .map(|row| {
-                let Some(package) = self.package_database.get_package(&row.name).ok().flatten()
-                else {
-                    return SignedByteEstimate::unknown();
-                };
-
-                manager
-                    .estimate_capture_impact(&package)
-                    .unwrap_or_else(|_| SignedByteEstimate::unknown())
-            })
-            .fold(SignedByteEstimate::exact(0), |total, impact| total + impact)
     }
 
     pub async fn preview_upgrade<H>(
@@ -434,7 +411,7 @@ impl<'a> UpgradeOperation<'a> {
                         self.package_database,
                         &progress_callback,
                         name.clone(),
-                        &updated,
+                        updated,
                         new_version,
                     ) {
                         Ok(()) => {
@@ -540,7 +517,7 @@ fn complete_upgrade<P>(
     package_database: &mut PackageDatabase,
     progress_callback: &SharedProgressCallback<'_, P>,
     name: String,
-    updated: &crate::models::upstream::Package,
+    updated: PendingReplacement,
     version: String,
 ) -> Result<()>
 where
@@ -561,15 +538,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        UpgradePackageResult, UpgradeProgressEvent, complete_upgrade, emit_package_progress,
-        emit_progress, preview_package_width,
+        UpgradeProgressEvent, emit_package_progress, emit_progress, preview_package_width,
     };
     use crate::models::common::enums::{Channel, Filetype, Provider};
     use crate::models::upstream::Package;
     use crate::services::packaging::{PackagePhase, PackageProgressEvent};
-    use crate::storage::database::PackageDatabase;
-    use crate::utils::test_support;
-    use std::fs;
     use std::sync::{Arc, Mutex};
 
     fn test_package(name: &str, channel: Channel) -> Package {
@@ -687,60 +660,5 @@ mod tests {
                 total: 3,
             }]
         );
-    }
-
-    #[test]
-    fn upgrade_completion_callback_observes_persisted_package_state() {
-        let root = test_support::temp_root("upstream-upgrade-op-test", "completion-order");
-        let paths = test_support::upstream_paths(&root);
-        let path = paths.metadata.packages_database_file.clone();
-
-        let mut database = PackageDatabase::open(&path).expect("open database");
-        let mut stored = test_package("tool", Channel::Stable);
-        stored.version = crate::models::common::Version::new(1, 0, 0, false);
-        database.upsert_package(&stored).expect("seed package");
-
-        let mut updated = stored.clone();
-        updated.version = crate::models::common::Version::new(2, 0, 0, false);
-        let updated_version = updated.version.to_string();
-        let mut callback_state = Vec::new();
-
-        {
-            let mut callback = Some(|event: UpgradeProgressEvent| {
-                if let UpgradeProgressEvent::Complete { name, result } = event {
-                    callback_state.push((name, result));
-                    let reader = PackageDatabase::open(&path).expect("open reader");
-                    let package = reader
-                        .get_package("tool")
-                        .expect("read package in callback")
-                        .expect("updated package");
-
-                    assert_eq!(
-                        package.version,
-                        crate::models::common::Version::new(2, 0, 0, false)
-                    );
-                }
-            });
-
-            let callback = Arc::new(Mutex::new(&mut callback));
-
-            complete_upgrade(
-                &paths,
-                &mut database,
-                &callback,
-                "tool".to_string(),
-                &updated,
-                updated_version.clone(),
-            )
-            .expect("persist and emit completion");
-        }
-
-        assert_eq!(callback_state.len(), 1);
-        assert!(matches!(
-            &callback_state[0].1,
-            UpgradePackageResult::Upgraded { version } if version == &updated_version
-        ));
-
-        fs::remove_dir_all(root).expect("cleanup");
     }
 }

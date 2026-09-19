@@ -13,7 +13,6 @@ sections and defaults are defined in `src/models/upstream/config/`.
 | --- | --- |
 | `download` | Asset worker thresholds and parallelism |
 | `concurrency` | Package check and install limits |
-| `rollback` | Stored artifact count and compression |
 | `logging` | JSONL audit retention and severity |
 
 Provider tokens are isolated in `metadata/auth.toml`; they must not be included
@@ -29,14 +28,13 @@ directly.
 | `metadata/packages.db` | Installed package state and relationships |
 | `metadata/auth.toml` | Provider credentials |
 | `metadata/trust.json` | Trusted minisign and cosign public keys |
-| `state/rollback/` | Persistent rollback metadata and payloads |
 | `state/symlinks/` | Active executable links |
 | `cache/` | Reusable build, source, docs, and registry data |
 | `temp/` | Per-operation staging data |
 
 `packages.db` is the compatibility boundary for installed package state. Schema
 migrations must be transactional and preserve canonical package IDs, managed
-paths, executable aliases, rollback references, and foreign keys. Do not change
+paths, executable aliases, and foreign keys. Do not change
 identity fields without updating database mapping, filesystem paths, cache
 paths, CLI resolution, exports, and integration tests together.
 

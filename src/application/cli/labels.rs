@@ -10,15 +10,6 @@ impl fmt::Display for Commands {
             Commands::Install { .. } => write!(f, "install"),
             Commands::Build { .. } => write!(f, "build"),
             Commands::Remove { .. } => write!(f, "remove"),
-            Commands::Rollback { list, prune, .. } => {
-                if *list {
-                    write!(f, "rollback --list")
-                } else if prune.is_some() {
-                    write!(f, "rollback --prune")
-                } else {
-                    write!(f, "rollback")
-                }
-            }
             Commands::Reinstall { .. } => write!(f, "reinstall"),
             Commands::Upgrade { .. } => write!(f, "upgrade"),
             Commands::List { .. } => write!(f, "list"),

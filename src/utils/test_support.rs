@@ -48,7 +48,6 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
             tmp_dir: dirs.data_dir.join("tmp"),
         },
         state: StatePaths {
-            rollback_dir: dirs.state_dir.join("rollback"),
             symlinks_dir: dirs.state_dir.join("symlinks"),
             icons_dir: dirs.state_dir.join("icons"),
             lock_file: dirs.state_dir.join("lock"),

@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 #[command(
     long_about = "Upstream installs applications from provider releases, direct \
     download pages, and source repositories, then tracks them for upgrades, \
-    rollback, trust verification, documentation lookup, and shell/desktop integration.\n\n\
+    trust verification, documentation lookup, and shell/desktop integration.\n\n\
     EXAMPLES:\n  \
     upstream install BurntSushi/ripgrep -k binary\n  \
     upstream find terminal emulator --limit 20\n  \
@@ -153,7 +153,7 @@ pub enum Commands {
         visible_alias = "uninstall",
         long_about = "Remove installed package files and metadata.\n\n\
         By default, removes active package files, shell/desktop integration, and package \
-        records while preserving reusable cache data and rollback artifacts. Use --purge \
+        records while preserving reusable cache data. Use --purge \
         to remove package-owned cache data too. Use --force to remove metadata even when \
         file cleanup fails.\n\n\
         EXAMPLES:\n  \
@@ -175,36 +175,6 @@ pub enum Commands {
         force: bool,
 
         /// Preview removal actions without deleting files or metadata
-        #[arg(long, default_value_t = false)]
-        dry_run: bool,
-    },
-
-    /// Restore or prune stored rollback artifacts
-    #[command(long_about = "Restore or prune stored rollback artifacts.\n\n\
-        Provide package names to restore their latest rollback artifacts. Use --list to \
-        inspect available artifacts. Use --prune to delete all rollback data, \
-        --prune <names...> to delete selected packages, or --prune all to make the \
-        all-packages intent explicit.\n\n\
-        EXAMPLES:\n  \
-        upstream rollback ripgrep\n  \
-        upstream rollback ripgrep fd --dry-run\n  \
-        upstream rollback --list\n  \
-        upstream rollback --prune\n  \
-        upstream rollback --prune ripgrep")]
-    Rollback {
-        /// Package names to restore
-        #[arg(num_args(0..), value_name = "NAMES")]
-        names: Vec<String>,
-
-        /// List available rollback artifacts
-        #[arg(long, default_value_t = false)]
-        list: bool,
-
-        /// Delete rollback artifacts for all packages or selected package names
-        #[arg(long, num_args(0..), value_name = "NAMES")]
-        prune: Option<Vec<String>>,
-
-        /// Preview rollback restore or prune actions without modifying files or metadata
         #[arg(long, default_value_t = false)]
         dry_run: bool,
     },
@@ -655,7 +625,7 @@ pub enum Commands {
     #[command(long_about = "Inspect or remove reusable cached data.\n\n\
         Upstream keeps source-build workspaces and fetched package documentation under \
         its cache directory. Listing is read-only. Cleaning removes only known cache \
-        categories and never removes installed packages or rollback artifacts.\n\n\
+        categories and never removes installed packages.\n\n\
         EXAMPLES:\n  \
         upstream cache list\n  \
         upstream cache list --json\n  \
@@ -685,7 +655,7 @@ pub enum Commands {
     /// Import config, trust keys, packages, or a profile
     #[command(long_about = "Import config, trust keys, packages, or a profile.\n\n\
         Package and profile imports reinstall release and build packages from exported references. \
-        They do not contain installed artifacts, rollback data, cache contents, or auth \
+        They do not contain installed artifacts, cache contents, or auth \
         tokens.\n\n\
         EXAMPLES:\n  \
         upstream import config ./config.toml\n  \
@@ -807,7 +777,6 @@ impl Commands {
             | Commands::Reinstall { dry_run, .. }
             | Commands::Probe { dry_run, .. } => !dry_run,
             Commands::Upgrade { check, dry_run, .. } => !check && !dry_run,
-            Commands::Rollback { list, dry_run, .. } => !list && !dry_run,
             Commands::Doctor { fix, .. } => *fix,
             Commands::Find { .. }
             | Commands::Import { .. }
@@ -869,7 +838,6 @@ impl Commands {
             Commands::Doctor { fix, .. } => *fix,
             Commands::Search { .. } => false,
             Commands::Find { .. } => true,
-            Commands::Rollback { list: true, .. } => false,
             Commands::Hooks { action } => !matches!(action, HooksAction::Check),
             Commands::Package { action } => !matches!(action, PackageAction::Get { .. }),
             Commands::Cache { action } => {
@@ -884,7 +852,6 @@ impl Commands {
             Commands::Install { .. }
             | Commands::Build { .. }
             | Commands::Remove { .. }
-            | Commands::Rollback { .. }
             | Commands::Reinstall { .. }
             | Commands::Upgrade { .. }
             | Commands::Probe { .. }
@@ -991,7 +958,7 @@ pub enum ImportAction {
 pub enum ExportAction {
     /// Export config.toml
     #[command(long_about = "Export the active upstream config as TOML.\n\n\
-        The export includes config values only. Trust keys, packages, rollback data, \
+        The export includes config values only. Trust keys, packages, \
         installed files, and cache contents are not included.\n\n\
         EXAMPLE:\n  \
         upstream export config ./config.toml")]
@@ -1014,7 +981,7 @@ pub enum ExportAction {
     #[command(long_about = "Export installed package references.\n\n\
         The output records enough source and version information for `upstream import \
         packages` to reinstall release and build packages. It does not include installed files, \
-        build artifacts, rollback data, or cache contents.\n\n\
+        build artifacts or cache contents.\n\n\
         EXAMPLE:\n  \
         upstream export packages ./packages.json")]
     Packages {
@@ -1027,7 +994,7 @@ pub enum ExportAction {
         long_about = "Export config, trust keys, and installed package references.\n\n\
         The output is a portable profile for restoring upstream settings, trust keys, \
         and release and build package references. It does not include installed artifacts, \
-        rollback data, or cache contents.\n\n\
+        or cache contents.\n\n\
         EXAMPLE:\n  \
         upstream export profile ./profile.json"
     )]
@@ -1071,7 +1038,7 @@ pub enum HooksAction {
     /// Remove hooks and delete the local upstream data directory
     #[command(
         long_about = "Remove upstream shell PATH hooks and delete the local upstream data directory.\n\n\
-        This deletes installed package files, metadata, rollback data, caches, config, and \
+        This deletes installed package files, metadata, caches, config, and \
         trust keys under ~/.upstream. Pass global --yes to skip the confirmation prompt.\n\n\
         EXAMPLE:\n  \
         upstream --yes hooks purge"
@@ -1127,7 +1094,7 @@ pub enum ConfigAction {
     /// Reset config.toml to defaults
     #[command(long_about = "Reset config.toml to upstream defaults.\n\n\
         This replaces configured values after confirmation. Installed packages, trust keys, \
-        rollback data, and caches are not removed.\n\n\
+        and caches are not removed.\n\n\
         EXAMPLE:\n  \
         upstream config reset")]
     Reset,

@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-09-18
+@modified: 2026-09-19
 
 
 ## Tasks
@@ -31,4 +31,8 @@
 - [x] fix: retain AppImage extraction while reading embedded desktop metadata
       @created 2026-09-18 18:35
       @completed 2026-09-18 18:35
+
+- [x] BREAKING: remove rollback command as its seemingly not used much
+      @created 2026-09-19 01:22
+      @completed 2026-09-19 01:30
 

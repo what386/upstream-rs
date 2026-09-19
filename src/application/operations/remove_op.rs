@@ -297,8 +297,8 @@ mod tests {
     }
 
     #[test]
-    fn remove_single_does_not_capture_rollback_artifacts() {
-        let root = temp_root("no-rollback");
+    fn remove_single_removes_the_active_package() {
+        let root = temp_root("remove-single");
         let paths = test_paths(&root);
         fs::create_dir_all(&paths.install.binaries_dir).expect("create binaries dir");
         fs::create_dir_all(paths.metadata.packages_file.parent().expect("parent"))
@@ -343,9 +343,6 @@ mod tests {
                 .expect("reload package")
                 .is_none()
         );
-
-        assert!(!paths.state.rollback_dir.join("tool").exists());
-        assert!(!paths.dirs.metadata_dir.join("rollback.json").exists());
 
         cleanup(&root).expect("cleanup");
     }

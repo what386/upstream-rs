@@ -127,7 +127,6 @@ impl InstallPaths {
 
 /// Paths for persistent app state.
 pub struct StatePaths {
-    pub rollback_dir: PathBuf,
     pub symlinks_dir: PathBuf,
     pub icons_dir: PathBuf,
     pub lock_file: PathBuf,
@@ -136,7 +135,6 @@ pub struct StatePaths {
 impl StatePaths {
     pub fn new(dirs: &AppDirs) -> Self {
         Self {
-            rollback_dir: dirs.state_dir.join("rollback"),
             symlinks_dir: dirs.state_dir.join("symlinks"),
             icons_dir: dirs.state_dir.join("icons"),
             lock_file: dirs.state_dir.join("lock"),

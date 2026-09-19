@@ -8,16 +8,16 @@ import unittest
 from tests.framework.commands import run_upstream, run_upstream_json, run_upstream_result
 from tests.framework.environment import reset_fakehome
 from tests.framework.packages import package_from_list, package_path
-from tests.framework.server import start_rollback_server
+from tests.framework.server import start_fixture_server
 
 
-PACKAGE = "rollback-tool"
+PACKAGE = "fixture-tool"
 
 
 class EndToEndRemoveTests(unittest.TestCase):
     def test_remove_package(self) -> None:
         reset_fakehome()
-        server = start_rollback_server()
+        server = start_fixture_server()
         try:
             run_upstream(
                 "install",

@@ -6,8 +6,8 @@ Upstream is organized as a pipeline with explicit boundaries:
 2. `application/operations` coordinates a user-visible transaction.
 3. `providers` resolves sources, releases, assets, and downloads.
 4. `services/packaging` stages, installs, activates, upgrades, removes, and
-   rolls back artifacts.
-5. `storage` persists configuration, package metadata, locks, and rollback data.
+   performs transient replacement recovery.
+5. `storage` persists configuration, package metadata, and locks.
 6. `output` owns prompts, tables, paging, status, and machine-readable output.
 
 `models` should describe data and policy values, not perform filesystem or
@@ -17,8 +17,8 @@ network work. `utils` contains shared platform and filesystem primitives.
 
 Package operations should stage new files before changing active links or
 metadata. A failed replacement must remove the partial result and leave the
-previous package usable. Persistent rollback artifacts are distinct from the
-temporary recovery copies used during an in-progress replacement.
+previous package usable. The temporary `.old` snapshot remains until activation
+and metadata persistence succeed.
 
 Cancellation is cooperative: the first interrupt requests cleanup; a second
 interrupt may terminate immediately and can leave recovery work behind.

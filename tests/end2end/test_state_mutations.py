@@ -8,10 +8,10 @@ import unittest
 from tests.framework.commands import run_upstream, run_upstream_json
 from tests.framework.environment import FAKEHOME, reset_fakehome
 from tests.framework.packages import package_from_list
-from tests.framework.server import start_rollback_server
+from tests.framework.server import start_fixture_server
 
 
-PACKAGE = "rollback-tool"
+PACKAGE = "fixture-tool"
 
 
 def scenario() -> None:
@@ -38,7 +38,7 @@ def scenario() -> None:
     run_upstream("hooks", "check")
     run_upstream("hooks", "clean")
 
-    server = start_rollback_server()
+    server = start_fixture_server()
     try:
         # Package metadata mutations do not reinstall the artifact.
         run_upstream(

@@ -110,19 +110,6 @@ _arguments "${_arguments_options[@]}" : \
 '*::names -- Names of packages to remove:_default' \
 && ret=0
 ;;
-(rollback)
-_arguments "${_arguments_options[@]}" : \
-'*--prune=[Delete rollback artifacts for all packages or selected package names]::NAMES:_default' \
-'--list[List available rollback artifacts]' \
-'--dry-run[Preview rollback restore or prune actions without modifying files or metadata]' \
-'-y[Accept confirmation prompts automatically]' \
-'--yes[Accept confirmation prompts automatically]' \
-'--no-pager[Prevent paging long command outputs]' \
-'-h[Print help (see more with '\''--help'\'')]' \
-'--help[Print help (see more with '\''--help'\'')]' \
-'*::names -- Package names to restore:_default' \
-&& ret=0
-;;
 (reinstall)
 _arguments "${_arguments_options[@]}" : \
 '--trust=[Trust verification mode for release-asset reinstalls]:TRUST_MODE:(none best-effort checksum signature all)' \
@@ -1066,10 +1053,6 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(rollback)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
 (reinstall)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -1374,7 +1357,6 @@ _upstream_commands() {
 'build:Build and install a package from source' \
 'remove:Remove installed package files and metadata' \
 'uninstall:Remove installed package files and metadata' \
-'rollback:Restore or prune stored rollback artifacts' \
 'reinstall:Reinstall packages from their stored source metadata' \
 'upgrade:Check for or install package updates' \
 'list:List installed packages' \
@@ -1696,7 +1678,6 @@ _upstream__subcmd__help_commands() {
 'install:Install a release asset or direct download' \
 'build:Build and install a package from source' \
 'remove:Remove installed package files and metadata' \
-'rollback:Restore or prune stored rollback artifacts' \
 'reinstall:Reinstall packages from their stored source metadata' \
 'upgrade:Check for or install package updates' \
 'list:List installed packages' \
@@ -2018,11 +1999,6 @@ _upstream__subcmd__help__subcmd__remove_commands() {
     local commands; commands=()
     _describe -t commands 'upstream help remove commands' commands "$@"
 }
-(( $+functions[_upstream__subcmd__help__subcmd__rollback_commands] )) ||
-_upstream__subcmd__help__subcmd__rollback_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream help rollback commands' commands "$@"
-}
 (( $+functions[_upstream__subcmd__help__subcmd__search_commands] )) ||
 _upstream__subcmd__help__subcmd__search_commands() {
     local commands; commands=()
@@ -2317,11 +2293,6 @@ _upstream__subcmd__remove_commands() {
     local commands; commands=()
     _describe -t commands 'upstream remove commands' commands "$@"
 }
-(( $+functions[_upstream__subcmd__rollback_commands] )) ||
-_upstream__subcmd__rollback_commands() {
-    local commands; commands=()
-    _describe -t commands 'upstream rollback commands' commands "$@"
-}
 (( $+functions[_upstream__subcmd__search_commands] )) ||
 _upstream__subcmd__search_commands() {
     local commands; commands=()
@@ -2344,7 +2315,7 @@ _upstream_dynamic() {
     _upstream "$@"
     local command=${words[2]}
     case "$command" in
-        changelog|docs|doctor|history|info|list|package|reinstall|remove|rollback|upgrade) ;;
+        changelog|docs|doctor|history|info|list|package|reinstall|remove|upgrade) ;;
         *) return ;;
     esac
     local cursor=$((CURRENT - 3))

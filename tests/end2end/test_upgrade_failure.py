@@ -9,13 +9,13 @@ import os
 import unittest
 
 from tests.framework.packages import assert_executable_version, package_from_list, package_path
-from tests.framework.server import PACKAGE, Server, write_release_page, write_rollback_fixtures
+from tests.framework.server import PACKAGE, Server, write_release_page, write_upgrade_fixtures
 
 
 def scenario() -> None:
     reset_fakehome()
     server = Server(start=False)
-    write_rollback_fixtures(server)
+    write_upgrade_fixtures(server)
     server.start()
     try:
         run_upstream(
@@ -56,7 +56,7 @@ def assert_working(package: dict[str, object]) -> None:
     if os.name == "nt":
         assert package_path(package).is_file(), package
     else:
-        assert_executable_version(package, "rollback-tool 1.0.0")
+        assert_executable_version(package, "fixture-tool 1.0.0")
 
 
 class EndToEndUpgradeFailureTests(unittest.TestCase):
