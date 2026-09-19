@@ -32,6 +32,13 @@ enum PlatformDesktopHandler {
     Unsupported,
 }
 
+struct StagedDesktopEntry<'a> {
+    staged_install_path: &'a Path,
+    filetype: &'a Filetype,
+    entry: crate::models::common::DesktopEntry,
+    path: &'a Path,
+}
+
 impl PlatformDesktopHandler {
     #[cfg(target_os = "linux")]
     fn linux(handler: LinuxDesktopHandler) -> Self {
@@ -102,17 +109,9 @@ impl PlatformDesktopHandler {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn create_staged_entry<H>(
         &self,
-        name: &str,
-        staged_install_path: &Path,
-        staged_exec_path: Option<&Path>,
-        final_install_path: &Path,
-        final_exec_path: Option<&Path>,
-        filetype: &Filetype,
-        entry: crate::models::common::DesktopEntry,
-        entry_path: &Path,
+        request: StagedDesktopEntry<'_>,
         message_callback: &mut Option<H>,
     ) -> Result<()>
     where
@@ -120,37 +119,9 @@ impl PlatformDesktopHandler {
     {
         match self {
             #[cfg(target_os = "linux")]
-            Self::Linux(handler) => {
-                handler
-                    .create_staged_entry(
-                        name,
-                        staged_install_path,
-                        staged_exec_path,
-                        final_install_path,
-                        final_exec_path,
-                        filetype,
-                        entry,
-                        entry_path,
-                        message_callback,
-                    )
-                    .await
-            }
+            Self::Linux(handler) => handler.create_staged_entry(request, message_callback).await,
             #[cfg(windows)]
-            Self::Windows(handler) => {
-                handler
-                    .create_staged_entry(
-                        name,
-                        staged_install_path,
-                        staged_exec_path,
-                        final_install_path,
-                        final_exec_path,
-                        filetype,
-                        entry,
-                        entry_path,
-                        message_callback,
-                    )
-                    .await
-            }
+            Self::Windows(handler) => handler.create_staged_entry(request, message_callback).await,
             #[cfg(target_os = "macos")]
             Self::Unsupported => Err(anyhow!("Desktop integration is unsupported on macOS")),
         }
@@ -407,13 +378,6 @@ impl<'a> DesktopManager<'a> {
             .as_ref()
             .ok_or_else(|| anyhow!("Staged package '{}' has no install path", staged_package.id))?;
 
-        let final_install_path = final_package.install_path.as_ref().ok_or_else(|| {
-            anyhow!(
-                "Replacement package '{}' has no install path",
-                final_package.id
-            )
-        })?;
-
         let staged_icon = self
             .backend
             .add_icon(
@@ -439,18 +403,12 @@ impl<'a> DesktopManager<'a> {
         let desktop_entry = crate::models::common::DesktopEntry::from_package(&desktop_package);
         self.backend
             .create_staged_entry(
-                &final_package.id,
-                staged_install_path,
-                staged_package
-                    .primary_executable()
-                    .map(|executable| executable.path.as_path()),
-                final_install_path,
-                final_package
-                    .primary_executable()
-                    .map(|executable| executable.path.as_path()),
-                &final_package.filetype,
-                desktop_entry,
-                entry_path,
+                StagedDesktopEntry {
+                    staged_install_path,
+                    filetype: &final_package.filetype,
+                    entry: desktop_entry,
+                    path: entry_path,
+                },
                 message_callback,
             )
             .await?;

@@ -10,6 +10,7 @@ use std::{
 };
 
 use super::super::IconManager;
+use super::StagedDesktopEntry;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -87,48 +88,42 @@ impl LinuxDesktopHandler {
     #[allow(clippy::too_many_arguments)]
     pub(super) async fn create_staged_entry<H>(
         &self,
-        _name: &str,
-        staged_install_path: &Path,
-        _staged_exec_path: Option<&Path>,
-        _final_install_path: &Path,
-        _final_exec_path: Option<&Path>,
-        filetype: &Filetype,
-        entry: DesktopEntry,
-        entry_path: &Path,
+        request: StagedDesktopEntry<'_>,
         message_callback: &mut Option<H>,
     ) -> Result<()>
     where
         H: FnMut(&str),
     {
-        let name = entry
+        let name = request
+            .entry
             .name
             .as_deref()
             .ok_or_else(|| anyhow!("Desktop entry name is required"))?
             .to_string();
 
-        let entry = if *filetype == Filetype::AppImage {
+        let entry = if *request.filetype == Filetype::AppImage {
             let squashfs_root = self
                 .extractor
-                .extract(&name, staged_install_path, message_callback)
+                .extract(&name, request.staged_install_path, message_callback)
                 .await?;
 
             let embedded = self
                 .find_and_parse_desktop_file(&squashfs_root, &name, message_callback)
                 .unwrap_or_default();
 
-            Self::merge_embedded_entry(embedded, entry, &name)
+            Self::merge_embedded_entry(embedded, request.entry, &name)
         } else {
-            entry.ensure_name(&name)
+            request.entry.ensure_name(&name)
         };
 
         let mut entry = entry;
         entry.terminal = false;
-        if let Some(parent) = entry_path.parent() {
+        if let Some(parent) = request.path.parent() {
             fs::create_dir_all(parent)?;
         }
 
         crate::utils::filesystem::atomic_ops::write_atomic(
-            entry_path,
+            request.path,
             entry.to_desktop_file().as_bytes(),
         )?;
         Ok(())

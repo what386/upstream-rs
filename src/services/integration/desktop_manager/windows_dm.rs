@@ -10,6 +10,7 @@ use std::{
 };
 
 use super::super::IconManager;
+use super::StagedDesktopEntry;
 
 pub(super) struct WindowsDesktopHandler;
 
@@ -68,29 +69,27 @@ impl WindowsDesktopHandler {
 
     pub(super) async fn create_staged_entry<H>(
         &self,
-        name: &str,
-        _staged_install_path: &Path,
-        _staged_exec_path: Option<&Path>,
-        _final_install_path: &Path,
-        final_exec_path: Option<&Path>,
-        _filetype: &Filetype,
-        entry: DesktopEntry,
-        entry_path: &Path,
+        request: StagedDesktopEntry<'_>,
         _message_callback: &mut Option<H>,
     ) -> Result<()>
     where
         H: FnMut(&str),
     {
-        let exec_path = final_exec_path
-            .ok_or_else(|| anyhow!("Replacement package '{name}' has no executable path"))?;
+        let exec_path = request
+            .entry
+            .exec
+            .as_deref()
+            .map(Path::new)
+            .ok_or_else(|| anyhow!("Desktop entry exec path is required"))?;
 
-        let icon_path = entry
+        let icon_path = request
+            .entry
             .icon
             .as_deref()
             .filter(|icon| !icon.is_empty())
             .map(Path::new);
 
-        self.create_shortcut_at(entry_path, exec_path, icon_path)?;
+        self.create_shortcut_at(request.path, exec_path, icon_path)?;
         Ok(())
     }
 
