@@ -65,6 +65,7 @@ async fn wait_for_interrupt() -> bool {
     let Ok(mut ctrl_c) = tokio::signal::windows::ctrl_c() else {
         return false;
     };
+
     let Ok(mut ctrl_break) = tokio::signal::windows::ctrl_break() else {
         return false;
     };
