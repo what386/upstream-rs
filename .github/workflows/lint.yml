@@ -8,6 +8,8 @@ on:
     branches:
       - main
       - dev
+      - "feat/**"
+      - "feature/**"
 
 jobs:
   fmt:
