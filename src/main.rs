@@ -42,16 +42,36 @@ async fn main() {
 }
 
 async fn signal_supervisor(cancellation: Cancellation) {
-    if tokio::signal::ctrl_c().await.is_err() {
+    if !wait_for_interrupt().await {
         return;
     }
 
     cancellation.request();
     eprintln!("CTRL-C received; cleaning up...");
 
-    if tokio::signal::ctrl_c().await.is_ok() {
+    if wait_for_interrupt().await {
         eprintln!("Second CTRL-C received; exiting immediately.");
         std::process::exit(130);
+    }
+}
+
+#[cfg(not(windows))]
+async fn wait_for_interrupt() -> bool {
+    tokio::signal::ctrl_c().await.is_ok()
+}
+
+#[cfg(windows)]
+async fn wait_for_interrupt() -> bool {
+    let Ok(mut ctrl_c) = tokio::signal::windows::ctrl_c() else {
+        return false;
+    };
+    let Ok(mut ctrl_break) = tokio::signal::windows::ctrl_break() else {
+        return false;
+    };
+
+    tokio::select! {
+        result = ctrl_c.recv() => result.is_ok(),
+        result = ctrl_break.recv() => result.is_ok(),
     }
 }
 

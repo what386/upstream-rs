@@ -199,21 +199,22 @@ impl<'a> PackageRemover<'a> {
         Ok(())
     }
 
-    fn purge_candidate_paths(package_name: &str) -> Vec<std::path::PathBuf> {
+    fn purge_candidate_paths(executable_name: &str) -> Vec<std::path::PathBuf> {
+        let filesystem_executable_name = filesystem_name(executable_name);
         let mut candidates = Vec::new();
         if let Some(config_dir) = dirs::config_dir() {
-            candidates.push(config_dir.join(package_name));
-            candidates.push(config_dir.join(package_name.to_lowercase()));
+            candidates.push(config_dir.join(&filesystem_executable_name));
+            candidates.push(config_dir.join(filesystem_executable_name.to_lowercase()));
         }
 
         if let Some(cache_dir) = dirs::cache_dir() {
-            candidates.push(cache_dir.join(package_name));
-            candidates.push(cache_dir.join(package_name.to_lowercase()));
+            candidates.push(cache_dir.join(&filesystem_executable_name));
+            candidates.push(cache_dir.join(filesystem_executable_name.to_lowercase()));
         }
 
         if let Some(data_dir) = dirs::data_local_dir() {
-            candidates.push(data_dir.join(package_name));
-            candidates.push(data_dir.join(package_name.to_lowercase()));
+            candidates.push(data_dir.join(&filesystem_executable_name));
+            candidates.push(data_dir.join(filesystem_executable_name.to_lowercase()));
         }
 
         let mut unique = Vec::new();
@@ -422,7 +423,7 @@ impl<'a> PackageRemover<'a> {
         self.remove_matching_icons(package_name, message_callback)?;
 
         // Best-effort XDG/user-dir cleanup for app-owned state.
-        for path in Self::purge_candidate_paths(package_name) {
+        for path in Self::purge_candidate_paths(executable_name) {
             self.remove_path_if_exists(&path, message_callback)?;
         }
 
@@ -567,6 +568,18 @@ mod tests {
         assert!(!nested_dir.exists());
 
         cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn purge_candidate_paths_sanitizes_package_names() {
+        let paths = PackageRemover::purge_candidate_paths("scraper:http://127.0.0.1:1234/page");
+
+        assert!(!paths.is_empty());
+        assert!(paths.iter().all(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| !name.contains(':') && !name.contains('/'))
+        }));
     }
 
     #[test]

@@ -35,7 +35,7 @@ def scenario() -> None:
         write_release_page(server, 2)
         process = start_upstream("upgrade", package_id, "--yes", "--trust", "none")
         server.wait_for_request()
-        process.send_signal(signal.CTRL_C_EVENT if os.name == "nt" else signal.SIGINT)
+        process.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
         stdout, stderr = process.communicate(timeout=30)
         assert process.returncode == 130, (process.returncode, stdout, stderr)
 

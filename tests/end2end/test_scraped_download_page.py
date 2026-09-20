@@ -6,6 +6,7 @@ import io
 import os
 import tarfile
 import unittest
+import zipfile
 
 from tests.framework.commands import run_upstream
 from tests.framework.environment import reset_fakehome, upstream_binary
@@ -14,18 +15,23 @@ from tests.framework.server import Server
 
 
 def write_page_artifact(server: Server) -> None:
-    name = "archives/fixture-tool-1.0.0-linux-x86_64.tar.gz"
     archive = io.BytesIO()
     executable = (
         upstream_binary().read_bytes()
         if os.name == "nt"
         else b"#!/bin/sh\nprintf 'fixture-tool 1.0.0\\n'\n"
     )
-    with tarfile.open(fileobj=archive, mode="w:gz") as contents:
-        info = tarfile.TarInfo("fixture-tool.exe" if os.name == "nt" else "fixture-tool")
-        info.mode = 0o755
-        info.size = len(executable)
-        contents.addfile(info, io.BytesIO(executable))
+    if os.name == "nt":
+        name = "archives/fixture-tool-1.0.0-windows-x86_64.zip"
+        with zipfile.ZipFile(archive, "w") as contents:
+            contents.writestr("fixture-tool.exe", executable)
+    else:
+        name = "archives/fixture-tool-1.0.0-linux-x86_64.tar.gz"
+        with tarfile.open(fileobj=archive, mode="w:gz") as contents:
+            info = tarfile.TarInfo("fixture-tool")
+            info.mode = 0o755
+            info.size = len(executable)
+            contents.addfile(info, io.BytesIO(executable))
     server.write_bytes(name, archive.getvalue())
 
 

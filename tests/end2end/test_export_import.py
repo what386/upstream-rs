@@ -3,13 +3,19 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
 
 from tests.framework.commands import read_json, run_upstream
 from tests.framework.environment import reset_fakehome
-from tests.framework.packages import assert_executable_version, package_from_list, package_version
+from tests.framework.packages import (
+    assert_executable_version,
+    package_from_list,
+    package_path,
+    package_version,
+)
 from tests.framework.server import start_fixture_server
 
 
@@ -70,7 +76,10 @@ class EndToEndExportImportTests(unittest.TestCase):
                 run_upstream("import", "packages", str(packages_path))
                 restored = package_from_list(PACKAGE)
                 assert package_version(restored) == (1, 0, 0), restored
-                assert_executable_version(restored, "fixture-tool 1.0.0")
+                if os.name == "nt":
+                    assert package_path(restored).is_file(), restored
+                else:
+                    assert_executable_version(restored, "fixture-tool 1.0.0")
         finally:
             server.close()
 

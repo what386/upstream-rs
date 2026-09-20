@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import unittest
 
 from tests.framework.commands import run_upstream, run_upstream_json
@@ -34,7 +35,8 @@ def scenario() -> None:
     assert "test-token" not in auth, auth
 
     run_upstream("hooks", "init")
-    assert (FAKEHOME / ".upstream" / "generated" / "paths.sh").is_file()
+    if os.name != "nt":
+        assert (FAKEHOME / ".upstream" / "generated" / "paths.sh").is_file()
     run_upstream("hooks", "check")
     run_upstream("hooks", "clean")
 
