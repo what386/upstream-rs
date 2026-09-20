@@ -11,7 +11,7 @@ import zipfile
 from tests.framework.commands import run_upstream
 from tests.framework.environment import reset_fakehome, upstream_binary
 from tests.framework.packages import package_from_list, package_version
-from tests.framework.server import Server
+from tests.framework.server import Server, platform_archive_suffix
 
 
 def write_page_artifact(server: Server) -> None:
@@ -22,11 +22,11 @@ def write_page_artifact(server: Server) -> None:
         else b"#!/bin/sh\nprintf 'fixture-tool 1.0.0\\n'\n"
     )
     if os.name == "nt":
-        name = "archives/fixture-tool-1.0.0-windows-x86_64.zip"
+        name = f"archives/fixture-tool-1.0.0-{platform_archive_suffix()}"
         with zipfile.ZipFile(archive, "w") as contents:
             contents.writestr("fixture-tool.exe", executable)
     else:
-        name = "archives/fixture-tool-1.0.0-linux-x86_64.tar.gz"
+        name = f"archives/fixture-tool-1.0.0-{platform_archive_suffix()}"
         with tarfile.open(fileobj=archive, mode="w:gz") as contents:
             info = tarfile.TarInfo("fixture-tool")
             info.mode = 0o755

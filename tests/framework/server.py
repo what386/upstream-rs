@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import os
+import platform
 from pathlib import Path
 import re
 import shutil
@@ -118,12 +119,22 @@ class Server:
 PACKAGE = "fixture-tool"
 
 
+def platform_architecture() -> str:
+    machine = platform.machine().lower()
+    if machine in {"aarch64", "arm64"}:
+        return "aarch64"
+    if machine in {"amd64", "x86_64", "x64"}:
+        return "x86_64"
+    raise RuntimeError(f"unsupported test architecture: {machine}")
+
+
 def platform_archive_suffix() -> str:
+    architecture = platform_architecture()
     if os.name == "nt":
-        return "windows-x86_64.zip"
+        return f"windows-{architecture}.zip"
     if sys.platform == "darwin":
-        return "macos-x86_64.tar.gz"
-    return "linux-x86_64.tar.gz"
+        return f"macos-{architecture}.tar.gz"
+    return f"linux-{architecture}.tar.gz"
 
 
 def write_upgrade_fixtures(server: Server) -> None:

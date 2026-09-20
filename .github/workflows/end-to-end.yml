@@ -28,5 +28,18 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.x"
+      - name: Install AppImage tooling
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          curl --fail --location \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+            --output "$RUNNER_TEMP/appimagetool"
+          chmod +x "$RUNNER_TEMP/appimagetool"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Generate test artifacts
+        if: matrix.os == 'ubuntu-latest'
+        run: scripts/test/generate-artifacts.py
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
       - name: Run end-to-end tests
         run: python -m unittest discover -s tests/end2end -p 'test_*.py'

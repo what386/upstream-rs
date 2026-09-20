@@ -5,7 +5,6 @@ from __future__ import annotations
 import io
 import os
 import subprocess
-import sys
 import tarfile
 import unittest
 import zipfile
@@ -13,20 +12,20 @@ import zipfile
 from tests.framework.commands import run_upstream
 from tests.framework.environment import reset_fakehome, upstream_binary
 from tests.framework.packages import package_from_list, package_path, package_version
-from tests.framework.server import Server
+from tests.framework.server import Server, platform_archive_suffix
 
 
 def write_archive(server: Server) -> str:
+    suffix = platform_archive_suffix()
     if os.name == "nt":
-        name = "fixture-tool-1.0.0-windows-x86_64.zip"
+        name = f"fixture-tool-1.0.0-{suffix}"
         archive = io.BytesIO()
         with zipfile.ZipFile(archive, "w") as contents:
             contents.writestr("fixture-tool.exe", upstream_binary().read_bytes())
         server.write_bytes(name, archive.getvalue())
         return name
 
-    platform = "macos" if sys.platform == "darwin" else "linux"
-    name = f"fixture-tool-1.0.0-{platform}-x86_64.tar.gz"
+    name = f"fixture-tool-1.0.0-{suffix}"
     archive = io.BytesIO()
     with tarfile.open(fileobj=archive, mode="w:gz") as contents:
         executable = b"#!/bin/sh\nprintf 'fixture-tool 1.0.0\\n'\n"
