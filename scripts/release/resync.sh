@@ -11,20 +11,18 @@ if [[ "$(git branch --show-current)" != "dev" ]]; then
     exit 1
 fi
 
-echo -e "${BLUE}Pushing dev to remotes...${NC}"
+echo -e "${BLUE}Pushing dev to origin...${NC}"
 
-git push github dev
-git push gitea dev
+git push origin dev
 
 echo -e "${BLUE}Merging dev into main...${NC}"
 
 git checkout main
 git merge dev -m "Merge dev into main"
 
-echo -e "${BLUE}Pushing main to remotes...${NC}"
+echo -e "${BLUE}Pushing main to origin...${NC}"
 
-git push github main
-git push gitea main
+git push origin main
 
 echo -e "${GREEN}Promoted dev to main.${NC}"
 
