@@ -1,7 +1,8 @@
 use crate::{
     models::common::{DesktopEntry, enums::Filetype},
+    providers::assets::filenames::filesystem_name,
     services::artifact::AppImageExtractor,
-    utils::{filenames::filesystem_name, static_paths::UpstreamPaths},
+    utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
 use std::{

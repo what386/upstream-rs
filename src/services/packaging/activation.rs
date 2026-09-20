@@ -3,6 +3,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use crate::{
     application::cancellation,
     models::upstream::Package,
+    providers::assets::filenames::filesystem_name,
     services::{
         integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
         packaging::{
@@ -10,7 +11,7 @@ use crate::{
         },
     },
     storage::database::PackageDatabase,
-    utils::{filenames::filesystem_name, filesystem::safe_move, static_paths::UpstreamPaths},
+    utils::{filesystem::safe_move, static_paths::UpstreamPaths},
 };
 use std::{
     fs, io,
@@ -1139,6 +1140,7 @@ mod tests {
 
         let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)
             .expect("open package database");
+
         PackageActivator::new(&paths)
             .persist(&mut database, updated)
             .expect("persist replacement");

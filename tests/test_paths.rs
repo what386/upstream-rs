@@ -27,6 +27,7 @@ impl AppDirs {
                 let username = std::env::var_os("USER")
                     .or_else(|| std::env::var_os("USERNAME"))
                     .unwrap_or_else(|| "default".into());
+
                 std::env::temp_dir()
                     .join(format!("upstream-rs-test-{}", username.to_string_lossy()))
             });

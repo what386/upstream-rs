@@ -1,6 +1,7 @@
 use crate::{
     models::common::{DesktopEntry, enums::Filetype},
-    utils::{filenames::filesystem_name, static_paths::UpstreamPaths},
+    providers::assets::filenames::filesystem_name,
+    utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
 use std::{

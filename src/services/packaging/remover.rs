@@ -1,6 +1,7 @@
 use crate::{
     models::upstream::Package,
     output,
+    providers::assets::filenames::filesystem_name,
     providers::discovery::friendly_name,
     services::{
         integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
@@ -10,7 +11,7 @@ use crate::{
         },
     },
     storage::database::PackageDatabase,
-    utils::{filenames::filesystem_name, static_paths::UpstreamPaths},
+    utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
 use dirs;

@@ -51,6 +51,7 @@ impl Step for V2_20_0 {
 
         let mut manifest =
             ManifestStorage::new(&ManifestStorage::path_for_root(&paths.dirs.data_dir))?;
+
         manifest.record_migration(CURRENT_LAYOUT_VERSION)
     }
 }
@@ -88,6 +89,7 @@ mod tests {
 
         let manifest = ManifestStorage::new(&ManifestStorage::path_for_root(&paths.dirs.data_dir))
             .expect("open migration manifest");
+
         assert_eq!(
             manifest.manifest().expect("manifest").layout_version,
             CURRENT_LAYOUT_VERSION

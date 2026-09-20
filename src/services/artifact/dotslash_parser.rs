@@ -353,7 +353,9 @@ fn parse_format_filetype(format: &str) -> Result<Filetype> {
         return Err(anyhow!("DotSlash asset format is empty"));
     }
 
-    let filetype = crate::utils::filenames::parser::parse_filetype(&format!(".{normalized}"));
+    let filetype =
+        crate::providers::assets::filenames::parser::parse_filetype(&format!(".{normalized}"));
+
     if filetype == Filetype::Binary && !matches!(normalized, "bin" | "binary" | "raw") {
         return Err(anyhow!("Unsupported DotSlash asset format '{format}'"));
     }

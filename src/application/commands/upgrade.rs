@@ -771,14 +771,10 @@ async fn run_dry_run(
         .await;
 
     let impact = match &preview_rows {
-        Ok(rows) => {
-            let impact = rows.iter().fold(
-                crate::services::packaging::disk_impact::DiskImpact::empty(),
-                |total, row| total + row.disk_impact.clone(),
-            );
-
-            impact
-        }
+        Ok(rows) => rows.iter().fold(
+            crate::services::packaging::disk_impact::DiskImpact::empty(),
+            |total, row| total + row.disk_impact.clone(),
+        ),
         Err(_) => crate::services::packaging::disk_impact::DiskImpact::unknown(),
     };
 

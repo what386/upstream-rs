@@ -9,8 +9,8 @@ use anyhow::anyhow;
 use anyhow::{Context, Result};
 
 use crate::{
-    services::integration::CompletionPaths,
-    utils::{filenames::filesystem_name, static_paths::UpstreamPaths},
+    providers::assets::filenames::filesystem_name, services::integration::CompletionPaths,
+    utils::static_paths::UpstreamPaths,
 };
 
 /// Temporary filesystem owned by one package preparation operation.

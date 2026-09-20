@@ -6,6 +6,7 @@ use crate::{
         provider::{Asset, Release},
         upstream::Package,
     },
+    providers::assets::filenames::filesystem_name,
     providers::provider_manager::ProviderManager,
     services::{
         packaging::{
@@ -22,7 +23,7 @@ use crate::{
             TrustVerificationStatus, TrustVerifier, TrustedSignatureKeys,
         },
     },
-    utils::{filenames::filesystem_name, static_paths::UpstreamPaths},
+    utils::static_paths::UpstreamPaths,
 };
 use anyhow::{Context, Result, anyhow};
 use console::style;

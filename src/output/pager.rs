@@ -153,6 +153,7 @@ fn page_text_with_header(
     let lines = text.lines().map(ToString::to_string).collect::<Vec<_>>();
     let header_rows =
         header.map_or(0, |value| value.lines().count()) + usize::from(add_header_separator);
+
     if lines.len() <= config.content_rows(header_rows) {
         print_without_pager(header, text, add_header_separator)?;
         print_footer_metadata(footer_right);
@@ -175,6 +176,7 @@ fn print_without_pager(header: Option<&str>, text: &str, add_header_separator: b
         for line in header.lines() {
             println!("{}", style(line).cyan().bold());
         }
+
         if add_header_separator {
             let cols = Term::stdout().size().1 as usize;
             println!("{}", "-".repeat(cols));
@@ -219,6 +221,7 @@ fn page_lines(
         })
         .max()
         .unwrap_or_default();
+
     let mut state = PagerState::new(
         lines.len(),
         config.content_rows(
@@ -227,6 +230,7 @@ fn page_lines(
         max_width,
         config.cols,
     );
+
     let mut rendered_lines = 0;
 
     loop {
@@ -266,6 +270,7 @@ fn page_lines(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_view(
     term: &Term,
     header: Option<&str>,
@@ -285,9 +290,11 @@ fn render_view(
             } else {
                 truncate_width(line, cols)
             };
+
             term.write_line(&style(line).cyan().bold().to_string())?;
             rendered += 1;
         }
+
         if add_header_separator {
             term.write_line(&"-".repeat(cols))?;
             rendered += 1;
@@ -425,6 +432,7 @@ mod tests {
         for _ in 0..20 {
             state.apply(PagerAction::NextColumn);
         }
+
         assert_eq!(state.left, 7);
         state.apply(PagerAction::PreviousColumn);
         assert_eq!(state.left, 6);

@@ -5,11 +5,9 @@ use std::{
 
 use crate::{
     models::upstream::Package,
+    providers::assets::filenames::parser::{parse_arch, parse_os},
     services::artifact::permission_handler,
-    utils::{
-        filenames::parser::{parse_arch, parse_os},
-        platform::platform_info::{ArchitectureInfo, CpuArch, OSKind},
-    },
+    utils::platform::platform_info::{ArchitectureInfo, CpuArch, OSKind},
 };
 
 /// Choose an extracted subdirectory only when its name explicitly identifies

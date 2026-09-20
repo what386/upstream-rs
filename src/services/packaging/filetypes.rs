@@ -5,12 +5,13 @@ use std::path::Path;
 
 use crate::{
     models::upstream::{Package, PackageExecutable},
+    providers::assets::filenames::simplify::executable_alias,
     services::{
         artifact::{archive_layout, compression_handler, permission_handler},
         integration::CompletionManager,
         packaging::staging::InstallWorkspace,
     },
-    utils::{filenames::simplify::executable_alias, filesystem::safe_move},
+    utils::filesystem::safe_move,
 };
 
 macro_rules! message {
@@ -226,6 +227,7 @@ where
             None
         }
     };
+
     let completion_root = if let Some(extractor) = &extractor {
         match extractor
             .extract(&package.id, &out_path, message_callback)

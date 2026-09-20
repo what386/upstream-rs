@@ -666,7 +666,7 @@ mod tests {
             provider::{Asset, Release},
             upstream::Package,
         },
-        providers::{asset_scorer::AssetCandidate, provider_manager::ProviderManager},
+        providers::{assets::AssetCandidate, provider_manager::ProviderManager},
         services::packaging::{PackagePhase, PackageProgressEvent},
     };
     use chrono::{TimeZone, Utc};

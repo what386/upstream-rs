@@ -6,8 +6,9 @@ use indicatif::HumanBytes;
 
 use crate::models::common::enums::{Channel, Provider};
 use crate::models::provider::Release;
+use crate::providers::assets::filenames::filesystem_name;
 use crate::providers::provider_manager::ProviderManager;
-use crate::utils::{filenames::filesystem_name, static_paths::UpstreamPaths};
+use crate::utils::static_paths::UpstreamPaths;
 
 pub struct SourceDownload {
     pub workspace_path: PathBuf,
