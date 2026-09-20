@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-09-19
+@modified: 2026-09-20
 
 
 ## Tasks
@@ -26,23 +26,4 @@
 
 - [ ] feat: add tracked type with manifests that preserves untracked files #packaging
       @created 2026-09-19 17:12
-
-
-## Completed
-
-- [x] feat: pager output is now horizontally scrollable
-      @created 2026-09-14 16:19
-      @completed 2026-09-14 16:26
-
-- [x] fix: retain AppImage extraction while reading embedded desktop metadata
-      @created 2026-09-18 18:35
-      @completed 2026-09-18 18:35
-
-- [x] BREAKING: remove rollback command as its seemingly not used much
-      @created 2026-09-19 01:22
-      @completed 2026-09-19 01:30
-
-- [x] feat: improve scraper reliability
-      @created 2026-09-19 17:39
-      @completed 2026-09-19 17:39
 

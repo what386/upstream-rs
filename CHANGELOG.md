@@ -1,6 +1,16 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-09-12*
+*Generated on 2026-09-20*
+
+## 2.20.0 — 2026-09-20
+
+### Changes
+
+- feat: pager output is now horizontally scrollable
+- fix: retain AppImage extraction while reading embedded desktop metadata
+- BREAKING: remove rollback command as its seemingly not used much
+- feat: improve scraper reliability
+
 
 ## 2.19.1 — 2026-09-12
 
