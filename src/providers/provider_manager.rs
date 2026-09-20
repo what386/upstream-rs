@@ -8,12 +8,12 @@ use crate::models::common::{
 };
 use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
 use crate::models::upstream::{Package, config::DownloadConfig};
-use crate::providers::asset_scorer::{AssetCandidate, AssetSelector};
+use crate::providers::assets::{AssetCandidate, AssetSelector};
 use crate::providers::sites::ReleaseProvider;
 use crate::providers::sites::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::sites::github::{GithubAdapter, GithubClient};
 use crate::providers::sites::gitlab::{GitlabAdapter, GitlabClient};
-use crate::providers::sites::{http::{WebScraperAdapter, DirectAdapter, HttpClient}};
+use crate::providers::sites::http::{DirectAdapter, HttpClient, WebScraperAdapter};
 
 use anyhow::{Result, anyhow};
 

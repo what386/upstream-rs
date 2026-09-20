@@ -129,6 +129,7 @@ impl HttpClient {
             .get(header::CONTENT_DISPOSITION)
             .and_then(|value| value.to_str().ok())
             .and_then(Self::filename_from_content_disposition);
+
         filename.unwrap_or_else(|| Self::file_name_from_url(url))
     }
 
@@ -139,10 +140,12 @@ impl HttpClient {
             if key.eq_ignore_ascii_case("filename") {
                 return (!value.is_empty()).then(|| value.to_string());
             }
+
             if key.eq_ignore_ascii_case("filename*") {
                 let encoded = value.rsplit("''").next()?;
                 return Some(Self::percent_decode(encoded));
             }
+
             None
         })
     }
@@ -163,9 +166,11 @@ impl HttpClient {
                 index += 3;
                 continue;
             }
+
             decoded.push(bytes[index]);
             index += 1;
         }
+
         String::from_utf8_lossy(&decoded).into_owned()
     }
 
@@ -202,6 +207,7 @@ impl HttpClient {
             .bytes()
             .await
             .context("Failed to read HTTP response body")?;
+
         Ok(ConditionalDocumentResult::Document(HttpDocument {
             url: final_url,
             content_type,
@@ -478,9 +484,11 @@ mod tests {
             .fetch_document_if_modified_since(&server, None)
             .await
             .expect("fetch");
+
         let ConditionalDocumentResult::Document(document) = result else {
             panic!("unexpected not modified");
         };
+
         assert!(document.content_type.contains("text/html"));
         assert_eq!(document.url, format!("{server}/"));
         assert_eq!(document.body, body.as_bytes());

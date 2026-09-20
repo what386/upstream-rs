@@ -8,11 +8,11 @@ use crate::{
         common::{Version, enums::Filetype},
         provider::{Asset, Release},
     },
+    providers::assets::filenames::parser::parse_filetype,
     providers::sites::{
         ReleaseProvider,
         http::{ConditionalDocumentResult, HttpAssetInfo, HttpClient},
     },
-    utils::filenames::parser::parse_filetype,
 };
 
 #[derive(Debug, Clone)]
@@ -72,25 +72,30 @@ impl WebScraperAdapter {
             } else {
                 0
             };
+
         let text = text.to_ascii_lowercase();
         if name.to_ascii_lowercase().ends_with(".html") {
             return -200;
         }
+
         if explicit_download {
             score += 80;
         }
+
         if ["download", "get it", "install"]
             .iter()
             .any(|word| text.contains(word))
         {
             score += 40;
         }
+
         if ["checksum", "sha256", "signature", "minisig", "asc"]
             .iter()
             .any(|word| text.contains(word))
         {
             score -= 200;
         }
+
         score
     }
 
@@ -98,6 +103,7 @@ impl WebScraperAdapter {
         let document = Html::parse_document(html);
         let selector = Selector::parse("a[href], [data-download-url], [data-download], [data-url]")
             .expect("valid static selector");
+
         let mut seen = HashSet::new();
         let mut candidates = Vec::new();
 
@@ -105,12 +111,15 @@ impl WebScraperAdapter {
             let explicit_download = element.value().attr("download").is_some()
                 || element.value().attr("data-download-url").is_some()
                 || element.value().attr("data-download").is_some();
+
             let value = ["data-download-url", "data-download", "href", "data-url"]
                 .iter()
                 .find_map(|attribute| element.value().attr(attribute));
+
             let Some(value) = value else {
                 continue;
             };
+
             if value.starts_with('#')
                 || value.starts_with("javascript:")
                 || value.starts_with("mailto:")
@@ -118,28 +127,34 @@ impl WebScraperAdapter {
             {
                 continue;
             }
+
             let Ok(url) = base.join(value) else {
                 continue;
             };
+
             if !matches!(url.scheme(), "http" | "https") {
                 continue;
             }
+
             let url = url.to_string();
             let name = HttpClient::file_name_from_url(&url);
             if parse_filetype(&name) == Filetype::Checksum {
                 continue;
             }
+
             let text = element.text().collect::<String>();
             let score = Self::candidate_score(&name, &text, explicit_download);
             if score <= 0 || !seen.insert(url.clone()) {
                 continue;
             }
+
             candidates.push(Candidate {
                 version: Version::from_filename(&name).ok(),
                 url,
                 score,
             });
         }
+
         candidates.sort_by(|left, right| {
             right
                 .score
@@ -160,23 +175,29 @@ impl WebScraperAdapter {
             let Ok(info) = self.client.probe_asset(&candidate.url).await else {
                 continue;
             };
+
             if info.content_type.as_deref().is_some_and(|kind| {
                 kind.contains("text/html") || kind.contains("application/xhtml")
             }) {
                 continue;
             }
+
             if parse_filetype(&info.name) == Filetype::Checksum {
                 continue;
             }
+
             let mut info = info;
             if info.last_modified.is_none() {
                 info.last_modified = page_modified;
             }
+
             if info.etag.is_none() {
                 info.etag = page_etag.clone();
             }
+
             validated.push((candidate, info));
         }
+
         validated
     }
 
@@ -186,6 +207,7 @@ impl WebScraperAdapter {
                 .iter()
                 .filter_map(|(candidate, _)| candidate.version.clone()),
         );
+
         let selected: Vec<_> = infos
             .into_iter()
             .filter(|(candidate, _)| {
@@ -198,6 +220,7 @@ impl WebScraperAdapter {
             })
             .map(|(_, info)| info)
             .collect();
+
         selected
     }
 
@@ -210,40 +233,49 @@ impl WebScraperAdapter {
             .client
             .fetch_document_if_modified_since(slug, last_upgraded)
             .await?;
+
         let ConditionalDocumentResult::Document(document) = document else {
             return Ok(None);
         };
+
         if !document.content_type.contains("text/html")
             && !document.content_type.contains("application/xhtml")
         {
             let info = HttpClient::asset_info(&document.url, &document.headers);
             return Ok(Some(Self::release_from_infos(vec![info], last_upgraded)));
         }
+
         let base = reqwest::Url::parse(&document.url)
             .context("Failed to parse final download page URL")?;
+
         let html = String::from_utf8_lossy(&document.body);
         let candidates = Self::extract_candidates(&base, &html);
         if candidates.is_empty() {
             bail!("No download links found on '{}'", document.url);
         }
+
         let page_modified = document
             .headers
             .get(reqwest::header::LAST_MODIFIED)
             .and_then(|value| value.to_str().ok())
             .and_then(|value| DateTime::parse_from_rfc2822(value).ok())
             .map(|value| value.with_timezone(&Utc));
+
         let page_etag = document
             .headers
             .get(reqwest::header::ETAG)
             .and_then(|value| value.to_str().ok())
             .map(|value| value.trim_matches('"').to_string());
+
         let infos = Self::select_latest(
             self.validate_candidates(candidates, page_modified, page_etag)
                 .await,
         );
+
         if infos.is_empty() {
             bail!("No downloadable assets found on '{}'", document.url);
         }
+
         Ok(Some(Self::release_from_infos(infos, last_upgraded)))
     }
 
@@ -256,17 +288,20 @@ impl WebScraperAdapter {
             .filter_map(|info| info.last_modified)
             .max()
             .unwrap_or_else(|| last_upgraded.unwrap_or_else(Utc::now));
+
         let version = Self::highest_version(
             infos
                 .iter()
                 .filter_map(|info| Version::from_filename(&info.name).ok()),
         )
         .unwrap_or_else(|| Self::version_from_last_modified(published_at));
+
         let name = if infos.len() == 1 {
             infos[0].name.clone()
         } else {
             format!("Discovered {} assets", infos.len())
         };
+
         Release {
             id: 1,
             tag: "scraped".to_string(),
@@ -300,6 +335,7 @@ impl ReleaseProvider for WebScraperAdapter {
             .await?
             .ok_or_else(|| anyhow!("Unexpected not-modified response for scraper provider"))
     }
+
     async fn get_releases(
         &self,
         slug: &str,
@@ -308,9 +344,11 @@ impl ReleaseProvider for WebScraperAdapter {
     ) -> Result<Vec<Release>> {
         Ok(vec![self.get_latest_release(slug).await?])
     }
+
     async fn get_release_by_tag(&self, _: &str, _: &str) -> Result<Release> {
         bail!("Scraper provider does not support tagged releases")
     }
+
     async fn get_latest_release_since(
         &self,
         slug: &str,
@@ -318,6 +356,7 @@ impl ReleaseProvider for WebScraperAdapter {
     ) -> Result<Option<Release>> {
         self.release_since(slug, last_upgraded).await
     }
+
     async fn download_asset(
         &self,
         asset: &Asset,
