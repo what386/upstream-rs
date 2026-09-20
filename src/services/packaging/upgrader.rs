@@ -708,7 +708,7 @@ mod tests {
         )
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn recovery_after_failed_upgrade_removes_partial_install_and_restores_previous_binary() {
         let root = temp_root("recovery-desktop-failure");
