@@ -750,6 +750,12 @@ mod tests {
             ALTER TABLE package_settings RENAME COLUMN package_id TO package_name;
             ALTER TABLE package_executables RENAME COLUMN package_id TO package_name;
             DROP TABLE package_settings;
+            DROP TABLE package_executables;
+            ALTER TABLE packages DROP COLUMN version_kind;
+            ALTER TABLE packages DROP COLUMN version_value;
+            ALTER TABLE packages DROP COLUMN release_tag;
+            ALTER TABLE packages DROP COLUMN release_published_at;
+            ALTER TABLE packages ADD COLUMN exec_path TEXT;
             PRAGMA user_version = 5;
             ",
         )
@@ -788,14 +794,18 @@ mod tests {
             ALTER TABLE path_entries RENAME COLUMN package_id TO package_name;
             ALTER TABLE package_settings RENAME COLUMN package_id TO package_name;
             ALTER TABLE package_executables RENAME COLUMN package_id TO package_name;
+            DROP TABLE package_executables;
+            ALTER TABLE packages DROP COLUMN release_tag;
+            ALTER TABLE packages DROP COLUMN release_published_at;
+            ALTER TABLE packages ADD COLUMN exec_path TEXT;
             INSERT INTO packages (
                 name, repo_slug, filetype, version_major, version_minor, version_patch,
-                version_is_prerelease, version_kind, version_value, release_tag,
-                release_published_at, version_tag_template, channel, provider, base_url,
+                version_is_prerelease, version_kind, version_value, version_tag_template,
+                channel, provider, base_url,
                 install_type, build_branch, build_commit, is_pinned, icon_path, install_path,
                 last_upgraded
             ) VALUES (
-                'tool', 'owner/tool', 'Archive', 1, 2, 3, 0, 'Semver', NULL, NULL, NULL,
+                'tool', 'owner/tool', 'Archive', 1, 2, 3, 0, 'Semver', NULL,
                 'rust-v{}-linux', 'Stable', 'Github', NULL, 'Release', NULL, NULL, 0, NULL,
                 '/packages/tool', '2026-06-21T12:30:00Z'
             );

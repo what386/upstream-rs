@@ -40,16 +40,19 @@ impl ConfigStorage {
 
         let mut raw: toml::Value =
             toml::from_str(&toml_str).context("Tried to parse an invalid config")?;
+
         if raw
             .as_table_mut()
             .is_some_and(|table| table.remove("rollback").is_some())
         {
             let normalized = toml::to_string_pretty(&raw)
                 .context("Failed to remove obsolete rollback configuration")?;
+
             write_atomic(&self.config_file, normalized.as_bytes()).with_context(|| {
                 format!("Failed to update config '{}'", self.config_file.display())
             })?;
         }
+
         self.config = raw.try_into().context("Tried to parse an invalid config")?;
         Ok(())
     }
