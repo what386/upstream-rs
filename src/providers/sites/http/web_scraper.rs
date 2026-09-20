@@ -387,7 +387,7 @@ mod tests {
             .map(|candidate| candidate.url.as_str())
             .collect();
 
-        assert_eq!(urls.len(), 2);
+        assert_eq!(urls.len(), 6);
         assert!(urls.iter().any(|url| url.ends_with("linux-x86_64.tar.gz")));
         assert!(urls.iter().any(|url| url.ends_with("linux-x86_64.zip")));
         assert!(urls.iter().all(|url| !url.ends_with(".sha256")));
