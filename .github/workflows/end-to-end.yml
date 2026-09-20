@@ -28,5 +28,4 @@ jobs:
         with:
           python-version: '3.x'
       - name: Run end-to-end tests
-        shell: bash
         run: python -m unittest discover -s tests/end2end -p 'test_*.py'
