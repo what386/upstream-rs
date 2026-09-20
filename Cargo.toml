@@ -26,12 +26,12 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "str
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
-sevenz-rust2 = { version = "0.22.2", default-features = false, features = ["util", "bzip2", "ppmd"] }
+sevenz-rust2 = { version = "0.23.0", default-features = false, features = ["util", "bzip2", "ppmd"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "io-util", "process", "sync", "time", "signal"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 futures-util = "0.3"
 anyhow = "1.0"
-dirs = "6.0"
+dirs = "7.0"
 clap = { version = "4.6", features = ["derive"] }
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 tar = "0.4"
@@ -45,17 +45,17 @@ toml = "1.1.6"
 xz2 = { version = "0.1.7", features = ["static"] }
 walkdir = "2.5.0"
 clap_complete = { version = "4.6", optional = true }
-zstd = "0.13.3"
+zstd = "0.14.0"
 minisign-verify = "0.2.5"
 base64 = "0.23.1"
 p256 = { version = "0.14.0", features = ["ecdsa", "pem", "pkcs8"] }
 sigstore = { version = "0.14.0", default-features = false, features = ["cosign", "rustls-tls"] }
 async-trait = "0.1.92"
 strsim = "0.11.1"
-scraper = "0.25"
+scraper = "0.27"
 
 [dev-dependencies]
-sevenz-rust2 = { version = "0.22.2", default-features = false, features = ["util", "compress", "bzip2", "ppmd"] }
+sevenz-rust2 = { version = "0.23.0", default-features = false, features = ["util", "compress", "bzip2", "ppmd"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
