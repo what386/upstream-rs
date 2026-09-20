@@ -281,6 +281,7 @@ impl<'a> PackageRemover<'a> {
 
         if let Some(icon_path) = &package.icon_path {
             message!(message_callback, "Removing desktop entry ...");
+            #[cfg(not(target_os = "macos"))]
             DesktopManager::remove_entry(self.paths, &package.id).context(format!(
                 "Failed to remove desktop entry for '{}'",
                 package.id
@@ -410,6 +411,7 @@ impl<'a> PackageRemover<'a> {
         );
 
         // Remove known upstream-owned integration artifacts by package alias.
+        #[cfg(not(target_os = "macos"))]
         DesktopManager::remove_entry(self.paths, package_name).context(format!(
             "Failed to remove desktop entry for '{}'",
             package_name

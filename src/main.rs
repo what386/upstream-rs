@@ -70,8 +70,8 @@ async fn wait_for_interrupt() -> bool {
     };
 
     tokio::select! {
-        result = ctrl_c.recv() => result.is_ok(),
-        result = ctrl_break.recv() => result.is_ok(),
+        result = ctrl_c.recv() => result.is_some(),
+        result = ctrl_break.recv() => result.is_some(),
     }
 }
 

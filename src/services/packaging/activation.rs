@@ -335,6 +335,7 @@ impl ReplacementBackup {
             self.move_integration(path, "completions")?;
         }
 
+        #[cfg(not(target_os = "macos"))]
         self.move_integration(
             DesktopManager::managed_entry_path(paths, &self.previous_package.id)?,
             "desktop",
@@ -401,6 +402,7 @@ impl<'a> PackageActivator<'a> {
             errors.push(format!("failed to remove completions: {error:#}"));
         }
 
+        #[cfg(not(target_os = "macos"))]
         if let Err(error) = DesktopManager::remove_entry(self.paths, &package.id) {
             errors.push(format!("failed to remove desktop entry: {error:#}"));
         }
