@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-09-20*
+*Generated on 2026-09-21*
+
+## 2.20.1 — 2026-09-21
+
+### Changes
+
+- fix signing issue. will implement proper keyless signing in the future
+
 
 ## 2.20.0 — 2026-09-20
 
