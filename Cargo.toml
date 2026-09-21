@@ -1,6 +1,6 @@
 [package]
 name = "upstream-rs"
-version = "2.20.0"
+version = "2.20.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -9,11 +9,7 @@ repository = "https://github.com/what386/upstream-rs"
 keywords = ["update", "package", "linux", "windows"]
 categories = ["command-line-utilities", "development-tools"]
 
-exclude = [
-    ".github",
-    "scripts/",
-    "completions/"
-]
+exclude = [".github", "scripts/", "completions/"]
 
 [features]
 default = []
@@ -21,13 +17,34 @@ testing_donotuseinrelease = []
 shell-completions = ["dep:clap_complete"]
 
 [dependencies]
-chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
-reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls"] }
+chrono = { version = "0.4", default-features = false, features = [
+    "clock",
+    "std",
+    "serde",
+] }
+reqwest = { version = "0.13", default-features = false, features = [
+    "json",
+    "stream",
+    "rustls",
+] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
-sevenz-rust2 = { version = "0.23.0", default-features = false, features = ["util", "bzip2", "ppmd"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "io-util", "process", "sync", "time", "signal"] }
+sevenz-rust2 = { version = "0.23.0", default-features = false, features = [
+    "util",
+    "bzip2",
+    "ppmd",
+] }
+tokio = { version = "1", features = [
+    "macros",
+    "rt-multi-thread",
+    "fs",
+    "io-util",
+    "process",
+    "sync",
+    "time",
+    "signal",
+] }
 tokio-util = { version = "0.7", features = ["rt"] }
 futures-util = "0.3"
 anyhow = "1.0"
@@ -35,7 +52,9 @@ dirs = "7.0"
 clap = { version = "4.6", features = ["derive"] }
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 tar = "0.4"
-zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "8.6", default-features = false, features = [
+    "deflate-flate2-zlib-rs",
+] }
 bzip2 = "0.6.1"
 indicatif = "0.18"
 glob = "0.3"
@@ -49,17 +68,35 @@ zstd = "0.14.0"
 minisign-verify = "0.2.5"
 base64 = "0.23.1"
 p256 = { version = "0.14.0", features = ["ecdsa", "pem", "pkcs8"] }
-sigstore = { version = "0.14.0", default-features = false, features = ["cosign", "rustls-tls"] }
+sigstore = { version = "0.14.0", default-features = false, features = [
+    "cosign",
+    "rustls-tls",
+] }
 async-trait = "0.1.92"
 strsim = "0.11.1"
 scraper = "0.27"
 
 [dev-dependencies]
-sevenz-rust2 = { version = "0.23.0", default-features = false, features = ["util", "compress", "bzip2", "ppmd"] }
+sevenz-rust2 = { version = "0.23.0", default-features = false, features = [
+    "util",
+    "compress",
+    "bzip2",
+    "ppmd",
+] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
-winapi = { version = "0.3", features = ["winuser", "processthreadsapi", "handleapi", "synchapi", "minwinbase", "winbase", "winnt", "errhandlingapi", "winerror"] }
+winapi = { version = "0.3", features = [
+    "winuser",
+    "processthreadsapi",
+    "handleapi",
+    "synchapi",
+    "minwinbase",
+    "winbase",
+    "winnt",
+    "errhandlingapi",
+    "winerror",
+] }
 
 [[bin]]
 name = "completions"
