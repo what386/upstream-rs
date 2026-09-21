@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-09-20
+@modified: 2026-09-21
 
 
 ## Tasks
@@ -26,4 +26,11 @@
 
 - [ ] feat: add tracked type with manifests that preserves untracked files #packaging
       @created 2026-09-19 17:12
+
+
+## Completed
+
+- [x] fix signing issue. will implement proper keyless signing in the future
+      @created 2026-09-21 03:01
+      @completed 2026-09-21 03:01
 
