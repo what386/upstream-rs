@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-09-21*
+*Generated on 2026-09-22*
+
+## 2.20.2 — 2026-09-22
+
+### Changes
+
+- fix missing desktop entry detection, and update helptext
+- fix stale symlink detection
+
 
 ## 2.20.1 — 2026-09-21
 

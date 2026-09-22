@@ -27,14 +27,3 @@
 - [ ] feat: add tracked type with manifests that preserves untracked files #packaging
       @created 2026-09-19 17:12
 
-
-## Completed
-
-- [x] fix missing desktop entry detection, and update helptext
-      @created 2026-09-22 01:38
-      @completed 2026-09-22 01:38
-
-- [x] fix stale symlink detection
-      @created 2026-09-22 01:37
-      @completed 2026-09-22 01:38
-
