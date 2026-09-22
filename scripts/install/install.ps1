@@ -235,7 +235,7 @@ function Install-UpstreamIfMissing {
     if (Test-UpstreamPackageInstalled -Binary $Binary) {
         Write-ColorOutput "Managed upstream package already present; skipping package install." $GREEN
     } else {
-        Invoke-UpstreamCommand -Binary $Binary -Arguments @("--yes", "install", "what386/upstream-rs", "upstream", "-k", "win-exe")
+        Invoke-UpstreamCommand -Binary $Binary -Arguments @("--yes", "install", "what386/upstream-rs", "-k", "win-exe")
     }
 }
 

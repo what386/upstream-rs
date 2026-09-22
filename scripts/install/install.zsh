@@ -127,7 +127,7 @@ install_upstream_if_missing() {
   if upstream_package_installed; then
     echo -e "${GREEN}Managed upstream package already present; skipping package install.${NC}"
   else
-    run_upstream --yes install what386/upstream-rs upstream -k binary
+    run_upstream --yes install what386/upstream-rs -k binary
   fi
 }
 

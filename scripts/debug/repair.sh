@@ -77,6 +77,6 @@ chmod +x "$bootstrap"
 if ! run_upstream "$bootstrap" --yes remove upstream --force; then
     printf 'Forced removal did not complete; continuing with a fresh install attempt.\n' >&2
 fi
-run_upstream "$bootstrap" --yes install "$repository" upstream
+run_upstream "$bootstrap" --yes install "$repository"
 complete_repair "$bootstrap"
 printf 'Repair complete. Restart separately launched shells before testing upstream.\n'

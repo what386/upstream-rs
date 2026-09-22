@@ -95,7 +95,7 @@ try {
         Write-Warning "Forced removal did not complete: $($_.Exception.Message)"
         Write-Host "Continuing with a fresh install attempt."
     }
-    Invoke-Upstream $bootstrap @("--yes", "install", $Repository, "upstream", "-k", "win-exe")
+    Invoke-Upstream $bootstrap @("--yes", "install", $Repository, "-k", "win-exe")
     Complete-Repair $bootstrap
     Write-Host "Repair complete. Restart separately launched shells before testing upstream."
 } finally {
