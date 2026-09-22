@@ -388,6 +388,22 @@ mod tests {
     }
 
     #[test]
+    fn managed_entry_path_sanitizes_package_id() {
+        let root = temp_root("managed-path");
+        let paths = test_support::upstream_paths(&root);
+
+        assert_eq!(
+            LinuxDesktopHandler::managed_entry_path(&paths, "github:owner/tool"),
+            paths
+                .integration
+                .xdg_applications_dir
+                .join("github_owner_tool.desktop")
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn rename_refuses_to_overwrite_existing_entry() {
         let root = temp_root("rename");
         let paths = test_support::upstream_paths(&root);

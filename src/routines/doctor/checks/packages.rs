@@ -5,7 +5,10 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     models::upstream::{InstallType, Package},
-    services::{artifact::permission_handler, integration::SymlinkManager},
+    services::{
+        artifact::permission_handler,
+        integration::{DesktopManager, SymlinkManager},
+    },
     storage::database::PackageDatabase,
     utils::static_paths::UpstreamPaths,
 };
@@ -420,12 +423,9 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                 );
             }
 
-            #[cfg(unix)]
+            #[cfg(target_os = "linux")]
             {
-                let desktop_entry = paths
-                    .integration
-                    .xdg_applications_dir
-                    .join(format!("{}.desktop", package.id));
+                let desktop_entry = DesktopManager::managed_entry_path(paths, &package.id)?;
 
                 if desktop_entry.exists() {
                     report.line(Level::Ok, format!("{} desktop entry exists", package_label));

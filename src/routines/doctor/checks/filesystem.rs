@@ -235,7 +235,15 @@ pub(in crate::routines::doctor) fn check_untracked_package_artifacts(
     all_packages: &[Package],
     report: &mut DoctorReport,
 ) {
-    let installed_names: HashSet<String> = all_packages.iter().map(|p| p.id.clone()).collect();
+    let installed_names: HashSet<String> = all_packages
+        .iter()
+        .flat_map(|package| {
+            package
+                .executables
+                .iter()
+                .map(|executable| executable.name.clone())
+        })
+        .collect();
 
     let stale_links = find_stale_symlink_names(&paths.state.symlinks_dir, &installed_names);
     if stale_links.is_empty() {
@@ -334,6 +342,21 @@ mod tests {
         let installed_names = HashSet::from(["installed".to_string()]);
         let stale = find_stale_symlink_names(&root, &installed_names);
         assert_eq!(stale, vec!["orphan".to_string()]);
+
+        cleanup(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn find_stale_symlink_names_accepts_executable_aliases() {
+        let root = temp_root("stale-alias");
+        fs::create_dir_all(&root).expect("create root");
+
+        let alias = expected_link_path(&root, "audacity");
+        fs::write(&alias, b"x").expect("create alias link file");
+
+        let installed_names = HashSet::from(["audacity".to_string()]);
+        let stale = find_stale_symlink_names(&root, &installed_names);
+        assert!(stale.is_empty());
 
         cleanup(&root).expect("cleanup");
     }
