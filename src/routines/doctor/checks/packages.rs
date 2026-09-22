@@ -439,7 +439,7 @@ pub(in crate::routines::doctor) fn check_installed_packages(
                         ),
                     );
                     report.hint(format!(
-                        "Reinstall '{}' with desktop integration enabled to restore desktop entry.",
+                        "Run `upstream package add-entry {}` to restore the desktop entry.",
                         package.id
                     ));
                 }
