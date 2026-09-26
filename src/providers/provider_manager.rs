@@ -222,7 +222,9 @@ impl ProviderManager {
             ));
         }
 
-        let template_match = if let Ok(latest) = self
+        // Most repositories reuse the latest release's tag format. A verified
+        // exact tag avoids fetching the full release history.
+        if let Ok(latest) = self
             .get_latest_release(slug, provider, channel, base_url)
             .await
             && let Some(template) = VersionTagTemplate::from_tag(&latest.tag, &latest.version)
@@ -232,15 +234,12 @@ impl ProviderManager {
                 .get_release_by_tag(slug, &candidate, provider, base_url)
                 .await
                 && release.version == *requested
+                && !release.is_draft
                 && Self::release_matches_channel(&release, channel)
             {
-                Some(release)
-            } else {
-                None
+                return Ok(release);
             }
-        } else {
-            None
-        };
+        }
 
         let mut matches = Self::semver_matches(
             self.get_releases(slug, provider, None, None, base_url)
@@ -248,10 +247,6 @@ impl ProviderManager {
             requested,
             channel,
         );
-
-        if let Some(release) = template_match {
-            matches.push(release);
-        }
 
         matches.sort_by(|a, b| a.tag.cmp(&b.tag));
         matches.dedup_by(|a, b| a.tag == b.tag);
@@ -515,6 +510,45 @@ mod tests {
         format!("http://{}", rx.recv().expect("receive test server address"))
     }
 
+    fn spawn_gitea_semver_server() -> (String, thread::JoinHandle<()>) {
+        let (tx, rx) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
+            tx.send(listener.local_addr().expect("resolve test server address"))
+                .expect("send test server address");
+
+            for (expected_path, tag) in [
+                ("/api/v1/repos/owner/tool/releases/latest", "v2.0.0"),
+                ("/api/v1/repos/owner/tool/releases/tags/v1.2.4", "v1.2.4"),
+            ] {
+                let (mut stream, _) = listener.accept().expect("accept request");
+                let mut reader = BufReader::new(stream.try_clone().expect("clone stream"));
+                let mut request_line = String::new();
+                reader
+                    .read_line(&mut request_line)
+                    .expect("read request line");
+                assert_eq!(request_line.split_whitespace().nth(1), Some(expected_path));
+
+                let body = format!(
+                    "{{\"id\":1,\"tag_name\":\"{tag}\",\"prerelease\":false,\"draft\":false,\"published_at\":\"2026-01-01T00:00:00Z\",\"assets\":[]}}"
+                );
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                stream
+                    .write_all(response.as_bytes())
+                    .expect("write response");
+            }
+        });
+
+        (
+            format!("http://{}", rx.recv().expect("receive test server address")),
+            handle,
+        )
+    }
+
     fn make_release(prerelease: bool, tag: &str) -> Release {
         Release {
             id: 1,
@@ -558,6 +592,29 @@ mod tests {
 
         assert_eq!(matches.len(), 2);
         assert!(matches.iter().all(|release| !release.is_prerelease));
+    }
+
+    #[tokio::test]
+    async fn semver_resolves_inferred_tag_without_listing_release_history() {
+        let (base_url, server) = spawn_gitea_semver_server();
+        let manager = ProviderManager::new(None, None, None, DownloadConfig::default())
+            .expect("create provider manager");
+
+        let release = manager
+            .get_release_by_semver(
+                "owner/tool",
+                &Version::new(1, 2, 4, false),
+                &Provider::Gitea,
+                &Channel::Stable,
+                Some(&base_url),
+            )
+            .await
+            .expect("resolve inferred tag");
+
+        assert_eq!(release.tag, "v1.2.4");
+        server
+            .join()
+            .expect("server handled only the two expected requests");
     }
 
     #[tokio::test]

@@ -153,8 +153,9 @@ fn page_text_with_header(
     let lines = text.lines().map(ToString::to_string).collect::<Vec<_>>();
     let header_rows =
         header.map_or(0, |value| value.lines().count()) + usize::from(add_header_separator);
+    let max_width = max_content_width(header, scroll_header_horizontally, &lines);
 
-    if lines.len() <= config.content_rows(header_rows) {
+    if lines.len() <= config.content_rows(header_rows) && max_width <= config.cols {
         print_without_pager(header, text, add_header_separator)?;
         print_footer_metadata(footer_right);
         return Ok(());
@@ -207,20 +208,7 @@ fn page_lines(
     lines: &[String],
     config: PagerConfig,
 ) -> Result<()> {
-    let max_width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .chain(if scroll_header_horizontally {
-            header
-                .into_iter()
-                .flat_map(str::lines)
-                .map(|line| line.chars().count())
-                .collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        })
-        .max()
-        .unwrap_or_default();
+    let max_width = max_content_width(header, scroll_header_horizontally, lines);
 
     let mut state = PagerState::new(
         lines.len(),
@@ -364,6 +352,27 @@ fn truncate_width(value: &str, cols: usize) -> String {
     truncate_visible(value, cols)
 }
 
+fn max_content_width(
+    header: Option<&str>,
+    scroll_header_horizontally: bool,
+    lines: &[String],
+) -> usize {
+    lines
+        .iter()
+        .map(|line| line.chars().count())
+        .chain(if scroll_header_horizontally {
+            header
+                .into_iter()
+                .flat_map(str::lines)
+                .map(|line| line.chars().count())
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        })
+        .max()
+        .unwrap_or_default()
+}
+
 fn horizontal_window(value: &str, left: usize, cols: usize) -> String {
     let window = value.chars().skip(left).take(cols).collect::<String>();
     truncate_width(&window, cols)
@@ -388,7 +397,8 @@ fn action_for_key(key: Key) -> PagerAction {
 #[cfg(test)]
 mod tests {
     use super::{
-        PagerAction, PagerState, action_for_key, footer_line, footer_text, page_text, visible_lines,
+        PagerAction, PagerState, action_for_key, footer_line, footer_text, max_content_width,
+        page_text, visible_lines,
     };
     use console::Key;
 
@@ -467,6 +477,20 @@ mod tests {
         let footer = footer_line("-- 1-5/12 --", Some("Packages (12)"), 40);
         assert_eq!(footer.chars().count(), 40);
         assert!(footer.ends_with("Packages (12)"));
+    }
+
+    #[test]
+    fn max_content_width_includes_scrollable_header() {
+        let lines = vec!["short".to_string()];
+
+        assert_eq!(
+            max_content_width(Some("a much longer header"), true, &lines),
+            20
+        );
+        assert_eq!(
+            max_content_width(Some("a much longer header"), false, &lines),
+            5
+        );
     }
 
     #[test]
