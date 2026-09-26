@@ -10,9 +10,7 @@ Use `just` for the repository's common formatting, linting, testing, fixture,
 and release commands. The CI workflow in `.github/workflows/ci.yml` is the
 authoritative baseline for checks that must pass in pull requests.
 
-Rust formatting includes `cargo spaced`; a normal rustfmt pass is not enough
-for this repository. Keep generated completions synchronized when changing CLI
-arguments or completion behavior.
+Rust formatting includes `cargo spaced`, but rustfmt is likely sufficient.
 
 ## Change boundaries
 

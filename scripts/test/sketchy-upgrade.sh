@@ -13,14 +13,13 @@ fi
 readonly FISH_COMPLETIONS_DIR="$HOME/.config/fish/completions"
 readonly COMPLETION_FILE="$FISH_COMPLETIONS_DIR/upstream.fish"
 readonly COMPLETION_FILE_BACKUP="$COMPLETION_FILE.old"
-readonly COMPLETION_SOURCE="$REPO_ROOT/completions/completions.fish"
 
 readonly UPSTREAM_PKG="$HOME/.upstream/packages/binaries/upstream-x86_64-unknown-linux-gnu"
 upstream_stash="$REPO_ROOT/$(basename -- "$UPSTREAM_PKG")"
 readonly UPSTREAM_STASH="$upstream_stash"
 readonly RELEASE_BINARY="$REPO_ROOT/target/release/upstream"
 
-for required_file in "$COMPLETION_FILE" "$COMPLETION_SOURCE" "$UPSTREAM_PKG" "$RELEASE_BINARY"; do
+for required_file in "$COMPLETION_FILE" "$UPSTREAM_PKG" "$RELEASE_BINARY"; do
     if [[ ! -f "$required_file" ]]; then
         printf 'Required file is missing: %s\n' "$required_file" >&2
         exit 1
@@ -56,7 +55,8 @@ rm -f -- "$COMPLETION_FILE_BACKUP"
 mv -- "$COMPLETION_FILE" "$COMPLETION_FILE_BACKUP"
 completion_moved=true
 
-cp -- "$COMPLETION_SOURCE" "$COMPLETION_FILE"
+cargo run --locked --quiet --bin completions --features shell-completions -- fish \
+    > "$COMPLETION_FILE"
 
 mv -- "$UPSTREAM_PKG" "$UPSTREAM_STASH"
 binary_moved=true

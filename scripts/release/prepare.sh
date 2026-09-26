@@ -55,13 +55,6 @@ if ! git diff --cached --quiet; then
     git commit -m "Update changelog for release ${version}"
 fi
 
-just gen-completions
-
-git add ./completions
-if ! git diff --cached --quiet; then
-    git commit -m "Release ${version}: Update shell completions"
-fi
-
 printf "prepared" > .release-state
 
 echo -e "${GREEN}Release ${version} prepared.${NC}"

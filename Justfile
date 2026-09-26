@@ -65,13 +65,5 @@ publish version:
 resync:
     scripts/release/resync.sh
 
-gen-completions:
-    #!/usr/bin/env bash
-    for shell in bash fish powershell zsh elvish; do
-        ext=$([ "$shell" = "powershell" ] && echo "ps1" || echo "$shell")
-        cargo run --bin completions --features="shell-completions" -- "$shell" \
-            > "./completions/completions.$ext"
-    done
-
 inspect-db:
     lazysql "$(scripts/test/testhome.sh)/.upstream/metadata/packages.db"

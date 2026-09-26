@@ -62,18 +62,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - name: Download all artifacts
         uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
-      - name: Add completion assets
-        run: |
-          cp completions/completions.bash dist/completions.bash
-          cp completions/completions.fish dist/completions.fish
-          cp completions/completions.zsh dist/completions.zsh
-          cp completions/completions.ps1 dist/completions.ps1
-          cp completions/completions.elvish dist/completions.elvish
+      - name: Generate completion assets
+        run: bash scripts/generate-completions.sh dist
       - name: Generate release SBOM
         uses: anchore/sbom-action@v0
         with:
