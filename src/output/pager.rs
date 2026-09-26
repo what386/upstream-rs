@@ -153,6 +153,7 @@ fn page_text_with_header(
     let lines = text.lines().map(ToString::to_string).collect::<Vec<_>>();
     let header_rows =
         header.map_or(0, |value| value.lines().count()) + usize::from(add_header_separator);
+
     let max_width = max_content_width(header, scroll_header_horizontally, &lines);
 
     if lines.len() <= config.content_rows(header_rows) && max_width <= config.cols {
@@ -487,6 +488,7 @@ mod tests {
             max_content_width(Some("a much longer header"), true, &lines),
             20
         );
+
         assert_eq!(
             max_content_width(Some("a much longer header"), false, &lines),
             5

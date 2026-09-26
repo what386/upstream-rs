@@ -532,11 +532,13 @@ mod tests {
                 let body = format!(
                     "{{\"id\":1,\"tag_name\":\"{tag}\",\"prerelease\":false,\"draft\":false,\"published_at\":\"2026-01-01T00:00:00Z\",\"assets\":[]}}"
                 );
+
                 let response = format!(
                     "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
                     body.len(),
                     body
                 );
+
                 stream
                     .write_all(response.as_bytes())
                     .expect("write response");
