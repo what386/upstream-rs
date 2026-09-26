@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-09-22*
+*Generated on 2026-09-26*
+
+## 2.20.3 — 2026-09-26
+
+### Changes
+
+- fix: -v install flag no longer takes forever
+- fix: pager now opens if content is too wide instead of just height
+
 
 ## 2.20.2 — 2026-09-22
 

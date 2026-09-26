@@ -27,14 +27,3 @@
 - [ ] feat: add tracked type with manifests that preserves untracked files #packaging
       @created 2026-09-19 17:12
 
-
-## Completed
-
-- [x] fix: -v install flag no longer takes forever
-      @created 2026-09-25 23:08
-      @completed 2026-09-26 00:37
-
-- [x] fix: pager now opens if content is too wide instead of just height
-      @created 2026-09-26 00:46
-      @completed 2026-09-26 00:46
-
