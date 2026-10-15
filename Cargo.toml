@@ -1,6 +1,6 @@
 [package]
 name = "upstream-rs"
-version = "2.20.3"
+version = "2.20.4"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -30,7 +30,7 @@ reqwest = { version = "0.13", default-features = false, features = [
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
-sevenz-rust2 = { version = "0.23.0", default-features = false, features = [
+sevenz-rust2 = { version = "0.24.0", default-features = false, features = [
     "util",
     "bzip2",
     "ppmd",
@@ -60,11 +60,11 @@ indicatif = "0.18"
 glob = "0.3"
 sha2 = "0.11"
 console = "0.16"
-toml = "1.1.6"
+toml = "1.1.8"
 xz2 = { version = "0.1.7", features = ["static"] }
 walkdir = "2.5.0"
 clap_complete = { version = "4.6", optional = true }
-zstd = "0.14.0"
+zstd = "0.14.2"
 minisign-verify = "0.3.0"
 base64 = "0.23.1"
 p256 = { version = "0.14.0", features = ["ecdsa", "pem", "pkcs8"] }
@@ -77,7 +77,7 @@ strsim = "0.11.1"
 scraper = "0.27"
 
 [dev-dependencies]
-sevenz-rust2 = { version = "0.23.0", default-features = false, features = [
+sevenz-rust2 = { version = "0.24.0", default-features = false, features = [
     "util",
     "compress",
     "bzip2",
