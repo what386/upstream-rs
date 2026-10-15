@@ -1,6 +1,14 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-09-26*
+*Generated on 2026-10-15*
+
+## 2.20.4 — 2026-10-15
+
+### Changes
+
+- fix: icon manager now recognises .png files
+- fix: changed name fallback to repo name instead of pkg ID
+
 
 ## 2.20.3 — 2026-09-26
 
