@@ -15,3 +15,6 @@
 - [ ] feat: add tracked type with manifests that preserves untracked files #packaging
       @created 2026-09-19 17:12
 
+- [ ] feat: upstream.patch files to allow users to customize built software
+      @created 2026-10-15 19:24
+
