@@ -53,7 +53,14 @@ impl DesktopEntry {
     }
 
     pub fn from_package(package: &Package) -> DesktopEntry {
-        let mut entry = DesktopEntry::new(&package.id);
+        let name = package
+            .repo_slug
+            .trim_end_matches('/')
+            .rsplit('/')
+            .next()
+            .filter(|name| !name.is_empty())
+            .unwrap_or(&package.id);
+        let mut entry = DesktopEntry::new(name);
         entry.exec = package
             .primary_executable()
             .map(|executable| executable.path.display().to_string());
@@ -153,9 +160,9 @@ mod tests {
     use crate::models::upstream::Package;
 
     #[test]
-    fn from_package_uses_empty_icon_when_icon_path_missing() {
+    fn from_package_uses_repo_name_and_empty_icon_when_icon_path_missing() {
         let package = Package::with_defaults(
-            "tool".to_string(),
+            "github:owner/tool".to_string(),
             "owner/tool".to_string(),
             Filetype::Binary,
             None,

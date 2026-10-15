@@ -83,6 +83,7 @@ impl PlatformDesktopHandler {
     async fn create_entry<H>(
         &self,
         paths: &UpstreamPaths,
+        package_id: &str,
         install_path: &Path,
         filetype: &Filetype,
         entry: crate::models::common::DesktopEntry,
@@ -95,13 +96,27 @@ impl PlatformDesktopHandler {
             #[cfg(target_os = "linux")]
             Self::Linux(handler) => {
                 handler
-                    .create_entry(paths, install_path, filetype, entry, message_callback)
+                    .create_entry(
+                        paths,
+                        package_id,
+                        install_path,
+                        filetype,
+                        entry,
+                        message_callback,
+                    )
                     .await
             }
             #[cfg(windows)]
             Self::Windows(handler) => {
                 handler
-                    .create_entry(paths, install_path, filetype, entry, message_callback)
+                    .create_entry(
+                        paths,
+                        package_id,
+                        install_path,
+                        filetype,
+                        entry,
+                        message_callback,
+                    )
                     .await
             }
             #[cfg(target_os = "macos")]
@@ -324,6 +339,7 @@ impl<'a> DesktopManager<'a> {
             .backend
             .create_entry(
                 self.paths,
+                &desktop_package.id,
                 &install_path,
                 &desktop_package.filetype,
                 desktop_entry,

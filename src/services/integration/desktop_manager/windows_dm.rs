@@ -40,6 +40,7 @@ impl WindowsDesktopHandler {
     pub(super) async fn create_entry<H>(
         &self,
         paths: &UpstreamPaths,
+        package_id: &str,
         _install_path: &Path,
         _filetype: &Filetype,
         entry: DesktopEntry,
@@ -48,11 +49,6 @@ impl WindowsDesktopHandler {
     where
         H: FnMut(&str),
     {
-        let name = entry
-            .name
-            .as_deref()
-            .ok_or_else(|| anyhow!("Desktop entry name is required"))?;
-
         let exec_path = entry
             .exec
             .as_deref()
@@ -65,7 +61,7 @@ impl WindowsDesktopHandler {
             .filter(|icon| !icon.is_empty())
             .map(Path::new);
 
-        self.create_shortcut(paths, name, exec_path, icon_path)
+        self.create_shortcut(paths, package_id, exec_path, icon_path)
     }
 
     pub(super) async fn create_staged_entry<H>(

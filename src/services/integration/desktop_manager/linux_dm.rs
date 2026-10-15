@@ -53,6 +53,7 @@ impl LinuxDesktopHandler {
     pub(super) async fn create_entry<H>(
         &self,
         paths: &UpstreamPaths,
+        package_id: &str,
         install_path: &Path,
         filetype: &Filetype,
         mut entry: DesktopEntry,
@@ -83,7 +84,7 @@ impl LinuxDesktopHandler {
         };
 
         entry.terminal = false;
-        self.write_entry(paths, &name, &entry)
+        self.write_entry(paths, package_id, &entry)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -343,11 +344,12 @@ mod tests {
         fs::create_dir_all(&staged_root).expect("create candidate");
         let staged_exec = staged_root.join("tool");
         fs::write(&staged_exec, b"candidate binary").expect("write candidate");
-        fs::write(staged_root.join("tool.svg"), b"candidate icon").expect("write icon");
+        fs::write(staged_root.join("icon.png"), b"candidate icon").expect("write icon");
 
         let final_root = paths.install.archives_dir.join("tool");
         let final_exec = final_root.join("tool");
         let mut staged = package("tool", Filetype::Archive);
+        staged.id = "github:owner/tool".to_string();
         staged.install_path = Some(staged_root);
         staged.executables = vec![crate::models::upstream::PackageExecutable {
             path: staged_exec,
@@ -376,14 +378,39 @@ mod tests {
 
         let entry = fs::read_to_string(&staged_entry).expect("read staged entry");
         assert!(entry.contains(&format!("Exec={}", final_exec.display())));
-        assert!(staged_icons.join("tool.svg").exists());
+        assert!(entry.contains("Name=tool\n"));
+        assert!(staged_icons.join("icon.png").exists());
         assert!(
-            !DesktopManager::managed_entry_path(&paths, "tool")
+            !DesktopManager::managed_entry_path(&paths, &staged.id)
                 .expect("managed desktop path")
                 .exists()
         );
 
-        assert!(!paths.state.icons_dir.join("tool.svg").exists());
+        assert!(!paths.state.icons_dir.join("icon.png").exists());
+
+        manager
+            .enable_package_entry(&mut staged, &mut None::<fn(&str)>)
+            .await
+            .expect("enable live entry");
+        let managed_path =
+            DesktopManager::managed_entry_path(&paths, &staged.id).expect("managed desktop path");
+        let live_entry = fs::read_to_string(&managed_path).expect("read live entry");
+        assert!(live_entry.contains("Name=tool\n"));
+        assert!(live_entry.contains(&format!(
+            "Icon={}\n",
+            paths.state.icons_dir.join("icon.png").display()
+        )));
+        assert!(
+            !paths
+                .integration
+                .xdg_applications_dir
+                .join("tool.desktop")
+                .exists()
+        );
+        manager
+            .disable_package_entry(&mut staged, &mut None::<fn(&str)>)
+            .expect("remove live entry");
+        assert!(!managed_path.exists());
         fs::remove_dir_all(root).expect("cleanup");
     }
 

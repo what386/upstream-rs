@@ -280,8 +280,8 @@ impl<'a> IconManager<'a> {
             }
         }
 
-        // Generic fallbacks: anything ending in .svg or .ico
-        for ext in [".svg", ".ico"] {
+        // Generic fallbacks include PNGs such as icon.png and bundled app artwork.
+        for ext in [".svg", ".png", ".ico"] {
             if let Ok(entries) = glob::glob(&format!("{}/**/*{}", dir.display(), ext)) {
                 all_candidates.extend(entries.flatten());
             }
@@ -493,5 +493,43 @@ impl<'a> IconManager<'a> {
         }
 
         score
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::IconManager;
+    use std::{
+        fs,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    #[test]
+    fn extracted_pngs_are_candidates_and_generic_icon_beats_screenshot() {
+        let root = std::env::temp_dir().join(format!(
+            "upstream-png-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).expect("create root");
+        let artwork = root.join("artwork.png");
+        fs::write(&artwork, b"bundled artwork").expect("write artwork");
+        let mut callback = None::<fn(&str)>;
+        assert_eq!(
+            IconManager::search_for_best_icon(&root, "Quartermaster.Gui", &mut callback),
+            Some(artwork)
+        );
+
+        let icon = root.join("icon.png");
+        fs::write(&icon, b"bundled icon").expect("write icon");
+        fs::write(root.join("screenshot.png"), b"screenshot").expect("write screenshot");
+        assert_eq!(
+            IconManager::search_for_best_icon(&root, "Quartermaster.Gui", &mut callback),
+            Some(icon)
+        );
+        fs::remove_dir_all(root).expect("cleanup");
     }
 }
