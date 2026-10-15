@@ -394,12 +394,14 @@ mod tests {
             .expect("enable live entry");
         let managed_path =
             DesktopManager::managed_entry_path(&paths, &staged.id).expect("managed desktop path");
+
         let live_entry = fs::read_to_string(&managed_path).expect("read live entry");
         assert!(live_entry.contains("Name=tool\n"));
         assert!(live_entry.contains(&format!(
             "Icon={}\n",
             paths.state.icons_dir.join("icon.png").display()
         )));
+
         assert!(
             !paths
                 .integration
@@ -407,6 +409,7 @@ mod tests {
                 .join("tool.desktop")
                 .exists()
         );
+
         manager
             .disable_package_entry(&mut staged, &mut None::<fn(&str)>)
             .expect("remove live entry");

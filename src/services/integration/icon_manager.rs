@@ -514,6 +514,7 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
+
         fs::create_dir_all(&root).expect("create root");
         let artwork = root.join("artwork.png");
         fs::write(&artwork, b"bundled artwork").expect("write artwork");
@@ -530,6 +531,7 @@ mod tests {
             IconManager::search_for_best_icon(&root, "Quartermaster.Gui", &mut callback),
             Some(icon)
         );
+
         fs::remove_dir_all(root).expect("cleanup");
     }
 }

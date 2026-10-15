@@ -60,6 +60,7 @@ impl DesktopEntry {
             .next()
             .filter(|name| !name.is_empty())
             .unwrap_or(&package.id);
+
         let mut entry = DesktopEntry::new(name);
         entry.exec = package
             .primary_executable()
