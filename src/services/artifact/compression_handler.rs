@@ -300,7 +300,8 @@ fn decompress_zip(
     for i in 0..archive.len() {
         cancellation::check()?;
         let mut file = archive.by_index(i)?;
-        let out_path = safe_join_extract_path(extract_dir, Path::new(file.name()))?;
+        let name = file.name()?;
+        let out_path = safe_join_extract_path(extract_dir, Path::new(name.as_ref()))?;
         if file.is_dir() {
             std::fs::create_dir_all(&out_path)?;
         } else {
