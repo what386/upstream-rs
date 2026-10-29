@@ -1,2 +1,0 @@
-- not enough end2end tests :(
-- ci in tests/framework/environment.py invoke bash which breaks on windows
