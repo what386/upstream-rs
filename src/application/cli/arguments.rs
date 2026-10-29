@@ -91,7 +91,7 @@ pub enum Commands {
         trust_mode: TrustMode,
 
         /// Preview install resolution without downloading, installing, or writing metadata
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'n', long, default_value_t = false)]
         dry_run: bool,
     },
 
@@ -120,7 +120,7 @@ pub enum Commands {
         semver: Option<String>,
 
         /// Branch to build from instead of a release tag
-        #[arg(long, conflicts_with = "tag")]
+        #[arg(short = 'b', long, conflicts_with = "tag")]
         branch: Option<String>,
 
         /// Source provider hosting the repository. Defaults to auto-detection.
@@ -144,7 +144,7 @@ pub enum Commands {
         build_profile: Option<BuildProfile>,
 
         /// Preview build resolution without compiling, installing, or writing metadata
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'n', long, default_value_t = false)]
         dry_run: bool,
     },
 
@@ -171,11 +171,11 @@ pub enum Commands {
         purge: bool,
 
         /// Remove metadata even when uninstall cleanup fails
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'f', long, default_value_t = false)]
         force: bool,
 
         /// Preview removal actions without deleting files or metadata
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'n', long, default_value_t = false)]
         dry_run: bool,
     },
 
@@ -200,19 +200,19 @@ pub enum Commands {
         trust_mode: Option<TrustMode>,
 
         /// Continue reinstalling after uninstall cleanup errors
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'f', long, default_value_t = false)]
         force: bool,
 
         /// Preview reinstall resolution without removing, installing, or writing metadata
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'n', long, default_value_t = false)]
         dry_run: bool,
     },
 
     /// Check for or install package updates
     #[command(long_about = "Check for or install package updates.\n\n\
         Without package names, checks or upgrades every installed package. With names, \
-        limits the operation to those packages. Use --check for a read-only update \
-        report, --json for structured check output, or --machine-readable for one \
+        limits the operation to those packages. Use --check to check providers and refresh \
+        the update cache without installing updates. Use --json for structured check output, or --machine-readable for one \
         script-friendly line per available update. At the interactive upgrade prompt, \
         enter c to view release notes before deciding.\n\n\
         EXAMPLES:\n  \
@@ -228,11 +228,11 @@ pub enum Commands {
         names: Option<Vec<String>>,
 
         /// Reinstall even when the selected version is already installed
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'f', long, default_value_t = false)]
         force: bool,
 
-        /// Check for available upgrades without applying them
-        #[arg(long, default_value_t = false)]
+        /// Check providers and refresh the update cache without applying upgrades
+        #[arg(long, short, default_value_t = false)]
         check: bool,
 
         /// Print one line per available update: "name oldver newver"
@@ -241,6 +241,7 @@ pub enum Commands {
 
         /// Print check results as JSON
         #[arg(
+            short = 'j',
             long,
             default_value_t = false,
             requires = "check",
@@ -253,8 +254,19 @@ pub enum Commands {
         trust_mode: Option<TrustMode>,
 
         /// Preview upgrade resolution without downloading, installing, or writing metadata
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'n', long, default_value_t = false)]
         dry_run: bool,
+    },
+
+    /// List cached available updates without checking providers
+    Updates {
+        /// Print the cached snapshot as JSON
+        #[arg(short = 'j', long, conflicts_with = "notify")]
+        json: bool,
+
+        /// Print a brief notification, silently succeeding if no usable updates are cached
+        #[arg(long)]
+        notify: bool,
     },
 
     /// List installed packages
@@ -270,7 +282,7 @@ pub enum Commands {
         filter: Option<String>,
 
         /// Print package list as JSON
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'j', long, default_value_t = false)]
         json: bool,
     },
 
@@ -286,7 +298,7 @@ pub enum Commands {
         query: String,
 
         /// Print raw package metadata as JSON
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'j', long, default_value_t = false)]
         json: bool,
     },
 
@@ -390,11 +402,11 @@ pub enum Commands {
         channel: Channel,
 
         /// Number of releases to inspect instead of only one tag/latest release
-        #[arg(long)]
+        #[arg(short = 'l', long)]
         limit: Option<u32>,
 
         /// Release tag to inspect exactly
-        #[arg(long, value_name = "TAG")]
+        #[arg(short = 't', long, value_name = "TAG")]
         tag: Option<String>,
 
         /// Asset kind to show and install
@@ -406,7 +418,7 @@ pub enum Commands {
         include_incompatible: bool,
 
         /// Print probe results as JSON and exit
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'j', long, default_value_t = false)]
         json: bool,
 
         /// Create a desktop launcher entry for GUI applications
@@ -418,7 +430,7 @@ pub enum Commands {
         trust_mode: TrustMode,
 
         /// Run the normal interactive selection and preview flow, then stop before installation
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'n', long, default_value_t = false)]
         dry_run: bool,
     },
 
@@ -449,7 +461,7 @@ pub enum Commands {
         base_url: Option<String>,
 
         /// Maximum number of results to display
-        #[arg(long, default_value_t = 10)]
+        #[arg(short = 'l', long, default_value_t = 10)]
         limit: u32,
 
         /// Restrict results to repositories with this primary language
@@ -481,7 +493,7 @@ pub enum Commands {
         include_archived: bool,
 
         /// Print repository search results as JSON
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'j', long, default_value_t = false)]
         json: bool,
     },
 
@@ -510,7 +522,7 @@ pub enum Commands {
         base_url: Option<String>,
 
         /// Maximum number of results to display
-        #[arg(long, default_value_t = 10)]
+        #[arg(short = 'l', long, default_value_t = 10)]
         limit: u32,
 
         /// Restrict results to repositories with this primary language
@@ -566,7 +578,7 @@ pub enum Commands {
         trust_mode: TrustMode,
 
         /// Preview install resolution without downloading, installing, or writing metadata
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'n', long, default_value_t = false)]
         dry_run: bool,
     },
 
@@ -712,7 +724,7 @@ pub enum Commands {
         status: Option<String>,
 
         /// Maximum number of matching operations to show
-        #[arg(long, default_value_t = 20)]
+        #[arg(short = 'l', long, default_value_t = 20)]
         limit: usize,
 
         /// Only show operations newer than a duration such as 2d, 12h, or 30m
@@ -724,7 +736,7 @@ pub enum Commands {
         today: bool,
 
         /// Print matching records as JSON
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'j', long, default_value_t = false)]
         json: bool,
     },
 
@@ -758,7 +770,7 @@ pub enum Commands {
         fix: bool,
 
         /// Print diagnostic report as JSON
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'j', long, default_value_t = false)]
         json: bool,
     },
 }
@@ -804,7 +816,8 @@ impl Commands {
             Commands::Cache {
                 action: CacheAction::Clean { dry_run, .. },
             } => !dry_run,
-            Commands::List { .. }
+            Commands::Updates { .. }
+            | Commands::List { .. }
             | Commands::Info { .. }
             | Commands::History { .. }
             | Commands::Changelog { .. }
@@ -830,7 +843,7 @@ impl Commands {
 
     pub fn requires_lock(&self) -> bool {
         match self {
-            Commands::List { .. } => false,
+            Commands::Updates { .. } | Commands::List { .. } => false,
             Commands::Info { .. } => false,
             Commands::History { .. } => false,
             Commands::Changelog { .. } => false,
@@ -863,6 +876,7 @@ impl Commands {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum CacheKind {
+    Updates,
     Build,
     Source,
     Docs,
@@ -874,7 +888,7 @@ pub enum CacheAction {
     /// Show known cache categories and their disk usage
     List {
         /// Print cache information as JSON
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'j', long, default_value_t = false)]
         json: bool,
     },
 
@@ -885,7 +899,7 @@ pub enum CacheAction {
         categories: Vec<CacheKind>,
 
         /// Preview cache cleanup without deleting anything
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'n', long, default_value_t = false)]
         dry_run: bool,
     },
 }
@@ -1176,7 +1190,7 @@ pub enum PackageAction {
         keys: Vec<PackageSettingKey>,
 
         /// Print settings as JSON
-        #[arg(long, default_value_t = false)]
+        #[arg(short = 'j', long, default_value_t = false)]
         json: bool,
     },
 
