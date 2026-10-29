@@ -1,48 +1,27 @@
-use clap::Parser;
 use console::style;
 
 use upstream_rs::application::cancellation::{self, Cancellation};
-use upstream_rs::application::cli::arguments::{Cli, Commands};
+use upstream_rs::application::cli::arguments::Cli;
 use upstream_rs::application::operations::history_op::{self, LogLevel, Outcome};
-use upstream_rs::completion;
 use upstream_rs::output;
 use upstream_rs::routines::migrate;
 use upstream_rs::storage::system::config::ConfigStorage;
 use upstream_rs::storage::system::lock::LockStorage;
 use upstream_rs::utils::static_paths::UpstreamPaths;
 
+mod early;
+
 #[cfg(windows)]
 use upstream_rs::services::packaging::PackageActivator;
 
 fn main() {
-    let raw_args = std::env::args().skip(1).collect::<Vec<_>>();
-    if let Some(index) = raw_args.iter().position(|arg| arg == "__complete") {
-        if let Err(error) = completion::run(&raw_args[index + 1..]) {
+    match early::run() {
+        Ok(Some(cli)) => run_main(cli),
+        Ok(None) => {}
+        Err(error) => {
             print_error(&error);
             std::process::exit(1);
         }
-
-        return;
-    }
-
-    let cli = Cli::parse();
-    match cli.command {
-        Commands::Updates { notify: true, .. } => {
-            if let Ok(paths) = UpstreamPaths::new() {
-                upstream_rs::application::commands::updates::run_notification(&paths);
-            }
-        }
-        Commands::Updates { json, .. } => {
-            let result = UpstreamPaths::new().and_then(|paths| {
-                upstream_rs::application::commands::updates::run(json, false, &paths)
-            });
-
-            if let Err(error) = result {
-                print_error(&error);
-                std::process::exit(1);
-            }
-        }
-        _ => run_main(cli),
     }
 }
 
