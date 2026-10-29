@@ -103,7 +103,12 @@ pub fn run_clean(categories: Vec<CacheKind>, dry_run: bool, paths: &UpstreamPath
 
 fn selected_kinds(categories: &[CacheKind]) -> Result<Vec<CacheKind>> {
     if categories.is_empty() || categories == [CacheKind::All] {
-        return Ok(vec![CacheKind::Build, CacheKind::Source, CacheKind::Docs]);
+        return Ok(vec![
+            CacheKind::Build,
+            CacheKind::Source,
+            CacheKind::Docs,
+            CacheKind::Updates,
+        ]);
     }
 
     if categories.contains(&CacheKind::All) {
@@ -123,7 +128,12 @@ fn selected_kinds(categories: &[CacheKind]) -> Result<Vec<CacheKind>> {
 fn inspect(paths: &UpstreamPaths) -> Result<CacheReport> {
     inspect_selected(
         paths,
-        &[CacheKind::Build, CacheKind::Source, CacheKind::Docs],
+        &[
+            CacheKind::Build,
+            CacheKind::Source,
+            CacheKind::Docs,
+            CacheKind::Updates,
+        ],
     )
 }
 
@@ -151,6 +161,7 @@ fn inspect_selected(paths: &UpstreamPaths, selected: &[CacheKind]) -> Result<Cac
 
 fn cache_path(paths: &UpstreamPaths, kind: CacheKind) -> (&'static str, PathBuf) {
     let child = match kind {
+        CacheKind::Updates => "updates",
         CacheKind::Build => "build",
         CacheKind::Source => "source",
         CacheKind::Docs => "docs",
@@ -213,7 +224,12 @@ mod tests {
     fn category_selection_expands_all_and_rejects_mixed_all() {
         assert_eq!(
             selected_kinds(&[]).expect("default categories"),
-            vec![CacheKind::Build, CacheKind::Source, CacheKind::Docs,]
+            vec![
+                CacheKind::Build,
+                CacheKind::Source,
+                CacheKind::Docs,
+                CacheKind::Updates,
+            ]
         );
 
         assert!(selected_kinds(&[CacheKind::All, CacheKind::Docs]).is_err());

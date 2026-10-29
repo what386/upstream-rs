@@ -2,7 +2,7 @@ use clap::Parser;
 use console::style;
 
 use upstream_rs::application::cancellation::{self, Cancellation};
-use upstream_rs::application::cli::arguments::Cli;
+use upstream_rs::application::cli::arguments::{Cli, Commands};
 use upstream_rs::application::operations::history_op::{self, LogLevel, Outcome};
 use upstream_rs::completion;
 use upstream_rs::output;
@@ -14,11 +14,43 @@ use upstream_rs::utils::static_paths::UpstreamPaths;
 #[cfg(windows)]
 use upstream_rs::services::packaging::PackageActivator;
 
+fn main() {
+    let raw_args = std::env::args().skip(1).collect::<Vec<_>>();
+    if let Some(index) = raw_args.iter().position(|arg| arg == "__complete") {
+        if let Err(error) = completion::run(&raw_args[index + 1..]) {
+            print_error(&error);
+            std::process::exit(1);
+        }
+
+        return;
+    }
+
+    let cli = Cli::parse();
+    match cli.command {
+        Commands::Updates { notify: true, .. } => {
+            if let Ok(paths) = UpstreamPaths::new() {
+                upstream_rs::application::commands::updates::run_notification(&paths);
+            }
+        }
+        Commands::Updates { json, .. } => {
+            let result = UpstreamPaths::new().and_then(|paths| {
+                upstream_rs::application::commands::updates::run(json, false, &paths)
+            });
+
+            if let Err(error) = result {
+                print_error(&error);
+                std::process::exit(1);
+            }
+        }
+        _ => run_main(cli),
+    }
+}
+
 #[tokio::main]
-async fn main() {
+async fn run_main(cli: Cli) {
     let cancellation = cancellation::current();
     let signal_task = tokio::spawn(signal_supervisor(cancellation));
-    let result = run().await.map(|_| 0);
+    let result = run(cli).await.map(|_| 0);
     signal_task.abort();
 
     match result {
@@ -76,13 +108,7 @@ async fn wait_for_interrupt() -> bool {
     }
 }
 
-async fn run() -> anyhow::Result<()> {
-    let raw_args = std::env::args().skip(1).collect::<Vec<_>>();
-    if let Some(index) = raw_args.iter().position(|arg| arg == "__complete") {
-        return completion::run(&raw_args[index + 1..]);
-    }
-
-    let cli = Cli::parse();
+async fn run(cli: Cli) -> anyhow::Result<()> {
     let paths = UpstreamPaths::new()?;
     output::init_logger(paths.dirs.data_dir.join("log.jsonl"));
     history_op::begin(cli.command.to_string(), cli.command.records_history());

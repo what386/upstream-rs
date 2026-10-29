@@ -18,4 +18,5 @@ pub mod probe;
 pub mod reinstall;
 pub mod remove;
 pub mod search;
+pub mod updates;
 pub mod upgrade;

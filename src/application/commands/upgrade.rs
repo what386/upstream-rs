@@ -149,7 +149,7 @@ pub async fn run(
 
     // Handle --check flag
     if check_option {
-        return run_check(package_upgrade, names, machine_readable, json).await;
+        return run_check(package_upgrade, names, machine_readable, json, paths).await;
     }
 
     if dry_run {
@@ -684,17 +684,37 @@ fn check_failure_count(rows: &[UpdateCheckRow]) -> usize {
         .count()
 }
 
+fn persist_check_cache(paths: &UpstreamPaths, rows: &[UpdateCheckRow]) -> Result<()> {
+    crate::application::cancellation::check()?;
+    let result = (|| -> Result<()> {
+        let packages = crate::storage::database::PackageDatabase::open(
+            &paths.metadata.packages_database_file,
+        )?
+        .list_packages()?;
+
+        crate::storage::updates::refresh(paths, &packages, rows, chrono::Utc::now())
+    })();
+
+    if let Err(error) = result {
+        eprintln!("Warning: could not save update cache: {error:#}");
+    }
+
+    Ok(())
+}
+
 async fn run_check(
     package_upgrade: UpgradeOperation<'_>,
     names: Option<Vec<String>>,
     machine_readable: bool,
     json: bool,
+    paths: &UpstreamPaths,
 ) -> Result<()> {
     if json {
         let rows = package_upgrade
             .check_detailed(names.as_deref(), &mut |_| {})
             .await?;
 
+        persist_check_cache(paths, &rows)?;
         let failed = check_failure_count(&rows);
         println!("{}", serde_json::to_string_pretty(&json_check_rows(rows))?);
         if failed > 0 {
@@ -705,6 +725,7 @@ async fn run_check(
             .check_detailed(names.as_deref(), &mut |_| {})
             .await?;
 
+        persist_check_cache(paths, &rows)?;
         let failed = check_failure_count(&rows);
         for row in &rows {
             if let UpdateCheckStatus::UpdateAvailable { current, latest } = &row.status {
@@ -727,6 +748,7 @@ async fn run_check(
 
         check_pb.finish_and_clear();
         let rows = rows_result?;
+        persist_check_cache(paths, &rows)?;
         let available_names = rows
             .iter()
             .filter_map(|row| match &row.status {
@@ -926,6 +948,85 @@ mod tests {
     };
     use crate::application::operations::upgrade_op::{UpdateCheckRow, UpdateCheckStatus};
     use crate::models::common::enums::{Channel, Provider};
+
+    #[tokio::test]
+    async fn every_check_output_mode_persists_results_even_with_package_failures() {
+        use crate::{
+            models::{common::enums::Filetype, upstream::Package},
+            storage::{database::PackageDatabase, updates},
+            utils::test_support,
+        };
+        let root = test_support::temp_root("check-cache", "output-modes");
+        let paths = test_support::upstream_paths(&root);
+        let mut database = PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
+        let mut package = Package::with_defaults(
+            "github:owner/tool".into(),
+            "owner/tool".into(),
+            Filetype::Archive,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+
+        package.is_pinned = true; // A real check outcome that requires no provider traffic.
+        database.upsert_package(&package).unwrap();
+        let packages = database.list_packages().unwrap();
+        for (machine_readable, json) in [(false, false), (true, false), (false, true)] {
+            updates::refresh(
+                &paths,
+                &packages,
+                &[UpdateCheckRow {
+                    name: package.id.clone(),
+                    provider: Some(Provider::Github),
+                    channel: Some(Channel::Stable),
+                    status: UpdateCheckStatus::UpdateAvailable {
+                        current: "0.0.0".into(),
+                        latest: "1.0.0".into(),
+                    },
+                }],
+                chrono::Utc::now(),
+            )
+            .unwrap();
+            let result = super::run(
+                Some(vec![package.id.clone(), "missing".into()]),
+                false,
+                true,
+                machine_readable,
+                json,
+                None,
+                false,
+                &paths,
+                &Default::default(),
+            )
+            .await;
+
+            assert!(result.is_err());
+            assert!(updates::load(&paths).unwrap().unwrap().updates.is_empty());
+        }
+
+        // Cache persistence failures must not change a successful check's status.
+        std::fs::remove_file(updates::path(&paths)).unwrap();
+        std::fs::create_dir(updates::path(&paths)).unwrap();
+        for (machine_readable, json) in [(false, false), (true, false), (false, true)] {
+            super::run(
+                None,
+                false,
+                true,
+                machine_readable,
+                json,
+                None,
+                false,
+                &paths,
+                &Default::default(),
+            )
+            .await
+            .unwrap();
+        }
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn upgrade_prompt_accepts_changelog_option() {

@@ -12,6 +12,7 @@ impl fmt::Display for Commands {
             Commands::Remove { .. } => write!(f, "remove"),
             Commands::Reinstall { .. } => write!(f, "reinstall"),
             Commands::Upgrade { .. } => write!(f, "upgrade"),
+            Commands::Updates { .. } => write!(f, "updates"),
             Commands::List { .. } => write!(f, "list"),
             Commands::Info { .. } => write!(f, "info"),
             Commands::History { .. } => write!(f, "history"),
