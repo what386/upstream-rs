@@ -293,7 +293,7 @@ mod tests {
         let fixture = Fixture::new("pin");
         let paths = &fixture.0;
         let mut database = PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
-        for id in ["a", "b"] {
+        for id in ["a", "b", "c"] {
             database.upsert_package(&package(id)).unwrap();
         }
 
@@ -301,7 +301,7 @@ mod tests {
         refresh(
             paths,
             &packages,
-            &[available("a"), available("b")],
+            &[available("a"), available("b"), available("c")],
             Utc::now(),
         )
         .unwrap();
@@ -313,9 +313,18 @@ mod tests {
         let snapshot = load(paths).unwrap().unwrap();
         assert!(!snapshot.updates.contains_key("a"));
         assert!(snapshot.updates.contains_key("b"));
-        // Force a failure after removal has already committed its database change.
-        fs::write(&paths.dirs.generated_dir, b"blocks PATH regeneration").unwrap();
-        let result = Cli::try_parse_from(["upstream", "--yes", "remove", "b", "--force"])
+        assert!(snapshot.updates.contains_key("c"));
+        // Reject the second removal after the first commits, on every platform.
+        rusqlite::Connection::open(&paths.metadata.packages_database_file)
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER reject_c_removal BEFORE DELETE ON packages
+                 WHEN OLD.id = 'c' BEGIN
+                     SELECT RAISE(FAIL, 'injected removal failure');
+                 END;",
+            )
+            .unwrap();
+        let result = Cli::try_parse_from(["upstream", "--yes", "remove", "b", "c", "--force"])
             .unwrap()
             .run(paths, &Default::default())
             .await;
@@ -323,7 +332,17 @@ mod tests {
         crate::output::set_assume_yes(false);
         assert!(result.is_err());
         assert!(database.get_package("b").unwrap().is_none());
-        assert!(load(paths).unwrap().unwrap().updates.is_empty());
+        assert!(database.get_package("c").unwrap().is_some());
+        assert_eq!(
+            load(paths)
+                .unwrap()
+                .unwrap()
+                .updates
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>(),
+            ["c"],
+        );
     }
 
     #[test]
