@@ -101,7 +101,11 @@ pub async fn run(
         format!("Search: '{}' via {}", query, effective_provider)
     };
 
-    pager::page_text(Some(&title), &format_results(&results, &effective_provider))?;
+    pager::page_listing(
+        Some(&title),
+        &format_results(&results, &effective_provider),
+        2..2 + results.len(),
+    )?;
 
     Ok(())
 }

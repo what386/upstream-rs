@@ -68,8 +68,8 @@ pub fn print_transaction_table(rows: &[TransactionRow], totals: &DiskImpact, net
 pub fn print_transaction_table_compact(rows: &[TransactionRow]) {
     let layout = TransactionTableLayout::from_rows_without_size(rows);
     layout.print_header();
-    for row in rows {
-        layout.print_row(row);
+    for (index, row) in rows.iter().enumerate() {
+        layout.print_row(row, index);
     }
 
     println!();
@@ -83,8 +83,8 @@ pub fn print_transaction_table_with_totals(
 ) {
     let layout = TransactionTableLayout::from_rows(rows);
     layout.print_header();
-    for row in rows {
-        layout.print_row(row);
+    for (index, row) in rows.iter().enumerate() {
+        layout.print_row(row, index);
     }
 
     layout.print_totals(totals, net_label, size_rows);
@@ -219,9 +219,8 @@ impl TransactionTableLayout {
         line
     }
 
-    pub fn print_row(&self, row: &TransactionRow) {
-        print!("{}", self.row_line(row));
-        println!();
+    pub fn print_row(&self, row: &TransactionRow, index: usize) {
+        println!("{}", super::list_row(self.row_line(row), index));
     }
 
     pub fn print_totals(&self, totals: &DiskImpact, net_label: &str, size_rows: &[SizeImpactRow]) {

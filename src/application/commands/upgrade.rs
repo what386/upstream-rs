@@ -158,7 +158,7 @@ pub async fn run(
 
     let mut live_layout: Option<TransactionTableLayout> = None;
     let mut check_pb: Option<ProgressBar> = None;
-    let mut printed_live_row = false;
+    let mut printed_live_rows = 0;
     let preview_result = package_upgrade
         .preview_upgrade(names.as_deref(), force_option, &mut |event| match event {
             UpgradePreviewEvent::Started { package_width } => {
@@ -176,21 +176,21 @@ pub async fn run(
                 if let Some(layout) = &live_layout {
                     if let Some(pb) = &check_pb {
                         pb.suspend(|| {
-                            if !printed_live_row {
+                            if printed_live_rows == 0 {
                                 layout.print_header();
                             }
 
-                            layout.print_row(&upgrade_transaction_row(&row));
+                            layout.print_row(&upgrade_transaction_row(&row), printed_live_rows);
                         });
                     } else {
-                        if !printed_live_row {
+                        if printed_live_rows == 0 {
                             layout.print_header();
                         }
 
-                        layout.print_row(&upgrade_transaction_row(&row));
+                        layout.print_row(&upgrade_transaction_row(&row), printed_live_rows);
                     }
 
-                    printed_live_row = true;
+                    printed_live_rows += 1;
                 }
             }
         })
@@ -208,7 +208,7 @@ pub async fn run(
     );
 
     if let Some(layout) = &live_layout {
-        if !printed_live_row {
+        if printed_live_rows == 0 {
             println!("No upgrades available.");
             return Ok(());
         }

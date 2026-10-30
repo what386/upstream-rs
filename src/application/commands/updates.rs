@@ -36,13 +36,19 @@ pub fn run(json: bool, notify: bool, paths: &UpstreamPaths) -> Result<()> {
     );
 
     let now = Utc::now();
-    for (id, entry) in snapshot.updates {
+    for (index, (id, entry)) in snapshot.updates.into_iter().enumerate() {
         println!(
-            "{:<32} {:<20} {:<20} {}",
-            id,
-            entry.current,
-            entry.latest,
-            updates::age(entry.checked_at, now)
+            "{}",
+            crate::output::list_row(
+                format!(
+                    "{:<32} {:<20} {:<20} {}",
+                    id,
+                    entry.current,
+                    entry.latest,
+                    updates::age(entry.checked_at, now)
+                ),
+                index
+            )
         );
     }
 

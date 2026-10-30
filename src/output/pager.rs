@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use std::ops::Range;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
@@ -122,11 +123,23 @@ fn no_pager() -> bool {
 }
 
 pub fn page_text(title: Option<&str>, text: &str) -> Result<()> {
-    page_text_with_header(title, None, false, false, text)
+    page_text_with_header(title, None, false, false, text, 0..0)
+}
+
+/// Page a listing, alternating only its data lines, leaving headings and footers alone.
+pub fn page_listing(title: Option<&str>, text: &str, rows: Range<usize>) -> Result<()> {
+    page_text_with_header(title, None, false, false, text, rows)
 }
 
 pub fn page_table(header: &str, footer_right: &str, text: &str) -> Result<()> {
-    page_text_with_header(Some(header), Some(footer_right), true, true, text)
+    page_text_with_header(
+        Some(header),
+        Some(footer_right),
+        true,
+        true,
+        text,
+        0..usize::MAX,
+    )
 }
 
 fn page_text_with_header(
@@ -135,16 +148,17 @@ fn page_text_with_header(
     scroll_header_horizontally: bool,
     add_header_separator: bool,
     text: &str,
+    rows: Range<usize>,
 ) -> Result<()> {
     if no_pager() {
-        print_without_pager(header, text, add_header_separator)?;
+        print_without_pager(header, text, add_header_separator, &rows)?;
         print_footer_metadata(footer_right);
         return Ok(());
     }
 
     let term = Term::stdout();
     if !term.is_term() {
-        print_without_pager(header, text, add_header_separator)?;
+        print_without_pager(header, text, add_header_separator, &rows)?;
         print_footer_metadata(footer_right);
         return Ok(());
     }
@@ -157,7 +171,7 @@ fn page_text_with_header(
     let max_width = max_content_width(header, scroll_header_horizontally, &lines);
 
     if lines.len() <= config.content_rows(header_rows) && max_width <= config.cols {
-        print_without_pager(header, text, add_header_separator)?;
+        print_without_pager(header, text, add_header_separator, &rows)?;
         print_footer_metadata(footer_right);
         return Ok(());
     }
@@ -170,10 +184,16 @@ fn page_text_with_header(
         add_header_separator,
         &lines,
         config,
+        &rows,
     )
 }
 
-fn print_without_pager(header: Option<&str>, text: &str, add_header_separator: bool) -> Result<()> {
+fn print_without_pager(
+    header: Option<&str>,
+    text: &str,
+    add_header_separator: bool,
+    rows: &Range<usize>,
+) -> Result<()> {
     if let Some(header) = header {
         for line in header.lines() {
             println!("{}", style(line).cyan().bold());
@@ -185,7 +205,16 @@ fn print_without_pager(header: Option<&str>, text: &str, add_header_separator: b
         }
     }
 
-    print!("{text}");
+    for (index, line) in text.split_inclusive('\n').enumerate() {
+        // Keep line endings outside the style so resets never spill onto the next row.
+        let (line, ending) = match line.strip_suffix('\n') {
+            Some(line) => (line, "\n"),
+            None => (line, ""),
+        };
+
+        print!("{}{ending}", listing_line(line, index, rows));
+    }
+
     io::stdout().flush()?;
     Ok(())
 }
@@ -200,6 +229,7 @@ fn print_footer_metadata(value: Option<&str>) {
     println!("{:>width$}", value, width = cols);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn page_lines(
     term: &Term,
     header: Option<&str>,
@@ -208,6 +238,7 @@ fn page_lines(
     add_header_separator: bool,
     lines: &[String],
     config: PagerConfig,
+    rows: &Range<usize>,
 ) -> Result<()> {
     let max_width = max_content_width(header, scroll_header_horizontally, lines);
 
@@ -236,6 +267,7 @@ fn page_lines(
             lines,
             &state,
             config.cols,
+            rows,
         )?;
 
         let action = action_for_key(term.read_key_raw()?);
@@ -269,6 +301,7 @@ fn render_view(
     lines: &[String],
     state: &PagerState,
     cols: usize,
+    rows: &Range<usize>,
 ) -> Result<usize> {
     let mut rendered = 0;
 
@@ -290,8 +323,9 @@ fn render_view(
         }
     }
 
-    for line in visible_lines(lines, state) {
-        term.write_line(&horizontal_window(line, state.left, cols))?;
+    for (offset, line) in visible_lines(lines, state).iter().enumerate() {
+        let line = horizontal_window(line, state.left, cols);
+        term.write_line(&listing_line(&line, state.top + offset, rows))?;
         rendered += 1;
     }
 
@@ -300,6 +334,14 @@ fn render_view(
     rendered += 1;
 
     Ok(rendered)
+}
+
+fn listing_line(line: &str, index: usize, rows: &Range<usize>) -> String {
+    if rows.contains(&index) && !line.is_empty() {
+        super::list_row(line, index - rows.start).to_string()
+    } else {
+        line.to_owned()
+    }
 }
 
 fn clear_rendered_view(term: &Term, rendered_lines: usize) -> Result<()> {

@@ -288,7 +288,7 @@ fn render_selection(
         if index == selected {
             term.write_line(&style(line).reverse().to_string())?;
         } else {
-            term.write_line(&line)?;
+            term.write_line(&super::list_row(line, index).to_string())?;
         }
 
         rendered += 1;

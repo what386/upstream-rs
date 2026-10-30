@@ -13,6 +13,16 @@ pub fn meta(text: impl fmt::Display) -> StyledObject<String> {
     style(text.to_string()).dim()
 }
 
+/// Alternate bright foreground text with light gray for clearer row separation.
+pub fn list_row(text: impl fmt::Display, index: usize) -> StyledObject<String> {
+    let text = style(text.to_string());
+    if index % 2 == 1 {
+        text.color256(247)
+    } else {
+        text.white().bright()
+    }
+}
+
 pub fn success(text: impl fmt::Display) -> StyledObject<String> {
     style(text.to_string()).green()
 }
