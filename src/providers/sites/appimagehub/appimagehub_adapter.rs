@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, path::Path};
+use std::{
+    collections::{BTreeMap, HashSet},
+    path::Path,
+};
 
 use anyhow::{Context, Result, anyhow, ensure};
 use chrono::{DateTime, Utc};
@@ -7,7 +10,7 @@ use reqwest::Url;
 use crate::{
     models::{
         common::{Version, enums::Filetype},
-        provider::{Asset, Release},
+        provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult},
     },
     providers::{
         assets::filenames::parser::{parse_arch, parse_filetype},
@@ -211,6 +214,80 @@ impl ReleaseProvider for AppImageHubAdapter {
             })
     }
 
+    async fn search_repositories(
+        &self,
+        query: &str,
+        limit: Option<u32>,
+        filters: &RepositorySearchFilters,
+    ) -> Result<Vec<RepositorySearchResult>> {
+        ensure!(
+            *filters == RepositorySearchFilters::default(),
+            "AppImageHub search supports text queries and --limit; forge filters (language, topic, stars, pushed-after, forks, archived) are not supported"
+        );
+
+        let limit = limit.unwrap_or(10).max(1);
+        let page_size = limit.clamp(10, 100);
+        let categories = self.client.get_application_categories().await?;
+        let mut results = Vec::new();
+        let mut seen = HashSet::new();
+        let mut page = 0;
+        loop {
+            crate::application::cancellation::check()?;
+            let response = self
+                .client
+                .search_content(query, &categories, page, page_size)
+                .await?;
+
+            let previous_count = seen.len();
+            for content in response.contents {
+                if !seen.insert(content.id.clone())
+                    || !content.files.iter().any(|file| file.is_appimage())
+                {
+                    continue;
+                }
+
+                let updated_at = [content.changed.as_str(), content.created.as_str()]
+                    .into_iter()
+                    .find_map(|value| DateTime::parse_from_rfc3339(value).ok())
+                    .map(|date| date.with_timezone(&Utc))
+                    .unwrap_or(DateTime::<Utc>::MIN_UTC);
+
+                let summary = scraper::Html::parse_fragment(&content.summary);
+                let description = summary
+                    .root_element()
+                    .text()
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                results.push(RepositorySearchResult {
+                    repo_slug: content.id,
+                    display_name: content.name,
+                    description,
+                    // OCS ratings and uploader metadata are not forge stars or source language.
+                    stars: 0,
+                    language: String::new(),
+                    updated_at,
+                });
+                if results.len() >= limit as usize {
+                    return Ok(results);
+                }
+            }
+
+            if seen.len() == previous_count || seen.len() as u64 >= response.total_items {
+                break;
+            }
+
+            page = page
+                .checked_add(1)
+                .context("AppImageHub search page limit reached")?;
+        }
+
+        Ok(results)
+    }
+
     async fn download_asset(
         &self,
         asset: &Asset,
@@ -390,6 +467,100 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn search_filters_and_paginates_appimages_and_preserves_content_ids() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server_base = base.clone();
+        let server = thread::spawn(move || {
+            for page in [None, Some(0), Some(1)] {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+                let mut line = String::new();
+                reader.read_line(&mut line).unwrap();
+                let path = line.split_whitespace().nth(1).unwrap();
+                let url = Url::parse(&format!("{server_base}{path}")).unwrap();
+                let params = url
+                    .query_pairs()
+                    .into_owned()
+                    .collect::<std::collections::HashMap<_, _>>();
+
+                assert_eq!(params["format"], "json");
+                if let Some(page) = page {
+                    assert_eq!(url.path(), "/ocs/v1/content/data");
+                    assert_eq!(params["search"], "paint & draw");
+                    assert_eq!(params["categories"], "239x244");
+                    assert_eq!(params["page"], page.to_string());
+                    assert_eq!(params["pagesize"], "10");
+                } else {
+                    assert_eq!(url.path(), "/ocs/v1/content/categories");
+                }
+
+                loop {
+                    line.clear();
+                    reader.read_line(&mut line).unwrap();
+                    if line == "\r\n" || line.is_empty() {
+                        break;
+                    }
+                }
+
+                let first = response(&server_base, "v1.0.0", "token")["data"][0].clone();
+                let body = match page {
+                    None => json!({"status":"ok", "statuscode":100, "data":[
+                        {"id":"239", "xdg_type":"bin"}, {"id":244, "xdg_type":"bin"}, {"id":999, "xdg_type":"wallpaper"}
+                    ]}),
+                    Some(0) => json!({"status":"ok", "statuscode":100, "totalitems":20, "data":[
+                        {"id":10,"name":"Directory link","downloadlink1":"https://example.test/downloads/","downloadname1":"downloads"}, first
+                    ]}),
+                    Some(_) => {
+                        let mut second = first.clone();
+                        second["id"] = json!(2259794);
+                        second["name"] = json!("Painting tool");
+                        second["summary"] = json!("<b>Paint</b> &amp; draw\n pictures");
+                        json!({"status":"ok", "statuscode":100, "totalitems":20, "data":[first,second]})
+                    }
+                }.to_string();
+
+                write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            }
+        });
+
+        let manager = ProviderManager::new(None, None, None, Default::default()).unwrap();
+        let results = manager
+            .search_repositories(
+                "paint & draw",
+                &Provider::AppImageHub,
+                Some(2),
+                &RepositorySearchFilters::default(),
+                Some(&format!("{base}/ocs/v1/")),
+            )
+            .await
+            .unwrap();
+
+        server.join().unwrap();
+        assert_eq!(
+            results
+                .iter()
+                .map(|r| r.repo_slug.as_str())
+                .collect::<Vec<_>>(),
+            ["2259793", "2259794"]
+        );
+
+        assert_eq!(results[1].display_name, "Painting tool");
+        assert_eq!(results[1].description, "Paint & draw pictures");
+        assert_eq!(
+            results[1].updated_at.to_rfc3339(),
+            "2026-01-02T03:04:05+00:00"
+        );
+
+        assert_eq!(results[1].stars, 0);
+        assert!(results[1].language.is_empty());
+        assert_eq!(
+            super::super::appimagehub_client::content_id(&results[1].repo_slug).unwrap(),
+            "2259794"
+        );
+    }
+
+    #[tokio::test]
     async fn manager_checks_versions_resolves_archived_tags_and_downloads_redirects() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
@@ -563,7 +734,10 @@ mod tests {
                     "test",
                     &Provider::AppImageHub,
                     None,
-                    &RepositorySearchFilters::default(),
+                    &RepositorySearchFilters {
+                        language: Some("Rust".into()),
+                        ..Default::default()
+                    },
                     None
                 )
                 .await

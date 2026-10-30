@@ -9,7 +9,9 @@ use crate::{
     providers::sites::http::{ConditionalDocumentResult, HttpClient},
 };
 
-use super::appimagehub_dtos::AppImageHubContentDto;
+use super::appimagehub_dtos::{
+    AppImageHubCategoryDto, AppImageHubContentDto, AppImageHubSearchPageDto,
+};
 
 const API_ROOT: &str = "https://api.opendesktop.org/ocs/v1/";
 
@@ -83,6 +85,47 @@ impl AppImageHubClient {
         let suffix = if archived { "/archived" } else { "" };
         let mut url = self.api_root.join(&format!("content/data/{id}{suffix}"))?;
         url.query_pairs_mut().append_pair("format", "json");
+        let response = self.get_json(&url).await?;
+        AppImageHubContentDto::from_response(&response, &id)
+    }
+
+    pub async fn get_application_categories(&self) -> Result<Vec<String>> {
+        let mut url = self.api_root.join("content/categories")?;
+        url.query_pairs_mut().append_pair("format", "json");
+        let response = self.get_json(&url).await?;
+        let categories = AppImageHubCategoryDto::from_response(&response)?
+            .into_iter()
+            .filter(|category| category.xdg_type == "bin")
+            .map(|category| category.id)
+            .collect::<Vec<_>>();
+
+        ensure!(
+            !categories.is_empty(),
+            "AppImageHub API returned no application categories"
+        );
+
+        Ok(categories)
+    }
+
+    pub async fn search_content(
+        &self,
+        query: &str,
+        categories: &[String],
+        page: u32,
+        page_size: u32,
+    ) -> Result<AppImageHubSearchPageDto> {
+        let mut url = self.api_root.join("content/data")?;
+        url.query_pairs_mut()
+            .append_pair("search", query.trim())
+            .append_pair("categories", &categories.join("x"))
+            .append_pair("page", &page.to_string())
+            .append_pair("pagesize", &page_size.to_string())
+            .append_pair("sortmode", "new")
+            .append_pair("format", "json");
+        AppImageHubSearchPageDto::from_response(&self.get_json(&url).await?)
+    }
+
+    async fn get_json(&self, url: &Url) -> Result<Value> {
         let ConditionalDocumentResult::Document(document) = self
             .client
             .fetch_document_if_modified_since(url.as_str(), None)
@@ -94,7 +137,7 @@ impl AppImageHubClient {
         let response: Value = serde_json::from_slice(&document.body)
             .context("AppImageHub OCS API did not return JSON (possibly an anti-bot challenge)")?;
 
-        AppImageHubContentDto::from_response(&response, &id)
+        Ok(response)
     }
 
     pub async fn download_file<F>(

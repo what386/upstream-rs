@@ -17,6 +17,7 @@ pub struct AppImageHubContentDto {
     pub id: String,
     pub name: String,
     pub version: String,
+    pub summary: String,
     pub changed: String,
     pub created: String,
     pub files: Vec<AppImageHubFileDto>,
@@ -25,21 +26,7 @@ pub struct AppImageHubContentDto {
 impl AppImageHubContentDto {
     /// OCS returns a flat envelope with dynamically numbered download fields.
     pub fn from_response(response: &Value, id: &str) -> Result<Self> {
-        let envelope = response
-            .as_object()
-            .context("Invalid AppImageHub OCS response")?;
-
-        let status = text(envelope, "statuscode");
-        ensure!(
-            status == "100" && text(envelope, "status") == "ok",
-            "AppImageHub OCS error {status}: {}",
-            text(envelope, "message")
-        );
-
-        let items = response
-            .get("data")
-            .and_then(Value::as_array)
-            .context("Invalid AppImageHub OCS content data")?;
+        let items = response_items(response)?;
 
         let content = items
             .iter()
@@ -49,6 +36,15 @@ impl AppImageHubContentDto {
             })
             .ok_or_else(|| anyhow!("AppImageHub listing {id} was not found"))?;
 
+        Self::from_fields(content)
+    }
+
+    fn from_fields(content: &Map<String, Value>) -> Result<Self> {
+        let id = text(content, "id")
+            .parse::<u64>()
+            .context("Invalid AppImageHub content ID")?;
+
+        ensure!(id > 0, "AppImageHub content ID must be positive");
         let mut indices = content
             .keys()
             .filter_map(|key| key.strip_prefix("downloadlink")?.parse::<u64>().ok())
@@ -71,14 +67,100 @@ impl AppImageHubContentDto {
             .collect();
 
         Ok(Self {
-            id: id.to_owned(),
+            id: id.to_string(),
             name: text(content, "name"),
             version: text(content, "version"),
+            summary: text(content, "summary"),
             changed: text(content, "changed"),
             created: text(content, "created"),
             files,
         })
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct AppImageHubCategoryDto {
+    pub id: String,
+    pub xdg_type: String,
+}
+
+impl AppImageHubCategoryDto {
+    pub fn from_response(response: &Value) -> Result<Vec<Self>> {
+        response_items(response)?
+            .iter()
+            .map(|item| {
+                let fields = item.as_object().context("Invalid AppImageHub category")?;
+                let id = text(fields, "id")
+                    .parse::<u64>()
+                    .context("Invalid AppImageHub category ID")?;
+
+                Ok(Self {
+                    id: id.to_string(),
+                    xdg_type: text(fields, "xdg_type"),
+                })
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AppImageHubSearchPageDto {
+    pub contents: Vec<AppImageHubContentDto>,
+    pub total_items: u64,
+}
+
+impl AppImageHubSearchPageDto {
+    pub fn from_response(response: &Value) -> Result<Self> {
+        let contents = response_items(response)?
+            .iter()
+            .map(|item| {
+                AppImageHubContentDto::from_fields(
+                    item.as_object()
+                        .context("Invalid AppImageHub search item")?,
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        let fields = response
+            .as_object()
+            .context("Invalid AppImageHub search response")?;
+
+        let total_items = text(fields, "totalitems")
+            .parse()
+            .context("Invalid AppImageHub search result count")?;
+
+        Ok(Self {
+            contents,
+            total_items,
+        })
+    }
+}
+
+impl AppImageHubFileDto {
+    pub fn is_appimage(&self) -> bool {
+        self.package_type.eq_ignore_ascii_case("appimage")
+            || self.name.to_ascii_lowercase().ends_with(".appimage")
+    }
+}
+
+fn response_items(response: &Value) -> Result<&[Value]> {
+    let envelope = response
+        .as_object()
+        .context("Invalid AppImageHub OCS response")?;
+
+    let status = text(envelope, "statuscode");
+    ensure!(
+        status == "100" && text(envelope, "status") == "ok",
+        "AppImageHub OCS error {status}: {}",
+        text(envelope, "message")
+    );
+
+    let items = response
+        .get("data")
+        .and_then(Value::as_array)
+        .context("Invalid AppImageHub OCS content data")?;
+
+    Ok(items)
 }
 
 fn text(fields: &Map<String, Value>, key: &str) -> String {
@@ -93,6 +175,27 @@ fn text(fields: &Map<String, Value>, key: &str) -> String {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn parses_empty_search_results_and_validates_counts_and_categories() {
+        let empty =
+            serde_json::json!({"status":"ok","statuscode":"100","totalitems":"0","data":[]});
+
+        let page = AppImageHubSearchPageDto::from_response(&empty).unwrap();
+        assert!(page.contents.is_empty());
+        assert_eq!(page.total_items, 0);
+        assert!(
+            AppImageHubCategoryDto::from_response(&empty)
+                .unwrap()
+                .is_empty()
+        );
+
+        let invalid =
+            serde_json::json!({"status":"ok","statuscode":100,"totalitems":"invalid","data":[]});
+
+        assert!(AppImageHubSearchPageDto::from_response(&invalid).is_err());
+        assert!(AppImageHubSearchPageDto::from_response(&serde_json::json!({"status":"failed","statuscode":200,"message":"rate limited","data":[]})).is_err());
+    }
 
     #[test]
     fn rejects_api_errors_and_missing_content() {

@@ -66,7 +66,7 @@ pub async fn run(
         return Ok(());
     }
 
-    let choices = SearchChoiceTable::from_results(&search.results);
+    let choices = SearchChoiceTable::from_results(&search.results, &search.provider);
     let prompt = format!("Find: '{}' via {}", search.query, search.provider);
 
     let Some(selected) = output::select_from_table(prompt, &choices.headers, &choices.rows)? else {
@@ -105,13 +105,13 @@ struct SearchChoiceTable {
 }
 
 impl SearchChoiceTable {
-    fn from_results(results: &[RepositorySearchResult]) -> Self {
-        let widths = SearchChoiceWidths::from_rows(results);
+    fn from_results(results: &[RepositorySearchResult], provider: &Provider) -> Self {
+        let widths = SearchChoiceWidths::from_rows(results, provider);
         let mut header = String::new();
         write!(
             header,
             "  {:<slug$} {:>stars$} {:<lang$} {:<updated$} Description",
-            "Slug",
+            search::source_heading(provider),
             "Stars",
             "Lang",
             "Updated",
@@ -125,7 +125,7 @@ impl SearchChoiceTable {
 
         let rows = results
             .iter()
-            .map(|result| format_search_choice(result, &widths))
+            .map(|result| format_search_choice(result, &widths, provider))
             .collect();
 
         Self {
@@ -135,11 +135,15 @@ impl SearchChoiceTable {
     }
 }
 
-fn format_search_choice(result: &RepositorySearchResult, widths: &SearchChoiceWidths) -> String {
+fn format_search_choice(
+    result: &RepositorySearchResult,
+    widths: &SearchChoiceWidths,
+    provider: &Provider,
+) -> String {
     format!(
         "{:<slug$} {:>stars$} {:<lang$} {:<updated$} {}",
-        search::truncate(&result.repo_slug, widths.slug),
-        search::format_stars(result.stars),
+        search::truncate(&search::source_label(result, provider), widths.slug),
+        search::search_stars(result.stars, provider),
         search::truncate(search::default_dash(&result.language), widths.lang),
         search::format_relative_updated(result.updated_at),
         search::truncate(
@@ -162,13 +166,13 @@ struct SearchChoiceWidths {
 }
 
 impl SearchChoiceWidths {
-    fn from_rows(rows: &[RepositorySearchResult]) -> Self {
+    fn from_rows(rows: &[RepositorySearchResult], provider: &Provider) -> Self {
         let slug = rows
             .iter()
-            .map(|r| r.repo_slug.chars().count())
+            .map(|r| search::source_label(r, provider).chars().count())
             .max()
             .unwrap_or(4)
-            .max("Slug".len())
+            .max(search::source_heading(provider).len())
             .min(36);
 
         let stars = rows
@@ -230,8 +234,27 @@ mod tests {
     }
 
     #[test]
+    fn appimagehub_choices_show_names_and_stable_ids() {
+        let mut entry = result("2259793", "Krita");
+        entry.stars = 0;
+        entry.language.clear();
+        let table = SearchChoiceTable::from_results(
+            &[entry],
+            &crate::models::common::enums::Provider::AppImageHub,
+        );
+
+        assert!(table.headers[0].contains("Name / ID"));
+        assert!(table.rows[0].contains("Krita (2259793)"));
+        assert!(!table.rows[0].contains("51k"));
+    }
+
+    #[test]
     fn search_choice_table_contains_aligned_install_relevant_fields() {
-        let table = SearchChoiceTable::from_results(&[result("BurntSushi/ripgrep", "ripgrep")]);
+        let table = SearchChoiceTable::from_results(
+            &[result("BurntSushi/ripgrep", "ripgrep")],
+            &crate::models::common::enums::Provider::Github,
+        );
+
         let choice = &table.rows[0];
 
         assert!(table.headers[0].contains("Slug"));

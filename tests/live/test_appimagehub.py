@@ -14,6 +14,23 @@ PRODUCT_URL = f"https://www.appimagehub.com/p/{CONTENT_ID}"
 
 
 class AppImageHubLiveTests(unittest.TestCase):
+    def test_search_catalog(self) -> None:
+        reset_fakehome()
+
+        result = run_upstream_json("search", "krita", "--provider", "appimagehub", "--limit", "5")
+
+        self.assertEqual(result["provider"], "appimagehub")
+        results = result["results"]
+        self.assertTrue(results)
+        self.assertLessEqual(len(results), 5)
+        self.assertEqual(len({item["repo_slug"] for item in results}), len(results))
+        self.assertTrue(any("krita" in item["display_name"].lower() for item in results), results)
+        for item in results:
+            self.assertTrue(item["repo_slug"].isdigit(), item)
+            self.assertTrue(item["display_name"], item)
+            self.assertEqual(item["stars"], 0)
+            self.assertEqual(item["language"], "")
+
     def test_probe_release(self) -> None:
         reset_fakehome()
 

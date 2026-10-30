@@ -101,7 +101,7 @@ pub async fn run(
         format!("Search: '{}' via {}", query, effective_provider)
     };
 
-    pager::page_text(Some(&title), &format_results(&results))?;
+    pager::page_text(Some(&title), &format_results(&results, &effective_provider))?;
 
     Ok(())
 }
@@ -188,14 +188,14 @@ fn json_search_result(
     }
 }
 
-fn format_results(results: &[RepositorySearchResult]) -> String {
-    let widths = SearchColumnWidths::from_rows(results);
+fn format_results(results: &[RepositorySearchResult], provider: &Provider) -> String {
+    let widths = SearchColumnWidths::from_rows(results, provider);
     let mut out = String::new();
 
     writeln!(
         out,
         "{:<slug$} {:>stars$} {:<lang$} {:<updated$} Description",
-        "Slug",
+        source_heading(provider),
         "Stars",
         "Lang",
         "Updated",
@@ -208,7 +208,7 @@ fn format_results(results: &[RepositorySearchResult]) -> String {
     writeln!(out, "{}", output::divider(widths.table_width())).expect("write search divider");
 
     for row in results {
-        write_row(&mut out, row, &widths);
+        write_row(&mut out, row, &widths, provider);
     }
 
     writeln!(out).expect("write search spacer");
@@ -217,12 +217,17 @@ fn format_results(results: &[RepositorySearchResult]) -> String {
     out
 }
 
-fn write_row(out: &mut String, row: &RepositorySearchResult, widths: &SearchColumnWidths) {
+fn write_row(
+    out: &mut String,
+    row: &RepositorySearchResult,
+    widths: &SearchColumnWidths,
+    provider: &Provider,
+) {
     writeln!(
         out,
         "{:<slug$} {:>stars$} {:<lang$} {:<updated$} {}",
-        truncate(&row.repo_slug, widths.slug),
-        format_stars(row.stars),
+        truncate(&source_label(row, provider), widths.slug),
+        search_stars(row.stars, provider),
         truncate(default_dash(&row.language), widths.lang),
         format_relative_updated(row.updated_at),
         truncate(default_dash(&row.description), widths.description),
@@ -232,6 +237,30 @@ fn write_row(out: &mut String, row: &RepositorySearchResult, widths: &SearchColu
         updated = widths.updated,
     )
     .expect("write search row");
+}
+
+pub(super) fn source_heading(provider: &Provider) -> &'static str {
+    if *provider == Provider::AppImageHub {
+        "Name / ID"
+    } else {
+        "Slug"
+    }
+}
+
+pub(super) fn source_label(result: &RepositorySearchResult, provider: &Provider) -> String {
+    if *provider == Provider::AppImageHub && !result.display_name.is_empty() {
+        format!("{} ({})", result.display_name, result.repo_slug)
+    } else {
+        result.repo_slug.clone()
+    }
+}
+
+pub(super) fn search_stars(stars: u64, provider: &Provider) -> String {
+    if *provider == Provider::AppImageHub {
+        "-".into()
+    } else {
+        format_stars(stars)
+    }
 }
 
 pub fn format_stars(stars: u64) -> String {
@@ -312,13 +341,13 @@ struct SearchColumnWidths {
 }
 
 impl SearchColumnWidths {
-    fn from_rows(rows: &[RepositorySearchResult]) -> Self {
+    fn from_rows(rows: &[RepositorySearchResult], provider: &Provider) -> Self {
         let slug = rows
             .iter()
-            .map(|r| r.repo_slug.chars().count())
+            .map(|r| source_label(r, provider).chars().count())
             .max()
             .unwrap_or(4)
-            .max("Slug".len())
+            .max(source_heading(provider).len())
             .min(36);
 
         let stars = rows
