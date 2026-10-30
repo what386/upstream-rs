@@ -52,15 +52,10 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
             icons_dir: dirs.state_dir.join("icons"),
             lock_file: dirs.state_dir.join("lock"),
         },
-        integration: IntegrationPaths {
-            xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
-            user_units_dir: dirs.user_dir.join(".local/share/systemd/user"),
-            bash_completions_dir: dirs
-                .user_dir
-                .join(".local/share/bash-completion/completions"),
-            fish_completions_dir: dirs.user_dir.join(".config/fish/completions"),
-            zsh_completions_dir: dirs.user_dir.join(".local/share/zsh/site-functions"),
-        },
+        integration: IntegrationPaths::from_xdg_dirs(
+            &dirs.user_dir.join(".local/share"),
+            &dirs.user_dir.join(".config"),
+        ),
         dirs,
     }
 }

@@ -72,7 +72,7 @@ impl<'a> IconManager<'a> {
                         .or_else(|| {
                             Self::search_for_best_icon(&squashfs_root, name, message_callback)
                         })
-                        .or_else(|| Self::search_system_icons(name, message_callback))
+                        .or_else(|| self.search_system_icons(name, message_callback))
                 }
 
                 #[cfg(not(target_os = "linux"))]
@@ -82,8 +82,8 @@ impl<'a> IconManager<'a> {
             }
             Filetype::Archive => Self::search_embedded_icon(path, message_callback)
                 .or_else(|| Self::search_for_best_icon(path, name, message_callback))
-                .or_else(|| Self::search_system_icons(name, message_callback)),
-            _ => Self::search_system_icons(name, message_callback),
+                .or_else(|| self.search_system_icons(name, message_callback)),
+            _ => self.search_system_icons(name, message_callback),
         };
 
         let Some(icon_path) = icon_path else {
@@ -109,16 +109,19 @@ impl<'a> IconManager<'a> {
         Ok(output_path)
     }
 
-    fn search_system_icons<H>(name: &str, message_callback: &mut Option<H>) -> Option<PathBuf>
+    fn search_system_icons<H>(
+        &self,
+        name: &str,
+        message_callback: &mut Option<H>,
+    ) -> Option<PathBuf>
     where
         H: FnMut(&str),
     {
         message!(message_callback, "Searching system icon themes …");
 
-        let home_dir = std::env::var("HOME").ok()?;
         let icon_dirs = vec![
-            PathBuf::from(format!("{}/.local/share/icons", home_dir)),
-            PathBuf::from(format!("{}/.icons", home_dir)),
+            self.paths.integration.xdg_data_dir.join("icons"),
+            self.paths.dirs.user_dir.join(".icons"),
             PathBuf::from("/usr/share/icons"),
             PathBuf::from("/usr/local/share/icons"),
             PathBuf::from("/usr/share/pixmaps"),

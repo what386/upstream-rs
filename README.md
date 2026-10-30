@@ -93,6 +93,8 @@ systemctl --user enable example.service
 systemctl --user start example.service
 ```
 
+Application entries and shell completions also respect XDG data/config paths.
+
 ### Manage packages
 
 ```bash

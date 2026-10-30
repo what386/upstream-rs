@@ -40,6 +40,11 @@ names and manual enable/start commands. `systemctl --user daemon-reload` is best
 effort so installation works without a running user manager. The initial backend
 is Linux only.
 
+Integration paths honor XDG directories: application entries, user units, Bash
+and Zsh completions use the data directory; Fish completions and Fish/Nushell
+profile hooks use the config directory. Icon discovery also uses the data
+directory. Test fixtures supply isolated roots explicitly.
+
 ## Identity
 
 The package ID is the canonical provider-and-source identity. It is not the

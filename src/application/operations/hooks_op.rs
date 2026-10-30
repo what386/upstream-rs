@@ -365,7 +365,7 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
     }
 
     for (profile_rel, expected_line) in profiles_to_check {
-        let profile_path = paths.dirs.user_dir.join(&profile_rel);
+        let profile_path = profile_path(paths, &profile_rel);
         if !profile_path.exists() {
             check_fail(
                 report,
@@ -398,8 +398,17 @@ fn check_unix_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -
 }
 
 #[cfg(unix)]
+fn profile_path(paths: &UpstreamPaths, profile: &str) -> std::path::PathBuf {
+    if let Ok(relative) = Path::new(profile).strip_prefix(".config") {
+        paths.integration.xdg_config_dir.join(relative)
+    } else {
+        paths.dirs.user_dir.join(profile)
+    }
+}
+
+#[cfg(unix)]
 fn add_line_to_profile(paths: &UpstreamPaths, relative_path: &str, line: &str) -> io::Result<()> {
-    let profile_path = paths.dirs.user_dir.join(relative_path);
+    let profile_path = profile_path(paths, relative_path);
 
     // Ensure parent directory exists
     if let Some(parent) = profile_path.parent() {
@@ -440,7 +449,7 @@ pub fn cleanup(paths: &UpstreamPaths) -> Result<()> {
         };
 
         if let Some(profile_rel) = profile {
-            let profile_path = paths.dirs.user_dir.join(profile_rel);
+            let profile_path = profile_path(paths, profile_rel);
             if !profile_path.exists() {
                 continue;
             }
@@ -550,15 +559,10 @@ mod tests {
                 icons_dir: dirs.state_dir.join("icons"),
                 lock_file: dirs.state_dir.join("lock"),
             },
-            integration: IntegrationPaths {
-                xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
-                user_units_dir: dirs.user_dir.join(".local/share/systemd/user"),
-                bash_completions_dir: dirs
-                    .user_dir
-                    .join(".local/share/bash-completion/completions"),
-                fish_completions_dir: dirs.user_dir.join(".config/fish/completions"),
-                zsh_completions_dir: dirs.user_dir.join(".local/share/zsh/site-functions"),
-            },
+            integration: IntegrationPaths::from_xdg_dirs(
+                &dirs.user_dir.join(".local/share"),
+                &dirs.user_dir.join(".config"),
+            ),
             dirs,
         }
     }
@@ -716,5 +720,35 @@ mod tests {
         assert!(paths.dirs.config_dir.exists());
 
         cleanup(&root).expect("cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn shell_profile_updates_use_custom_xdg_config_home() {
+        let root = temp_root("xdg-profiles");
+        let mut paths = test_paths(&root);
+        let data_dir = root.join("custom-data");
+        let config_dir = root.join("custom-config");
+        paths.integration = IntegrationPaths::from_xdg_dirs(&data_dir, &config_dir);
+        super::add_line_to_profile(&paths, ".config/fish/config.fish", "fish hook").unwrap();
+        super::add_line_to_profile(&paths, ".config/nushell/config.nu", "nu hook").unwrap();
+        super::add_line_to_profile(&paths, ".bashrc", "bash hook").unwrap();
+        assert_eq!(
+            fs::read_to_string(config_dir.join("fish/config.fish")).unwrap(),
+            "fish hook\n"
+        );
+
+        assert_eq!(
+            fs::read_to_string(config_dir.join("nushell/config.nu")).unwrap(),
+            "nu hook\n"
+        );
+
+        assert_eq!(
+            fs::read_to_string(root.join(".bashrc")).unwrap(),
+            "bash hook\n"
+        );
+
+        assert!(!root.join(".config").exists());
+        fs::remove_dir_all(root).unwrap();
     }
 }

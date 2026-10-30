@@ -140,6 +140,8 @@ impl StatePaths {
 
 /// Paths for system integration (XDG dirs and shell completions)
 pub struct IntegrationPaths {
+    pub xdg_data_dir: PathBuf,
+    pub xdg_config_dir: PathBuf,
     pub xdg_applications_dir: PathBuf,
     pub user_units_dir: PathBuf,
     pub bash_completions_dir: PathBuf,
@@ -149,14 +151,28 @@ pub struct IntegrationPaths {
 
 impl IntegrationPaths {
     pub fn new(dirs: &AppDirs) -> Self {
+        // Honor custom XDG locations only inside the isolated test home.
+        let isolated_dir = |key, fallback| {
+            std::env::var_os(key)
+                .map(PathBuf::from)
+                .filter(|path| path.is_absolute() && path.starts_with(&dirs.user_dir))
+                .unwrap_or_else(|| dirs.user_dir.join(fallback))
+        };
+
+        let data_dir = isolated_dir("XDG_DATA_HOME", ".local/share");
+        let config_dir = isolated_dir("XDG_CONFIG_HOME", ".config");
+        Self::from_xdg_dirs(&data_dir, &config_dir)
+    }
+
+    pub fn from_xdg_dirs(data_dir: &std::path::Path, config_dir: &std::path::Path) -> Self {
         Self {
-            xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
-            user_units_dir: dirs.user_dir.join(".local/share/systemd/user"),
-            bash_completions_dir: dirs
-                .user_dir
-                .join(".local/share/bash-completion/completions"),
-            fish_completions_dir: dirs.user_dir.join(".config/fish/completions"),
-            zsh_completions_dir: dirs.user_dir.join(".local/share/zsh/site-functions"),
+            xdg_data_dir: data_dir.to_path_buf(),
+            xdg_config_dir: config_dir.to_path_buf(),
+            xdg_applications_dir: data_dir.join("applications"),
+            user_units_dir: data_dir.join("systemd/user"),
+            bash_completions_dir: data_dir.join("bash-completion/completions"),
+            fish_completions_dir: config_dir.join("fish/completions"),
+            zsh_completions_dir: data_dir.join("zsh/site-functions"),
         }
     }
 }
