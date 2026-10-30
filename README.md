@@ -6,6 +6,11 @@ upstream release sources.
 It installs release artifacts from GitHub, GitLab, Gitea, AppImageHub, direct URLs, and
 download pages, or builds from source when a usable binary is unavailable.
 
+Upstream handles finding compatible release assets, installing executables into
+your user environment, and tracking their sources for future upgrades. It also
+supports version pinning, checksum and signature verification, desktop launchers,
+shell completions, and systemd user units on Linux.
+
 ## Installation
 
 ### Binary installers
@@ -50,98 +55,85 @@ Download the binary from the
 [latest GitHub release](https://github.com/what386/upstream-rs/releases/latest).
 On Unix, make it executable with `chmod +x upstream`.
 
-## Examples
+## Find and install software
+
+Install directly from a repository, or search and choose a result interactively.
+Use `probe` to inspect releases and compatible assets before installing.
 
 ```bash
 upstream install BurntSushi/ripgrep
-upstream install BurntSushi/ripgrep --dry-run
 upstream find ripgrep
-upstream upgrade
-upstream upgrade --check
-upstream list
-upstream remove ripgrep
+upstream search editor -p appimagehub
+upstream probe neovim/neovim
 ```
 
-## Common workflows
-
-### Install a release
-
-```bash
-upstream install neovim/neovim --tag v0.11.0
-upstream install owner/repo --desktop
-upstream install owner/repo --match-pattern linux --exclude-pattern debug
-```
+Upstream selects assets for your platform. You can also choose a release tag,
+preview an installation with `--dry-run`, or install from a direct download URL.
 
 ### Build from source
+
+Build and install from a forge repository when you prefer a source build or a
+project does not publish a suitable binary. Build profiles support Rust, Go,
+Zig, .NET, and CMake projects; builds can track a release or a branch.
 
 ```bash
 upstream build BurntSushi/ripgrep
 upstream build owner/repo --branch main
-upstream build owner/repo --build-profile dotnet
 ```
 
-Supported build profiles are `rust`, `dotnet`, `go`, `zig`, and `cmake`.
+## Manage installed packages
 
-On Linux, Upstream discovers systemd user units bundled in release archives,
-release assets, build sources, and extracted AppImages. It installs identifiable
-user units into `$XDG_DATA_HOME/systemd/user` (default:
-`~/.local/share/systemd/user`) and reports their names after installation.
-Enable and start them explicitly:
+Check for updates, upgrade individual packages or everything, and pin packages
+you want to keep at their installed version. `updates` shows the results of the
+last update check without making network requests.
 
 ```bash
-systemctl --user enable example.service
-systemctl --user start example.service
+upstream list
+upstream upgrade --check
+upstream updates
+upstream upgrade
+upstream package pin ripgrep
+upstream remove ripgrep
 ```
 
-Application entries and shell completions also respect XDG data/config paths.
+Upstream also provides package details, changelogs, searchable documentation,
+and operation history. Failed replacements restore the previous installation.
+Run `upstream doctor` to check for installation and integration problems.
 
-### Manage packages
+## Integrate with your environment
+
+Packages are installed without root access. Upstream manages executable links
+and discovers bundled shell completions. Add `--desktop` when installing a GUI
+application to create a launcher entry.
+
+On Linux, bundled systemd user units are installed and reported after the
+package is installed. Enabling and starting services remains your choice.
+Integration behavior is configurable; see [configuration](docs/configuration.md).
+
+## Export and restore your setup
+
+Export package references, configuration, and trusted keys individually or
+together as a profile, then import them on another installation.
 
 ```bash
-upstream upgrade nvim ripgrep
-upstream reinstall ripgrep
-upstream package pin nvim
-upstream package rename nvim neovim
-upstream package set nvim match_pattern=linux,x86_64 trust_mode=checksum
-upstream cache list
-upstream cache clean docs
-```
-
-### Import and export
-
-```bash
-upstream export config ./config.toml
-upstream import config ./config.toml
-upstream export packages ./packages.json
-upstream import packages ./packages.json --latest
 upstream export profile ./profile.json
 upstream import profile ./profile.json --latest
-upstream export keys ./keys.json
-upstream import keys ./keys.json
 ```
 
-Exports contain reinstallable references and metadata. They do not contain
-installed files or cache contents.
+Exports contain references and metadata, rather than installed binaries or
+cache contents. Provider tokens are excluded.
 
 ## API tokens
 
-Provider tokens are optional. They help avoid anonymous rate limits,
-but are required for private repositories.
-
-```bash
-upstream auth set github.api_token=github_pat_xxx
-upstream auth list
-upstream doctor
-```
-
-For GitHub, create a token under **Settings > Developer settings > Personal
-access tokens**. Tokens are stored separately in `auth.toml` and are not
-included in configuration or profile exports.
+Provider tokens are optional for public repositories and can help avoid rate
+limits. Add one with `upstream auth set github.api_token=<token>`.
+Tokens are stored separately from configuration and excluded from exports.
 
 ## Documentation
 
-See the [developer documentation](docs/index.md). For command options, use
-`upstream --help` or `upstream <command> --help`.
+Use `upstream --help` or `upstream <command> --help` for commands and options.
+See [configuration](docs/configuration.md), [building from source](docs/build.md),
+and the [developer documentation](docs/index.md) for details.
 
 ## License
 
