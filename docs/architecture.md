@@ -38,6 +38,12 @@ search models. Provider-specific DTOs stay inside their adapter modules.
 the operation layer sees it. HTTP direct and scraped sources are separate from
 forge providers because they do not provide equivalent repository metadata.
 
+Search results carry ordered key/value metadata supplied by the provider.
+Integer and text values become dynamic columns in the shared search/find table;
+Description uses the remaining terminal width. GitHub supplies `stars` and `lang`,
+while AppImageHub omits those fields. JSON exposes this metadata alongside the
+legacy `stars` and `language` fields for compatibility.
+
 ## Output
 
 Human-readable output and JSON output are separate contracts. New operations

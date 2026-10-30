@@ -6,7 +6,7 @@ use crate::{
     application::context::CommandContext,
     models::{
         common::enums::Provider,
-        provider::{RepositorySearchFilters, RepositorySearchResult},
+        provider::{RepositorySearchFilters, RepositorySearchResult, SearchMetadataValue},
         upstream::config::AppConfig,
     },
     output,
@@ -158,6 +158,7 @@ struct JsonRepositorySearchResult {
     stars: u64,
     language: String,
     updated_at: String,
+    metadata: std::collections::BTreeMap<String, SearchMetadataValue>,
 }
 
 fn json_search_result(
@@ -176,39 +177,45 @@ fn json_search_result(
         filters: filters.clone(),
         results: results
             .iter()
-            .map(|result| JsonRepositorySearchResult {
-                repo_slug: result.repo_slug.clone(),
-                display_name: result.display_name.clone(),
-                description: result.description.clone(),
-                stars: result.stars,
-                language: result.language.clone(),
-                updated_at: result.updated_at.to_rfc3339(),
+            .map(|result| {
+                let metadata = result
+                    .metadata
+                    .iter()
+                    .cloned()
+                    .collect::<std::collections::BTreeMap<_, _>>();
+
+                // Keep existing JSON fields compatible while exposing provider metadata.
+                let stars = match metadata.get("stars") {
+                    Some(SearchMetadataValue::Integer(value)) => *value,
+                    _ => 0,
+                };
+
+                let language = match metadata.get("lang") {
+                    Some(SearchMetadataValue::Text(value)) => value.clone(),
+                    _ => String::new(),
+                };
+
+                JsonRepositorySearchResult {
+                    repo_slug: result.repo_slug.clone(),
+                    display_name: result.display_name.clone(),
+                    description: result.description.clone(),
+                    stars,
+                    language,
+                    updated_at: result.updated_at.to_rfc3339(),
+                    metadata,
+                }
             })
             .collect(),
     }
 }
 
 fn format_results(results: &[RepositorySearchResult], provider: &Provider) -> String {
-    let widths = SearchColumnWidths::from_rows(results, provider);
+    let table = table_for_results(results, provider, console::Term::stdout().size().1 as usize);
     let mut out = String::new();
-
-    writeln!(
-        out,
-        "{:<slug$} {:>stars$} {:<lang$} {:<updated$} Description",
-        source_heading(provider),
-        "Stars",
-        "Lang",
-        "Updated",
-        slug = widths.slug,
-        stars = widths.stars,
-        lang = widths.lang,
-        updated = widths.updated,
-    )
-    .expect("write search header");
-    writeln!(out, "{}", output::divider(widths.table_width())).expect("write search divider");
-
-    for row in results {
-        write_row(&mut out, row, &widths, provider);
+    writeln!(out, "{}", table.header).expect("write search header");
+    writeln!(out, "{}", table.divider).expect("write search divider");
+    for row in table.rows {
+        writeln!(out, "{row}").expect("write search row");
     }
 
     writeln!(out).expect("write search spacer");
@@ -217,26 +224,22 @@ fn format_results(results: &[RepositorySearchResult], provider: &Provider) -> St
     out
 }
 
-fn write_row(
-    out: &mut String,
-    row: &RepositorySearchResult,
-    widths: &SearchColumnWidths,
+pub(super) fn table_for_results(
+    results: &[RepositorySearchResult],
     provider: &Provider,
-) {
-    writeln!(
-        out,
-        "{:<slug$} {:>stars$} {:<lang$} {:<updated$} {}",
-        truncate(&source_label(row, provider), widths.slug),
-        search_stars(row.stars, provider),
-        truncate(default_dash(&row.language), widths.lang),
-        format_relative_updated(row.updated_at),
-        truncate(default_dash(&row.description), widths.description),
-        slug = widths.slug,
-        stars = widths.stars,
-        lang = widths.lang,
-        updated = widths.updated,
-    )
-    .expect("write search row");
+    width: usize,
+) -> output::SearchTable {
+    let rows = results
+        .iter()
+        .map(|row| output::SearchTableRow {
+            source: source_label(row, provider),
+            metadata: row.metadata.clone(),
+            updated: format_relative_updated(row.updated_at),
+            description: row.description.clone(),
+        })
+        .collect::<Vec<_>>();
+
+    output::SearchTable::new(source_heading(provider), &rows, width)
 }
 
 pub(super) fn source_heading(provider: &Provider) -> &'static str {
@@ -252,35 +255,6 @@ pub(super) fn source_label(result: &RepositorySearchResult, provider: &Provider)
         format!("{} ({})", result.display_name, result.repo_slug)
     } else {
         result.repo_slug.clone()
-    }
-}
-
-pub(super) fn search_stars(stars: u64, provider: &Provider) -> String {
-    if *provider == Provider::AppImageHub {
-        "-".into()
-    } else {
-        format_stars(stars)
-    }
-}
-
-pub fn format_stars(stars: u64) -> String {
-    if stars < 1_000 {
-        return stars.to_string();
-    }
-
-    if stars < 1_000_000 {
-        return format_with_suffix(stars, 1_000.0, "k");
-    }
-
-    format_with_suffix(stars, 1_000_000.0, "m")
-}
-
-fn format_with_suffix(value: u64, divisor: f64, suffix: &str) -> String {
-    let scaled = value as f64 / divisor;
-    if scaled >= 100.0 || (scaled.fract() == 0.0) {
-        format!("{:.0}{suffix}", scaled)
-    } else {
-        format!("{:.1}{suffix}", scaled)
     }
 }
 
@@ -332,80 +306,14 @@ pub fn truncate(value: &str, max: usize) -> String {
     output::truncate_end(value, max)
 }
 
-struct SearchColumnWidths {
-    slug: usize,
-    stars: usize,
-    lang: usize,
-    updated: usize,
-    description: usize,
-}
-
-impl SearchColumnWidths {
-    fn from_rows(rows: &[RepositorySearchResult], provider: &Provider) -> Self {
-        let slug = rows
-            .iter()
-            .map(|r| source_label(r, provider).chars().count())
-            .max()
-            .unwrap_or(4)
-            .max(source_heading(provider).len())
-            .min(36);
-
-        let stars = rows
-            .iter()
-            .map(|r| format_stars(r.stars).chars().count())
-            .max()
-            .unwrap_or(5)
-            .max("Stars".len());
-
-        let lang = rows
-            .iter()
-            .map(|r| default_dash(&r.language).chars().count())
-            .max()
-            .unwrap_or(4)
-            .max("Lang".len())
-            .min(14);
-
-        let updated = rows
-            .iter()
-            .map(|r| format_relative_updated(r.updated_at).chars().count())
-            .max()
-            .unwrap_or(10)
-            .max("Updated".len())
-            .max("2 years ago".len());
-
-        let description = 72;
-
-        Self {
-            slug,
-            stars,
-            lang,
-            updated,
-            description,
-        }
-    }
-
-    fn table_width(&self) -> usize {
-        self.slug + self.stars + self.lang + self.updated + self.description + 4
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{format_relative_updated_with_now, format_stars, json_search_result, truncate};
+    use super::{format_relative_updated_with_now, json_search_result, truncate};
     use crate::models::{
         common::enums::Provider,
-        provider::{RepositorySearchFilters, RepositorySearchResult},
+        provider::{RepositorySearchFilters, RepositorySearchResult, SearchMetadataValue},
     };
     use chrono::{Duration, TimeZone, Utc};
-
-    #[test]
-    fn format_stars_uses_compact_suffixes() {
-        assert_eq!(format_stars(561), "561");
-        assert_eq!(format_stars(1_000), "1k");
-        assert_eq!(format_stars(9_645), "9.6k");
-        assert_eq!(format_stars(63_520), "63.5k");
-        assert_eq!(format_stars(1_250_000), "1.2m");
-    }
 
     #[test]
     fn format_relative_updated_uses_readable_buckets() {
@@ -458,8 +366,10 @@ mod tests {
                 repo_slug: "BurntSushi/ripgrep".to_string(),
                 display_name: "ripgrep".to_string(),
                 description: "search tool".to_string(),
-                stars: 51_000,
-                language: "Rust".to_string(),
+                metadata: vec![
+                    ("stars".into(), SearchMetadataValue::Integer(51_000)),
+                    ("lang".into(), SearchMetadataValue::Text("Rust".into())),
+                ],
                 updated_at,
             }],
         );
@@ -469,6 +379,10 @@ mod tests {
         assert_eq!(json["query"], "ripgrep");
         assert_eq!(json["provider"], "github");
         assert_eq!(json["results"][0]["repo_slug"], "BurntSushi/ripgrep");
+        assert_eq!(json["results"][0]["stars"], 51_000);
+        assert_eq!(json["results"][0]["language"], "Rust");
+        assert_eq!(json["results"][0]["metadata"]["stars"], 51_000);
+        assert_eq!(json["results"][0]["metadata"]["lang"], "Rust");
         assert_eq!(
             json["results"][0]["updated_at"],
             "2026-06-12T01:02:03+00:00"

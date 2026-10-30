@@ -30,6 +30,7 @@ class AppImageHubLiveTests(unittest.TestCase):
             self.assertTrue(item["display_name"], item)
             self.assertEqual(item["stars"], 0)
             self.assertEqual(item["language"], "")
+            self.assertEqual(item["metadata"], {})
 
     def test_probe_release(self) -> None:
         reset_fakehome()

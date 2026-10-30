@@ -1,6 +1,5 @@
 use anyhow::Result;
 use chrono::NaiveDate;
-use std::fmt::Write as _;
 
 use crate::{
     application::commands::{install, search},
@@ -106,120 +105,22 @@ struct SearchChoiceTable {
 
 impl SearchChoiceTable {
     fn from_results(results: &[RepositorySearchResult], provider: &Provider) -> Self {
-        let widths = SearchChoiceWidths::from_rows(results, provider);
-        let mut header = String::new();
-        write!(
-            header,
-            "  {:<slug$} {:>stars$} {:<lang$} {:<updated$} Description",
-            search::source_heading(provider),
-            "Stars",
-            "Lang",
-            "Updated",
-            slug = widths.slug,
-            stars = widths.stars,
-            lang = widths.lang,
-            updated = widths.updated,
-        )
-        .expect("write find header");
-        let divider = format!("  {}", output::divider(widths.table_width()));
-
-        let rows = results
-            .iter()
-            .map(|result| format_search_choice(result, &widths, provider))
-            .collect();
-
+        let width = (console::Term::stdout().size().1 as usize).saturating_sub(2);
+        let table = search::table_for_results(results, provider, width);
         Self {
-            headers: vec![header, divider],
-            rows,
+            headers: vec![
+                format!("  {}", table.header),
+                format!("  {}", table.divider),
+            ],
+            rows: table.rows,
         }
-    }
-}
-
-fn format_search_choice(
-    result: &RepositorySearchResult,
-    widths: &SearchChoiceWidths,
-    provider: &Provider,
-) -> String {
-    format!(
-        "{:<slug$} {:>stars$} {:<lang$} {:<updated$} {}",
-        search::truncate(&search::source_label(result, provider), widths.slug),
-        search::search_stars(result.stars, provider),
-        search::truncate(search::default_dash(&result.language), widths.lang),
-        search::format_relative_updated(result.updated_at),
-        search::truncate(
-            search::default_dash(&result.description),
-            widths.description
-        ),
-        slug = widths.slug,
-        stars = widths.stars,
-        lang = widths.lang,
-        updated = widths.updated,
-    )
-}
-
-struct SearchChoiceWidths {
-    slug: usize,
-    stars: usize,
-    lang: usize,
-    updated: usize,
-    description: usize,
-}
-
-impl SearchChoiceWidths {
-    fn from_rows(rows: &[RepositorySearchResult], provider: &Provider) -> Self {
-        let slug = rows
-            .iter()
-            .map(|r| search::source_label(r, provider).chars().count())
-            .max()
-            .unwrap_or(4)
-            .max(search::source_heading(provider).len())
-            .min(36);
-
-        let stars = rows
-            .iter()
-            .map(|r| search::format_stars(r.stars).chars().count())
-            .max()
-            .unwrap_or(5)
-            .max("Stars".len());
-
-        let lang = rows
-            .iter()
-            .map(|r| search::default_dash(&r.language).chars().count())
-            .max()
-            .unwrap_or(4)
-            .max("Lang".len())
-            .min(14);
-
-        let updated = rows
-            .iter()
-            .map(|r| {
-                search::format_relative_updated(r.updated_at)
-                    .chars()
-                    .count()
-            })
-            .max()
-            .unwrap_or(10)
-            .max("Updated".len())
-            .max("2 years ago".len());
-
-        Self {
-            slug,
-            stars,
-            lang,
-            updated,
-            description: 72,
-        }
-    }
-
-    fn table_width(&self) -> usize {
-        self.slug + self.stars + self.lang + self.updated + self.description + 4
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::SearchChoiceTable;
-    use crate::models::provider::RepositorySearchResult;
+    use crate::models::provider::{RepositorySearchResult, SearchMetadataValue};
     use chrono::{TimeZone, Utc};
 
     fn result(repo_slug: &str, display_name: &str) -> RepositorySearchResult {
@@ -227,8 +128,10 @@ mod tests {
             repo_slug: repo_slug.to_string(),
             display_name: display_name.to_string(),
             description: "fast search".to_string(),
-            stars: 51_000,
-            language: "Rust".to_string(),
+            metadata: vec![
+                ("stars".into(), SearchMetadataValue::Integer(51_000)),
+                ("lang".into(), SearchMetadataValue::Text("Rust".into())),
+            ],
             updated_at: Utc.with_ymd_and_hms(2026, 6, 13, 0, 0, 0).unwrap(),
         }
     }
@@ -236,14 +139,15 @@ mod tests {
     #[test]
     fn appimagehub_choices_show_names_and_stable_ids() {
         let mut entry = result("2259793", "Krita");
-        entry.stars = 0;
-        entry.language.clear();
+        entry.metadata.clear();
         let table = SearchChoiceTable::from_results(
             &[entry],
             &crate::models::common::enums::Provider::AppImageHub,
         );
 
         assert!(table.headers[0].contains("Name / ID"));
+        assert!(!table.headers[0].contains("Stars"));
+        assert!(!table.headers[0].contains("Lang"));
         assert!(table.rows[0].contains("Krita (2259793)"));
         assert!(!table.rows[0].contains("51k"));
     }

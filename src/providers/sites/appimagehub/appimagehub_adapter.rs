@@ -252,7 +252,13 @@ impl ReleaseProvider for AppImageHubAdapter {
                     .map(|date| date.with_timezone(&Utc))
                     .unwrap_or(DateTime::<Utc>::MIN_UTC);
 
-                let summary = scraper::Html::parse_fragment(&content.summary);
+                let description = if content.description.is_empty() {
+                    &content.summary
+                } else {
+                    &content.description
+                };
+
+                let summary = scraper::Html::parse_fragment(description);
                 let description = summary
                     .root_element()
                     .text()
@@ -266,9 +272,7 @@ impl ReleaseProvider for AppImageHubAdapter {
                     repo_slug: content.id,
                     display_name: content.name,
                     description,
-                    // OCS ratings and uploader metadata are not forge stars or source language.
-                    stars: 0,
-                    language: String::new(),
+                    metadata: Vec::new(),
                     updated_at,
                 });
                 if results.len() >= limit as usize {
@@ -515,7 +519,8 @@ mod tests {
                         let mut second = first.clone();
                         second["id"] = json!(2259794);
                         second["name"] = json!("Painting tool");
-                        second["summary"] = json!("<b>Paint</b> &amp; draw\n pictures");
+                            second["summary"] = json!("Paint & draw ...");
+                            second["description"] = json!("<b>Paint</b> &amp; draw\n pictures");
                         json!({"status":"ok", "statuscode":100, "totalitems":20, "data":[first,second]})
                     }
                 }.to_string();
@@ -552,8 +557,7 @@ mod tests {
             "2026-01-02T03:04:05+00:00"
         );
 
-        assert_eq!(results[1].stars, 0);
-        assert!(results[1].language.is_empty());
+        assert!(results[1].metadata.is_empty());
         assert_eq!(
             super::super::appimagehub_client::content_id(&results[1].repo_slug).unwrap(),
             "2259794"

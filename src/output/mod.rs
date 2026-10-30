@@ -4,6 +4,7 @@ mod logger;
 mod markdown;
 mod other;
 mod prompt;
+mod search_table;
 mod status;
 mod style;
 mod table;
@@ -16,6 +17,7 @@ pub use prompt::{
     assume_yes, confirm_or_cancel, prompt_text, prompt_text_with_suffix, select_from_list,
     select_from_table, select_from_table_with_preview, set_assume_yes,
 };
+pub use search_table::{SearchTable, SearchTableRow};
 pub use status::error_summary_with_limit;
 pub use status::{
     Status, error_summary, status_cell, status_label, status_line, status_line_text,

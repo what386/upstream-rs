@@ -3,7 +3,9 @@ use chrono::{DateTime, Utc};
 use std::path::Path;
 
 use crate::models::common::Version;
-use crate::models::provider::{Asset, Release, RepositorySearchFilters, RepositorySearchResult};
+use crate::models::provider::{
+    Asset, Release, RepositorySearchFilters, RepositorySearchResult, SearchMetadataValue,
+};
 use crate::providers::sites::ReleaseProvider;
 
 use super::github_client::GithubClient;
@@ -192,8 +194,13 @@ impl GithubAdapter {
             repo_slug: dto.full_name,
             display_name: dto.name,
             description: dto.description,
-            stars: dto.stargazers_count,
-            language: dto.language,
+            metadata: vec![
+                (
+                    "stars".into(),
+                    SearchMetadataValue::Integer(dto.stargazers_count),
+                ),
+                ("lang".into(), SearchMetadataValue::Text(dto.language)),
+            ],
             updated_at: Self::parse_timestamp(&dto.updated_at),
         }
     }
