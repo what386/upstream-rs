@@ -45,10 +45,9 @@ fn set_executable_aliases(
         .collect();
 }
 
-/// Best-effort completion install for a package root; failures are reported
-/// through `message_callback` rather than propagated, since missing shell
-/// completions should never fail an otherwise-successful install.
-pub(super) fn install_completions_from_root<H>(
+/// Stage enabled integrations from a package root. Discovery failures are
+/// reported without failing an otherwise-successful package installation.
+pub(super) fn stage_integrations_from_root<H>(
     workspace: &InstallWorkspace,
     executable_name: &str,
     root: &Path,
@@ -56,12 +55,15 @@ pub(super) fn install_completions_from_root<H>(
 ) where
     H: FnMut(&str),
 {
-    if let Err(err) = UnitManager::stage_from_root(root, &workspace.units_dir) {
+    if workspace.integration.systemd_units
+        && let Err(err) = UnitManager::stage_from_root(root, &workspace.units_dir)
+    {
         message!(message_callback, "User unit discovery skipped: {err:#}");
     }
 
-    if let Err(err) = CompletionManager::with_paths(workspace.completions.clone())
-        .install_from_root(executable_name, root, message_callback)
+    if workspace.integration.shell_completions
+        && let Err(err) = CompletionManager::with_paths(workspace.completions.clone())
+            .install_from_root(executable_name, root, message_callback)
     {
         message!(
             message_callback,
@@ -101,7 +103,9 @@ where
         return handle_file(workspace, &extracted_path, package, message_callback);
     }
 
-    if let Err(err) = UnitManager::stage_from_root(&extracted_path, &workspace.units_dir) {
+    if workspace.integration.systemd_units
+        && let Err(err) = UnitManager::stage_from_root(&extracted_path, &workspace.units_dir)
+    {
         message!(message_callback, "User unit discovery skipped: {err:#}");
     }
 
@@ -153,7 +157,7 @@ where
     );
 
     set_executable_aliases(&mut package, executable_paths, None);
-    install_completions_from_root(
+    stage_integrations_from_root(
         workspace,
         package.primary_executable_name(),
         &out_path,
@@ -223,30 +227,17 @@ where
 
     message!(message_callback, "Made '{}' executable", filename.display());
 
-    let extractor = match crate::services::artifact::AppImageExtractor::new() {
-        Ok(extractor) => Some(extractor),
-        Err(err) => {
-            message!(
-                message_callback,
-                "{}",
-                style(format!("AppImage completion scan skipped: {err}")).yellow()
-            );
-
-            None
-        }
-    };
-
-    let completion_root = if let Some(extractor) = &extractor {
-        match extractor
-            .extract(&package.id, &out_path, message_callback)
-            .await
-        {
-            Ok(root) => Some(root),
+    let extractor = if workspace.integration.systemd_units
+        || workspace.integration.shell_completions
+        || add_entry
+    {
+        match crate::services::artifact::AppImageExtractor::new() {
+            Ok(extractor) => Some(extractor),
             Err(err) => {
                 message!(
                     message_callback,
                     "{}",
-                    style(format!("AppImage completion scan skipped: {err}")).yellow()
+                    style(format!("AppImage integration scan skipped: {err}")).yellow()
                 );
 
                 None
@@ -256,7 +247,27 @@ where
         None
     };
 
-    let primary_alias = completion_root.as_deref().and_then(|root| {
+    let integration_root = if let Some(extractor) = &extractor {
+        match extractor
+            .extract(&package.id, &out_path, message_callback)
+            .await
+        {
+            Ok(root) => Some(root),
+            Err(err) => {
+                message!(
+                    message_callback,
+                    "{}",
+                    style(format!("AppImage integration scan skipped: {err}")).yellow()
+                );
+
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let primary_alias = integration_root.as_deref().and_then(|root| {
         add_entry
             .then(|| appimage_try_exec(root, &package.id))
             .flatten()
@@ -264,8 +275,8 @@ where
 
     package.install_path = Some(out_path.clone());
     set_executable_aliases(&mut package, vec![out_path], primary_alias);
-    if let Some(root) = completion_root {
-        install_completions_from_root(
+    if let Some(root) = integration_root {
+        stage_integrations_from_root(
             workspace,
             package.primary_executable_name(),
             &root,
@@ -422,5 +433,56 @@ mod tests {
         );
 
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn integration_discovery_respects_each_setting_independently() {
+        use crate::{
+            services::{
+                integration::{CompletionManager, CompletionShell},
+                packaging::staging::InstallWorkspace,
+            },
+            utils::test_support,
+        };
+        for (units, completions) in [(false, false), (true, false), (false, true), (true, true)] {
+            let root = test_support::temp_root(
+                "upstream-integration-settings",
+                &format!("{units}-{completions}"),
+            );
+
+            let paths = test_support::upstream_paths(&root);
+            fs::create_dir_all(paths.config.config_file.parent().unwrap()).unwrap();
+            fs::write(
+                &paths.config.config_file,
+                format!(
+                    "[integration]\nsystemd_units = {units}\nshell_completions = {completions}\n"
+                ),
+            )
+            .unwrap();
+            let source = root.join("source");
+            fs::create_dir_all(source.join("lib/systemd/user")).unwrap();
+            fs::create_dir_all(source.join("completions")).unwrap();
+            fs::write(
+                source.join("lib/systemd/user/tool.service"),
+                "[Service]\nExecStart=/usr/bin/tool\n",
+            )
+            .unwrap();
+            fs::write(
+                source.join("completions/tool.bash"),
+                "complete -W hello tool\n",
+            )
+            .unwrap();
+            let workspace = InstallWorkspace::new(&paths, "tool").unwrap();
+            super::stage_integrations_from_root(&workspace, "tool", &source, &mut None::<fn(&str)>);
+            assert_eq!(workspace.units_dir.join("tool.service").exists(), units);
+            let has_bash = CompletionManager::installed_shells().contains(&CompletionShell::Bash);
+            assert_eq!(
+                workspace.completions.bash_dir.join("tool").exists(),
+                completions && has_bash
+            );
+
+            drop(workspace);
+            fs::remove_dir_all(root).unwrap();
+        }
     }
 }

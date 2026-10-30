@@ -168,6 +168,14 @@ impl<'a> UnitManager<'a> {
             return Ok(Vec::new());
         }
 
+        if !crate::storage::system::config::ConfigStorage::new(&self.paths.config.config_file)?
+            .get_config()
+            .integration
+            .systemd_units
+        {
+            return Ok(Vec::new());
+        }
+
         let mut units = Vec::new();
         for entry in fs::read_dir(staged)? {
             let entry = entry?;
@@ -293,28 +301,6 @@ impl<'a> UnitManager<'a> {
         Ok(changed)
     }
 
-    /// A failed reload must not prevent offline/headless package installation.
-    pub fn reload(&self) -> Result<()> {
-        if !cfg!(target_os = "linux") {
-            return Ok(());
-        }
-
-        let output = std::process::Command::new("systemctl")
-            .args(["--user", "--no-ask-password", "daemon-reload"])
-            .stdin(std::process::Stdio::null())
-            .output()
-            .context("Unable to run systemctl --user daemon-reload")?;
-
-        if !output.status.success() {
-            bail!(
-                "systemctl --user daemon-reload: {}",
-                String::from_utf8_lossy(&output.stderr).trim()
-            );
-        }
-
-        Ok(())
-    }
-
     pub fn availability_notice(&self, id: &str) -> Result<Option<String>> {
         use std::fmt::Write;
         let paths = self.installed_paths(id)?;
@@ -343,9 +329,53 @@ impl<'a> UnitManager<'a> {
         };
 
         eprintln!("{notice}");
-        if self.reload().is_err() {
-            eprintln!("  Reload when a user manager is available: systemctl --user daemon-reload");
+        self.reload_after_change();
+    }
+
+    /// Reloading is best effort, including on hosts without a running user manager.
+    pub fn reload_after_change(&self) {
+        match self.reload_if_enabled() {
+            Ok(true) => {}
+            Ok(false) => eprintln!("  Reload manually: systemctl --user daemon-reload"),
+            Err(error) => eprintln!(
+                "  User units changed; automatic reload failed ({error:#}). Run: systemctl --user daemon-reload"
+            ),
         }
+    }
+
+    fn reload_if_enabled(&self) -> Result<bool> {
+        self.reload_with(|| {
+            let output = std::process::Command::new("systemctl")
+                .args(["--user", "--no-ask-password", "daemon-reload"])
+                .stdin(std::process::Stdio::null())
+                .output()
+                .context("Unable to run systemctl --user daemon-reload")?;
+
+            if !output.status.success() {
+                bail!(
+                    "systemctl --user daemon-reload: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                );
+            }
+
+            Ok(())
+        })
+    }
+
+    fn reload_with(&self, reload: impl FnOnce() -> Result<()>) -> Result<bool> {
+        if !cfg!(target_os = "linux") {
+            return Ok(false);
+        }
+
+        let config =
+            crate::storage::system::config::ConfigStorage::new(&self.paths.config.config_file)?;
+
+        if !config.get_config().integration.systemd_daemon_reload {
+            return Ok(false);
+        }
+
+        reload()?;
+        Ok(true)
     }
 }
 
@@ -662,5 +692,74 @@ mod tests {
 
         assert!(actual.contains("ExecStop=/usr/bin/helper stop"));
         assert!(actual.contains("Environment=EXEC=/usr/bin/tool"));
+    }
+
+    #[test]
+    fn reload_policy_defaults_on_and_can_be_disabled_without_running_a_command() {
+        let root = test_support::temp_root("upstream-unit-test", "reload-config");
+        let paths = test_support::upstream_paths(&root);
+        let manager = UnitManager::new(&paths);
+        let mut calls = 0;
+        assert!(
+            manager
+                .reload_with(|| {
+                    calls += 1;
+                    Ok(())
+                })
+                .unwrap()
+        );
+
+        assert_eq!(calls, 1);
+        assert!(
+            manager
+                .reload_with(|| anyhow::bail!("no user manager"))
+                .is_err()
+        );
+
+        write(
+            paths.config.config_file.parent().unwrap(),
+            "config.toml",
+            "[integration]\nsystemd_daemon_reload = false\n",
+        );
+        assert!(
+            !manager
+                .reload_with(|| panic!("disabled reload must not execute systemctl"))
+                .unwrap()
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn disabling_units_skips_installation_but_still_removes_owned_units() {
+        let root = test_support::temp_root("upstream-unit-test", "disabled-units");
+        let paths = test_support::upstream_paths(&root);
+        let package = package(&paths);
+        let stage = root.join("stage");
+        write(&stage, "tool.service", SERVICE);
+        let manager = UnitManager::new(&paths);
+        manager.install(&package, &stage).unwrap();
+        write(
+            paths.config.config_file.parent().unwrap(),
+            "config.toml",
+            "[integration]\nsystemd_units = false\n",
+        );
+        assert!(
+            manager
+                .install(&package, &root.join("not-staged"))
+                .unwrap()
+                .is_empty()
+        );
+
+        assert!(manager.remove(&package.id).unwrap());
+        assert!(
+            !paths
+                .integration
+                .user_units_dir
+                .join("tool.service")
+                .exists()
+        );
+
+        fs::remove_dir_all(root).unwrap();
     }
 }

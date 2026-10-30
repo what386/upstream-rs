@@ -263,6 +263,9 @@ mod tests {
         assert_eq!(storage.get_config().download.high_threads, 4);
         assert_eq!(storage.get_config().concurrency.check_concurrency, 8);
         assert_eq!(storage.get_config().concurrency.install_concurrency, 4);
+        assert!(storage.get_config().integration.systemd_units);
+        assert!(storage.get_config().integration.systemd_daemon_reload);
+        assert!(storage.get_config().integration.shell_completions);
         assert!(storage.get_config().logging.enabled);
         assert_eq!(storage.get_config().logging.level, LoggingLevel::Info);
         assert_eq!(storage.get_config().logging.vacuum, 10_000);
@@ -415,5 +418,40 @@ mod tests {
         assert_eq!(storage.get_config().download.low_threads, 2);
 
         cleanup(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn integration_reload_config_round_trips_and_rejects_non_boolean_values() {
+        let path = temp_config_file("integration-reload");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let mut storage = ConfigStorage::new(&path).unwrap();
+        storage
+            .try_set_value("integration.systemd_daemon_reload", "false")
+            .unwrap();
+        assert!(storage.get_config().integration.systemd_units);
+        assert!(storage.get_config().integration.shell_completions);
+        storage
+            .try_set_value("integration.systemd_units", "false")
+            .unwrap();
+        storage
+            .try_set_value("integration.shell_completions", "false")
+            .unwrap();
+        let storage = ConfigStorage::new(&path).unwrap();
+        assert!(!storage.get_config().integration.systemd_units);
+        assert!(!storage.get_config().integration.shell_completions);
+        assert!(!storage.get_config().integration.systemd_daemon_reload);
+        assert_eq!(
+            storage.get_flattened_config()["integration.systemd_daemon_reload"],
+            "false"
+        );
+
+        let mut storage = storage;
+        assert!(
+            storage
+                .try_set_value("integration.systemd_daemon_reload", "sometimes")
+                .is_err()
+        );
+
+        cleanup(&path).unwrap();
     }
 }

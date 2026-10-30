@@ -133,7 +133,13 @@ impl<'a> BuildWorker<'a> {
         Self::emit_status(line_callback, "Staging built artifact ...");
         cancellation::check()?;
         let persisted_artifact = Self::persist_artifact(&artifact)?;
-        if let Some(parent) = persisted_artifact.parent()
+        let integration =
+            crate::storage::system::config::ConfigStorage::new(&self.paths.config.config_file)?
+                .get_config()
+                .integration;
+
+        if integration.systemd_units
+            && let Some(parent) = persisted_artifact.parent()
             && let Err(error) = crate::services::integration::UnitManager::stage_from_root(
                 &source.workspace_path,
                 &parent.join("systemd/user"),

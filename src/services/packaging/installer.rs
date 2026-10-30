@@ -814,39 +814,42 @@ impl<'a> PackageInstaller<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
-        progress!(
-            progress_callback,
-            PackageProgressEvent::Phase(PackagePhase::InstallingCompletions)
-        );
-
-        let executable_name = installed_package.primary_executable_name().to_owned();
-        if let Err(err) = crate::services::integration::CompletionManager::with_paths(
-            self.workspace().completions.clone(),
-        )
-        .install_from_release_assets(
-            &executable_name,
-            release,
-            self.provider_manager,
-            package_provider,
-            artifact_cache,
-            message_callback,
-        )
-        .await
-        {
+        if self.workspace().integration.shell_completions {
             progress!(
                 progress_callback,
-                PackageProgressEvent::Warning(format!("Completion install skipped: {err}"))
+                PackageProgressEvent::Phase(PackagePhase::InstallingCompletions)
             );
+
+            let executable_name = installed_package.primary_executable_name().to_owned();
+            if let Err(err) = crate::services::integration::CompletionManager::with_paths(
+                self.workspace().completions.clone(),
+            )
+            .install_from_release_assets(
+                &executable_name,
+                release,
+                self.provider_manager,
+                package_provider,
+                artifact_cache,
+                message_callback,
+            )
+            .await
+            {
+                progress!(
+                    progress_callback,
+                    PackageProgressEvent::Warning(format!("Completion install skipped: {err}"))
+                );
+            }
         }
 
-        if let Err(error) = crate::services::integration::UnitManager::stage_release_assets(
-            release,
-            self.provider_manager,
-            package_provider,
-            &self.workspace().root().join("unit-assets"),
-            &self.workspace().units_dir,
-        )
-        .await
+        if self.workspace().integration.systemd_units
+            && let Err(error) = crate::services::integration::UnitManager::stage_release_assets(
+                release,
+                self.provider_manager,
+                package_provider,
+                &self.workspace().root().join("unit-assets"),
+                &self.workspace().units_dir,
+            )
+            .await
         {
             progress!(
                 progress_callback,
@@ -876,7 +879,8 @@ impl<'a> PackageInstaller<'a> {
             ));
         }
 
-        if package.install_type == crate::models::upstream::InstallType::Build
+        if self.workspace().integration.systemd_units
+            && package.install_type == crate::models::upstream::InstallType::Build
             && let Some(parent) = artifact_path.parent()
             && let Err(error) = crate::services::integration::UnitManager::stage_from_root(
                 parent,

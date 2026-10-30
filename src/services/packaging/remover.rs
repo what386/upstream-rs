@@ -244,14 +244,9 @@ impl<'a> PackageRemover<'a> {
             .as_ref()
             .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.id))?;
 
-        let unit_manager = UnitManager::new(self.paths);
-        if unit_manager.remove(&package.id)?
-            && let Err(error) = unit_manager.reload()
-        {
-            message!(
-                message_callback,
-                "User units removed; daemon-reload pending: {error:#}"
-            );
+        let units = UnitManager::new(self.paths);
+        if units.remove(&package.id)? {
+            units.reload_after_change();
         }
 
         self.remove_runtime_integrations(package, message_callback)?;

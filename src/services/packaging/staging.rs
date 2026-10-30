@@ -9,7 +9,8 @@ use anyhow::anyhow;
 use anyhow::{Context, Result};
 
 use crate::{
-    providers::assets::filenames::filesystem_name, services::integration::CompletionPaths,
+    models::upstream::config::IntegrationConfig, providers::assets::filenames::filesystem_name,
+    services::integration::CompletionPaths, storage::system::config::ConfigStorage,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -20,6 +21,7 @@ use crate::{
 /// completed successfully.
 pub struct InstallWorkspace {
     root: PathBuf,
+    pub integration: IntegrationConfig,
     pub appimages_dir: PathBuf,
     pub binaries_dir: PathBuf,
     pub archives_dir: PathBuf,
@@ -31,6 +33,10 @@ pub struct InstallWorkspace {
 
 impl InstallWorkspace {
     pub fn new(paths: &UpstreamPaths, package_name: &str) -> Result<Self> {
+        let integration = ConfigStorage::new(&paths.config.config_file)?
+            .get_config()
+            .integration;
+
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|duration| duration.as_nanos())
@@ -70,6 +76,7 @@ impl InstallWorkspace {
 
         Ok(Self {
             root,
+            integration,
             appimages_dir,
             binaries_dir,
             archives_dir,

@@ -14,6 +14,30 @@ sections and defaults are defined in `src/models/upstream/config/`.
 | `download` | Asset worker thresholds and parallelism |
 | `concurrency` | Package check and install limits |
 | `logging` | JSONL audit retention and severity |
+| `integration` | Host integration behavior |
+
+All integration settings default to `true`:
+
+| Setting | Controls |
+| --- | --- |
+| `integration.systemd_units` | Discovering and installing bundled user units |
+| `integration.shell_completions` | Discovering and installing bundled shell completions |
+| `integration.systemd_daemon_reload` | Reloading systemd after managed unit files change |
+
+Disabling discovery also skips supplementary release-asset downloads. Removal
+still cleans up existing managed integrations. Desktop entries remain controlled
+by `--desktop`.
+
+`integration.systemd_daemon_reload` defaults to `true`. It controls best-effort
+reloading of systemd's user manager after managed unit files are installed,
+updated, or removed. Set it to `false` to reload manually:
+
+```bash
+upstream config set integration.systemd_daemon_reload=false
+```
+
+This setting does not enable, start, or restart services. Reload failures never
+fail the package operation; Upstream prints a manual reload command instead.
 
 Provider tokens are isolated in `metadata/auth.toml`; they must not be included
 in config, package, or profile exports. Provider clients should receive tokens

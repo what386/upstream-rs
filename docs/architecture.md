@@ -36,9 +36,16 @@ Units are staged with the package, installed without enabling or starting them,
 and tracked under `state/units` for replacement recovery and removal. Existing
 unowned user files are never overwritten. Commands matching an installed package
 executable are adjusted to its final path. Successful installs report the unit
-names and manual enable/start commands. `systemctl --user daemon-reload` is best
-effort so installation works without a running user manager. The initial backend
-is Linux only.
+names and manual enable/start commands. A best-effort `systemctl --user
+daemon-reload` follows successful installation, replacement, or removal of units.
+`integration.systemd_daemon_reload` defaults to `true`; disabling it or a failed
+reload produces manual reload guidance. Units are never enabled or started
+automatically. The initial backend is Linux only.
+
+`integration.systemd_units` and `integration.shell_completions` default to `true`.
+Install workspaces capture these settings to gate discovery, supplementary
+downloads, and activation. Removal remains independent of these installation
+settings so previously managed files are still cleaned up.
 
 Integration paths honor XDG directories: application entries, user units, Bash
 and Zsh completions use the data directory; Fish completions and Fish/Nushell

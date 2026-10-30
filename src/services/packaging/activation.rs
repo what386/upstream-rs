@@ -137,6 +137,10 @@ impl PreparedInstall {
     }
 
     fn install_completions(&self, paths: &UpstreamPaths) -> Result<()> {
+        if !self.workspace.integration.shell_completions {
+            return Ok(());
+        }
+
         let executable_name = filesystem_name(self.package.primary_executable_name());
         let candidates = [
             (
@@ -949,7 +953,7 @@ impl<'a> PackageActivator<'a> {
 
         let units = UnitManager::new(self.paths);
         if had_units && units.installed_paths(&package.id)?.is_empty() {
-            let _ = units.reload();
+            units.reload_after_change();
         }
 
         units.notify_available(&package.id);
