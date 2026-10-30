@@ -132,10 +132,7 @@ impl Package {
 
     pub fn record_release(&mut self, release: &Release) {
         self.version = release.version.clone();
-        if matches!(
-            self.provider,
-            Provider::Github | Provider::Gitlab | Provider::Gitea
-        ) {
+        if self.provider.is_forge() || self.provider == Provider::AppImageHub {
             self.release_tag = Some(release.tag.clone());
             self.release_published_at =
                 (release.published_at != DateTime::<Utc>::MIN_UTC).then_some(release.published_at);

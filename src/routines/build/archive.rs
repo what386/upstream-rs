@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail, ensure};
 use chrono::Utc;
 
 use crate::models::{
@@ -177,6 +177,11 @@ impl<'a> SourceDownloader<'a> {
         git_ref: &str,
         base_url: Option<&str>,
     ) -> Result<Asset> {
+        ensure!(
+            provider.is_forge(),
+            "Build supports forge providers only (github/gitlab/gitea)"
+        );
+
         let url = match provider {
             Provider::Github => {
                 format!("https://api.github.com/repos/{repo_slug}/tarball/{git_ref}")
@@ -190,11 +195,7 @@ impl<'a> SourceDownloader<'a> {
                 "{}/api/v1/repos/{repo_slug}/archive/{git_ref}.tar.gz",
                 base_url.unwrap_or("https://gitea.com")
             ),
-            Provider::Direct | Provider::WebScraper => {
-                return Err(anyhow::anyhow!(
-                    "Build supports forge providers only (github/gitlab/gitea)"
-                ));
-            }
+            _ => bail!("Source archive downloads are not implemented for {provider}"),
         };
 
         Ok(Asset::new(

@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, ensure};
 use chrono::Utc;
 
 use crate::application::cancellation;
@@ -214,6 +214,11 @@ fn branch_release(branch: &str) -> Release {
 }
 
 fn git_clone_url(repo_slug: &str, provider: &Provider, base_url: Option<&str>) -> Result<String> {
+    ensure!(
+        provider.is_forge(),
+        "Git source cache supports forge providers only (github/gitlab/gitea)"
+    );
+
     match provider {
         Provider::Github => Ok(format!("https://github.com/{repo_slug}.git")),
         Provider::Gitlab | Provider::Gitea => Ok(format!(
@@ -225,9 +230,7 @@ fn git_clone_url(repo_slug: &str, provider: &Provider, base_url: Option<&str>) -
             })),
             repo_slug.trim_start_matches('/')
         )),
-        Provider::Direct | Provider::WebScraper => Err(anyhow!(
-            "Git source cache supports forge providers only (github/gitlab/gitea)"
-        )),
+        _ => Err(anyhow!("Git clone URLs are not implemented for {provider}")),
     }
 }
 

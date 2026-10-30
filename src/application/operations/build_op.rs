@@ -76,14 +76,11 @@ impl<'a> BuildOperation<'a> {
                 discovered.base_url = Some(base);
             }
 
-            match discovered.kind {
-                SourceKind::Repository | SourceKind::ForgeUrl => {}
-                SourceKind::DirectAsset | SourceKind::DownloadPage => {
-                    return Err(anyhow!(
-                        "Build requires a forge repository source (github/gitlab/gitea), got '{}'",
-                        input.repo_slug
-                    ));
-                }
+            if !discovered.provider.is_forge() {
+                return Err(anyhow!(
+                    "Build requires a forge repository source (github/gitlab/gitea), got '{}'",
+                    input.repo_slug
+                ));
             }
 
             (
@@ -93,10 +90,7 @@ impl<'a> BuildOperation<'a> {
             )
         };
 
-        if !matches!(
-            resolved_provider,
-            Provider::Github | Provider::Gitlab | Provider::Gitea
-        ) {
+        if !resolved_provider.is_forge() {
             bail!("Build supports forge providers only (github/gitlab/gitea)");
         }
 

@@ -3,7 +3,7 @@
 Upstream is a rootless package manager for installing software directly from
 upstream release sources.
 
-It installs release artifacts from GitHub, GitLab, Gitea, direct URLs, and
+It installs release artifacts from GitHub, GitLab, Gitea, AppImageHub, direct URLs, and
 download pages, or builds from source when a usable binary is unavailable.
 
 ## Installation

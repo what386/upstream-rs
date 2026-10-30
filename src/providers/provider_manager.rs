@@ -10,6 +10,7 @@ use crate::models::provider::{Asset, Release, RepositorySearchFilters, Repositor
 use crate::models::upstream::{Package, config::DownloadConfig};
 use crate::providers::assets::{AssetCandidate, AssetSelector};
 use crate::providers::sites::ReleaseProvider;
+use crate::providers::sites::appimagehub::{AppImageHubAdapter, AppImageHubClient};
 use crate::providers::sites::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::sites::github::{GithubAdapter, GithubClient};
 use crate::providers::sites::gitlab::{GitlabAdapter, GitlabClient};
@@ -28,6 +29,7 @@ pub struct ProviderManager {
     gitea: OnceLock<GiteaAdapter>,
     http: OnceLock<WebScraperAdapter>,
     direct: OnceLock<DirectAdapter>,
+    appimagehub: OnceLock<AppImageHubAdapter>,
 
     asset_selector: AssetSelector,
 }
@@ -49,6 +51,7 @@ impl ProviderManager {
             gitea: OnceLock::new(),
             http: OnceLock::new(),
             direct: OnceLock::new(),
+            appimagehub: OnceLock::new(),
             asset_selector: AssetSelector::new(),
         })
     }
@@ -112,6 +115,23 @@ impl ProviderManager {
         base_url: Option<&str>,
     ) -> Result<Box<dyn ReleaseProvider + '_>> {
         match provider {
+            Provider::AppImageHub => {
+                if let Some(base) = base_url {
+                    return Ok(Box::new(AppImageHubAdapter::new(AppImageHubClient::new(
+                        Some(base),
+                        self.download_config,
+                    )?)));
+                }
+
+                if let Some(adapter) = self.appimagehub.get() {
+                    return Ok(Box::new(adapter));
+                }
+
+                let adapter =
+                    AppImageHubAdapter::new(AppImageHubClient::new(None, self.download_config)?);
+
+                Ok(Box::new(self.appimagehub.get_or_init(|| adapter)))
+            }
             Provider::Github => Ok(Box::new(self.github_adapter()?)),
             Provider::Gitlab => {
                 if let Some(base) = base_url {
@@ -389,7 +409,7 @@ impl ProviderManager {
         base_url: Option<&str>,
     ) -> Result<String> {
         // Keep this explicit guard for a clear forge-only error before provider resolution.
-        if matches!(provider, Provider::WebScraper | Provider::Direct) {
+        if !provider.is_forge() {
             return Err(anyhow!(
                 "Branch builds support forge providers only (github/gitlab/gitea)"
             ));

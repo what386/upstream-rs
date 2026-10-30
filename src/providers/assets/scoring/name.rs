@@ -1,11 +1,7 @@
-use crate::models::common::enums::Provider;
 use crate::models::upstream::Package;
 
 pub(in crate::providers::assets) fn package_identity(package: &Package) -> String {
-    if matches!(
-        package.provider,
-        Provider::Github | Provider::Gitlab | Provider::Gitea
-    ) {
+    if package.provider.is_forge() {
         return package
             .repo_slug
             .rsplit('/')

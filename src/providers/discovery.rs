@@ -15,6 +15,7 @@ use crate::{
 pub enum SourceKind {
     Repository,
     ForgeUrl,
+    CatalogEntry,
     DirectAsset,
     DownloadPage,
 }
@@ -116,6 +117,16 @@ pub fn infer_source(source: &str) -> Result<DiscoveredSource> {
         return Err(anyhow!("Source cannot be empty"));
     }
 
+    if original.starts_with("appimagehub:") {
+        return Ok(DiscoveredSource {
+            repo_slug: crate::providers::sites::appimagehub::content_id(&original)?,
+            original,
+            provider: Provider::AppImageHub,
+            base_url: None,
+            kind: SourceKind::CatalogEntry,
+        });
+    }
+
     if let Ok(url) = Url::parse(&original) {
         return infer_url_source(&original, &url);
     }
@@ -147,6 +158,11 @@ pub fn normalize_source_for_provider(
     let trimmed = source.trim();
     if trimmed.is_empty() {
         return String::new();
+    }
+
+    if *provider == Provider::AppImageHub {
+        return crate::providers::sites::appimagehub::content_id(trimmed)
+            .unwrap_or_else(|_| trimmed.to_owned());
     }
 
     let Ok(url) = Url::parse(trimmed) else {
@@ -200,7 +216,7 @@ pub fn normalize_source_for_provider(
                 return slug;
             }
         }
-        Provider::Direct | Provider::WebScraper => {}
+        Provider::AppImageHub | Provider::Direct | Provider::WebScraper => {}
     }
 
     trimmed.to_string()
@@ -212,15 +228,12 @@ pub fn infer_package_name(
     base_url: Option<&str>,
 ) -> Result<Option<String>> {
     let source_info = if let Some(provider) = provider {
-        match provider {
-            Provider::Github | Provider::Gitlab | Provider::Gitea => {
-                let repo_slug = normalize_source_for_provider(source, provider, base_url);
-                return Ok(repo_name_from_slug(&repo_slug).map(str::to_string));
-            }
-            Provider::Direct | Provider::WebScraper => {
-                return Ok(friendly_name(provider, source, base_url));
-            }
+        if provider.is_forge() {
+            let repo_slug = normalize_source_for_provider(source, provider, base_url);
+            return Ok(repo_name_from_slug(&repo_slug).map(str::to_string));
         }
+
+        return Ok(friendly_name(provider, source, base_url));
     } else {
         infer_source(source)?
     };
@@ -228,10 +241,8 @@ pub fn infer_package_name(
     if matches!(
         source_info.kind,
         SourceKind::Repository | SourceKind::ForgeUrl
-    ) && matches!(
-        source_info.provider,
-        Provider::Github | Provider::Gitlab | Provider::Gitea
-    ) {
+    ) && source_info.provider.is_forge()
+    {
         return Ok(repo_name_from_slug(&source_info.repo_slug).map(str::to_string));
     }
 
@@ -244,10 +255,12 @@ pub fn infer_package_name(
 
 /// Returns the human-facing package name used by package operations.
 pub fn friendly_name(provider: &Provider, source: &str, _base_url: Option<&str>) -> Option<String> {
+    if provider.is_forge() {
+        return repo_name_from_slug(source).map(str::to_string);
+    }
+
     match provider {
-        Provider::Github | Provider::Gitlab | Provider::Gitea => {
-            repo_name_from_slug(source).map(str::to_string)
-        }
+        Provider::AppImageHub => crate::providers::sites::appimagehub::content_id(source).ok(),
         Provider::Direct | Provider::WebScraper => {
             let url = Url::parse(source).ok()?;
             let host = url.host_str()?.trim_end_matches('.').to_ascii_lowercase();
@@ -279,6 +292,7 @@ pub fn friendly_name(provider: &Provider, source: &str, _base_url: Option<&str>)
             let index = labels.len() - if multi_label_suffix { 3 } else { 2 };
             Some(labels[index].to_string())
         }
+        _ => None,
     }
 }
 
@@ -293,6 +307,16 @@ fn repo_name_from_slug(repo_slug: &str) -> Option<&str> {
 
 fn infer_url_source(original: &str, url: &Url) -> Result<DiscoveredSource> {
     let host = url.host_str().unwrap_or("").to_lowercase();
+    if matches!(host.as_str(), "appimagehub.com" | "www.appimagehub.com") {
+        return Ok(DiscoveredSource {
+            original: original.to_owned(),
+            repo_slug: crate::providers::sites::appimagehub::content_id(original)?,
+            provider: Provider::AppImageHub,
+            base_url: None,
+            kind: SourceKind::CatalogEntry,
+        });
+    }
+
     let segments: Vec<&str> = url
         .path_segments()
         .map(|parts| parts.filter(|part| !part.is_empty()).collect())

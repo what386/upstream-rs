@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS packages (
     version_tag_template TEXT,
     channel TEXT NOT NULL CHECK (channel IN ('Stable', 'Preview', 'Nightly')),
     provider TEXT NOT NULL CHECK (
-        provider IN ('Github', 'Gitlab', 'Gitea', 'WebScraper', 'Direct')
+        provider IN ('Github', 'Gitlab', 'Gitea', 'WebScraper', 'Direct', 'AppImageHub')
     ),
     base_url TEXT,
     install_type TEXT NOT NULL CHECK (install_type IN ('Release', 'Build')),
