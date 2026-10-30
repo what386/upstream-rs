@@ -5,7 +5,9 @@ use crate::{
     models::upstream::Package,
     providers::assets::filenames::filesystem_name,
     services::{
-        integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
+        integration::{
+            CompletionManager, DesktopManager, ShellManager, SymlinkManager, UnitManager,
+        },
         packaging::{
             PackagePhase, PackageProgressEvent, PackageRemover, staging::InstallWorkspace,
         },
@@ -335,6 +337,10 @@ impl ReplacementBackup {
             self.move_integration(path, "completions")?;
         }
 
+        for path in UnitManager::new(paths).backup_paths(&self.previous_package.id)? {
+            self.move_integration(path, "units")?;
+        }
+
         #[cfg(not(target_os = "macos"))]
         self.move_integration(
             DesktopManager::managed_entry_path(paths, &self.previous_package.id)?,
@@ -394,6 +400,10 @@ impl<'a> PackageActivator<'a> {
                 SymlinkManager::new(&self.paths.state.symlinks_dir).remove_link(&package.id)
         {
             errors.push(format!("failed to remove runtime link: {error:#}"));
+        }
+
+        if let Err(error) = UnitManager::new(self.paths).remove(&package.id) {
+            errors.push(format!("failed to remove user units: {error:#}"));
         }
 
         if let Err(error) = CompletionManager::new(self.paths)
@@ -552,6 +562,8 @@ impl<'a> PackageActivator<'a> {
             }
 
             prepared.install_completions(self.paths)?;
+            UnitManager::new(self.paths)
+                .install(&updated_package, &prepared.workspace.units_dir)?;
             if add_entry {
                 prepared.install_desktop_artifacts(self.paths)?;
             }
@@ -616,6 +628,7 @@ impl<'a> PackageActivator<'a> {
             ));
         }
 
+        UnitManager::new(self.paths).notify_available(&updated_package.id);
         Ok(updated_package)
     }
 }
@@ -740,6 +753,17 @@ impl<'a> PackageActivator<'a> {
                 backup,
                 error,
                 "Failed to activate prepared completions",
+                message_callback,
+            );
+        }
+
+        if let Err(error) =
+            UnitManager::new(self.paths).install(&updated_package, &prepared.workspace.units_dir)
+        {
+            return self.restore_after_failure(
+                backup,
+                error,
+                "Failed to activate prepared user units",
                 message_callback,
             );
         }
@@ -891,6 +915,12 @@ impl<'a> PackageActivator<'a> {
             );
         }
 
+        let had_units = replacement
+            .backup
+            .moved_integrations
+            .iter()
+            .any(|(path, _)| path.starts_with(&self.paths.integration.user_units_dir));
+
         let package = replacement.package;
         let backup_dir = replacement.backup.backup_dir;
         if let Err(error) = Self::remove_path_if_exists(&backup_dir) {
@@ -917,6 +947,12 @@ impl<'a> PackageActivator<'a> {
                 package.id
             ))?;
 
+        let units = UnitManager::new(self.paths);
+        if had_units && units.installed_paths(&package.id)?.is_empty() {
+            let _ = units.reload();
+        }
+
+        units.notify_available(&package.id);
         Ok(package)
     }
 }
@@ -1185,6 +1221,20 @@ mod tests {
             name: "tool".to_string(),
         }];
 
+        #[cfg(target_os = "linux")]
+        {
+            let old_units = root.join("old-units");
+            fs::create_dir_all(&old_units).unwrap();
+            fs::write(
+                old_units.join("tool.service"),
+                "[Service]\nExecStart=/usr/bin/tool --old\n",
+            )
+            .unwrap();
+            crate::services::integration::UnitManager::new(&paths)
+                .install(&previous, &old_units)
+                .unwrap();
+        }
+
         let workspace = InstallWorkspace::new(&paths, "tool").expect("create workspace");
         let missing_staged_path = workspace.root().join("binaries/tool");
         let mut candidate = previous.clone();
@@ -1218,6 +1268,83 @@ mod tests {
                 .all(|entry| !entry.file_name().to_string_lossy().ends_with(".old"))
         );
 
+        #[cfg(target_os = "linux")]
+        {
+            let units = crate::services::integration::UnitManager::new(&paths)
+                .installed_paths(&previous.id)
+                .unwrap();
+
+            assert_eq!(units.len(), 1);
+            assert!(fs::read_to_string(&units[0]).unwrap().contains("--old"));
+        }
+
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn failed_metadata_persistence_removes_activated_units() {
+        let root = test_support::temp_root("upstream-unit-activation", "failed-persist");
+        let paths = test_support::upstream_paths(&root);
+        let workspace = InstallWorkspace::new(&paths, "tool").unwrap();
+        let staged = workspace.binaries_dir.join("tool");
+        fs::write(&staged, b"binary").unwrap();
+        fs::write(
+            workspace.units_dir.join("tool.service"),
+            "[Service]\nExecStart=/usr/bin/tool\n",
+        )
+        .unwrap();
+        let mut package = Package::with_defaults(
+            "tool".into(),
+            "owner/tool".into(),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+
+        package.install_path = Some(staged.clone());
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            name: "tool".into(),
+            path: staged,
+        }];
+        let mut database = PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
+        rusqlite::Connection::open(&paths.metadata.packages_database_file)
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER reject_install BEFORE INSERT ON packages BEGIN
+             SELECT RAISE(FAIL, 'injected persistence failure'); END;",
+            )
+            .unwrap();
+        let result = PackageActivator::new(&paths)
+            .install_new(
+                &mut database,
+                PreparedInstall::new(package, workspace),
+                false,
+                &mut None::<fn(&str)>,
+                &mut None::<fn(crate::services::packaging::PackageProgressEvent)>,
+            )
+            .await;
+
+        assert!(result.is_err());
+        assert!(
+            !paths
+                .integration
+                .user_units_dir
+                .join("tool.service")
+                .exists()
+        );
+
+        assert!(!paths.install.binaries_dir.join("tool").exists());
+        assert!(
+            crate::services::integration::UnitManager::new(&paths)
+                .installed_paths("tool")
+                .unwrap()
+                .is_empty()
+        );
+
+        fs::remove_dir_all(root).unwrap();
     }
 }

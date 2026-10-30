@@ -82,6 +82,17 @@ upstream build owner/repo --build-profile dotnet
 
 Supported build profiles are `rust`, `dotnet`, `go`, `zig`, and `cmake`.
 
+On Linux, Upstream discovers systemd user units bundled in release archives,
+release assets, build sources, and extracted AppImages. It installs identifiable
+user units into `$XDG_DATA_HOME/systemd/user` (default:
+`~/.local/share/systemd/user`) and reports their names after installation.
+Enable and start them explicitly:
+
+```bash
+systemctl --user enable example.service
+systemctl --user start example.service
+```
+
 ### Manage packages
 
 ```bash

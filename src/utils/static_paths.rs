@@ -145,6 +145,7 @@ impl StatePaths {
 /// Paths for system integration (XDG dirs and shell completions)
 pub struct IntegrationPaths {
     pub xdg_applications_dir: PathBuf,
+    pub user_units_dir: PathBuf,
     pub bash_completions_dir: PathBuf,
     pub fish_completions_dir: PathBuf,
     pub zsh_completions_dir: PathBuf,
@@ -154,6 +155,9 @@ impl IntegrationPaths {
     pub fn new(dirs: &AppDirs) -> Self {
         Self {
             xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
+            user_units_dir: dirs::data_dir()
+                .unwrap_or_else(|| dirs.user_dir.join(".local/share"))
+                .join("systemd/user"),
             bash_completions_dir: dirs
                 .user_dir
                 .join(".local/share/bash-completion/completions"),

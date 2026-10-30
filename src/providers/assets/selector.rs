@@ -666,6 +666,13 @@ mod tests {
                     155_000,
                     Utc::now(),
                 ),
+                Asset::new(
+                    "https://example.invalid/tool.service".to_string(),
+                    5,
+                    "tool.service".to_string(),
+                    500,
+                    Utc::now(),
+                ),
             ],
             false,
             "v1.0.0",

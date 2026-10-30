@@ -8,7 +8,7 @@ use crate::{
     providers::assets::filenames::simplify::executable_alias,
     services::{
         artifact::{archive_layout, compression_handler, permission_handler},
-        integration::CompletionManager,
+        integration::{CompletionManager, UnitManager},
         packaging::staging::InstallWorkspace,
     },
     utils::filesystem::safe_move,
@@ -56,6 +56,10 @@ pub(super) fn install_completions_from_root<H>(
 ) where
     H: FnMut(&str),
 {
+    if let Err(err) = UnitManager::stage_from_root(root, &workspace.units_dir) {
+        message!(message_callback, "User unit discovery skipped: {err:#}");
+    }
+
     if let Err(err) = CompletionManager::with_paths(workspace.completions.clone())
         .install_from_root(executable_name, root, message_callback)
     {
@@ -95,6 +99,10 @@ where
 
     if extracted_path.is_file() {
         return handle_file(workspace, &extracted_path, package, message_callback);
+    }
+
+    if let Err(err) = UnitManager::stage_from_root(&extracted_path, &workspace.units_dir) {
+        message!(message_callback, "User unit discovery skipped: {err:#}");
     }
 
     let dirname = extracted_path

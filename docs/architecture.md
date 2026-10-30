@@ -23,6 +23,23 @@ and metadata persistence succeed.
 Cancellation is cooperative: the first interrupt requests cleanup; a second
 interrupt may terminate immediately and can leave recovery work behind.
 
+## Package integrations
+
+`services/integration/unit_manager.rs` discovers systemd user units in release
+archives, standalone release assets, build sources, and extracted AppImages.
+Explicit `systemd/user` and `linux-systemd/user` directories identify user units;
+flat files require a user target such as `default.target` or
+`graphical-session.target`. Matching timer/service companions are kept together.
+System-unit directories and unrendered `.in` templates are excluded.
+
+Units are staged with the package, installed without enabling or starting them,
+and tracked under `state/units` for replacement recovery and removal. Existing
+unowned user files are never overwritten. Commands matching an installed package
+executable are adjusted to its final path. Successful installs report the unit
+names and manual enable/start commands. `systemctl --user daemon-reload` is best
+effort so installation works without a running user manager. The initial backend
+is Linux only.
+
 ## Identity
 
 The package ID is the canonical provider-and-source identity. It is not the

@@ -133,6 +133,17 @@ impl<'a> BuildWorker<'a> {
         Self::emit_status(line_callback, "Staging built artifact ...");
         cancellation::check()?;
         let persisted_artifact = Self::persist_artifact(&artifact)?;
+        if let Some(parent) = persisted_artifact.parent()
+            && let Err(error) = crate::services::integration::UnitManager::stage_from_root(
+                &source.workspace_path,
+                &parent.join("systemd/user"),
+            )
+        {
+            Self::emit_status(
+                line_callback,
+                format!("User unit discovery skipped: {error:#}"),
+            );
+        }
 
         let version = if source.release.version == Version::new(0, 0, 0, false) {
             Version::from_tag(&source.release.tag).unwrap_or_else(|_| Version::new(0, 0, 0, false))

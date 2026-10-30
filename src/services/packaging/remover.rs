@@ -4,7 +4,9 @@ use crate::{
     providers::assets::filenames::filesystem_name,
     providers::discovery::friendly_name,
     services::{
-        integration::{CompletionManager, DesktopManager, ShellManager, SymlinkManager},
+        integration::{
+            CompletionManager, DesktopManager, ShellManager, SymlinkManager, UnitManager,
+        },
         packaging::{
             PackagePhase, PackageProgressEvent,
             disk_impact::{ByteEstimate, DiskImpact, SignedByteEstimate, estimate_existing_paths},
@@ -85,6 +87,7 @@ impl<'a> PackageRemover<'a> {
                 .zsh_completions_dir
                 .join(format!("_{package_name}")),
         );
+        paths.extend(UnitManager::new(self.paths).backup_paths(&package.id)?);
         estimate_existing_paths(paths)
     }
 
@@ -240,6 +243,16 @@ impl<'a> PackageRemover<'a> {
             .install_path
             .as_ref()
             .ok_or_else(|| anyhow!("Package '{}' has no install path recorded", package.id))?;
+
+        let unit_manager = UnitManager::new(self.paths);
+        if unit_manager.remove(&package.id)?
+            && let Err(error) = unit_manager.reload()
+        {
+            message!(
+                message_callback,
+                "User units removed; daemon-reload pending: {error:#}"
+            );
+        }
 
         self.remove_runtime_integrations(package, message_callback)?;
 

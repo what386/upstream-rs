@@ -26,6 +26,7 @@ pub struct InstallWorkspace {
     pub completions: CompletionPaths,
     pub desktop_dir: PathBuf,
     pub icons_dir: PathBuf,
+    pub units_dir: PathBuf,
 }
 
 impl InstallWorkspace {
@@ -46,6 +47,7 @@ impl InstallWorkspace {
         let completions = CompletionPaths::under(&root.join("completions"));
         let desktop_dir = root.join("desktop");
         let icons_dir = root.join("icons");
+        let units_dir = root.join("units");
 
         for path in [
             &appimages_dir,
@@ -56,6 +58,7 @@ impl InstallWorkspace {
             &completions.zsh_dir,
             &desktop_dir,
             &icons_dir,
+            &units_dir,
         ] {
             fs::create_dir_all(path).with_context(|| {
                 format!(
@@ -73,6 +76,7 @@ impl InstallWorkspace {
             completions,
             desktop_dir,
             icons_dir,
+            units_dir,
         })
     }
 

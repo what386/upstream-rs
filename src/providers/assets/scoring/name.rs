@@ -113,6 +113,11 @@ pub(in crate::providers::assets) fn is_auxiliary_asset_name(name: &str) -> bool 
         || name.ends_with(".spdx")
         || name.ends_with(".sbom")
         || name.ends_with(".txt")
+        || name.ends_with(".service")
+        || name.ends_with(".socket")
+        || name.ends_with(".timer")
+        || name.ends_with(".path")
+        || name.ends_with(".target")
 }
 
 fn starts_with_primary_target(stem: &str, package_name: &str) -> bool {

@@ -54,6 +54,7 @@ pub fn upstream_paths(root: &Path) -> UpstreamPaths {
         },
         integration: IntegrationPaths {
             xdg_applications_dir: dirs.user_dir.join(".local/share/applications"),
+            user_units_dir: dirs.user_dir.join(".local/share/systemd/user"),
             bash_completions_dir: dirs
                 .user_dir
                 .join(".local/share/bash-completion/completions"),

@@ -839,6 +839,23 @@ impl<'a> PackageInstaller<'a> {
             );
         }
 
+        if let Err(error) = crate::services::integration::UnitManager::stage_release_assets(
+            release,
+            self.provider_manager,
+            package_provider,
+            &self.workspace().root().join("unit-assets"),
+            &self.workspace().units_dir,
+        )
+        .await
+        {
+            progress!(
+                progress_callback,
+                PackageProgressEvent::Warning(format!(
+                    "User unit asset discovery skipped: {error:#}"
+                ))
+            );
+        }
+
         Ok(installed_package)
     }
 
@@ -857,6 +874,16 @@ impl<'a> PackageInstaller<'a> {
                 "Local artifact path '{}' does not exist",
                 artifact_path.display()
             ));
+        }
+
+        if package.install_type == crate::models::upstream::InstallType::Build
+            && let Some(parent) = artifact_path.parent()
+            && let Err(error) = crate::services::integration::UnitManager::stage_from_root(
+                parent,
+                &self.workspace().units_dir,
+            )
+        {
+            message!(message_callback, "User unit discovery skipped: {error:#}");
         }
 
         message!(message_callback, "Installing local artifact ...");
