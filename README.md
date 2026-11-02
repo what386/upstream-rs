@@ -108,7 +108,6 @@ application to create a launcher entry.
 
 On Linux, bundled systemd user units are installed and reported after the
 package is installed. Enabling and starting services remains your choice.
-Integration behavior is configurable; see [configuration](docs/configuration.md).
 
 ## Export and restore your setup
 
@@ -131,9 +130,12 @@ Tokens are stored separately from configuration and excluded from exports.
 
 ## Documentation
 
-Use `upstream --help` or `upstream <command> --help` for commands and options.
-See [configuration](docs/configuration.md), [building from source](docs/build.md),
-and the [developer documentation](docs/index.md) for details.
+- [Usage guide](docs/usage.md): install options, package settings, verification,
+  shell integration, updates, and backups.
+- [Configuration reference](docs/config.md): every available key, its default,
+  and how to change it.
+
+Use `upstream <command> --help` for all options and examples.
 
 ## License
 
