@@ -53,15 +53,29 @@ open the active file.
 The file uses TOML sections. Include only the settings you want to change;
 omitted keys use their defaults. Unknown keys are rejected.
 
+The full default configuration is:
+
 ```toml
 [download]
-high_threads = 2
+low_threshold_mb = 16
+high_threshold_mb = 64
+low_threads = 2
+high_threads = 4
+
+[concurrency]
+check_concurrency = 8
+install_concurrency = 4
 
 [logging]
-level = "warn"
+enabled = true
+level = "info"
+vacuum = 10000
+max_size_mb = 10
 
 [integration]
-systemd_units = false
+systemd_units = true
+systemd_daemon_reload = true
+shell_completions = true
 ```
 
 ## API tokens
