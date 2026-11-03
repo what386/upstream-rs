@@ -71,6 +71,10 @@ jobs:
           merge-multiple: true
       - name: Generate completion assets
         run: bash scripts/generate-completions.sh dist
+      - name: Copy systemd user units
+        run: |
+          cp contrib/systemd/user/upstream-update-check.service dist/
+          cp contrib/systemd/user/upstream-update-check.timer dist/
       - name: Generate release SBOM
         uses: anchore/sbom-action@v0
         with:
@@ -94,6 +98,8 @@ jobs:
             completions.zsh
             completions.ps1
             completions.elvish
+            upstream-update-check.service
+            upstream-update-check.timer
             upstream.spdx.json
           )
           for asset in "${expected_assets[@]}"; do

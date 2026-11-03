@@ -1,0 +1,7 @@
+[Unit]
+Description=Refresh the Upstream update cache
+
+[Service]
+Type=oneshot
+ExecSearchPath=%h/.upstream/state/symlinks:%h/.cargo/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=upstream --no-pager upgrade --check --machine-readable

@@ -1,0 +1,9 @@
+[Unit]
+Description=Check for Upstream package updates every 24 hours
+
+[Timer]
+OnStartupSec=5m
+OnUnitActiveSec=24h
+
+[Install]
+WantedBy=timers.target
