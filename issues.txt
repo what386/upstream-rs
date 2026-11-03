@@ -1,4 +1,1 @@
-Directory-only download links and AppImageHub search
-are not supported yet. Architecture selection uses the API's file metadata.
-
 
