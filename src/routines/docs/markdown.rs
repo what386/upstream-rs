@@ -111,7 +111,7 @@ install notes
         assert!(
             sections
                 .iter()
-                .any(|section| section.heading == "Common workflows")
+                .any(|section| section.heading == "Find and install software")
         );
 
         assert!(
