@@ -632,7 +632,8 @@ impl<'a> PackageActivator<'a> {
             ));
         }
 
-        UnitManager::new(self.paths).notify_available(&updated_package.id);
+        UnitManager::new(self.paths)
+            .notify_available_with_progress(&updated_package.id, progress_callback);
         Ok(updated_package)
     }
 }
@@ -910,6 +911,22 @@ impl<'a> PackageActivator<'a> {
         package_database: &mut PackageDatabase,
         replacement: PendingReplacement,
     ) -> Result<Package> {
+        self.persist_with_progress(
+            package_database,
+            replacement,
+            &mut None::<fn(PackageProgressEvent)>,
+        )
+    }
+
+    pub fn persist_with_progress<P>(
+        &self,
+        package_database: &mut PackageDatabase,
+        replacement: PendingReplacement,
+        progress_callback: &mut Option<P>,
+    ) -> Result<Package>
+    where
+        P: FnMut(PackageProgressEvent),
+    {
         if let Err(persistence_error) = package_database.upsert_package(&replacement.package) {
             return self.restore_after_failure(
                 replacement.backup,
@@ -956,7 +973,7 @@ impl<'a> PackageActivator<'a> {
             units.reload_after_change();
         }
 
-        units.notify_available(&package.id);
+        units.notify_available_with_progress(&package.id, progress_callback);
         Ok(package)
     }
 }

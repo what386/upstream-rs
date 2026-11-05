@@ -112,7 +112,7 @@ fn render_install_progress_row(
             }
         }
 
-        PackageProgressEvent::Warning(message) => message,
+        PackageProgressEvent::Warning(message) | PackageProgressEvent::Notice(message) => message,
     };
 
     format!(" {name:<name_width$}{detail}")
@@ -284,7 +284,14 @@ async fn run_release_plan(
     let install_version = preview.release.tag.clone();
     let progress_pb = pb.clone();
     let mut last_emit = None;
+    let mut notices = Vec::new();
+    let pending_notices = &mut notices;
     let mut progress_callback = Some(move |event: PackageProgressEvent| {
+        if let PackageProgressEvent::Notice(message) = event {
+            pending_notices.push(message);
+            return;
+        }
+
         let should_emit = last_emit
             .map(|elapsed: std::time::Instant| elapsed.elapsed() >= PROGRESS_UPDATE_INTERVAL)
             .unwrap_or(true);
@@ -338,6 +345,9 @@ async fn run_release_plan(
                 "{}",
                 output::success("Install complete: 1 installed, 0 failed.")
             );
+            for notice in notices {
+                eprintln!("{notice}");
+            }
         }
         Err(err) => {
             println!(

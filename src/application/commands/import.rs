@@ -85,7 +85,9 @@ fn render_import_progress_row(
             format!("Checksumming {}", HumanBytes(checked))
         }
         PackageProgressEvent::Checksum { .. } => "Checksumming...".to_string(),
-        PackageProgressEvent::Warning(message) => output::truncate_end(&message, 96),
+        PackageProgressEvent::Warning(message) | PackageProgressEvent::Notice(message) => {
+            output::truncate_end(&message, 96)
+        }
     };
 
     format!("{name:<name_width$} {detail}")
@@ -255,6 +257,12 @@ fn new_import_progress_callback(pb: &ProgressBar, total: u32) -> impl FnMut(Impo
             progress_pb.set_length(count as u64);
             progress_pb.set_position(done as u64);
             progress_pb.set_message(render_import_progress(&active_rows, completed, total));
+        }
+        ImportProgressEvent::Package {
+            event: PackageProgressEvent::Notice(message),
+            ..
+        } => {
+            progress_pb.suspend(|| eprintln!("{message}"));
         }
         ImportProgressEvent::Package { name, event } => {
             active_rows.insert(

@@ -187,6 +187,11 @@ pub async fn run(
     let mut last_emit = None;
 
     let mut progress_callback = Some(move |event: PackageProgressEvent| {
+        if let PackageProgressEvent::Notice(message) = event {
+            progress_pb.suspend(|| eprintln!("{message}"));
+            return;
+        }
+
         let should_emit = last_emit
             .map(|elapsed: std::time::Instant| elapsed.elapsed() >= PROGRESS_UPDATE_INTERVAL)
             .unwrap_or(true);
@@ -335,7 +340,7 @@ fn render_probe_install_progress_row(
             }
         }
 
-        PackageProgressEvent::Warning(message) => message,
+        PackageProgressEvent::Warning(message) | PackageProgressEvent::Notice(message) => message,
     };
 
     format!(" {name:<name_width$}{detail}")

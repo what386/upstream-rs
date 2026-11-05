@@ -330,22 +330,48 @@ impl<'a> UnitManager<'a> {
 
     /// Emit a persistent post-install notice, even when transient progress is hidden.
     pub fn notify_available(&self, id: &str) {
-        let Ok(Some(notice)) = self.availability_notice(id) else {
+        self.notify_available_with_progress(
+            id,
+            &mut None::<fn(crate::services::packaging::PackageProgressEvent)>,
+        );
+    }
+
+    pub fn notify_available_with_progress<P>(&self, id: &str, progress: &mut Option<P>)
+    where
+        P: FnMut(crate::services::packaging::PackageProgressEvent),
+    {
+        let Ok(Some(mut notice)) = self.availability_notice(id) else {
             return;
         };
 
-        eprintln!("{notice}");
-        self.reload_after_change();
+        if let Some(reload_notice) = self.reload_notice() {
+            notice.push('\n');
+            notice.push_str(&reload_notice);
+        }
+
+        if let Some(callback) = progress.as_mut() {
+            callback(crate::services::packaging::PackageProgressEvent::Notice(
+                notice,
+            ));
+        } else {
+            eprintln!("{notice}");
+        }
     }
 
     /// Reloading is best effort, including on hosts without a running user manager.
     pub fn reload_after_change(&self) {
+        if let Some(notice) = self.reload_notice() {
+            eprintln!("{notice}");
+        }
+    }
+
+    fn reload_notice(&self) -> Option<String> {
         match self.reload_if_enabled() {
-            Ok(true) => {}
-            Ok(false) => eprintln!("  Reload manually: systemctl --user daemon-reload"),
-            Err(error) => eprintln!(
+            Ok(true) => None,
+            Ok(false) => Some("  Reload manually: systemctl --user daemon-reload".into()),
+            Err(error) => Some(format!(
                 "  User units changed; automatic reload failed ({error:#}). Run: systemctl --user daemon-reload"
-            ),
+            )),
         }
     }
 
@@ -574,6 +600,20 @@ mod tests {
         assert_eq!(manager.install(&package(&paths), &stage).unwrap().len(), 2);
         let notice = manager.availability_notice("tool").unwrap().unwrap();
         assert!(notice.contains("systemctl --user enable --now 'upstream-update-check.timer'"));
+
+        write(
+            paths.config.config_file.parent().unwrap(),
+            "config.toml",
+            "[integration]\nsystemd_daemon_reload = false\n",
+        );
+        let mut events = Vec::new();
+        manager.notify_available_with_progress("tool", &mut Some(|event| events.push(event)));
+        assert_eq!(
+            events,
+            vec![crate::services::packaging::PackageProgressEvent::Notice(
+                format!("{notice}\n  Reload manually: systemctl --user daemon-reload")
+            )]
+        );
         fs::remove_dir_all(root).unwrap();
     }
 

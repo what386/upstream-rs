@@ -108,7 +108,7 @@ fn render_reinstall_progress_row(
                 "Checksumming...".to_string()
             }
         }
-        PackageProgressEvent::Warning(message) => message,
+        PackageProgressEvent::Warning(message) | PackageProgressEvent::Notice(message) => message,
     };
 
     format!(" {name:<name_width$}{detail}")
@@ -191,6 +191,11 @@ pub async fn run(
         let progress_pb = pb.clone();
         let progress_package_name = name.clone();
         let mut progress_callback = Some(move |event: PackageProgressEvent| {
+            if let PackageProgressEvent::Notice(message) = event {
+                progress_pb.suspend(|| eprintln!("{message}"));
+                return;
+            }
+
             progress_pb.set_message(render_reinstall_progress_message(
                 &progress_package_name,
                 event,
@@ -640,7 +645,11 @@ where
         )
         .await?;
 
-    PackageActivator::new(paths).persist(package_database, updated)?;
+    PackageActivator::new(paths).persist_with_progress(
+        package_database,
+        updated,
+        progress_callback,
+    )?;
 
     Ok(())
 }

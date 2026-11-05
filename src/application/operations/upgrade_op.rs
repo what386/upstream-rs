@@ -523,7 +523,11 @@ fn complete_upgrade<P>(
 where
     P: FnMut(UpgradeProgressEvent),
 {
-    PackageActivator::new(paths).persist(package_database, updated)?;
+    PackageActivator::new(paths).persist_with_progress(
+        package_database,
+        updated,
+        &mut Some(|event| emit_package_progress(progress_callback, &name, event)),
+    )?;
     emit_progress(
         progress_callback,
         UpgradeProgressEvent::Complete {

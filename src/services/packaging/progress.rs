@@ -52,6 +52,8 @@ pub enum PackageProgressEvent {
     Phase(PackagePhase),
     /// Transient command output shown in the active progress row.
     Detail(String),
+    /// Persistent output that must survive progress-bar redraws.
+    Notice(String),
     Download {
         downloaded: u64,
         total: u64,

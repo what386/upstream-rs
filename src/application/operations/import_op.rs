@@ -347,7 +347,11 @@ impl<'a> ImportOperation<'a> {
                     let persisted = match result {
                         Ok(prepared) => {
                             let mut no_messages: Option<fn(&str)> = None;
-                            let mut no_progress: Option<fn(PackageProgressEvent)> = None;
+                            let mut activation_progress = Some(|event| {
+                                if let Some(callback) = progress_callback.as_mut() {
+                                    callback(ImportProgressEvent::Package { name: name.clone(), event });
+                                }
+                            });
                             PackageActivator::new(self.paths)
                                 .install_new_with_settings(
                                     self.package_database,
@@ -355,7 +359,7 @@ impl<'a> ImportOperation<'a> {
                                     false,
                                     trust_mode,
                                     &mut no_messages,
-                                    &mut no_progress,
+                                    &mut activation_progress,
                                 )
                                 .await
                         }

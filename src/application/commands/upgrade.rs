@@ -118,7 +118,9 @@ fn render_upgrade_progress_row(
             format!("Checksumming {}", HumanBytes(checked))
         }
         PackageProgressEvent::Checksum { .. } => "Checksumming...".to_string(),
-        PackageProgressEvent::Warning(message) => output::truncate_end(&message, 96),
+        PackageProgressEvent::Warning(message) | PackageProgressEvent::Notice(message) => {
+            output::truncate_end(&message, 96)
+        }
     };
 
     format!("{name:<name_width$}{detail}")
@@ -267,6 +269,12 @@ pub async fn run(
                 total_count = total;
                 progress_pb.set_length(total as u64);
                 progress_pb.set_position(completed as u64);
+            }
+            UpgradeProgressEvent::Package {
+                event: PackageProgressEvent::Notice(message),
+                ..
+            } => {
+                progress_pb.suspend(|| eprintln!("{message}"));
             }
             UpgradeProgressEvent::Package { name, event } => {
                 active_progress_rows.insert(

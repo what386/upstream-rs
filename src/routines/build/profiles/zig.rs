@@ -133,10 +133,6 @@ impl BuildProfileHandler for ZigProfile {
                     "ZIG_LOCAL_CACHE_DIR",
                     project_dir.join(".upstream-build").join("zig-cache"),
                 )
-                .env(
-                    "ZIG_GLOBAL_CACHE_DIR",
-                    project_dir.join(".upstream-build").join("zig-global-cache"),
-                )
                 .current_dir(&project_dir),
             "Failed to run 'zig build -Doptimize=ReleaseSafe'. Is Zig installed?",
             line_callback,
