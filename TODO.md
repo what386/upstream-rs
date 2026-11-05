@@ -1,13 +1,10 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-10-30
+@modified: 2026-11-05
 
 
 ## Tasks
-
-- [ ] feat: systemd unit integrations
-      @created 2026-09-05 03:40
 
 - [ ] feat: add macOS desktop launcher support (low) #desktop #macos
       @created 2026-09-19 16:51
@@ -36,3 +33,8 @@
 - [x] feat: optional shell integration to show available updates
       @created 2026-10-30 20:15
       @completed 2026-10-30 20:15
+
+- [x] feat: systemd unit integrations
+      @created 2026-09-05 03:40
+      @completed 2026-11-05 18:12
+
