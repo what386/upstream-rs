@@ -100,16 +100,17 @@ impl<'a> UnitManager<'a> {
             }
 
             let content = fs::read_to_string(entry.path())?;
-            // default.target is also an explicit user-unit signal for flat assets.
+            // Flat assets can identify user units through their install target
+            // or a home-relative executable search path.
             if !valid_unit(&content) {
                 continue;
             }
 
-            let explicit = user_directory || user_target(&content);
+            let explicit = user_directory || user_target(&content) || user_search_path(&content);
             discovered.push((entry.into_path(), content, explicit));
         }
 
-        // A flat foo.timer with a user target can identify its companion foo.service.
+        // An identified user unit also identifies companions with the same stem.
         let companion_groups = discovered
             .iter()
             .filter(|(_, _, explicit)| *explicit)
@@ -417,6 +418,31 @@ fn user_target(content: &str) -> bool {
         })
 }
 
+fn user_search_path(content: &str) -> bool {
+    let mut in_service = false;
+    let mut paths = Vec::new();
+    for line in content.lines().map(str::trim) {
+        if line.starts_with('[') {
+            in_service = line == "[Service]";
+            continue;
+        }
+
+        if in_service
+            && let Some((key, value)) = line.split_once('=')
+            && key.trim() == "ExecSearchPath"
+        {
+            // Empty assignments reset paths supplied by earlier directives.
+            if value.trim().is_empty() {
+                paths.clear();
+            } else {
+                paths.extend(value.trim().split(':'));
+            }
+        }
+    }
+
+    paths.iter().any(|path| path.starts_with("%h/"))
+}
+
 fn has_install_rules(content: &str) -> bool {
     let mut in_install = false;
     let mut rules = BTreeMap::new();
@@ -519,6 +545,53 @@ mod tests {
     };
 
     const SERVICE: &str = "[Unit]\nDescription=Tool\n[Service]\nExecStart=/usr/bin/tool --serve\n[Install]\nWantedBy=default.target\n";
+
+    #[test]
+    fn discovers_flat_upstream_release_units_and_installs_companion_timer() {
+        let root = test_support::temp_root("upstream-unit-test", "flat-release");
+        let paths = test_support::upstream_paths(&root);
+        let source = root.join("release-assets");
+        write(
+            &source,
+            "upstream-update-check.service",
+            include_str!("../../../contrib/systemd/user/upstream-update-check.service"),
+        );
+        write(
+            &source,
+            "upstream-update-check.timer",
+            include_str!("../../../contrib/systemd/user/upstream-update-check.timer"),
+        );
+        write(
+            &source,
+            "system-check.timer",
+            "[Timer]\nOnCalendar=daily\n[Install]\nWantedBy=timers.target\n",
+        );
+        let stage = root.join("stage");
+        assert_eq!(UnitManager::stage_from_root(&source, &stage).unwrap(), 2);
+        assert!(!stage.join("system-check.timer").exists());
+
+        let manager = UnitManager::new(&paths);
+        assert_eq!(manager.install(&package(&paths), &stage).unwrap().len(), 2);
+        let notice = manager.availability_notice("tool").unwrap().unwrap();
+        assert!(notice.contains("systemctl --user enable --now 'upstream-update-check.timer'"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn user_search_paths_require_an_active_service_directive() {
+        assert!(user_search_path(
+            "[Service]\nExecSearchPath=%h/.local/bin:/usr/bin\n"
+        ));
+        for content in [
+            "[Service]\n# ExecSearchPath=%h/.local/bin\n",
+            "[Unit]\nExecSearchPath=%h/.local/bin\n",
+            "[Service]\nExecSearchPath=/usr/bin\n",
+            "[Service]\nExecSearchPath=%h/.local/bin\nExecSearchPath=\n",
+            "[Service]\nExecSearchPath=%%h/bin\n",
+        ] {
+            assert!(!user_search_path(content), "{content}");
+        }
+    }
 
     fn package(paths: &UpstreamPaths) -> Package {
         let mut package = Package::with_defaults(
