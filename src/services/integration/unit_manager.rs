@@ -323,6 +323,7 @@ impl<'a> UnitManager<'a> {
         } else {
             notice.pop();
         }
+
         Ok(Some(notice))
     }
 
@@ -423,10 +424,12 @@ fn has_install_rules(content: &str) -> bool {
         if line.starts_with(['#', ';']) {
             continue;
         }
+
         if line.starts_with('[') {
             in_install = line == "[Install]";
             continue;
         }
+
         if in_install && let Some((key, value)) = line.split_once('=') {
             let key = key.trim();
             if matches!(
@@ -438,6 +441,7 @@ fn has_install_rules(content: &str) -> bool {
             }
         }
     }
+
     rules.values().any(|present| *present)
 }
 
@@ -548,14 +552,17 @@ mod tests {
             assert!(has_install_rules(&format!(
                 "[Install]\n{key}=tool.target\n"
             )));
+
             assert!(!has_install_rules(&format!("[Unit]\n{key}=tool.target\n")));
             assert!(!has_install_rules(&format!(
                 "[Install]\n{key}=tool.target\n{key}=\n"
             )));
         }
+
         assert!(!has_install_rules(
             "[Install]\n# WantedBy=default.target\n; Alias=tool.service\nDefaultInstance=main\n"
         ));
+
         assert!(has_install_rules(
             "[Install]\nWantedBy=default.target\nAlias=\n"
         ));
