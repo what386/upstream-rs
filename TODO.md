@@ -15,3 +15,10 @@
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
 
+
+## Completed
+
+- [x] fix: issue where some text gets overwritten by pb redraws
+      @created 2026-11-05 20:38
+      @completed 2026-11-05 20:38
+
