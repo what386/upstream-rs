@@ -15,14 +15,3 @@
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
 
-
-## Completed
-
-- [x] fix: if zsync is missing it silently falls back instead of warning
-      @created 2026-11-05 20:11
-      @completed 2026-11-05 20:11
-
-- [x] fix: table formatting for updates subcommand
-      @created 2026-11-05 20:11
-      @completed 2026-11-05 20:11
-

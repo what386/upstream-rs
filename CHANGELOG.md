@@ -2,6 +2,14 @@
 
 *Generated on 2026-11-05*
 
+## 2.21.2 — 2026-11-05
+
+### Changes
+
+- fix: if zsync is missing it silently falls back instead of warning
+- fix: table formatting for updates subcommand
+
+
 ## 2.21.1 — 2026-11-05
 
 ### Changes
