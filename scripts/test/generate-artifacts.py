@@ -108,6 +108,7 @@ def build_appimage(binary: Path, destination: Path) -> None:
         icon_dir.mkdir(parents=True)
         shutil.copyfile(binary, appdir / "usr" / "bin" / "fixture-tool")
         (appdir / "usr" / "bin" / "fixture-tool").chmod(0o755)
+        (appdir / "AppRun").symlink_to("usr/bin/fixture-tool")
         desktop = FIXTURE_TOOL_SOURCE / "fixture-tool.desktop"
         shutil.copyfile(desktop, appdir / "fixture-tool-desktop.desktop")
         shutil.copyfile(desktop, appdir / "usr" / "share" / "applications" / desktop.name)
