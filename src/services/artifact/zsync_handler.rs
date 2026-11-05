@@ -468,6 +468,7 @@ mod tests {
                 .env("PATH", "")
                 .output()
                 .unwrap();
+
             assert!(output.status.success(), "{output:?}");
             return;
         }
@@ -489,6 +490,7 @@ mod tests {
             version: Version::new(2, 0, 0, false),
             published_at: Utc::now(),
         };
+
         let package = crate::models::upstream::Package::with_defaults(
             "tool".into(),
             "owner/tool".into(),
@@ -499,6 +501,7 @@ mod tests {
             crate::models::common::enums::Provider::Github,
             None,
         );
+
         let manager = crate::providers::provider_manager::ProviderManager::new(
             None,
             None,
@@ -506,6 +509,7 @@ mod tests {
             Default::default(),
         )
         .unwrap();
+
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let mut messages = Vec::new();
         let result = runtime.block_on(super::update_package_asset(
@@ -518,6 +522,7 @@ mod tests {
             &mut Some(|message: &str| messages.push(message.to_owned())),
             &mut None::<fn(u64, u64)>,
         ));
+
         assert!(result.unwrap().is_none());
         assert!(messages.is_empty());
         assert_eq!(std::fs::read(&seed).unwrap(), b"old binary");

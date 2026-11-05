@@ -34,6 +34,7 @@ pub fn run(json: bool, notify: bool, paths: &UpstreamPaths) -> Result<()> {
         "{:<32} {:<20} {:<20} Checked",
         "Package", "Installed", "Available"
     );
+
     println!("{header}");
     println!("{}", crate::output::divider(header.len()));
 
