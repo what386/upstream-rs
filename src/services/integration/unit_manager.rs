@@ -1,7 +1,3 @@
-//! Discovery and ownership of package-provided background service units.
-//!
-//! The initial backend installs systemd user units on Linux. Other platforms
-//! are no-ops; discovering a unit never enables or starts it.
 use std::{
     collections::BTreeMap,
     fs,
@@ -308,17 +304,25 @@ impl<'a> UnitManager<'a> {
             return Ok(None);
         }
 
-        let mut notice = format!("{id}: systemd user units available:\n");
+        let mut notice = String::from("systemd user units available:\n");
+        let mut commands = Vec::new();
         for path in paths {
-            writeln!(
-                notice,
-                "  {}",
-                path.file_name().unwrap_or_default().to_string_lossy()
-            )
-            .expect("write unit notice");
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            writeln!(notice, "  {name}").expect("write unit notice");
+
+            // Templates need an instance before they can be started.
+            if !name.contains("@.") && has_install_rules(&fs::read_to_string(&path)?) {
+                let quoted_name = name.replace('\'', "'\\''");
+                commands.push(format!("  systemctl --user enable --now '{quoted_name}'"));
+            }
         }
 
-        notice.push_str("  Enable with: systemctl --user enable <unit>\n  Start with:  systemctl --user start <unit>");
+        if !commands.is_empty() {
+            notice.push_str("Start with:\n");
+            notice.push_str(&commands.join("\n"));
+        } else {
+            notice.pop();
+        }
         Ok(Some(notice))
     }
 
@@ -412,7 +416,31 @@ fn user_target(content: &str) -> bool {
         })
 }
 
-/// Replace only package executable command tokens, preserving arguments and helpers.
+fn has_install_rules(content: &str) -> bool {
+    let mut in_install = false;
+    let mut rules = BTreeMap::new();
+    for line in content.lines().map(str::trim) {
+        if line.starts_with(['#', ';']) {
+            continue;
+        }
+        if line.starts_with('[') {
+            in_install = line == "[Install]";
+            continue;
+        }
+        if in_install && let Some((key, value)) = line.split_once('=') {
+            let key = key.trim();
+            if matches!(
+                key,
+                "WantedBy" | "RequiredBy" | "UpheldBy" | "Alias" | "Also"
+            ) {
+                // Empty assignments reset earlier values for the same directive.
+                rules.insert(key, !value.trim().is_empty());
+            }
+        }
+    }
+    rules.values().any(|present| *present)
+}
+
 fn adapt_commands(content: &str, package: &Package) -> String {
     let mut output = String::new();
     for line in content.lines() {
@@ -515,6 +543,64 @@ mod tests {
     }
 
     #[test]
+    fn install_rules_require_nonempty_install_directives() {
+        for key in ["WantedBy", "RequiredBy", "UpheldBy", "Alias", "Also"] {
+            assert!(has_install_rules(&format!(
+                "[Install]\n{key}=tool.target\n"
+            )));
+            assert!(!has_install_rules(&format!("[Unit]\n{key}=tool.target\n")));
+            assert!(!has_install_rules(&format!(
+                "[Install]\n{key}=tool.target\n{key}=\n"
+            )));
+        }
+        assert!(!has_install_rules(
+            "[Install]\n# WantedBy=default.target\n; Alias=tool.service\nDefaultInstance=main\n"
+        ));
+        assert!(has_install_rules(
+            "[Install]\nWantedBy=default.target\nAlias=\n"
+        ));
+    }
+
+    #[test]
+    fn availability_notice_only_suggests_enabling_installable_units() {
+        let root = test_support::temp_root("upstream-unit-test", "notice");
+        let paths = test_support::upstream_paths(&root);
+        let package = package(&paths);
+        let stage = root.join("stage");
+        write(
+            &stage,
+            "upstream-update-check.service",
+            include_str!("../../../contrib/systemd/user/upstream-update-check.service"),
+        );
+        write(
+            &stage,
+            "upstream-update-check.timer",
+            include_str!("../../../contrib/systemd/user/upstream-update-check.timer"),
+        );
+        write(&stage, "tool@.service", SERVICE);
+        let manager = UnitManager::new(&paths);
+        manager.install(&package, &stage).unwrap();
+        assert_eq!(
+            manager.availability_notice(&package.id).unwrap().unwrap(),
+            "systemd user units available:\n  tool@.service\n  upstream-update-check.service\n  upstream-update-check.timer\nStart with:\n  systemctl --user enable --now 'upstream-update-check.timer'"
+        );
+
+        // With only static units, there is no enable instruction.
+        fs::remove_file(
+            paths
+                .integration
+                .user_units_dir
+                .join("upstream-update-check.timer"),
+        )
+        .unwrap();
+        let notice = manager.availability_notice(&package.id).unwrap().unwrap();
+        assert!(notice.contains("upstream-update-check.service"));
+        assert!(!notice.contains("Start with:"));
+        assert!(!notice.contains("systemctl"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn discovers_user_directories_flat_assets_and_companions_but_excludes_system_units() {
         let root = test_support::temp_root("upstream-unit-test", "discovery");
         let source = root.join("source");
@@ -603,8 +689,8 @@ mod tests {
         let notice = manager.availability_notice(&package.id).unwrap().unwrap();
         assert!(notice.contains("systemd user units available"));
         assert!(notice.contains("tool.service"));
-        assert!(notice.contains("systemctl --user enable <unit>"));
-        assert!(notice.contains("systemctl --user start <unit>"));
+        assert!(notice.contains("systemctl --user enable --now 'tool.service'"));
+        assert!(!notice.contains("systemctl --user enable --now 'tool.timer'"));
         assert!(manager.remove(&package.id).unwrap());
         assert!(
             !paths
