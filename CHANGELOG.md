@@ -1,6 +1,17 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-10-15*
+*Generated on 2026-11-05*
+
+## 2.21.0 — 2026-11-05
+
+### Changes
+
+- feat: printed tables now alternate colors
+- feat: appimagehub provider: search and packaging
+- feat: cache available updates and add offline viewing
+- feat: optional shell integration to show available updates
+- feat: systemd unit integrations
+
 
 ## 2.20.4 — 2026-10-15
 
