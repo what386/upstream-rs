@@ -582,6 +582,7 @@ mod tests {
         assert!(user_search_path(
             "[Service]\nExecSearchPath=%h/.local/bin:/usr/bin\n"
         ));
+
         for content in [
             "[Service]\n# ExecSearchPath=%h/.local/bin\n",
             "[Unit]\nExecSearchPath=%h/.local/bin\n",
