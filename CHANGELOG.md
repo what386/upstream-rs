@@ -2,6 +2,13 @@
 
 *Generated on 2026-11-05*
 
+## 2.21.1 — 2026-11-05
+
+### Changes
+
+- fix: unit discovery now supports relative execsearchpaths
+
+
 ## 2.21.0 — 2026-11-05
 
 ### Changes

@@ -15,10 +15,3 @@
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
 
-
-## Completed
-
-- [x] fix: unit discovery now supports relative execsearchpaths
-      @created 2026-11-05 19:56
-      @completed 2026-11-05 19:56
-
