@@ -16,6 +16,17 @@ use crate::{
     providers::provider_manager::ProviderManager,
 };
 
+#[derive(Debug)]
+struct ZsyncNotFound;
+
+impl std::fmt::Display for ZsyncNotFound {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("Required external binary 'zsync' was not found in PATH")
+    }
+}
+
+impl std::error::Error for ZsyncNotFound {}
+
 /// A zsync-produced artifact and its cache. Dropping it removes the temporary
 /// workspace after the caller has verified and installed the artifact.
 pub struct UpdatedAsset {
@@ -98,6 +109,10 @@ where
     .await
     {
         let _ = fs::remove_dir_all(&root);
+        if error.is::<ZsyncNotFound>() {
+            return Ok(None);
+        }
+
         return Err(error).with_context(|| format!("Failed to update '{}' via zsync", package.id));
     }
 
@@ -410,9 +425,7 @@ fn parse_zsync_percent(bytes: &[u8]) -> Option<f64> {
 
 fn zsync_spawn_error(error: io::Error) -> anyhow::Error {
     match error.kind() {
-        io::ErrorKind::NotFound => {
-            anyhow!("Required external binary 'zsync' was not found in PATH")
-        }
+        io::ErrorKind::NotFound => ZsyncNotFound.into(),
         io::ErrorKind::PermissionDenied => {
             anyhow!("Required external binary 'zsync' is not executable")
         }
@@ -437,6 +450,79 @@ mod tests {
             123,
             Utc.with_ymd_and_hms(2026, 6, 27, 12, 0, 0).unwrap(),
         )
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn missing_zsync_quietly_skips_update_and_cleans_workspace() {
+        const CHILD: &str = "UPSTREAM_TEST_MISSING_ZSYNC";
+        if std::env::var_os(CHILD).is_none() {
+            // Isolate PATH from the other tests without mutating process-wide state.
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "services::artifact::zsync_handler::tests::missing_zsync_quietly_skips_update_and_cleans_workspace",
+                    "--nocapture",
+                ])
+                .env(CHILD, "1")
+                .env("PATH", "")
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "{output:?}");
+            return;
+        }
+
+        let root = crate::utils::test_support::temp_root("upstream-zsync-test", "missing");
+        std::fs::create_dir_all(&root).unwrap();
+        let seed = root.join("tool");
+        std::fs::write(&seed, b"old binary").unwrap();
+        let mut target = asset("tool");
+        target.filetype = crate::models::common::enums::Filetype::Binary;
+        let release = Release {
+            id: 1,
+            tag: "v2.0.0".into(),
+            name: "v2.0.0".into(),
+            body: String::new(),
+            is_draft: false,
+            is_prerelease: false,
+            assets: vec![target.clone(), asset("tool.zsync")],
+            version: Version::new(2, 0, 0, false),
+            published_at: Utc::now(),
+        };
+        let package = crate::models::upstream::Package::with_defaults(
+            "tool".into(),
+            "owner/tool".into(),
+            target.filetype,
+            None,
+            None,
+            crate::models::common::enums::Channel::Stable,
+            crate::models::common::enums::Provider::Github,
+            None,
+        );
+        let manager = crate::providers::provider_manager::ProviderManager::new(
+            None,
+            None,
+            None,
+            Default::default(),
+        )
+        .unwrap();
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let mut messages = Vec::new();
+        let result = runtime.block_on(super::update_package_asset(
+            &package,
+            &release,
+            &target,
+            &manager,
+            &root,
+            &seed,
+            &mut Some(|message: &str| messages.push(message.to_owned())),
+            &mut None::<fn(u64, u64)>,
+        ));
+        assert!(result.unwrap().is_none());
+        assert!(messages.is_empty());
+        assert_eq!(std::fs::read(&seed).unwrap(), b"old binary");
+        assert_eq!(std::fs::read_dir(&root).unwrap().count(), 1);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

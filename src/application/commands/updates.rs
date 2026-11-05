@@ -30,10 +30,12 @@ pub fn run(json: bool, notify: bool, paths: &UpstreamPaths) -> Result<()> {
         return Ok(());
     }
 
-    println!(
+    let header = format!(
         "{:<32} {:<20} {:<20} Checked",
         "Package", "Installed", "Available"
     );
+    println!("{header}");
+    println!("{}", crate::output::divider(header.len()));
 
     let now = Utc::now();
     for (index, (id, entry)) in snapshot.updates.into_iter().enumerate() {
