@@ -42,6 +42,19 @@ Useful install options:
 | `--desktop` | Create a desktop launcher for a GUI application. |
 | `--dry-run` | Preview the installation without downloading or installing. |
 
+If an archive has no executable files in its root or `bin` directory, Upstream
+looks for likely commands by inspecting binary headers and script shebangs.
+It shows candidates in a selector with confidence scores; select a command to
+make it executable, or press Esc to cancel. Scores rank executable permissions,
+binary headers, script shebangs, and matches with the expected command name;
+they are not probabilities. `--yes` accepts a single candidate but does not
+choose between multiple candidates.
+
+Upgrades try normal executable discovery first. If it finds nothing, they reuse
+recorded executable paths relative to the install directory when those files
+still exist, without inspecting their contents or scoring them again. Missing
+recorded files fall back to the candidate selector.
+
 To build from source, use `upstream build owner/repo`. Add `--branch main` to
 track a branch, or `--tag` to select a release. Profiles are detected automatically;
 `--build-profile` can select `rust`, `go`, `zig`, `dotnet`, or `cmake`.
