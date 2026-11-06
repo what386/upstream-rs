@@ -246,6 +246,7 @@ pub async fn run(
         "{spinner:.green} Upgraded {pos}/{len} packages{msg}",
     )?);
     overall_pb.enable_steady_tick(Duration::from_millis(120));
+    let _progress_pause_guard = output::progress_for_prompts(&overall_pb);
 
     let progress_pb = overall_pb.clone();
     let mut active_progress_rows = BTreeMap::new();

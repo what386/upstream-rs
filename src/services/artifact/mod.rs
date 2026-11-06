@@ -1,6 +1,7 @@
 pub mod archive_layout;
 pub mod compression_handler;
 pub mod dotslash_parser;
+pub mod executable_candidates;
 pub mod permission_handler;
 pub mod zsync_handler;
 

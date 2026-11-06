@@ -9,8 +9,10 @@ use anyhow::anyhow;
 use anyhow::{Context, Result};
 
 use crate::{
-    models::upstream::config::IntegrationConfig, providers::assets::filenames::filesystem_name,
-    services::integration::CompletionPaths, storage::system::config::ConfigStorage,
+    models::upstream::{Package, config::IntegrationConfig},
+    providers::assets::filenames::filesystem_name,
+    services::integration::CompletionPaths,
+    storage::system::config::ConfigStorage,
     utils::static_paths::UpstreamPaths,
 };
 
@@ -29,6 +31,7 @@ pub struct InstallWorkspace {
     pub desktop_dir: PathBuf,
     pub icons_dir: PathBuf,
     pub units_dir: PathBuf,
+    pub previous_executables: Vec<PathBuf>,
 }
 
 impl InstallWorkspace {
@@ -84,7 +87,29 @@ impl InstallWorkspace {
             desktop_dir,
             icons_dir,
             units_dir,
+            previous_executables: Vec::new(),
         })
+    }
+
+    /// Carry installed command paths into preparation before the upgrader
+    /// clears live paths from the replacement package. Package metadata already
+    /// persists these choices; keep only paths relative to the old install root.
+    pub fn reuse_executables_from(mut self, package: &Package) -> Self {
+        if let Some(root) = &package.install_path {
+            self.previous_executables = package
+                .executables
+                .iter()
+                .filter_map(|executable| {
+                    let relative = executable.path.strip_prefix(root).ok()?;
+                    (!relative.as_os_str().is_empty()
+                        && relative
+                            .components()
+                            .all(|part| matches!(part, std::path::Component::Normal(_))))
+                    .then(|| relative.to_path_buf())
+                })
+                .collect();
+        }
+        self
     }
 
     pub fn root(&self) -> &Path {

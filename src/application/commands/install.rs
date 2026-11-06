@@ -277,6 +277,7 @@ async fn run_release_plan(
     pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
     pb.enable_steady_tick(Duration::from_millis(120));
     pb.set_message(format!("Installing {}", package.id));
+    let _progress_pause_guard = output::progress_for_prompts(&pb);
 
     let install_name = package.id.clone();
     let progress_name = install_name.clone();

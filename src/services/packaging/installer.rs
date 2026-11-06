@@ -1055,6 +1055,7 @@ mod tests {
         let selected_musl = archive_layout::select_nested_archive_root(
             &extracted,
             &make_package("tool", Some("musl"), None),
+            &[],
         )
         .expect("select musl root");
 
@@ -1062,10 +1063,43 @@ mod tests {
         let selected_glibc = archive_layout::select_nested_archive_root(
             &extracted,
             &make_package("tool", None, Some("linux-gnu")),
+            &[],
         )
         .expect("select non-excluded root");
 
         assert!(selected_glibc.ends_with(musl_dir));
+
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(
+            extracted.join(musl_dir).join("tool"),
+            fs::Permissions::from_mode(0o644),
+        )
+        .unwrap();
+        let remembered = [std::path::PathBuf::from("tool")];
+        let normal = archive_layout::select_nested_archive_root(
+            &extracted,
+            &make_package("tool", Some("musl"), None),
+            &remembered,
+        )
+        .unwrap();
+        assert!(
+            !normal.ends_with(musl_dir),
+            "normal executable discovery must beat the remembered path"
+        );
+        for dir in [gnu_dir, glibc_dir] {
+            fs::set_permissions(
+                extracted.join(dir).join("tool"),
+                fs::Permissions::from_mode(0o644),
+            )
+            .unwrap();
+        }
+        let reused = archive_layout::select_nested_archive_root(
+            &extracted,
+            &make_package("tool", Some("musl"), None),
+            &remembered,
+        )
+        .unwrap();
+        assert!(reused.ends_with(musl_dir));
         fs::remove_dir_all(&root).expect("cleanup");
     }
 
@@ -1086,6 +1120,7 @@ mod tests {
             archive_layout::select_nested_archive_root(
                 &extracted,
                 &make_package("tool", None, None),
+                &[],
             )
             .is_none()
         );

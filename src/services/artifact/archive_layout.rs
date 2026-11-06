@@ -6,13 +6,17 @@ use std::{
 use crate::{
     models::upstream::Package,
     providers::assets::filenames::parser::{parse_arch, parse_os},
-    services::artifact::permission_handler,
+    services::artifact::executable_candidates,
     utils::platform::platform_info::{ArchitectureInfo, CpuArch, OSKind},
 };
 
 /// Choose an extracted subdirectory only when its name explicitly identifies
 /// a compatible platform and it contains the package executable.
-pub fn select_nested_archive_root(extracted_path: &Path, package: &Package) -> Option<PathBuf> {
+pub fn select_nested_archive_root(
+    extracted_path: &Path,
+    package: &Package,
+    previous_executables: &[PathBuf],
+) -> Option<PathBuf> {
     if !extracted_path.is_dir() {
         return None;
     }
@@ -44,18 +48,34 @@ pub fn select_nested_archive_root(extracted_path: &Path, package: &Package) -> O
             }
 
             let arch_score = nested_arch_score(&architecture.cpu_arch, &target_arch)?;
-            let preferred_name = package.repo_slug.rsplit('/').next().unwrap_or_default();
-            if permission_handler::find_executables(&entry.path(), preferred_name).is_empty() {
-                return None;
-            }
-
             let score = nested_archive_score(&name, &target_os, arch_score, &package.match_pattern);
             Some((score, name, entry.path()))
         })
         .collect::<Vec<_>>();
 
     candidates.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
-    candidates.into_iter().next().map(|(_, _, path)| path)
+    let preferred_name = package.repo_slug.rsplit('/').next().unwrap_or_default();
+    // normal root selection before considering remembered commands
+    // or candidates whose execute permissions are missing
+    candidates
+        .iter()
+        .find(|(_, _, root)| {
+            !executable_candidates::find_executables(root, preferred_name).is_empty()
+        })
+        .or_else(|| {
+            candidates.iter().find(|(_, _, root)| {
+                !previous_executables.is_empty()
+                    && previous_executables
+                        .iter()
+                        .all(|path| root.join(path).is_file())
+            })
+        })
+        .or_else(|| {
+            candidates.iter().find(|(_, _, root)| {
+                !executable_candidates::find_executable_candidates(root, preferred_name).is_empty()
+            })
+        })
+        .map(|(_, _, path)| path.clone())
 }
 
 fn nested_arch_score(host_arch: &CpuArch, target_arch: &CpuArch) -> Option<i32> {

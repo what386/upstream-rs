@@ -367,7 +367,8 @@ impl<'a> PackageUpgrader<'a> {
             PackageProgressEvent::Phase(PackagePhase::CreatingSnapshot)
         );
 
-        let workspace = InstallWorkspace::new(self.paths, &package.id)?;
+        let workspace =
+            InstallWorkspace::new(self.paths, &package.id)?.reuse_executables_from(package);
         let mut staging_installer =
             PackageInstaller::new_for_workspace(self.provider_manager, self.paths, workspace)?;
 

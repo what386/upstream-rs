@@ -1,8 +1,10 @@
 use console::{Key, Term, style};
 
 use super::style::truncate_visible;
+use indicatif::ProgressBar;
 use std::fmt;
 use std::io::{self, IsTerminal};
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 const SELECTION_SCROLL_MARGIN: usize = 1;
@@ -11,6 +13,28 @@ const PREVIEW_CHROME_ROWS: usize = 3;
 const FOOTER_ROWS: usize = 1;
 
 static ASSUME_YES: AtomicBool = AtomicBool::new(false);
+static PROMPT_PROGRESS: Mutex<Option<ProgressBar>> = Mutex::new(None);
+
+/// Keep progress redraws from overwriting prompts raised during installation.
+pub struct PromptProgressGuard(Option<ProgressBar>);
+
+pub fn progress_for_prompts(progress: &ProgressBar) -> PromptProgressGuard {
+    PromptProgressGuard(PROMPT_PROGRESS.lock().unwrap().replace(progress.clone()))
+}
+
+impl Drop for PromptProgressGuard {
+    fn drop(&mut self) {
+        *PROMPT_PROGRESS.lock().unwrap() = self.0.take();
+    }
+}
+
+fn with_progress_suspended<T>(action: impl FnOnce() -> T) -> T {
+    let progress = PROMPT_PROGRESS.lock().unwrap().clone();
+    match progress {
+        Some(progress) => progress.suspend(action),
+        None => action(),
+    }
+}
 
 pub fn set_assume_yes(value: bool) {
     ASSUME_YES.store(value, Ordering::Relaxed);
@@ -50,7 +74,7 @@ fn confirm_impl(prompt: impl fmt::Display, default_yes: bool) -> anyhow::Result<
 }
 
 pub fn confirm_or_cancel(prompt: impl fmt::Display, default_yes: bool) -> anyhow::Result<()> {
-    if confirm_impl(prompt, default_yes)? {
+    if with_progress_suspended(|| confirm_impl(prompt, default_yes))? {
         return Ok(());
     }
 
@@ -189,7 +213,9 @@ fn select_from_table_impl(
         anyhow::bail!("Interactive selection requires a terminal.");
     }
 
-    select_from_list_with_term(&term, &prompt.to_string(), headers, items, previews)
+    with_progress_suspended(|| {
+        select_from_list_with_term(&term, &prompt.to_string(), headers, items, previews)
+    })
 }
 
 fn select_from_list_with_term(

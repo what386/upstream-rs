@@ -177,6 +177,7 @@ pub async fn run(
     pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")?);
     pb.enable_steady_tick(Duration::from_millis(120));
     pb.set_message(format!("Installing {}", selection.package.id));
+    let _progress_pause_guard = output::progress_for_prompts(&pb);
 
     let progress_name = selection.package.id.clone();
     let progress_name_width = output::progress_name_width([progress_name.as_str()]);

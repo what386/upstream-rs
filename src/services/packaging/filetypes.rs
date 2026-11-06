@@ -7,7 +7,9 @@ use crate::{
     models::upstream::{Package, PackageExecutable},
     providers::assets::filenames::simplify::executable_alias,
     services::{
-        artifact::{archive_layout, compression_handler, permission_handler},
+        artifact::{
+            archive_layout, compression_handler, executable_candidates, permission_handler,
+        },
         integration::{CompletionManager, UnitManager},
         packaging::staging::InstallWorkspace,
     },
@@ -114,8 +116,12 @@ where
         .ok_or_else(|| anyhow!("Invalid path: no filename"))?;
 
     let out_path = workspace.archives_dir.join(dirname);
-    let install_root = archive_layout::select_nested_archive_root(&extracted_path, &package)
-        .unwrap_or_else(|| extracted_path.clone());
+    let install_root = archive_layout::select_nested_archive_root(
+        &extracted_path,
+        &package,
+        &workspace.previous_executables,
+    )
+    .unwrap_or_else(|| extracted_path.clone());
 
     message!(
         message_callback,
@@ -132,7 +138,8 @@ where
     message!(message_callback, "Searching for executable ...");
 
     let preferred_name = package.repo_slug.rsplit('/').next().unwrap_or_default();
-    let executable_paths = permission_handler::find_executables(&out_path, preferred_name);
+    let executable_paths =
+        discover_archive_executables(&out_path, preferred_name, &workspace.previous_executables)?;
     if executable_paths.is_empty() {
         anyhow::bail!(
             "Archive '{}' contains no executable file in its root or bin directory",
@@ -166,6 +173,76 @@ where
     package.install_path = Some(out_path);
     package.last_upgraded = Utc::now();
     Ok(package)
+}
+
+fn discover_archive_executables(
+    root: &Path,
+    preferred_name: &str,
+    previous_executables: &[std::path::PathBuf],
+) -> Result<Vec<std::path::PathBuf>> {
+    discover_archive_executables_with(root, preferred_name, previous_executables, |candidates| {
+        select_executable_candidate(root, candidates)
+    })
+}
+
+fn discover_archive_executables_with(
+    root: &Path,
+    preferred_name: &str,
+    previous_executables: &[std::path::PathBuf],
+    choose: impl FnOnce(&[executable_candidates::ExecutableCandidate]) -> Result<std::path::PathBuf>,
+) -> Result<Vec<std::path::PathBuf>> {
+    let executables = executable_candidates::find_executables(root, preferred_name);
+    if !executables.is_empty() {
+        return Ok(executables);
+    }
+
+    if !previous_executables.is_empty() {
+        let reused = previous_executables
+            .iter()
+            .map(|path| root.join(path))
+            .collect::<Vec<_>>();
+        if reused.iter().all(|path| path.is_file()) {
+            return Ok(reused);
+        }
+    }
+    let candidates = executable_candidates::find_executable_candidates(root, preferred_name);
+    if candidates.is_empty() {
+        return Ok(Vec::new());
+    }
+    Ok(vec![choose(&candidates)?])
+}
+
+fn select_executable_candidate(
+    root: &Path,
+    candidates: &[executable_candidates::ExecutableCandidate],
+) -> Result<std::path::PathBuf> {
+    let labels = candidates
+        .iter()
+        .map(|candidate| {
+            format!(
+                "{} (score: {})",
+                candidate
+                    .path
+                    .strip_prefix(root)
+                    .unwrap_or(&candidate.path)
+                    .display(),
+                candidate.score
+            )
+        })
+        .collect::<Vec<_>>();
+    if crate::output::assume_yes() {
+        if candidates.len() != 1 {
+            anyhow::bail!(
+                "Executable discovery found multiple possible commands in '{}': {}. Re-run interactively to select one; --yes cannot choose between candidates.",
+                root.display(),
+                labels.join(", ")
+            );
+        }
+        return Ok(candidates[0].path.clone());
+    }
+    let index = crate::output::select_from_list("Could not find executable. Candidates:", &labels)?
+        .ok_or_else(|| anyhow!("Cancelled executable selection"))?;
+    Ok(candidates[index].path.clone())
 }
 
 pub(super) fn handle_compressed<H>(
@@ -411,6 +488,194 @@ mod tests {
         );
 
         assert_eq!(package.primary_executable_name(), "wezterm");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn archive_recovery_requires_acceptance_before_permissions_change() {
+        use crate::{
+            services::artifact::{compression_handler, executable_candidates, permission_handler},
+            utils::test_support,
+        };
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+        use zip::{ZipWriter, write::SimpleFileOptions};
+
+        let root = test_support::temp_root("upstream-archive-recovery", "confirmation");
+        fs::create_dir_all(&root).unwrap();
+        let archive = root.join("tool.zip");
+        let mut zip = ZipWriter::new(fs::File::create(&archive).unwrap());
+        zip.start_file("tool", SimpleFileOptions::default().unix_permissions(0o644))
+            .unwrap();
+        zip.write_all(b"#!/bin/sh\necho hello\n").unwrap();
+        zip.finish().unwrap();
+        let extracted = compression_handler::decompress(&archive, &root.join("extracted")).unwrap();
+        let command = extracted.join("tool");
+        let declined =
+            super::discover_archive_executables_with(&extracted, "tool", &[], |candidates| {
+                assert_eq!(candidates.len(), 1);
+                assert_eq!(candidates[0].path, command);
+                assert_eq!(candidates[0].score, 70);
+                Err(anyhow::anyhow!("Cancelled"))
+            });
+        assert!(declined.is_err());
+        assert_eq!(
+            fs::metadata(&command).unwrap().permissions().mode() & 0o111,
+            0
+        );
+
+        let accepted =
+            super::discover_archive_executables_with(&extracted, "tool", &[], |candidates| {
+                Ok(candidates[0].path.clone())
+            })
+            .unwrap();
+        assert_eq!(accepted, vec![command.clone()]);
+        for path in &accepted {
+            permission_handler::make_executable(path).unwrap();
+        }
+        assert_eq!(
+            executable_candidates::find_executables(&extracted, "tool"),
+            accepted
+        );
+        // Normal discovery must not ask again once executable permissions exist.
+        assert_eq!(
+            super::discover_archive_executables_with(&extracted, "tool", &[], |_| {
+                panic!("normal discovery must not prompt")
+            })
+            .unwrap(),
+            vec![command]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn archives_without_plausible_commands_do_not_prompt() {
+        let root = crate::utils::test_support::temp_root("upstream-archive-recovery", "no-command");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("README.md"), b"Documentation only").unwrap();
+        assert!(
+            super::discover_archive_executables_with(&root, "tool", &[], |_| {
+                panic!("documentation must not be proposed as a command")
+            })
+            .unwrap()
+            .is_empty()
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn archive_upgrade_reuses_persisted_relative_path_without_checking_contents() {
+        use crate::{
+            models::upstream::PackageExecutable, services::packaging::staging::InstallWorkspace,
+            utils::test_support,
+        };
+        use std::{io::Write, os::unix::fs::PermissionsExt};
+        use zip::{ZipWriter, write::SimpleFileOptions};
+
+        let root = test_support::temp_root("upstream-archive-reuse", "persisted");
+        fs::create_dir_all(&root).unwrap();
+        let mut previous = package();
+        previous.filetype = Filetype::Archive;
+        let old_install = root.join("packages/archives/old-version");
+        previous.install_path = Some(old_install.clone());
+        previous.executables = vec![PackageExecutable {
+            path: old_install.join("bin/bw"),
+            name: "bw".to_string(),
+        }];
+        let saved = serde_json::to_string(&previous).unwrap();
+        let previous: Package = serde_json::from_str(&saved).unwrap();
+        let paths = test_support::upstream_paths(&root);
+        let workspace = InstallWorkspace::new(&paths, &previous.id)
+            .unwrap()
+            .reuse_executables_from(&previous);
+        assert_eq!(
+            workspace.previous_executables,
+            vec![PathBuf::from("bin/bw")]
+        );
+        let mut replacement = previous;
+        // Match the upgrader's fresh replacement metadata.
+        replacement.install_path = None;
+        replacement.executables.clear();
+
+        let archive = root.join("new-version.zip");
+        let mut zip = ZipWriter::new(fs::File::create(&archive).unwrap());
+        let options = SimpleFileOptions::default().unix_permissions(0o644);
+        zip.start_file("bin/bw", options).unwrap();
+        // Deliberately unrecognizable: reuse must check existence only.
+        zip.write_all(b"completely changed binary contents")
+            .unwrap();
+        zip.start_file("README", options).unwrap();
+        zip.write_all(b"Keep the bin directory inside the archive root")
+            .unwrap();
+        zip.finish().unwrap();
+
+        let installed = super::handle_archive(
+            &workspace,
+            &archive,
+            &root.join("extract"),
+            replacement,
+            &mut None::<fn(&str)>,
+            &mut |_, _| {},
+        )
+        .unwrap();
+        let command = workspace.archives_dir.join("new-version/bin/bw");
+        assert_eq!(installed.executables[0].path, command);
+        assert_eq!(
+            fs::read(&command).unwrap(),
+            b"completely changed binary contents"
+        );
+        assert_ne!(
+            fs::metadata(&command).unwrap().permissions().mode() & 0o111,
+            0
+        );
+        drop(workspace);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn missing_recorded_command_returns_to_candidate_selection() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = crate::utils::test_support::temp_root("upstream-archive-reuse", "missing");
+        fs::create_dir_all(&root).unwrap();
+        let command = root.join("new-command");
+        fs::write(&command, b"#!/bin/sh\n").unwrap();
+        fs::set_permissions(&command, fs::Permissions::from_mode(0o644)).unwrap();
+        let mut prompted = false;
+        let found = super::discover_archive_executables_with(
+            &root,
+            "tool",
+            &[PathBuf::from("old-command")],
+            |candidates| {
+                prompted = true;
+                assert_eq!(candidates.len(), 1);
+                Ok(candidates[0].path.clone())
+            },
+        )
+        .unwrap();
+        assert!(prompted);
+        assert_eq!(found, vec![command]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn normal_discovery_takes_precedence_over_recorded_command() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = crate::utils::test_support::temp_root("upstream-archive-reuse", "normal-first");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("old-command"), b"old choice still exists").unwrap();
+        fs::set_permissions(root.join("old-command"), fs::Permissions::from_mode(0o644)).unwrap();
+        let command = root.join("new-command");
+        fs::write(&command, b"#!/bin/sh\n").unwrap();
+        fs::set_permissions(&command, fs::Permissions::from_mode(0o755)).unwrap();
+        let found = super::discover_archive_executables_with(
+            &root,
+            "tool",
+            &[PathBuf::from("old-command")],
+            |_| panic!("normal discovery should not prompt"),
+        )
+        .unwrap();
+        assert_eq!(found, vec![command]);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

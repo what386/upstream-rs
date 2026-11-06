@@ -114,6 +114,7 @@ pub async fn run_import_packages(
     let mut progress_callback = Some(new_import_progress_callback(&pb, 0));
 
     println!("{}", output::title("Import packages"));
+    let _progress_pause_guard = output::progress_for_prompts(&pb);
     output::action_note(format!("Source: {}", path.display()));
     let result = import_op
         .import_packages(&path, latest, &mut progress_callback)
@@ -208,6 +209,7 @@ pub async fn run_import_profile(path: PathBuf, latest: bool, paths: &UpstreamPat
     let mut progress_callback = Some(new_import_progress_callback(&pb, 0));
 
     println!("{}", output::title("Import profile"));
+    let _progress_pause_guard = output::progress_for_prompts(&pb);
     output::action_note(format!("Source: {}", path.display()));
     let result = import_op
         .import_profile(&path, latest, &mut progress_callback)
