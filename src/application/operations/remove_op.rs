@@ -348,6 +348,53 @@ mod tests {
     }
 
     #[test]
+    fn removes_scraped_package_by_command_or_source_url() {
+        let source = "https://rasterhub.com/rasterstate/fj/releases";
+        for query in ["fj", source] {
+            let root = temp_root("remove-scraper");
+            let paths = test_paths(&root);
+            fs::create_dir_all(&paths.install.binaries_dir).unwrap();
+            fs::create_dir_all(&paths.dirs.metadata_dir).unwrap();
+            let installed = paths.install.binaries_dir.join("fj");
+            fs::write(&installed, b"test binary").unwrap();
+            let mut package = Package::with_defaults(
+                format!("scraper:{source}"),
+                source.to_string(),
+                Filetype::Binary,
+                None,
+                None,
+                Channel::Stable,
+                Provider::WebScraper,
+                None,
+            );
+            package.install_path = Some(installed.clone());
+            package.executables = vec![crate::models::upstream::PackageExecutable {
+                path: installed.clone(),
+                name: "fj".to_string(),
+            }];
+            let mut storage =
+                PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
+            storage.upsert_package(&package).unwrap();
+            let mut op = RemoveOperation::new(&mut storage, &paths);
+            let preview = op
+                .transaction_impact_rows(&[query.to_string()], false)
+                .unwrap();
+            assert_eq!(preview[0].0, package.id);
+            op.remove_single(
+                query,
+                &false,
+                &false,
+                &mut None::<fn(&str)>,
+                &mut None::<fn(&str, PackageProgressEvent)>,
+            )
+            .unwrap();
+            assert!(!installed.exists());
+            assert!(storage.get_package(&package.id).unwrap().is_none());
+            cleanup(&root).unwrap();
+        }
+    }
+
+    #[test]
     fn preview_bulk_preserves_order_and_reports_missing_packages() {
         let root = temp_root("preview-order");
         let paths = test_paths(&root);

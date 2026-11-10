@@ -93,15 +93,31 @@ impl PackageConnection {
         let mut matches: Vec<String> = packages
             .iter()
             .filter(|package| {
-                friendly_name(
-                    &package.provider,
-                    &package.repo_slug,
-                    package.base_url.as_deref(),
-                )
-                .is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
+                package.repo_slug == name
+                    || friendly_name(
+                        &package.provider,
+                        &package.repo_slug,
+                        package.base_url.as_deref(),
+                    )
+                    .is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
             })
             .map(|package| package.id.clone())
             .collect();
+
+        // Keep package identity and friendly-name lookup ahead of command
+        // aliases, which may overlap another installed package's name.
+        if matches.is_empty() {
+            matches = packages
+                .iter()
+                .filter(|package| {
+                    package
+                        .executables
+                        .iter()
+                        .any(|executable| executable.name == name)
+                })
+                .map(|package| package.id.clone())
+                .collect();
+        }
 
         matches.sort();
 
@@ -1006,7 +1022,7 @@ mod tests {
     }
 
     #[test]
-    fn friendly_names_resolve_for_updates_settings_and_removal_but_aliases_do_not() {
+    fn friendly_names_and_command_aliases_resolve_for_package_operations() {
         let mut db = PackageConnection::open_in_memory().expect("open db");
         let mut package = test_package("github:owner/tool");
         package.executables.push(PackageExecutable {
@@ -1022,10 +1038,11 @@ mod tests {
             Some("github:owner/tool")
         );
 
-        assert!(
+        assert_eq!(
             db.resolve_package_id("command")
                 .expect("resolve alias")
-                .is_none()
+                .as_deref(),
+            Some("github:owner/tool")
         );
 
         assert_eq!(
@@ -1065,6 +1082,61 @@ mod tests {
                 .expect("get removed")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn scraper_packages_resolve_by_source_url_and_installed_command() {
+        for (id, source, command) in [
+            (
+                "scraper:https://rasterhub.com/rasterstate/fj/releases",
+                "https://rasterhub.com/rasterstate/fj/releases",
+                "fj",
+            ),
+            (
+                "webscraper:https://ziglang.org/download",
+                "https://ziglang.org/download/",
+                "zig",
+            ),
+        ] {
+            for query in [source, command] {
+                let mut db = PackageConnection::open_in_memory().unwrap();
+                let mut package = test_package(id);
+                package.provider = Provider::WebScraper;
+                package.repo_slug = source.to_string();
+                package.executables[0].name = command.to_string();
+                db.upsert_package(&package).unwrap();
+
+                assert_eq!(db.get_package(query).unwrap().unwrap().id, id);
+                assert!(db.remove_package(query).unwrap());
+                assert!(db.get_package(id).unwrap().is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn friendly_package_names_take_precedence_over_command_aliases() {
+        let mut db = PackageConnection::open_in_memory().unwrap();
+        let mut named = test_package("github:owner/fj");
+        named.repo_slug = "owner/fj".to_string();
+        named.executables[0].name = "forge-command".to_string();
+        db.upsert_package(&named).unwrap();
+        let mut other = test_package("scraper:https://example.com/releases");
+        other.provider = Provider::WebScraper;
+        other.repo_slug = "https://example.com/releases".to_string();
+        other.executables[0].name = "fj".to_string();
+        db.upsert_package(&other).unwrap();
+
+        assert_eq!(db.get_package("fj").unwrap().unwrap().id, named.id);
+        assert_eq!(db.get_package(&other.id).unwrap().unwrap().id, other.id);
+
+        let mut collision = test_package("gitlab:another/fj");
+        collision.provider = Provider::Gitlab;
+        collision.repo_slug = "another/fj".to_string();
+        collision.executables[0].name = "another-command".to_string();
+        db.upsert_package(&collision).unwrap();
+        let error = db.get_package("fj").unwrap_err().to_string();
+        assert!(error.contains("ambiguous"));
+        assert!(error.contains(&named.id) && error.contains(&collision.id));
     }
 
     #[test]

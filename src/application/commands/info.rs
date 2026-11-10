@@ -312,7 +312,7 @@ mod tests {
     }
 
     #[test]
-    fn package_query_does_not_accept_an_executable_alias() {
+    fn package_query_accepts_an_installed_command_alias() {
         let mut package = package("github:owner/tool");
         package.repo_slug = "owner/other".to_string();
         package.executables.push(PackageExecutable {
@@ -321,7 +321,7 @@ mod tests {
         });
         let packages = [package];
         let database = database(&packages);
-        let error = resolve_package_query(&database, &packages, "tool").expect_err("reject alias");
-        assert!(error.to_string().contains("No installed package matches"));
+        let resolved = resolve_package_query(&database, &packages, "tool").expect("resolve alias");
+        assert_eq!(resolved.id, "github:owner/tool");
     }
 }

@@ -76,6 +76,8 @@ upstream reinstall ripgrep
 upstream remove ripgrep
 ```
 
+You can also use a source URL or installed command name, such as `upstream remove fj`.
+
 `upgrade --check` refreshes available updates; `updates` reads the saved results
 without contacting providers. Pinned packages are skipped during upgrades.
 At the upgrade confirmation prompt, enter `c` to read release notes.
