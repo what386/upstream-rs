@@ -144,6 +144,7 @@ where
         &workspace.previous_executables,
         workspace.executable_selector,
     )?;
+
     if executable_paths.is_empty() {
         anyhow::bail!(
             "Archive '{}' contains no executable file in its root or bin directory",
@@ -191,6 +192,7 @@ fn discover_archive_executables(
             root.display(),
             candidates.iter().map(|candidate| candidate.path.display().to_string()).collect::<Vec<_>>().join(", ")
         ))?;
+
         select(root, candidates)
     })
 }
@@ -211,14 +213,17 @@ fn discover_archive_executables_with(
             .iter()
             .map(|path| root.join(path))
             .collect::<Vec<_>>();
+
         if reused.iter().all(|path| path.is_file()) {
             return Ok(reused);
         }
     }
+
     let candidates = executable_candidates::find_executable_candidates(root, preferred_name);
     if candidates.is_empty() {
         return Ok(Vec::new());
     }
+
     Ok(vec![choose(&candidates)?])
 }
 
@@ -495,6 +500,7 @@ mod tests {
                 assert_eq!(candidates[0].score, 70);
                 Err(anyhow::anyhow!("Cancelled"))
             });
+
         assert!(declined.is_err());
         assert_eq!(
             fs::metadata(&command).unwrap().permissions().mode() & 0o111,
@@ -506,14 +512,17 @@ mod tests {
                 Ok(candidates[0].path.clone())
             })
             .unwrap();
+
         assert_eq!(accepted, vec![command.clone()]);
         for path in &accepted {
             permission_handler::make_executable(path).unwrap();
         }
+
         assert_eq!(
             executable_candidates::find_executables(&extracted, "tool"),
             accepted
         );
+
         // Normal discovery must not ask again once executable permissions exist.
         assert_eq!(
             super::discover_archive_executables_with(&extracted, "tool", &[], |_| {
@@ -522,6 +531,7 @@ mod tests {
             .unwrap(),
             vec![command]
         );
+
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -537,6 +547,7 @@ mod tests {
             .unwrap()
             .is_empty()
         );
+
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -565,10 +576,12 @@ mod tests {
         let workspace = InstallWorkspace::new(&paths, &previous.id)
             .unwrap()
             .reuse_executables_from(&previous);
+
         assert_eq!(
             workspace.previous_executables,
             vec![PathBuf::from("bin/bw")]
         );
+
         let mut replacement = previous;
         // Match the upgrader's fresh replacement metadata.
         replacement.install_path = None;
@@ -595,16 +608,19 @@ mod tests {
             &mut |_, _| {},
         )
         .unwrap();
+
         let command = workspace.archives_dir.join("new-version/bin/bw");
         assert_eq!(installed.executables[0].path, command);
         assert_eq!(
             fs::read(&command).unwrap(),
             b"completely changed binary contents"
         );
+
         assert_ne!(
             fs::metadata(&command).unwrap().permissions().mode() & 0o111,
             0
         );
+
         drop(workspace);
         fs::remove_dir_all(root).unwrap();
     }
@@ -627,6 +643,7 @@ mod tests {
             Some(|_, candidates| Ok(candidates[0].path.clone())),
         )
         .unwrap();
+
         assert_eq!(selected, vec![command]);
         fs::remove_dir_all(root).unwrap();
     }
@@ -651,6 +668,7 @@ mod tests {
             },
         )
         .unwrap();
+
         assert!(prompted);
         assert_eq!(found, vec![command]);
         fs::remove_dir_all(root).unwrap();
@@ -673,6 +691,7 @@ mod tests {
             |_| panic!("normal discovery should not prompt"),
         )
         .unwrap();
+
         assert_eq!(found, vec![command]);
         fs::remove_dir_all(root).unwrap();
     }

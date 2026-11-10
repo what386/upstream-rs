@@ -346,6 +346,7 @@ async fn run_release_plan(
                 "{}",
                 output::success("Install complete: 1 installed, 0 failed.")
             );
+
             for notice in notices {
                 eprintln!("{notice}");
             }

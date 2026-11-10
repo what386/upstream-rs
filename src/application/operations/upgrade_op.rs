@@ -197,6 +197,7 @@ impl<'a> UpgradeOperation<'a> {
     ) -> Result<Self> {
         let installer = PackageInstaller::new(provider_manager, paths)?
             .with_executable_selector(crate::output::select_executable_candidate);
+
         Ok(Self {
             upgrader: PackageUpgrader::new(provider_manager, installer, paths, trusted_keys),
             checker: PackageChecker::new(provider_manager, concurrency_config),

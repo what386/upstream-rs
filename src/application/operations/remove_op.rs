@@ -367,6 +367,7 @@ mod tests {
                 Provider::WebScraper,
                 None,
             );
+
             package.install_path = Some(installed.clone());
             package.executables = vec![crate::models::upstream::PackageExecutable {
                 path: installed.clone(),
@@ -374,11 +375,13 @@ mod tests {
             }];
             let mut storage =
                 PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
+
             storage.upsert_package(&package).unwrap();
             let mut op = RemoveOperation::new(&mut storage, &paths);
             let preview = op
                 .transaction_impact_rows(&[query.to_string()], false)
                 .unwrap();
+
             assert_eq!(preview[0].0, package.id);
             op.remove_single(
                 query,

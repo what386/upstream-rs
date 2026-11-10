@@ -1,5 +1,4 @@
 //! Discover executable files and rank fallback commands in extracted artifacts.
-
 #[cfg(unix)]
 use std::io::Read;
 use std::{
@@ -109,6 +108,7 @@ pub fn find_executable_candidates(
         let Ok(entries) = fs::read_dir(directory) else {
             continue;
         };
+
         for entry in entries.flatten() {
             let path = entry.path();
             if entry.file_type().is_ok_and(|kind| kind.is_file()) && !is_shared_library(&path) {
@@ -117,6 +117,7 @@ pub fn find_executable_candidates(
                 } else {
                     executable_header_score(&path)
                 };
+
                 if let Some(mut score) = score {
                     if path
                         .file_name()
@@ -124,11 +125,13 @@ pub fn find_executable_candidates(
                     {
                         score += 10;
                     }
+
                     paths.push(ExecutableCandidate { path, score });
                 }
             }
         }
     }
+
     paths.sort_by(|left, right| {
         right
             .score
@@ -148,6 +151,7 @@ fn executable_header_score(path: &Path) -> Option<u8> {
     let Ok(mut file) = fs::File::open(path) else {
         return None;
     };
+
     let mut header = [0_u8; 64];
     // A short file is valid input (for example, a small shell script).
     let mut read = 0;
@@ -158,6 +162,7 @@ fn executable_header_score(path: &Path) -> Option<u8> {
             Err(_) => return None,
         }
     }
+
     let header = &header[..read];
 
     #[cfg(unix)]
@@ -172,11 +177,13 @@ fn executable_header_score(path: &Path) -> Option<u8> {
             2 => u16::from_be_bytes([header[16], header[17]]),
             _ => return None,
         };
+
         let entry = match header[4] {
             1 => &header[24..28],
             2 if header.len() >= 64 => &header[24..32],
             _ => return None,
         };
+
         // ET_EXEC, or a PIE (ET_DYN with an entry point). Shared libraries
         // normally have no entry point and must not become commands.
         return (kind == 2 || (kind == 3 && entry.iter().any(|byte| *byte != 0))).then_some(80);
@@ -193,6 +200,7 @@ fn executable_header_score(path: &Path) -> Option<u8> {
             }
             _ => return None,
         };
+
         return (kind == 2).then_some(80); // MH_EXECUTE
     }
 
@@ -230,6 +238,7 @@ mod tests {
             fs::write(path, b"#!/bin/sh\necho hello\n").unwrap();
             fs::set_permissions(path, fs::Permissions::from_mode(0o644)).unwrap();
         }
+
         fs::write(root.join("README"), b"Use tool to run this program").unwrap();
         fs::write(root.join("libtool.so.1"), b"#!/bin/sh\n").unwrap();
         std::os::unix::fs::symlink(&command, root.join("tool-link")).unwrap();
@@ -247,6 +256,7 @@ mod tests {
                 }
             ]
         );
+
         cleanup(&root).unwrap();
     }
 
@@ -269,6 +279,7 @@ mod tests {
             fs::write(&path, header).unwrap();
             fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
         }
+
         fs::write(root.join("truncated"), b"\x7fELF").unwrap();
         assert!(find_executables(&root, "cli").is_empty());
         assert_eq!(
@@ -284,6 +295,7 @@ mod tests {
                 }
             ]
         );
+
         // A preferred name breaks ties without depending on directory order.
         let preferred = find_executable_candidates(&root, "pie");
         assert_eq!(preferred[0].path, root.join("pie"));

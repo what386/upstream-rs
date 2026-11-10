@@ -369,6 +369,7 @@ impl<'a> PackageUpgrader<'a> {
 
         let mut workspace =
             InstallWorkspace::new(self.paths, &package.id)?.reuse_executables_from(package);
+
         workspace.executable_selector = self.installer.executable_selector;
         let mut staging_installer =
             PackageInstaller::new_for_workspace(self.provider_manager, self.paths, workspace)?;

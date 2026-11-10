@@ -80,6 +80,7 @@ impl<'a> AssetSelector<'a> {
         if !dotslash_parser::is_asset(&asset.name, package) {
             return Ok(None);
         }
+
         self.resolve_asset(package, asset, package_download_cache, message_callback)
             .await
     }

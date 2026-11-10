@@ -614,6 +614,7 @@ mod tests {
                 format!("{notice}\n  Reload manually: systemctl --user daemon-reload")
             )]
         );
+
         fs::remove_dir_all(root).unwrap();
     }
 

@@ -306,6 +306,7 @@ impl<'a> PackageInstaller<'a> {
         if let Some(workspace) = &mut self.workspace {
             workspace.executable_selector = Some(selector);
         }
+
         self
     }
 
@@ -1010,15 +1011,18 @@ mod tests {
         let mut installer = PackageInstaller::new(&provider_manager, &paths)
             .unwrap()
             .with_executable_selector(|root, _| Ok(root.join("application-choice")));
+
         installer.ensure_workspace("tool").unwrap();
         let workspace = installer.take_workspace().unwrap();
         let staged =
             PackageInstaller::new_for_workspace(&provider_manager, &paths, workspace).unwrap();
+
         let select = staged.workspace().executable_selector.unwrap();
         assert_eq!(
             select(staged.workspace().root(), &[]).unwrap(),
             staged.workspace().root().join("application-choice")
         );
+
         drop(staged);
         drop(installer);
         fs::remove_dir_all(root).unwrap();
@@ -1116,10 +1120,12 @@ mod tests {
             &remembered,
         )
         .unwrap();
+
         assert!(
             !normal.ends_with(musl_dir),
             "normal executable discovery must beat the remembered path"
         );
+
         for dir in [gnu_dir, glibc_dir] {
             fs::set_permissions(
                 extracted.join(dir).join("tool"),
@@ -1127,12 +1133,14 @@ mod tests {
             )
             .unwrap();
         }
+
         let reused = archive_layout::select_nested_archive_root(
             &extracted,
             &make_package("tool", Some("musl"), None),
             &remembered,
         )
         .unwrap();
+
         assert!(reused.ends_with(musl_dir));
         fs::remove_dir_all(&root).expect("cleanup");
     }

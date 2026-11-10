@@ -184,6 +184,7 @@ pub fn select_executable_candidate(
             )
         })
         .collect::<Vec<_>>();
+
     if assume_yes() {
         if candidates.len() != 1 {
             anyhow::bail!(
@@ -192,10 +193,13 @@ pub fn select_executable_candidate(
                 labels.join(", ")
             );
         }
+
         return Ok(candidates[0].path.clone());
     }
+
     let index = select_from_list("Could not find executable. Candidates:", &labels)?
         .ok_or_else(|| anyhow::anyhow!("Cancelled executable selection"))?;
+
     Ok(candidates[index].path.clone())
 }
 

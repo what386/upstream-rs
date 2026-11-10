@@ -111,6 +111,7 @@ impl InstallWorkspace {
                 })
                 .collect();
         }
+
         self
     }
 
