@@ -9,7 +9,7 @@ use crate::{
     },
     providers::{
         assets::{AssetCandidate, AssetSelector},
-        discovery::{infer_source, normalize_source_for_provider},
+        discovery::{infer_source, resolve_source_for_provider},
         provider_manager::ProviderManager,
     },
     services::packaging::disk_impact::{
@@ -61,15 +61,9 @@ impl<'a> ProbeOperation<'a> {
         let mut notes = Vec::new();
         let (repo_slug, provider, base_url) = if let Some(provider) = request.provider.clone() {
             notes.push(format!("Probing '{}' via {}", request.input, provider));
-            (
-                normalize_source_for_provider(
-                    &request.input,
-                    &provider,
-                    request.base_url.as_deref(),
-                ),
-                provider,
-                request.base_url.clone(),
-            )
+            let (repo_slug, base_url) =
+                resolve_source_for_provider(&request.input, &provider, request.base_url.as_deref());
+            (repo_slug, provider, base_url)
         } else {
             let mut discovery = infer_source(&request.input)?;
             if let Some(base_url) = request.base_url.as_deref() {

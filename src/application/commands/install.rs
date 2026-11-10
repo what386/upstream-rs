@@ -16,7 +16,7 @@ use crate::{
     providers::{
         discovery::{
             DiscoveryRequest, DiscoveryResult, SourceKind, infer_source,
-            normalize_source_for_provider,
+            resolve_source_for_provider,
         },
         provider_manager::ProviderManager,
     },
@@ -444,7 +444,8 @@ async fn build_package(
         return Ok(package);
     };
 
-    let normalized_source = normalize_source_for_provider(&source, &provider, base_url.as_deref());
+    let (normalized_source, base_url) =
+        resolve_source_for_provider(&source, &provider, base_url.as_deref());
 
     let package = Package::with_defaults(
         Package::key(&provider, &normalized_source),
@@ -500,4 +501,66 @@ fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
         ),
         false,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        io::{BufRead, BufReader, Write},
+        net::TcpListener,
+    };
+
+    #[tokio::test]
+    async fn explicit_gitea_url_routes_release_requests_to_its_host() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let manager = ProviderManager::new(None, None, None, Default::default()).unwrap();
+        let package = build_package(
+            &manager,
+            format!("{base}/rasterstate/fj/releases"),
+            Filetype::Auto,
+            Some(Provider::Gitea),
+            None,
+            Channel::Stable,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(package.id, "gitea:rasterstate/fj");
+        assert_eq!(package.repo_slug, "rasterstate/fj");
+        assert_eq!(package.base_url.as_deref(), Some(base.as_str()));
+
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut request = String::new();
+            reader.read_line(&mut request).unwrap();
+            loop {
+                let mut line = String::new();
+                reader.read_line(&mut line).unwrap();
+                if line == "\r\n" || line.is_empty() {
+                    break;
+                }
+            }
+            let body = r#"{"id":1,"tag_name":"v0.6.0","name":"v0.6.0","assets":[],"draft":false,"prerelease":false,"published_at":"2026-01-01T00:00:00Z"}"#;
+            write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body).unwrap();
+            request
+        });
+        let release = manager
+            .get_latest_release(
+                &package.repo_slug,
+                &package.provider,
+                &Channel::Stable,
+                package.base_url.as_deref(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(release.tag, "v0.6.0");
+        assert_eq!(
+            server.join().unwrap().trim(),
+            "GET /api/v1/repos/rasterstate/fj/releases/latest HTTP/1.1"
+        );
+    }
 }

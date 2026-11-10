@@ -222,6 +222,24 @@ pub fn normalize_source_for_provider(
     trimmed.to_string()
 }
 
+/// Resolve an explicitly selected provider without losing a self-hosted forge's
+/// origin. An explicit base URL overrides routing, while the source URL still
+/// identifies the repository.
+pub fn resolve_source_for_provider(
+    source: &str,
+    provider: &Provider,
+    base_url: Option<&str>,
+) -> (String, Option<String>) {
+    let inferred_base = matches!(provider, Provider::Gitea | Provider::Gitlab)
+        .then(|| Url::parse(source.trim()).ok())
+        .flatten()
+        .filter(|url| matches!(url.scheme(), "http" | "https") && url.host_str().is_some())
+        .map(|url| url.origin().ascii_serialization());
+    let repo_slug =
+        normalize_source_for_provider(source, provider, inferred_base.as_deref().or(base_url));
+    (repo_slug, base_url.map(str::to_string).or(inferred_base))
+}
+
 pub fn infer_package_name(
     source: &str,
     provider: Option<&Provider>,
@@ -229,7 +247,7 @@ pub fn infer_package_name(
 ) -> Result<Option<String>> {
     let source_info = if let Some(provider) = provider {
         if provider.is_forge() {
-            let repo_slug = normalize_source_for_provider(source, provider, base_url);
+            let (repo_slug, _) = resolve_source_for_provider(source, provider, base_url);
             return Ok(repo_name_from_slug(&repo_slug).map(str::to_string));
         }
 
@@ -465,6 +483,7 @@ fn filter_releases_by_channel(mut releases: Vec<Release>, channel: &Channel) -> 
 mod tests {
     use super::{
         DiscoveredSource, DiscoveryResult, SourceKind, infer_source, normalize_source_for_provider,
+        resolve_source_for_provider,
     };
     use crate::models::{
         common::{Version, enums::Provider},
@@ -472,6 +491,80 @@ mod tests {
     };
     use crate::providers::assets::AssetCandidate;
     use chrono::Utc;
+
+    #[test]
+    fn explicit_forge_urls_resolve_repository_and_origin() {
+        for (source, provider, expected_slug, expected_base) in [
+            (
+                "https://rasterhub.com/rasterstate/fj/releases",
+                Provider::Gitea,
+                "rasterstate/fj",
+                "https://rasterhub.com",
+            ),
+            (
+                "http://localhost:3000/owner/tool/releases/tag/v1",
+                Provider::Gitea,
+                "owner/tool",
+                "http://localhost:3000",
+            ),
+            (
+                "https://forge.example/team/subgroup/tool/-/releases",
+                Provider::Gitlab,
+                "team/subgroup/tool",
+                "https://forge.example",
+            ),
+            (
+                "https://codeberg.org/forgejo/forgejo",
+                Provider::Gitea,
+                "forgejo/forgejo",
+                "https://codeberg.org",
+            ),
+        ] {
+            let (slug, base) = resolve_source_for_provider(source, &provider, None);
+            assert_eq!(slug, expected_slug);
+            assert_eq!(base.as_deref(), Some(expected_base));
+        }
+        assert_eq!(
+            super::infer_package_name(
+                "https://rasterhub.com/rasterstate/fj/releases",
+                Some(&Provider::Gitea),
+                None
+            )
+            .unwrap()
+            .as_deref(),
+            Some("fj")
+        );
+    }
+
+    #[test]
+    fn explicit_forge_base_override_wins_without_changing_repository() {
+        let (slug, base) = resolve_source_for_provider(
+            "https://rasterhub.com/rasterstate/fj/releases",
+            &Provider::Gitea,
+            Some("https://mirror.example:8443"),
+        );
+        assert_eq!(slug, "rasterstate/fj");
+        assert_eq!(base.as_deref(), Some("https://mirror.example:8443"));
+        assert_eq!(
+            resolve_source_for_provider("owner/tool", &Provider::Gitea, None),
+            ("owner/tool".to_string(), None)
+        );
+        assert_eq!(
+            resolve_source_for_provider(
+                "https://github.com/owner/tool/releases",
+                &Provider::Github,
+                None
+            ),
+            ("owner/tool".to_string(), None)
+        );
+        let source = "https://rasterhub.com/rasterstate/fj/releases";
+        for provider in [Provider::Direct, Provider::WebScraper] {
+            assert_eq!(
+                resolve_source_for_provider(source, &provider, None),
+                (source.to_string(), None)
+            );
+        }
+    }
 
     #[test]
     fn infer_source_keeps_owner_repo_as_github() {

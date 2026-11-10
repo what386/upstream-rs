@@ -20,7 +20,7 @@ upstream install BurntSushi/ripgrep
 
 Repository names default to GitHub. Select another provider with `-p`:
 `github`, `gitlab`, `gitea`, or `appimagehub`. For self-hosted GitLab or Gitea,
-also supply `--base-url https://your-host`.
+use a full repository URL or supply `--base-url https://your-host`.
 
 Direct download links use `-p direct`; download pages use `-p scraper`:
 
