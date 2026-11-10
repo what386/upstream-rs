@@ -2,6 +2,13 @@
 
 *Generated on 2026-11-10*
 
+## 2.22.1 — 2026-11-10
+
+### Changes
+
+- fix: base url resolution applies automatically
+
+
 ## 2.22.0 — 2026-11-10
 
 ### Changes

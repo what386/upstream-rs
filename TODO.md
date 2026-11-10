@@ -15,9 +15,3 @@
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
 
-## Completed
-
-- [x] fix: base url resolution applies automatically
-      @created 2026-11-10 19:08
-      @completed 2026-11-10 19:14
-
