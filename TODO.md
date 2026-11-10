@@ -30,3 +30,7 @@
       @created 2026-11-10 18:21
       @completed 2026-11-10 18:21
 
+- [x] feat: allow packages to be selected via url
+      @created 2026-11-10 18:24
+      @completed 2026-11-10 18:24
+
