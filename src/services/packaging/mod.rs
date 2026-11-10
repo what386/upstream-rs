@@ -9,7 +9,13 @@ mod selection;
 mod staging;
 mod upgrader;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// Application policy for choosing a command after automatic discovery fails.
+pub type ExecutableSelector = fn(
+    &Path,
+    &[crate::services::artifact::executable_candidates::ExecutableCandidate],
+) -> anyhow::Result<PathBuf>;
 
 use crate::{
     models::{

@@ -64,7 +64,8 @@ impl<'a> InstallOperation<'a> {
         trusted_keys: TrustedSignatureKeys,
     ) -> Result<Self> {
         Ok(Self {
-            installer: PackageInstaller::new(provider_manager, paths)?,
+            installer: PackageInstaller::new(provider_manager, paths)?
+                .with_executable_selector(crate::output::select_executable_candidate),
             package_database,
             trusted_keys,
         })

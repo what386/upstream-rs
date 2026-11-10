@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use std::path::Path;
+use std::{fs, path::Path};
 
 use crate::{
     models::{
@@ -77,33 +77,67 @@ impl<'a> AssetSelector<'a> {
     where
         H: FnMut(&str),
     {
-        dotslash_parser::resolve_selected_asset(
-            package,
-            asset,
-            self.provider_manager,
-            package_download_cache,
-            message_callback,
-        )
-        .await
+        if !dotslash_parser::is_asset(&asset.name, package) {
+            return Ok(None);
+        }
+        self.resolve_asset(package, asset, package_download_cache, message_callback)
+            .await
     }
 
     async fn resolve_asset<H>(
         &self,
         package: &Package,
-        asset: &Asset,
+        descriptor: &Asset,
         download_cache: &Path,
-        message_callback: Option<&mut H>,
+        mut message_callback: Option<&mut H>,
     ) -> Result<Option<Asset>>
     where
         H: FnMut(&str),
     {
-        dotslash_parser::resolve_asset(
-            package,
-            asset,
-            self.provider_manager,
-            download_cache,
-            message_callback,
-        )
-        .await
+        if let Some(cb) = message_callback.as_mut() {
+            cb(&format!(
+                "Inspecting DotSlash descriptor '{}'",
+                descriptor.name
+            ));
+        }
+
+        let mut no_progress: Option<fn(u64, u64)> = None;
+        let descriptor_path = self
+            .provider_manager
+            .download_asset(
+                descriptor,
+                &package.provider,
+                download_cache,
+                &mut no_progress,
+            )
+            .await
+            .context(format!(
+                "Failed to download DotSlash descriptor '{}'",
+                descriptor.name
+            ))?;
+
+        let Ok(contents) = fs::read_to_string(&descriptor_path) else {
+            return Ok(None);
+        };
+
+        let Ok(selected) = dotslash_parser::select_asset(&contents) else {
+            return Ok(None);
+        };
+
+        if let Some(cb) = message_callback.as_mut() {
+            cb(&format!(
+                "Resolved DotSlash asset '{}' for '{}'",
+                selected.filename, selected.platform.key
+            ));
+        }
+
+        Ok(Some(Asset::with_filetype(
+            selected.url,
+            descriptor.id,
+            selected.filename,
+            selected.size,
+            descriptor.created_at,
+            selected.filetype,
+        )))
     }
 }

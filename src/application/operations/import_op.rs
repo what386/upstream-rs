@@ -647,7 +647,9 @@ async fn import_package(
     });
 
     let mut installer = match PackageInstaller::new(provider_manager, paths) {
-        Ok(installer) => installer,
+        Ok(installer) => {
+            installer.with_executable_selector(crate::output::select_executable_candidate)
+        }
         Err(error) => return (name, trust_mode, Err(error)),
     };
 

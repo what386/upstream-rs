@@ -52,6 +52,7 @@ pub struct PackageInstaller<'a> {
     provider_manager: &'a ProviderManager,
     paths: &'a UpstreamPaths,
     workspace: Option<InstallWorkspace>,
+    pub(super) executable_selector: Option<super::ExecutableSelector>,
     download_cache: PathBuf,
     extract_cache: PathBuf,
 }
@@ -267,6 +268,7 @@ impl<'a> PackageInstaller<'a> {
             provider_manager,
             paths,
             workspace: None,
+            executable_selector: None,
             download_cache,
             extract_cache,
         })
@@ -292,10 +294,19 @@ impl<'a> PackageInstaller<'a> {
         Ok(Self {
             provider_manager,
             paths,
+            executable_selector: workspace.executable_selector,
             workspace: Some(workspace),
             download_cache,
             extract_cache,
         })
+    }
+
+    pub fn with_executable_selector(mut self, selector: super::ExecutableSelector) -> Self {
+        self.executable_selector = Some(selector);
+        if let Some(workspace) = &mut self.workspace {
+            workspace.executable_selector = Some(selector);
+        }
+        self
     }
 
     fn workspace(&self) -> &InstallWorkspace {
@@ -307,6 +318,7 @@ impl<'a> PackageInstaller<'a> {
     fn ensure_workspace(&mut self, package_name: &str) -> Result<()> {
         if self.workspace.is_none() {
             self.workspace = Some(InstallWorkspace::new(self.paths, package_name)?);
+            self.workspace.as_mut().unwrap().executable_selector = self.executable_selector;
         }
 
         Ok(())
@@ -988,6 +1000,28 @@ mod tests {
         } else {
             None
         }
+    }
+
+    #[test]
+    fn installer_preserves_selection_policy_when_staging() {
+        let root = test_support::temp_root("upstream-installer-test", "selection-policy");
+        let paths = test_support::upstream_paths(&root);
+        let provider_manager = ProviderManager::new(None, None, None, Default::default()).unwrap();
+        let mut installer = PackageInstaller::new(&provider_manager, &paths)
+            .unwrap()
+            .with_executable_selector(|root, _| Ok(root.join("application-choice")));
+        installer.ensure_workspace("tool").unwrap();
+        let workspace = installer.take_workspace().unwrap();
+        let staged =
+            PackageInstaller::new_for_workspace(&provider_manager, &paths, workspace).unwrap();
+        let select = staged.workspace().executable_selector.unwrap();
+        assert_eq!(
+            select(staged.workspace().root(), &[]).unwrap(),
+            staged.workspace().root().join("application-choice")
+        );
+        drop(staged);
+        drop(installer);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

@@ -138,8 +138,12 @@ where
     message!(message_callback, "Searching for executable ...");
 
     let preferred_name = package.repo_slug.rsplit('/').next().unwrap_or_default();
-    let executable_paths =
-        discover_archive_executables(&out_path, preferred_name, &workspace.previous_executables)?;
+    let executable_paths = discover_archive_executables(
+        &out_path,
+        preferred_name,
+        &workspace.previous_executables,
+        workspace.executable_selector,
+    )?;
     if executable_paths.is_empty() {
         anyhow::bail!(
             "Archive '{}' contains no executable file in its root or bin directory",
@@ -179,9 +183,15 @@ fn discover_archive_executables(
     root: &Path,
     preferred_name: &str,
     previous_executables: &[std::path::PathBuf],
+    selector: Option<super::ExecutableSelector>,
 ) -> Result<Vec<std::path::PathBuf>> {
     discover_archive_executables_with(root, preferred_name, previous_executables, |candidates| {
-        select_executable_candidate(root, candidates)
+        let select = selector.ok_or_else(|| anyhow!(
+            "Executable selection required in '{}'; configure an executable selector to choose from: {}",
+            root.display(),
+            candidates.iter().map(|candidate| candidate.path.display().to_string()).collect::<Vec<_>>().join(", ")
+        ))?;
+        select(root, candidates)
     })
 }
 
@@ -210,39 +220,6 @@ fn discover_archive_executables_with(
         return Ok(Vec::new());
     }
     Ok(vec![choose(&candidates)?])
-}
-
-fn select_executable_candidate(
-    root: &Path,
-    candidates: &[executable_candidates::ExecutableCandidate],
-) -> Result<std::path::PathBuf> {
-    let labels = candidates
-        .iter()
-        .map(|candidate| {
-            format!(
-                "{} (score: {})",
-                candidate
-                    .path
-                    .strip_prefix(root)
-                    .unwrap_or(&candidate.path)
-                    .display(),
-                candidate.score
-            )
-        })
-        .collect::<Vec<_>>();
-    if crate::output::assume_yes() {
-        if candidates.len() != 1 {
-            anyhow::bail!(
-                "Executable discovery found multiple possible commands in '{}': {}. Re-run interactively to select one; --yes cannot choose between candidates.",
-                root.display(),
-                labels.join(", ")
-            );
-        }
-        return Ok(candidates[0].path.clone());
-    }
-    let index = crate::output::select_from_list("Could not find executable. Candidates:", &labels)?
-        .ok_or_else(|| anyhow!("Cancelled executable selection"))?;
-    Ok(candidates[index].path.clone())
 }
 
 pub(super) fn handle_compressed<H>(
@@ -629,6 +606,28 @@ mod tests {
             0
         );
         drop(workspace);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn fallback_requires_an_application_selector() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = crate::utils::test_support::temp_root("upstream-selector", "injected");
+        fs::create_dir_all(&root).unwrap();
+        let command = root.join("tool");
+        fs::write(&command, b"#!/bin/sh\n").unwrap();
+        fs::set_permissions(&command, fs::Permissions::from_mode(0o644)).unwrap();
+
+        let error = super::discover_archive_executables(&root, "tool", &[], None).unwrap_err();
+        assert!(error.to_string().contains("Executable selection required"));
+        let selected = super::discover_archive_executables(
+            &root,
+            "tool",
+            &[],
+            Some(|_, candidates| Ok(candidates[0].path.clone())),
+        )
+        .unwrap();
+        assert_eq!(selected, vec![command]);
         fs::remove_dir_all(root).unwrap();
     }
 

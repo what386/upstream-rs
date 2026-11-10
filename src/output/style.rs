@@ -29,7 +29,7 @@ pub fn success(text: impl fmt::Display) -> StyledObject<String> {
 
 pub fn warning(text: impl fmt::Display) -> StyledObject<String> {
     let text = text.to_string();
-    super::logger::warning(text.clone());
+    crate::application::operations::history_op::record_warning(text.clone());
     style(text).yellow()
 }
 

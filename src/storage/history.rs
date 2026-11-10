@@ -1,7 +1,50 @@
-use crate::{
-    application::operations::history_op::{HistoryRecord, LogLevel},
-    models::upstream::config::{LoggingConfig, LoggingLevel},
-};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Outcome {
+    Success,
+    Failure,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    Info,
+    Warning,
+    Error,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryItem {
+    pub record_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package: Option<String>,
+    pub level: LogLevel,
+    pub outcome: Outcome,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub to_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryRecord {
+    pub record_type: String,
+    pub operation_id: String,
+    pub timestamp: String,
+    pub action: String,
+    pub level: LogLevel,
+    pub outcome: Outcome,
+    pub message: String,
+    #[serde(default)]
+    pub items: Vec<HistoryItem>,
+}
+
+use crate::models::upstream::config::{LoggingConfig, LoggingLevel};
 use std::{
     fs::{self, File, OpenOptions},
     io::Write,
@@ -163,41 +206,6 @@ pub fn read_events(path: &Path) -> std::io::Result<Vec<HistoryRecord>> {
         .filter_map(|line| serde_json::from_str::<HistoryRecord>(line).ok())
         .filter(|record| record.record_type == "operation")
         .collect())
-}
-
-pub fn warning(message: impl Into<String>) {
-    crate::application::operations::history_op::record_item(
-        None,
-        LogLevel::Warning,
-        crate::application::operations::history_op::Outcome::Success,
-        message,
-    );
-}
-
-pub fn status(subject: impl Into<String>, status: impl Into<String>, message: impl Into<String>) {
-    use crate::application::operations::history_op::{LogLevel, Outcome};
-    let status = status.into();
-    let (level, outcome) = match status.as_str() {
-        "fail" => (LogLevel::Error, Outcome::Failure),
-        "warn" => (LogLevel::Warning, Outcome::Success),
-        _ => (LogLevel::Info, Outcome::Success),
-    };
-
-    warning_or_status(Some(subject.into()), level, outcome, message.into());
-}
-
-fn warning_or_status(
-    package: Option<String>,
-    level: LogLevel,
-    outcome: crate::application::operations::history_op::Outcome,
-    message: String,
-) {
-    crate::application::operations::history_op::record_item(package, level, outcome, message);
-}
-
-pub fn error(message: impl Into<String>) {
-    use crate::application::operations::history_op::{LogLevel, Outcome};
-    warning_or_status(None, LogLevel::Error, Outcome::Failure, message.into());
 }
 
 #[cfg(test)]

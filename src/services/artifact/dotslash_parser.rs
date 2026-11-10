@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
-use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use serde::Deserialize;
 
 use crate::{
@@ -12,7 +11,6 @@ use crate::{
         provider::{Asset, Release},
         upstream::Package,
     },
-    providers::provider_manager::ProviderManager,
     utils::platform::platform_info::{ArchitectureInfo, CpuArch, OSKind},
 };
 
@@ -81,86 +79,6 @@ pub fn is_asset(asset_name: &str, package: &Package) -> bool {
 
     let repo_name = package.repo_slug.rsplit('/').next().unwrap_or("");
     filename.eq_ignore_ascii_case(repo_name) || filename.eq_ignore_ascii_case(&package.id)
-}
-
-pub async fn resolve_selected_asset<H>(
-    package: &Package,
-    asset: &Asset,
-    provider_manager: &ProviderManager,
-    download_cache: &Path,
-    message_callback: Option<&mut H>,
-) -> Result<Option<Asset>>
-where
-    H: FnMut(&str),
-{
-    if !is_asset(&asset.name, package) {
-        return Ok(None);
-    }
-
-    resolve_asset(
-        package,
-        asset,
-        provider_manager,
-        download_cache,
-        message_callback,
-    )
-    .await
-}
-
-pub async fn resolve_asset<H>(
-    package: &Package,
-    descriptor: &Asset,
-    provider_manager: &ProviderManager,
-    download_cache: &Path,
-    mut message_callback: Option<&mut H>,
-) -> Result<Option<Asset>>
-where
-    H: FnMut(&str),
-{
-    if let Some(cb) = message_callback.as_mut() {
-        cb(&format!(
-            "Inspecting DotSlash descriptor '{}'",
-            descriptor.name
-        ));
-    }
-
-    let mut no_progress: Option<fn(u64, u64)> = None;
-    let descriptor_path = provider_manager
-        .download_asset(
-            descriptor,
-            &package.provider,
-            download_cache,
-            &mut no_progress,
-        )
-        .await
-        .context(format!(
-            "Failed to download DotSlash descriptor '{}'",
-            descriptor.name
-        ))?;
-
-    let Ok(contents) = fs::read_to_string(&descriptor_path) else {
-        return Ok(None);
-    };
-
-    let Ok(selected) = select_asset(&contents) else {
-        return Ok(None);
-    };
-
-    if let Some(cb) = message_callback.as_mut() {
-        cb(&format!(
-            "Resolved DotSlash asset '{}' for '{}'",
-            selected.filename, selected.platform.key
-        ));
-    }
-
-    Ok(Some(Asset::with_filetype(
-        selected.url,
-        descriptor.id,
-        selected.filename,
-        selected.size,
-        descriptor.created_at,
-        selected.filetype,
-    )))
 }
 
 pub fn select_asset_for_architecture(

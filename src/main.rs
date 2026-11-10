@@ -89,7 +89,7 @@ async fn wait_for_interrupt() -> bool {
 
 async fn run(cli: Cli) -> anyhow::Result<()> {
     let paths = UpstreamPaths::new()?;
-    output::init_logger(paths.dirs.data_dir.join("log.jsonl"));
+    upstream_rs::storage::history::init(&paths.dirs.data_dir.join("log.jsonl"));
     history_op::begin(cli.command.to_string(), cli.command.records_history());
 
     #[cfg(windows)]
@@ -143,7 +143,7 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
     };
 
     let app_config = config.get_config().clone();
-    output::configure_logger(app_config.logging);
+    upstream_rs::storage::history::configure(app_config.logging);
 
     match cli.run(&paths, &app_config).await {
         Ok(()) => history_op::finish(Outcome::Success, LogLevel::Info, None),

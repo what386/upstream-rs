@@ -32,6 +32,7 @@ pub struct InstallWorkspace {
     pub icons_dir: PathBuf,
     pub units_dir: PathBuf,
     pub previous_executables: Vec<PathBuf>,
+    pub executable_selector: Option<super::ExecutableSelector>,
 }
 
 impl InstallWorkspace {
@@ -88,6 +89,7 @@ impl InstallWorkspace {
             icons_dir,
             units_dir,
             previous_executables: Vec::new(),
+            executable_selector: None,
         })
     }
 

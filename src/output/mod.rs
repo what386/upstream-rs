@@ -1,6 +1,6 @@
 pub mod pager;
 
-mod logger;
+mod history;
 mod markdown;
 mod other;
 mod prompt;
@@ -9,13 +9,13 @@ mod status;
 mod style;
 mod table;
 
-pub use crate::application::operations::history_op::HistoryRecord;
-pub use logger::{read_events as read_log_events, write_operation};
+pub use history::render_records as render_history;
 pub use markdown::MarkdownRenderer;
 pub use pager::set_no_pager;
 pub use prompt::{
     assume_yes, confirm_or_cancel, progress_for_prompts, prompt_text, prompt_text_with_suffix,
-    select_from_list, select_from_table, select_from_table_with_preview, set_assume_yes,
+    select_executable_candidate, select_from_list, select_from_table,
+    select_from_table_with_preview, set_assume_yes,
 };
 pub use search_table::{SearchTable, SearchTableRow};
 pub use status::error_summary_with_limit;
@@ -35,14 +35,6 @@ pub use table::{
 
 pub use other::{progress_name_width, shorten_upstream_package_path};
 
-pub fn init_logger(path: impl AsRef<std::path::Path>) {
-    logger::init(path.as_ref());
-}
-
-pub fn configure_logger(config: crate::models::upstream::config::LoggingConfig) {
-    logger::configure(config);
-}
-
 pub fn log_error(message: impl Into<String>) {
-    logger::error(message);
+    crate::application::operations::history_op::record_error(message);
 }

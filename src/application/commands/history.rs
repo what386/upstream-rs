@@ -46,7 +46,7 @@ pub fn run(
     };
 
     let events = history_op::filter_records(
-        output::read_log_events(&paths.dirs.data_dir.join("log.jsonl"))?,
+        crate::storage::history::read_events(&paths.dirs.data_dir.join("log.jsonl"))?,
         &filter,
     );
 
@@ -60,7 +60,7 @@ pub fn run(
         return Ok(());
     }
 
-    let text = history_op::render_records(&events);
+    let text = output::render_history(&events);
     output::pager::page_text(Some("Upstream history"), text.trim_end())?;
 
     Ok(())

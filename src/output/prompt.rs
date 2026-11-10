@@ -166,6 +166,39 @@ fn resolve_text_prompt_value(input: &str, default: Option<&str>) -> anyhow::Resu
     Ok(value.to_string())
 }
 
+pub fn select_executable_candidate(
+    root: &std::path::Path,
+    candidates: &[crate::services::artifact::executable_candidates::ExecutableCandidate],
+) -> anyhow::Result<std::path::PathBuf> {
+    let labels = candidates
+        .iter()
+        .map(|candidate| {
+            format!(
+                "{} (score: {})",
+                candidate
+                    .path
+                    .strip_prefix(root)
+                    .unwrap_or(&candidate.path)
+                    .display(),
+                candidate.score
+            )
+        })
+        .collect::<Vec<_>>();
+    if assume_yes() {
+        if candidates.len() != 1 {
+            anyhow::bail!(
+                "Executable discovery found multiple possible commands in '{}': {}. Re-run interactively to select one; --yes cannot choose between candidates.",
+                root.display(),
+                labels.join(", ")
+            );
+        }
+        return Ok(candidates[0].path.clone());
+    }
+    let index = select_from_list("Could not find executable. Candidates:", &labels)?
+        .ok_or_else(|| anyhow::anyhow!("Cancelled executable selection"))?;
+    Ok(candidates[index].path.clone())
+}
+
 pub fn select_from_list(
     prompt: impl fmt::Display,
     items: &[String],

@@ -52,7 +52,11 @@ pub fn status_line_text_with_width(
     let subject = subject.to_string();
     let detail = detail.to_string();
     if let Some(status_name) = log_status_name(status) {
-        super::logger::status(subject.clone(), status_name, detail.clone());
+        crate::application::operations::history_op::record_status(
+            subject.clone(),
+            status_name,
+            detail.clone(),
+        );
     }
 
     format!(

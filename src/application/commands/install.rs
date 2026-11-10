@@ -467,25 +467,6 @@ fn render_discovery_summary(discovery: &DiscoveryResult) {
             discovery.source.repo_slug, discovery.source.provider
         ))
     );
-
-    let should_show_candidates = matches!(discovery.source.kind, SourceKind::DownloadPage)
-        || discovery.is_ambiguous()
-        || discovery.recommended_candidate().is_some();
-
-    if !should_show_candidates {
-        return;
-    }
-
-    println!("{}", output::section("Top discovered assets:"));
-    for (idx, candidate) in discovery.candidates.iter().take(5).enumerate() {
-        println!(
-            "  {}. {} ({:?}, score={})",
-            idx + 1,
-            candidate.asset.name,
-            candidate.asset.filetype,
-            candidate.score
-        );
-    }
 }
 
 fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
@@ -499,6 +480,17 @@ fn confirm_discovery_if_needed(discovery: &DiscoveryResult) -> Result<()> {
     let Some(candidate) = discovery.recommended_candidate() else {
         return Ok(());
     };
+
+    println!("{}", output::section("Top discovered assets:"));
+    for (idx, candidate) in discovery.candidates.iter().take(5).enumerate() {
+        println!(
+            "  {}. {} ({:?}, score={})",
+            idx + 1,
+            candidate.asset.name,
+            candidate.asset.filetype,
+            candidate.score
+        );
+    }
 
     output::confirm_or_cancel(
         format!(

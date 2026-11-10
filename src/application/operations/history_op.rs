@@ -1,55 +1,11 @@
+pub use crate::storage::history::{HistoryItem, HistoryRecord, LogLevel, Outcome};
+
 use chrono::{DateTime, Duration, Local, Utc};
-use serde::{Deserialize, Serialize};
 use std::{
-    fmt::Write as _,
     process,
     sync::{Mutex, OnceLock},
     time::{SystemTime, UNIX_EPOCH},
 };
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Outcome {
-    Success,
-    Failure,
-    Cancelled,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum LogLevel {
-    Info,
-    Warning,
-    Error,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HistoryItem {
-    pub record_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub package: Option<String>,
-    pub level: LogLevel,
-    pub outcome: Outcome,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub from_version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub to_version: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HistoryRecord {
-    pub record_type: String,
-    pub operation_id: String,
-    pub timestamp: String,
-    pub action: String,
-    pub level: LogLevel,
-    pub outcome: Outcome,
-    pub message: String,
-    #[serde(default)]
-    pub items: Vec<HistoryItem>,
-}
 
 #[derive(Debug, Clone, Default)]
 pub struct HistoryFilter {
@@ -189,7 +145,7 @@ pub fn finish(outcome: Outcome, level: LogLevel, message: Option<String>) {
 
     let is_history_success = operation.record.action == "history" && outcome == Outcome::Success;
     if !is_read_only_success && !is_empty_upgrade && !is_history_success {
-        crate::output::write_operation(operation.record);
+        crate::storage::history::write_operation(operation.record);
     }
 }
 
@@ -341,117 +297,6 @@ fn level_name(level: LogLevel) -> &'static str {
     }
 }
 
-pub fn day_label(record: &HistoryRecord) -> String {
-    let Ok(timestamp) = DateTime::parse_from_rfc3339(&record.timestamp) else {
-        return "Unknown date".to_string();
-    };
-
-    let date = timestamp.with_timezone(&Local).date_naive();
-    let today = Local::now().date_naive();
-    if date == today {
-        "Today".to_string()
-    } else if date == today - Duration::days(1) {
-        "Yesterday".to_string()
-    } else {
-        date.format("%Y-%m-%d").to_string()
-    }
-}
-
-pub fn local_time(record: &HistoryRecord) -> String {
-    DateTime::parse_from_rfc3339(&record.timestamp)
-        .map(|timestamp| timestamp.with_timezone(&Local).format("%H:%M").to_string())
-        .unwrap_or_else(|_| "--:--".to_string())
-}
-
-pub fn icon(record: &HistoryRecord) -> char {
-    match record.outcome {
-        Outcome::Cancelled => '−',
-        Outcome::Failure => '✗',
-        Outcome::Success if record.level == LogLevel::Warning => '!',
-        Outcome::Success => '✓',
-    }
-}
-
-pub fn render_records(records: &[HistoryRecord]) -> String {
-    let action_width = records
-        .iter()
-        .map(|record| record.action.chars().count())
-        .max()
-        .unwrap_or(0)
-        .max(8);
-
-    let package_width = records
-        .iter()
-        .flat_map(|record| record.items.iter())
-        .filter_map(|item| item.package.as_deref())
-        .map(str::len)
-        .max()
-        .unwrap_or(0);
-
-    let mut text = String::new();
-    let mut previous_day = None;
-    for record in records {
-        let day = day_label(record);
-        if previous_day.as_deref() != Some(day.as_str()) {
-            if !text.is_empty() {
-                text.push('\n');
-            }
-
-            writeln!(text, "{}", crate::output::section(&day))
-                .expect("writing to a String cannot fail");
-            previous_day = Some(day);
-        }
-
-        writeln!(
-            text,
-            "  {}  {} {:<action_width$}  {}",
-            local_time(record),
-            crate::output::status_marker(icon(record)),
-            record.action,
-            record.message
-        )
-        .expect("writing to a String cannot fail");
-
-        let package_items = record
-            .items
-            .iter()
-            .filter(|item| item.package.is_some())
-            .collect::<Vec<_>>();
-
-        let mut package_index = 0;
-        for item in &record.items {
-            let detail = item
-                .from_version
-                .as_ref()
-                .zip(item.to_version.as_ref())
-                .map(|(from, to)| format!("{from} → {to}"))
-                .or_else(|| item.message.clone())
-                .unwrap_or_default();
-
-            if let Some(package) = &item.package {
-                let branch = if package_index + 1 == package_items.len() {
-                    '└'
-                } else {
-                    '├'
-                };
-
-                writeln!(
-                    text,
-                    "           {} {:<package_width$}  {detail}",
-                    crate::output::meta(format!("{branch}─")),
-                    package,
-                )
-                .expect("writing to a String cannot fail");
-                package_index += 1;
-            } else if !detail.is_empty() {
-                writeln!(text, "           {detail}").expect("writing to a String cannot fail");
-            }
-        }
-    }
-
-    text.trim_end().to_string()
-}
-
 fn operation_id() -> String {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -468,6 +313,33 @@ fn operation_id() -> String {
         .unwrap_or_default();
 
     format!("op-{nanos}-{}-{value}", process::id())
+}
+
+pub fn record_warning(message: impl Into<String>) {
+    record_item(None, LogLevel::Warning, Outcome::Success, message);
+}
+
+pub fn record_status(
+    subject: impl Into<String>,
+    status: impl Into<String>,
+    message: impl Into<String>,
+) {
+    let status = status.into();
+    let (level, outcome) = match status.as_str() {
+        "fail" => (LogLevel::Error, Outcome::Failure),
+        "warn" => (LogLevel::Warning, Outcome::Success),
+        _ => (LogLevel::Info, Outcome::Success),
+    };
+
+    warning_or_status(Some(subject.into()), level, outcome, message.into());
+}
+
+fn warning_or_status(package: Option<String>, level: LogLevel, outcome: Outcome, message: String) {
+    record_item(package, level, outcome, message);
+}
+
+pub fn record_error(message: impl Into<String>) {
+    warning_or_status(None, LogLevel::Error, Outcome::Failure, message.into());
 }
 
 #[cfg(test)]
@@ -518,15 +390,6 @@ mod tests {
 
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].action, "upgrade");
-    }
-
-    #[test]
-    fn renders_parent_and_nested_item_rows() {
-        let rendered = render_records(&[record("upgrade", "upstream", Outcome::Success)]);
-        let output = console::strip_ansi_codes(&rendered);
-        assert!(output.contains("✓ upgrade"));
-        assert!(output.contains("└─ upstream"));
-        assert!(output.contains("detail"));
     }
 
     #[test]

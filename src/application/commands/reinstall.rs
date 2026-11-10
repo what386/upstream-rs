@@ -631,7 +631,8 @@ where
         }
     };
 
-    let installer = PackageInstaller::new(provider_manager, paths)?;
+    let installer = PackageInstaller::new(provider_manager, paths)?
+        .with_executable_selector(crate::output::select_executable_candidate);
     let upgrader = PackageUpgrader::new(provider_manager, installer, paths, trusted_keys.clone());
     let updated = upgrader
         .reinstall_resolved(
