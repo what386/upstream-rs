@@ -15,22 +15,3 @@
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
 
-
-## Completed
-
-- [x] fix: issue where some text gets overwritten by pb redraws
-      @created 2026-11-05 20:38
-      @completed 2026-11-05 20:38
-
-- [x] feat: allow users to select executables during install when executable bit is missing
-      @created 2026-11-06 20:13
-      @completed 2026-11-06 20:16
-
-- [x] feat: allow packages to be selected via their commands
-      @created 2026-11-10 18:21
-      @completed 2026-11-10 18:21
-
-- [x] feat: allow packages to be selected via url
-      @created 2026-11-10 18:24
-      @completed 2026-11-10 18:24
-

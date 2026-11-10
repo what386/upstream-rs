@@ -1,6 +1,16 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-11-05*
+*Generated on 2026-11-10*
+
+## 2.22.0 — 2026-11-10
+
+### Changes
+
+- fix: issue where some text gets overwritten by pb redraws
+- feat: allow users to select executables during install when executable bit is missing
+- feat: allow packages to be selected via their commands
+- feat: allow packages to be selected via url
+
 
 ## 2.21.2 — 2026-11-05
 
