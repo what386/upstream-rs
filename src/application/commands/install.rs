@@ -528,6 +528,7 @@ mod tests {
         )
         .await
         .unwrap();
+
         assert_eq!(package.id, "gitea:rasterstate/fj");
         assert_eq!(package.repo_slug, "rasterstate/fj");
         assert_eq!(package.base_url.as_deref(), Some(base.as_str()));
@@ -544,10 +545,12 @@ mod tests {
                     break;
                 }
             }
+
             let body = r#"{"id":1,"tag_name":"v0.6.0","name":"v0.6.0","assets":[],"draft":false,"prerelease":false,"published_at":"2026-01-01T00:00:00Z"}"#;
             write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body).unwrap();
             request
         });
+
         let release = manager
             .get_latest_release(
                 &package.repo_slug,
@@ -557,6 +560,7 @@ mod tests {
             )
             .await
             .unwrap();
+
         assert_eq!(release.tag, "v0.6.0");
         assert_eq!(
             server.join().unwrap().trim(),

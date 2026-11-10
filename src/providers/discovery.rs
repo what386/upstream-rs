@@ -235,8 +235,10 @@ pub fn resolve_source_for_provider(
         .flatten()
         .filter(|url| matches!(url.scheme(), "http" | "https") && url.host_str().is_some())
         .map(|url| url.origin().ascii_serialization());
+
     let repo_slug =
         normalize_source_for_provider(source, provider, inferred_base.as_deref().or(base_url));
+
     (repo_slug, base_url.map(str::to_string).or(inferred_base))
 }
 
@@ -524,6 +526,7 @@ mod tests {
             assert_eq!(slug, expected_slug);
             assert_eq!(base.as_deref(), Some(expected_base));
         }
+
         assert_eq!(
             super::infer_package_name(
                 "https://rasterhub.com/rasterstate/fj/releases",
@@ -543,12 +546,14 @@ mod tests {
             &Provider::Gitea,
             Some("https://mirror.example:8443"),
         );
+
         assert_eq!(slug, "rasterstate/fj");
         assert_eq!(base.as_deref(), Some("https://mirror.example:8443"));
         assert_eq!(
             resolve_source_for_provider("owner/tool", &Provider::Gitea, None),
             ("owner/tool".to_string(), None)
         );
+
         assert_eq!(
             resolve_source_for_provider(
                 "https://github.com/owner/tool/releases",
@@ -557,6 +562,7 @@ mod tests {
             ),
             ("owner/tool".to_string(), None)
         );
+
         let source = "https://rasterhub.com/rasterstate/fj/releases";
         for provider in [Provider::Direct, Provider::WebScraper] {
             assert_eq!(

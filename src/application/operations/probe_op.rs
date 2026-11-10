@@ -63,6 +63,7 @@ impl<'a> ProbeOperation<'a> {
             notes.push(format!("Probing '{}' via {}", request.input, provider));
             let (repo_slug, base_url) =
                 resolve_source_for_provider(&request.input, &provider, request.base_url.as_deref());
+
             (repo_slug, provider, base_url)
         } else {
             let mut discovery = infer_source(&request.input)?;
