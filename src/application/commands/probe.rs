@@ -315,15 +315,15 @@ fn render_probe_install_progress_row(
         PackageProgressEvent::Zsync { downloaded, total } => {
             if total > 0 {
                 format!(
-                    "Synchronizing {} {} / {}",
+                    "Syncing {} {} / {}",
                     output::progress_bar(downloaded, total, PROBE_PROGRESS_BAR_WIDTH,),
                     HumanBytes(downloaded),
                     HumanBytes(total)
                 )
             } else if downloaded > 0 {
-                format!("Synchronizing {}", HumanBytes(downloaded))
+                format!("Syncing {}", HumanBytes(downloaded))
             } else {
-                "Synchronizing...".to_string()
+                "Syncing...".to_string()
             }
         }
 
@@ -930,7 +930,7 @@ mod tests {
             name_width,
         );
 
-        assert!(zsync.starts_with(" pnpm Synchronizing [=======>      ]"));
+        assert!(zsync.starts_with(" pnpm Syncing [=======>      ]"));
         assert!(zsync.contains('/'));
 
         let phase = render_probe_install_progress_row(

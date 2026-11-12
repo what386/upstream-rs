@@ -87,14 +87,14 @@ fn render_install_progress_row(
         PackageProgressEvent::Zsync { downloaded, total } => {
             if total > 0 {
                 format!(
-                    "Synchronizing {} {}",
+                    "Syncing {} {}",
                     output::progress_bar(downloaded, total, INSTALL_PROGRESS_BAR_WIDTH,),
                     format_transfer(downloaded, total),
                 )
             } else if downloaded > 0 {
-                format!("Synchronizing {}", format_transfer(downloaded, total),)
+                format!("Syncing {}", format_transfer(downloaded, total),)
             } else {
-                "Synchronizing...".to_string()
+                "Syncing...".to_string()
             }
         }
 
