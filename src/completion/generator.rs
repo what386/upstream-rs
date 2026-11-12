@@ -3,6 +3,8 @@ use clap_complete::{Generator, Shell, generate};
 use std::io;
 use upstream_rs::application::cli::arguments::Cli;
 
+mod nushell;
+
 #[derive(Parser, Debug)]
 #[command(
     name = "upstream-completions",
@@ -18,6 +20,8 @@ enum CompletionShell {
     Bash,
     Elvish,
     Fish,
+    #[value(alias = "nu")]
+    Nushell,
     Powershell,
     Zsh,
 }
@@ -31,6 +35,7 @@ fn main() {
         CompletionShell::Bash => generate_for_shell("bash", Shell::Bash, &mut cmd, &mut out),
         CompletionShell::Elvish => generate_for_shell("elvish", Shell::Elvish, &mut cmd, &mut out),
         CompletionShell::Fish => generate_for_shell("fish", Shell::Fish, &mut cmd, &mut out),
+        CompletionShell::Nushell => nushell::generate(&mut cmd, &mut out),
         CompletionShell::Powershell => {
             generate_for_shell("powershell", Shell::PowerShell, &mut cmd, &mut out)
         }

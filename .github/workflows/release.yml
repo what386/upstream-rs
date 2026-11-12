@@ -98,6 +98,7 @@ jobs:
             completions.zsh
             completions.ps1
             completions.elvish
+            completions.nu
             upstream-update-check.service
             upstream-update-check.timer
             upstream.spdx.json

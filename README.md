@@ -98,6 +98,7 @@ To avoid GitHub rate limits, add a token with
 
 - [Usage guide](docs/usage.md)
 - [Configuration reference](docs/config.md)
+- [Native Nushell completions](docs/usage.md#nushell-completions)
 
 Use `upstream <command> --help` for all options and examples.
 

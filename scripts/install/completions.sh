@@ -13,6 +13,7 @@ Supported shells:
   fish
   zsh
   elvish
+  nushell (or nu; requires Nushell 0.117+)
 EOF
 }
 
@@ -44,6 +45,12 @@ case "$shell" in
         dest_dir="${HOME}/.config/elvish/lib"
         dest_file="${dest_dir}/upstream.elv"
         ;;
+    nushell|nu)
+        asset="completions.nu"
+        # Ask Nushell for its platform-specific configuration directory.
+        dest_dir="$(nu --no-config-file -c '$nu.default-config-dir | path join completions')"
+        dest_file="${dest_dir}/upstream.nu"
+        ;;
     *)
         echo "Unsupported shell: $shell" >&2
         usage
@@ -70,3 +77,9 @@ mkdir -p "$dest_dir"
 cp "$tmp_file" "$dest_file"
 
 echo "Installed $shell completion to: $dest_file"
+case "$shell" in
+    nushell|nu)
+        echo 'Add this line to your Nushell config.nu, then restart Nushell:'
+        echo 'use completions/upstream.nu *'
+        ;;
+esac

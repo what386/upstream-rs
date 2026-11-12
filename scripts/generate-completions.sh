@@ -9,10 +9,12 @@ fi
 output_dir="$1"
 mkdir -p -- "$output_dir"
 
-for shell in bash fish powershell zsh elvish; do
+for shell in bash fish powershell zsh elvish nushell; do
     extension="$shell"
     if [[ "$shell" == powershell ]]; then
         extension=ps1
+    elif [[ "$shell" == nushell ]]; then
+        extension=nu
     fi
     cargo run --locked --quiet --bin completions --features shell-completions -- "$shell" \
         > "$output_dir/completions.$extension"

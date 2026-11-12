@@ -38,6 +38,13 @@ jobs:
       - name: Run tests
         run: cargo test --all-targets --all-features
 
+      - name: Install Nushell for completion tests
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          curl -fsSL https://github.com/nushell/nushell/releases/download/0.117.0/nu-0.117.0-x86_64-unknown-linux-gnu.tar.gz \
+            | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nu-0.117.0-x86_64-unknown-linux-gnu" >> "$GITHUB_PATH"
+
       - name: Run Python integration tests
         if: matrix.os == 'ubuntu-latest'
         run: |

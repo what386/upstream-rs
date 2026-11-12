@@ -146,6 +146,37 @@ Use `upstream package add-entry NAME` or `upstream package rm-entry NAME`
 to add or remove a desktop launcher after installation. macOS does not support
 desktop-entry creation.
 
+### Nushell completions
+
+With Nushell 0.117 or newer, install upstream's native completion module from
+the latest release. On Linux and macOS, run:
+
+```sh
+sh scripts/install/completions.sh nushell
+```
+
+Alternatively, download `completions.nu` from the
+[latest release](https://github.com/what386/upstream-rs/releases/latest), create
+a `completions` directory under `$nu.default-config-dir`, and save the file there
+as `upstream.nu`. This also works on Windows.
+
+Add this line to your Nushell `config.nu`, then restart Nushell:
+
+```nu
+use completions/upstream.nu *
+```
+
+This provides command signatures for Nushell's status line, subcommands, flags,
+enum values, and installed package names, without a fish completion bridge.
+The `package rename` command completes existing executable aliases. Package
+completion reads local metadata without checking providers or changing state.
+
+To generate the module from a source checkout:
+
+```sh
+cargo run --locked --bin completions --features shell-completions -- nushell > completions.nu
+```
+
 ## Documentation and troubleshooting
 
 ```bash
