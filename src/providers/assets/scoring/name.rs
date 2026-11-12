@@ -110,6 +110,7 @@ pub(in crate::providers::assets) fn is_auxiliary_asset_name(name: &str) -> bool 
         || name.ends_with(".checksums")
         || name.ends_with(".checksum")
         || name.ends_with(".json")
+        || name.ends_with(".nu")
         || name.ends_with(".spdx")
         || name.ends_with(".sbom")
         || name.ends_with(".txt")

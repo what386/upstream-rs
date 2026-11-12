@@ -673,6 +673,13 @@ mod tests {
                     500,
                     Utc::now(),
                 ),
+                Asset::new(
+                    "https://example.invalid/completions.nu".to_string(),
+                    6,
+                    "completions.nu".to_string(),
+                    20_000,
+                    Utc::now(),
+                ),
             ],
             false,
             "v1.0.0",

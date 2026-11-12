@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 import shutil
+import subprocess
 import unittest
 
-from tests.framework.commands import run_upstream
+from tests.framework.commands import run_upstream, upstream_environment
 from tests.framework.environment import FAKEHOME, reset_fakehome
 
 
@@ -48,6 +50,11 @@ class InitializationIntegrationTests(unittest.TestCase):
         )
         self.assertTrue(any(path.is_file() for path in config_candidates), config_candidates)
 
+        if shutil.which("nu"):
+            self.assertTrue(
+                (FAKEHOME / ".local/share/nushell/vendor/autoload").is_dir()
+            )
+
         if os.name != "nt":
             self.assert_profile_hooks_are_unique()
 
@@ -63,6 +70,33 @@ class InitializationIntegrationTests(unittest.TestCase):
         content = profile.read_text(encoding="utf-8")
         self.assertIn(marker, content)
         self.assertEqual(content.count("source $HOME/.upstream/generated/paths.sh"), 1)
+
+    @unittest.skipUnless(shutil.which("nu") and os.name != "nt", "Nushell/POSIX unavailable")
+    def test_nushell_vendor_completions_load_in_new_sessions(self) -> None:
+        run_upstream("hooks", "init")
+        autoload = FAKEHOME / ".local/share/nushell/vendor/autoload"
+        completion = autoload / "fixture-tool.nu"
+        completion.write_text(
+            'export extern "fixture-tool run" [--dry-run]\n', encoding="utf-8"
+        )
+        # --execute loads the normal interactive startup files before running
+        # the probe. No completion imports are added to config.nu.
+        config = FAKEHOME / ".config/nushell/config.nu"
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.touch(exist_ok=True)
+        env = upstream_environment()
+        env["XDG_DATA_HOME"] = str(FAKEHOME / ".local/share")
+        env["XDG_CONFIG_HOME"] = str(FAKEHOME / ".config")
+        env["XDG_DATA_DIRS"] = str(FAKEHOME / ".local/share")
+        result = subprocess.run(
+            ["nu", "--config", str(config), "--execute",
+             "print ('fixture-tool run --' | commandline complete | to json); exit"],
+            env=env, text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(json.loads(result.stdout), ["--dry-run"])
+        self.assertNotIn("fixture-tool", config.read_text(encoding="utf-8"))
 
     @staticmethod
     def _remove_initialized_state() -> None:

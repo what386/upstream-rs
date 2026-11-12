@@ -47,8 +47,8 @@ case "$shell" in
         ;;
     nushell|nu)
         asset="completions.nu"
-        # Ask Nushell for its platform-specific configuration directory.
-        dest_dir="$(nu --no-config-file -c '$nu.default-config-dir | path join completions')"
+        # Vendor files are sourced automatically by Nushell on startup.
+        dest_dir="$(nu --no-config-file -c '$nu.data-dir | path join vendor autoload')"
         dest_file="${dest_dir}/upstream.nu"
         ;;
     *)
@@ -79,7 +79,6 @@ cp "$tmp_file" "$dest_file"
 echo "Installed $shell completion to: $dest_file"
 case "$shell" in
     nushell|nu)
-        echo 'Add this line to your Nushell config.nu, then restart Nushell:'
-        echo 'use completions/upstream.nu *'
+        echo 'Restart Nushell to load the completion module automatically.'
         ;;
 esac

@@ -66,6 +66,7 @@ impl InstallWorkspace {
             &completions.bash_dir,
             &completions.fish_dir,
             &completions.zsh_dir,
+            &completions.nushell_dir,
             &desktop_dir,
             &icons_dir,
             &units_dir,

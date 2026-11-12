@@ -744,6 +744,9 @@ mod tests {
         partial.icon_path = Some(new_icon_path.clone());
         let completion_path = paths.integration.bash_completions_dir.join("tool");
         fs::write(&completion_path, b"old completion").expect("write old completion");
+        fs::create_dir_all(&paths.integration.nushell_completions_dir).unwrap();
+        let nushell_path = paths.integration.nushell_completions_dir.join("tool.nu");
+        fs::write(&nushell_path, b"old Nushell completion").unwrap();
         let mut recovery_guard =
             ReplacementBackup::new(previous, install_path.clone(), backup_dir.clone())
                 .expect("create replacement backup");
@@ -753,6 +756,7 @@ mod tests {
             .expect("move integrations");
         recovery_guard.set_partial_package(partial);
         fs::write(&completion_path, b"new completion").expect("write new completion");
+        fs::write(&nushell_path, b"new Nushell completion").unwrap();
         fs::write(&desktop_path, b"new desktop").expect("write new desktop");
         fs::write(&new_icon_path, b"new icon").expect("write new icon");
         let mut msg = Some(|_: &str| {});
@@ -778,6 +782,7 @@ mod tests {
             fs::read(&completion_path).expect("read restored completion"),
             b"old completion"
         );
+        assert_eq!(fs::read(&nushell_path).unwrap(), b"old Nushell completion");
 
         assert_eq!(
             fs::read(&desktop_path).expect("read restored desktop"),

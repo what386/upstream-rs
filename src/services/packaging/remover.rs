@@ -69,24 +69,7 @@ impl<'a> PackageRemover<'a> {
                 .xdg_applications_dir
                 .join(format!("{package_name}.desktop")),
         );
-        paths.push(
-            self.paths
-                .integration
-                .bash_completions_dir
-                .join(&package_name),
-        );
-        paths.push(
-            self.paths
-                .integration
-                .fish_completions_dir
-                .join(format!("{package_name}.fish")),
-        );
-        paths.push(
-            self.paths
-                .integration
-                .zsh_completions_dir
-                .join(format!("_{package_name}")),
-        );
+        paths.extend(CompletionManager::new(self.paths).package_completion_paths(&package_name));
         paths.extend(UnitManager::new(self.paths).backup_paths(&package.id)?);
         estimate_existing_paths(paths)
     }

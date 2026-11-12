@@ -151,13 +151,21 @@ pub struct IntegrationPaths {
     pub bash_completions_dir: PathBuf,
     pub fish_completions_dir: PathBuf,
     pub zsh_completions_dir: PathBuf,
+    pub nushell_completions_dir: PathBuf,
 }
 
 impl IntegrationPaths {
     pub fn new(dirs: &AppDirs) -> Self {
         let data_dir = dirs::data_dir().unwrap_or_else(|| dirs.user_dir.join(".local/share"));
         let config_dir = dirs::config_dir().unwrap_or_else(|| dirs.user_dir.join(".config"));
-        Self::from_xdg_dirs(&data_dir, &config_dir)
+        let mut paths = Self::from_xdg_dirs(&data_dir, &config_dir);
+        // Nushell honors XDG_DATA_HOME on every platform, including macOS and Windows.
+        if let Some(data_home) = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from)
+            && data_home.is_absolute()
+        {
+            paths.nushell_completions_dir = data_home.join("nushell/vendor/autoload");
+        }
+        paths
     }
 
     pub fn from_xdg_dirs(data_dir: &std::path::Path, config_dir: &std::path::Path) -> Self {
@@ -169,6 +177,7 @@ impl IntegrationPaths {
             bash_completions_dir: data_dir.join("bash-completion/completions"),
             fish_completions_dir: config_dir.join("fish/completions"),
             zsh_completions_dir: data_dir.join("zsh/site-functions"),
+            nushell_completions_dir: data_dir.join("nushell/vendor/autoload"),
         }
     }
 }

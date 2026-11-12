@@ -26,6 +26,7 @@ pub enum CompletionShell {
     Bash,
     Fish,
     Zsh,
+    Nushell,
 }
 
 /// Concrete destinations for package completion files.
@@ -37,6 +38,7 @@ pub struct CompletionPaths {
     pub bash_dir: PathBuf,
     pub fish_dir: PathBuf,
     pub zsh_dir: PathBuf,
+    pub nushell_dir: PathBuf,
 }
 
 impl CompletionPaths {
@@ -45,6 +47,7 @@ impl CompletionPaths {
             bash_dir: paths.integration.bash_completions_dir.clone(),
             fish_dir: paths.integration.fish_completions_dir.clone(),
             zsh_dir: paths.integration.zsh_completions_dir.clone(),
+            nushell_dir: paths.integration.nushell_completions_dir.clone(),
         }
     }
 
@@ -53,16 +56,20 @@ impl CompletionPaths {
             bash_dir: root.join("bash"),
             fish_dir: root.join("fish"),
             zsh_dir: root.join("zsh"),
+            nushell_dir: root.join("nushell"),
         }
     }
 }
 
 impl CompletionShell {
+    const ALL: [Self; 4] = [Self::Bash, Self::Fish, Self::Zsh, Self::Nushell];
+
     fn from_extension(extension: &str) -> Option<Self> {
         match extension {
             "bash" => Some(Self::Bash),
             "fish" => Some(Self::Fish),
             "zsh" => Some(Self::Zsh),
+            "nu" => Some(Self::Nushell),
             _ => None,
         }
     }
@@ -72,6 +79,7 @@ impl CompletionShell {
             "bash" => Some(Self::Bash),
             "fish" => Some(Self::Fish),
             "zsh" => Some(Self::Zsh),
+            "nu" => Some(Self::Nushell),
             _ => None,
         }
     }
@@ -81,6 +89,7 @@ impl CompletionShell {
             Self::Bash => "bash",
             Self::Fish => "fish",
             Self::Zsh => "zsh",
+            Self::Nushell => "nushell",
         }
     }
 }
@@ -189,20 +198,16 @@ impl<'a> CompletionManager<'a> {
                 .then_with(|| asset_a.name.cmp(&asset_b.name))
         });
 
-        let selected_assets: Vec<_> = [
-            CompletionShell::Bash,
-            CompletionShell::Fish,
-            CompletionShell::Zsh,
-        ]
-        .into_iter()
-        .filter(|shell| shell_is_available(*shell))
-        .filter_map(|shell| {
-            candidates
-                .iter()
-                .find(|(_asset, candidate)| candidate.shell == shell)
-                .map(|(asset, candidate)| (*asset, candidate.clone()))
-        })
-        .collect();
+        let selected_assets: Vec<_> = CompletionShell::ALL
+            .into_iter()
+            .filter(|shell| shell_is_available(*shell))
+            .filter_map(|shell| {
+                candidates
+                    .iter()
+                    .find(|(_asset, candidate)| candidate.shell == shell)
+                    .map(|(asset, candidate)| (*asset, candidate.clone()))
+            })
+            .collect();
 
         if selected_assets.is_empty() {
             return Ok(0);
@@ -318,6 +323,7 @@ impl<'a> CompletionManager<'a> {
             CompletionShell::Bash => &self.paths.bash_dir,
             CompletionShell::Fish => &self.paths.fish_dir,
             CompletionShell::Zsh => &self.paths.zsh_dir,
+            CompletionShell::Nushell => &self.paths.nushell_dir,
         }
     }
 
@@ -331,15 +337,14 @@ impl<'a> CompletionManager<'a> {
             CompletionShell::Zsh => self
                 .completion_dir(shell)
                 .join(format!("_{executable_name}")),
+            CompletionShell::Nushell => self
+                .completion_dir(shell)
+                .join(format!("{executable_name}.nu")),
         }
     }
 
-    pub fn package_completion_paths(&self, executable_name: &str) -> [PathBuf; 3] {
-        [
-            self.completion_path(executable_name, CompletionShell::Bash),
-            self.completion_path(executable_name, CompletionShell::Fish),
-            self.completion_path(executable_name, CompletionShell::Zsh),
-        ]
+    pub fn package_completion_paths(&self, executable_name: &str) -> [PathBuf; 4] {
+        CompletionShell::ALL.map(|shell| self.completion_path(executable_name, shell))
     }
 
     fn remove_installed_completion_files(&self, executable_name: &str) -> Result<usize> {
@@ -361,11 +366,7 @@ impl<'a> CompletionManager<'a> {
     }
 
     pub fn snapshot_for_package(&self, executable_name: &str) -> Result<CompletionSnapshot> {
-        let candidates = [
-            self.completion_path(executable_name, CompletionShell::Bash),
-            self.completion_path(executable_name, CompletionShell::Fish),
-            self.completion_path(executable_name, CompletionShell::Zsh),
-        ];
+        let candidates = self.package_completion_paths(executable_name);
 
         let mut files = Vec::new();
         for path in &candidates {
@@ -391,20 +392,12 @@ impl<'a> CompletionManager<'a> {
     }
 
     pub fn rename_for_package(&self, old_name: &str, new_name: &str) -> Result<bool> {
-        let pairs = [
+        let pairs = CompletionShell::ALL.map(|shell| {
             (
-                self.completion_path(old_name, CompletionShell::Bash),
-                self.completion_path(new_name, CompletionShell::Bash),
-            ),
-            (
-                self.completion_path(old_name, CompletionShell::Fish),
-                self.completion_path(new_name, CompletionShell::Fish),
-            ),
-            (
-                self.completion_path(old_name, CompletionShell::Zsh),
-                self.completion_path(new_name, CompletionShell::Zsh),
-            ),
-        ];
+                self.completion_path(old_name, shell),
+                self.completion_path(new_name, shell),
+            )
+        });
 
         for (source, destination) in &pairs {
             if path_exists_no_follow(destination)? {
@@ -463,11 +456,7 @@ impl<'a> CompletionManager<'a> {
     where
         H: FnMut(&str),
     {
-        let candidates = [
-            self.completion_path(executable_name, CompletionShell::Bash),
-            self.completion_path(executable_name, CompletionShell::Fish),
-            self.completion_path(executable_name, CompletionShell::Zsh),
-        ];
+        let candidates = self.package_completion_paths(executable_name);
 
         let mut removed = 0_usize;
         for path in candidates {
@@ -521,11 +510,7 @@ fn choose_one_per_shell(mut candidates: Vec<CompletionCandidate>) -> Vec<Complet
     });
 
     let mut selected = Vec::new();
-    for shell in [
-        CompletionShell::Bash,
-        CompletionShell::Fish,
-        CompletionShell::Zsh,
-    ] {
+    for shell in CompletionShell::ALL {
         if let Some(candidate) = candidates
             .iter()
             .find(|candidate| candidate.shell == shell)
@@ -609,6 +594,15 @@ mod tests {
         );
 
         assert!(classify_completion_path("rg", Path::new("README.md")).is_none());
+        for name in ["rg.nu", "completions.nu", "completions/rg-completions.nu"] {
+            assert_eq!(
+                classify_completion_path("rg", Path::new(name))
+                    .expect("Nushell completion")
+                    .shell,
+                CompletionShell::Nushell
+            );
+        }
+        assert!(classify_completion_path("rg", Path::new("unrelated.nu")).is_none());
     }
 
     #[test]
@@ -635,7 +629,10 @@ mod tests {
             Some(CompletionShell::Fish)
         );
 
-        assert_eq!(CompletionShell::from_command("nu"), None);
+        assert_eq!(
+            CompletionShell::from_command("nu"),
+            Some(CompletionShell::Nushell)
+        );
     }
 
     #[test]
@@ -654,6 +651,11 @@ mod tests {
             "complete -c rg\n",
         )
         .expect("write fish");
+        fs::write(
+            source_root.join("completions/ripgrep.nu"),
+            "export extern ripgrep []\n",
+        )
+        .expect("write Nushell");
 
         let mut no_messages: Option<fn(&str)> = None;
         CompletionManager::new(&paths)
@@ -676,6 +678,13 @@ mod tests {
                     !paths.integration.zsh_completions_dir.join("_rg").exists(),
                     "source fixture does not include a zsh completion"
                 ),
+                CompletionShell::Nushell => assert_eq!(
+                    fs::read_to_string(
+                        paths.integration.nushell_completions_dir.join("ripgrep.nu")
+                    )
+                    .expect("Nushell installed"),
+                    "export extern ripgrep []\n"
+                ),
             }
         }
 
@@ -691,6 +700,9 @@ mod tests {
         fs::create_dir_all(&paths.integration.bash_completions_dir).expect("create bash dir");
         fs::create_dir_all(&paths.integration.fish_completions_dir).expect("create fish dir");
         fs::create_dir_all(&paths.integration.zsh_completions_dir).expect("create zsh dir");
+        fs::create_dir_all(&paths.integration.nushell_completions_dir).expect("create Nushell dir");
+        let nushell = paths.integration.nushell_completions_dir.join("rg.nu");
+        fs::write(&nushell, "export extern rg []\n").expect("write Nushell");
         fs::write(
             paths.integration.bash_completions_dir.join("rg"),
             "bash installed\n",
@@ -712,7 +724,8 @@ mod tests {
             .remove_for_package("rg", &mut no_messages)
             .expect("remove completions");
 
-        assert_eq!(removed, 3);
+        assert_eq!(removed, 4);
+        assert!(!nushell.exists());
         assert!(!paths.integration.bash_completions_dir.join("rg").exists());
         assert!(
             !paths
@@ -736,7 +749,10 @@ mod tests {
         fs::create_dir_all(&paths.integration.fish_completions_dir).expect("create fish dir");
         let bash = paths.integration.bash_completions_dir.join("tool");
         let fish = paths.integration.fish_completions_dir.join("tool.fish");
+        fs::create_dir_all(&paths.integration.nushell_completions_dir).expect("create Nushell dir");
+        let nushell = paths.integration.nushell_completions_dir.join("tool.nu");
         fs::write(&bash, "old bash\n").expect("write old bash");
+        fs::write(&nushell, "old Nushell\n").expect("write old Nushell");
 
         let snapshot = manager
             .snapshot_for_package("tool")
@@ -744,11 +760,13 @@ mod tests {
 
         fs::write(&bash, "new bash\n").expect("replace bash");
         fs::write(&fish, "new fish\n").expect("write replacement-only fish");
+        fs::write(&nushell, "new Nushell\n").expect("replace Nushell");
 
         snapshot.restore().expect("restore snapshot");
 
         assert_eq!(fs::read_to_string(&bash).expect("read bash"), "old bash\n");
         assert!(!fish.exists());
+        assert_eq!(fs::read_to_string(nushell).unwrap(), "old Nushell\n");
         fs::remove_dir_all(root).expect("cleanup");
     }
 
@@ -761,6 +779,10 @@ mod tests {
         let old = paths.integration.bash_completions_dir.join("old");
         let new = paths.integration.bash_completions_dir.join("new");
         fs::write(&old, "old completion\n").expect("write old");
+        fs::create_dir_all(&paths.integration.nushell_completions_dir).expect("create Nushell dir");
+        let old_nu = paths.integration.nushell_completions_dir.join("old.nu");
+        let new_nu = paths.integration.nushell_completions_dir.join("new.nu");
+        fs::write(&old_nu, "Nushell completion\n").unwrap();
 
         assert!(
             manager
@@ -769,6 +791,8 @@ mod tests {
         );
 
         assert!(!old.exists());
+        assert!(!old_nu.exists());
+        assert_eq!(fs::read_to_string(&new_nu).unwrap(), "Nushell completion\n");
         assert_eq!(
             fs::read_to_string(&new).expect("read renamed"),
             "old completion\n"

@@ -142,35 +142,10 @@ impl PreparedInstall {
         }
 
         let executable_name = filesystem_name(self.package.primary_executable_name());
-        let candidates = [
-            (
-                self.workspace.completions().bash_dir.join(&executable_name),
-                paths
-                    .integration
-                    .bash_completions_dir
-                    .join(&executable_name),
-            ),
-            (
-                self.workspace
-                    .completions()
-                    .fish_dir
-                    .join(format!("{executable_name}.fish")),
-                paths
-                    .integration
-                    .fish_completions_dir
-                    .join(format!("{executable_name}.fish")),
-            ),
-            (
-                self.workspace
-                    .completions()
-                    .zsh_dir
-                    .join(format!("_{executable_name}")),
-                paths
-                    .integration
-                    .zsh_completions_dir
-                    .join(format!("_{executable_name}")),
-            ),
-        ];
+        let staged = CompletionManager::with_paths(self.workspace.completions())
+            .package_completion_paths(&executable_name);
+        let installed = CompletionManager::new(paths).package_completion_paths(&executable_name);
+        let candidates = staged.into_iter().zip(installed);
 
         for (source, destination) in candidates {
             if !source.exists() {
@@ -1006,6 +981,15 @@ mod tests {
             .expect("create staged binaries");
         fs::write(&staged_path, b"new binary").expect("write staged binary");
 
+        let nushell_content = b"export extern tool []\n";
+        fs::write(
+            workspace.completions.nushell_dir.join("tool.nu"),
+            nushell_content,
+        )
+        .expect("stage Nushell completion");
+        let installed_nushell = paths.integration.nushell_completions_dir.join("tool.nu");
+        assert!(!installed_nushell.exists());
+
         let mut package = Package::with_defaults(
             "tool".to_string(),
             "owner/tool".to_string(),
@@ -1038,6 +1022,7 @@ mod tests {
             .expect("activate new package");
 
         let active_path = paths.install.binaries_dir.join("tool");
+        assert_eq!(fs::read(installed_nushell).unwrap(), nushell_content);
         assert_eq!(updated.install_path.as_deref(), Some(active_path.as_path()));
         assert_eq!(
             fs::read(&active_path).expect("read active binary"),
@@ -1315,6 +1300,11 @@ mod tests {
             "[Service]\nExecStart=/usr/bin/tool\n",
         )
         .unwrap();
+        fs::write(
+            workspace.completions.nushell_dir.join("tool.nu"),
+            "export extern tool []\n",
+        )
+        .unwrap();
         let mut package = Package::with_defaults(
             "tool".into(),
             "owner/tool".into(),
@@ -1350,6 +1340,13 @@ mod tests {
             .await;
 
         assert!(result.is_err());
+        assert!(
+            !paths
+                .integration
+                .nushell_completions_dir
+                .join("tool.nu")
+                .exists()
+        );
         assert!(
             !paths
                 .integration

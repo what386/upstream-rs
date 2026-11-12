@@ -147,6 +147,7 @@ pub struct IntegrationPaths {
     pub bash_completions_dir: PathBuf,
     pub fish_completions_dir: PathBuf,
     pub zsh_completions_dir: PathBuf,
+    pub nushell_completions_dir: PathBuf,
 }
 
 impl IntegrationPaths {
@@ -173,6 +174,7 @@ impl IntegrationPaths {
             bash_completions_dir: data_dir.join("bash-completion/completions"),
             fish_completions_dir: config_dir.join("fish/completions"),
             zsh_completions_dir: data_dir.join("zsh/site-functions"),
+            nushell_completions_dir: data_dir.join("nushell/vendor/autoload"),
         }
     }
 }
