@@ -1,66 +1,54 @@
 #!/usr/bin/env bash
+# Update the managed upstream installation from this checkout, without fetching a release.
 set -euo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-readonly REPO_ROOT="$repo_root"
-cd -- "$REPO_ROOT"
+cd -- "$repo_root"
 
-if [[ -z "${HOME:-}" || "$HOME" == "/" ]]; then
+build_profile=release
+if [[ "${1:-}" == --debug && $# == 1 ]]; then
+    build_profile=dev
+elif (( $# != 0 )); then
+    printf 'Usage: %s [--debug]\n' "$0" >&2
+    exit 1
+fi
+
+if [[ -z "${HOME:-}" || "$HOME" == / ]]; then
     printf 'Refusing to use unsafe HOME=%q\n' "${HOME:-}" >&2
     exit 1
 fi
+command -v python3 >/dev/null
 
-readonly FISH_COMPLETIONS_DIR="$HOME/.config/fish/completions"
-readonly COMPLETION_FILE="$FISH_COMPLETIONS_DIR/upstream.fish"
-readonly COMPLETION_FILE_BACKUP="$COMPLETION_FILE.old"
+work_dir="$(mktemp -d)"
+trap 'rm -rf -- "$work_dir"' EXIT
 
-readonly UPSTREAM_PKG="$HOME/.upstream/packages/binaries/upstream-x86_64-unknown-linux-gnu"
-upstream_stash="$REPO_ROOT/$(basename -- "$UPSTREAM_PKG")"
-readonly UPSTREAM_STASH="$upstream_stash"
-readonly RELEASE_BINARY="$REPO_ROOT/target/release/upstream"
+# Cargo reports actual executable paths, including custom target directories.
+# Build without the isolated-test-home feature.
+cargo build --locked --profile "$build_profile" --features shell-completions \
+    --bin upstream --bin completions --example install-local-build \
+    --message-format=json-render-diagnostics > "$work_dir/build.jsonl"
 
-for required_file in "$COMPLETION_FILE" "$UPSTREAM_PKG" "$RELEASE_BINARY"; do
-    if [[ ! -f "$required_file" ]]; then
-        printf 'Required file is missing: %s\n' "$required_file" >&2
-        exit 1
-    fi
-done
+python3 - "$work_dir/build.jsonl" > "$work_dir/executables" <<'PY'
+import json
+import sys
 
-if [[ -e "$UPSTREAM_STASH" ]]; then
-    printf 'Refusing to overwrite existing stash: %s\n' "$UPSTREAM_STASH" >&2
-    exit 1
-fi
+executables = {}
+with open(sys.argv[1], encoding="utf-8") as build_output:
+    for line in build_output:
+        message = json.loads(line)
+        if message.get("reason") == "compiler-artifact" and message.get("executable"):
+            executables[message["target"]["name"]] = message["executable"]
+for name in ("upstream", "completions", "install-local-build"):
+    print(executables[name])
+PY
 
-mkdir -p -- "$FISH_COMPLETIONS_DIR"
+executables=()
+while IFS= read -r executable; do
+    executables+=("$executable")
+done < "$work_dir/executables"
 
-completion_moved=false
-binary_moved=false
+UPSTREAM_COMPLETION_GENERATOR="${executables[1]}" \
+    bash scripts/generate-completions.sh "$work_dir/completions"
 
-restore_on_failure() {
-    local status=$?
-    if ((status != 0)); then
-        if [[ "$binary_moved" == true && ! -e "$UPSTREAM_PKG" && -e "$UPSTREAM_STASH" ]]; then
-            mv -- "$UPSTREAM_STASH" "$UPSTREAM_PKG"
-        fi
-        if [[ "$completion_moved" == true && -e "$COMPLETION_FILE_BACKUP" ]]; then
-            rm -f -- "$COMPLETION_FILE"
-            mv -- "$COMPLETION_FILE_BACKUP" "$COMPLETION_FILE"
-        fi
-    fi
-    exit "$status"
-}
-trap restore_on_failure EXIT
-
-rm -f -- "$COMPLETION_FILE_BACKUP"
-mv -- "$COMPLETION_FILE" "$COMPLETION_FILE_BACKUP"
-completion_moved=true
-
-cargo run --locked --quiet --bin completions --features shell-completions -- fish \
-    > "$COMPLETION_FILE"
-
-mv -- "$UPSTREAM_PKG" "$UPSTREAM_STASH"
-binary_moved=true
-
-cp -- "$RELEASE_BINARY" "$UPSTREAM_PKG"
-
-trap - EXIT
+# Reuse the normal replacement lifecycle, including shell discovery and rollback.
+"${executables[2]}" "${executables[0]}" "$work_dir/completions"

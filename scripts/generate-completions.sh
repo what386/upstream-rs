@@ -16,6 +16,10 @@ for shell in bash fish powershell zsh elvish nushell; do
     elif [[ "$shell" == nushell ]]; then
         extension=nu
     fi
-    cargo run --locked --quiet --bin completions --features shell-completions -- "$shell" \
-        > "$output_dir/completions.$extension"
+    if [[ -n "${UPSTREAM_COMPLETION_GENERATOR:-}" ]]; then
+        "$UPSTREAM_COMPLETION_GENERATOR" "$shell" > "$output_dir/completions.$extension"
+    else
+        cargo run --locked --quiet --bin completions --features shell-completions -- "$shell" \
+            > "$output_dir/completions.$extension"
+    fi
 done
