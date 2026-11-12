@@ -46,6 +46,16 @@ pub fn generate(cmd: &mut Command, out: &mut dyn Write) {
             // switch and let name/keywords carry its values, including a bare --fetch.
             cmd.mut_arg("fetch", |arg| arg.action(ArgAction::SetTrue).num_args(0))
         });
+    // Nushell resolves the longest known command name, including flag words.
+    // Specialize the check forms so requesting data never turns an ordinary
+    // upgrade into a check. Clone the CLI metadata to preserve flags/completers.
+    let upgrade = cmd
+        .find_subcommand("upgrade")
+        .expect("upgrade command")
+        .clone();
+    for name in ["upgrade --check", "upgrade -c"] {
+        cmd = cmd.subcommand(upgrade.clone().name(name));
+    }
 
     let mut generated = Vec::new();
     clap_complete::generate(Nushell, &mut cmd, "upstream", &mut generated);
@@ -54,6 +64,27 @@ pub fn generate(cmd: &mut Command, out: &mut dyn Write) {
     for line in generated.lines() {
         if let Some(name) = line.trim().strip_prefix("export extern ") {
             command = name.trim_end_matches(" [").trim_matches('"');
+            // Keep the wire format shared with every other shell. Nushell
+            // requests and decodes JSON only when it consumes structured data.
+            // Ordinary upgrades remain unannotated; only the check forms
+            // above can safely request JSON.
+            if matches!(
+                command,
+                "upstream list"
+                    | "upstream info"
+                    | "upstream history"
+                    | "upstream doctor"
+                    | "upstream search"
+                    | "upstream probe"
+                    | "upstream updates"
+                    | "upstream cache list"
+                    | "upstream package get"
+                    | "upstream upgrade --check"
+                    | "upstream upgrade -c"
+            ) {
+                writeln!(out, "  @structured [--json] {{ from json }}")
+                    .expect("write Nushell structured output annotation");
+            }
         }
         // A declared --help is intercepted by Nushell. Leave it undeclared so
         // both --help and -h reach upstream, like other unknown external flags.
@@ -67,8 +98,13 @@ pub fn generate(cmd: &mut Command, out: &mut dyn Write) {
         let arg = arg.trim_start_matches("...").trim_end_matches('?');
         let completer = match (command, arg) {
             (
-                "upstream remove" | "upstream uninstall" | "upstream reinstall"
-                | "upstream upgrade" | "upstream doctor",
+                "upstream remove"
+                | "upstream uninstall"
+                | "upstream reinstall"
+                | "upstream upgrade"
+                | "upstream upgrade --check"
+                | "upstream upgrade -c"
+                | "upstream doctor",
                 "names",
             )
             | ("upstream info", "query")

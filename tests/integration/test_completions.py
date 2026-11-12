@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.framework.commands import run_upstream_result
+from tests.framework.commands import run_upstream_result, upstream_environment
 from tests.framework.environment import FAKEHOME, ROOT, reset_fakehome
 
 
@@ -50,7 +50,10 @@ class CompletionIntegrationTests(unittest.TestCase):
         fish = (self.completions_dir / "completions.fish").read_text(encoding="utf-8")
         self.assertIn("-f -a '(__upstream_dynamic)'", fish)
 
-    def run_nushell(self, script: str, *, fail_completer: bool = False) -> object:
+    def run_nushell(
+        self, script: str, *, fail_completer: bool = False,
+        structured_response: object | None = None,
+    ) -> object:
         with tempfile.TemporaryDirectory(prefix="upstream-nushell-") as directory:
             root = Path(directory)
             # Exercise the generated module's real external protocol without
@@ -64,6 +67,12 @@ class CompletionIntegrationTests(unittest.TestCase):
                 "    sys.exit(1)\n"
                 "if sys.argv[1] != '__complete':\n"
                 "    import json\n"
+                "    if sys.argv[1:].count('--json') + sys.argv[1:].count('-j') > 1:\n"
+                "        raise SystemExit('duplicate JSON flag')\n"
+                f"    response = {json.dumps(structured_response)!r}\n"
+                "    if '--json' in sys.argv[1:] and response != 'null':\n"
+                "        print(response)\n"
+                "        sys.exit(0)\n"
                 "    print(json.dumps(sys.argv[1:]))\n"
                 "    sys.exit(0)\n"
                 "if sys.argv[1:] == ['__complete', 'info', '0', '--', '']:\n"
@@ -114,6 +123,7 @@ class CompletionIntegrationTests(unittest.TestCase):
             "upstream info ri", "upstream list ri", "upstream changelog ri",
             "upstream remove bat ri", "upstream uninstall ri", "upstream reinstall ri",
             "upstream upgrade --dry-run ri", "upstream doctor ri",
+            "upstream upgrade --check ri", "upstream upgrade -c ri",
             "upstream history --package ri", "upstream package pin ri",
             "upstream package get ri", "upstream package set ri",
             "upstream package unset ri", "upstream package unpin ri",
@@ -152,8 +162,8 @@ class CompletionIntegrationTests(unittest.TestCase):
                 (upstream docs --fetch bat ripgrep | from json)
                 (upstream package rename rg 'new alias' | from json)
                 (upstream --yes remove bat | from json)
-                (upstream info --help | from json)
-                (upstream info -h | from json)
+                (upstream info --help | complete | get stdout | from json)
+                (upstream info -h | complete | get stdout | from json)
                 (upstream remove -- -dash | from json)
             ]
         """), [
@@ -165,6 +175,82 @@ class CompletionIntegrationTests(unittest.TestCase):
             ["info", "-h"],
             ["remove", "--", "-dash"],
         ])
+
+    @unittest.skipUnless(shutil.which("nu") and os.name != "nt", "Nushell/POSIX unavailable")
+    def test_nushell_requests_json_for_structured_commands(self) -> None:
+        commands = [
+            ("upstream list", ["list", "--json"]),
+            ("upstream info ripgrep", ["info", "--json", "ripgrep"]),
+            ("upstream history --limit 3", ["history", "--json", "--limit", "3"]),
+            ("upstream doctor", ["doctor", "--json"]),
+            ("upstream search terminal", ["search", "--json", "terminal"]),
+            ("upstream probe owner/repo", ["probe", "--json", "owner/repo"]),
+            ("upstream updates", ["updates", "--json"]),
+            ("upstream cache list", ["cache", "list", "--json"]),
+            ("upstream package get ripgrep", ["package", "get", "--json", "ripgrep"]),
+            ("upstream upgrade --check ripgrep", ["upgrade", "--check", "--json", "ripgrep"]),
+            ("upstream upgrade -c ripgrep", ["upgrade", "-c", "--json", "ripgrep"]),
+        ]
+        script = "[" + "\n".join(
+            f"({command} | collect)" for command, _ in commands
+        ) + "]"
+        self.assertEqual(self.run_nushell(script), [arguments for _, arguments in commands])
+
+    @unittest.skipUnless(shutil.which("nu") and os.name != "nt", "Nushell/POSIX unavailable")
+    def test_nushell_decodes_json_in_pipelines_variables_and_aliases(self) -> None:
+        rows = [
+            {"id": "ripgrep", "is_pinned": True},
+            {"id": "bat", "is_pinned": False},
+        ]
+        self.assertEqual(self.run_nushell("""
+            alias packages = upstream list
+            let installed = upstream list
+            [
+                (upstream list | where is_pinned | get id)
+                ($installed | get id)
+                (packages | where is_pinned | get id)
+                (upstream list).0.id
+            ]
+        """, structured_response=rows), [["ripgrep"], ["ripgrep", "bat"], ["ripgrep"], "ripgrep"])
+
+    @unittest.skipUnless(shutil.which("nu") and os.name != "nt", "Nushell/POSIX unavailable")
+    def test_nushell_raw_output_and_upgrade_behavior_are_preserved(self) -> None:
+        self.assertEqual(self.run_nushell("""
+            upstream list o> list-output.json
+            [
+                (upstream list | complete | get stdout | from json)
+                (open --raw list-output.json | from json)
+                (upstream list | ^cat | from json)
+                (^upstream list --json | from json)
+                (^upstream updates --notify | from json)
+                (upstream upgrade | from json)
+                (^upstream upgrade --check --json | from json)
+                (upstream upgrade --check | complete | get stdout | from json)
+            ]
+        """), [
+            ["list"], ["list"], ["list"], ["list", "--json"], ["updates", "--notify"],
+            ["upgrade"], ["upgrade", "--check", "--json"],
+            ["upgrade", "--check"],
+        ])
+
+    @unittest.skipUnless(shutil.which("nu") and os.name != "nt", "Nushell/POSIX unavailable")
+    def test_nushell_decodes_real_upstream_json(self) -> None:
+        reset_fakehome()
+        env = upstream_environment()
+        env["PATH"] = str(FAKEHOME / ".upstream/state/symlinks") + os.pathsep + env["PATH"]
+        module = self.completions_dir / "completions.nu"
+        script = f"use {json.dumps(str(module))} *\n" + """
+            let snapshot = upstream updates
+            [ (upstream list | length) ($snapshot == null)
+              (upstream upgrade --check | length) ] | to json
+        """
+        result = subprocess.run(
+            ["nu", "--no-config-file", "-c", script], env=env,
+            text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(json.loads(result.stdout), [0, True, 0])
 
     @unittest.skipUnless(
         subprocess.run(["bash", "--version"], capture_output=True).returncode == 0,
