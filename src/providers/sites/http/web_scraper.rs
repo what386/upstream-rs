@@ -514,6 +514,9 @@ mod tests {
                         let active = Arc::clone(&active);
                         let handler = Arc::clone(&handler);
                         connections.push(thread::spawn(move || {
+                            // Accepted sockets can inherit the listener's nonblocking
+                            // mode on Windows. Request parsing below uses blocking I/O.
+                            socket.set_nonblocking(false).unwrap();
                             socket
                                 .set_read_timeout(Some(Duration::from_secs(1)))
                                 .unwrap();
