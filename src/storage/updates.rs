@@ -141,21 +141,6 @@ pub fn reconcile(paths: &UpstreamPaths) -> Result<()> {
     Ok(())
 }
 
-pub fn age(checked_at: DateTime<Utc>, now: DateTime<Utc>) -> String {
-    let seconds = (now - checked_at).num_seconds().max(0);
-    let (amount, unit) = if seconds >= 86400 {
-        (seconds / 86400, "day")
-    } else if seconds >= 3600 {
-        (seconds / 3600, "hour")
-    } else if seconds >= 60 {
-        (seconds / 60, "minute")
-    } else {
-        return "just now".into();
-    };
-
-    format!("{amount} {unit}{} ago", if amount == 1 { "" } else { "s" })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,9 +227,9 @@ mod tests {
         assert_eq!(snapshot.updates.len(), 3);
         assert_eq!(snapshot.updates["b"].checked_at, first);
         assert!(
-            notification_message(&snapshot, first + chrono::Duration::days(2))
+            notification_message(&snapshot, Utc::now())
                 .unwrap()
-                .contains("3 pending software updates (oldest check: 2 days ago)")
+                .contains("3 pending software updates (last checked 0s ago)")
         );
 
         refresh(
@@ -382,7 +367,7 @@ mod tests {
     }
 
     #[test]
-    fn notification_handles_empty_singular_old_and_future_checks() {
+    fn notification_handles_empty_and_singular_updates() {
         let fixture = Fixture::new("message");
         assert!(notification_message(&UpdateSnapshot::default(), Utc::now()).is_none());
         let now = Utc::now();
@@ -390,16 +375,7 @@ mod tests {
         let snapshot = load(&fixture.0).unwrap().unwrap();
         assert_eq!(
             notification_message(&snapshot, now).unwrap(),
-            "upstream: 1 pending software update (oldest check: just now).\nRun 'upstream updates' to view them.\n"
+            "upstream: 1 pending software update (last checked 0s ago).\nRun 'upstream updates' to view them.\n"
         );
-
-        assert!(
-            notification_message(&snapshot, now + chrono::Duration::days(30))
-                .unwrap()
-                .contains("30 days ago")
-        );
-
-        assert_eq!(age(now, now - chrono::Duration::hours(1)), "just now");
-        assert_eq!(age(now, now + chrono::Duration::hours(1)), "1 hour ago");
     }
 }

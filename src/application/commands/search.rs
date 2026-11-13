@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{NaiveDate, Utc};
 use serde::Serialize;
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
     },
     output,
     output::pager,
-    utils::static_paths::UpstreamPaths,
+    utils::{human_units, static_paths::UpstreamPaths},
 };
 use std::fmt::Write as _;
 
@@ -238,7 +238,7 @@ pub(super) fn table_for_results(
         .map(|row| output::SearchTableRow {
             source: source_label(row, provider),
             metadata: row.metadata.clone(),
-            updated: format_relative_updated(row.updated_at),
+            updated: human_units::relative_date(row.updated_at, Utc::now()),
             description: row.description.clone(),
         })
         .collect::<Vec<_>>();
@@ -262,46 +262,6 @@ pub(super) fn source_label(result: &RepositorySearchResult, provider: &Provider)
     }
 }
 
-pub fn format_relative_updated(updated_at: DateTime<Utc>) -> String {
-    format_relative_updated_with_now(updated_at, Utc::now())
-}
-
-fn format_relative_updated_with_now(updated_at: DateTime<Utc>, now: DateTime<Utc>) -> String {
-    let delta = now.signed_duration_since(updated_at);
-    if delta.num_seconds() < 0 {
-        return "today".to_string();
-    }
-
-    let days = delta.num_days();
-    if days == 0 {
-        return "today".to_string();
-    }
-
-    if days < 30 {
-        return if days == 1 {
-            "1 day ago".to_string()
-        } else {
-            format!("{days} days ago")
-        };
-    }
-
-    let months = days / 30;
-    if months < 12 {
-        return if months == 1 {
-            "1 month ago".to_string()
-        } else {
-            format!("{months} months ago")
-        };
-    }
-
-    let years = months / 12;
-    if years == 1 {
-        "1 year ago".to_string()
-    } else {
-        format!("{years} years ago")
-    }
-}
-
 pub fn default_dash(value: &str) -> &str {
     if value.trim().is_empty() { "-" } else { value }
 }
@@ -312,32 +272,12 @@ pub fn truncate(value: &str, max: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_relative_updated_with_now, json_search_result, truncate};
+    use super::{json_search_result, truncate};
     use crate::models::{
         common::enums::Provider,
         provider::{RepositorySearchFilters, RepositorySearchResult, SearchMetadataValue},
     };
-    use chrono::{Duration, TimeZone, Utc};
-
-    #[test]
-    fn format_relative_updated_uses_readable_buckets() {
-        let now = Utc.with_ymd_and_hms(2026, 5, 10, 0, 0, 0).unwrap();
-        assert_eq!(format_relative_updated_with_now(now, now), "today");
-        assert_eq!(
-            format_relative_updated_with_now(now - Duration::days(2), now),
-            "2 days ago"
-        );
-
-        assert_eq!(
-            format_relative_updated_with_now(now - Duration::days(65), now),
-            "2 months ago"
-        );
-
-        assert_eq!(
-            format_relative_updated_with_now(now - Duration::days(800), now),
-            "2 years ago"
-        );
-    }
+    use chrono::{TimeZone, Utc};
 
     #[test]
     fn truncate_adds_ellipsis_at_fixed_width() {

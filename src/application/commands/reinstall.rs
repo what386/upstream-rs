@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, anyhow};
-use indicatif::{HumanBytes, ProgressBar, ProgressDrawTarget, ProgressStyle};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
@@ -24,20 +24,10 @@ use crate::{
         trust::TrustedSignatureKeys,
     },
     storage::database::PackageDatabase,
-    utils::static_paths::UpstreamPaths,
+    utils::{human_units::format_transfer, static_paths::UpstreamPaths},
 };
 
 const REINSTALL_PROGRESS_BAR_WIDTH: usize = 14;
-
-fn format_transfer(downloaded: u64, total: u64) -> String {
-    if total > 0 {
-        format!("{} / {}", HumanBytes(downloaded), HumanBytes(total))
-    } else if downloaded > 0 {
-        HumanBytes(downloaded).to_string()
-    } else {
-        "-".to_string()
-    }
-}
 
 fn render_reinstall_progress_message(
     name: &str,

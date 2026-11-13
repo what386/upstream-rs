@@ -5,7 +5,7 @@ use chrono::Utc;
 
 use crate::{
     storage::updates::{self, UpdateSnapshot},
-    utils::static_paths::UpstreamPaths,
+    utils::{human_units, static_paths::UpstreamPaths},
 };
 
 pub fn run(json: bool, notify: bool, paths: &UpstreamPaths) -> Result<()> {
@@ -48,7 +48,7 @@ pub fn run(json: bool, notify: bool, paths: &UpstreamPaths) -> Result<()> {
                     id,
                     entry.current,
                     entry.latest,
-                    updates::age(entry.checked_at, now)
+                    human_units::age(entry.checked_at, now)
                 ),
                 index
             )
@@ -62,17 +62,16 @@ pub(crate) fn notification_message(
     snapshot: &UpdateSnapshot,
     now: chrono::DateTime<Utc>,
 ) -> Option<String> {
-    let oldest = snapshot
+    let last_checked = snapshot
         .updates
         .values()
         .map(|entry| entry.checked_at)
-        .min()?;
-
+        .max()?;
     let count = snapshot.updates.len();
     let noun = if count == 1 { "update" } else { "updates" };
+    let age = human_units::compact_age(last_checked, now);
     Some(format!(
-        "upstream: {count} pending software {noun} (oldest check: {}).\nRun 'upstream updates' to view them.\n",
-        updates::age(oldest, now),
+        "upstream: {count} pending software {noun} (last checked {age}).\nRun 'upstream updates' to view them.\n"
     ))
 }
 

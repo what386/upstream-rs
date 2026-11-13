@@ -138,7 +138,8 @@ fn readers_bypass_config_migrations_database_and_occupied_lock() {
     assert!(output.status.success(), "{:?}", output);
     assert!(output.stderr.is_empty());
     let message = String::from_utf8(output.stdout).unwrap();
-    assert!(message.contains("1 pending software update (oldest check:"));
+    assert!(message.contains("1 pending software update (last checked "));
+    assert!(!message.contains("oldest check"));
     assert!(message.contains("Run 'upstream updates' to view them."));
     let output = home.run(&["updates", "--json"]);
     assert!(output.status.success(), "{:?}", output);

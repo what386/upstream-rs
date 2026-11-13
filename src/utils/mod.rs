@@ -1,4 +1,5 @@
 pub mod filesystem;
+pub mod human_units;
 pub mod math;
 pub mod name_match;
 pub mod platform;
