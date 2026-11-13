@@ -287,8 +287,13 @@ fn render_probe_install_progress_row(
         PackageProgressEvent::Download { downloaded, total } => {
             if total > 0 {
                 format!(
-                    "Downloading {} {} / {}",
-                    output::progress_bar(downloaded, total, PROBE_PROGRESS_BAR_WIDTH,),
+                    "{} {} / {}",
+                    output::labeled_progress_bar(
+                        "Downloading",
+                        downloaded,
+                        total,
+                        PROBE_PROGRESS_BAR_WIDTH,
+                    ),
                     HumanBytes(downloaded),
                     HumanBytes(total)
                 )
@@ -302,8 +307,13 @@ fn render_probe_install_progress_row(
         PackageProgressEvent::Extraction { extracted, total } => {
             if total > 0 {
                 format!(
-                    "Extracting {} {} / {}",
-                    output::progress_bar(extracted, total, PROBE_PROGRESS_BAR_WIDTH,),
+                    "{} {} / {}",
+                    output::labeled_progress_bar(
+                        "Extracting",
+                        extracted,
+                        total,
+                        PROBE_PROGRESS_BAR_WIDTH,
+                    ),
                     HumanBytes(extracted),
                     HumanBytes(total)
                 )
@@ -315,8 +325,13 @@ fn render_probe_install_progress_row(
         PackageProgressEvent::Zsync { downloaded, total } => {
             if total > 0 {
                 format!(
-                    "Syncing {} {} / {}",
-                    output::progress_bar(downloaded, total, PROBE_PROGRESS_BAR_WIDTH,),
+                    "{} {} / {}",
+                    output::labeled_progress_bar(
+                        "Syncing",
+                        downloaded,
+                        total,
+                        PROBE_PROGRESS_BAR_WIDTH,
+                    ),
                     HumanBytes(downloaded),
                     HumanBytes(total)
                 )
@@ -330,8 +345,13 @@ fn render_probe_install_progress_row(
         PackageProgressEvent::Checksum { checked, total } => {
             if total > 0 {
                 format!(
-                    "Checksumming {} {}",
-                    output::progress_bar(checked, total, PROBE_PROGRESS_BAR_WIDTH,),
+                    "{} {}",
+                    output::labeled_progress_bar(
+                        "Checksumming",
+                        checked,
+                        total,
+                        PROBE_PROGRESS_BAR_WIDTH,
+                    ),
                     HumanBytes(checked)
                 )
             } else if checked > 0 {
@@ -918,7 +938,7 @@ mod tests {
             name_width,
         );
 
-        assert!(download.starts_with(" pnpm Downloading [=======>      ]"));
+        assert!(download.starts_with(" pnpm Downloading  [=======>      ]"));
         assert!(download.contains('/'));
 
         let zsync = render_probe_install_progress_row(
@@ -930,7 +950,7 @@ mod tests {
             name_width,
         );
 
-        assert!(zsync.starts_with(" pnpm Syncing [=======>      ]"));
+        assert!(zsync.starts_with(" pnpm Syncing      [=======>      ]"));
         assert!(zsync.contains('/'));
 
         let phase = render_probe_install_progress_row(

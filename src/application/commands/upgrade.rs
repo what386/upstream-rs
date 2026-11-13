@@ -52,8 +52,8 @@ fn render_upgrade_progress(
     total: u32,
 ) -> String {
     let active_count = active_rows.len() as u32;
-    let queued = total.saturating_sub(completed).saturating_sub(active_count);
-    let mut parts = vec![format!(" ({queued} queued)")];
+    let waiting = total.saturating_sub(completed).saturating_sub(active_count);
+    let mut parts = vec![format!(" ({waiting} waiting)")];
     if active_rows.is_empty() {
         return parts.join("");
     }
@@ -77,8 +77,13 @@ fn render_upgrade_progress_row(
         PackageProgressEvent::Detail(message) => output::truncate_end(&message, 96),
         PackageProgressEvent::Download { downloaded, total } if total > 0 => {
             format!(
-                "Downloading {} {} / {}",
-                output::progress_bar(downloaded, total, UPGRADE_PROGRESS_BAR_WIDTH),
+                "{} {} / {}",
+                output::labeled_progress_bar(
+                    "Downloading",
+                    downloaded,
+                    total,
+                    UPGRADE_PROGRESS_BAR_WIDTH
+                ),
                 HumanBytes(downloaded),
                 HumanBytes(total)
             )
@@ -88,16 +93,26 @@ fn render_upgrade_progress_row(
         }
         PackageProgressEvent::Download { .. } => "Downloading...".to_string(),
         PackageProgressEvent::Extraction { extracted, total } if total > 0 => format!(
-            "Extracting {} {} / {}",
-            output::progress_bar(extracted, total, UPGRADE_PROGRESS_BAR_WIDTH),
+            "{} {} / {}",
+            output::labeled_progress_bar(
+                "Extracting",
+                extracted,
+                total,
+                UPGRADE_PROGRESS_BAR_WIDTH
+            ),
             HumanBytes(extracted),
             HumanBytes(total)
         ),
         PackageProgressEvent::Extraction { .. } => "Extracting...".to_string(),
         PackageProgressEvent::Zsync { downloaded, total } if total > 0 => {
             format!(
-                "Syncing {} {} / {}",
-                output::progress_bar(downloaded, total, UPGRADE_PROGRESS_BAR_WIDTH),
+                "{} {} / {}",
+                output::labeled_progress_bar(
+                    "Syncing",
+                    downloaded,
+                    total,
+                    UPGRADE_PROGRESS_BAR_WIDTH
+                ),
                 HumanBytes(downloaded),
                 HumanBytes(total)
             )
@@ -108,8 +123,13 @@ fn render_upgrade_progress_row(
         PackageProgressEvent::Zsync { .. } => "Syncing...".to_string(),
         PackageProgressEvent::Checksum { checked, total } if total > 0 => {
             format!(
-                "Checksumming {} {} / {}",
-                output::progress_bar(checked, total, UPGRADE_PROGRESS_BAR_WIDTH),
+                "{} {} / {}",
+                output::labeled_progress_bar(
+                    "Checksumming",
+                    checked,
+                    total,
+                    UPGRADE_PROGRESS_BAR_WIDTH
+                ),
                 HumanBytes(checked),
                 HumanBytes(total)
             )
@@ -953,10 +973,38 @@ async fn run_dry_run(
 #[cfg(test)]
 mod tests {
     use super::{
-        CheckTableLayout, UpgradePromptAction, json_check_rows, upgrade_prompt_action_from_input,
+        CheckTableLayout, UpgradePromptAction, json_check_rows, render_upgrade_progress_row,
+        upgrade_prompt_action_from_input,
     };
     use crate::application::operations::upgrade_op::{UpdateCheckRow, UpdateCheckStatus};
     use crate::models::common::enums::{Channel, Provider};
+    use crate::services::packaging::PackageProgressEvent;
+
+    #[test]
+    fn upgrade_progress_bars_align_across_transfer_phases() {
+        let events = [
+            PackageProgressEvent::Download {
+                downloaded: 512,
+                total: 1024,
+            },
+            PackageProgressEvent::Extraction {
+                extracted: 512,
+                total: 1024,
+            },
+            PackageProgressEvent::Zsync {
+                downloaded: 512,
+                total: 1024,
+            },
+            PackageProgressEvent::Checksum {
+                checked: 512,
+                total: 1024,
+            },
+        ];
+        for event in events {
+            let row = render_upgrade_progress_row("github:owner/tool", event, 40);
+            assert_eq!(row.find('['), Some(53), "misaligned progress row: {row}");
+        }
+    }
 
     #[tokio::test]
     async fn every_check_output_mode_persists_results_even_with_package_failures() {

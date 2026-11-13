@@ -49,8 +49,13 @@ fn render_import_progress_row(
         PackageProgressEvent::Phase(phase) => phase.label().replace(" ...", "..."),
         PackageProgressEvent::Detail(message) => output::truncate_end(&message, 96),
         PackageProgressEvent::Download { downloaded, total } if total > 0 => format!(
-            "Downloading {} {} / {}",
-            output::progress_bar(downloaded, total, IMPORT_PROGRESS_BAR_WIDTH),
+            "{} {} / {}",
+            output::labeled_progress_bar(
+                "Downloading",
+                downloaded,
+                total,
+                IMPORT_PROGRESS_BAR_WIDTH
+            ),
             HumanBytes(downloaded),
             HumanBytes(total),
         ),
@@ -59,8 +64,8 @@ fn render_import_progress_row(
         }
         PackageProgressEvent::Download { .. } => "Downloading...".to_string(),
         PackageProgressEvent::Zsync { downloaded, total } if total > 0 => format!(
-            "Syncing {} {} / {}",
-            output::progress_bar(downloaded, total, IMPORT_PROGRESS_BAR_WIDTH),
+            "{} {} / {}",
+            output::labeled_progress_bar("Syncing", downloaded, total, IMPORT_PROGRESS_BAR_WIDTH),
             HumanBytes(downloaded),
             HumanBytes(total),
         ),
@@ -69,15 +74,15 @@ fn render_import_progress_row(
         }
         PackageProgressEvent::Zsync { .. } => "Syncing...".to_string(),
         PackageProgressEvent::Extraction { extracted, total } if total > 0 => format!(
-            "Extracting {} {} / {}",
-            output::progress_bar(extracted, total, IMPORT_PROGRESS_BAR_WIDTH),
+            "{} {} / {}",
+            output::labeled_progress_bar("Extracting", extracted, total, IMPORT_PROGRESS_BAR_WIDTH),
             HumanBytes(extracted),
             HumanBytes(total),
         ),
         PackageProgressEvent::Extraction { .. } => "Extracting...".to_string(),
         PackageProgressEvent::Checksum { checked, total } if total > 0 => format!(
-            "Checksumming {} {} / {}",
-            output::progress_bar(checked, total, IMPORT_PROGRESS_BAR_WIDTH),
+            "{} {} / {}",
+            output::labeled_progress_bar("Checksumming", checked, total, IMPORT_PROGRESS_BAR_WIDTH),
             HumanBytes(checked),
             HumanBytes(total),
         ),
@@ -340,7 +345,7 @@ mod tests {
             5,
         );
 
-        assert!(download.starts_with("gitui Downloading [=======>      ]"));
+        assert!(download.starts_with("gitui Downloading  [=======>      ]"));
         assert!(download.contains('/'));
 
         assert_eq!(

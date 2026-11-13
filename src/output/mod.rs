@@ -24,8 +24,8 @@ pub use status::{
     status_line_text_with_width, status_subject_width, summary_line,
 };
 pub use style::{
-    action_note, divider, kv, list_row, meta, progress_bar, section, status_marker, success, title,
-    truncate_end, truncate_middle, warning,
+    action_note, divider, kv, labeled_progress_bar, list_row, meta, progress_bar, section,
+    status_marker, success, title, truncate_end, truncate_middle, warning,
 };
 pub use table::{
     SizeImpactRow, TransactionRow, TransactionTableLayout, print_disk_impact,

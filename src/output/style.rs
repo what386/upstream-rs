@@ -78,6 +78,11 @@ pub fn progress_bar(done: u64, total: u64, width: usize) -> String {
     )
 }
 
+/// Align progress bars after action labels as long as `Checksumming`.
+pub fn labeled_progress_bar(action: &str, done: u64, total: u64, width: usize) -> String {
+    format!("{action:<12} {}", progress_bar(done, total, width))
+}
+
 pub fn truncate_visible(value: &str, max: usize) -> String {
     if max == 0 {
         return String::new();

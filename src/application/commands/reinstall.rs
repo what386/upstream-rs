@@ -51,8 +51,13 @@ fn render_reinstall_progress_row(
         PackageProgressEvent::Download { downloaded, total } => {
             if total > 0 {
                 format!(
-                    "Downloading {} {}",
-                    output::progress_bar(downloaded, total, REINSTALL_PROGRESS_BAR_WIDTH),
+                    "{} {}",
+                    output::labeled_progress_bar(
+                        "Downloading",
+                        downloaded,
+                        total,
+                        REINSTALL_PROGRESS_BAR_WIDTH
+                    ),
                     format_transfer(downloaded, total)
                 )
             } else if downloaded > 0 {
@@ -64,8 +69,13 @@ fn render_reinstall_progress_row(
         PackageProgressEvent::Extraction { extracted, total } => {
             if total > 0 {
                 format!(
-                    "Extracting {} {}",
-                    output::progress_bar(extracted, total, REINSTALL_PROGRESS_BAR_WIDTH),
+                    "{} {}",
+                    output::labeled_progress_bar(
+                        "Extracting",
+                        extracted,
+                        total,
+                        REINSTALL_PROGRESS_BAR_WIDTH
+                    ),
                     format_transfer(extracted, total)
                 )
             } else {
@@ -75,8 +85,13 @@ fn render_reinstall_progress_row(
         PackageProgressEvent::Zsync { downloaded, total } => {
             if total > 0 {
                 format!(
-                    "Syncing {} {}",
-                    output::progress_bar(downloaded, total, REINSTALL_PROGRESS_BAR_WIDTH),
+                    "{} {}",
+                    output::labeled_progress_bar(
+                        "Syncing",
+                        downloaded,
+                        total,
+                        REINSTALL_PROGRESS_BAR_WIDTH
+                    ),
                     format_transfer(downloaded, total)
                 )
             } else if downloaded > 0 {
@@ -88,8 +103,13 @@ fn render_reinstall_progress_row(
         PackageProgressEvent::Checksum { checked, total } => {
             if total > 0 {
                 format!(
-                    "Checksumming {} {}",
-                    output::progress_bar(checked, total, REINSTALL_PROGRESS_BAR_WIDTH),
+                    "{} {}",
+                    output::labeled_progress_bar(
+                        "Checksumming",
+                        checked,
+                        total,
+                        REINSTALL_PROGRESS_BAR_WIDTH
+                    ),
                     format_transfer(checked, total)
                 )
             } else if checked > 0 {
