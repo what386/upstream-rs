@@ -64,7 +64,7 @@ class LocalBuildUpdateIntegrationTests(unittest.TestCase):
     def update(self) -> subprocess.CompletedProcess[str]:
         # The script must discover the checkout independently of the caller's cwd.
         return subprocess.run(
-            ["bash", str(ROOT / "scripts/test/sketchy-upgrade.sh"), "--debug"],
+            ["bash", str(ROOT / "scripts/dev/sketchy-upgrade.sh"), "--debug"],
             cwd=self.home, env=self.env, text=True, capture_output=True,
         )
 

@@ -49,7 +49,7 @@ run *args:
     cargo run --bin "upstream" -- {{args}}
 
 testbin *args:
-    "$(scripts/test/testhome.sh)/.upstream/state/symlinks/upstream" {{args}}
+    "$(scripts/dev/testhome.sh)/.upstream/state/symlinks/upstream" {{args}}
 
 prepare version:
     scripts/release/prepare.sh {{version}}
@@ -66,4 +66,4 @@ resync:
     scripts/release/resync.sh
 
 inspect-db:
-    lazysql "$(scripts/test/testhome.sh)/.upstream/metadata/packages.db"
+    lazysql "$(scripts/dev/testhome.sh)/.upstream/metadata/packages.db"

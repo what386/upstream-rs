@@ -107,3 +107,7 @@ required-features = ["shell-completions"]
 [[bin]]
 name = "upstream"
 path = "src/main.rs"
+
+[[example]]
+name = "install-local-build"
+path = "scripts/dev/install-local-build.rs"
