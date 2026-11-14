@@ -139,7 +139,7 @@ pub async fn run(
     channel: Channel,
     match_pattern: Option<String>,
     exclude_pattern: Option<String>,
-    create_entry: bool,
+    create_entry: Option<bool>,
     trust_mode: TrustMode,
     dry_run: bool,
     paths: &UpstreamPaths,
@@ -215,7 +215,7 @@ pub async fn run_plan(
 }
 
 async fn run_release_plan(
-    create_entry: bool,
+    create_entry: Option<bool>,
     source: ReleaseInstallSource,
     dry_run: bool,
     paths: &UpstreamPaths,
@@ -266,7 +266,14 @@ async fn run_release_plan(
             format!("{} ({:?})", preview.asset.name, preview.resolved_filetype),
         );
         output::kv("Trust", trust_mode);
-        output::kv("Desktop", if create_entry { "yes" } else { "no" });
+        output::kv(
+            "Desktop",
+            match create_entry {
+                Some(true) => "forced",
+                Some(false) => "disabled",
+                None => "auto",
+            },
+        );
         output::print_disk_impact(&preview.disk_impact, true);
         output::action_note("resolve only (no download, no install, no metadata changes)");
         return Ok(());

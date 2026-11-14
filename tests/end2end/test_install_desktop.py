@@ -19,7 +19,22 @@ FIXTURE_APPIMAGE = ROOT / "test-server" / "artifacts" / "appimages" / (
 
 class AppImageDesktopInstallTests(unittest.TestCase):
     @unittest.skipUnless(sys.platform.startswith("linux"), "AppImage integration requires Linux")
-    def test_install_appimage_desktop(self) -> None:
+    def test_desktop_false_disables_appimage_launcher(self) -> None:
+        reset_fakehome()
+        server = Server()
+        try:
+            artifact_name = f"appimages/{FIXTURE_APPIMAGE.name}"
+            server.write_bytes(artifact_name, FIXTURE_APPIMAGE.read_bytes())
+            run_upstream("install", server.url_for(artifact_name), "--desktop", "false", "--yes", "--trust", "none")
+            package = package_from_list("fixture-tool")
+            self.assertTrue(package_path(package).is_file())
+            self.assertIsNone(package["icon_path"])
+            self.assertEqual(list((FAKEHOME / ".local/share/applications").glob("*.desktop")), [])
+        finally:
+            server.close()
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "AppImage integration requires Linux")
+    def test_install_appimage_autodetects_desktop(self) -> None:
         reset_fakehome()
 
         server = Server()
@@ -29,7 +44,6 @@ class AppImageDesktopInstallTests(unittest.TestCase):
             run_upstream(
                 "install",
                 server.url_for(artifact_name),
-                "--desktop",
                 "--yes",
                 "--trust",
                 "none",

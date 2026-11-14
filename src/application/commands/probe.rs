@@ -32,7 +32,7 @@ pub async fn run(
     kind: Filetype,
     include_incompatible: bool,
     json: bool,
-    create_entry: bool,
+    create_entry: Option<bool>,
     trust_mode: TrustMode,
     dry_run: bool,
     paths: &UpstreamPaths,
@@ -141,7 +141,14 @@ pub async fn run(
         },
     );
     output::kv("Trust", trust_mode);
-    output::kv("Desktop", if create_entry { "yes" } else { "no" });
+    output::kv(
+        "Desktop",
+        match create_entry {
+            Some(true) => "forced",
+            Some(false) => "disabled",
+            None => "auto",
+        },
+    );
     output::print_disk_impact(&selection.disk_impact, true);
 
     let transaction_rows = vec![TransactionRow::single_version(

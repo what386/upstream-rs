@@ -47,7 +47,7 @@ pub enum InstallSource {
 pub struct InstallRequest {
     pub package: Package,
     pub source: InstallSource,
-    pub add_entry: bool,
+    pub add_entry: Option<bool>,
     pub trust_mode: TrustMode,
 }
 
@@ -57,7 +57,7 @@ pub struct InstallRequest {
 pub struct InstallPlan {
     pub package: Package,
     pub source: PlannedInstallSource,
-    pub add_entry: bool,
+    pub add_entry: Option<bool>,
     pub trust_mode: TrustMode,
     pub disk_impact: DiskImpact,
 }

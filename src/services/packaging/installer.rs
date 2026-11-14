@@ -338,7 +338,7 @@ impl<'a> PackageInstaller<'a> {
         package: Package,
         release: &Release,
         asset: &Asset,
-        add_entry: &bool,
+        add_entry: &Option<bool>,
         trust_mode: TrustMode,
         download_progress_callback: &mut Option<F>,
         message_callback: &mut Option<H>,
@@ -405,7 +405,7 @@ impl<'a> PackageInstaller<'a> {
         package: Package,
         artifact_path: &Path,
         version: crate::models::common::version::Version,
-        add_entry: &bool,
+        add_entry: &Option<bool>,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
     ) -> Result<Package>
@@ -509,7 +509,7 @@ impl<'a> PackageInstaller<'a> {
     async fn finish_installed_package<H, P>(
         &self,
         installed_package: Package,
-        _add_entry: &bool,
+        _add_entry: &Option<bool>,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
     ) -> Result<Package>
@@ -542,7 +542,7 @@ impl<'a> PackageInstaller<'a> {
         mut package: Package,
         release: &Release,
         asset: &Asset,
-        add_entry: bool,
+        add_entry: Option<bool>,
         trust_mode: TrustMode,
         trusted_keys: &TrustedSignatureKeys,
         download_progress_callback: &mut Option<F>,
@@ -736,7 +736,7 @@ impl<'a> PackageInstaller<'a> {
                         self.workspace(),
                         &download_path,
                         package,
-                        add_entry,
+                        add_entry == Some(true),
                         message_callback,
                     )
                     .await

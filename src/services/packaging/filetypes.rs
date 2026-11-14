@@ -326,11 +326,11 @@ where
         None
     };
 
-    let primary_alias = integration_root.as_deref().and_then(|root| {
-        add_entry
-            .then(|| appimage_try_exec(root, &package.id))
-            .flatten()
-    });
+    // Reuse metadata from an extraction already needed for integrations,
+    // including when the launcher is selected automatically.
+    let primary_alias = integration_root
+        .as_deref()
+        .and_then(|root| appimage_try_exec(root, &package.id));
 
     package.install_path = Some(out_path.clone());
     set_executable_aliases(&mut package, vec![out_path], primary_alias);

@@ -17,7 +17,7 @@ pub async fn run(
     provider: Option<Provider>,
     base_url: Option<String>,
     channel: Channel,
-    desktop: bool,
+    desktop: Option<bool>,
     build_profile: Option<BuildProfile>,
     dry_run: bool,
     paths: &UpstreamPaths,

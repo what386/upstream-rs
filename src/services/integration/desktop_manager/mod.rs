@@ -1,5 +1,10 @@
+mod archive_detection;
 #[cfg(target_os = "linux")]
 mod linux_dm;
+// Keep the pure PE parser covered by tests on non-Windows hosts as well.
+#[cfg(all(test, not(windows)))]
+#[path = "windows_dm/detection.rs"]
+mod windows_detection;
 #[cfg(windows)]
 mod windows_dm;
 
@@ -326,6 +331,24 @@ pub struct DesktopManager<'a> {
 }
 
 impl<'a> DesktopManager<'a> {
+    /// Detect a desktop application without initializing integration services
+    /// or extracting AppImages. Each platform owns its detection policy.
+    pub(crate) fn should_auto_integrate(package: &Package) -> bool {
+        #[cfg(target_os = "linux")]
+        {
+            LinuxDesktopHandler::should_auto_integrate(package)
+        }
+        #[cfg(windows)]
+        {
+            WindowsDesktopHandler::should_auto_integrate(package)
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let _ = package;
+            false
+        }
+    }
+
     #[cfg(target_os = "macos")]
     pub fn new(_paths: &'a UpstreamPaths) -> Result<Self> {
         Err(anyhow!("Desktop integration is unsupported on macOS"))

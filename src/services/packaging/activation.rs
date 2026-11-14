@@ -494,7 +494,7 @@ impl<'a> PackageActivator<'a> {
         &self,
         package_database: &mut PackageDatabase,
         prepared: PreparedInstall,
-        add_entry: bool,
+        add_entry: Option<bool>,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
     ) -> Result<Package>
@@ -517,7 +517,7 @@ impl<'a> PackageActivator<'a> {
         &self,
         package_database: &mut PackageDatabase,
         mut prepared: PreparedInstall,
-        add_entry: bool,
+        add_entry: Option<bool>,
         trust_mode: Option<crate::models::common::enums::TrustMode>,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
@@ -527,15 +527,26 @@ impl<'a> PackageActivator<'a> {
         P: FnMut(PackageProgressEvent),
     {
         cancellation::check()?;
-        if add_entry {
+        let auto_desktop =
+            add_entry.is_none() && DesktopManager::should_auto_integrate(&prepared.package);
+        if add_entry == Some(true) || auto_desktop {
             progress!(
                 progress_callback,
                 PackageProgressEvent::Phase(PackagePhase::CreatingDesktopEntry)
             );
 
-            prepared
+            let result = prepared
                 .prepare_desktop_data(self.paths, message_callback)
-                .await?;
+                .await;
+            if add_entry == Some(true) {
+                result?;
+            } else if let Err(error) = result {
+                if let Some(callback) = message_callback.as_mut() {
+                    callback(&format!("Automatic desktop integration skipped: {error:#}"));
+                }
+            } else if let Some(callback) = message_callback.as_mut() {
+                callback("Detected desktop application; creating launcher");
+            }
         }
 
         let updated_package = prepared.activate_payload(self.paths)?;
@@ -551,7 +562,7 @@ impl<'a> PackageActivator<'a> {
             prepared.install_completions(self.paths)?;
             UnitManager::new(self.paths)
                 .install(&updated_package, &prepared.workspace.units_dir)?;
-            if add_entry {
+            if prepared.staged_desktop_path.is_some() {
                 prepared.install_desktop_artifacts(self.paths)?;
             }
 
@@ -974,6 +985,69 @@ mod tests {
     };
     use std::fs;
 
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn archive_desktop_detection_and_force_override() {
+        for (terminal, forced, expected) in [
+            (false, None, true),
+            (true, None, false),
+            (true, Some(true), true),
+            (false, Some(false), false),
+        ] {
+            let root = test_support::temp_root(
+                "upstream-desktop-activation",
+                &format!("{terminal}-{forced:?}"),
+            );
+            let paths = test_support::upstream_paths(&root);
+            fs::create_dir_all(&paths.state.symlinks_dir).unwrap();
+            let workspace = InstallWorkspace::new(&paths, "tool").unwrap();
+            let staged = workspace.archives_dir.join("tool");
+            fs::create_dir_all(&staged).unwrap();
+            fs::write(staged.join("tool"), b"binary").unwrap();
+            fs::write(staged.join("icon.png"), b"icon").unwrap();
+            fs::write(staged.join("tool.desktop"), format!("[Desktop Entry]\nType=Application\nExec=tool\nTerminal={terminal}\nIcon=icon.png\n")).unwrap();
+            let mut package = Package::with_defaults(
+                "tool".into(),
+                "owner/tool".into(),
+                Filetype::Archive,
+                None,
+                None,
+                Channel::Stable,
+                Provider::Github,
+                None,
+            );
+            package.install_path = Some(staged.clone());
+            package.executables = vec![crate::models::upstream::PackageExecutable {
+                name: "tool".into(),
+                path: staged.join("tool"),
+            }];
+            let mut database =
+                PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
+            let installed = PackageActivator::new(&paths)
+                .install_new(
+                    &mut database,
+                    PreparedInstall::new(package, workspace),
+                    forced,
+                    &mut None::<fn(&str)>,
+                    &mut None::<fn(crate::services::packaging::PackageProgressEvent)>,
+                )
+                .await
+                .unwrap();
+            let launcher = paths.integration.xdg_applications_dir.join("tool.desktop");
+            assert_eq!(launcher.exists(), expected);
+            assert_eq!(installed.icon_path.is_some(), expected);
+            if expected {
+                let content = fs::read_to_string(launcher).unwrap();
+                assert!(
+                    content.contains(&format!("Exec={}", installed.executables[0].path.display()))
+                );
+                assert!(installed.icon_path.unwrap().exists());
+            }
+            drop(database);
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+
     #[tokio::test]
     async fn staged_new_install_activates_before_persisting_metadata() {
         let root = test_support::temp_root("upstream-package-replacement-test", "new-install");
@@ -1022,7 +1096,7 @@ mod tests {
             .install_new(
                 &mut database,
                 PreparedInstall::new(package, workspace),
-                false,
+                None,
                 &mut None::<fn(&str)>,
                 &mut None::<fn(crate::services::packaging::PackageProgressEvent)>,
             )
@@ -1100,7 +1174,7 @@ mod tests {
             .install_new(
                 &mut database,
                 PreparedInstall::new(package, workspace),
-                false,
+                None,
                 &mut None::<fn(&str)>,
                 &mut None::<fn(crate::services::packaging::PackageProgressEvent)>,
             )
@@ -1341,7 +1415,7 @@ mod tests {
             .install_new(
                 &mut database,
                 PreparedInstall::new(package, workspace),
-                false,
+                None,
                 &mut None::<fn(&str)>,
                 &mut None::<fn(crate::services::packaging::PackageProgressEvent)>,
             )

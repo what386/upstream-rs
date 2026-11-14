@@ -1,3 +1,5 @@
+use super::super::StagedDesktopEntry;
+use super::WindowsDesktopHandler;
 use crate::{
     models::common::{DesktopEntry, enums::Filetype},
     providers::assets::filenames::filesystem_name,
@@ -10,34 +12,8 @@ use std::{
     process::Command,
 };
 
-use super::super::IconManager;
-use super::StagedDesktopEntry;
-
-pub(super) struct WindowsDesktopHandler;
-
 impl WindowsDesktopHandler {
-    pub(super) fn new() -> Self {
-        Self
-    }
-
-    pub(super) async fn add_icon<H>(
-        &self,
-        paths: &UpstreamPaths,
-        name: &str,
-        path: &Path,
-        filetype: &Filetype,
-        output_dir: &Path,
-        message_callback: &mut Option<H>,
-    ) -> Result<Option<PathBuf>>
-    where
-        H: FnMut(&str),
-    {
-        IconManager::new(paths)
-            .add_icon_to(name, path, filetype, output_dir, message_callback)
-            .await
-    }
-
-    pub(super) async fn create_entry<H>(
+    pub(in super::super) async fn create_entry<H>(
         &self,
         paths: &UpstreamPaths,
         package_id: &str,
@@ -73,7 +49,7 @@ impl WindowsDesktopHandler {
         Ok(directory)
     }
 
-    pub(super) async fn create_staged_entry<H>(
+    pub(in super::super) async fn create_staged_entry<H>(
         &self,
         request: StagedDesktopEntry<'_>,
         _message_callback: &mut Option<H>,
@@ -105,7 +81,7 @@ impl WindowsDesktopHandler {
         Ok(())
     }
 
-    pub(super) fn remove_entry(paths: &UpstreamPaths, name: &str) -> Result<()> {
+    pub(in super::super) fn remove_entry(paths: &UpstreamPaths, name: &str) -> Result<()> {
         let path = Self::managed_entry_path(paths, name);
         if path.exists() {
             fs::remove_dir_all(path)?;
@@ -116,7 +92,7 @@ impl WindowsDesktopHandler {
 
     // Treat the package directory as one integration artifact for activation,
     // rollback and removal. Only the .lnk inside it has a user-facing name.
-    pub(super) fn managed_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
+    pub(in super::super) fn managed_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
         paths
             .integration
             .windows_programs_dir
@@ -124,13 +100,13 @@ impl WindowsDesktopHandler {
             .join(filesystem_name(name))
     }
 
-    pub(super) fn legacy_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
+    pub(in super::super) fn legacy_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
         dirs::desktop_dir()
             .unwrap_or_else(|| paths.dirs.data_dir.join("shortcuts"))
             .join(format!("{}.lnk", filesystem_name(name)))
     }
 
-    pub(super) fn remove_legacy_entry(paths: &UpstreamPaths, name: &str) -> Result<()> {
+    pub(in super::super) fn remove_legacy_entry(paths: &UpstreamPaths, name: &str) -> Result<()> {
         let path = Self::legacy_entry_path(paths, name);
         match fs::remove_file(&path) {
             Ok(()) => Ok(()),
@@ -256,7 +232,7 @@ mod tests {
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.join("Example Launcher.lnk"), b"shortcut").unwrap();
         assert!(DesktopManager::entry_exists(&paths, old_id).unwrap());
-        let snapshot = super::super::FileSnapshot::capture(directory.clone()).unwrap();
+        let snapshot = super::super::super::FileSnapshot::capture(directory.clone()).unwrap();
         fs::remove_dir_all(&directory).unwrap();
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.join("Replacement.lnk"), b"replacement").unwrap();
@@ -285,8 +261,9 @@ mod tests {
         let metadata_path = root.join("staged.exe");
         let final_target = root.join("not-installed-yet/launcher.exe");
         let entry_path = root.join("prepared");
-        let fixture =
-            include_bytes!("../../../../tests/fixtures/artifacts/windows/windows-version-info.bin");
+        let fixture = include_bytes!(
+            "../../../../../tests/fixtures/artifacts/windows/windows-version-info.bin"
+        );
 
         fs::write(&metadata_path, fixture).unwrap();
         let handler = WindowsDesktopHandler::new();

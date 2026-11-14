@@ -2,7 +2,7 @@ use crate::models::common::enums::{BuildProfile, Channel, Filetype, Provider, Tr
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InstallPlan {
-    pub desktop: bool,
+    pub desktop: Option<bool>,
     pub source: InstallSource,
 }
 

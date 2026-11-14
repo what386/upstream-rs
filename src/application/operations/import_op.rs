@@ -356,7 +356,7 @@ impl<'a> ImportOperation<'a> {
                                 .install_new_with_settings(
                                     self.package_database,
                                     prepared,
-                                    false,
+                                    None,
                                     trust_mode,
                                     &mut no_messages,
                                     &mut activation_progress,
@@ -669,7 +669,7 @@ async fn import_package(
                             version,
                             semver: None,
                         },
-                        add_entry: false,
+                        add_entry: None,
                         trust_mode: trust_mode.unwrap_or(TrustMode::BestEffort),
                     })
                     .await?;
@@ -741,7 +741,7 @@ where
                 artifact_path: output.artifact_path,
                 version: output.version,
             },
-            add_entry: false,
+            add_entry: None,
             trust_mode: TrustMode::BestEffort,
         })
         .await?;

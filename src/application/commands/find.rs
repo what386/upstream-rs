@@ -29,7 +29,7 @@ pub async fn run(
     channel: Channel,
     match_pattern: Option<String>,
     exclude_pattern: Option<String>,
-    desktop: bool,
+    desktop: Option<bool>,
     trust_mode: TrustMode,
     dry_run: bool,
     paths: &UpstreamPaths,

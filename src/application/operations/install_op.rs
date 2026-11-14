@@ -24,14 +24,14 @@ use crate::{
 pub struct ReleaseInstallRequest {
     pub package: Package,
     pub version: Option<String>,
-    pub add_entry: bool,
+    pub add_entry: Option<bool>,
     pub trust_mode: TrustMode,
 }
 
 pub struct PlannedReleaseInstallRequest {
     pub package: Package,
     pub plan: ResolvedAssetInstall,
-    pub add_entry: bool,
+    pub add_entry: Option<bool>,
     pub trust_mode: TrustMode,
 }
 
@@ -39,7 +39,7 @@ pub struct SelectedAssetInstallRequest<'a> {
     pub package: Package,
     pub release: &'a Release,
     pub asset: &'a Asset,
-    pub add_entry: bool,
+    pub add_entry: Option<bool>,
     pub trust_mode: TrustMode,
 }
 
@@ -47,7 +47,7 @@ pub struct LocalArtifactInstallRequest<'a> {
     pub package: Package,
     pub artifact_path: &'a Path,
     pub version: Version,
-    pub add_entry: bool,
+    pub add_entry: Option<bool>,
 }
 
 pub struct InstallOperation<'a> {
@@ -85,7 +85,7 @@ impl<'a> InstallOperation<'a> {
                     version: version.clone(),
                     semver: semver.clone(),
                 },
-                add_entry: false,
+                add_entry: None,
                 trust_mode: TrustMode::BestEffort,
             })
             .await?;
@@ -320,7 +320,7 @@ mod tests {
                     package: test_package("tool"),
                     artifact_path: &root.join("missing-artifact"),
                     version: crate::models::common::Version::new(1, 2, 3, false),
-                    add_entry: false,
+                    add_entry: None,
                 },
                 &mut message,
                 &mut progress,

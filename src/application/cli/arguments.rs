@@ -82,9 +82,9 @@ pub enum Commands {
         #[arg(short = 'e', long, name = "exclude")]
         exclude_pattern: Option<String>,
 
-        /// Create a desktop launcher entry for GUI applications
-        #[arg(short, long, default_value_t = false)]
-        desktop: bool,
+        /// Create or disable a desktop launcher (auto-detected when omitted)
+        #[arg(short, long, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true", value_name = "BOOL")]
+        desktop: Option<bool>,
 
         /// Trust verification mode for downloaded assets
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
@@ -135,9 +135,9 @@ pub enum Commands {
         #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
         channel: Channel,
 
-        /// Create a desktop launcher entry for GUI applications
-        #[arg(short, long, default_value_t = false)]
-        desktop: bool,
+        /// Create or disable a desktop launcher (auto-detected when omitted)
+        #[arg(short, long, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true", value_name = "BOOL")]
+        desktop: Option<bool>,
 
         /// Build profile used to compile/install from source (auto-detected when omitted)
         #[arg(long, value_enum)]
@@ -421,9 +421,9 @@ pub enum Commands {
         #[arg(short = 'j', long, default_value_t = false)]
         json: bool,
 
-        /// Create a desktop launcher entry for GUI applications
-        #[arg(short, long, default_value_t = false)]
-        desktop: bool,
+        /// Create or disable a desktop launcher (auto-detected when omitted)
+        #[arg(short, long, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true", value_name = "BOOL")]
+        desktop: Option<bool>,
 
         /// Trust verification mode for downloaded assets
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
@@ -569,9 +569,9 @@ pub enum Commands {
         #[arg(short = 'e', long, name = "exclude")]
         exclude_pattern: Option<String>,
 
-        /// Create a desktop launcher entry for GUI applications
-        #[arg(short, long, default_value_t = false)]
-        desktop: bool,
+        /// Create or disable a desktop launcher (auto-detected when omitted)
+        #[arg(short, long, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true", value_name = "BOOL")]
+        desktop: Option<bool>,
 
         /// Trust verification mode for downloaded assets
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
@@ -1274,4 +1274,39 @@ pub enum PackageSettingKey {
     ExcludePattern,
     #[value(name = "trust_mode", alias = "trust-mode")]
     TrustMode,
+}
+
+#[cfg(test)]
+mod desktop_option_tests {
+    use super::*;
+
+    #[test]
+    fn desktop_options_preserve_auto_force_and_disable() {
+        for command in ["install", "build", "probe", "find"] {
+            for (options, expected) in [
+                (vec![], None),
+                (vec!["--desktop"], Some(true)),
+                (vec!["--desktop", "true"], Some(true)),
+                (vec!["--desktop", "false"], Some(false)),
+                (vec!["--desktop=false"], Some(false)),
+                (vec!["-d"], Some(true)),
+            ] {
+                let mut args = vec!["upstream", command, "owner/tool"];
+                args.extend(options);
+                let cli = Cli::try_parse_from(&args).unwrap();
+                let desktop = match cli.command {
+                    Commands::Install { desktop, .. }
+                    | Commands::Build { desktop, .. }
+                    | Commands::Probe { desktop, .. }
+                    | Commands::Find { desktop, .. } => desktop,
+                    _ => unreachable!(),
+                };
+                assert_eq!(desktop, expected, "{args:?}");
+            }
+            assert!(
+                Cli::try_parse_from(["upstream", command, "owner/tool", "--desktop", "invalid"])
+                    .is_err()
+            );
+        }
+    }
 }

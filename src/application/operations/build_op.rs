@@ -32,7 +32,7 @@ pub struct BuildCommandInput {
     pub provider: Option<Provider>,
     pub base_url: Option<String>,
     pub channel: Channel,
-    pub desktop: bool,
+    pub desktop: Option<bool>,
     pub build_profile: Option<BuildProfile>,
     pub dry_run: bool,
 }
@@ -198,7 +198,14 @@ impl<'a> BuildOperation<'a> {
                 None => output::kv("Profile", "auto-detect at build time"),
             }
 
-            output::kv("Desktop", if input.desktop { "yes" } else { "no" });
+            output::kv(
+                "Desktop",
+                match input.desktop {
+                    Some(true) => "forced",
+                    Some(false) => "disabled",
+                    None => "auto",
+                },
+            );
             output::action_note("resolve only (no compile, no install, no metadata changes)");
             return Ok(());
         }

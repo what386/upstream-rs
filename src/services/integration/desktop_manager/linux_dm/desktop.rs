@@ -1,17 +1,15 @@
+use super::super::StagedDesktopEntry;
+use super::LinuxDesktopHandler;
 use crate::{
     models::common::{DesktopEntry, enums::Filetype},
     providers::assets::filenames::filesystem_name,
-    services::artifact::AppImageExtractor,
     utils::static_paths::UpstreamPaths,
 };
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use std::{
     fs,
     path::{Path, PathBuf},
 };
-
-use super::super::IconManager;
-use super::StagedDesktopEntry;
 
 macro_rules! message {
     ($cb:expr, $($arg:tt)*) => {{
@@ -21,36 +19,8 @@ macro_rules! message {
     }};
 }
 
-pub(super) struct LinuxDesktopHandler {
-    extractor: AppImageExtractor,
-}
-
 impl LinuxDesktopHandler {
-    pub(super) fn new() -> Result<Self> {
-        Ok(Self {
-            extractor: AppImageExtractor::new()
-                .context("Failed to initialize appimage extractor")?,
-        })
-    }
-
-    pub(super) async fn add_icon<H>(
-        &self,
-        paths: &UpstreamPaths,
-        name: &str,
-        path: &Path,
-        filetype: &Filetype,
-        output_dir: &Path,
-        message_callback: &mut Option<H>,
-    ) -> Result<Option<PathBuf>>
-    where
-        H: FnMut(&str),
-    {
-        IconManager::new(paths, &self.extractor)
-            .add_icon_to(name, path, filetype, output_dir, message_callback)
-            .await
-    }
-
-    pub(super) async fn create_entry<H>(
+    pub(in super::super) async fn create_entry<H>(
         &self,
         paths: &UpstreamPaths,
         package_id: &str,
@@ -88,7 +58,7 @@ impl LinuxDesktopHandler {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(super) async fn create_staged_entry<H>(
+    pub(in super::super) async fn create_staged_entry<H>(
         &self,
         request: StagedDesktopEntry<'_>,
         message_callback: &mut Option<H>,
@@ -131,7 +101,7 @@ impl LinuxDesktopHandler {
         Ok(())
     }
 
-    pub(super) fn remove_entry(paths: &UpstreamPaths, name: &str) -> Result<()> {
+    pub(in super::super) fn remove_entry(paths: &UpstreamPaths, name: &str) -> Result<()> {
         let path = Self::managed_entry_path(paths, name);
         if path.exists() {
             fs::remove_file(path)?;
@@ -140,7 +110,7 @@ impl LinuxDesktopHandler {
         Ok(())
     }
 
-    pub(super) fn managed_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
+    pub(in super::super) fn managed_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
         paths
             .integration
             .xdg_applications_dir
