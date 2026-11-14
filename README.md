@@ -23,8 +23,9 @@ curl -fsSL https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/in
 iwr -useb https://raw.githubusercontent.com/what386/upstream-rs/main/scripts/install/install.ps1 | iex
 ```
 
-Windows requires the [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
-for your architecture.
+The Windows installer downloads the [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
+if it is missing and asks for administrator approval to install it. For Cargo or
+manual installations, install the redistributable for your architecture if needed.
 
 Linux is the primary supported platform. Windows and macOS support are
 experimental; macOS does not support desktop-entry creation.

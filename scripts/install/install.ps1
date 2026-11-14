@@ -116,7 +116,7 @@ function Test-VisualCppRuntimeInstalled {
     return $false
 }
 
-function Assert-VisualCppRuntime {
+function Install-VisualCppRuntimeIfMissing {
     param(
         [string]$Architecture
     )
@@ -126,12 +126,52 @@ function Assert-VisualCppRuntime {
     }
 
     $runtimeArchitecture = Get-VisualCppRuntimeArchitecture -Architecture $Architecture
-    throw @"
-Microsoft Visual C++ Redistributable is required to run Upstream, but the $runtimeArchitecture runtime was not found.
+    $downloadUrl = "https://aka.ms/vc14/vc_redist.$runtimeArchitecture.exe"
+    $tempDirectory = $null
+
+    Write-ColorOutput "Microsoft Visual C++ Redistributable ($runtimeArchitecture) is missing. Downloading it from Microsoft..." $YELLOW
+    Write-Host "Windows will ask for administrator approval to install this prerequisite. Upstream itself will stay in your user account."
+
+    try {
+        $tempDirectory = New-Item -ItemType Directory -Path ([System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), [System.IO.Path]::GetRandomFileName()))
+        $runtimeInstaller = Join-Path $tempDirectory "vc_redist.$runtimeArchitecture.exe"
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $runtimeInstaller -UseBasicParsing
+
+        $signature = Get-AuthenticodeSignature -LiteralPath $runtimeInstaller
+        if ($signature.Status -ne "Valid" -or
+            $signature.SignerCertificate.Subject -notmatch '(?:^|,\s*)CN=Microsoft Corporation(?:,|$)') {
+            throw "The downloaded runtime installer does not have a valid Microsoft signature."
+        }
+
+        # Elevate only Microsoft's installer, leaving the rest of setup unelevated.
+        $process = Start-Process -FilePath $runtimeInstaller -ArgumentList @("/install", "/passive", "/norestart") -Verb RunAs -Wait -PassThru -ErrorAction Stop
+        if ($process.ExitCode -notin @(0, 3010)) {
+            throw "The runtime installer exited with code $($process.ExitCode)."
+        }
+
+        if ($process.ExitCode -eq 3010) {
+            Write-ColorOutput "The runtime was installed, but Windows reports that a restart is required. Restart if Upstream cannot start." $YELLOW
+        }
+
+        if (-not (Test-VisualCppRuntimeInstalled -Architecture $Architecture)) {
+            throw "The $runtimeArchitecture runtime was not detected after installation. A Windows restart may be required."
+        }
+
+        Write-ColorOutput "Microsoft Visual C++ Redistributable installed. Continuing Upstream installation..." $GREEN
+    }
+    catch {
+        throw @"
+Could not install Microsoft Visual C++ Redistributable ($runtimeArchitecture): $_
 Install the latest supported Visual C++ Redistributable from Microsoft:
 https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
 Then rerun this installer.
 "@
+    }
+    finally {
+        if ($tempDirectory -and (Test-Path -LiteralPath $tempDirectory)) {
+            Remove-Item -LiteralPath $tempDirectory -Recurse -Force
+        }
+    }
 }
 
 function Confirm-Checksum {
@@ -260,7 +300,7 @@ function Main {
     Write-Host "Detected Architecture: $ARCH"
 
     try {
-        Assert-VisualCppRuntime -Architecture $ARCH
+        Install-VisualCppRuntimeIfMissing -Architecture $ARCH
     } catch {
         Write-ColorOutput "Error: $_" $RED
         exit 1

@@ -36,6 +36,14 @@ On Linux, also run the Python integration tests for relevant changes:
 python3 -m unittest discover -s tests/integration -p 'test_*.py'
 ```
 
+Windows installer tests run separately from regular CI. When changing the
+installer, run the **Windows installer tests** workflow from GitHub's Actions
+tab or the CLI:
+
+```bash
+gh workflow run windows-installer.yml --ref YOUR_BRANCH
+```
+
 Integration and end-to-end tests use Python and Ruby. 
 
 The source-build tests require all the toolchains they exercise: 

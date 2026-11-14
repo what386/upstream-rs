@@ -1,0 +1,22 @@
+name: Windows installer tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Test with Windows PowerShell 5.1
+        shell: powershell
+        run: ./tests/scripts/test_windows_installer.ps1
+
+      - name: Test with PowerShell
+        shell: pwsh
+        run: ./tests/scripts/test_windows_installer.ps1
