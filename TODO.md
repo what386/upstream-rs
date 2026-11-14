@@ -15,3 +15,14 @@
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
 
+
+## Completed
+
+- [x] feat: --desktop flag now accepts true|false argument
+      @created 2026-11-14 04:46
+      @completed 2026-11-14 04:47
+
+- [x] feat: automatic desktop detection
+      @created 2026-11-14 04:46
+      @completed 2026-11-14 04:47
+
