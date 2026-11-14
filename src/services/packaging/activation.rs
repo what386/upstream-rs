@@ -529,6 +529,7 @@ impl<'a> PackageActivator<'a> {
         cancellation::check()?;
         let auto_desktop =
             add_entry.is_none() && DesktopManager::should_auto_integrate(&prepared.package);
+
         if add_entry == Some(true) || auto_desktop {
             progress!(
                 progress_callback,
@@ -538,6 +539,7 @@ impl<'a> PackageActivator<'a> {
             let result = prepared
                 .prepare_desktop_data(self.paths, message_callback)
                 .await;
+
             if add_entry == Some(true) {
                 result?;
             } else if let Err(error) = result {
@@ -998,6 +1000,7 @@ mod tests {
                 "upstream-desktop-activation",
                 &format!("{terminal}-{forced:?}"),
             );
+
             let paths = test_support::upstream_paths(&root);
             fs::create_dir_all(&paths.state.symlinks_dir).unwrap();
             let workspace = InstallWorkspace::new(&paths, "tool").unwrap();
@@ -1016,6 +1019,7 @@ mod tests {
                 Provider::Github,
                 None,
             );
+
             package.install_path = Some(staged.clone());
             package.executables = vec![crate::models::upstream::PackageExecutable {
                 name: "tool".into(),
@@ -1023,6 +1027,7 @@ mod tests {
             }];
             let mut database =
                 PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
+
             let installed = PackageActivator::new(&paths)
                 .install_new(
                     &mut database,
@@ -1033,6 +1038,7 @@ mod tests {
                 )
                 .await
                 .unwrap();
+
             let launcher = paths.integration.xdg_applications_dir.join("tool.desktop");
             assert_eq!(launcher.exists(), expected);
             assert_eq!(installed.icon_path.is_some(), expected);
@@ -1041,8 +1047,10 @@ mod tests {
                 assert!(
                     content.contains(&format!("Exec={}", installed.executables[0].path.display()))
                 );
+
                 assert!(installed.icon_path.unwrap().exists());
             }
+
             drop(database);
             fs::remove_dir_all(root).unwrap();
         }

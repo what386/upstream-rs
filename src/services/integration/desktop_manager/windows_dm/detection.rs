@@ -20,10 +20,12 @@ fn windows_gui_executable(path: &Path) -> bool {
     let Ok(mut file) = fs::File::open(path) else {
         return false;
     };
+
     let mut dos = [0; 64];
     if file.read_exact(&mut dos).is_err() || &dos[..2] != b"MZ" {
         return false;
     }
+
     let offset = u32::from_le_bytes(dos[60..64].try_into().unwrap()) as u64;
     let mut pe = [0; 94];
     if offset < 64
@@ -33,6 +35,7 @@ fn windows_gui_executable(path: &Path) -> bool {
     {
         return false;
     }
+
     let characteristics = u16::from_le_bytes([pe[22], pe[23]]);
     let optional_size = u16::from_le_bytes([pe[20], pe[21]]);
     let magic = u16::from_le_bytes([pe[24], pe[25]]);
@@ -62,6 +65,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(root.to_path_buf());
         package
     }
@@ -102,6 +106,7 @@ mod tests {
             fs::write(&path, &bytes).unwrap();
             assert!(!windows_gui_executable(&path));
         }
+
         fs::remove_dir_all(root).unwrap();
     }
 }

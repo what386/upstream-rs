@@ -338,10 +338,12 @@ impl<'a> DesktopManager<'a> {
         {
             LinuxDesktopHandler::should_auto_integrate(package)
         }
+
         #[cfg(windows)]
         {
             WindowsDesktopHandler::should_auto_integrate(package)
         }
+
         #[cfg(target_os = "macos")]
         {
             let _ = package;

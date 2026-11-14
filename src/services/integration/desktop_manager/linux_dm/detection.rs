@@ -23,6 +23,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(std::path::PathBuf::from(
             "/nonexistent/application.AppImage",
         ));

@@ -1301,8 +1301,10 @@ mod desktop_option_tests {
                     | Commands::Find { desktop, .. } => desktop,
                     _ => unreachable!(),
                 };
+
                 assert_eq!(desktop, expected, "{args:?}");
             }
+
             assert!(
                 Cli::try_parse_from(["upstream", command, "owner/tool", "--desktop", "invalid"])
                     .is_err()

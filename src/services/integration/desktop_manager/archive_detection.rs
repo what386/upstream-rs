@@ -17,6 +17,7 @@ fn archive_has_desktop_data(root: &Path, package: &Package) -> bool {
         .next()
         .unwrap_or_default()
         .to_lowercase();
+
     let mut icon = false;
     let mut terminal_entry = false;
     // One bounded pass; avoid following directory symlinks and skip common
@@ -32,15 +33,18 @@ fn archive_has_desktop_data(root: &Path, package: &Package) -> bool {
                     Some("node_modules" | ".git" | "docs" | "doc" | "tests" | "test")
                 )
         });
+
     for entry in files.take(4096).flatten() {
         if !entry.file_type().is_file() {
             continue;
         }
+
         let path = entry.path();
         let extension = path
             .extension()
             .and_then(|s| s.to_str())
             .unwrap_or_default();
+
         if extension.eq_ignore_ascii_case("desktop") {
             // Read a limited amount even if metadata lies or changes.
             let mut content = String::new();
@@ -50,6 +54,7 @@ fn archive_has_desktop_data(root: &Path, package: &Package) -> bool {
             {
                 continue;
             }
+
             let mut entry = crate::models::common::DesktopEntry::default();
             let mut in_entry = false;
             for line in content.lines().map(str::trim) {
@@ -59,6 +64,7 @@ fn archive_has_desktop_data(root: &Path, package: &Package) -> bool {
                     entry.set_field(key.trim(), value.trim().to_string());
                 }
             }
+
             if entry.exec.as_deref().is_none_or(|s| s.is_empty())
                 || entry.extras.get("Type").is_none_or(|s| s != "Application")
                 || entry
@@ -68,9 +74,11 @@ fn archive_has_desktop_data(root: &Path, package: &Package) -> bool {
             {
                 continue;
             }
+
             if !entry.terminal {
                 return true;
             }
+
             terminal_entry = true;
         } else if ["png", "svg", "xpm", "ico"]
             .iter()
@@ -81,16 +89,19 @@ fn archive_has_desktop_data(root: &Path, package: &Package) -> bool {
                 .and_then(|s| s.to_str())
                 .unwrap_or_default()
                 .to_lowercase();
+
             let named = stem == app_name
                 || package
                     .executables
                     .iter()
                     .any(|exec| stem == exec.name.to_lowercase());
+
             let icon_directory = path.strip_prefix(root).ok().is_some_and(|relative| {
                 relative.parent().is_some_and(|parent| {
                     parent.components().any(|part| part.as_os_str() == "icons")
                 })
             });
+
             if (entry.depth() == 1 || icon_directory)
                 && (named || matches!(stem.as_str(), "icon" | "app-icon" | "app_icon"))
             {
@@ -98,6 +109,7 @@ fn archive_has_desktop_data(root: &Path, package: &Package) -> bool {
             }
         }
     }
+
     icon && !terminal_entry
 }
 
@@ -117,6 +129,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(root.to_path_buf());
         package
     }
@@ -160,6 +173,7 @@ mod tests {
             fs::write(root.join("tool.desktop"), contents).unwrap();
             assert!(!archive_has_desktop_data(&root, &package), "{contents}");
         }
+
         fs::write(
             root.join("tool.desktop"),
             "[Desktop Entry]\nType=Application\nExec=tool\n",
