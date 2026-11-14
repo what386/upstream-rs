@@ -38,6 +38,7 @@ pub fn generate(cmd: &mut Command, out: &mut dyn Write) {
         .clone()
         .alias(None::<&str>)
         .name("uninstall");
+
     cmd = cmd
         .mut_subcommand("remove", |cmd| cmd.alias(None::<&str>))
         .subcommand(uninstall)
@@ -53,6 +54,7 @@ pub fn generate(cmd: &mut Command, out: &mut dyn Write) {
         .find_subcommand("upgrade")
         .expect("upgrade command")
         .clone();
+
     for name in ["upgrade --check", "upgrade -c"] {
         cmd = cmd.subcommand(upgrade.clone().name(name));
     }
@@ -86,6 +88,7 @@ pub fn generate(cmd: &mut Command, out: &mut dyn Write) {
                     .expect("write Nushell structured output annotation");
             }
         }
+
         // A declared --help is intercepted by Nushell. Leave it undeclared so
         // both --help and -h reach upstream, like other unknown external flags.
         if !command.is_empty() && line.trim_start().starts_with("--help(") {
@@ -116,6 +119,7 @@ pub fn generate(cmd: &mut Command, out: &mut dyn Write) {
             ("upstream docs", "keywords") => Some("docs keywords"),
             _ => None,
         };
+
         if let Some(completer) = completer {
             let replacement = format!(": string@\"nu-complete upstream {completer}\"");
             writeln!(out, "{}", line.replacen(": string", &replacement, 1))
@@ -123,6 +127,7 @@ pub fn generate(cmd: &mut Command, out: &mut dyn Write) {
         } else {
             writeln!(out, "{line}").expect("write Nushell completion");
         }
+
         if line == "module completions {" {
             writeln!(out, "{HELPERS}").expect("write Nushell completion helpers");
         } else if line.trim() == "]" {

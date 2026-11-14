@@ -144,6 +144,7 @@ impl PreparedInstall {
         let executable_name = filesystem_name(self.package.primary_executable_name());
         let staged = CompletionManager::with_paths(self.workspace.completions())
             .package_completion_paths(&executable_name);
+
         let installed = CompletionManager::new(paths).package_completion_paths(&executable_name);
         let candidates = staged.into_iter().zip(installed);
 
@@ -1354,6 +1355,7 @@ mod tests {
                 .join("tool.nu")
                 .exists()
         );
+
         assert!(
             !paths
                 .integration

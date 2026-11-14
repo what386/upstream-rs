@@ -555,6 +555,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(binary.clone());
         assert!(package.icon_path.is_none());
         let entry = DesktopManager::managed_entry_path(&paths, &package.id).unwrap();
@@ -563,11 +564,13 @@ mod tests {
             fs::create_dir_all(&entry).unwrap();
             fs::write(entry.join("Example Launcher.lnk"), b"shortcut").unwrap();
         }
+
         #[cfg(not(windows))]
         {
             fs::create_dir_all(entry.parent().unwrap()).unwrap();
             fs::write(&entry, b"desktop entry").unwrap();
         }
+
         PackageRemover::new(&paths)
             .remove_package_files(&package, &mut None::<fn(&str)>)
             .unwrap();

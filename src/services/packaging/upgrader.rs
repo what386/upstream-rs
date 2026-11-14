@@ -784,6 +784,7 @@ mod tests {
             fs::read(&completion_path).expect("read restored completion"),
             b"old completion"
         );
+
         assert_eq!(fs::read(&nushell_path).unwrap(), b"old Nushell completion");
 
         assert_eq!(

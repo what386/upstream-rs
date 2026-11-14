@@ -167,12 +167,14 @@ impl IntegrationPaths {
                 crate::utils::platform::windows::known_folders::programs_dir()
                     .context("Failed to determine the current user's Start menu Programs folder")?;
         }
+
         // Nushell honors XDG_DATA_HOME on every platform, including macOS and Windows.
         if let Some(data_home) = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from)
             && data_home.is_absolute()
         {
             paths.nushell_completions_dir = data_home.join("nushell/vendor/autoload");
         }
+
         Ok(paths)
     }
 

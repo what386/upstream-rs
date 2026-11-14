@@ -1000,6 +1000,7 @@ mod tests {
                 total: 1024,
             },
         ];
+
         for event in events {
             let row = render_upgrade_progress_row("github:owner/tool", event, 40);
             assert_eq!(row.find('['), Some(53), "misaligned progress row: {row}");

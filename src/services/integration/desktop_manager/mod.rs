@@ -204,6 +204,7 @@ impl FileSnapshot {
             let entries = fs::read_dir(&path)?
                 .map(|entry| Self::capture(entry?.path()))
                 .collect::<Result<Vec<_>>>()?;
+
             return Ok(Self::Directory { path, entries });
         }
 
@@ -231,6 +232,7 @@ impl FileSnapshot {
             } else {
                 fs::remove_file(path)
             };
+
             removed.with_context(|| {
                 format!(
                     "Failed to remove replacement desktop integration '{}'",
@@ -246,6 +248,7 @@ impl FileSnapshot {
                 for entry in entries {
                     entry.restore()?;
                 }
+
                 Ok(())
             }
             Self::File { path, contents } => {
@@ -591,11 +594,13 @@ impl<'a> DesktopManager<'a> {
             let _ = (paths, name);
             Ok(false)
         }
+
         #[cfg(not(target_os = "macos"))]
         {
             if path_exists_no_follow(&Self::managed_entry_path(paths, name)?)? {
                 return Ok(true);
             }
+
             #[cfg(windows)]
             return path_exists_no_follow(&Self::legacy_entry_path(paths, name));
             #[cfg(not(windows))]

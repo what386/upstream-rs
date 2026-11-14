@@ -20,6 +20,7 @@ fn known_folder(id: &GUID) -> Result<PathBuf> {
     // create the resolved directory later without assuming its default location.
     let status =
         unsafe { SHGetKnownFolderPath(id, KF_FLAG_DONT_VERIFY, ptr::null_mut(), &mut raw_path) };
+
     let result = if status < 0 || raw_path.is_null() {
         Err(anyhow!(
             "Failed to resolve Windows known folder (HRESULT {status:#010x})"
@@ -32,10 +33,13 @@ fn known_folder(id: &GUID) -> Result<PathBuf> {
             while *raw_path.add(length) != 0 {
                 length += 1;
             }
+
             OsString::from_wide(slice::from_raw_parts(raw_path, length))
         };
+
         Ok(PathBuf::from(path))
     };
+
     // SAFETY: SHGetKnownFolderPath allocates with the COM task allocator. Its
     // output must be freed on both success and failure; freeing null is valid.
     unsafe { CoTaskMemFree(raw_path.cast()) };
@@ -63,6 +67,7 @@ mod tests {
             Data3: 0,
             Data4: [0; 8],
         };
+
         assert!(known_folder(&unknown).is_err());
     }
 }

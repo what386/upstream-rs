@@ -602,6 +602,7 @@ mod tests {
                 CompletionShell::Nushell
             );
         }
+
         assert!(classify_completion_path("rg", Path::new("unrelated.nu")).is_none());
     }
 

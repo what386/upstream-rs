@@ -1,5 +1,4 @@
 //! Human-readable formatting for elapsed time and byte counts.
-
 use chrono::{DateTime, Utc};
 use indicatif::HumanBytes;
 
@@ -23,6 +22,7 @@ pub fn compact_age(checked_at: DateTime<Utc>, now: DateTime<Utc>) -> String {
     } else {
         (seconds, "s")
     };
+
     format!("{amount}{unit} ago")
 }
 
@@ -38,6 +38,7 @@ pub fn age(checked_at: DateTime<Utc>, now: DateTime<Utc>) -> String {
     } else {
         return "just now".into();
     };
+
     format!("{amount} {unit}{} ago", if amount == 1 { "" } else { "s" })
 }
 
@@ -47,6 +48,7 @@ pub fn relative_date(updated_at: DateTime<Utc>, now: DateTime<Utc>) -> String {
     if days == 0 {
         return "today".into();
     }
+
     let (amount, unit) = if days < 30 {
         (days, "day")
     } else if days / 30 < 12 {
@@ -54,6 +56,7 @@ pub fn relative_date(updated_at: DateTime<Utc>, now: DateTime<Utc>) -> String {
     } else {
         (days / 30 / 12, "year")
     };
+
     format!("{amount} {unit}{} ago", if amount == 1 { "" } else { "s" })
 }
 

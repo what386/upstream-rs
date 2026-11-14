@@ -67,6 +67,7 @@ pub(crate) fn notification_message(
         .values()
         .map(|entry| entry.checked_at)
         .max()?;
+
     let count = snapshot.updates.len();
     let noun = if count == 1 { "update" } else { "updates" };
     let age = human_units::compact_age(last_checked, now);

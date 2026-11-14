@@ -202,9 +202,11 @@ impl WebScraperAdapter {
                     if info.last_modified.is_none() {
                         info.last_modified = page_modified;
                     }
+
                     if info.etag.is_none() {
                         info.etag = page_etag;
                     }
+
                     Some((index, candidate, info))
                 }
             })
@@ -228,6 +230,7 @@ impl WebScraperAdapter {
         if os.as_ref().is_some_and(|os| os != &platform.os_kind) {
             return 0;
         }
+
         let arch_score = match arch {
             Some(ref arch) if arch == &platform.cpu_arch => 3,
             Some(CpuArch::X86) if platform.cpu_arch == CpuArch::X86_64 => 1,
@@ -235,6 +238,7 @@ impl WebScraperAdapter {
             None => 2,
             Some(_) => return 0,
         };
+
         arch_score + if os.is_some() { 4 } else { 0 }
     }
 
@@ -254,9 +258,11 @@ impl WebScraperAdapter {
                     Some(Version::Datetime { .. }) => 1,
                     _ => 0,
                 };
+
                 (priority, version_kind, candidate)
             })
             .collect::<Vec<_>>();
+
         // Within otherwise equal candidates, newer versions should not lose
         // their budget slots to lexicographically earlier historical releases.
         ranked.sort_by(
@@ -336,6 +342,7 @@ impl WebScraperAdapter {
             Self::extract_candidates(&base, &html),
             &ArchitectureInfo::new(),
         );
+
         if candidates.is_empty() {
             bail!("No download links found on '{}'", document.url);
         }
@@ -509,6 +516,7 @@ mod tests {
                             }
                             Err(error) => panic!("accept fixture request: {error}"),
                         };
+
                         let requests = Arc::clone(&requests);
                         let peak = Arc::clone(&peak);
                         let active = Arc::clone(&active);
@@ -533,6 +541,7 @@ mod tests {
                                     break;
                                 }
                             }
+
                             requests
                                 .lock()
                                 .unwrap()
@@ -545,11 +554,13 @@ mod tests {
                             let _ = socket.write_all(response.as_bytes());
                         }));
                     }
+
                     for connection in connections {
                         connection.join().unwrap();
                     }
                 })
             };
+
             Self {
                 url,
                 requests,
@@ -593,6 +604,7 @@ mod tests {
             cpu_arch: CpuArch::X86_64,
             os_kind: OSKind::Linux,
         };
+
         let mut candidates = (0..40)
             .map(|index| {
                 candidate(format!(
@@ -600,6 +612,7 @@ mod tests {
                 ))
             })
             .collect::<Vec<_>>();
+
         let newest = candidate("https://example.invalid/z-tool-v2.0.0-linux-x86_64.tar.gz".into());
         let generic = candidate("https://example.invalid/download.tar.gz".into());
         candidates.push(candidate(
@@ -619,6 +632,7 @@ mod tests {
                 ))
             })
             .collect::<Vec<_>>();
+
         history.push(newest.clone());
         let selected = WebScraperAdapter::select_candidates(history, &platform);
         assert_eq!(selected[0].url, newest.url);
@@ -636,13 +650,16 @@ mod tests {
             });
             response("200 OK", "application/octet-stream", "")
         });
+
         let candidates = (0..9)
             .map(|index| candidate(format!("{}/{index}-tool-v1.0.0.tar.gz", server.url)))
             .collect::<Vec<_>>();
+
         let expected = candidates
             .iter()
             .map(|item| item.url.clone())
             .collect::<Vec<_>>();
+
         let modified = Utc::now();
         let validated = adapter()
             .validate_candidates(
@@ -652,6 +669,7 @@ mod tests {
                 Duration::from_secs(2),
             )
             .await;
+
         assert_eq!(
             validated
                 .iter()
@@ -659,12 +677,14 @@ mod tests {
                 .collect::<Vec<_>>(),
             expected
         );
+
         assert!(
             validated
                 .iter()
                 .all(|(_, info)| info.last_modified == Some(modified)
                     && info.etag.as_deref() == Some("page-etag"))
         );
+
         let peak = server.peak.load(Ordering::SeqCst);
         assert!(
             peak > 1 && peak <= PROBE_CONCURRENCY,
@@ -679,18 +699,22 @@ mod tests {
             {
                 thread::sleep(Duration::from_millis(400));
             }
+
             if path.starts_with("/fallback") && method == "HEAD" {
                 response("405 Method Not Allowed", "text/plain", "")
             } else {
                 response("200 OK", "application/octet-stream", "")
             }
         });
+
         let candidates = ["slow-head", "fallback", "fast"]
             .map(|name| candidate(format!("{}/{name}-v1.0.0.tar.gz", server.url)))
             .to_vec();
+
         let validated = adapter()
             .validate_candidates(candidates, None, None, Duration::from_millis(100))
             .await;
+
         assert_eq!(validated.len(), 1);
         assert_eq!(validated[0].1.name, "fast-v1.0.0.tar.gz");
         let requests = server.requests.lock().unwrap();
@@ -699,6 +723,7 @@ mod tests {
                 .iter()
                 .any(|(method, path)| method == "GET" && path.starts_with("/fallback"))
         );
+
         assert!(
             !requests
                 .iter()
@@ -725,10 +750,12 @@ mod tests {
                 response("200 OK", "application/octet-stream", "")
             }
         });
+
         let release = adapter()
             .get_latest_release(&format!("{}/downloads/", server.url))
             .await
             .unwrap();
+
         assert_eq!(release.assets.len(), 1);
         assert_eq!(release.assets[0].name, "tool-v1.2.3.tar.gz");
         assert_eq!(release.version, Version::new(1, 2, 3, false));

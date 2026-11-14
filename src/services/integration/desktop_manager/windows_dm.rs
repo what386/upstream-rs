@@ -229,6 +229,7 @@ impl WindowsDesktopHandler {
             "PowerShell reported success but no Windows shortcut exists in '{}'",
             directory.display()
         );
+
         Ok(())
     }
 }
@@ -251,6 +252,7 @@ mod tests {
             directory,
             root.join("redirected/Programs/Upstream/github_example_launcher")
         );
+
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.join("Example Launcher.lnk"), b"shortcut").unwrap();
         assert!(DesktopManager::entry_exists(&paths, old_id).unwrap());
@@ -263,6 +265,7 @@ mod tests {
             fs::read(directory.join("Example Launcher.lnk")).unwrap(),
             b"shortcut"
         );
+
         assert!(!directory.join("Replacement.lnk").exists());
         assert!(DesktopManager::rename_entry(&paths, old_id, new_id).unwrap());
         let renamed = WindowsDesktopHandler::managed_entry_path(&paths, new_id);
@@ -284,6 +287,7 @@ mod tests {
         let entry_path = root.join("prepared");
         let fixture =
             include_bytes!("../../../../tests/fixtures/artifacts/windows/windows-version-info.bin");
+
         fs::write(&metadata_path, fixture).unwrap();
         let handler = WindowsDesktopHandler::new();
         let mut entry = DesktopEntry::new("craft-launcher");
@@ -311,11 +315,13 @@ mod tests {
                 "$ErrorActionPreference = 'Stop'; $s = (New-Object -ComObject WScript.Shell).CreateShortcut('{}'); $s.TargetPath",
                 shortcut.display().to_string().replace('\'', "''")
             )]).output().unwrap();
+
         assert!(
             output.status.success(),
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
+
         assert_eq!(
             String::from_utf8_lossy(&output.stdout).trim(),
             final_target.to_str().unwrap()
@@ -327,13 +333,16 @@ mod tests {
             .encode_utf16()
             .flat_map(u16::to_le_bytes)
             .collect();
+
         let offset = description_fixture
             .windows(product.len())
             .position(|bytes| bytes == product)
             .unwrap();
+
         for pair in description_fixture[offset..offset + product.len()].chunks_exact_mut(2) {
             pair.copy_from_slice(&[b' ', 0]);
         }
+
         fs::write(&metadata_path, description_fixture).unwrap();
         handler
             .create_shortcut_at(
