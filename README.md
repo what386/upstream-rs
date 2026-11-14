@@ -43,51 +43,104 @@ Download the binary from the
 [latest GitHub release](https://github.com/what386/upstream-rs/releases/latest).
 On Unix, make it executable with `chmod +x upstream`.
 
-## Find and install software
+## Usage
 
-Install from a repository, find software interactively, or inspect releases with `probe`.
+Install a tool from its GitHub repository:
 
 ```bash
 upstream install BurntSushi/ripgrep
-upstream find ripgrep
-upstream search editor -p appimagehub
+```
+
+If you don't know the repository, `find` lets you search and install interactively.
+Commands like `find` that use search are available for github (default) and appimagehub.
+
+```bash
+upstream find terminal emulator
+upstream search editor --provider appimagehub
+```
+
+### Choose what to install
+
+Preview an installation before downloading anything, or use `probe` to choose
+among the available release files yourself:
+
+```bash
+upstream install neovim/neovim --dry-run
 upstream probe neovim/neovim
 ```
 
-Use `--dry-run` to preview an installation or `--desktop` to add a GUI launcher.
+When you need a particular version, install its release tag and pin it so
+routine upgrades leave it in place:
 
-### Build from source
+```bash
+upstream install sharkdp/bat --tag v0.25.0
+upstream package pin bat
+```
 
-Build from a repository using the project's installed build tools:
+When you're ready to update it again, run `upstream package unpin bat`.
+
+### Review and apply updates
+
+Check for new versions, then read what's changed before updating a tool:
+
+```bash
+upstream upgrade --check
+upstream changelog ripgrep
+upstream upgrade ripgrep
+```
+
+To update everything at once:
+
+```bash
+upstream upgrade
+```
+
+Use `upstream updates` to revisit the last update check without checking online
+again. Pinned packages are skipped during upgrades.
+
+### Build when a release doesn't suit your system
+
+If a project doesn't provide a suitable download, build it from source instead.
+Install Git and the project's build tools first:
 
 ```bash
 upstream build BurntSushi/ripgrep
-upstream build owner/repo --branch main
 ```
 
-## Manage installed packages
+Source-built packages are rebuilt as needed by `upstream upgrade` too.
+
+### Look up usage and resolve problems
+
+Search an installed tool's README from your terminal. Once fetched, it is also
+available offline:
 
 ```bash
-upstream list
-upstream upgrade --check
-upstream updates
-upstream upgrade
-upstream package pin ripgrep
-upstream remove ripgrep
+upstream docs ripgrep usage
+upstream docs ripgrep --offline
 ```
 
-Run `upstream doctor` to check for installation problems.
+If an installation or update fails, review recent failures and check for
+installation problems:
+
+```bash
+upstream history --status failed --since 2d
+upstream doctor
+```
+
+To remove a tool, use its repository name or command name, such as
+`upstream remove ripgrep` or `upstream remove rg`.
 
 ## Export and restore your setup
 
-Move your package list and settings to another installation:
+Save your package list and settings, then restore them on another machine:
 
 ```bash
 upstream export profile ./profile.json
-upstream import profile ./profile.json --latest
+upstream import profile ./profile.json
 ```
 
-Profiles exclude installed binaries and provider tokens.
+The import reinstalls your saved versions. Add `--latest` to install current
+releases instead. Profiles exclude installed binaries and provider tokens.
 
 ## API tokens
 
@@ -98,7 +151,6 @@ To avoid GitHub rate limits, add a token with
 
 - [Usage guide](docs/usage.md)
 - [Configuration reference](docs/config.md)
-- [Native Nushell completions](docs/usage.md#nushell-completions)
 
 Use `upstream <command> --help` for all options and examples.
 
