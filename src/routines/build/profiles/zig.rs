@@ -163,20 +163,23 @@ mod tests {
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    fn temp_root() -> PathBuf {
+    fn temp_root(name: &str) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
 
-        let root = std::env::temp_dir().join(format!("upstream-zig-profile-{nonce}"));
-        fs::create_dir_all(&root).expect("create root");
+        let root = std::env::temp_dir().join(format!(
+            "upstream-zig-profile-{name}-{}-{nonce}",
+            std::process::id()
+        ));
+        fs::create_dir(&root).expect("create root");
         root
     }
 
     #[test]
     fn reads_declared_installed_executable_name() {
-        let root = temp_root();
+        let root = temp_root("static-name");
         fs::write(
             root.join("build.zig"),
             r#"const exe = b.addExecutable(.{ .name = "actual-bin" });
@@ -194,7 +197,7 @@ b.installArtifact(exe);"#,
 
     #[test]
     fn rejects_dynamic_installed_executable_names() {
-        let root = temp_root();
+        let root = temp_root("dynamic-name");
         fs::write(
             root.join("build.zig"),
             "const exe = b.addExecutable(.{ .name = project_name });\nb.installArtifact(exe);",
