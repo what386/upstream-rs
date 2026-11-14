@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-11-13
+@modified: 2026-11-14
 
 
 ## Tasks
@@ -49,4 +49,12 @@
 - [x] feat: webscraper: add timeouts and ranking improvements
       @created 2026-11-13 19:18
       @completed 2026-11-13 19:18
+
+- [x] fix: exec name on windows uses exe metadata
+      @created 2026-11-14 01:23
+      @completed 2026-11-14 01:23
+
+- [x] fix: use known folder api instead of hardcoding to roaming appdata
+      @created 2026-11-14 01:24
+      @completed 2026-11-14 01:24
 
