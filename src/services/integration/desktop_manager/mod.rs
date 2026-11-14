@@ -34,6 +34,8 @@ enum PlatformDesktopHandler {
 
 struct StagedDesktopEntry<'a> {
     staged_install_path: &'a Path,
+    #[cfg(windows)]
+    staged_executable: Option<&'a Path>,
     filetype: &'a Filetype,
     entry: crate::models::common::DesktopEntry,
     path: &'a Path,
@@ -157,8 +159,18 @@ impl PlatformDesktopHandler {
 #[derive(Debug, Clone)]
 enum FileSnapshot {
     Missing(PathBuf),
-    File { path: PathBuf, contents: Vec<u8> },
-    Symlink { path: PathBuf, target: PathBuf },
+    File {
+        path: PathBuf,
+        contents: Vec<u8>,
+    },
+    Symlink {
+        path: PathBuf,
+        target: PathBuf,
+    },
+    Directory {
+        path: PathBuf,
+        entries: Vec<FileSnapshot>,
+    },
 }
 
 impl FileSnapshot {
@@ -188,6 +200,13 @@ impl FileSnapshot {
             return Ok(Self::File { path, contents });
         }
 
+        if metadata.is_dir() {
+            let entries = fs::read_dir(&path)?
+                .map(|entry| Self::capture(entry?.path()))
+                .collect::<Result<Vec<_>>>()?;
+            return Ok(Self::Directory { path, entries });
+        }
+
         Err(anyhow!(
             "Cannot snapshot unsupported desktop integration path '{}'",
             path.display()
@@ -196,14 +215,23 @@ impl FileSnapshot {
 
     fn path(&self) -> &Path {
         match self {
-            Self::Missing(path) | Self::File { path, .. } | Self::Symlink { path, .. } => path,
+            Self::Missing(path)
+            | Self::File { path, .. }
+            | Self::Symlink { path, .. }
+            | Self::Directory { path, .. } => path,
         }
     }
 
     fn restore(&self) -> Result<()> {
         let path = self.path();
         if path_exists_no_follow(path)? {
-            fs::remove_file(path).with_context(|| {
+            let metadata = fs::symlink_metadata(path)?;
+            let removed = if metadata.is_dir() && !metadata.file_type().is_symlink() {
+                fs::remove_dir_all(path)
+            } else {
+                fs::remove_file(path)
+            };
+            removed.with_context(|| {
                 format!(
                     "Failed to remove replacement desktop integration '{}'",
                     path.display()
@@ -213,6 +241,13 @@ impl FileSnapshot {
 
         match self {
             Self::Missing(_) => Ok(()),
+            Self::Directory { path, entries } => {
+                fs::create_dir_all(path)?;
+                for entry in entries {
+                    entry.restore()?;
+                }
+                Ok(())
+            }
             Self::File { path, contents } => {
                 if let Some(parent) = path.parent() {
                     fs::create_dir_all(parent)?;
@@ -421,6 +456,10 @@ impl<'a> DesktopManager<'a> {
             .create_staged_entry(
                 StagedDesktopEntry {
                     staged_install_path,
+                    #[cfg(windows)]
+                    staged_executable: staged_package
+                        .primary_executable()
+                        .map(|exec| exec.path.as_path()),
                     filetype: &final_package.filetype,
                     entry: desktop_entry,
                     path: entry_path,
@@ -534,5 +573,33 @@ impl<'a> DesktopManager<'a> {
         return Ok(LinuxDesktopHandler::managed_entry_path(paths, name));
         #[cfg(windows)]
         return Ok(WindowsDesktopHandler::managed_entry_path(paths, name));
+    }
+
+    #[cfg(windows)]
+    pub fn legacy_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
+        WindowsDesktopHandler::legacy_entry_path(paths, name)
+    }
+
+    #[cfg(windows)]
+    pub fn remove_legacy_entry(paths: &UpstreamPaths, name: &str) -> Result<()> {
+        WindowsDesktopHandler::remove_legacy_entry(paths, name)
+    }
+
+    pub fn entry_exists(paths: &UpstreamPaths, name: &str) -> Result<bool> {
+        #[cfg(target_os = "macos")]
+        {
+            let _ = (paths, name);
+            Ok(false)
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            if path_exists_no_follow(&Self::managed_entry_path(paths, name)?)? {
+                return Ok(true);
+            }
+            #[cfg(windows)]
+            return path_exists_no_follow(&Self::legacy_entry_path(paths, name));
+            #[cfg(not(windows))]
+            Ok(false)
+        }
     }
 }

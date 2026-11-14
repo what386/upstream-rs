@@ -1,0 +1,19 @@
+// llvm-rc /fo /tmp/windows-version-info.res tests/fixtures/artifacts/windows/windows-version-info.rc
+// lld-link /dll /noentry /noimplib /timestamp:0 /machine:x64 /out:tests/fixtures/artifacts/windows/windows-version-info.bin /tmp/windows-version-info.res
+1 VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "ProductName", "Example Launcher\0"
+            VALUE "FileDescription", "Example Description\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

@@ -270,14 +270,14 @@ impl<'a> PackageRemover<'a> {
             ));
         }
 
-        if let Some(icon_path) = &package.icon_path {
-            message!(message_callback, "Removing desktop entry ...");
-            #[cfg(not(target_os = "macos"))]
-            DesktopManager::remove_entry(self.paths, &package.id).context(format!(
-                "Failed to remove desktop entry for '{}'",
-                package.id
-            ))?;
+        message!(message_callback, "Removing desktop entry ...");
+        #[cfg(not(target_os = "macos"))]
+        DesktopManager::remove_entry(self.paths, &package.id).context(format!(
+            "Failed to remove desktop entry for '{}'",
+            package.id
+        ))?;
 
+        if let Some(icon_path) = &package.icon_path {
             fs::remove_file(icon_path).context(format!(
                 "Failed to remove icon file at '{}'",
                 icon_path.display()
@@ -533,6 +533,47 @@ mod tests {
 
     fn cleanup(path: &Path) -> io::Result<()> {
         fs::remove_dir_all(path)
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn removal_deletes_launcher_without_a_separate_icon() {
+        use crate::services::integration::DesktopManager;
+
+        let root = temp_root("iconless-launcher");
+        let paths = test_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).unwrap();
+        let binary = paths.install.binaries_dir.join("iconless-tool");
+        fs::write(&binary, b"binary").unwrap();
+        let mut package = Package::with_defaults(
+            "github:example/iconless-tool".into(),
+            "example/iconless-tool".into(),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_path = Some(binary.clone());
+        assert!(package.icon_path.is_none());
+        let entry = DesktopManager::managed_entry_path(&paths, &package.id).unwrap();
+        #[cfg(windows)]
+        {
+            fs::create_dir_all(&entry).unwrap();
+            fs::write(entry.join("Example Launcher.lnk"), b"shortcut").unwrap();
+        }
+        #[cfg(not(windows))]
+        {
+            fs::create_dir_all(entry.parent().unwrap()).unwrap();
+            fs::write(&entry, b"desktop entry").unwrap();
+        }
+        PackageRemover::new(&paths)
+            .remove_package_files(&package, &mut None::<fn(&str)>)
+            .unwrap();
+        assert!(!binary.exists());
+        assert!(!entry.exists());
+        cleanup(&root).unwrap();
     }
 
     #[test]

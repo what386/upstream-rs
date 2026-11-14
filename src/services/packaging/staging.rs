@@ -142,9 +142,8 @@ impl InstallWorkspace {
 
     #[cfg(windows)]
     pub fn desktop_path(&self, package_name: &str) -> Result<PathBuf> {
-        Ok(self
-            .desktop_dir
-            .join(format!("{}.lnk", filesystem_name(package_name))))
+        // Keep the friendly shortcut filename inside a stable package directory.
+        Ok(self.desktop_dir.join(filesystem_name(package_name)))
     }
 }
 

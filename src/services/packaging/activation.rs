@@ -217,6 +217,8 @@ impl PreparedInstall {
                     destination.display()
                 )
             })?;
+            #[cfg(windows)]
+            DesktopManager::remove_legacy_entry(paths, &self.package.id)?;
         }
 
         Ok(())
@@ -324,6 +326,11 @@ impl ReplacementBackup {
         self.move_integration(
             DesktopManager::managed_entry_path(paths, &self.previous_package.id)?,
             "desktop",
+        )?;
+        #[cfg(windows)]
+        self.move_integration(
+            DesktopManager::legacy_entry_path(paths, &self.previous_package.id),
+            "legacy-desktop",
         )?;
         if let Some(icon_path) = self.previous_package.icon_path.clone() {
             self.move_integration(icon_path, "icons")?;

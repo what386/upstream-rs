@@ -10,6 +10,7 @@ use crate::{
     routines::build::{BuildRequest, scripts::BuildScriptAction, worker::BuildWorker},
     services::{
         artifact::zsync_handler,
+        integration::DesktopManager,
         packaging::{
             PackageActivator, PackageInstaller, PackagePhase, PackageProgressEvent, PackageRemover,
             PendingReplacement,
@@ -346,7 +347,8 @@ impl<'a> PackageUpgrader<'a> {
             bail!("Package '{}' is pinned", package.id);
         }
 
-        let had_desktop_integration = package.icon_path.is_some();
+        let had_desktop_integration =
+            package.icon_path.is_some() || DesktopManager::entry_exists(self.paths, &package.id)?;
 
         message!(
             message_callback,
