@@ -153,12 +153,12 @@ Run the binary.
         let result = search_readme(
             "upstream",
             "README.md",
-            "find and install software",
+            "usage",
             include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md")),
         );
 
         assert_eq!(result.document_name, "README.md");
-        assert_eq!(result.sections[0].heading, "Find and install software");
+        assert_eq!(result.sections[0].heading, "Usage");
         assert!(
             result.sections[0]
                 .body

@@ -108,11 +108,7 @@ install notes
         )));
 
         assert!(sections.iter().any(|section| section.heading == "Upstream"));
-        assert!(
-            sections
-                .iter()
-                .any(|section| section.heading == "Find and install software")
-        );
+        assert!(sections.iter().any(|section| section.heading == "Usage"));
 
         assert!(
             sections
