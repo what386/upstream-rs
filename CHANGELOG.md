@@ -2,6 +2,14 @@
 
 *Generated on 2026-11-14*
 
+## 2.24.0 — 2026-11-14
+
+### Changes
+
+- feat: --desktop flag now accepts true|false argument
+- feat: automatic desktop detection
+
+
 ## 2.23.0 — 2026-11-14
 
 ### Changes
