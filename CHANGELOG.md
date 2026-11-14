@@ -1,6 +1,22 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-11-10*
+*Generated on 2026-11-14*
+
+## 2.23.0 — 2026-11-14
+
+### Changes
+
+- feat: native nushell completions
+- feat: nushell: structured output in pipes
+- feat: .nu completion management
+- compact updates --notify line
+- rename synchronizing to syncing
+- align progress bars for ops like upgrade
+- rename 'queued' to 'waiting' in upgrade
+- feat: webscraper: add timeouts and ranking improvements
+- fix: exec name on windows uses exe metadata
+- fix: use known folder api instead of hardcoding to roaming appdata
+
 
 ## 2.22.1 — 2026-11-10
 
