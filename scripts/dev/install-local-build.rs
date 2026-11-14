@@ -27,28 +27,34 @@ async fn main() -> Result<()> {
         args.completions.is_dir(),
         "Local completions directory is missing"
     );
+
     let paths = UpstreamPaths::new()?;
     ensure!(
         paths.metadata.packages_database_file.is_file(),
         "No managed upstream installation found; install upstream before using this script"
     );
+
     let _lock = LockStorage::acquire(&paths, "install-local-build")?;
     let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
     let previous = database
         .get_package("github:what386/upstream-rs")?
         .context("Managed github:what386/upstream-rs package not found")?;
+
     ensure!(
         matches!(previous.filetype, Filetype::Binary | Filetype::WinExe),
         "Local updates require an upstream installation managed as a binary"
     );
+
     let installed = previous
         .install_path
         .as_ref()
         .context("Missing upstream install path")?;
+
     ensure!(installed.is_file(), "Installed upstream binary is missing");
     let relative = installed
         .strip_prefix(&paths.install.binaries_dir)
         .context("Installed upstream binary is outside the managed binaries directory")?;
+
     ensure!(
         !previous.executables.is_empty()
             && previous
@@ -75,6 +81,7 @@ async fn main() -> Result<()> {
     for executable in &mut package.executables {
         executable.path = staged_binary.clone();
     }
+
     package.version = Version::parse(env!("CARGO_PKG_VERSION"))?;
     // A local build isn't the previously downloaded release, even at the same version.
     package.release_tag = None;
@@ -92,6 +99,7 @@ async fn main() -> Result<()> {
             &mut None::<fn(PackageProgressEvent)>,
         )
         .await?;
+
     let updated = activator.persist(&mut database, replacement)?;
     println!("Updated {} to local build {}", updated.id, updated.version);
     println!("Restart your shell to reload installed completions.");
