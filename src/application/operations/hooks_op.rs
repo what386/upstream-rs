@@ -64,9 +64,7 @@ pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
     #[cfg(windows)]
     {
         let symlinks_path = paths.state.symlinks_dir.display().to_string();
-        crate::services::integration::windows_path::WindowsPathManager::ensure_present(
-            &symlinks_path,
-        )?;
+        crate::utils::platform::windows::path::WindowsPathManager::ensure_present(&symlinks_path)?;
     }
 
     #[cfg(unix)]
@@ -477,16 +475,16 @@ pub fn cleanup(paths: &UpstreamPaths) -> Result<()> {
 #[cfg(windows)]
 fn remove_from_windows_path(paths: &UpstreamPaths) -> Result<()> {
     let symlinks_path = paths.state.symlinks_dir.display().to_string();
-    crate::services::integration::windows_path::WindowsPathManager::remove(&symlinks_path)?;
+    crate::utils::platform::windows::path::WindowsPathManager::remove(&symlinks_path)?;
     Ok(())
 }
 
 #[cfg(windows)]
 fn check_windows_integration(paths: &UpstreamPaths, report: &mut InitCheckReport) -> Result<()> {
     let symlinks_path = paths.state.symlinks_dir.display().to_string();
-    let in_path = crate::services::integration::windows_path::WindowsPathManager::read()?
-        .is_some_and(|value| {
-            crate::services::integration::windows_path::WindowsPathManager::contains(
+    let in_path =
+        crate::utils::platform::windows::path::WindowsPathManager::read()?.is_some_and(|value| {
+            crate::utils::platform::windows::path::WindowsPathManager::contains(
                 &value.value,
                 &symlinks_path,
             )

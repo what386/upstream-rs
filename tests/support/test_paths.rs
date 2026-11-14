@@ -140,6 +140,8 @@ impl StatePaths {
 
 /// Paths for system integration (XDG dirs and shell completions)
 pub struct IntegrationPaths {
+    #[cfg(windows)]
+    pub windows_programs_dir: PathBuf,
     pub xdg_data_dir: PathBuf,
     pub xdg_config_dir: PathBuf,
     pub xdg_applications_dir: PathBuf,
@@ -167,6 +169,8 @@ impl IntegrationPaths {
 
     pub fn from_xdg_dirs(data_dir: &std::path::Path, config_dir: &std::path::Path) -> Self {
         Self {
+            #[cfg(windows)]
+            windows_programs_dir: data_dir.join("windows/programs"),
             xdg_data_dir: data_dir.to_path_buf(),
             xdg_config_dir: config_dir.to_path_buf(),
             xdg_applications_dir: data_dir.join("applications"),

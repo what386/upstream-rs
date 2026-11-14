@@ -4,8 +4,6 @@ mod icon_manager;
 mod shell_manager;
 mod symlink_manager;
 mod unit_manager;
-#[cfg(windows)]
-pub mod windows_path;
 
 pub use completion_manager::CompletionPaths;
 pub use completion_manager::{CompletionManager, CompletionShell, CompletionSnapshot};

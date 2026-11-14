@@ -119,8 +119,8 @@ impl WindowsDesktopHandler {
     pub(super) fn managed_entry_path(paths: &UpstreamPaths, name: &str) -> PathBuf {
         paths
             .integration
-            .xdg_data_dir
-            .join("Microsoft/Windows/Start Menu/Programs/Upstream")
+            .windows_programs_dir
+            .join("Upstream")
             .join(filesystem_name(name))
     }
 
@@ -242,16 +242,14 @@ mod tests {
     #[test]
     fn start_menu_package_directory_preserves_friendly_names_on_rename_and_removal() {
         let root = temp_root("upstream-shortcuts", "lifecycle");
-        let paths = upstream_paths(&root);
+        let mut paths = upstream_paths(&root);
+        paths.integration.windows_programs_dir = root.join("redirected/Programs");
         let old_id = "github:example/launcher";
         let new_id = "github:example/renamed-launcher";
         let directory = WindowsDesktopHandler::managed_entry_path(&paths, old_id);
         assert_eq!(
             directory,
-            paths
-                .integration
-                .xdg_data_dir
-                .join("Microsoft/Windows/Start Menu/Programs/Upstream/github_example_launcher")
+            root.join("redirected/Programs/Upstream/github_example_launcher")
         );
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.join("Example Launcher.lnk"), b"shortcut").unwrap();

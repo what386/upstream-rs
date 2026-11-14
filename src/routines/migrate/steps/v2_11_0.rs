@@ -55,9 +55,7 @@ fn apply(paths: &UpstreamPaths, report: &mut MigrationReport) -> Result<()> {
     if old_symlinks_dir.exists() || paths.state.symlinks_dir.exists() {
         let old_path = old_symlinks_dir.display().to_string();
         let new_path = paths.state.symlinks_dir.display().to_string();
-        crate::services::integration::windows_path::WindowsPathManager::replace(
-            &old_path, &new_path,
-        )?;
+        crate::utils::platform::windows::path::WindowsPathManager::replace(&old_path, &new_path)?;
     }
 
     rewrite_paths_file(

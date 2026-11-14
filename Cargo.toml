@@ -97,6 +97,9 @@ winapi = { version = "0.3", features = [
     "winnt",
     "errhandlingapi",
     "winerror",
+    "shlobj",
+    "knownfolders",
+    "combaseapi",
 ] }
 
 [[bin]]

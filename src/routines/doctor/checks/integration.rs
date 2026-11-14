@@ -141,7 +141,7 @@ fn fix_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
 #[cfg(windows)]
 fn fix_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
     let path = paths.state.symlinks_dir.display().to_string();
-    match crate::services::integration::windows_path::WindowsPathManager::ensure_present(&path) {
+    match crate::utils::platform::windows::path::WindowsPathManager::ensure_present(&path) {
         Ok(_) => report.line(Level::Ok, "Repaired Windows PATH integration"),
         Err(err) => report.line(
             Level::Warn,
@@ -156,9 +156,9 @@ fn fix_paths_file(_paths: &UpstreamPaths, _report: &mut DoctorReport) {}
 #[cfg(windows)]
 fn check_paths_file(paths: &UpstreamPaths, report: &mut DoctorReport) {
     let expected = paths.state.symlinks_dir.display().to_string();
-    match crate::services::integration::windows_path::WindowsPathManager::read() {
+    match crate::utils::platform::windows::path::WindowsPathManager::read() {
         Ok(Some(value))
-            if crate::services::integration::windows_path::WindowsPathManager::contains(
+            if crate::utils::platform::windows::path::WindowsPathManager::contains(
                 &value.value,
                 &expected,
             ) =>

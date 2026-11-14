@@ -144,6 +144,8 @@ impl StatePaths {
 
 /// Paths for system integration (XDG dirs and shell completions)
 pub struct IntegrationPaths {
+    #[cfg(windows)]
+    pub windows_programs_dir: PathBuf,
     pub xdg_data_dir: PathBuf,
     pub xdg_config_dir: PathBuf,
     pub xdg_applications_dir: PathBuf,
@@ -155,21 +157,29 @@ pub struct IntegrationPaths {
 }
 
 impl IntegrationPaths {
-    pub fn new(dirs: &AppDirs) -> Self {
+    pub fn new(dirs: &AppDirs) -> Result<Self> {
         let data_dir = dirs::data_dir().unwrap_or_else(|| dirs.user_dir.join(".local/share"));
         let config_dir = dirs::config_dir().unwrap_or_else(|| dirs.user_dir.join(".config"));
         let mut paths = Self::from_xdg_dirs(&data_dir, &config_dir);
+        #[cfg(windows)]
+        {
+            paths.windows_programs_dir =
+                crate::utils::platform::windows::known_folders::programs_dir()
+                    .context("Failed to determine the current user's Start menu Programs folder")?;
+        }
         // Nushell honors XDG_DATA_HOME on every platform, including macOS and Windows.
         if let Some(data_home) = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from)
             && data_home.is_absolute()
         {
             paths.nushell_completions_dir = data_home.join("nushell/vendor/autoload");
         }
-        paths
+        Ok(paths)
     }
 
     pub fn from_xdg_dirs(data_dir: &std::path::Path, config_dir: &std::path::Path) -> Self {
         Self {
+            #[cfg(windows)]
+            windows_programs_dir: data_dir.join("windows/programs"),
             xdg_data_dir: data_dir.to_path_buf(),
             xdg_config_dir: config_dir.to_path_buf(),
             xdg_applications_dir: data_dir.join("applications"),
@@ -208,7 +218,7 @@ impl UpstreamPaths {
             generated: GeneratedPaths::new(&dirs),
             install: InstallPaths::new(&dirs),
             state: StatePaths::new(&dirs),
-            integration: IntegrationPaths::new(&dirs),
+            integration: IntegrationPaths::new(&dirs)?,
             dirs,
         })
     }

@@ -104,7 +104,7 @@ impl ShellManager {
         #[cfg(windows)]
         {
             let target_path = install_path.to_string_lossy();
-            crate::services::integration::windows_path::WindowsPathManager::ensure_present(
+            crate::utils::platform::windows::path::WindowsPathManager::ensure_present(
                 &target_path,
             )?;
         }
@@ -139,7 +139,7 @@ impl ShellManager {
         #[cfg(windows)]
         {
             let target_path = install_path.to_string_lossy();
-            crate::services::integration::windows_path::WindowsPathManager::remove(&target_path)?;
+            crate::utils::platform::windows::path::WindowsPathManager::remove(&target_path)?;
         }
 
         Ok(())
