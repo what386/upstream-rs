@@ -26,8 +26,8 @@ Before submitting, run the checks used by CI:
 
 ```bash
 cargo fmt -- --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets --all-features
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets --all-features
 ```
 
 On Linux, also run the Python integration tests for relevant changes:

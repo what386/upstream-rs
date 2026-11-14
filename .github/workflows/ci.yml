@@ -5,11 +5,16 @@ on:
     branches:
       - main
       - dev
-      - "feat/**"
-      - "feature/**"
   pull_request:
     branches:
       - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -27,6 +32,33 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      - name: Install Go for source-build tests
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.4"
+          cache: false
+
+      - name: Install .NET for source-build tests
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.404"
+        env:
+          # Keep runner-preinstalled SDKs from overriding the selected version.
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+
+      - name: Install Python
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install CMake for source-build tests
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          python -m pip install --only-binary=:all: cmake==4.4.4
+
       - name: Install Zig
         if: matrix.os == 'ubuntu-latest'
         uses: goto-bus-stop/setup-zig@v2
@@ -36,7 +68,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Run tests
-        run: cargo test --all-targets --all-features
+        run: cargo test --locked --all-targets --all-features
 
       - name: Install Nushell for completion tests
         if: matrix.os == 'ubuntu-latest'

@@ -45,7 +45,7 @@ def main() -> None:
     (FAKEHOME / ".config").mkdir(parents=True)
 
     subprocess.run(
-        ["cargo", "build", "--features", "testing_donotuseinrelease"],
+        ["cargo", "build", "--locked", "--features", "testing_donotuseinrelease"],
         cwd=ROOT,
         check=True,
     )

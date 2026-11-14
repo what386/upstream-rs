@@ -5,11 +5,16 @@ on:
     branches:
       - main
       - dev
-      - "feat/**"
-      - "feature/**"
   pull_request:
     branches:
       - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -23,6 +28,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: e2e
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"

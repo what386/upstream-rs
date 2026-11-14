@@ -11,6 +11,13 @@ on:
   schedule:
     - cron: "11 8 * * 2"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rustsec:
     runs-on: ubuntu-latest
