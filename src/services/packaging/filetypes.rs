@@ -264,29 +264,65 @@ pub(super) fn prepare_appimage(
         return Ok(asset_path.to_path_buf());
     }
 
+    extract_wrapped_executable(asset_path, extract_cache, "AppImage", false, progress)
+}
+
+pub(super) fn prepare_winexe(
+    asset_path: &Path,
+    extract_cache: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<std::path::PathBuf> {
+    let filename = asset_path.file_name().unwrap_or_default().to_string_lossy();
+    if crate::providers::assets::filenames::parser::wrapped_winexe_name(&filename).is_none() {
+        return Ok(asset_path.to_path_buf());
+    }
+    extract_wrapped_executable(asset_path, extract_cache, "exe", true, progress)
+}
+
+fn extract_wrapped_executable(
+    asset_path: &Path,
+    extract_cache: &Path,
+    extension: &str,
+    single_file: bool,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<std::path::PathBuf> {
+    let filename = asset_path.file_name().unwrap_or_default().to_string_lossy();
     let extracted =
         compression_handler::decompress_with_progress(asset_path, extract_cache, progress)
-            .context("Failed to extract wrapped AppImage")?;
-    let mut appimages = Vec::new();
+            .with_context(|| format!("Failed to extract wrapped {extension}"))?;
+    let mut payloads = Vec::new();
     for entry in walkdir::WalkDir::new(&extracted).follow_links(false) {
-        let entry = entry.context("Failed to inspect extracted AppImage archive")?;
+        let entry = entry.context("Failed to inspect extracted executable archive")?;
+        if single_file
+            && !entry.file_type().is_dir()
+            && (!entry.file_type().is_file()
+                || !entry
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case(extension)))
+        {
+            anyhow::bail!(
+                "Wrapped EXE '{}' contains supporting files; use a regular archive distribution to preserve them",
+                filename
+            );
+        }
         if entry.file_type().is_file()
             && entry
                 .path()
                 .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("appimage"))
+                .is_some_and(|ext| ext.eq_ignore_ascii_case(extension))
         {
-            appimages.push(entry.into_path());
+            payloads.push(entry.into_path());
         }
     }
-    if appimages.len() != 1 {
+    if payloads.len() != 1 {
         anyhow::bail!(
-            "Expected exactly one AppImage in '{}', found {}",
+            "Expected exactly one {extension} in '{}', found {}",
             filename,
-            appimages.len()
+            payloads.len()
         );
     }
-    Ok(appimages.remove(0))
+    Ok(payloads.remove(0))
 }
 
 #[cfg(target_os = "linux")]
@@ -851,5 +887,117 @@ mod tests {
             drop(workspace);
             fs::remove_dir_all(root).unwrap();
         }
+    }
+}
+
+#[cfg(test)]
+mod wrapped_winexe_tests {
+    use super::{handle_file, prepare_winexe};
+    use crate::{
+        models::{
+            common::enums::{Channel, Filetype, Provider},
+            upstream::Package,
+        },
+        services::packaging::staging::InstallWorkspace,
+        utils::test_support,
+    };
+    use std::{fs, io::Write, path::Path};
+    use zip::{ZipWriter, write::SimpleFileOptions};
+
+    fn write_zip(path: &Path, names: &[&str]) {
+        let mut zip = ZipWriter::new(fs::File::create(path).unwrap());
+        for name in names {
+            zip.start_file(*name, SimpleFileOptions::default()).unwrap();
+            zip.write_all(b"executable payload").unwrap();
+        }
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn nested_wrapped_winexe_installs_the_payload_as_a_binary() {
+        let root = test_support::temp_root("upstream-winexe", "zip");
+        fs::create_dir_all(&root).unwrap();
+        let archive = root.join("tool.EXE.zip");
+        write_zip(&archive, &["release/bin/tool.EXE"]);
+        let extracted = prepare_winexe(&archive, &root.join("extracted"), &mut |_, _| {}).unwrap();
+        let paths = test_support::upstream_paths(&root);
+        let workspace = InstallWorkspace::new(&paths, "tool").unwrap();
+        let package = Package::with_defaults(
+            "tool".into(),
+            "owner/tool".into(),
+            Filetype::WinExe,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        let installed =
+            handle_file(&workspace, &extracted, package, &mut None::<fn(&str)>).unwrap();
+        let destination = workspace.binaries_dir.join("tool.EXE");
+        assert_eq!(installed.filetype, Filetype::WinExe);
+        assert_eq!(
+            installed.install_path.as_deref(),
+            Some(destination.as_path())
+        );
+        assert_eq!(installed.executables[0].path, destination);
+        assert_eq!(fs::read(destination).unwrap(), b"executable payload");
+        assert!(archive.exists());
+        drop(workspace);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn gzip_wrapped_winexe_extracts_and_plain_exe_bypasses_extraction() {
+        use flate2::{Compression, write::GzEncoder};
+        let root = test_support::temp_root("upstream-winexe", "gzip");
+        fs::create_dir_all(&root).unwrap();
+        let archive = root.join("tool.exe.gz");
+        let mut gzip = GzEncoder::new(fs::File::create(&archive).unwrap(), Compression::default());
+        gzip.write_all(b"executable payload").unwrap();
+        gzip.finish().unwrap();
+        let extracted = prepare_winexe(&archive, &root.join("extracted"), &mut |_, _| {}).unwrap();
+        assert_eq!(extracted.file_name().unwrap(), "tool.exe");
+        assert_eq!(fs::read(&extracted).unwrap(), b"executable payload");
+        let unused = root.join("unused");
+        assert_eq!(
+            prepare_winexe(&extracted, &unused, &mut |_, _| panic!(
+                "plain EXE must not extract"
+            ))
+            .unwrap(),
+            extracted
+        );
+        assert!(!unused.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn wrapped_winexe_rejects_missing_multiple_and_supporting_payloads() {
+        let root = test_support::temp_root("upstream-winexe", "invalid");
+        fs::create_dir_all(&root).unwrap();
+        for (case, entries, expected) in [
+            ("missing", vec![], "Expected exactly one exe"),
+            (
+                "multiple",
+                vec!["one.exe", "nested/two.exe"],
+                "Expected exactly one exe",
+            ),
+            (
+                "dll",
+                vec!["tool.exe", "runtime.dll"],
+                "contains supporting files",
+            ),
+            (
+                "resources",
+                vec!["tool.exe", "data/config.json"],
+                "contains supporting files",
+            ),
+        ] {
+            let archive = root.join(format!("{case}.exe.zip"));
+            write_zip(&archive, &entries);
+            let error = prepare_winexe(&archive, &root.join(case), &mut |_, _| {}).unwrap_err();
+            assert!(error.to_string().contains(expected), "{case}: {error:#}");
+        }
+        fs::remove_dir_all(root).unwrap();
     }
 }

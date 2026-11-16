@@ -15,6 +15,15 @@ const CHECKSUM_EXTENSIONS: &[&str] = &[
 
 /// Return the payload name for an AppImage wrapped in an archive or compressor.
 pub fn wrapped_appimage_name(filename: &str) -> Option<&str> {
+    wrapped_payload_name(filename, ".appimage")
+}
+
+/// Return the payload name for a Windows executable wrapped in compression.
+pub fn wrapped_winexe_name(filename: &str) -> Option<&str> {
+    wrapped_payload_name(filename, ".exe")
+}
+
+fn wrapped_payload_name<'a>(filename: &'a str, payload_extension: &str) -> Option<&'a str> {
     let lower = filename.to_ascii_lowercase();
     ARCHIVE_EXTENSIONS
         .iter()
@@ -22,7 +31,7 @@ pub fn wrapped_appimage_name(filename: &str) -> Option<&str> {
         .find_map(|extension| {
             let payload = lower.strip_suffix(extension)?;
             payload
-                .ends_with(".appimage")
+                .ends_with(payload_extension)
                 .then(|| &filename[..payload.len()])
         })
 }
@@ -30,7 +39,9 @@ pub fn wrapped_appimage_name(filename: &str) -> Option<&str> {
 /// Infer target OS from common release artifact naming markers.
 pub fn parse_os(filename: &str) -> Option<OSKind> {
     let name = filename.to_lowercase();
-    let name = wrapped_appimage_name(&name).unwrap_or(&name);
+    let name = wrapped_appimage_name(&name)
+        .or_else(|| wrapped_winexe_name(&name))
+        .unwrap_or(&name);
     let name = ARCHIVE_EXTENSIONS
         .iter()
         .find_map(|extension| name.strip_suffix(extension))
@@ -119,7 +130,7 @@ pub fn parse_filetype(filename: &str) -> Filetype {
         return Filetype::AppImage;
     }
 
-    if filename.ends_with(".exe") {
+    if filename.ends_with(".exe") || wrapped_winexe_name(&filename).is_some() {
         return Filetype::WinExe;
     }
 
@@ -224,6 +235,20 @@ mod tests {
         assert_eq!(parse_filetype("tool.gz"), Filetype::Compressed);
         assert_eq!(parse_filetype("tool.sha256"), Filetype::Checksum);
         assert_eq!(parse_filetype("tool"), Filetype::Binary);
+    }
+
+    #[test]
+    fn wrapped_winexes_are_classified_before_their_containers() {
+        for suffix in [
+            "zip", "tar", "tar.gz", "tgz", "tar.bz2", "tar.xz", "7z", "gz", "bz2", "xz", "zst",
+        ] {
+            let name = format!("Tool.EXE.{suffix}");
+            assert_eq!(parse_filetype(&name), Filetype::WinExe, "{name}");
+            assert_eq!(parse_os(&name), Some(OSKind::Windows), "{name}");
+        }
+        assert_eq!(parse_filetype("tool.exe.zip.sha256"), Filetype::Checksum);
+        assert_eq!(parse_filetype("tool-exe.zip"), Filetype::Archive);
+        assert_eq!(parse_filetype("tool.exe.zip.sig"), Filetype::Checksum);
     }
 
     #[test]

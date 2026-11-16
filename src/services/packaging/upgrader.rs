@@ -923,6 +923,11 @@ mod tests {
         assert_eq!(wrapped.filetype, Filetype::AppImage);
         assert!(!PackageUpgrader::can_apply_zsync(&package, &wrapped, &seed));
 
+        package.filetype = Filetype::WinExe;
+        let wrapped = test_asset("tool.exe.zip");
+        assert_eq!(wrapped.filetype, Filetype::WinExe);
+        assert!(!PackageUpgrader::can_apply_zsync(&package, &wrapped, &seed));
+
         cleanup(&root).expect("cleanup");
     }
 }

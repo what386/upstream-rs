@@ -768,6 +768,28 @@ impl<'a> PackageInstaller<'a> {
                     anyhow::bail!("AppImage installation is only supported on Linux hosts");
                 }
             }
+            Filetype::WinExe => {
+                if crate::providers::assets::filenames::parser::wrapped_winexe_name(&asset.name)
+                    .is_some()
+                {
+                    progress!(
+                        progress_callback,
+                        PackageProgressEvent::Phase(PackagePhase::ExtractingPackage)
+                    );
+                }
+                let executable = filetypes::prepare_winexe(
+                    &download_path,
+                    &package_extract_cache,
+                    &mut |extracted, total| {
+                        progress!(
+                            progress_callback,
+                            PackageProgressEvent::Extraction { extracted, total }
+                        );
+                    },
+                )?;
+                filetypes::handle_file(self.workspace(), &executable, package, message_callback)
+                    .context("Failed to install Windows executable")
+            }
             Filetype::Compressed => {
                 progress!(
                     progress_callback,

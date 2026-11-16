@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-11-14
+@modified: 2026-11-16
 
 
 ## Tasks
@@ -15,3 +15,5 @@
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
 
+- [ ] fix: recognize compressed appimages and winexes and extract before 'archive' install
+      @created 2026-11-16 16:45
