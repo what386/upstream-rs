@@ -53,6 +53,7 @@ impl Drop for UpdatedAsset {
 
 pub fn can_update_package(package: &Package, asset: &Asset, seed_path: &Path) -> bool {
     seed_path.is_file()
+        && crate::providers::assets::filenames::parser::wrapped_appimage_name(&asset.name).is_none()
         && asset.filetype == package.filetype
         && !matches!(package.filetype, Filetype::Archive | Filetype::Compressed)
 }

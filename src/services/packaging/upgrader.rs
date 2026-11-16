@@ -916,6 +916,13 @@ mod tests {
             &install_dir
         ));
 
+        let seed = root.join("tool.AppImage");
+        fs::write(&seed, b"installed AppImage").unwrap();
+        package.filetype = Filetype::AppImage;
+        let wrapped = test_asset("tool.AppImage.zip");
+        assert_eq!(wrapped.filetype, Filetype::AppImage);
+        assert!(!PackageUpgrader::can_apply_zsync(&package, &wrapped, &seed));
+
         cleanup(&root).expect("cleanup");
     }
 }

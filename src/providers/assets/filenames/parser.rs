@@ -13,47 +13,66 @@ const CHECKSUM_EXTENSIONS: &[&str] = &[
     ".sha256", ".sha512", ".sha1", ".md5", ".sig", ".asc", ".minisig", ".sum",
 ];
 
+/// Return the payload name for an AppImage wrapped in an archive or compressor.
+pub fn wrapped_appimage_name(filename: &str) -> Option<&str> {
+    let lower = filename.to_ascii_lowercase();
+    ARCHIVE_EXTENSIONS
+        .iter()
+        .chain([".gz", ".bz2", ".xz", ".zst"].iter())
+        .find_map(|extension| {
+            let payload = lower.strip_suffix(extension)?;
+            payload
+                .ends_with(".appimage")
+                .then(|| &filename[..payload.len()])
+        })
+}
+
 /// Infer target OS from common release artifact naming markers.
 pub fn parse_os(filename: &str) -> Option<OSKind> {
     let name = filename.to_lowercase();
+    let name = wrapped_appimage_name(&name).unwrap_or(&name);
+    let name = ARCHIVE_EXTENSIONS
+        .iter()
+        .find_map(|extension| name.strip_suffix(extension))
+        .unwrap_or(name);
 
     // Windows
-    if markers::contains_marker(&name, markers::WINDOWS) {
+    if markers::contains_marker(name, markers::WINDOWS) {
         return Some(OSKind::Windows);
     }
 
     // iOS
-    if markers::contains_marker(&name, markers::IOS) {
+    if markers::contains_marker(name, markers::IOS) {
         return Some(OSKind::Ios);
     }
 
     // macOS/Darwin
-    if markers::contains_marker(&name, markers::MACOS) {
+    if markers::contains_marker(name, markers::MACOS) {
         return Some(OSKind::MacOS);
     }
 
     // Android
-    if markers::contains_marker(&name, markers::ANDROID) {
+    if markers::contains_marker(name, markers::ANDROID) {
         return Some(OSKind::Android);
     }
 
     // Linux
-    if markers::contains_marker(&name, markers::LINUX) {
+    if markers::contains_marker(name, markers::LINUX) {
         return Some(OSKind::Linux);
     }
 
     // FreeBSD
-    if markers::contains_marker(&name, markers::FREEBSD) {
+    if markers::contains_marker(name, markers::FREEBSD) {
         return Some(OSKind::FreeBSD);
     }
 
     // OpenBSD
-    if markers::contains_marker(&name, markers::OPENBSD) {
+    if markers::contains_marker(name, markers::OPENBSD) {
         return Some(OSKind::OpenBSD);
     }
 
     // NetBSD
-    if markers::contains_marker(&name, markers::NETBSD) {
+    if markers::contains_marker(name, markers::NETBSD) {
         return Some(OSKind::NetBSD);
     }
 
@@ -96,7 +115,7 @@ pub fn parse_arch(filename: &str) -> Option<CpuArch> {
 pub fn parse_filetype(filename: &str) -> Filetype {
     let filename = filename.to_lowercase();
 
-    if filename.ends_with(".appimage") {
+    if filename.ends_with(".appimage") || wrapped_appimage_name(&filename).is_some() {
         return Filetype::AppImage;
     }
 
@@ -158,6 +177,8 @@ mod tests {
         assert_eq!(parse_os("tool-macos-universal.tar.gz"), Some(OSKind::MacOS));
         assert_eq!(parse_os("tool-linux-musl.tar.gz"), Some(OSKind::Linux));
         assert_eq!(parse_os("app-android-arm64.apk"), Some(OSKind::Android));
+        assert_eq!(parse_os("Manager-x86_64.AppImage.zip"), Some(OSKind::Linux));
+        assert_eq!(parse_os("ManagerSetup.exe.zip"), Some(OSKind::Windows));
     }
 
     #[test]
@@ -183,6 +204,21 @@ mod tests {
     #[test]
     fn parse_filetype_classifies_extensions_in_priority_order() {
         assert_eq!(parse_filetype("tool.AppImage"), Filetype::AppImage);
+        for suffix in ["zip", "tar.gz", "tar.xz", "7z", "gz", "xz", "zst"] {
+            assert_eq!(
+                parse_filetype(&format!("tool.AppImage.{suffix}")),
+                Filetype::AppImage
+            );
+            assert_eq!(
+                parse_os(&format!("tool.AppImage.{suffix}")),
+                Some(OSKind::Linux)
+            );
+        }
+        assert_eq!(
+            parse_filetype("tool.AppImage.zip.sha256"),
+            Filetype::Checksum
+        );
+        assert_eq!(parse_filetype("tool-appimage.zip"), Filetype::Archive);
         assert_eq!(parse_filetype("tool.exe"), Filetype::WinExe);
         assert_eq!(parse_filetype("tool.tar.gz"), Filetype::Archive);
         assert_eq!(parse_filetype("tool.gz"), Filetype::Compressed);

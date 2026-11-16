@@ -252,6 +252,44 @@ where
 }
 
 #[cfg(target_os = "linux")]
+pub(super) fn prepare_appimage(
+    asset_path: &Path,
+    extract_cache: &Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<std::path::PathBuf> {
+    use crate::providers::assets::filenames::parser::wrapped_appimage_name;
+
+    let filename = asset_path.file_name().unwrap_or_default().to_string_lossy();
+    if wrapped_appimage_name(&filename).is_none() {
+        return Ok(asset_path.to_path_buf());
+    }
+
+    let extracted =
+        compression_handler::decompress_with_progress(asset_path, extract_cache, progress)
+            .context("Failed to extract wrapped AppImage")?;
+    let mut appimages = Vec::new();
+    for entry in walkdir::WalkDir::new(&extracted).follow_links(false) {
+        let entry = entry.context("Failed to inspect extracted AppImage archive")?;
+        if entry.file_type().is_file()
+            && entry
+                .path()
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("appimage"))
+        {
+            appimages.push(entry.into_path());
+        }
+    }
+    if appimages.len() != 1 {
+        anyhow::bail!(
+            "Expected exactly one AppImage in '{}', found {}",
+            filename,
+            appimages.len()
+        );
+    }
+    Ok(appimages.remove(0))
+}
+
+#[cfg(target_os = "linux")]
 pub(super) async fn handle_appimage<H>(
     workspace: &InstallWorkspace,
     asset_path: &Path,
@@ -450,6 +488,52 @@ mod tests {
             Provider::Github,
             None,
         )
+    }
+
+    #[test]
+    fn single_file_compression_preserves_appimage_payload() {
+        use flate2::{Compression, write::GzEncoder};
+        use std::io::Write;
+
+        let root = crate::utils::test_support::temp_root("upstream-appimage", "gzip");
+        fs::create_dir_all(&root).unwrap();
+        let archive = root.join("tool.AppImage.gz");
+        let mut gzip = GzEncoder::new(fs::File::create(&archive).unwrap(), Compression::default());
+        gzip.write_all(b"AppImage payload").unwrap();
+        gzip.finish().unwrap();
+        let extracted =
+            super::prepare_appimage(&archive, &root.join("extracted"), &mut |_, _| {}).unwrap();
+        assert_eq!(extracted.file_name().unwrap(), "tool.AppImage");
+        assert_eq!(fs::read(extracted).unwrap(), b"AppImage payload");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn wrapped_appimages_reject_missing_or_ambiguous_payloads() {
+        use std::io::Write;
+        use zip::{ZipWriter, write::SimpleFileOptions};
+
+        let root = crate::utils::test_support::temp_root("upstream-appimage", "invalid-wrapper");
+        fs::create_dir_all(&root).unwrap();
+        for (case, entries) in [
+            ("missing", vec!["README.txt"]),
+            ("multiple", vec!["one.AppImage", "nested/two.AppImage"]),
+        ] {
+            let archive = root.join(format!("{case}.AppImage.zip"));
+            let mut zip = ZipWriter::new(fs::File::create(&archive).unwrap());
+            for name in entries {
+                zip.start_file(name, SimpleFileOptions::default()).unwrap();
+                zip.write_all(b"payload").unwrap();
+            }
+            zip.finish().unwrap();
+            let error =
+                super::prepare_appimage(&archive, &root.join(case), &mut |_, _| {}).unwrap_err();
+            assert!(
+                error.to_string().contains("Expected exactly one AppImage"),
+                "{error:#}"
+            );
+        }
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

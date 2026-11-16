@@ -732,9 +732,29 @@ impl<'a> PackageInstaller<'a> {
             Filetype::AppImage => {
                 #[cfg(target_os = "linux")]
                 {
+                    if crate::providers::assets::filenames::parser::wrapped_appimage_name(
+                        &asset.name,
+                    )
+                    .is_some()
+                    {
+                        progress!(
+                            progress_callback,
+                            PackageProgressEvent::Phase(PackagePhase::ExtractingPackage)
+                        );
+                    }
+                    let appimage_path = filetypes::prepare_appimage(
+                        &download_path,
+                        &package_extract_cache,
+                        &mut |extracted, total| {
+                            progress!(
+                                progress_callback,
+                                PackageProgressEvent::Extraction { extracted, total }
+                            );
+                        },
+                    )?;
                     filetypes::handle_appimage(
                         self.workspace(),
-                        &download_path,
+                        &appimage_path,
                         package,
                         add_entry == Some(true),
                         message_callback,

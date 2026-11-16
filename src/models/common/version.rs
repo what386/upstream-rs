@@ -150,7 +150,48 @@ impl Version {
             return Self::parse_datetime(&candidate);
         }
 
+        if let Some((version, _)) = Self::underscore_filename_version(trimmed) {
+            return Ok(version);
+        }
+
         Self::parse(trimmed)
+    }
+
+    /// Locate underscore-separated release numbers, excluding architecture pairs
+    /// such as x86_64. Calendar releases may have only a year and minor number.
+    pub(crate) fn underscore_filename_version(s: &str) -> Option<(Self, std::ops::Range<usize>)> {
+        let bytes = s.as_bytes();
+        let mut start = 0;
+        while start < bytes.len() {
+            if !bytes[start].is_ascii_digit() {
+                start += 1;
+                continue;
+            }
+            let mut end = start;
+            while end < bytes.len() && (bytes[end].is_ascii_digit() || bytes[end] == b'_') {
+                end += 1;
+            }
+            let run = s[start..end].trim_end_matches('_');
+            let parts = run.split('_').collect::<Vec<_>>();
+            let year_index = parts.iter().enumerate().find_map(|(index, part)| {
+                let year = part.parse::<u32>().ok()?;
+                ((1900..3000).contains(&year) && (2..=3).contains(&(parts.len() - index)))
+                    .then_some(index)
+            });
+            let index = year_index.or_else(|| (parts.len() >= 3).then(|| parts.len() - 3));
+            if let Some(index) = index {
+                let offset = parts[..index]
+                    .iter()
+                    .map(|part| part.len() + 1)
+                    .sum::<usize>();
+                let value = parts[index..].join(".");
+                if let Ok(version) = Self::parse_semver(&value) {
+                    return Some((version, start + offset..start + run.len()));
+                }
+            }
+            start = end;
+        }
+        None
     }
 
     pub fn from_tag(tag: &str) -> Result<Self> {
@@ -507,6 +548,30 @@ mod tests {
                 .to_string(),
             "20240203-110809-ABCDEF1"
         );
+    }
+
+    #[test]
+    fn extracts_underscore_release_versions_without_architecture_or_model_numbers() {
+        for (name, expected) in [
+            (
+                "LimelightHardwareManagerSetup2_0_10.exe",
+                Version::new(2, 0, 10, false),
+            ),
+            (
+                "LimelightHardwareManager-x86_64_2_0_10.AppImage.zip",
+                Version::new(2, 0, 10, false),
+            ),
+            ("limelight2_2024_10_2.zip", Version::new(2024, 10, 2, false)),
+            ("limelight3_2026_1.zip", Version::new(2026, 1, 0, false)),
+            (
+                "limelight2_2025_1_release.zip",
+                Version::new(2025, 1, 0, false),
+            ),
+        ] {
+            assert_eq!(Version::from_filename(name).unwrap(), expected, "{name}");
+        }
+        assert!(Version::from_filename("tool-x86_64.zip").is_err());
+        assert!(Version::from_filename("tool-x86_32.zip").is_err());
     }
 
     #[test]

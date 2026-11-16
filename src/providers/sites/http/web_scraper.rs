@@ -2,14 +2,20 @@ use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use futures_util::{StreamExt, stream};
 use scraper::{Html, Selector};
-use std::{collections::HashSet, path::Path, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+    time::Duration,
+};
 
 use crate::{
     models::{
         common::{Version, enums::Filetype},
         provider::{Asset, Release},
     },
-    providers::assets::filenames::parser::{parse_arch, parse_filetype, parse_os},
+    providers::assets::filenames::parser::{
+        is_unsupported_artifact_name, parse_arch, parse_filetype, parse_os,
+    },
     providers::sites::{
         ReleaseProvider,
         http::{ConditionalDocumentResult, HttpAssetInfo, HttpClient},
@@ -73,12 +79,16 @@ impl WebScraperAdapter {
 
     fn candidate_score(name: &str, text: &str, explicit_download: bool) -> i32 {
         let filetype = parse_filetype(name);
-        let mut score =
-            if Path::new(name).extension().is_some() && Self::is_download_filetype(filetype) {
-                100
-            } else {
-                0
-            };
+        let mut score = if Path::new(name).extension().is_some()
+            && (Self::is_download_filetype(filetype)
+                || is_unsupported_artifact_name(name)
+                || name.to_ascii_lowercase().ends_with(".msi")
+                || name.to_ascii_lowercase().ends_with(".pkg"))
+        {
+            100
+        } else {
+            0
+        };
 
         let text = text.to_ascii_lowercase();
         if name.to_ascii_lowercase().ends_with(".html") {
@@ -242,6 +252,30 @@ impl WebScraperAdapter {
         arch_score + if os.is_some() { 4 } else { 0 }
     }
 
+    fn candidate_family(candidate: &Candidate) -> String {
+        let mut name = HttpClient::file_name_from_url(&candidate.url);
+        if let Some(version) = &candidate.version {
+            let version_text = version.core_string();
+            if let Some(index) = name.find(&version_text) {
+                name.replace_range(index..index + version_text.len(), "{version}");
+            } else if let Some((found, range)) = Version::underscore_filename_version(&name)
+                && &found == version
+            {
+                name.replace_range(range, "{version}");
+            }
+            // Stable release decorations do not identify a separate product.
+            for suffix in [
+                "_release", "-release", "_final", "-final", "_stable", "-stable",
+            ] {
+                name = name.replace(&format!("{{version}}{suffix}"), "{version}");
+            }
+        }
+        let origin = reqwest::Url::parse(&candidate.url)
+            .map(|url| url.origin().ascii_serialization())
+            .unwrap_or_default();
+        format!("{origin}/{name}")
+    }
+
     fn select_candidates(
         candidates: Vec<Candidate>,
         platform: &ArchitectureInfo,
@@ -280,7 +314,23 @@ impl WebScraperAdapter {
                     .then_with(|| left.url.cmp(&right.url))
             },
         );
-        ranked
+        // Give each product/target a slot before spending the remaining budget
+        // on its history. Keep the host preference within each round.
+        let mut counts = HashMap::new();
+        let mut rounds = ranked
+            .into_iter()
+            .enumerate()
+            .map(|(index, (_, _, candidate))| {
+                let count = counts
+                    .entry(Self::candidate_family(&candidate))
+                    .or_insert(0usize);
+                let round = *count;
+                *count += 1;
+                (round, index, candidate)
+            })
+            .collect::<Vec<_>>();
+        rounds.sort_by_key(|(round, index, _)| (*round, *index));
+        rounds
             .into_iter()
             .take(MAX_CANDIDATE_PROBES)
             .map(|(_, _, candidate)| candidate)
@@ -288,21 +338,28 @@ impl WebScraperAdapter {
     }
 
     fn select_latest(infos: Vec<(Candidate, HttpAssetInfo)>) -> Vec<HttpAssetInfo> {
-        let best = Self::highest_version(
-            infos
-                .iter()
-                .filter_map(|(candidate, _)| candidate.version.clone()),
-        );
+        let mut best = HashMap::<String, Version>::new();
+        for (candidate, _) in &infos {
+            if let Some(version) = &candidate.version {
+                let current = best
+                    .entry(Self::candidate_family(candidate))
+                    .or_insert_with(|| version.clone());
+                if version.is_newer_than(current) {
+                    *current = version.clone();
+                }
+            }
+        }
 
         let selected: Vec<_> = infos
             .into_iter()
             .filter(|(candidate, _)| {
-                best.as_ref().is_none_or(|version| {
-                    candidate
-                        .version
-                        .as_ref()
-                        .is_none_or(|candidate_version| candidate_version == version)
-                })
+                best.get(&Self::candidate_family(candidate))
+                    .is_none_or(|version| {
+                        candidate
+                            .version
+                            .as_ref()
+                            .is_none_or(|candidate_version| candidate_version == version)
+                    })
             })
             .map(|(_, info)| info)
             .collect();
@@ -637,6 +694,67 @@ mod tests {
         let selected = WebScraperAdapter::select_candidates(history, &platform);
         assert_eq!(selected[0].url, newest.url);
         assert_eq!(selected.len(), MAX_CANDIDATE_PROBES);
+    }
+
+    #[tokio::test]
+    async fn mixed_products_keep_prominent_installers_and_latest_firmware_within_budget() {
+        let installers = [
+            "LimelightHardwareManagerSetup2_0_10.exe",
+            "LimelightHardwareManager-macOS-AppleSilicon2_0_10.dmg",
+            "LimelightHardwareManager-macOS-Intel2_0_10.dmg",
+            "LimelightHardwareManager-x86_64_2_0_10.AppImage.zip",
+            "LimelightHardwareManager-aarch64_2_0_10.AppImage.zip",
+            "LimelightFlashToolSetup1_1.msi",
+        ];
+        let mut page = String::new();
+        for name in installers {
+            page.push_str(&format!("<a href='/software/{name}'>Hardware Manager</a>"));
+        }
+        page.push_str(
+            "<a href='/software/LimelightHardwareManagerSetup1_5_0.exe'>Legacy Manager</a>",
+        );
+        for model in ["2", "3", "3g", "3a", "4"] {
+            page.push_str(&format!(
+                "<a href='/images/limelight{model}_2023_1_release.zip'>Final release</a>"
+            ));
+            for minor in 0..10 {
+                page.push_str(&format!(
+                    "<a href='/images/limelight{model}_2024_{minor}.zip'>Limelight {model}</a>"
+                ));
+            }
+        }
+        let server = TestServer::new(move |method, path| {
+            if path == "/downloads" {
+                assert_eq!(method, "GET");
+                response("200 OK", "text/html", &page)
+            } else {
+                assert_eq!(method, "HEAD");
+                response("200 OK", "application/octet-stream", "")
+            }
+        });
+        let release = adapter()
+            .get_latest_release(&format!("{}/downloads", server.url))
+            .await
+            .unwrap();
+        let names = release
+            .assets
+            .iter()
+            .map(|asset| asset.name.as_str())
+            .collect::<Vec<_>>();
+        for name in installers {
+            assert!(names.contains(&name), "missing {name}: {names:?}");
+        }
+        for model in ["2", "3", "3g", "3a", "4"] {
+            assert!(
+                names.contains(&format!("limelight{model}_2024_9.zip").as_str()),
+                "{names:?}"
+            );
+        }
+        assert_eq!(names.len(), installers.len() + 5);
+        assert_eq!(
+            server.requests.lock().unwrap().len(),
+            MAX_CANDIDATE_PROBES + 1
+        );
     }
 
     #[tokio::test]
