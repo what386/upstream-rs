@@ -42,6 +42,7 @@ pub fn parse_os(filename: &str) -> Option<OSKind> {
     let name = wrapped_appimage_name(&name)
         .or_else(|| wrapped_winexe_name(&name))
         .unwrap_or(&name);
+
     let name = ARCHIVE_EXTENSIONS
         .iter()
         .find_map(|extension| name.strip_suffix(extension))
@@ -220,15 +221,18 @@ mod tests {
                 parse_filetype(&format!("tool.AppImage.{suffix}")),
                 Filetype::AppImage
             );
+
             assert_eq!(
                 parse_os(&format!("tool.AppImage.{suffix}")),
                 Some(OSKind::Linux)
             );
         }
+
         assert_eq!(
             parse_filetype("tool.AppImage.zip.sha256"),
             Filetype::Checksum
         );
+
         assert_eq!(parse_filetype("tool-appimage.zip"), Filetype::Archive);
         assert_eq!(parse_filetype("tool.exe"), Filetype::WinExe);
         assert_eq!(parse_filetype("tool.tar.gz"), Filetype::Archive);
@@ -246,6 +250,7 @@ mod tests {
             assert_eq!(parse_filetype(&name), Filetype::WinExe, "{name}");
             assert_eq!(parse_os(&name), Some(OSKind::Windows), "{name}");
         }
+
         assert_eq!(parse_filetype("tool.exe.zip.sha256"), Filetype::Checksum);
         assert_eq!(parse_filetype("tool-exe.zip"), Filetype::Archive);
         assert_eq!(parse_filetype("tool.exe.zip.sig"), Filetype::Checksum);

@@ -276,6 +276,7 @@ pub(super) fn prepare_winexe(
     if crate::providers::assets::filenames::parser::wrapped_winexe_name(&filename).is_none() {
         return Ok(asset_path.to_path_buf());
     }
+
     extract_wrapped_executable(asset_path, extract_cache, "exe", true, progress)
 }
 
@@ -290,6 +291,7 @@ fn extract_wrapped_executable(
     let extracted =
         compression_handler::decompress_with_progress(asset_path, extract_cache, progress)
             .with_context(|| format!("Failed to extract wrapped {extension}"))?;
+
     let mut payloads = Vec::new();
     for entry in walkdir::WalkDir::new(&extracted).follow_links(false) {
         let entry = entry.context("Failed to inspect extracted executable archive")?;
@@ -306,6 +308,7 @@ fn extract_wrapped_executable(
                 filename
             );
         }
+
         if entry.file_type().is_file()
             && entry
                 .path()
@@ -315,6 +318,7 @@ fn extract_wrapped_executable(
             payloads.push(entry.into_path());
         }
     }
+
     if payloads.len() != 1 {
         anyhow::bail!(
             "Expected exactly one {extension} in '{}', found {}",
@@ -322,6 +326,7 @@ fn extract_wrapped_executable(
             payloads.len()
         );
     }
+
     Ok(payloads.remove(0))
 }
 
@@ -539,6 +544,7 @@ mod tests {
         gzip.finish().unwrap();
         let extracted =
             super::prepare_appimage(&archive, &root.join("extracted"), &mut |_, _| {}).unwrap();
+
         assert_eq!(extracted.file_name().unwrap(), "tool.AppImage");
         assert_eq!(fs::read(extracted).unwrap(), b"AppImage payload");
         fs::remove_dir_all(root).unwrap();
@@ -561,14 +567,17 @@ mod tests {
                 zip.start_file(name, SimpleFileOptions::default()).unwrap();
                 zip.write_all(b"payload").unwrap();
             }
+
             zip.finish().unwrap();
             let error =
                 super::prepare_appimage(&archive, &root.join(case), &mut |_, _| {}).unwrap_err();
+
             assert!(
                 error.to_string().contains("Expected exactly one AppImage"),
                 "{error:#}"
             );
         }
+
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -910,6 +919,7 @@ mod wrapped_winexe_tests {
             zip.start_file(*name, SimpleFileOptions::default()).unwrap();
             zip.write_all(b"executable payload").unwrap();
         }
+
         zip.finish().unwrap();
     }
 
@@ -932,14 +942,17 @@ mod wrapped_winexe_tests {
             Provider::Github,
             None,
         );
+
         let installed =
             handle_file(&workspace, &extracted, package, &mut None::<fn(&str)>).unwrap();
+
         let destination = workspace.binaries_dir.join("tool.EXE");
         assert_eq!(installed.filetype, Filetype::WinExe);
         assert_eq!(
             installed.install_path.as_deref(),
             Some(destination.as_path())
         );
+
         assert_eq!(installed.executables[0].path, destination);
         assert_eq!(fs::read(destination).unwrap(), b"executable payload");
         assert!(archive.exists());
@@ -967,6 +980,7 @@ mod wrapped_winexe_tests {
             .unwrap(),
             extracted
         );
+
         assert!(!unused.exists());
         fs::remove_dir_all(root).unwrap();
     }
@@ -998,6 +1012,7 @@ mod wrapped_winexe_tests {
             let error = prepare_winexe(&archive, &root.join(case), &mut |_, _| {}).unwrap_err();
             assert!(error.to_string().contains(expected), "{case}: {error:#}");
         }
+
         fs::remove_dir_all(root).unwrap();
     }
 }

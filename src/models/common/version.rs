@@ -167,10 +167,12 @@ impl Version {
                 start += 1;
                 continue;
             }
+
             let mut end = start;
             while end < bytes.len() && (bytes[end].is_ascii_digit() || bytes[end] == b'_') {
                 end += 1;
             }
+
             let run = s[start..end].trim_end_matches('_');
             let parts = run.split('_').collect::<Vec<_>>();
             let year_index = parts.iter().enumerate().find_map(|(index, part)| {
@@ -178,19 +180,23 @@ impl Version {
                 ((1900..3000).contains(&year) && (2..=3).contains(&(parts.len() - index)))
                     .then_some(index)
             });
+
             let index = year_index.or_else(|| (parts.len() >= 3).then(|| parts.len() - 3));
             if let Some(index) = index {
                 let offset = parts[..index]
                     .iter()
                     .map(|part| part.len() + 1)
                     .sum::<usize>();
+
                 let value = parts[index..].join(".");
                 if let Ok(version) = Self::parse_semver(&value) {
                     return Some((version, start + offset..start + run.len()));
                 }
             }
+
             start = end;
         }
+
         None
     }
 
@@ -570,6 +576,7 @@ mod tests {
         ] {
             assert_eq!(Version::from_filename(name).unwrap(), expected, "{name}");
         }
+
         assert!(Version::from_filename("tool-x86_64.zip").is_err());
         assert!(Version::from_filename("tool-x86_32.zip").is_err());
     }

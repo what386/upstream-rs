@@ -263,6 +263,7 @@ impl WebScraperAdapter {
             {
                 name.replace_range(range, "{version}");
             }
+
             // Stable release decorations do not identify a separate product.
             for suffix in [
                 "_release", "-release", "_final", "-final", "_stable", "-stable",
@@ -270,9 +271,11 @@ impl WebScraperAdapter {
                 name = name.replace(&format!("{{version}}{suffix}"), "{version}");
             }
         }
+
         let origin = reqwest::Url::parse(&candidate.url)
             .map(|url| url.origin().ascii_serialization())
             .unwrap_or_default();
+
         format!("{origin}/{name}")
     }
 
@@ -324,11 +327,13 @@ impl WebScraperAdapter {
                 let count = counts
                     .entry(Self::candidate_family(&candidate))
                     .or_insert(0usize);
+
                 let round = *count;
                 *count += 1;
                 (round, index, candidate)
             })
             .collect::<Vec<_>>();
+
         rounds.sort_by_key(|(round, index, _)| (*round, *index));
         rounds
             .into_iter()
@@ -344,6 +349,7 @@ impl WebScraperAdapter {
                 let current = best
                     .entry(Self::candidate_family(candidate))
                     .or_insert_with(|| version.clone());
+
                 if version.is_newer_than(current) {
                     *current = version.clone();
                 }
@@ -706,10 +712,12 @@ mod tests {
             "LimelightHardwareManager-aarch64_2_0_10.AppImage.zip",
             "LimelightFlashToolSetup1_1.msi",
         ];
+
         let mut page = String::new();
         for name in installers {
             page.push_str(&format!("<a href='/software/{name}'>Hardware Manager</a>"));
         }
+
         page.push_str(
             "<a href='/software/LimelightHardwareManagerSetup1_5_0.exe'>Legacy Manager</a>",
         );
@@ -723,6 +731,7 @@ mod tests {
                 ));
             }
         }
+
         let server = TestServer::new(move |method, path| {
             if path == "/downloads" {
                 assert_eq!(method, "GET");
@@ -732,24 +741,29 @@ mod tests {
                 response("200 OK", "application/octet-stream", "")
             }
         });
+
         let release = adapter()
             .get_latest_release(&format!("{}/downloads", server.url))
             .await
             .unwrap();
+
         let names = release
             .assets
             .iter()
             .map(|asset| asset.name.as_str())
             .collect::<Vec<_>>();
+
         for name in installers {
             assert!(names.contains(&name), "missing {name}: {names:?}");
         }
+
         for model in ["2", "3", "3g", "3a", "4"] {
             assert!(
                 names.contains(&format!("limelight{model}_2024_9.zip").as_str()),
                 "{names:?}"
             );
         }
+
         assert_eq!(names.len(), installers.len() + 5);
         assert_eq!(
             server.requests.lock().unwrap().len(),

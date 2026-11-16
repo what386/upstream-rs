@@ -742,6 +742,7 @@ impl<'a> PackageInstaller<'a> {
                             PackageProgressEvent::Phase(PackagePhase::ExtractingPackage)
                         );
                     }
+
                     let appimage_path = filetypes::prepare_appimage(
                         &download_path,
                         &package_extract_cache,
@@ -752,6 +753,7 @@ impl<'a> PackageInstaller<'a> {
                             );
                         },
                     )?;
+
                     filetypes::handle_appimage(
                         self.workspace(),
                         &appimage_path,
@@ -777,6 +779,7 @@ impl<'a> PackageInstaller<'a> {
                         PackageProgressEvent::Phase(PackagePhase::ExtractingPackage)
                     );
                 }
+
                 let executable = filetypes::prepare_winexe(
                     &download_path,
                     &package_extract_cache,
@@ -787,6 +790,7 @@ impl<'a> PackageInstaller<'a> {
                         );
                     },
                 )?;
+
                 filetypes::handle_file(self.workspace(), &executable, package, message_callback)
                     .context("Failed to install Windows executable")
             }
