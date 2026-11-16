@@ -34,7 +34,7 @@ Useful install options:
 | Option | Purpose |
 | --- | --- |
 | `--tag v1.2.3` | Install a particular release tag. |
-| `--semver 1.2.3` | Resolve a version to a release tag. Use instead of `--tag`. |
+| `--semver 1.2.3` | Install a specific version. Use instead of `--tag`. |
 | `--channel preview` | Track `stable` (default), `preview`, or `nightly` releases. |
 | `--kind archive` | Choose an asset type when automatic selection needs help. |
 | `--match musl` | Prefer assets matching a pattern. |
@@ -42,18 +42,9 @@ Useful install options:
 | `--desktop` | Create a desktop launcher for a GUI application. |
 | `--dry-run` | Preview the installation without downloading or installing. |
 
-If an archive has no executable files in its root or `bin` directory, Upstream
-looks for likely commands by inspecting binary headers and script shebangs.
-It shows candidates in a selector with confidence scores; select a command to
-make it executable, or press Esc to cancel. Scores rank executable permissions,
-binary headers, script shebangs, and matches with the expected command name;
-they are not probabilities. `--yes` accepts a single candidate but does not
-choose between multiple candidates.
-
-Upgrades try normal executable discovery first. If it finds nothing, they reuse
-recorded executable paths relative to the install directory when those files
-still exist, without inspecting their contents or scoring them again. Missing
-recorded files fall back to the candidate selector.
+If Upstream cannot choose an executable automatically, select one from the
+suggested commands or press Esc to cancel. `--yes` accepts a single candidate
+but does not choose between multiple candidates.
 
 To build from source, use `upstream build owner/repo`. Add `--branch main` to
 track a branch, or `--tag` to select a release. Profiles are detected automatically;
@@ -76,10 +67,10 @@ upstream reinstall ripgrep
 upstream remove ripgrep
 ```
 
-You can also use a source URL or installed command name, such as `upstream remove fj`.
+You can also use a source URL or installed command name, such as `upstream remove rg`.
 
-`upgrade --check` refreshes available updates; `updates` reads the saved results
-without contacting providers. Pinned packages are skipped during upgrades.
+`upgrade --check` checks for new releases; `updates` shows the last saved results
+without checking again. Pinned packages are skipped during upgrades.
 At the upgrade confirmation prompt, enter `c` to read release notes.
 
 Removal keeps reusable caches. Add `--purge` to remove that package's cache
@@ -87,8 +78,8 @@ data too. Install, build, probe, upgrade, reinstall, and remove support `--dry-r
 
 For scripts, use `upgrade --check --json` or
 `upgrade --check --machine-readable` (one `name oldver newver` line per update).
-`updates --json` reads the cached snapshot; `updates --notify` prints a brief
-message only when usable updates are cached.
+`updates --json` returns saved results as JSON. `updates --notify` prints a brief
+message when saved results include available updates.
 
 ## Package settings
 
@@ -153,18 +144,26 @@ upstream docs ripgrep usage
 upstream docs --fetch ripgrep
 upstream docs ripgrep --offline
 upstream changelog ripgrep
-upstream history --package ripgrep
-upstream history --status failed --since 2d
 upstream doctor
 upstream doctor --fix
 upstream cache list
 upstream cache clean docs --dry-run
 ```
 
-`docs` searches the upstream README and caches it for offline use. Use
+`docs` searches a package's README and saves it for offline use. Use
 `docs --fetch` without names to refresh all installed packages' READMEs.
 `changelog` shows newer release notes; `--for TAG` selects a single release.
 If `glow` is installed, it styles Markdown output.
+
+Check `~/.upstream/upstream.log` when troubleshooting. To save more detail for
+subsequent commands:
+
+```bash
+upstream config set logging.level=debug
+```
+
+See [logging settings](config.md#logging) to adjust detail or disable logging.
+If Upstream panics, it prints the path to a `crash-*.txt` report when one is saved.
 
 `doctor --fix` repairs supported installation and integration issues.
 `cache clean` accepts `updates`, `build`, `source`, `docs`, or `all`; omitting
@@ -177,10 +176,10 @@ upstream export profile ./profile.json
 upstream import profile ./profile.json
 ```
 
-A profile contains configuration, trusted public keys, and package references.
-Import replaces configuration, merges keys, and installs packages from their
-recorded tags or branches. Add `--latest` to resolve current releases instead;
-branch builds continue tracking their branches.
+Export a profile to back up your configuration, trusted public keys, and package
+list. Importing it replaces your configuration, adds trusted keys, and reinstalls
+the saved releases or branches. Add `--latest` to install current releases;
+branch builds keep tracking their saved branches.
 
 Use `export config`, `export keys`, or `export packages` to save just one part,
 and the matching `import` command to restore it. Exports exclude binaries,

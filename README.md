@@ -60,10 +60,17 @@ upstream find terminal emulator
 upstream search editor --provider appimagehub
 ```
 
+To remove a tool, use its repo or command name, such as`ripgrep` or `rg`.
+
+```bash
+upstream remove ripgrep
+upstream remove rg
+```
+
 ### Choose what to install
 
 Preview an installation before downloading anything, or use `probe` to choose
-among the available release files yourself:
+among the available release files yourself if upstream gets it wrong:
 
 ```bash
 upstream install neovim/neovim --dry-run
@@ -120,17 +127,12 @@ upstream docs ripgrep usage
 upstream docs ripgrep --offline
 ```
 
-If an installation or update fails, review recent failures and check for
-installation problems:
+
+If something goes wrong, check `~/.upstream/upstream.log` and run diagnostics:
 
 ```bash
-upstream history --status failed --since 2d
 upstream doctor
 ```
-
-To remove a tool, use its repository name or command name, such as
-`upstream remove ripgrep` or `upstream remove rg`.
-
 ## Export and restore your setup
 
 Save your package list and settings, then restore them on another machine:

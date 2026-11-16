@@ -28,17 +28,17 @@ Use the full key with `config get` or `config set`. Booleans accept `true` or
 | `download.high_threads` | `4` | Parallel download connections at or above the higher threshold. |
 | `concurrency.check_concurrency` | `8` | Packages checked for updates at once. |
 | `concurrency.install_concurrency` | `4` | Package installations or upgrades processed at once. |
-| `logging.enabled` | `true` | Record operations for `upstream history`. |
-| `logging.level` | `info` | Logging detail: `error`, `warn`, `info`, or `debug`. |
-| `logging.vacuum` | `10000` | Maximum log records retained during cleanup. |
+| `logging.enabled` | `true` | Save diagnostic logs to `~/.upstream/upstream.log`. |
+| `logging.level` | `info` | Logging detail: `error`, `warn`, `info`, `debug`, or `trace`. |
+| `logging.vacuum` | `10000` | Number of recent log lines to keep during cleanup. |
 | `logging.max_size_mb` | `10` | Log size limit; older records are removed first. `0` disables this size limit. |
 | `integration.systemd_units` | `true` | Install bundled systemd user units on Linux. |
 | `integration.systemd_daemon_reload` | `true` | Refresh systemd after managed unit files change. |
 | `integration.shell_completions` | `true` | Install shell completions bundled with packages. |
 
-Sizes use units of 1,048,576 bytes. Smaller downloads use one connection;
-parallel downloads also require server support. Connection and concurrency
-counts below `1` are treated as `1`.
+Smaller downloads use one connection; multiple connections require server
+support. Lower the connection and concurrency settings to reduce resource use.
+Counts below `1` use `1`.
 
 Integration settings apply when packages are installed or replaced. Installing
 systemd units does not enable or start services.
@@ -53,30 +53,39 @@ open the active file.
 The file uses TOML sections. Include only the settings you want to change;
 omitted keys use their defaults. Unknown keys are rejected.
 
-The full default configuration is:
+For example, to reduce download connections and disable bundled systemd units:
 
 ```toml
 [download]
-low_threshold_mb = 16
-high_threshold_mb = 64
-low_threads = 2
-high_threads = 4
-
-[concurrency]
-check_concurrency = 8
-install_concurrency = 4
-
-[logging]
-enabled = true
-level = "info"
-vacuum = 10000
-max_size_mb = 10
+low_threads = 1
+high_threads = 2
 
 [integration]
-systemd_units = true
-systemd_daemon_reload = true
-shell_completions = true
+systemd_units = false
 ```
+
+## Logging
+
+Choose how much detail to save with `logging.level`:
+
+| Level | What is logged |
+| --- | --- |
+| `error` | Failures only. |
+| `warn` | Failures, warnings, and interruptions. |
+| `info` (default) | Command results, downloads, and installations. |
+| `debug` | Detailed steps for troubleshooting. |
+| `trace` | All available diagnostic detail. |
+
+Each level includes the levels above it. Logs go to `~/.upstream/upstream.log`.
+
+```bash
+upstream config set logging.level=debug
+upstream config set logging.enabled=false
+```
+
+Changes apply to the next command. Use `logging.vacuum` and `logging.max_size_mb`
+to limit retained logs; `max_size_mb=0` removes the size limit. Disabling logging
+does not disable separate `crash-*.txt` panic reports.
 
 ## API tokens
 
