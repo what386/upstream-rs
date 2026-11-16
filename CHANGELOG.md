@@ -1,6 +1,13 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-11-14*
+*Generated on 2026-11-16*
+
+## 2.24.1 — 2026-11-16
+
+### Changes
+
+- fix: recognize compressed appimages and winexes and extract before 'archive' install
+
 
 ## 2.24.0 — 2026-11-14
 

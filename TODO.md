@@ -15,10 +15,3 @@
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
 
-
-## Completed
-
-- [x] fix: recognize compressed appimages and winexes and extract before 'archive' install
-      @created 2026-11-16 16:45
-      @completed 2026-11-16 16:51
-
