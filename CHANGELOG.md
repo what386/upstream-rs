@@ -1,6 +1,6 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-11-16*
+_Generated on 2026-11-16_
 
 ## 2.24.1 — 2026-11-16
 
@@ -8,14 +8,12 @@
 
 - fix: recognize compressed appimages and winexes and extract before 'archive' install
 
-
 ## 2.24.0 — 2026-11-14
 
 ### Changes
 
 - feat: --desktop flag now accepts true|false argument
 - feat: automatic desktop detection
-
 
 ## 2.23.0 — 2026-11-14
 
@@ -32,13 +30,11 @@
 - fix: exec name on windows uses exe metadata
 - fix: use known folder api instead of hardcoding to roaming appdata
 
-
 ## 2.22.1 — 2026-11-10
 
 ### Changes
 
 - fix: base url resolution applies automatically
-
 
 ## 2.22.0 — 2026-11-10
 
@@ -49,7 +45,6 @@
 - feat: allow packages to be selected via their commands
 - feat: allow packages to be selected via url
 
-
 ## 2.21.2 — 2026-11-05
 
 ### Changes
@@ -57,13 +52,11 @@
 - fix: if zsync is missing it silently falls back instead of warning
 - fix: table formatting for updates subcommand
 
-
 ## 2.21.1 — 2026-11-05
 
 ### Changes
 
 - fix: unit discovery now supports relative execsearchpaths
-
 
 ## 2.21.0 — 2026-11-05
 
@@ -75,14 +68,12 @@
 - feat: optional shell integration to show available updates
 - feat: systemd unit integrations
 
-
 ## 2.20.4 — 2026-10-15
 
 ### Changes
 
 - fix: icon manager now recognises .png files
 - fix: changed name fallback to repo name instead of pkg ID
-
 
 ## 2.20.3 — 2026-09-26
 
@@ -91,7 +82,6 @@
 - fix: -v install flag no longer takes forever
 - fix: pager now opens if content is too wide instead of just height
 
-
 ## 2.20.2 — 2026-09-22
 
 ### Changes
@@ -99,13 +89,11 @@
 - fix missing desktop entry detection, and update helptext
 - fix stale symlink detection
 
-
 ## 2.20.1 — 2026-09-21
 
 ### Changes
 
 - fix signing issue. will implement proper keyless signing in the future
-
 
 ## 2.20.0 — 2026-09-20
 
@@ -116,13 +104,11 @@
 - BREAKING: remove rollback command as its seemingly not used much
 - feat: improve scraper reliability
 
-
 ## 2.19.1 — 2026-09-12
 
 ### Changes
 
 - fix: completions now use proper exec name
-
 
 ## 2.19.0 — 2026-09-12
 
@@ -130,13 +116,11 @@
 
 - cli: add dynamic completion support
 
-
 ## 2.18.3 — 2026-09-09
 
 ### Changes
 
 - fix macOS releases with statically linked liblzma
-
 
 ## 2.18.2 — 2026-09-04
 
@@ -148,14 +132,12 @@
 
 - maintenance: clean stale Windows replacement snapshots with doctor `doctor`, `packaging`
 
-
 ## 2.18.1 — 2026-09-04
 
 ### Changes
 
 - fix: desktop entries now declare alias and icon path if available
 - fix: icons now use primary alias instead of pkg id
-
 
 ## 2.18.0 — 2026-09-03
 
@@ -165,13 +147,11 @@
 - named ops now use friendly id (repo name) instead of executable name
 - several improvements to build profiles
 
-
 ## 2.17.1 — 2026-08-27
 
 ### Changes
 
 - fix: check --machine-readable/--json no longer reports pinned packages as needing updates
-
 
 ## 2.17.0 — 2026-08-26
 
@@ -180,13 +160,11 @@
 - BREAKING: remove add subcommand
 - fix: signature verification now supports utf16
 
-
 ## 2.16.4 — 2026-08-20
 
 ### Changes
 
 - feat: assets with installer or setup are penalized
-
 
 ## 2.16.3 — 2026-08-20
 
@@ -196,13 +174,11 @@
 - feat: bold prompt questions
 - BREAKING: remove --skip-failed flag for imports (now default)
 
-
 ## 2.16.1 — 2026-08-12
 
 ### Changes
 
 - fix: issue where old packages.json file would try to deserialize and fail
-
 
 ## 2.16.0 — 2026-08-11
 
@@ -218,7 +194,6 @@
 - feat: change rollback algo to zst for speed
 - ui: reinstall now has consistent cli like upgrade/install
 
-
 ## 2.15.5 — 2026-08-06
 
 ### Changes
@@ -226,7 +201,6 @@
 - behavior: centralize and harden Windows PATH registry management `windows`, `path`, `correctness`
 - feat: add a Windows repair script for legacy installs `windows`, `repair`
 - fix: retry Windows executable renames during package upgrades `windows`, `upgrade`
-
 
 ## 2.15.4 — 2026-08-04
 
@@ -236,7 +210,6 @@
 - Reject unsupported bootstrap architectures before downloading.
 - Support UTF-16 LE/BE checksum manifests.
 - Complete the existing registry trust-policy item using commit
-
 
 ## 2.15.3 — 2026-07-30
 
@@ -248,14 +221,12 @@
 - Reuse package import validation `import`, `cleanup` ([`91148f8`])
 - Remove registry binary name guard `registry`, `cleanup` ([`b388371`])
 
-
 ## 2.15.2 — 2026-07-23
 
 ### Changes
 
 - fix .desktop name override (prefer existing)
 - fix: remove old fetch behavior that required package name for add
-
 
 ## 2.15.0 — 2026-07-22
 
@@ -265,7 +236,6 @@
 - behavior: os scoring now adds points
 - feat: datetime versioning support
 - feat: package registry (access using `add` subcommand)
-
 
 ## 2.14.0 — 2026-07-18
 
@@ -278,7 +248,6 @@
 - feat: failed items in bulk operations now return nonzero exit code
 - CTRL-C support (first is graceful, next kills immediately)
 
-
 ## 2.13.0 — 2026-07-17
 
 ### Changes
@@ -288,14 +257,12 @@
 - feat: ndjson logfile for audit/debugging/history
 - feat: import UI update (now more like upgrade)
 
-
 ## 2.12.1 — 2026-07-09
 
 ### Changes
 
 - make package name universal key in db
 - perf: reduce refetching of package patterns
-
 
 ## 2.12.0 — 2026-07-09
 
@@ -307,13 +274,11 @@
 - BREAKING: verify is no longer a subcommand for 'config' nor 'auth'. foreign keys are rejected on config load
 - feat: path files are now generated from package db
 
-
 ## 2.11.0 — 2026-07-06
 
 ### Changes
 
 - BREAKING: move 'stateful' directories to state/
-
 
 ## 2.10.4 — 2026-07-02
 
@@ -321,7 +286,6 @@
 
 - feat: better filesize estimates
 - behavior: upgrade now upserts package on complete instead of flushing at end
-
 
 ## 2.10.1 — 2026-06-29
 
@@ -333,7 +297,6 @@
 - fix: probe now uses progress bar for downloads
 - probe now checks if packagename is taken
 
-
 ## 2.10.0 — 2026-06-27
 
 ### Changes
@@ -342,7 +305,6 @@
 - feat: zsync support for updates
 - feat: config options for check/upgrade concurrency
 - feat: asset selection improvements
-
 
 ## 2.9.0 — 2026-06-27
 
@@ -356,7 +318,6 @@
 - add `--for <tag>` to changelog
 - docs: update helptext
 
-
 ## 2.8.1 — 2026-06-26
 
 ### Changes
@@ -364,7 +325,6 @@
 - bug: fix issue where version tags like 'rust-v1.2.3' would be reconstructed as 'v1.2.3'. now uses a template system.
 - behavior: remove completion file caching
 - behavior: doctor fix no longer shows normal doctor path
-
 
 ## 2.8.0 — 2026-06-25
 
@@ -374,14 +334,12 @@
 - feat: improve import/export cli and behavior
 - script: make install script aware of existing .upstream directory
 
-
 ## 2.7.0 — 2026-06-24
 
 ### Changes
 
 - feat: new package op 'add-entry'/'rm-entry' to (re)generate or remove desktop integrations
 - bug: make cmake artifact discovery check common output dirs and fallback to name matching to avoid shenanigans
-
 
 ## 2.6.0 — 2026-06-22
 
@@ -393,7 +351,6 @@
 - feat: improve list <package> UI
 - feat: add install type and commit hash to list
 - internal: move packages.json into a SQL db
-
 
 ## 2.5.0 — 2026-06-22
 
@@ -408,13 +365,11 @@
 - feat: `docs` subcommand to parse READMEs for users
 - feat: run README markdown output through glow when available
 
-
 ## 2.4.1 — 2026-06-21
 
 ### Changes
 
 - Fix probe auto filetype discovery to show all compatible installable asset kinds `probe`, `filetype`, `bug`
-
 
 ## 2.4.0 — 2026-06-21
 
@@ -424,7 +379,6 @@
 - Persist probe-generated match and exclude patterns for selected assets `probe`, `patterns`
 - Move provider asset matching into table-based pattern matcher `providers`, `patterns`
 
-
 ## 2.3.0 — 2026-06-19
 
 ### Changes
@@ -432,7 +386,6 @@
 - BREAKING: move trusted keys out of config and into metadata/trust.json
 - feat: migration manifest storage (does nothing for now) `migration`, `storage`
 - fix: hooks check colors render properly `hooks`, `output`
-
 
 ## 2.2.0 — 2026-06-18
 
@@ -445,14 +398,12 @@
 - feat: configurable parallel download worker thresholds `downloads`, `config`, `performance`
 - docs: document changelog endpoint keywords and download thresholds `docs`, `changelog`, `downloads`
 
-
 ## 2.1.0 — 2026-06-14
 
 ### Changes
 
 - feat: make rollback have subcommands
 - fix stale wording in helptext
-
 
 ## 2.0.0 — 2026-06-14
 
@@ -467,7 +418,6 @@
 - feat: rollback with no args now undoes the last operation
 - feat: build command now caches git repos to take advantage of partial rebuilds
 - feat: upgrade/install history
-
 
 ## 1.19.0 — 2026-06-13
 
@@ -485,7 +435,6 @@
 - harden https scraper `bug`, `scraper`, `http`
 - fix custom domains for gitlab + gitea autodetection `bug`, `discovery`, `gitlab`, `gitea`
 
-
 ## 1.18.4 — 2026-06-11
 
 ### High Priority
@@ -500,13 +449,11 @@
 - Fix README command and installer script drift `docs`, `cli`, `installer`
 - dynamic table sizing based on package names
 
-
 ## 1.18.1 — 2026-06-09
 
 ### Changes
 
 - support 7zip format
-
 
 ## 1.18.0 — 2026-06-09
 
@@ -515,14 +462,12 @@
 - add autorun of build/install scripts as fallback
 - Implement pager for long command outputs
 
-
 ## 1.17.1 — 2026-05-29
 
 ### Changes
 
 - refactor output formatter
 - make list show package count in top element
-
 
 ## 1.17.0 — 2026-05-29
 
@@ -534,13 +479,11 @@
 - remove set-key, get-key, metadata from package subcommand
 - near-complete CLI update to modernize output
 
-
 ## 1.16.3 — 2026-05-28
 
 ### Changes
 
 - bug: fix test failures on windows
-
 
 ## 1.16.2 — 2026-05-28
 
@@ -548,14 +491,12 @@
 
 - feat: fix asset detection for weird nested archives (e.g. broot)
 
-
 ## 1.16.1 — 2026-05-27
 
 ### Changes
 
 - feat: disk space free/used estimates
 - feat: confirmations for destructive actions
-
 
 ## 1.16.0 — 2026-05-27
 
@@ -565,13 +506,11 @@
 - feat: install detected autocompletion scripts to shells
 - remove 'rate limit' key from cfg
 
-
 ## 1.15.2 — 2026-05-14
 
 ### Changes
 
 - bug: sometimes harmless relative paths would be rejected in decompression 'e.g: ../README.md'
-
 
 ## 1.15.1 — 2026-05-11
 
@@ -579,13 +518,11 @@
 
 - behavior: make icon matching more consistent
 
-
 ## 1.15.0 — 2026-05-09
 
 ### Changes
 
 - feat: `search` subcommand that can search providers for keywords
-
 
 ## 1.14.2 — 2026-05-09
 
@@ -595,7 +532,6 @@
 - bug: fix cosign not actually applying checksums to blobs (??)
 - feat: update fish paths.sh line
 
-
 ## 1.14.1 — 2026-05-06
 
 ### Changes
@@ -603,20 +539,17 @@
 - feat: package rollbacks for upgrade/reinstall/remove
 - bug: fix rollback 'stealing' deletion from remove and throwing an error
 
-
 ## 1.14.0 — 2026-05-06
 
 ### Changes
 
 - feat: package rollbacks for upgrade/reinstall/remove
 
-
 ## 1.13.1 — 2026-05-06
 
 ### Changes
 
 - behavior/bug: Archives can now contain symlinks/hardlinks
-
 
 ## 1.13.0 — 2026-05-04
 
@@ -625,7 +558,6 @@
 - feat: dry run for install ops
 - feat: dry run for upgrade/reinstall ops
 - feat: dry run for remove op
-
 
 ## 1.12.0 — 2026-05-01
 
@@ -642,7 +574,6 @@
 - feat: list --json outputs package metadata (single/all) `feature`, `list`, `cli`
 - behavior: start versioning package file
 
-
 ## 1.11.1 — 2026-05-01
 
 ### Changes
@@ -651,7 +582,6 @@
 - feat: atomic writes for packages.json
 - feat: atomic writes for config.toml
 - feat: atomic writes for shell integration
-
 
 ## 1.11.0 — 2026-04-30
 
@@ -662,7 +592,6 @@
 - feat: extend import with keys/manifest/snapshot autodetection plus --as and --yes `feature`, `cli`
 - feat: switch manifest import to metadata-only with conflict skip/warn behavior `feature`, `cli`
 
-
 ## 1.10.0 — 2026-04-29
 
 ### Changes
@@ -671,13 +600,11 @@
 - feat: make build --tag and --branch mutually exclusive `feature`, `cli`
 - feat: add --branch option to build command `feature`, `cli`
 
-
 ## 1.9.0 — 2026-04-29
 
 ### Changes
 
 - feat: add more profiles for `build` feature
-
 
 ## 1.8.0 — 2026-04-28
 
@@ -685,7 +612,6 @@
 
 - feat: add `reinstall` command
 - feat: add `build` command that builds packages from source code
-
 
 ## 1.7.0 — 2026-04-28
 
@@ -695,13 +621,11 @@
 - feat: rename `init` to `hooks`. Add subcommands to hooks: init, clean, purge, check
 - feat: improve wording in help text
 
-
 ## 1.6.2 — 2026-04-24
 
 ### Changes
 
 - bug: fix builds/warnings on windows
-
 
 ## 1.6.1 — 2026-04-24
 
@@ -710,7 +634,6 @@
 - bug: fix pid implementation on windows+macos
 - feat: lockfiles now only care about pid (not time)
 
-
 ## 1.6.0 — 2026-04-21
 
 ### Changes
@@ -718,13 +641,11 @@
 - feat: `package remove` for forcing package deletions
 - feat: `doctor` checks for orphaned installed directories/files ([`408163a`])
 
-
 ## 1.5.5 — 2026-04-20
 
 ### Changes
 
 - feat: Readd Zstandard support ([`972f514`])
-
 
 ## 1.5.4 — 2026-04-17
 
@@ -732,13 +653,11 @@
 
 - bug: fix build error on macos
 
-
 ## 1.5.3 — 2026-04-17
 
 ### Changes
 
 - behavior: config reads no longer autocreates config file
-
 
 ## 1.5.2 — 2026-04-10
 
@@ -757,7 +676,6 @@
 
 - Make filename marker parsing Unicode-safe (no byte/char index mismatch) `bug`, `reliability`
 
-
 ## 1.5.0 — 2026-04-05
 
 ### Changes
@@ -765,13 +683,11 @@
 - let read-only operations ignore lockfile
 - Instead of failing, lockfiles block until lock is aquired
 
-
 ## 1.4.6 — 2026-04-01
 
 ### Changes
 
 - fix issue where 'matrix' formats for checksums would fail to parse
-
 
 ## 1.4.5 — 2026-02-26
 
@@ -784,13 +700,11 @@
 
 - Revert publish script tag normalization and use provided version argument directly `bug`, `release`
 
-
 ## 1.4.4 — 2026-02-25
 
 ### High Priority
 
 - Fix symlink recreation during upgrade rollback when previous link is dangling `bug`, `cli`
-
 
 ## 1.4.3 — 2026-02-24
 
@@ -799,13 +713,11 @@
 - Improve cross-platform handling for Windows installers and macOS app bundles `feature`, `platform`, `investigating`
 - Improve cross-platform handling for Windows installers and macOS app bundles `feature`, `platform`, `investigating`
 
-
 ## 1.4.1 — 2026-02-23
 
 ### High Priority
 
 - Add --ignore-checksums flag for install and upgrade to skip checksum verification `feature`, `cli`, `security`
-
 
 ## 1.4.0 — 2026-02-21
 
@@ -822,13 +734,11 @@
 - Add init --check mode `feature`, `cli`
 - Add non-intrusive unit tests for CLI flags, metadata rename, init checks, import detection, and package storage `test`, `reliability`
 
-
 ## 1.3.2 — 2026-02-21
 
 ### High Priority
 
 - Fix cross-device (EXDEV) install moves from /tmp to ~/.upstream `bug`, `platform`
-
 
 ## 1.2.1 — 2026-02-14
 
@@ -841,13 +751,11 @@
 - Add conditional HTTP checks with ETag/Last-Modified to speed update scans `feature`, `http`, `performance`
 - Generate and ship shell completions with synchronized CLI docs `feature`, `docs`
 
-
 ## 1.0.4 — 2026-02-07
 
 ### High Priority
 
 - Fix GitHub latest-release JSON parsing when fields are null `bug`
-
 
 ## 1.0.3 — 2026-02-06
 
@@ -855,13 +763,11 @@
 
 - fallback for missing icon? maybe include a default icon when lookup fails `feature`
 
-
 ## 1.0.2 — 2026-02-06
 
 ### High Priority
 
 - fix archives not respecting the name argument
-
 
 ## 1.0.0 — 2026-02-03
 
@@ -874,7 +780,6 @@
 - fix resolved filetype callback to use proper display function `bugfix` ([`eb8e608`])
 - add appimage embedded .desktop file extraction `feature` ([`0cc8ded`])
 
-
 ## 0.9.0 — 2026-02-03
 
 ### Changes
@@ -884,5 +789,3 @@
 ### Minor Changes
 
 - consider removing dead functions `cleanup` ([`7669a1a`])
-
-

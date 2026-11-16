@@ -20,21 +20,21 @@ upstream config reset
 Use the full setting name with `config get` or `config set`. Use `true` or
 `false` for switches and whole numbers for counts and sizes.
 
-| Key | Default | What it controls |
-| --- | --- | --- |
-| `download.low_threshold_mb` | `16` | Download size at which to use `low_threads`. |
-| `download.high_threshold_mb` | `64` | Download size at which to use `high_threads`. |
-| `download.low_threads` | `2` | Parallel download connections between the two size thresholds. |
-| `download.high_threads` | `4` | Parallel download connections at or above the higher threshold. |
-| `concurrency.check_concurrency` | `8` | Packages checked for updates at once. |
-| `concurrency.install_concurrency` | `4` | Package installations or upgrades processed at once. |
-| `logging.enabled` | `true` | Save diagnostic logs to `~/.upstream/upstream.log`. |
-| `logging.level` | `info` | Logging detail: `error`, `warn`, `info`, `debug`, or `trace`. |
-| `logging.vacuum` | `10000` | Number of recent log lines to keep during cleanup. |
-| `logging.max_size_mb` | `10` | Log size limit; older records are removed first. `0` disables this size limit. |
-| `integration.systemd_units` | `true` | Install bundled systemd user units on Linux. |
-| `integration.systemd_daemon_reload` | `true` | Refresh systemd after managed unit files change. |
-| `integration.shell_completions` | `true` | Install shell completions bundled with packages. |
+| Key                                 | Default | What it controls                                                               |
+| ----------------------------------- | ------- | ------------------------------------------------------------------------------ |
+| `download.low_threshold_mb`         | `16`    | Download size at which to use `low_threads`.                                   |
+| `download.high_threshold_mb`        | `64`    | Download size at which to use `high_threads`.                                  |
+| `download.low_threads`              | `2`     | Parallel download connections between the two size thresholds.                 |
+| `download.high_threads`             | `4`     | Parallel download connections at or above the higher threshold.                |
+| `concurrency.check_concurrency`     | `8`     | Packages checked for updates at once.                                          |
+| `concurrency.install_concurrency`   | `4`     | Package installations or upgrades processed at once.                           |
+| `logging.enabled`                   | `true`  | Save diagnostic logs to `~/.upstream/upstream.log`.                            |
+| `logging.level`                     | `info`  | Logging detail: `error`, `warn`, `info`, `debug`, or `trace`.                  |
+| `logging.vacuum`                    | `10000` | Number of recent log lines to keep during cleanup.                             |
+| `logging.max_size_mb`               | `10`    | Log size limit; older records are removed first. `0` disables this size limit. |
+| `integration.systemd_units`         | `true`  | Install bundled systemd user units on Linux.                                   |
+| `integration.systemd_daemon_reload` | `true`  | Refresh systemd after managed unit files change.                               |
+| `integration.shell_completions`     | `true`  | Install shell completions bundled with packages.                               |
 
 Smaller downloads use one connection; multiple connections require server
 support. Lower the connection and concurrency settings to reduce resource use.
@@ -67,13 +67,13 @@ systemd_units = false
 
 Choose how much detail to save with `logging.level`:
 
-| Level | What is logged |
-| --- | --- |
-| `error` | Failures only. |
-| `warn` | Failures, warnings, and interruptions. |
+| Level            | What is logged                                 |
+| ---------------- | ---------------------------------------------- |
+| `error`          | Failures only.                                 |
+| `warn`           | Failures, warnings, and interruptions.         |
 | `info` (default) | Command results, downloads, and installations. |
-| `debug` | Detailed steps for troubleshooting. |
-| `trace` | All available diagnostic detail. |
+| `debug`          | Detailed steps for troubleshooting.            |
+| `trace`          | All available diagnostic detail.               |
 
 Each level includes the levels above it. Logs go to `~/.upstream/upstream.log`.
 

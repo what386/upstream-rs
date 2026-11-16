@@ -47,7 +47,7 @@ body:
     validations:
       required: false
 
-- type: input
+  - type: input
     id: version
     attributes:
       label: upstream version

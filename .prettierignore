@@ -1,0 +1,3 @@
+# Test inputs include unusual HTML that must stay as written.
+tests/fixtures/
+test-server/pages/

@@ -31,16 +31,16 @@ upstream probe https://ziglang.org/download/ -p scraper
 
 Useful install options:
 
-| Option | Purpose |
-| --- | --- |
-| `--tag v1.2.3` | Install a particular release tag. |
-| `--semver 1.2.3` | Install a specific version. Use instead of `--tag`. |
-| `--channel preview` | Track `stable` (default), `preview`, or `nightly` releases. |
-| `--kind archive` | Choose an asset type when automatic selection needs help. |
-| `--match musl` | Prefer assets matching a pattern. |
-| `--exclude debug,rocm` | Filter out unwanted assets. |
-| `--desktop` | Create a desktop launcher for a GUI application. |
-| `--dry-run` | Preview the installation without downloading or installing. |
+| Option                 | Purpose                                                     |
+| ---------------------- | ----------------------------------------------------------- |
+| `--tag v1.2.3`         | Install a particular release tag.                           |
+| `--semver 1.2.3`       | Install a specific version. Use instead of `--tag`.         |
+| `--channel preview`    | Track `stable` (default), `preview`, or `nightly` releases. |
+| `--kind archive`       | Choose an asset type when automatic selection needs help.   |
+| `--match musl`         | Prefer assets matching a pattern.                           |
+| `--exclude debug,rocm` | Filter out unwanted assets.                                 |
+| `--desktop`            | Create a desktop launcher for a GUI application.            |
+| `--dry-run`            | Preview the installation without downloading or installing. |
 
 If Upstream cannot choose an executable automatically, select one from the
 suggested commands or press Esc to cancel. `--yes` accepts a single candidate
@@ -85,11 +85,11 @@ message when saved results include available updates.
 
 These settings affect future operations on an installed package:
 
-| Key | Purpose |
-| --- | --- |
-| `match_pattern` | Prefer asset names matching these comma-separated patterns. |
-| `exclude_pattern` | Exclude asset names matching these comma-separated patterns. |
-| `trust_mode` | Choose which checks to require when upgrading or reinstalling releases. |
+| Key               | Purpose                                                                 |
+| ----------------- | ----------------------------------------------------------------------- |
+| `match_pattern`   | Prefer asset names matching these comma-separated patterns.             |
+| `exclude_pattern` | Exclude asset names matching these comma-separated patterns.            |
+| `trust_mode`      | Choose which checks to require when upgrading or reinstalling releases. |
 
 ```bash
 upstream package get ripgrep
@@ -106,13 +106,13 @@ Use `package rename OLD NEW` to change an installed executable alias.
 
 Release installs, upgrades, and reinstalls support these `--trust` modes:
 
-| Mode | Behavior |
-| --- | --- |
+| Mode          | Behavior                                                                             |
+| ------------- | ------------------------------------------------------------------------------------ |
 | `best-effort` | Default. Check available checksums and signatures; allow missing verification files. |
-| `checksum` | Require a valid checksum. |
-| `signature` | Require a valid signature. |
-| `all` | Require both a valid checksum and signature. |
-| `none` | Skip verification. |
+| `checksum`    | Require a valid checksum.                                                            |
+| `signature`   | Require a valid signature.                                                           |
+| `all`         | Require both a valid checksum and signature.                                         |
+| `none`        | Skip verification.                                                                   |
 
 Failed checks stop installation, including in `best-effort` mode. Signatures
 use minisign or cosign; import the publisher's public key when needed:
