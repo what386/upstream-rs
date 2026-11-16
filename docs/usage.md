@@ -1,14 +1,14 @@
 # Usage guide
 
-[Configuration reference](config.md) · [README](../README.md)
+[Documentation](../README.md#documentation) · [Configuration reference](config.md)
 
 Use `upstream <command> --help` for the full option list. Add `--no-pager` to
 print long output directly, or `--yes` to accept confirmation prompts automatically.
 
 ## Find and install
 
-`search` lists results; `find` opens an interactive search and install flow.
-`probe` lets you choose a release asset and install it. Add `--dry-run` to
+`search` lists results; `find` lets you search and choose what to install.
+`probe` lets you choose a release file and install it. Add `--dry-run` to
 `probe` to preview the choice without installing.
 
 ```bash
@@ -18,7 +18,7 @@ upstream probe neovim/neovim --dry-run
 upstream install BurntSushi/ripgrep
 ```
 
-Repository names default to GitHub. Select another provider with `-p`:
+Repository names default to GitHub. Choose a provider with `-p`:
 `github`, `gitlab`, `gitea`, or `appimagehub`. For self-hosted GitLab or Gitea,
 use a full repository URL or supply `--base-url https://your-host`.
 
@@ -46,11 +46,11 @@ If Upstream cannot choose an executable automatically, select one from the
 suggested commands or press Esc to cancel. `--yes` accepts a single candidate
 but does not choose between multiple candidates.
 
-To build from source, use `upstream build owner/repo`. Add `--branch main` to
-track a branch, or `--tag` to select a release. Profiles are detected automatically;
-`--build-profile` can select `rust`, `go`, `zig`, `dotnet`, or `cmake`.
-Install Git and the project's build tools first. Build packages are rebuilt by
-`upstream upgrade` when their tracked source changes.
+To build from source, install Git and the project's build tools, then run
+`upstream build owner/repo`. Use `--branch main` to follow a branch or `--tag` to
+choose a release. Upstream detects how to build the project; use
+`--build-profile` to choose `rust`, `go`, `zig`, `dotnet`, or `cmake` yourself.
+`upstream upgrade` rebuilds these packages when their source changes.
 
 ## Updates and removal
 
@@ -73,7 +73,7 @@ You can also use a source URL or installed command name, such as `upstream remov
 without checking again. Pinned packages are skipped during upgrades.
 At the upgrade confirmation prompt, enter `c` to read release notes.
 
-Removal keeps reusable caches. Add `--purge` to remove that package's cache
+Removal keeps cached files. Add `--purge` to remove that package's cache
 data too. Install, build, probe, upgrade, reinstall, and remove support `--dry-run`.
 
 For scripts, use `upgrade --check --json` or
@@ -89,7 +89,7 @@ These settings affect future operations on an installed package:
 | --- | --- |
 | `match_pattern` | Prefer asset names matching these comma-separated patterns. |
 | `exclude_pattern` | Exclude asset names matching these comma-separated patterns. |
-| `trust_mode` | Set the verification policy for future release upgrades and reinstalls. |
+| `trust_mode` | Choose which checks to require when upgrading or reinstalling releases. |
 
 ```bash
 upstream package get ripgrep
@@ -99,7 +99,7 @@ upstream package unset ripgrep match_pattern trust_mode
 ```
 
 Unsetting patterns clears them; unsetting `trust_mode` restores `best-effort`.
-A command's `--trust` option overrides the saved policy for that operation.
+`--trust` overrides the saved setting for a single command.
 Use `package rename OLD NEW` to change an installed executable alias.
 
 ## Download verification
@@ -124,9 +124,9 @@ upstream install owner/repo --trust signature
 
 ## Shell and desktop integration
 
-Run `upstream hooks init` to add installed commands to your shell's PATH, then
-restart your shell. Use `upstream hooks check` to check the setup, or
-`upstream hooks clean` to remove the hooks while keeping installed packages.
+Run `upstream hooks init`, then restart your shell so it can find installed
+commands. Use `upstream hooks check` to check the setup or `upstream hooks clean`
+to remove the shell hooks. Installed packages are kept.
 
 Bundled shell completions are installed automatically. On Linux, bundled
 systemd user units are also installed; enable and start them yourself with
@@ -138,6 +138,8 @@ to add or remove a desktop launcher after installation. macOS does not support
 desktop-entry creation.
 
 ## Documentation and troubleshooting
+
+See [Troubleshooting](troubleshooting.md) for common problems and bug reports.
 
 ```bash
 upstream docs ripgrep usage
@@ -155,17 +157,7 @@ upstream cache clean docs --dry-run
 `changelog` shows newer release notes; `--for TAG` selects a single release.
 If `glow` is installed, it styles Markdown output.
 
-Check `~/.upstream/upstream.log` when troubleshooting. To save more detail for
-subsequent commands:
-
-```bash
-upstream config set logging.level=debug
-```
-
-See [logging settings](config.md#logging) to adjust detail or disable logging.
-If Upstream panics, it prints the path to a `crash-*.txt` report when one is saved.
-
-`doctor --fix` repairs supported installation and integration issues.
+`doctor --fix` can fix problems with installed files, command links, and shell setup.
 `cache clean` accepts `updates`, `build`, `source`, `docs`, or `all`; omitting
 categories cleans all known caches. Installed packages stay in place.
 

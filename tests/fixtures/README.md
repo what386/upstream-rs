@@ -1,11 +1,9 @@
-# Test Fixtures
+# Test fixtures
 
-This directory stores reusable fixture files for tests.
+Sample files shared by tests.
 
-Rules:
-- Keep fixtures small and deterministic.
-- Prefer behavior-driven filenames over one-file scenario directories.
-- Use scenario directories only when multiple files must keep their original
-  names together or when directory layout is part of the behavior under test.
-- Avoid adding large binaries directly when generation is practical.
-- When adding generated fixtures, document regeneration commands in the nearest README.
+- Keep files small and test results repeatable.
+- Name files after what they test.
+- Use a subdirectory when filenames or the directory layout matter to the test.
+- Generate large binaries when possible instead of checking them in.
+- For generated files, put the command to recreate them in the nearest README.

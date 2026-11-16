@@ -2,19 +2,18 @@
 
 -
 
-## Validation
+## Tests
 
-List what you ran and on which platform(s).
+List what you ran and your test platform. Note any checks you skipped.
 
-- [ ] `cargo fmt --check`
-- [ ] `cargo clippy --all-targets -- -D warnings`
-- [ ] `cargo test run --all`
+- [ ] `cargo fmt -- --check`
+- [ ] `cargo clippy --locked --all-targets --all-features -- -D warnings`
+- [ ] `cargo test --locked --all-targets --all-features`
 
 ## Checklist
 
-- [ ] I added or updated tests for my changes, if applicable.
-- [ ] I made sure to run the end to end tests, if applicable.
-- [ ] I considered cross-platform behavior, if applicable.
-- [ ] I updated docs/help text if behavior has changed.
-- [ ] I have ensured there are no existing pull requests for this.
-
+- [ ] Added or updated tests where needed.
+- [ ] Ran end-to-end tests if affected.
+- [ ] Checked whether Windows or macOS are affected.
+- [ ] Updated docs and help for behavior changes.
+- [ ] Checked for existing pull requests.

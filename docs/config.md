@@ -1,8 +1,8 @@
 # Configuration
 
-[Usage guide](usage.md) · [README](../README.md)
+[Documentation](../README.md#documentation) · [Usage guide](usage.md)
 
-Defaults work without any configuration. To view or change settings:
+Upstream works with the default settings. To view or change them:
 
 ```bash
 upstream config list
@@ -13,12 +13,12 @@ upstream config reset
 ```
 
 `edit` uses `EDITOR`, then `VISUAL`, then `nano` (or Notepad on Windows).
-`reset` restores all defaults after confirmation; installed packages stay in place.
+`reset` asks for confirmation, then restores the defaults. It keeps installed packages.
 
 ## Available keys
 
-Use the full key with `config get` or `config set`. Booleans accept `true` or
-`false`; counts and sizes use whole numbers.
+Use the full setting name with `config get` or `config set`. Use `true` or
+`false` for switches and whole numbers for counts and sizes.
 
 | Key | Default | What it controls |
 | --- | --- | --- |
@@ -40,18 +40,17 @@ Smaller downloads use one connection; multiple connections require server
 support. Lower the connection and concurrency settings to reduce resource use.
 Counts below `1` use `1`.
 
-Integration settings apply when packages are installed or replaced. Installing
-systemd units does not enable or start services.
+Shell completion and systemd settings take effect when you install or replace a
+package. You must enable or start systemd services yourself.
 
 ## Configuration file
 
-New installations use `~/.upstream/config.toml`. If that file is absent,
-Upstream also recognizes an existing `upstream/config.toml` in your system's
-config directory, such as `~/.config/upstream` on Linux. Use `config edit` to
-open the active file.
+Settings are saved in `~/.upstream/config.toml`. If it does not exist, Upstream
+also checks your system's config directory, such as
+`~/.config/upstream/config.toml` on Linux. Use `config edit` to open the file.
 
-The file uses TOML sections. Include only the settings you want to change;
-omitted keys use their defaults. Unknown keys are rejected.
+The file uses TOML. Include only settings you want to change; the rest use their
+defaults. Unknown setting names cause an error.
 
 For example, to reduce download connections and disable bundled systemd units:
 
@@ -84,12 +83,12 @@ upstream config set logging.enabled=false
 ```
 
 Changes apply to the next command. Use `logging.vacuum` and `logging.max_size_mb`
-to limit retained logs; `max_size_mb=0` removes the size limit. Disabling logging
-does not disable separate `crash-*.txt` panic reports.
+to limit how much is kept. Set `max_size_mb=0` for no size limit. Turning off
+logging still allows `crash-*.txt` reports when Upstream panics.
 
 ## API tokens
 
-Tokens are managed separately from configuration. Supported keys are
+Use `auth` to manage provider tokens. The available settings are
 `github.api_token`, `gitlab.api_token`, and `gitea.api_token`.
 
 ```bash
@@ -98,8 +97,9 @@ upstream auth edit
 upstream auth reset
 ```
 
-Tokens are optional for public repositories and can help with API rate limits.
-They are stored in `~/.upstream/metadata/auth.toml` and excluded from exports.
+Public repositories usually work without tokens. Adding one can help avoid API
+rate limits. Tokens are saved in `~/.upstream/metadata/auth.toml` and left out of
+exports.
 `auth reset` clears all tokens after confirmation.
 
 For settings that affect only one installed package, see

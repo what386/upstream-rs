@@ -52,15 +52,15 @@ Install a tool from its GitHub repository:
 upstream install BurntSushi/ripgrep
 ```
 
-If you don't know the repository, `find` lets you search and install interactively.
-Commands like `find` that use search are available for github (default) and appimagehub.
+If you don't know the repository, use `find` to search and choose what to install.
+Search works with GitHub (the default) and AppImageHub.
 
 ```bash
 upstream find terminal emulator
 upstream search editor --provider appimagehub
 ```
 
-To remove a tool, use its repo or command name, such as`ripgrep` or `rg`.
+To remove a tool, use its repo or command name, such as `ripgrep` or `rg`.
 
 ```bash
 upstream remove ripgrep
@@ -127,12 +127,14 @@ upstream docs ripgrep usage
 upstream docs ripgrep --offline
 ```
 
-
-If something goes wrong, check `~/.upstream/upstream.log` and run diagnostics:
+If something goes wrong, check `~/.upstream/upstream.log` and run:
 
 ```bash
 upstream doctor
 ```
+
+See [Troubleshooting](docs/troubleshooting.md) for common problems and fixes.
+
 ## Export and restore your setup
 
 Save your package list and settings, then restore them on another machine:
@@ -154,6 +156,8 @@ To avoid GitHub rate limits, add a token with
 
 - [Usage guide](docs/usage.md)
 - [Configuration reference](docs/config.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Developer code map](docs/architecture.md)
 
 Use `upstream <command> --help` for all options and examples.
 
