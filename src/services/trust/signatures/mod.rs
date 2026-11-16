@@ -33,6 +33,7 @@ pub enum SignatureScheme {
     Cosign,
 }
 
+#[derive(Debug)]
 pub enum SignatureVerificationStatus {
     NotChecked,
     Verified {

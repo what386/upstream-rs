@@ -1,7 +1,6 @@
 use crate::{
     application::commands::changelog::changelog_text_for_package,
     application::context::CommandContext,
-    application::operations::history_op,
     application::operations::upgrade_op::{
         UpdateCheckRow, UpdateCheckStatus, UpgradeOperation, UpgradePackageResult,
         UpgradePreviewEvent, UpgradeProgressEvent,
@@ -325,10 +324,11 @@ pub async fn run(
                         );
 
                         if let Some(preview) = preview_rows.iter().find(|row| row.name == name) {
-                            history_op::record_version_item(
-                                name.clone(),
-                                preview.old_version.clone(),
-                                version,
+                            tracing::info!(
+                                package = %name,
+                                from_version = %preview.old_version,
+                                to_version = %version,
+                                "Package upgraded"
                             );
                         }
 

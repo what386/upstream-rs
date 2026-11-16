@@ -1,5 +1,6 @@
 pub mod application;
 pub mod completion;
+pub mod logging;
 pub mod models;
 pub mod output;
 pub mod providers;

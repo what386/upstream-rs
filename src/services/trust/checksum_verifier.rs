@@ -11,6 +11,7 @@ use anyhow::{Context, Result, anyhow};
 use std::{
     fs,
     path::{Path, PathBuf},
+    time::Instant,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -159,7 +160,13 @@ impl<'a> ChecksumVerifier<'a> {
                 })?
         };
 
+        let started = Instant::now();
         if Self::verify_checksum_async(asset_path, checksum_entry, checksum_progress).await? {
+            let algorithm = match checksum_entry.algo {
+                HashAlgo::Sha256 => "sha256",
+                HashAlgo::Sha512 => "sha512",
+            };
+            tracing::debug!(asset = %asset_path.display(), checksum_file = %checksum_path.name, algorithm, elapsed_ms = started.elapsed().as_millis() as u64, "Checksum verified");
             return Ok(ChecksumVerificationResult::Verified(
                 VerifiedChecksumAsset {
                     name: checksum_path.name,

@@ -6,6 +6,7 @@ use std::borrow::Cow;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Component, Path, PathBuf};
+use std::time::Instant;
 use tar::Archive;
 use xz2::read::XzDecoder;
 use zip::ZipArchive;
@@ -21,11 +22,14 @@ pub fn decompress(input: &Path, output: &Path) -> Result<PathBuf> {
 }
 
 /// Decompress an archive while reporting compressed input bytes consumed.
+#[tracing::instrument(level = "debug", skip_all, fields(archive = %input.display(), destination = %output.display()))]
 pub fn decompress_with_progress(
     input: &Path,
     output: &Path,
     progress: &mut dyn FnMut(u64, u64),
 ) -> Result<PathBuf> {
+    let started = Instant::now();
+    tracing::debug!("Archive extraction started");
     std::fs::create_dir_all(output)?;
 
     // Create a subdirectory named after the input file (removing extensions)
@@ -81,7 +85,9 @@ pub fn decompress_with_progress(
         }
     };
 
-    finish_extraction(&extract_dir, result)
+    let root = finish_extraction(&extract_dir, result)?;
+    tracing::debug!(root = %root.display(), elapsed_ms = started.elapsed().as_millis() as u64, "Archive extracted");
+    Ok(root)
 }
 
 fn finish_extraction(path: &Path, result: Result<PathBuf>) -> Result<PathBuf> {

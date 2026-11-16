@@ -5,7 +5,7 @@ use crate::{storage::database::PackageDatabase, utils::static_paths::UpstreamPat
 /// Minimal application state for completion requests.
 ///
 /// This intentionally does not load config, run migrations, acquire locks,
-/// initialize logging, or record history. Completion must be cheap and
+/// initialize logging. Completion must be cheap and
 /// side-effect free apart from reading already created metadata
 pub struct CompletionStartup {
     paths: Option<UpstreamPaths>,

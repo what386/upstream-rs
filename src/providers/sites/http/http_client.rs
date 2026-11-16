@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Utc};
 use reqwest::{Client, StatusCode, header};
-use std::path::Path;
+use std::{path::Path, time::Instant};
 
 use crate::models::upstream::config::DownloadConfig;
 use crate::providers::shared::download_handler;
@@ -181,13 +181,16 @@ impl HttpClient {
         url_or_slug: &str,
         last_upgraded: Option<DateTime<Utc>>,
     ) -> Result<ConditionalDocumentResult> {
+        let started = Instant::now();
         let url = Self::normalize_url(url_or_slug);
+        tracing::debug!(source = %crate::logging::source_url(&url), "Fetching HTTP document");
         let response = Self::add_if_modified_since(self.client.get(&url), last_upgraded)
             .send()
             .await
             .context(format!("Failed to send request to {}", url))?;
 
         if response.status() == StatusCode::NOT_MODIFIED {
+            tracing::debug!(source = %crate::logging::source_url(response.url().as_str()), elapsed_ms = started.elapsed().as_millis() as u64, "HTTP document unchanged");
             return Ok(ConditionalDocumentResult::NotModified);
         }
 
@@ -208,6 +211,7 @@ impl HttpClient {
             .await
             .context("Failed to read HTTP response body")?;
 
+        tracing::debug!(source = %crate::logging::source_url(&final_url), bytes = body.len(), elapsed_ms = started.elapsed().as_millis() as u64, "HTTP document fetched");
         Ok(ConditionalDocumentResult::Document(HttpDocument {
             url: final_url,
             content_type,

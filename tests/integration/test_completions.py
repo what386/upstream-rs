@@ -31,7 +31,7 @@ class CompletionIntegrationTests(unittest.TestCase):
 
     def test_completion_protocol_handles_missing_candidates(self) -> None:
         reset_fakehome()
-        log = FAKEHOME / ".upstream" / "log.jsonl"
+        log = FAKEHOME / ".upstream" / "upstream.log"
         before_log = log.read_bytes() if log.exists() else b""
 
         result = run_upstream_result("__complete", "info", "0", "--", "missing")
@@ -124,7 +124,7 @@ class CompletionIntegrationTests(unittest.TestCase):
             "upstream remove bat ri", "upstream uninstall ri", "upstream reinstall ri",
             "upstream upgrade --dry-run ri", "upstream doctor ri",
             "upstream upgrade --check ri", "upstream upgrade -c ri",
-            "upstream history --package ri", "upstream package pin ri",
+            "upstream package pin ri",
             "upstream package get ri", "upstream package set ri",
             "upstream package unset ri", "upstream package unpin ri",
             "upstream package add-entry ri", "upstream package rm-entry ri",
@@ -181,7 +181,6 @@ class CompletionIntegrationTests(unittest.TestCase):
         commands = [
             ("upstream list", ["list", "--json"]),
             ("upstream info ripgrep", ["info", "--json", "ripgrep"]),
-            ("upstream history --limit 3", ["history", "--json", "--limit", "3"]),
             ("upstream doctor", ["doctor", "--json"]),
             ("upstream search terminal", ["search", "--json", "terminal"]),
             ("upstream probe owner/repo", ["probe", "--json", "owner/repo"]),

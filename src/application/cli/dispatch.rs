@@ -39,6 +39,7 @@ impl Cli {
 
         let result = Self::dispatch_command(command, paths, app_config).await;
         if reconcile_updates && let Err(error) = crate::storage::updates::reconcile(paths) {
+            tracing::warn!(error = %format!("{error:#}"), "Could not reconcile update cache");
             eprintln!("Warning: could not reconcile update cache: {error:#}");
         }
 
@@ -163,16 +164,6 @@ impl Cli {
             Commands::List { filter, json } => commands::list::run(filter, json, paths),
 
             Commands::Info { query, json } => commands::info::run(query, json, paths),
-
-            Commands::History {
-                package,
-                action,
-                status,
-                limit,
-                since,
-                today,
-                json,
-            } => commands::history::run(package, action, status, limit, since, today, json, paths),
 
             Commands::Changelog {
                 name,

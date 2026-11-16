@@ -51,12 +51,13 @@ pub fn status_line_text_with_width(
 ) -> String {
     let subject = subject.to_string();
     let detail = detail.to_string();
-    if let Some(status_name) = log_status_name(status) {
-        crate::application::operations::history_op::record_status(
-            subject.clone(),
-            status_name,
-            detail.clone(),
-        );
+    match status {
+        Status::Ok => tracing::info!(subject = %subject, message = %detail),
+        Status::Warn => tracing::warn!(subject = %subject, message = %detail),
+        Status::Fail => tracing::error!(subject = %subject, message = %detail),
+        Status::Plan | Status::Skip => {
+            tracing::debug!(subject = %subject, ?status, message = %detail)
+        }
     }
 
     format!(
@@ -65,15 +66,6 @@ pub fn status_line_text_with_width(
         subject,
         detail
     )
-}
-
-fn log_status_name(status: Status) -> Option<&'static str> {
-    match status {
-        Status::Ok => Some("ok"),
-        Status::Warn => Some("warn"),
-        Status::Fail => Some("fail"),
-        Status::Plan | Status::Skip => None,
-    }
 }
 
 pub fn status_subject_width<'a>(subjects: impl IntoIterator<Item = &'a str>) -> usize {

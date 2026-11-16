@@ -73,6 +73,18 @@ pub enum PackageProgressEvent {
     Warning(String),
 }
 
+impl PackageProgressEvent {
+    pub(crate) fn log(&self) {
+        match self {
+            Self::Phase(phase) => tracing::debug!(?phase, "Package phase started"),
+            Self::Warning(message) => tracing::warn!(%message),
+            Self::Notice(message) => tracing::info!(%message),
+            // Byte counters and subprocess output belong in the live UI.
+            _ => {}
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OperationPhase {
     SerializingExport,

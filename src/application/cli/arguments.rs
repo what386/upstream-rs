@@ -696,50 +696,6 @@ pub enum Commands {
         action: ExportAction,
     },
 
-    /// Show recent grouped operation history
-    #[command(
-        long_about = "Show recent grouped operations from upstream's JSONL history.\n\n\
-        Successful read-only commands are hidden by default. Filter by package, action, \
-        status, relative age, or the local calendar day. Human output is grouped by day; \
-        --json returns one operation object with nested items.\n\n\
-        EXAMPLES:\n  \
-        upstream history\n  \
-        upstream history --package ripgrep\n  \
-        upstream history --action upgrade --status failed\n  \
-        upstream history --since 2d\n  \
-        upstream history --today\n  \
-        upstream history --json"
-    )]
-    History {
-        /// Only show records for this package
-        #[arg(long)]
-        package: Option<String>,
-
-        /// Only show operations whose action begins with this value
-        #[arg(long)]
-        action: Option<String>,
-
-        /// Only show this status (success, failed, warning, or cancelled)
-        #[arg(long)]
-        status: Option<String>,
-
-        /// Maximum number of matching operations to show
-        #[arg(short = 'l', long, default_value_t = 20)]
-        limit: usize,
-
-        /// Only show operations newer than a duration such as 2d, 12h, or 30m
-        #[arg(long, conflicts_with = "today")]
-        since: Option<String>,
-
-        /// Only show operations from the local calendar day
-        #[arg(long, default_value_t = false, conflicts_with = "since")]
-        today: bool,
-
-        /// Print matching records as JSON
-        #[arg(short = 'j', long, default_value_t = false)]
-        json: bool,
-    },
-
     /// Run diagnostics to detect installation and integration issues
     #[command(
         long_about = "Inspect upstream installation health and package state.\n\n\
@@ -781,71 +737,10 @@ fn parse_search_date(raw: &str) -> Result<NaiveDate, String> {
 }
 
 impl Commands {
-    pub fn records_history(&self) -> bool {
-        match self {
-            Commands::Install { dry_run, .. }
-            | Commands::Build { dry_run, .. }
-            | Commands::Remove { dry_run, .. }
-            | Commands::Reinstall { dry_run, .. }
-            | Commands::Probe { dry_run, .. } => !dry_run,
-            Commands::Upgrade { check, dry_run, .. } => !check && !dry_run,
-            Commands::Doctor { fix, .. } => *fix,
-            Commands::Find { .. }
-            | Commands::Import { .. }
-            | Commands::Export { .. }
-            | Commands::Package {
-                action:
-                    PackageAction::Set { .. }
-                    | PackageAction::Unset { .. }
-                    | PackageAction::Pin { .. }
-                    | PackageAction::Unpin { .. }
-                    | PackageAction::Rename { .. }
-                    | PackageAction::AddEntry { .. }
-                    | PackageAction::RmEntry { .. },
-            }
-            | Commands::Hooks {
-                action: HooksAction::Init | HooksAction::Clean | HooksAction::Purge,
-            }
-            | Commands::Config {
-                action: ConfigAction::Set { .. } | ConfigAction::Edit | ConfigAction::Reset,
-            }
-            | Commands::Auth {
-                action: AuthAction::Set { .. } | AuthAction::Edit | AuthAction::Reset,
-            }
-            | Commands::Docs { fetch: Some(_), .. } => true,
-            Commands::Cache {
-                action: CacheAction::Clean { dry_run, .. },
-            } => !dry_run,
-            Commands::Updates { .. }
-            | Commands::List { .. }
-            | Commands::Info { .. }
-            | Commands::History { .. }
-            | Commands::Changelog { .. }
-            | Commands::Docs { fetch: None, .. }
-            | Commands::Search { .. }
-            | Commands::Config {
-                action: ConfigAction::Get { .. } | ConfigAction::List,
-            }
-            | Commands::Auth {
-                action: AuthAction::Get { .. } | AuthAction::List,
-            }
-            | Commands::Package {
-                action: PackageAction::Get { .. },
-            }
-            | Commands::Cache {
-                action: CacheAction::List { .. },
-            }
-            | Commands::Hooks {
-                action: HooksAction::Check,
-            } => false,
-        }
-    }
-
     pub fn requires_lock(&self) -> bool {
         match self {
             Commands::Updates { .. } | Commands::List { .. } => false,
             Commands::Info { .. } => false,
-            Commands::History { .. } => false,
             Commands::Changelog { .. } => false,
             Commands::Docs { .. } => false,
             Commands::Doctor { fix, .. } => *fix,

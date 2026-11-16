@@ -6,11 +6,12 @@ use std::ffi::OsString;
 use std::fmt;
 use std::io::SeekFrom;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::fs::{self, File, OpenOptions};
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
+use tracing::Instrument;
 
 use crate::application::cancellation;
 use crate::models::upstream::config::DownloadConfig;
@@ -45,6 +46,7 @@ impl fmt::Display for RangeUnsupported {
 
 impl Error for RangeUnsupported {}
 
+#[tracing::instrument(skip_all, fields(destination = %destination.display()))]
 pub async fn download_file<F>(
     client: &Client,
     url: &str,
@@ -56,6 +58,8 @@ where
     F: FnMut(u64, u64),
 {
     cancellation::check()?;
+    let started = Instant::now();
+    tracing::info!(source = %crate::logging::source_url(url), "Download started");
 
     let response = client.get(url);
     let response = tokio::select! {
@@ -66,10 +70,12 @@ where
 
     http_status::error_for_status(&response, "Download server", url)?;
 
+    let source = crate::logging::source_url(response.url().as_str());
     let total_bytes = response.content_length().unwrap_or(0);
 
     let worker_count = parallel_worker_count(&response, total_bytes, download_config);
-    if worker_count > 1 {
+    tracing::debug!(total_bytes, worker_count, "Download strategy selected");
+    let bytes = if worker_count > 1 {
         match download_parallel(
             client,
             url,
@@ -81,15 +87,19 @@ where
         )
         .await
         {
-            Ok(()) => return Ok(()),
+            Ok(bytes) => bytes,
             Err(error) if error.downcast_ref::<RangeUnsupported>().is_some() => {
-                return download_single_request(client, url, destination, progress).await;
+                tracing::debug!("Server ignored byte ranges; falling back to a single request");
+                download_single_request(client, url, destination, progress).await?
             }
             Err(error) => return Err(error),
         }
-    }
+    } else {
+        write_single_response_atomic(response, destination, total_bytes, progress).await?
+    };
 
-    write_single_response_atomic(response, destination, total_bytes, progress).await
+    tracing::info!(%source, bytes, elapsed_ms = started.elapsed().as_millis() as u64, "Download completed");
+    Ok(())
 }
 
 fn parallel_worker_count(
@@ -127,7 +137,7 @@ async fn download_single_request<F>(
     url: &str,
     destination: &Path,
     progress: &mut Option<F>,
-) -> Result<()>
+) -> Result<u64>
 where
     F: FnMut(u64, u64),
 {
@@ -151,23 +161,26 @@ async fn write_single_response_atomic<F>(
     destination: &Path,
     total_bytes: u64,
     progress: &mut Option<F>,
-) -> Result<()>
+) -> Result<u64>
 where
     F: FnMut(u64, u64),
 {
     let temp_path = temporary_destination_path(destination);
     let result = write_single_response(response, &temp_path, total_bytes, progress).await;
-    if let Err(error) = result {
-        cleanup_temp_file(&temp_path).await;
-        return Err(error);
-    }
+    let bytes = match result {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            cleanup_temp_file(&temp_path).await;
+            return Err(error);
+        }
+    };
 
     if let Err(error) = move_temp_file(&temp_path, destination).await {
         cleanup_temp_file(&temp_path).await;
         return Err(error);
     }
 
-    Ok(())
+    Ok(bytes)
 }
 
 async fn write_single_response<F>(
@@ -175,7 +188,7 @@ async fn write_single_response<F>(
     destination: &Path,
     total_bytes: u64,
     progress: &mut Option<F>,
-) -> Result<()>
+) -> Result<u64>
 where
     F: FnMut(u64, u64),
 {
@@ -217,7 +230,7 @@ where
         );
     }
 
-    Ok(())
+    Ok(total_read)
 }
 
 async fn download_parallel<F>(
@@ -228,7 +241,7 @@ async fn download_parallel<F>(
     total_bytes: u64,
     worker_count: usize,
     progress: &mut Option<F>,
-) -> Result<()>
+) -> Result<u64>
 where
     F: FnMut(u64, u64),
 {
@@ -265,7 +278,7 @@ where
     }
 
     move_temp_file(&temp_path, destination).await?;
-    Ok(())
+    Ok(total_bytes)
 }
 
 async fn run_parallel_download<F>(
@@ -283,22 +296,28 @@ where
     let (progress_tx, mut progress_rx) = mpsc::channel(ranges.len() * 16);
     let mut tasks = JoinSet::new();
 
-    tasks.spawn(write_initial_range(
-        initial_response,
-        temp_path.to_path_buf(),
-        ranges[0],
-        progress_tx.clone(),
-    ));
+    tasks.spawn(
+        write_initial_range(
+            initial_response,
+            temp_path.to_path_buf(),
+            ranges[0],
+            progress_tx.clone(),
+        )
+        .in_current_span(),
+    );
 
     for range in ranges.iter().copied().skip(1) {
-        tasks.spawn(download_range(
-            client.clone(),
-            url.to_string(),
-            temp_path.to_path_buf(),
-            range,
-            total_bytes,
-            progress_tx.clone(),
-        ));
+        tasks.spawn(
+            download_range(
+                client.clone(),
+                url.to_string(),
+                temp_path.to_path_buf(),
+                range,
+                total_bytes,
+                progress_tx.clone(),
+            )
+            .in_current_span(),
+        );
     }
 
     drop(progress_tx);
@@ -728,6 +747,80 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn download_logs_final_bytes_and_safe_source_without_logging_progress() {
+        use tracing::instrument::WithSubscriber;
+
+        for successful in [true, false] {
+            let body = vec![b'x'; 128 * 1024];
+            let len = body.len();
+            let server = spawn_test_server(1, move |_| {
+                let status = if successful {
+                    "HTTP/1.1 200 OK"
+                } else {
+                    "HTTP/1.1 500 Internal Server Error"
+                };
+                // No Content-Length: the completion event must use the actual
+                // byte count rather than the server's advertised size.
+                http_response(status, &[], &body)
+            });
+            let url = server.replacen("http://", "http://user:private-password@", 1)
+                + "/artifact?token=private-query#private-fragment";
+            let destination = temp_file_path("logged-download");
+            let log_path = temp_file_path("download-log");
+            let subscriber = tracing_subscriber::fmt()
+                .json()
+                .with_env_filter("off,upstream_rs=debug")
+                .with_writer(fs::File::create(&log_path).unwrap())
+                .finish();
+            let mut last_progress = None;
+            let result = download_file(
+                &Client::new(),
+                &url,
+                &destination,
+                &mut Some(|downloaded, total| last_progress = Some((downloaded, total))),
+                DownloadConfig::default(),
+            )
+            .with_subscriber(subscriber)
+            .await;
+            assert_eq!(result.is_ok(), successful);
+
+            let log = fs::read_to_string(&log_path).unwrap();
+            for secret in ["private-password", "private-query", "private-fragment"] {
+                assert!(!log.contains(secret));
+            }
+            let events: Vec<serde_json::Value> = log
+                .lines()
+                .map(|line| serde_json::from_str(line).unwrap())
+                .collect();
+            let completed: Vec<_> = events
+                .iter()
+                .filter(|event| event["fields"]["message"] == "Download completed")
+                .collect();
+            if successful {
+                assert_eq!(completed.len(), 1);
+                assert_eq!(completed[0]["fields"]["bytes"], len as u64);
+                assert_eq!(
+                    completed[0]["fields"]["source"],
+                    format!("{server}/artifact")
+                );
+                assert!(completed[0]["fields"]["elapsed_ms"].is_u64());
+                assert_eq!(
+                    completed[0]["span"]["destination"],
+                    destination.display().to_string()
+                );
+                assert_eq!(last_progress, Some((len as u64, 0)));
+                // Start, strategy, completion: callbacks never generate events.
+                assert_eq!(events.len(), 3);
+                cleanup_file(&destination).unwrap();
+            } else {
+                assert!(completed.is_empty());
+                assert!(!destination.exists());
+            }
+            cleanup_file(&log_path).unwrap();
+        }
     }
 
     #[tokio::test]

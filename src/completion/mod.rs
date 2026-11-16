@@ -63,7 +63,6 @@ pub fn complete(
         "changelog" => completers::changelog::complete(request, startup),
         "docs" => completers::docs::complete(request, startup),
         "doctor" => completers::doctor::complete(request, startup),
-        "history" => completers::history::complete(request, startup),
         "info" => completers::info::complete(request, startup),
         "list" => completers::list::complete(request, startup),
         "package" => completers::package::complete(request, startup),

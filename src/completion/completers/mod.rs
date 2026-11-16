@@ -1,7 +1,6 @@
 pub mod changelog;
 pub mod docs;
 pub mod doctor;
-pub mod history;
 pub mod info;
 pub mod list;
 pub mod package;

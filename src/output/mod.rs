@@ -1,6 +1,5 @@
 pub mod pager;
 
-mod history;
 mod markdown;
 mod other;
 mod prompt;
@@ -9,7 +8,6 @@ mod status;
 mod style;
 mod table;
 
-pub use history::render_records as render_history;
 pub use markdown::MarkdownRenderer;
 pub use pager::set_no_pager;
 pub use prompt::{
@@ -34,7 +32,3 @@ pub use table::{
 };
 
 pub use other::{progress_name_width, shorten_upstream_package_path};
-
-pub fn log_error(message: impl Into<String>) {
-    crate::application::operations::history_op::record_error(message);
-}

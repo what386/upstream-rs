@@ -37,8 +37,10 @@ macro_rules! message {
 
 macro_rules! progress {
     ($cb:expr, $event:expr) => {{
+        let event = $event;
+        event.log();
         if let Some(cb) = $cb.as_mut() {
-            cb($event);
+            cb(event);
         }
     }};
 }

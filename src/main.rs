@@ -1,8 +1,9 @@
 use console::style;
 
+use tracing::Instrument;
 use upstream_rs::application::cancellation::{self, Cancellation};
 use upstream_rs::application::cli::arguments::Cli;
-use upstream_rs::application::operations::history_op::{self, LogLevel, Outcome};
+use upstream_rs::logging;
 use upstream_rs::output;
 use upstream_rs::routines::migrate;
 use upstream_rs::storage::system::config::ConfigStorage;
@@ -45,7 +46,6 @@ async fn run_main(cli: Cli) {
             std::process::exit(130);
         }
         Err(err) => {
-            output::log_error(output::error_summary(&err));
             print_error(&err);
             std::process::exit(1);
         }
@@ -57,10 +57,12 @@ async fn signal_supervisor(cancellation: Cancellation) {
         return;
     }
 
+    tracing::warn!("Interrupt received; cleaning up");
     cancellation.request();
     eprintln!("CTRL-C received; cleaning up...");
 
     if wait_for_interrupt().await {
+        tracing::warn!("Second interrupt received; exiting immediately");
         eprintln!("Second CTRL-C received; exiting immediately.");
         std::process::exit(130);
     }
@@ -89,11 +91,34 @@ async fn wait_for_interrupt() -> bool {
 
 async fn run(cli: Cli) -> anyhow::Result<()> {
     let paths = UpstreamPaths::new()?;
-    upstream_rs::storage::history::init(&paths.dirs.data_dir.join("log.jsonl"));
-    history_op::begin(cli.command.to_string(), cli.command.records_history());
+    // Invalid configuration is reported below, after logging is available.
+    let logging_config = logging::read_config(&paths.config.config_file).unwrap_or_default();
+    if let Err(error) = logging::init(&paths.dirs.data_dir.join(logging::LOG_FILE), logging_config)
+    {
+        eprintln!("Warning: {error:#}");
+    }
 
+    // Keep command context available even when only errors are enabled.
+    let span = tracing::error_span!("command", command = %cli.command, pid = std::process::id());
+    async {
+        let started = std::time::Instant::now();
+        tracing::info!("Command started");
+        let result = run_command(cli, &paths).await;
+        let elapsed_ms = started.elapsed().as_millis() as u64;
+        match &result {
+            _ if cancellation::is_requested() => tracing::warn!(elapsed_ms, outcome = "cancelled", "Command cancelled"),
+            Ok(()) => tracing::info!(elapsed_ms, outcome = "success", "Command completed"),
+            Err(error) => tracing::error!(elapsed_ms, outcome = "failure", error = %format!("{error:#}"), "Command failed"),
+        }
+        result
+    }
+    .instrument(span)
+    .await
+}
+
+async fn run_command(cli: Cli, paths: &UpstreamPaths) -> anyhow::Result<()> {
     #[cfg(windows)]
-    if let Err(error) = PackageActivator::cleanup_transient_snapshots(&paths) {
+    if let Err(error) = PackageActivator::cleanup_transient_snapshots(paths) {
         eprintln!(
             "{}",
             output::warning(format!(
@@ -103,71 +128,13 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
         );
     }
 
-    if let Err(err) = run_startup_migrations(&paths) {
-        history_op::finish(
-            if cancellation::is_requested() {
-                Outcome::Cancelled
-            } else {
-                Outcome::Failure
-            },
-            if cancellation::is_requested() {
-                LogLevel::Warning
-            } else {
-                LogLevel::Error
-            },
-            Some(output::error_summary(&err)),
-        );
-
-        return Err(err);
-    }
-
-    let config = match ConfigStorage::new(&paths.config.config_file) {
-        Ok(config) => config,
-        Err(err) => {
-            history_op::finish(
-                if cancellation::is_requested() {
-                    Outcome::Cancelled
-                } else {
-                    Outcome::Failure
-                },
-                if cancellation::is_requested() {
-                    LogLevel::Warning
-                } else {
-                    LogLevel::Error
-                },
-                Some(output::error_summary(&err)),
-            );
-
-            return Err(err);
-        }
-    };
-
-    let app_config = config.get_config().clone();
-    upstream_rs::storage::history::configure(app_config.logging);
-
-    match cli.run(&paths, &app_config).await {
-        Ok(()) => history_op::finish(Outcome::Success, LogLevel::Info, None),
-        Err(err) => {
-            let outcome = if cancellation::is_requested() {
-                Outcome::Cancelled
-            } else {
-                Outcome::Failure
-            };
-
-            let level = if outcome == Outcome::Cancelled {
-                LogLevel::Warning
-            } else {
-                LogLevel::Error
-            };
-
-            history_op::finish(outcome, level, Some(output::error_summary(&err)));
-            return Err(err);
-        }
-    }
-
-    Ok(())
+    run_startup_migrations(paths)?;
+    tracing::debug!("Startup migrations complete");
+    let config = ConfigStorage::new(&paths.config.config_file)?;
+    cli.run(paths, config.get_config()).await
 }
 
+#[tracing::instrument(level = "debug", skip_all)]
 fn run_startup_migrations(paths: &UpstreamPaths) -> anyhow::Result<()> {
     let _startup_lock = LockStorage::acquire(paths, "startup migrate")?;
 

@@ -18,11 +18,7 @@ pub fn run_set(set_keys: Vec<String>, paths: &UpstreamPaths) -> Result<()> {
     if set_keys.len() > 1 {
         let results = auth_updater.set_bulk(&set_keys);
         for applied in &results.applied {
-            output::status_line(
-                Status::Ok,
-                &applied.key,
-                format!("set to '{}'", applied.display_value),
-            );
+            output::status_line(Status::Ok, &applied.key, "updated");
         }
 
         for (key, err) in &results.failures {
@@ -30,11 +26,7 @@ pub fn run_set(set_keys: Vec<String>, paths: &UpstreamPaths) -> Result<()> {
         }
     } else {
         let applied = auth_updater.set_key(&set_keys[0])?;
-        output::status_line(
-            Status::Ok,
-            &applied.key,
-            format!("set to '{}'", applied.display_value),
-        );
+        output::status_line(Status::Ok, &applied.key, "updated");
     }
 
     println!("{}", output::success("Auth saved."));

@@ -7,7 +7,6 @@ pub mod docs;
 pub mod doctor;
 pub mod export;
 pub mod find;
-pub mod history;
 pub mod hooks;
 pub mod import;
 pub mod info;

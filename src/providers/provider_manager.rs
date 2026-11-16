@@ -164,6 +164,7 @@ impl ProviderManager {
         }
     }
 
+    #[tracing::instrument(level = "debug", skip_all, fields(%provider, ?channel))]
     pub async fn get_latest_release(
         &self,
         slug: &str,
@@ -171,7 +172,8 @@ impl ProviderManager {
         channel: &Channel,
         base_url: Option<&str>,
     ) -> Result<Release> {
-        match channel {
+        tracing::debug!("Resolving latest release");
+        let release = match channel {
             Channel::Stable => {
                 self.get_latest_stable_release(slug, provider, base_url)
                     .await
@@ -184,7 +186,9 @@ impl ProviderManager {
                 self.get_latest_nightly_release(slug, provider, base_url)
                     .await
             }
-        }
+        }?;
+        tracing::debug!(tag = %release.tag, assets = release.assets.len(), "Latest release resolved");
+        Ok(release)
     }
 
     pub async fn check_for_updates(&self, package: &Package) -> Result<Option<Release>> {
@@ -429,6 +433,7 @@ impl ProviderManager {
         resolved.get_project_readme(slug).await
     }
 
+    #[tracing::instrument(skip_all, fields(asset = %asset.name, %provider))]
     pub async fn download_asset<F>(
         &self,
         asset: &Asset,
@@ -459,7 +464,11 @@ impl ProviderManager {
     }
 
     pub fn find_recommended_asset(&self, release: &Release, package: &Package) -> Result<Asset> {
-        self.asset_selector.find_recommended_asset(release, package)
+        let asset = self
+            .asset_selector
+            .find_recommended_asset(release, package)?;
+        tracing::debug!(package = %package.id, asset = %asset.name, "Release asset selected");
+        Ok(asset)
     }
 
     pub fn get_candidate_assets(

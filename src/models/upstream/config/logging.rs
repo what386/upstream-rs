@@ -14,6 +14,7 @@ pub enum LoggingLevel {
     #[default]
     Info,
     Debug,
+    Trace,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

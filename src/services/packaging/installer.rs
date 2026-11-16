@@ -42,8 +42,10 @@ macro_rules! message {
 }
 macro_rules! progress {
     ($cb:expr, $event:expr) => {{
+        let event = $event;
+        event.log();
         if let Some(cb) = $cb.as_mut() {
-            cb($event);
+            cb(event);
         }
     }};
 }
@@ -193,6 +195,7 @@ impl<'a> PackageInstaller<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(skip_all, fields(package = %plan.package.id))]
     pub async fn materialize_install<F, H, P>(
         &mut self,
         trusted_keys: &TrustedSignatureKeys,

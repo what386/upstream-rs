@@ -7,13 +7,14 @@ use crate::{
     services::packaging::{PackagePhase, PackageProgressEvent},
 };
 use anyhow::{Result, anyhow};
-use std::path::Path;
+use std::{path::Path, time::Instant};
 
 use super::{
     checksum_verifier::{ChecksumVerificationResult, ChecksumVerifier},
     signatures::{SignatureVerificationStatus, SignatureVerifier, TrustedSignatureKeys},
 };
 
+#[derive(Debug)]
 pub enum ChecksumVerificationStatus {
     NotChecked,
     Verified,
@@ -50,6 +51,7 @@ impl<'a> TrustVerifier<'a> {
         }
     }
 
+    #[tracing::instrument(level = "debug", skip_all, fields(asset = %asset_path.display(), ?provider, trust_mode = ?self.trust_mode))]
     pub async fn verify_file<F, H, P>(
         &self,
         asset_path: &Path,
@@ -64,10 +66,13 @@ impl<'a> TrustVerifier<'a> {
         H: FnMut(&str),
         P: FnMut(PackageProgressEvent),
     {
+        let started = Instant::now();
         if self.trust_mode == TrustMode::None {
+            tracing::debug!("Trust verification skipped by policy");
             return Ok(TrustVerificationStatus::Skipped);
         }
 
+        tracing::debug!("Trust verification started");
         let checksum_status = if self.should_verify_checksum() {
             let asset_filename = asset_path
                 .file_name()
@@ -130,7 +135,16 @@ impl<'a> TrustVerifier<'a> {
             SignatureVerificationStatus::NotChecked
         };
 
+        tracing::debug!(
+            ?checksum_status,
+            ?signature_status,
+            "Trust verification results"
+        );
         self.enforce_policy(&checksum_status, &signature_status)?;
+        tracing::debug!(
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "Trust verification completed"
+        );
 
         Ok(TrustVerificationStatus::Verified {
             checksum: checksum_status,

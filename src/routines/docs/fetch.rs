@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use anyhow::{Context, Result};
 
@@ -22,12 +23,14 @@ pub enum ProjectReadmeSource {
     CachedOffline,
 }
 
+#[tracing::instrument(level = "debug", skip_all, fields(package = %package.id))]
 pub async fn fetch_project_readme(
     provider_manager: &ProviderManager,
     cache_dir: &Path,
     package: &Package,
     offline: bool,
 ) -> Result<ProjectReadme> {
+    let started = Instant::now();
     let cache_path = cache_path_for_package(cache_dir, package);
     if offline {
         let contents = read_cached_readme(&cache_path).with_context(|| {
@@ -37,6 +40,7 @@ pub async fn fetch_project_readme(
             )
         })?;
 
+        tracing::debug!(source = %cache_path.display(), bytes = contents.len(), "Using cached README in offline mode");
         return Ok(ProjectReadme {
             document_name: "README.md".to_string(),
             contents,
@@ -54,6 +58,7 @@ pub async fn fetch_project_readme(
     {
         Ok(contents) => {
             write_cached_readme(&cache_path, &contents)?;
+            tracing::debug!(destination = %cache_path.display(), bytes = contents.len(), elapsed_ms = started.elapsed().as_millis() as u64, "README fetched and cached");
             Ok(ProjectReadme {
                 document_name: "README.md".to_string(),
                 contents,
@@ -77,6 +82,7 @@ pub async fn fetch_project_readme(
                 });
             }
 
+            tracing::debug!(source = %cache_path.display(), "Using cached README after remote fetch failed");
             Ok(ProjectReadme {
                 document_name: "README.md".to_string(),
                 contents,

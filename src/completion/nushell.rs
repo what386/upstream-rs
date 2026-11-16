@@ -74,7 +74,6 @@ pub fn generate(cmd: &mut Command, out: &mut dyn Write) {
                 command,
                 "upstream list"
                     | "upstream info"
-                    | "upstream history"
                     | "upstream doctor"
                     | "upstream search"
                     | "upstream probe"
@@ -112,8 +111,7 @@ pub fn generate(cmd: &mut Command, out: &mut dyn Write) {
             )
             | ("upstream info", "query")
             | ("upstream list", "filter")
-            | ("upstream changelog" | "upstream docs", "name")
-            | ("upstream history", "--package") => Some("packages"),
+            | ("upstream changelog" | "upstream docs", "name") => Some("packages"),
             (name, "name") if name.starts_with("upstream package ") => Some("packages"),
             ("upstream package rename", "old_name") => Some("aliases"),
             ("upstream docs", "keywords") => Some("docs keywords"),

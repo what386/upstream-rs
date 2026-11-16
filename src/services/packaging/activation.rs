@@ -18,12 +18,15 @@ use crate::{
 use std::{
     fs, io,
     path::{Path, PathBuf},
+    time::Instant,
 };
 
 macro_rules! progress {
     ($cb:expr, $event:expr) => {{
+        let event = $event;
+        event.log();
         if let Some(cb) = $cb.as_mut() {
-            cb($event);
+            cb(event);
         }
     }};
 }
@@ -513,6 +516,7 @@ impl<'a> PackageActivator<'a> {
         .await
     }
 
+    #[tracing::instrument(skip_all, fields(package = %prepared.package.id, version = %prepared.package.version))]
     pub async fn install_new_with_settings<H, P>(
         &self,
         package_database: &mut PackageDatabase,
@@ -527,6 +531,8 @@ impl<'a> PackageActivator<'a> {
         P: FnMut(PackageProgressEvent),
     {
         cancellation::check()?;
+        let started = Instant::now();
+        tracing::debug!("Package activation started");
         let auto_desktop =
             add_entry.is_none() && DesktopManager::should_auto_integrate(&prepared.package);
 
@@ -630,6 +636,14 @@ impl<'a> PackageActivator<'a> {
 
         UnitManager::new(self.paths)
             .notify_available_with_progress(&updated_package.id, progress_callback);
+        tracing::info!(
+            destination = updated_package
+                .install_path
+                .as_ref()
+                .map(|path| path.display().to_string()),
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "Package activated"
+        );
         Ok(updated_package)
     }
 }
@@ -638,6 +652,7 @@ impl<'a> PackageActivator<'a> {
 // A previous version exists, so every step backs up before it overwrites and
 // restore_after_failure can put the old version fully back if anything fails.
 impl<'a> PackageActivator<'a> {
+    #[tracing::instrument(skip_all, fields(package = %previous_package.id, from_version = %previous_package.version, to_version = %prepared.package.version))]
     pub async fn replace<H, P>(
         &self,
         previous_package: &Package,
@@ -651,6 +666,8 @@ impl<'a> PackageActivator<'a> {
         P: FnMut(PackageProgressEvent),
     {
         cancellation::check()?;
+        let started = Instant::now();
+        tracing::debug!("Package replacement activation started");
         if restore_desktop {
             prepared
                 .prepare_desktop_data(self.paths, message_callback)
@@ -792,6 +809,14 @@ impl<'a> PackageActivator<'a> {
             backup.set_partial_package(updated_package.clone());
         }
 
+        tracing::debug!(
+            destination = updated_package
+                .install_path
+                .as_ref()
+                .map(|path| path.display().to_string()),
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "Replacement activated; awaiting metadata persistence"
+        );
         Ok(PendingReplacement {
             package: updated_package,
             backup,
@@ -818,6 +843,7 @@ impl<'a> PackageActivator<'a> {
         Ok(backup_dir)
     }
 
+    #[tracing::instrument(skip_all, fields(package = %backup.previous_package.id))]
     pub fn restore_after_failure<H, T>(
         &self,
         backup: ReplacementBackup,
@@ -828,6 +854,11 @@ impl<'a> PackageActivator<'a> {
     where
         H: FnMut(&str),
     {
+        let started = Instant::now();
+        tracing::warn!(
+            reason = failure_context,
+            "Restoring previous package after failed replacement"
+        );
         let mut errors = Vec::new();
         if let Some(package) = backup.partially_installed_package.as_ref()
             && let Err(error) =
@@ -883,6 +914,11 @@ impl<'a> PackageActivator<'a> {
         }
 
         if !errors.is_empty() {
+            tracing::error!(
+                recovery_errors = errors.len(),
+                elapsed_ms = started.elapsed().as_millis() as u64,
+                "Previous package restoration incomplete"
+            );
             return Err(anyhow!(
                 "{} for '{}': {failure:#}. Recovery encountered: {}",
                 failure_context,
@@ -891,6 +927,10 @@ impl<'a> PackageActivator<'a> {
             ));
         }
 
+        tracing::info!(
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "Previous package restored"
+        );
         Err(failure).context(format!(
             "{} for '{}' (previous version restored)",
             failure_context, backup.previous_package.id
@@ -914,6 +954,7 @@ impl<'a> PackageActivator<'a> {
         )
     }
 
+    #[tracing::instrument(skip_all, fields(package = %replacement.package.id, version = %replacement.package.version))]
     pub fn persist_with_progress<P>(
         &self,
         package_database: &mut PackageDatabase,
@@ -923,6 +964,8 @@ impl<'a> PackageActivator<'a> {
     where
         P: FnMut(PackageProgressEvent),
     {
+        let started = Instant::now();
+        tracing::debug!("Persisting replacement metadata");
         if let Err(persistence_error) = package_database.upsert_package(&replacement.package) {
             return self.restore_after_failure(
                 replacement.backup,
@@ -970,6 +1013,14 @@ impl<'a> PackageActivator<'a> {
         }
 
         units.notify_available_with_progress(&package.id, progress_callback);
+        tracing::info!(
+            destination = package
+                .install_path
+                .as_ref()
+                .map(|path| path.display().to_string()),
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "Package replacement committed"
+        );
         Ok(package)
     }
 }
