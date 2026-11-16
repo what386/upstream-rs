@@ -2,9 +2,7 @@
 
 [Documentation](../README.md#documentation) · [Usage guide](usage.md) · [Configuration](config.md)
 
-## Start here
-
-Start with:
+## Check the installation
 
 ```bash
 upstream doctor --verbose
@@ -15,19 +13,23 @@ problems.
 
 ## Common problems
 
-| Problem | What to try |
-| --- | --- |
-| An installed command is not found | Run `upstream hooks check`. If hooks are missing, run `upstream hooks init` and restart your shell. |
-| Upstream picks the wrong release file | Run `upstream probe owner/repo --dry-run` to see the choices. Use `--match`, `--exclude`, or `--kind` to narrow them down. |
-| A package is skipped during upgrades | Check `upstream info NAME`. If it is pinned, use `upstream package unpin NAME` when ready to update it. |
-| `updates` shows old results | Run `upstream upgrade --check` to check for new releases. |
-| Requests fail with a rate-limit or authentication error | Run `upstream doctor` to check your token. See [API token settings](config.md#api-tokens). |
-| A checksum or signature check fails | Check the publisher's checksum or signature files and make sure you imported the right public key. See [download verification](usage.md#download-verification). |
-| A source build fails | Check that Git and the project's required build tools are installed. Read the build error for missing dependencies. |
-| Package documentation is outdated | Run `upstream docs --fetch NAME` to refresh its README. |
-| Windows cannot replace an executable | Close the application and retry. Run `upstream doctor --fix` if Upstream reports leftover files. |
-| A command says it is waiting for a lock | Wait for the other Upstream command to finish, or stop it if it is stuck. |
-| Cached data is using too much space | Run `upstream cache list`, then preview cleanup with `upstream cache clean all --dry-run`. Remove `--dry-run` to apply it. |
+### An installed command is not found
+
+Run `upstream hooks check`. If hooks are missing, run `upstream hooks init`
+and restart your shell.
+
+### Upstream picks the wrong release file
+
+Run `upstream probe owner/repo` to see the choices and pick the right file.
+Probe automatically creates matching patterns and saves them when you install,
+so future upgrades can use them.
+
+To choose manually with `upstream install`, use `--match`, `--exclude`, or `--kind`.
+
+### Updates shows old results
+
+`upstream updates` only shows saved results. Run `upstream upgrade --check`
+to check for new releases and refresh them, or enable the systemd timer.
 
 ## Logs and crash reports
 

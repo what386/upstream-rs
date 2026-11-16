@@ -7,27 +7,27 @@ build and test commands.
 
 ## Where to make a change
 
-| Area | Start here |
-| --- | --- |
-| Command options and help | [CLI arguments](../src/application/cli/arguments.rs) |
-| Running commands and taking locks | [CLI dispatch](../src/application/cli/dispatch.rs) |
-| Command output and interactive flows | [Commands](../src/application/commands/) and [output helpers](../src/output/) |
-| Code shared by commands | [Operations](../src/application/operations/) and [command context](../src/application/context.rs) |
-| Provider APIs and download pages | [Provider manager](../src/providers/provider_manager.rs) and [provider adapters](../src/providers/sites/) |
-| Interface used by all providers | [ReleaseProvider](../src/providers/sites/release_provider.rs) |
-| Release asset selection | [Asset selection](../src/providers/assets/) |
-| Downloads | [Download handler](../src/providers/shared/download_handler.rs) |
-| Extracting files and finding executables | [Artifact services](../src/services/artifact/) |
-| Verification and trusted keys | [Trust services](../src/services/trust/) |
-| Installation, replacement, and removal | [Packaging services](../src/services/packaging/) |
-| Shell hooks, launchers, completions, and user units | [Integration services](../src/services/integration/) |
-| Source builds | [Build routines](../src/routines/build/) |
-| Diagnostics, README fetching, and migrations | [Routines](../src/routines/) |
-| Package records and database tables | [Database storage](../src/storage/database/) and [SQL schema](../src/storage/database/schema.sql) |
-| Config, tokens, trust storage, and locks | [System storage](../src/storage/system/) |
-| File and directory paths | [Path definitions](../src/utils/static_paths.rs) |
-| Logging and panic reports | [Logging](../src/logging.rs) |
-| Dynamic shell completions | [Completion handlers](../src/completion/) and [generator](../src/completion/generator.rs) |
+| Area                                                | Start here                                                      |
+| --------------------------------------------------- | --------------------------------------------------------------- |
+| Command options and help                            | [CLI arguments](../src/application/cli/arguments.rs)            |
+| Running commands and taking locks                   | [CLI dispatch](../src/application/cli/dispatch.rs)              |
+| Command output and interactive flows                | [Source](../src/)                                               |
+| Code shared by commands                             | [Application](../src/application/)                              |
+| Provider APIs and download pages                    | [Providers](../src/providers/)                                  |
+| Interface used by all providers                     | [ReleaseProvider](../src/providers/sites/release_provider.rs)   |
+| Release asset selection                             | [Asset selection](../src/providers/assets/)                     |
+| Downloads                                           | [Download handler](../src/providers/shared/download_handler.rs) |
+| Extracting files and finding executables            | [Artifact services](../src/services/artifact/)                  |
+| Verification and trusted keys                       | [Trust services](../src/services/trust/)                        |
+| Installation, replacement, and removal              | [Packaging services](../src/services/packaging/)                |
+| Shell hooks, launchers, completions, and user units | [Integration services](../src/services/integration/)            |
+| Source builds                                       | [Build routines](../src/routines/build/)                        |
+| Diagnostics, README fetching, and migrations        | [Routines](../src/routines/)                                    |
+| Package records and database tables                 | [Database storage](../src/storage/database/)                    |
+| Config, tokens, trust storage, and locks            | [System storage](../src/storage/system/)                        |
+| File and directory paths                            | [Path definitions](../src/utils/static_paths.rs)                |
+| Logging and panic reports                           | [Logging](../src/logging.rs)                                    |
+| Dynamic shell completions                           | [Completions](../src/completion/)                               |
 
 ## How commands run
 
@@ -56,11 +56,11 @@ build and test commands.
 
 ## Tests
 
-| Suite | What it checks | Location |
-| --- | --- | --- |
-| Live | Checks package operations against actual live websites, including search and release discovery. | [Live tests](../tests/live/) |
-| End-to-end | Similar to live, but uses the test server instead of live websites. Checks installs, upgrades, removal, and recovery when something goes wrong. | [End-to-end tests](../tests/end2end/) |
-| Integration | Checks things that don't need a package website, such as shell setup, completions, the developer updater, and the test server itself. | [CLI integration tests](../tests/integration/) and [server tests](../test-server/test.rb) |
+| Suite       | What it checks                                                                                                                                  | Location                                                                                  |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Live        | Checks package operations against actual live websites, including search and release discovery.                                                 | [Live tests](../tests/live/)                                                              |
+| End-to-end  | Similar to live, but uses the test server instead of live websites. Checks installs, upgrades, removal, and recovery when something goes wrong. | [End-to-end tests](../tests/end2end/)                                                     |
+| Integration | Checks things that don't need a package website, such as shell setup, completions, the developer updater, and the test server itself.           | [CLI integration tests](../tests/integration/) and [server tests](../test-server/test.rb) |
 
 Rust tests in [tests/](../tests/) also build sample projects and check logging
 and saved update results. [Fixtures](../tests/fixtures/) hold sample files used
