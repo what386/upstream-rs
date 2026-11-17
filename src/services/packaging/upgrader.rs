@@ -287,6 +287,8 @@ impl<'a> PackageUpgrader<'a> {
     {
         self.replace_resolved(
             package,
+            None,
+            None,
             target,
             trust_mode,
             false,
@@ -302,6 +304,8 @@ impl<'a> PackageUpgrader<'a> {
     pub async fn reinstall_resolved<F, H, P>(
         &self,
         package: &Package,
+        install_package: &Package,
+        desktop: Option<bool>,
         target: ResolvedUpgradeTarget,
         trust_mode: TrustMode,
         force: bool,
@@ -316,6 +320,8 @@ impl<'a> PackageUpgrader<'a> {
     {
         self.replace_resolved(
             package,
+            Some(install_package),
+            desktop,
             target,
             trust_mode,
             force,
@@ -331,6 +337,8 @@ impl<'a> PackageUpgrader<'a> {
     async fn replace_resolved<F, H, P>(
         &self,
         package: &Package,
+        install_package: Option<&Package>,
+        desktop: Option<bool>,
         target: ResolvedUpgradeTarget,
         trust_mode: TrustMode,
         allow_pinned: bool,
@@ -374,6 +382,11 @@ impl<'a> PackageUpgrader<'a> {
         let mut workspace =
             InstallWorkspace::new(self.paths, &package.id)?.reuse_executables_from(package);
 
+        // Keep the active package's metadata for cleanup and rollback; apply overrides
+        // only while preparing its replacement.
+        let previous_package = package;
+        let package = install_package.unwrap_or(package);
+        let restore_desktop = desktop.unwrap_or(had_desktop_integration);
         workspace.executable_selector = self.installer.executable_selector;
         let mut staging_installer =
             PackageInstaller::new_for_workspace(self.provider_manager, self.paths, workspace)?;
@@ -471,13 +484,17 @@ impl<'a> PackageUpgrader<'a> {
 
                     match install_result {
                         Ok(mut updated_package) => {
-                            updated_package.icon_path = package.icon_path.clone();
+                            updated_package.icon_path = if desktop == Some(false) {
+                                None
+                            } else {
+                                previous_package.icon_path.clone()
+                            };
                             let workspace = staging_installer.take_workspace()?;
                             PackageActivator::new(self.paths)
                                 .replace(
-                                    package,
+                                    previous_package,
                                     PreparedInstall::new(updated_package, workspace),
-                                    false,
+                                    desktop.unwrap_or(false),
                                     message_callback,
                                     progress_callback,
                                 )
@@ -597,9 +614,9 @@ impl<'a> PackageUpgrader<'a> {
             let workspace = staging_installer.take_workspace()?;
             PackageActivator::new(self.paths)
                 .replace(
-                    package,
+                    previous_package,
                     PreparedInstall::new(updated_package, workspace),
-                    had_desktop_integration,
+                    restore_desktop,
                     message_callback,
                     progress_callback,
                 )

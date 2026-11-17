@@ -3,8 +3,8 @@ use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
-    application::cancellation,
     application::context::CommandContext,
+    application::{cancellation, cli::shared::InstallOptions},
     models::{
         common::enums::TrustMode,
         provider::Release,
@@ -124,8 +124,10 @@ fn render_reinstall_progress_row(
     format!(" {name:<name_width$}{detail}")
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     names: Vec<String>,
+    install_options: InstallOptions,
     trust_mode: Option<TrustMode>,
     force: bool,
     dry_run: bool,
@@ -143,6 +145,7 @@ pub async fn run(
     if dry_run {
         return run_dry_run(
             names,
+            &install_options,
             trust_mode,
             &package_database,
             &context.provider_manager,
@@ -153,6 +156,7 @@ pub async fn run(
 
     let impact_rows = estimate_reinstall_impact_rows(
         &names,
+        &install_options,
         &package_database,
         &context.provider_manager,
         context.paths,
@@ -235,6 +239,7 @@ pub async fn run(
             &mut package_database,
             context.paths,
             package,
+            &install_options,
             effective_trust_mode,
             force,
             &trusted_keys,
@@ -315,6 +320,7 @@ pub async fn run(
 
 async fn run_dry_run(
     names: Vec<String>,
+    install_options: &InstallOptions,
     trust_mode: Option<TrustMode>,
     package_database: &PackageDatabase,
     provider_manager: &ProviderManager,
@@ -327,7 +333,14 @@ async fn run_dry_run(
             .map(|mode| mode.to_string())
             .unwrap_or_else(|| "per-package (default: best-effort)".to_string()),
     );
-    let impact = estimate_reinstall_impact(&names, package_database, provider_manager, paths).await;
+    let impact = estimate_reinstall_impact(
+        &names,
+        install_options,
+        package_database,
+        provider_manager,
+        paths,
+    )
+    .await;
     output::print_disk_impact_with_size_rows(&impact, &[], true);
     output::action_note(
         "resolve only (no remove, no download, no build, no install, no metadata changes)",
@@ -344,6 +357,7 @@ async fn run_dry_run(
             continue;
         };
 
+        let package = apply_install_options(&package, install_options);
         match package.install_type {
             InstallType::Release => {
                 let mut preview_package = package.clone();
@@ -351,7 +365,9 @@ async fn run_dry_run(
                 preview_package.executables.clear();
                 preview_package.icon_path = None;
 
-                match resolve_reinstall_release(provider_manager, &preview_package).await {
+                match resolve_reinstall_release(provider_manager, &preview_package, install_options)
+                    .await
+                {
                     Ok(release) => {
                         match provider_manager.find_recommended_asset(&release, &preview_package) {
                             Ok(asset) => {
@@ -438,7 +454,9 @@ async fn run_dry_run(
                         }
                     }
                 } else {
-                    match resolve_reinstall_release(provider_manager, &package).await {
+                    match resolve_reinstall_release(provider_manager, &package, install_options)
+                        .await
+                    {
                         Ok(release) => {
                             output::status_line(
                                 Status::Plan,
@@ -485,12 +503,20 @@ async fn run_dry_run(
 
 async fn estimate_reinstall_impact(
     names: &[String],
+    install_options: &InstallOptions,
     package_database: &PackageDatabase,
     provider_manager: &ProviderManager,
     paths: &UpstreamPaths,
 ) -> DiskImpact {
     total_reinstall_impact(
-        &estimate_reinstall_impact_rows(names, package_database, provider_manager, paths).await,
+        &estimate_reinstall_impact_rows(
+            names,
+            install_options,
+            package_database,
+            provider_manager,
+            paths,
+        )
+        .await,
     )
 }
 
@@ -507,6 +533,7 @@ fn total_reinstall_impact(rows: &[ReinstallImpactRow]) -> DiskImpact {
 
 async fn estimate_reinstall_impact_rows(
     names: &[String],
+    install_options: &InstallOptions,
     package_database: &PackageDatabase,
     provider_manager: &ProviderManager,
     paths: &UpstreamPaths,
@@ -527,15 +554,22 @@ async fn estimate_reinstall_impact_rows(
             .estimate_active_size(&package)
             .unwrap_or(0);
 
+        let package = apply_install_options(&package, install_options);
+        let mut version = install_options
+            .tag
+            .clone()
+            .or_else(|| install_options.semver.clone())
+            .unwrap_or_else(|| package.version.to_string());
         let new_install = match package.install_type {
             InstallType::Release => {
                 let mut preview_package = package.clone();
                 preview_package.install_path = None;
                 preview_package.executables.clear();
                 preview_package.icon_path = None;
-                match resolve_reinstall_release(provider_manager, &preview_package)
+                match resolve_reinstall_release(provider_manager, &preview_package, install_options)
                     .await
                     .and_then(|release| {
+                        version = release.tag.clone();
                         provider_manager.find_recommended_asset(&release, &preview_package)
                     }) {
                     Ok(asset) => install_impact_from_download(asset_size_estimate(asset.size)),
@@ -561,7 +595,7 @@ async fn estimate_reinstall_impact_rows(
 
         rows.push(ReinstallImpactRow {
             package: package.id.clone(),
-            version: package.version.to_string(),
+            version,
             impact: package_impact,
         });
     }
@@ -572,8 +606,21 @@ async fn estimate_reinstall_impact_rows(
 async fn resolve_reinstall_release(
     provider_manager: &ProviderManager,
     package: &Package,
+    install_options: &InstallOptions,
 ) -> Result<Release> {
-    let tag = package.installed_release_tag().ok_or_else(|| {
+    if let Some(semver) = &install_options.semver {
+        let requested = crate::models::common::Version::parse(semver)?;
+        return provider_manager
+            .get_release_by_semver(
+                &package.repo_slug,
+                &requested,
+                &package.provider,
+                &package.channel,
+                package.base_url.as_deref(),
+            )
+            .await;
+    }
+    let tag = install_options.tag.clone().or_else(|| package.installed_release_tag()).ok_or_else(|| {
         anyhow!(
             "package '{}' is missing its installed release tag; run `upstream upgrade {} --force` to repair package metadata",
             package.id,
@@ -598,6 +645,7 @@ async fn reinstall_one<H, P>(
     package_database: &mut PackageDatabase,
     paths: &UpstreamPaths,
     package: Package,
+    install_options: &InstallOptions,
     trust_mode: TrustMode,
     force: bool,
     trusted_keys: &TrustedSignatureKeys,
@@ -608,15 +656,19 @@ where
     H: FnMut(&str),
     P: FnMut(PackageProgressEvent),
 {
-    let target = match package.install_type {
+    let install_package = apply_install_options(&package, install_options);
+    let target = match install_package.install_type {
         InstallType::Release => ResolvedUpgradeTarget::Release(
-            resolve_reinstall_release(provider_manager, &package).await?,
+            resolve_reinstall_release(provider_manager, &install_package, install_options).await?,
         ),
-        InstallType::Build if package.build_branch.is_none() => ResolvedUpgradeTarget::Release(
-            resolve_reinstall_release(provider_manager, &package).await?,
-        ),
+        InstallType::Build if install_package.build_branch.is_none() => {
+            ResolvedUpgradeTarget::Release(
+                resolve_reinstall_release(provider_manager, &install_package, install_options)
+                    .await?,
+            )
+        }
         InstallType::Build => {
-            let branch = package
+            let branch = install_package
                 .build_branch
                 .as_ref()
                 .expect("build branch checked above")
@@ -624,10 +676,10 @@ where
 
             let head_commit = provider_manager
                 .get_branch_head_sha(
-                    &package.repo_slug,
-                    &package.provider,
+                    &install_package.repo_slug,
+                    &install_package.provider,
                     &branch,
-                    package.base_url.as_deref(),
+                    install_package.base_url.as_deref(),
                 )
                 .await
                 .with_context(|| {
@@ -648,6 +700,8 @@ where
     let updated = upgrader
         .reinstall_resolved(
             &package,
+            &install_package,
+            install_options.desktop_options.desktop,
             target,
             trust_mode,
             force,
@@ -664,4 +718,211 @@ where
     )?;
 
     Ok(())
+}
+
+fn apply_install_options(package: &Package, options: &InstallOptions) -> Package {
+    let mut package = package.clone();
+    if let Some(kind) = options.asset_options.kind {
+        package.filetype = kind;
+    }
+    if let Some(provider) = &options.provider_options.provider {
+        package.provider = provider.clone();
+    }
+    if let Some(base_url) = &options.provider_options.base_url {
+        package.base_url = Some(base_url.clone());
+    }
+    if let Some(channel) = &options.channel {
+        package.channel = channel.clone();
+    }
+    if let Some(pattern) = &options.asset_options.match_pattern {
+        package.match_pattern =
+            crate::providers::pattern_matcher::PatternTable::from_cli_arg(Some(pattern.clone()));
+    }
+    if let Some(pattern) = &options.asset_options.exclude_pattern {
+        package.exclude_pattern =
+            crate::providers::pattern_matcher::PatternTable::from_cli_arg(Some(pattern.clone()));
+    }
+    if options.tag.is_some() || options.semver.is_some() {
+        package.build_branch = None;
+    }
+    package
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::common::enums::{Channel, Filetype, Provider};
+    use crate::utils::test_support;
+    use std::{
+        fs,
+        io::{BufRead, BufReader, Write},
+        net::TcpListener,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+    };
+
+    #[tokio::test]
+    async fn reinstall_applies_install_options_and_preserves_active_files_until_ready() {
+        let root = test_support::temp_root("reinstall", "install-options");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(&paths.install.binaries_dir).unwrap();
+        fs::create_dir_all(&paths.state.symlinks_dir).unwrap();
+        let active_path = paths.install.binaries_dir.join("tool");
+        fs::write(&active_path, b"old binary").unwrap();
+        let mut package = Package::with_defaults(
+            "gitea:owner/tool".into(),
+            "owner/tool".into(),
+            Filetype::Archive,
+            Some("old".into()),
+            None,
+            Channel::Stable,
+            Provider::Gitea,
+            None,
+        );
+        package.install_path = Some(active_path.clone());
+        package.executables = vec![crate::models::upstream::PackageExecutable {
+            name: "tool".into(),
+            path: active_path.clone(),
+        }];
+        package.release_tag = Some("v1.0.0".into());
+        let original = package.clone();
+        assert_eq!(
+            serde_json::to_value(apply_install_options(&package, &Default::default())).unwrap(),
+            serde_json::to_value(&original).unwrap()
+        );
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server_base = base.clone();
+        let stopped = Arc::new(AtomicBool::new(false));
+        let server_stopped = stopped.clone();
+        let server = std::thread::spawn(move || {
+            while !server_stopped.load(Ordering::Relaxed) {
+                let (mut stream, _) = match listener.accept() {
+                    Ok(connection) => connection,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(5));
+                        continue;
+                    }
+                    Err(error) => panic!("{error}"),
+                };
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+                let mut request = String::new();
+                reader.read_line(&mut request).unwrap();
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    if line == "\r\n" || line.is_empty() {
+                        break;
+                    }
+                }
+                let (status, body) = if request.contains("/releases/tags/v2.0.0 ") {
+                    (
+                        "200 OK",
+                        serde_json::json!({
+                            "id": 2, "tag_name": "v2.0.0", "name": "v2.0.0",
+                            "assets": [{"id": 2, "name": "tool-new", "size": 10,
+                                "browser_download_url": format!("{server_base}/tool-new")}]
+                        })
+                        .to_string(),
+                    )
+                } else if request.starts_with("GET /tool-new ") {
+                    ("200 OK", "new binary".into())
+                } else {
+                    ("404 Not Found", "missing".into())
+                };
+                write!(
+                    stream,
+                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                )
+                .unwrap();
+            }
+        });
+        let manager = ProviderManager::new(None, None, None, Default::default()).unwrap();
+        let mut database = PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
+        database.upsert_package(&package).unwrap();
+        let mut options = InstallOptions {
+            tag: Some("v2.0.0".into()),
+            asset_options: crate::application::cli::shared::AssetOptions {
+                kind: Some(Filetype::Binary),
+                match_pattern: Some("new".into()),
+                exclude_pattern: Some("old".into()),
+            },
+            provider_options: crate::application::cli::shared::ProviderOptions {
+                base_url: Some(base),
+                ..Default::default()
+            },
+            channel: Some(Channel::Preview),
+            desktop_options: crate::application::cli::shared::DesktopOptions {
+                desktop: Some(false),
+            },
+            ..Default::default()
+        };
+        // A failed resolution must leave the active package and metadata intact.
+        options.tag = Some("missing".into());
+        let failed = reinstall_one(
+            &manager,
+            &mut database,
+            &paths,
+            package.clone(),
+            &options,
+            TrustMode::None,
+            false,
+            &Default::default(),
+            &mut None::<fn(&str)>,
+            &mut None::<fn(PackageProgressEvent)>,
+        )
+        .await;
+        assert!(failed.is_err());
+        assert_eq!(fs::read(&active_path).unwrap(), b"old binary");
+        assert_eq!(
+            serde_json::to_value(database.get_package(&package.id).unwrap().unwrap()).unwrap(),
+            serde_json::to_value(&original).unwrap()
+        );
+
+        options.tag = Some("v2.0.0".into());
+        let names = vec![package.id.clone()];
+        run_dry_run(names, &options, None, &database, &manager, &paths)
+            .await
+            .unwrap();
+        assert_eq!(fs::read(&active_path).unwrap(), b"old binary");
+        assert_eq!(
+            serde_json::to_value(database.get_package(&package.id).unwrap().unwrap()).unwrap(),
+            serde_json::to_value(&original).unwrap()
+        );
+        let result = reinstall_one(
+            &manager,
+            &mut database,
+            &paths,
+            package.clone(),
+            &options,
+            TrustMode::None,
+            false,
+            &Default::default(),
+            &mut None::<fn(&str)>,
+            &mut None::<fn(PackageProgressEvent)>,
+        )
+        .await;
+        stopped.store(true, Ordering::Relaxed);
+        server.join().unwrap();
+        result.unwrap();
+        let updated = database.get_package(&package.id).unwrap().unwrap();
+        assert_eq!(updated.release_tag.as_deref(), Some("v2.0.0"));
+        assert_eq!(updated.filetype, Filetype::Binary);
+        assert_eq!(updated.channel, Channel::Preview);
+        assert_eq!(updated.match_pattern.to_string(), "new");
+        assert_eq!(updated.exclude_pattern.to_string(), "old");
+        assert_eq!(
+            fs::read(updated.install_path.unwrap()).unwrap(),
+            b"new binary"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
 }

@@ -1,3 +1,4 @@
+use super::shared::{AssetOptions, DesktopOptions, InstallOptions, ProviderOptions, SearchOptions};
 use anyhow::Result;
 
 use crate::application::cli::arguments::{
@@ -5,7 +6,10 @@ use crate::application::cli::arguments::{
     PackageAction,
 };
 use crate::application::commands;
-use crate::models::upstream::config::AppConfig;
+use crate::models::{
+    common::enums::{Channel, Filetype},
+    upstream::config::AppConfig,
+};
 use crate::output;
 use crate::storage::system::lock::LockStorage;
 use crate::utils::static_paths::UpstreamPaths;
@@ -63,26 +67,31 @@ impl Cli {
             },
             Commands::Install {
                 repo_slug,
-                kind,
-                tag,
-                semver,
-                provider,
-                base_url,
-                channel,
-                match_pattern,
-                exclude_pattern,
-                desktop,
+                install_options:
+                    InstallOptions {
+                        tag,
+                        semver,
+                        channel,
+                        asset_options:
+                            AssetOptions {
+                                kind,
+                                match_pattern,
+                                exclude_pattern,
+                            },
+                        provider_options: ProviderOptions { provider, base_url },
+                        desktop_options: DesktopOptions { desktop },
+                    },
                 trust_mode,
                 dry_run,
             } => {
                 commands::install::run(
                     repo_slug,
-                    kind,
+                    kind.unwrap_or(Filetype::Auto),
                     tag,
                     semver,
                     provider,
                     base_url,
-                    channel,
+                    channel.unwrap_or(Channel::Stable),
                     match_pattern,
                     exclude_pattern,
                     desktop,
@@ -98,10 +107,9 @@ impl Cli {
                 tag,
                 semver,
                 branch,
-                provider,
-                base_url,
+                provider_options: ProviderOptions { provider, base_url },
                 channel,
-                desktop,
+                desktop_options: DesktopOptions { desktop },
                 build_profile,
                 dry_run,
             } => {
@@ -131,11 +139,21 @@ impl Cli {
 
             Commands::Reinstall {
                 names,
+                install_options,
                 trust_mode,
                 force,
                 dry_run,
             } => {
-                commands::reinstall::run(names, trust_mode, force, dry_run, paths, app_config).await
+                commands::reinstall::run(
+                    names,
+                    install_options,
+                    trust_mode,
+                    force,
+                    dry_run,
+                    paths,
+                    app_config,
+                )
+                .await
             }
 
             Commands::Upgrade {
@@ -181,15 +199,14 @@ impl Cli {
 
             Commands::Probe {
                 repo_slug,
-                provider,
-                base_url,
+                provider_options: ProviderOptions { provider, base_url },
                 channel,
                 limit,
                 tag,
                 kind,
                 include_incompatible,
                 json,
-                desktop,
+                desktop_options: DesktopOptions { desktop },
                 trust_mode,
                 dry_run,
             } => {
@@ -213,16 +230,18 @@ impl Cli {
             }
             Commands::Search {
                 query_words,
-                provider,
-                base_url,
-                limit,
-                language,
-                topic,
-                min_stars,
-                max_stars,
-                pushed_after,
-                include_forks,
-                include_archived,
+                provider_options: ProviderOptions { provider, base_url },
+                search_options:
+                    SearchOptions {
+                        limit,
+                        language,
+                        topic,
+                        min_stars,
+                        max_stars,
+                        pushed_after,
+                        include_forks,
+                        include_archived,
+                    },
                 json,
             } => {
                 commands::search::run(
@@ -245,23 +264,28 @@ impl Cli {
             }
             Commands::Find {
                 query_words,
-                provider,
-                base_url,
-                limit,
-                language,
-                topic,
-                min_stars,
-                max_stars,
-                pushed_after,
-                include_forks,
-                include_archived,
-                kind,
+                provider_options: ProviderOptions { provider, base_url },
+                search_options:
+                    SearchOptions {
+                        limit,
+                        language,
+                        topic,
+                        min_stars,
+                        max_stars,
+                        pushed_after,
+                        include_forks,
+                        include_archived,
+                    },
                 channel,
-                match_pattern,
-                exclude_pattern,
-                desktop,
+                desktop_options: DesktopOptions { desktop },
                 trust_mode,
                 dry_run,
+                asset_options:
+                    AssetOptions {
+                        kind,
+                        match_pattern,
+                        exclude_pattern,
+                    },
             } => {
                 commands::find::run(
                     query_words,
@@ -275,7 +299,7 @@ impl Cli {
                     pushed_after,
                     include_forks,
                     include_archived,
-                    kind,
+                    kind.unwrap_or(Filetype::Auto),
                     channel,
                     match_pattern,
                     exclude_pattern,

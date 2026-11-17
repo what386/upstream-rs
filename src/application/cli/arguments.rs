@@ -1,6 +1,6 @@
-use crate::models::common::enums::{Channel, Filetype, Provider, TrustMode};
+use super::shared::{AssetOptions, DesktopOptions, InstallOptions, ProviderOptions, SearchOptions};
+use crate::models::common::enums::{Channel, Filetype, TrustMode};
 use crate::routines::build::BuildProfile;
-use chrono::NaiveDate;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -46,45 +46,16 @@ pub enum Commands {
         upstream install bootandy/dust\n  \
         upstream install neovim/neovim --desktop\n  \
         upstream install sharkdp/bat --tag v0.25.0")]
+    #[command(
+        mut_arg("kind", |arg| arg.default_value("auto")),
+        mut_arg("channel", |arg| arg.default_value("stable"))
+    )]
     Install {
         /// Repository identifier or direct download URL
         repo_slug: String,
 
-        /// Release tag to install (defaults to latest matching the channel)
-        #[arg(short, long)]
-        tag: Option<String>,
-
-        /// Semantic version to resolve to a release tag
-        #[arg(short = 'v', long, conflicts_with = "tag")]
-        semver: Option<String>,
-
-        /// Asset kind to install
-        #[arg(short, long, value_enum, default_value_t = Filetype::Auto)]
-        kind: Filetype,
-
-        /// Source provider hosting the repository. Defaults to auto-detection.
-        #[arg(short = 'p', long)]
-        provider: Option<Provider>,
-
-        /// Custom base URL. Defaults to provider's root
-        #[arg(long, requires = "provider")]
-        base_url: Option<String>,
-
-        /// Release channel to track for upgrades
-        #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
-        channel: Channel,
-
-        /// Match pattern to use as a hint for which asset to prefer
-        #[arg(short = 'm', long, name = "match")]
-        match_pattern: Option<String>,
-
-        /// Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")
-        #[arg(short = 'e', long, name = "exclude")]
-        exclude_pattern: Option<String>,
-
-        /// Create or disable a desktop launcher (auto-detected when omitted)
-        #[arg(short, long, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true", value_name = "BOOL")]
-        desktop: Option<bool>,
+        #[command(flatten)]
+        install_options: InstallOptions,
 
         /// Trust verification mode for downloaded assets
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
@@ -123,21 +94,15 @@ pub enum Commands {
         #[arg(short = 'b', long, conflicts_with = "tag")]
         branch: Option<String>,
 
-        /// Source provider hosting the repository. Defaults to auto-detection.
-        #[arg(short = 'p', long)]
-        provider: Option<Provider>,
-
-        /// Custom base URL. Defaults to provider's root
-        #[arg(long, requires = "provider")]
-        base_url: Option<String>,
+        #[command(flatten)]
+        provider_options: ProviderOptions,
 
         /// Release channel to track for future builds
         #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
         channel: Channel,
 
-        /// Create or disable a desktop launcher (auto-detected when omitted)
-        #[arg(short, long, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true", value_name = "BOOL")]
-        desktop: Option<bool>,
+        #[command(flatten)]
+        desktop_options: DesktopOptions,
 
         /// Build profile used to compile/install from source (auto-detected when omitted)
         #[arg(long, value_enum)]
@@ -184,6 +149,7 @@ pub enum Commands {
         long_about = "Reinstall packages from their stored source metadata.\n\n\
         Release packages are removed and installed again from the currently recorded \
         version tag. Build packages are removed and rebuilt from their recorded source. \
+        Install options override stored settings for the replacement. \
         Use --dry-run to preview resolution without touching files.\n\n\
         EXAMPLES:\n  \
         upstream reinstall nvim\n  \
@@ -194,6 +160,9 @@ pub enum Commands {
     Reinstall {
         /// Installed package names to reinstall
         names: Vec<String>,
+
+        #[command(flatten)]
+        install_options: InstallOptions,
 
         /// Trust verification mode for release-asset reinstalls
         #[arg(long = "trust", value_enum)]
@@ -385,17 +354,13 @@ pub enum Commands {
         upstream probe owner/repo -k archive\n  \
         upstream probe owner/repo --dry-run\n  \
         upstream probe owner/repo --json")]
+    #[command(mut_arg("base_url", |arg| arg.requires(clap::builder::Resettable::<clap::Id>::Reset)))]
     Probe {
         /// Repository identifier or download page URL to inspect
         repo_slug: String,
 
-        /// Source provider (defaults to GitHub, or scraper for plain URLs)
-        #[arg(short = 'p', long)]
-        provider: Option<Provider>,
-
-        /// Custom base URL for self-hosted providers
-        #[arg(long)]
-        base_url: Option<String>,
+        #[command(flatten)]
+        provider_options: ProviderOptions,
 
         /// Release channel to display and track
         #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
@@ -421,9 +386,8 @@ pub enum Commands {
         #[arg(short = 'j', long, default_value_t = false)]
         json: bool,
 
-        /// Create or disable a desktop launcher (auto-detected when omitted)
-        #[arg(short, long, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true", value_name = "BOOL")]
-        desktop: Option<bool>,
+        #[command(flatten)]
+        desktop_options: DesktopOptions,
 
         /// Trust verification mode for downloaded assets
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
@@ -452,45 +416,11 @@ pub enum Commands {
         #[arg(num_args(0..), value_delimiter = ' ')]
         query_words: Vec<String>,
 
-        /// Source provider to search (defaults to GitHub)
-        #[arg(short = 'p', long)]
-        provider: Option<Provider>,
+        #[command(flatten)]
+        provider_options: ProviderOptions,
 
-        /// Custom base URL for self-hosted providers
-        #[arg(long, requires = "provider")]
-        base_url: Option<String>,
-
-        /// Maximum number of results to display
-        #[arg(short = 'l', long, default_value_t = 10)]
-        limit: u32,
-
-        /// Restrict results to repositories with this primary language
-        #[arg(long)]
-        language: Option<String>,
-
-        /// Restrict results to repositories tagged with this topic
-        #[arg(long)]
-        topic: Option<String>,
-
-        /// Restrict results to repositories with at least this many stars
-        #[arg(long, value_name = "N")]
-        min_stars: Option<u64>,
-
-        /// Restrict results to repositories with at most this many stars
-        #[arg(long, value_name = "N")]
-        max_stars: Option<u64>,
-
-        /// Restrict results to repositories pushed on or after YYYY-MM-DD
-        #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_search_date)]
-        pushed_after: Option<NaiveDate>,
-
-        /// Include forked repositories in provider search results
-        #[arg(long, default_value_t = false)]
-        include_forks: bool,
-
-        /// Include archived repositories in provider search results
-        #[arg(long, default_value_t = false)]
-        include_archived: bool,
+        #[command(flatten)]
+        search_options: SearchOptions,
 
         /// Print repository search results as JSON
         #[arg(short = 'j', long, default_value_t = false)]
@@ -508,70 +438,27 @@ pub enum Commands {
         upstream find cli --language Rust --topic cli\n  \
         upstream find ripgrep -k binary\n  \
         upstream find app -p github --desktop --trust none")]
+    #[command(mut_arg("kind", |arg| arg.default_value("auto")))]
     Find {
         /// Query words
         #[arg(required = true, num_args(1..), value_delimiter = ' ')]
         query_words: Vec<String>,
 
-        /// Source provider to search (defaults to GitHub)
-        #[arg(short = 'p', long)]
-        provider: Option<Provider>,
+        #[command(flatten)]
+        provider_options: ProviderOptions,
 
-        /// Custom base URL for self-hosted providers
-        #[arg(long, requires = "provider")]
-        base_url: Option<String>,
+        #[command(flatten)]
+        search_options: SearchOptions,
 
-        /// Maximum number of results to display
-        #[arg(short = 'l', long, default_value_t = 10)]
-        limit: u32,
-
-        /// Restrict results to repositories with this primary language
-        #[arg(long)]
-        language: Option<String>,
-
-        /// Restrict results to repositories tagged with this topic
-        #[arg(long)]
-        topic: Option<String>,
-
-        /// Restrict results to repositories with at least this many stars
-        #[arg(long, value_name = "N")]
-        min_stars: Option<u64>,
-
-        /// Restrict results to repositories with at most this many stars
-        #[arg(long, value_name = "N")]
-        max_stars: Option<u64>,
-
-        /// Restrict results to repositories pushed on or after YYYY-MM-DD
-        #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_search_date)]
-        pushed_after: Option<NaiveDate>,
-
-        /// Include forked repositories in provider search results
-        #[arg(long, default_value_t = false)]
-        include_forks: bool,
-
-        /// Include archived repositories in provider search results
-        #[arg(long, default_value_t = false)]
-        include_archived: bool,
-
-        /// Asset kind to install
-        #[arg(short, long, value_enum, default_value_t = Filetype::Auto)]
-        kind: Filetype,
+        #[command(flatten)]
+        asset_options: AssetOptions,
 
         /// Release channel to track for upgrades
         #[arg(short, long, value_enum, default_value_t = Channel::Stable)]
         channel: Channel,
 
-        /// Match pattern to use as a hint for which asset to prefer
-        #[arg(short = 'm', long, name = "match")]
-        match_pattern: Option<String>,
-
-        /// Exclude pattern to filter out unwanted assets (e.g., "rocm", "debug")
-        #[arg(short = 'e', long, name = "exclude")]
-        exclude_pattern: Option<String>,
-
-        /// Create or disable a desktop launcher (auto-detected when omitted)
-        #[arg(short, long, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true", value_name = "BOOL")]
-        desktop: Option<bool>,
+        #[command(flatten)]
+        desktop_options: DesktopOptions,
 
         /// Trust verification mode for downloaded assets
         #[arg(long = "trust", value_enum, default_value_t = TrustMode::BestEffort)]
@@ -729,11 +616,6 @@ pub enum Commands {
         #[arg(short = 'j', long, default_value_t = false)]
         json: bool,
     },
-}
-
-fn parse_search_date(raw: &str) -> Result<NaiveDate, String> {
-    NaiveDate::parse_from_str(raw, "%Y-%m-%d")
-        .map_err(|_| format!("expected date in YYYY-MM-DD format, got '{raw}'"))
 }
 
 impl Commands {
@@ -1190,10 +1072,18 @@ mod desktop_option_tests {
                 args.extend(options);
                 let cli = Cli::try_parse_from(&args).unwrap();
                 let desktop = match cli.command {
-                    Commands::Install { desktop, .. }
-                    | Commands::Build { desktop, .. }
-                    | Commands::Probe { desktop, .. }
-                    | Commands::Find { desktop, .. } => desktop,
+                    Commands::Install {
+                        install_options, ..
+                    } => install_options.desktop_options.desktop,
+                    Commands::Build {
+                        desktop_options, ..
+                    }
+                    | Commands::Probe {
+                        desktop_options, ..
+                    }
+                    | Commands::Find {
+                        desktop_options, ..
+                    } => desktop_options.desktop,
                     _ => unreachable!(),
                 };
 
@@ -1204,6 +1094,115 @@ mod desktop_option_tests {
                 Cli::try_parse_from(["upstream", command, "owner/tool", "--desktop", "invalid"])
                     .is_err()
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod reinstall_option_tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn reinstall_accepts_every_install_flag() {
+        let command = Cli::command();
+        let install = command.find_subcommand("install").unwrap();
+        let reinstall = command.find_subcommand("reinstall").unwrap();
+        for arg in install
+            .get_arguments()
+            .filter(|arg| arg.get_long().is_some())
+        {
+            let counterpart = reinstall
+                .get_arguments()
+                .find(|other| other.get_long() == arg.get_long())
+                .unwrap_or_else(|| panic!("reinstall is missing --{}", arg.get_long().unwrap()));
+            assert_eq!(counterpart.get_short(), arg.get_short());
+        }
+        for selector in [vec!["--tag", "v2.0.0"], vec!["--semver", "2.0.0"]] {
+            let mut args = vec![
+                "upstream",
+                "reinstall",
+                "one",
+                "two",
+                "--kind",
+                "binary",
+                "--provider",
+                "gitea",
+                "--base-url",
+                "https://example.com",
+                "--channel",
+                "preview",
+                "--match-pattern",
+                "linux",
+                "--exclude-pattern",
+                "debug",
+                "--desktop=false",
+                "--trust",
+                "none",
+                "--force",
+                "--dry-run",
+            ];
+            args.extend(selector);
+            let cli = Cli::try_parse_from(args).unwrap();
+            let Commands::Reinstall {
+                names,
+                install_options,
+                trust_mode,
+                force,
+                dry_run,
+            } = cli.command
+            else {
+                unreachable!()
+            };
+            assert_eq!(names, ["one", "two"]);
+            assert_eq!(install_options.desktop_options.desktop, Some(false));
+            assert_eq!(trust_mode, Some(TrustMode::None));
+            assert!(force && dry_run);
+        }
+        assert!(
+            Cli::try_parse_from([
+                "upstream",
+                "reinstall",
+                "one",
+                "--tag",
+                "v2",
+                "--semver",
+                "2"
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "upstream",
+                "reinstall",
+                "one",
+                "--base-url",
+                "https://example.com"
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn reinstall_desktop_supports_auto_force_and_disable() {
+        for (args, expected) in [
+            (vec![], None),
+            (vec!["--desktop"], Some(true)),
+            (vec!["--desktop", "true"], Some(true)),
+            (vec!["--desktop", "false"], Some(false)),
+            (vec!["--desktop=false"], Some(false)),
+            (vec!["-d"], Some(true)),
+        ] {
+            let mut command = vec!["upstream", "reinstall", "one"];
+            command.extend(args);
+            let cli = Cli::try_parse_from(command).unwrap();
+            let Commands::Reinstall {
+                install_options, ..
+            } = cli.command
+            else {
+                unreachable!()
+            };
+            assert_eq!(install_options.desktop_options.desktop, expected);
         }
     }
 }
