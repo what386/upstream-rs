@@ -4,6 +4,7 @@ use crate::models::common::enums::TrustMode;
 pub struct PackageSettings {
     pub package_name: String,
     pub trust_mode: Option<TrustMode>,
+    pub desktop_launch_options: Option<String>,
 }
 
 impl PackageSettings {
@@ -11,6 +12,7 @@ impl PackageSettings {
         Self {
             package_name: package_name.into(),
             trust_mode: None,
+            desktop_launch_options: None,
         }
     }
 }

@@ -62,9 +62,13 @@ impl DesktopEntry {
             .unwrap_or(&package.id);
 
         let mut entry = DesktopEntry::new(name);
-        entry.exec = package
-            .primary_executable()
-            .map(|executable| executable.path.display().to_string());
+        entry.exec = package.primary_executable().map(|executable| {
+            if cfg!(target_os = "linux") {
+                Self::quote_exec_path(&executable.path)
+            } else {
+                executable.path.display().to_string()
+            }
+        });
         entry.icon = Some(
             package
                 .icon_path
@@ -95,13 +99,47 @@ impl DesktopEntry {
 
     /// Sanitize fields that must always be overridden
     pub fn sanitize(mut self, exec: &Path, icon: Option<&Path>) -> DesktopEntry {
-        self.exec = Some(exec.display().to_string());
+        self.exec = Some(if cfg!(target_os = "linux") {
+            Self::quote_exec_path(exec)
+        } else {
+            exec.display().to_string()
+        });
         self.icon = Some(
             icon.map(|path| path.display().to_string())
                 .unwrap_or_default(),
         );
         self.terminal = false;
         self
+    }
+
+    pub fn quote_exec_path(path: &Path) -> String {
+        Self::quote_exec_argument(&path.to_string_lossy())
+    }
+
+    pub fn quote_exec_argument(argument: &str) -> String {
+        let value = argument.replace('%', "%%");
+        // Preserve the existing simple representation when no quoting is needed.
+        if !value.is_empty()
+            && !value
+                .chars()
+                .any(|ch| ch.is_whitespace() || "\"'\\><~|&;$*?#()`".contains(ch))
+        {
+            return value;
+        }
+        let mut escaped = String::new();
+        for ch in value.chars() {
+            if matches!(ch, '"' | '`' | '$' | '\\') {
+                escaped.push('\\');
+            }
+            escaped.push(ch);
+        }
+        format!(
+            "\"{}\"",
+            escaped
+                .replace('\\', "\\\\")
+                .replace('\n', "\\n")
+                .replace('\r', "\\r")
+        )
     }
 
     /// Render to XDG .desktop format

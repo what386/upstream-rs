@@ -61,6 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_path_entries_position
 
 CREATE TABLE IF NOT EXISTS package_settings (
     package_id TEXT PRIMARY KEY NOT NULL,
+    desktop_launch_options TEXT,
     trust_mode TEXT CHECK (
         trust_mode IS NULL OR trust_mode IN (
             'None',

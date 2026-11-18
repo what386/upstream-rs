@@ -1045,6 +1045,8 @@ pub enum PackageAction {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, clap::ValueEnum)]
 pub enum PackageSettingKey {
+    #[value(name = "desktop_launch_options", alias = "desktop-launch-options")]
+    DesktopLaunchOptions,
     #[value(name = "match_pattern", alias = "match-pattern")]
     MatchPattern,
     #[value(name = "exclude_pattern", alias = "exclude-pattern")]

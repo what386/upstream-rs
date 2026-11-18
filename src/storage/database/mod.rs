@@ -11,7 +11,7 @@ mod settings;
 pub use api::PackageDatabase;
 pub use settings::PackageSettings;
 
-pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 12;
+pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 13;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 const MIGRATION_001_TO_002: &str = include_str!("migrations/001-to-002.sql");
@@ -25,6 +25,8 @@ const MIGRATION_008_TO_009: &str = include_str!("migrations/008-to-009.sql");
 const MIGRATION_009_TO_010: &str = include_str!("migrations/009-to-010.sql");
 const MIGRATION_010_TO_011: &str = include_str!("migrations/010-to-011.sql");
 const MIGRATION_011_TO_012: &str = include_str!("migrations/011-to-012.sql");
+
+const MIGRATION_012_TO_013: &str = include_str!("migrations/012-to-013.sql");
 
 fn initialize(conn: &Connection) -> Result<()> {
     conn.execute_batch("PRAGMA foreign_keys = ON;")
@@ -66,6 +68,7 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
             9 => (MIGRATION_009_TO_010, 10),
             10 => (MIGRATION_010_TO_011, 11),
             11 => (MIGRATION_011_TO_012, 12),
+            12 => (MIGRATION_012_TO_013, 13),
             version => bail!(
                 "Unsupported package database schema version {}. Expected version {} or earlier.",
                 version,
@@ -101,7 +104,9 @@ mod tests {
     #[test]
     fn migrates_v11_provider_constraint_and_preserves_package_relations() {
         let conn = Connection::open_in_memory().unwrap();
-        let legacy_schema = SCHEMA_SQL.replace(", 'AppImageHub'", "");
+        let legacy_schema = SCHEMA_SQL
+            .replace(", 'AppImageHub'", "")
+            .replace("    desktop_launch_options TEXT,\n", "");
         assert!(!legacy_schema.contains("AppImageHub"));
         conn.execute_batch(&legacy_schema).unwrap();
         conn.execute_batch(

@@ -6,6 +6,7 @@ pub mod hooks_op;
 pub mod import_op;
 pub mod install_op;
 pub mod metadata_op;
+pub mod package_op;
 pub mod probe_op;
 pub mod remove_op;
 pub mod rename_op;

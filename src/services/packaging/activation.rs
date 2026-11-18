@@ -1095,9 +1095,12 @@ mod tests {
             assert_eq!(installed.icon_path.is_some(), expected);
             if expected {
                 let content = fs::read_to_string(launcher).unwrap();
-                assert!(
-                    content.contains(&format!("Exec={}", installed.executables[0].path.display()))
-                );
+                assert!(content.contains(&format!(
+                    "Exec={}",
+                    crate::models::common::DesktopEntry::quote_exec_path(
+                        &installed.executables[0].path
+                    )
+                )));
 
                 assert!(installed.icon_path.unwrap().exists());
             }

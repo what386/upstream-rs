@@ -128,12 +128,109 @@ impl LinuxDesktopHandler {
             .filter(|value| !value.trim().is_empty())
             .map(str::to_owned);
 
+        let mut generated = generated;
+        if let (Some(embedded_exec), Some(generated_exec)) = (&embedded.exec, &mut generated.exec) {
+            let (_, remainder) = desktop_command(embedded_exec);
+            generated_exec.push_str(remainder);
+        }
         let mut merged = embedded.merge(generated).ensure_name(fallback_name);
         if embedded_name.is_some() {
             merged.name = embedded_name;
         }
 
         merged
+    }
+
+    pub(in super::super) fn adapt_launch_commands(
+        content: &str,
+        package: &crate::models::upstream::Package,
+        template: Option<&str>,
+    ) -> Result<String> {
+        use crate::services::integration::LauncherManager;
+        let options = template.map(LauncherManager::validate).transpose()?;
+        // Keep each unmodified command in its own group so set/set/unset is reversible.
+        const ORIGINAL: &str = "X-Upstream-Original-Exec=";
+        const DBUS_ORIGINAL: &str = "X-Upstream-Original-DBusActivatable=";
+        let mut output = String::new();
+        let mut group = Vec::new();
+        let mut launch_group = false;
+        let render = |lines: &[&str], launch_group: bool, output: &mut String| -> Result<()> {
+            if !launch_group {
+                for line in lines {
+                    output.push_str(line);
+                }
+                return Ok(());
+            }
+            let original = lines.iter().find_map(|line| line.strip_prefix(ORIGINAL));
+            let dbus_original = lines
+                .iter()
+                .find_map(|line| line.strip_prefix(DBUS_ORIGINAL));
+            for line in lines {
+                if line.starts_with(DBUS_ORIGINAL) {
+                    continue;
+                }
+                if let Some(current) = line.strip_prefix("DBusActivatable=") {
+                    let base = dbus_original
+                        .unwrap_or(current)
+                        .trim_end_matches(['\n', '\r']);
+                    if options.is_some() {
+                        output.push_str(DBUS_ORIGINAL);
+                        output.push_str(base);
+                        output.push_str("\nDBusActivatable=false");
+                    } else {
+                        output.push_str("DBusActivatable=");
+                        output.push_str(base);
+                    }
+                    if line.ends_with('\n') {
+                        output.push('\n');
+                    }
+                    continue;
+                }
+                if line.starts_with(ORIGINAL) {
+                    continue;
+                }
+                let Some(current) = line.strip_prefix("Exec=") else {
+                    output.push_str(line);
+                    continue;
+                };
+                let base = original.unwrap_or(current).trim_end_matches(['\n', '\r']);
+                let (token, remainder) = desktop_command(base);
+                let executable = package.executables.iter().find(|exec| {
+                    token == exec.path.to_string_lossy()
+                        || token == exec.name
+                        || Path::new(&token).file_name() == exec.path.file_name()
+                });
+                if let (Some(options), Some(exec)) = (&options, executable) {
+                    output.push_str(ORIGINAL);
+                    output.push_str(base);
+                    output.push('\n');
+                    output.push_str("Exec=");
+                    output.push_str(&LauncherManager::format_desktop_command(
+                        options, &exec.path,
+                    )?);
+                    output.push_str(remainder);
+                } else {
+                    output.push_str("Exec=");
+                    output.push_str(base);
+                }
+                if line.ends_with('\n') {
+                    output.push('\n');
+                }
+            }
+            Ok(())
+        };
+        for line in content.split_inclusive('\n') {
+            let trimmed = line.trim();
+            if trimmed.starts_with('[') {
+                render(&group, launch_group, &mut output)?;
+                group.clear();
+                launch_group =
+                    trimmed == "[Desktop Entry]" || trimmed.starts_with("[Desktop Action ");
+            }
+            group.push(line);
+        }
+        render(&group, launch_group, &mut output)?;
+        Ok(output)
     }
 
     fn write_entry(
@@ -229,6 +326,41 @@ impl LinuxDesktopHandler {
 
         Some(entry)
     }
+}
+
+// Desktop Entry values have an escaping layer in addition to Exec argument quoting.
+fn desktop_command(value: &str) -> (String, &str) {
+    let mut token = String::new();
+    let mut quoted = false;
+    let mut chars = value.char_indices().peekable();
+    while let Some((index, ch)) = chars.next() {
+        match ch {
+            '"' => quoted = !quoted,
+            '\\' => {
+                if let Some((_, next)) = chars.next() {
+                    if next == '\\' {
+                        // A doubled backslash encodes an Exec-level escape.
+                        if let Some(&(_, escaped)) = chars.peek()
+                            && matches!(escaped, '"' | '`' | '$' | '\\')
+                        {
+                            token.push(chars.next().unwrap().1);
+                        } else {
+                            token.push('\\');
+                        }
+                    } else {
+                        token.push(next);
+                    }
+                }
+            }
+            '%' if chars.peek().is_some_and(|(_, next)| *next == '%') => {
+                chars.next();
+                token.push('%');
+            }
+            ch if ch.is_whitespace() && !quoted => return (token, &value[index..]),
+            _ => token.push(ch),
+        }
+    }
+    (token, &value[value.len()..])
 }
 
 #[cfg(test)]

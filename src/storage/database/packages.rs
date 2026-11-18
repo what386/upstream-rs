@@ -171,7 +171,7 @@ impl PackageConnection {
         self.conn
             .query_row(
                 "
-                SELECT package_id, trust_mode
+                SELECT package_id, trust_mode, desktop_launch_options
                 FROM package_settings
                 WHERE package_id = ?1
                 ",
@@ -185,6 +185,7 @@ impl PackageConnection {
                     Ok(PackageSettings {
                         package_name: row.get(0)?,
                         trust_mode,
+                        desktop_launch_options: row.get(2)?,
                     })
                 },
             )
@@ -430,28 +431,26 @@ impl PackageConnection {
 }
 
 fn write_package_settings(tx: &Transaction<'_>, settings: &PackageSettings) -> Result<()> {
-    let Some(trust_mode) = settings.trust_mode.as_ref() else {
+    if settings.trust_mode.is_none() && settings.desktop_launch_options.is_none() {
         tx.execute(
             "DELETE FROM package_settings WHERE package_id = ?1",
             [&settings.package_name],
-        )
-        .with_context(|| {
-            format!(
-                "Failed to clear settings for package '{}'",
-                settings.package_name
-            )
-        })?;
+        )?;
         return Ok(());
-    };
-
-    let trust_mode = enum_to_db(trust_mode)?;
+    }
+    let trust_mode = settings.trust_mode.as_ref().map(enum_to_db).transpose()?;
     tx.execute(
         "
-        INSERT INTO package_settings (package_id, trust_mode)
-        VALUES (?1, ?2)
-        ON CONFLICT(package_id) DO UPDATE SET trust_mode = excluded.trust_mode
+        INSERT INTO package_settings (package_id, trust_mode, desktop_launch_options)
+        VALUES (?1, ?2, ?3)
+        ON CONFLICT(package_id) DO UPDATE SET trust_mode = excluded.trust_mode,
+            desktop_launch_options = excluded.desktop_launch_options
         ",
-        params![settings.package_name, trust_mode],
+        params![
+            settings.package_name,
+            trust_mode,
+            settings.desktop_launch_options
+        ],
     )
     .with_context(|| {
         format!(
@@ -760,6 +759,7 @@ mod tests {
             .expect("create current schema");
         conn.execute_batch(
             "
+            ALTER TABLE package_settings DROP COLUMN desktop_launch_options;
             ALTER TABLE packages RENAME COLUMN id TO name;
             ALTER TABLE patterns RENAME COLUMN package_id TO package_name;
             ALTER TABLE path_entries RENAME COLUMN package_id TO package_name;
@@ -805,6 +805,7 @@ mod tests {
             .expect("create current schema");
         conn.execute_batch(
             "
+            ALTER TABLE package_settings DROP COLUMN desktop_launch_options;
             ALTER TABLE packages RENAME COLUMN id TO name;
             ALTER TABLE patterns RENAME COLUMN package_id TO package_name;
             ALTER TABLE path_entries RENAME COLUMN package_id TO package_name;

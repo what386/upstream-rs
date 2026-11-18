@@ -333,7 +333,7 @@ pub struct DesktopManager<'a> {
 impl<'a> DesktopManager<'a> {
     /// Detect a desktop application without initializing integration services
     /// or extracting AppImages. Each platform owns its detection policy.
-    pub(crate) fn should_auto_integrate(package: &Package) -> bool {
+    pub fn should_auto_integrate(package: &Package) -> bool {
         #[cfg(target_os = "linux")]
         {
             LinuxDesktopHandler::should_auto_integrate(package)
@@ -365,6 +365,59 @@ impl<'a> DesktopManager<'a> {
         let backend = PlatformDesktopHandler::windows(WindowsDesktopHandler::new());
 
         Ok(Self { paths, backend })
+    }
+
+    fn package_settings(
+        paths: &UpstreamPaths,
+        package: &Package,
+    ) -> Result<crate::storage::database::PackageSettings> {
+        use crate::storage::database::{PackageDatabase, PackageSettings};
+        if !paths.metadata.packages_database_file.exists() {
+            return Ok(PackageSettings::new(&package.id));
+        }
+        Ok(
+            PackageDatabase::open(&paths.metadata.packages_database_file)?
+                .get_package_settings(&package.id)?
+                .unwrap_or_else(|| PackageSettings::new(&package.id)),
+        )
+    }
+
+    /// Rewrite only launch commands in an existing managed entry, preserving metadata.
+    pub fn update_launch_targets(
+        paths: &UpstreamPaths,
+        package: &Package,
+        settings: &crate::storage::database::PackageSettings,
+    ) -> Result<()> {
+        #[cfg(target_os = "linux")]
+        {
+            let entry = Self::managed_entry_path(paths, &package.id)?;
+            Self::update_entry_launch_targets(package, settings, &entry)?;
+        }
+        #[cfg(not(target_os = "linux"))]
+        let _ = (paths, package, settings);
+        Ok(())
+    }
+
+    fn update_entry_launch_targets(
+        package: &Package,
+        settings: &crate::storage::database::PackageSettings,
+        entry: &Path,
+    ) -> Result<()> {
+        #[cfg(target_os = "linux")]
+        if entry.is_file() {
+            let content = fs::read_to_string(entry)?;
+            let updated = LinuxDesktopHandler::adapt_launch_commands(
+                &content,
+                package,
+                settings.desktop_launch_options.as_deref(),
+            )?;
+            if updated != content {
+                write_atomic(entry, updated.as_bytes())?;
+            }
+        }
+        #[cfg(not(target_os = "linux"))]
+        let _ = (package, settings, entry);
+        Ok(())
     }
 
     pub async fn enable_package_entry<H>(
@@ -427,6 +480,11 @@ impl<'a> DesktopManager<'a> {
             return Err(err);
         }
 
+        Self::update_launch_targets(
+            self.paths,
+            &desktop_package,
+            &Self::package_settings(self.paths, &desktop_package)?,
+        )?;
         package.icon_path = icon_path;
         if let Some(previous_icon_path) = previous_icon_path
             && Some(&previous_icon_path) != package.icon_path.as_ref()
@@ -496,6 +554,11 @@ impl<'a> DesktopManager<'a> {
             )
             .await?;
 
+        Self::update_entry_launch_targets(
+            &desktop_package,
+            &Self::package_settings(self.paths, &desktop_package)?,
+            entry_path,
+        )?;
         final_package.icon_path = final_icon;
         Ok(staged_icon)
     }
