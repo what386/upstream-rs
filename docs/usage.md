@@ -90,7 +90,7 @@ These settings customize an installed package:
 | `match_pattern`          | Prefer asset names matching these comma-separated patterns.             |
 | `exclude_pattern`        | Exclude asset names matching these comma-separated patterns.            |
 | `trust_mode`             | Choose which checks to require when upgrading or reinstalling releases. |
-| `desktop_launch_options` | Customize how an app opens from its desktop launcher on Linux.          |
+| `desktop_launch_options` | Customize how an app opens from its desktop launcher.                   |
 
 ```bash
 upstream package get ripgrep
@@ -105,23 +105,16 @@ Use `package rename OLD NEW` to change an installed executable alias.
 
 ### Desktop launch options
 
-On Linux, use `desktop_launch_options` to add app flags or environment variables.
+On Linux and Windows, use `desktop_launch_options` to change how a desktop app opens.
 Include `{}` once, separated by spaces, where the app's command should go:
 
 ```bash
-upstream package set obsidian 'desktop_launch_options=env FOO=bar {} --disable-gpu'
+upstream package set obsidian 'desktop_launch_options=env KEY=value {} --disable-gpu'
 upstream package unset obsidian desktop_launch_options
 ```
 
 Keep the outer quotes as shown. For values with spaces, use double quotes inside,
-such as `'desktop_launch_options={} --profile "Work Profile"'`. Use `env KEY=value`
-for environment variables; shell expressions such as `$HOME` and pipes are not
-supported.
-
-Changes apply to the desktop launcher immediately and are kept across upgrades.
-If the app has no launcher, add one with `upstream package add-entry NAME`.
-Use `unset` to restore the normal launch command. These options only affect
-desktop launches.
+such as `'desktop_launch_options={} --profile "Work Profile"'`.
 
 ## Download verification
 
