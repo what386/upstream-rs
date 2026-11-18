@@ -72,7 +72,9 @@ pub fn set(name: &str, assignments: Vec<String>, paths: &UpstreamPaths) -> Resul
                 package.exclude_pattern = patterns;
             }
             PackageSettingKey::DesktopLaunchOptions => {
-                LauncherManager::require_support()?;
+                if cfg!(target_os = "macos") {
+                    bail!("Desktop integration is unsupported on macOS");
+                }
                 LauncherManager::validate(value)?;
                 settings.desktop_launch_options = Some(value.to_string());
             }
@@ -101,7 +103,9 @@ pub fn unset(name: &str, keys: Vec<PackageSettingKey>, paths: &UpstreamPaths) ->
             PackageSettingKey::ExcludePattern => package.exclude_pattern = PatternTable::empty(),
             PackageSettingKey::TrustMode => settings.trust_mode = None,
             PackageSettingKey::DesktopLaunchOptions => {
-                LauncherManager::require_support()?;
+                if cfg!(target_os = "macos") {
+                    bail!("Desktop integration is unsupported on macOS");
+                }
                 settings.desktop_launch_options = None;
             }
         }

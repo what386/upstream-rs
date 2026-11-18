@@ -388,12 +388,12 @@ impl<'a> DesktopManager<'a> {
         package: &Package,
         settings: &crate::storage::database::PackageSettings,
     ) -> Result<()> {
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", windows))]
         {
             let entry = Self::managed_entry_path(paths, &package.id)?;
             Self::update_entry_launch_targets(package, settings, &entry)?;
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", windows)))]
         let _ = (paths, package, settings);
         Ok(())
     }
@@ -415,7 +415,13 @@ impl<'a> DesktopManager<'a> {
                 write_atomic(entry, updated.as_bytes())?;
             }
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(windows)]
+        WindowsDesktopHandler::update_launch_commands(
+            entry,
+            package,
+            settings.desktop_launch_options.as_deref(),
+        )?;
+        #[cfg(not(any(target_os = "linux", windows)))]
         let _ = (package, settings, entry);
         Ok(())
     }

@@ -81,6 +81,67 @@ impl WindowsDesktopHandler {
         Ok(())
     }
 
+    /// Update existing shortcuts without changing their names, icons or working directories.
+    pub(in super::super) fn update_launch_commands(
+        directory: &Path,
+        package: &crate::models::upstream::Package,
+        template: Option<&str>,
+    ) -> Result<()> {
+        use crate::services::integration::LauncherManager;
+        if !directory.is_dir() {
+            return Ok(());
+        }
+        let command = template
+            .map(|template| {
+                let executable = package.primary_executable().ok_or_else(|| {
+                    anyhow!(
+                        "Package '{}' has no executable for its shortcut",
+                        package.id
+                    )
+                })?;
+                LauncherManager::format_windows_command(
+                    &LauncherManager::validate(template)?,
+                    &executable.path,
+                )
+            })
+            .transpose()?;
+        let quote = |value: &str| value.replace('\'', "''");
+        let mut script = vec![
+            "$ErrorActionPreference = 'Stop'".to_string(),
+            "$WshShell = New-Object -ComObject WScript.Shell".to_string(),
+            format!(
+                "$Links = @(Get-ChildItem -LiteralPath '{}' -Filter '*.lnk' -File)",
+                quote(&directory.to_string_lossy())
+            ),
+        ];
+        if let Some((target, arguments)) = command {
+            script.push(format!("$Target = '{}'", quote(&target)));
+            // Shortcut targets must be full paths; resolve an explicitly supplied prefix on PATH.
+            script.push("if (-not [System.IO.Path]::IsPathRooted($Target)) { $Target = (Get-Command -Name $Target -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source }".to_string());
+            script.push(format!("$Arguments = '{}'", quote(&arguments)));
+            script.push("foreach ($Link in $Links) { $Shortcut = $WshShell.CreateShortcut($Link.FullName); $OriginalPath = $Link.FullName + '.launch.json'; if (Test-Path -LiteralPath $OriginalPath) { $Original = Get-Content -LiteralPath $OriginalPath -Raw | ConvertFrom-Json } else { $Original = [PSCustomObject]@{ TargetPath = $Shortcut.TargetPath; Arguments = $Shortcut.Arguments }; $Original | ConvertTo-Json -Compress | Set-Content -LiteralPath $OriginalPath -Encoding UTF8 }; $Shortcut.TargetPath = $Target; $Shortcut.Arguments = $Arguments; if (-not [string]::IsNullOrEmpty($Original.Arguments)) { $Shortcut.Arguments += ' ' + $Original.Arguments }; $Shortcut.Save() }".to_string());
+        } else {
+            script.push("foreach ($Link in $Links) { $OriginalPath = $Link.FullName + '.launch.json'; if (Test-Path -LiteralPath $OriginalPath) { $Original = Get-Content -LiteralPath $OriginalPath -Raw | ConvertFrom-Json; $Shortcut = $WshShell.CreateShortcut($Link.FullName); $Shortcut.TargetPath = $Original.TargetPath; $Shortcut.Arguments = $Original.Arguments; $Shortcut.Save(); Remove-Item -LiteralPath $OriginalPath } }".to_string());
+        }
+        let output = Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                &script.join("; "),
+            ])
+            .output()
+            .context("Failed to execute PowerShell to update shortcut launch options")?;
+        anyhow::ensure!(
+            output.status.success(),
+            "Failed to update Windows shortcut launch options: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+        Ok(())
+    }
+
     pub(in super::super) fn remove_entry(paths: &UpstreamPaths, name: &str) -> Result<()> {
         let path = Self::managed_entry_path(paths, name);
         if path.exists() {
@@ -154,6 +215,9 @@ impl WindowsDesktopHandler {
             "$WshShell = New-Object -ComObject WScript.Shell".to_string(),
             "$Shortcut = $WshShell.CreateShortcut($ShortcutPath)".to_string(),
             format!("$Shortcut.TargetPath = '{target}'"),
+            // CreateShortcut opens an existing link too. Clear its previous launch
+            // options before recording the fresh command as the new baseline.
+            "$Shortcut.Arguments = ''".to_string(),
             "$Shortcut.Description = $Name".to_string(),
         ];
 
@@ -169,6 +233,7 @@ impl WindowsDesktopHandler {
         }
 
         script.push("$Shortcut.Save()".to_string());
+        script.push(format!("Get-ChildItem -LiteralPath '{directory_arg}' -Filter '*.lnk.launch.json' -File | Remove-Item -Force"));
         script.push("if (-not (Test-Path -LiteralPath $ShortcutPath -PathType Leaf)) { throw 'Shortcut was not created' }".to_string());
         // A changed ProductName must not leave duplicate launchers behind.
         script.push(format!("Get-ChildItem -LiteralPath '{directory_arg}' -Filter '*.lnk' | Where-Object {{ $_.FullName -ne $ShortcutPath }} | Remove-Item -Force"));
@@ -215,6 +280,159 @@ mod tests {
     use super::*;
     use crate::services::integration::DesktopManager;
     use crate::utils::test_support::{temp_root, upstream_paths};
+
+    fn inspect_shortcut(path: &Path, arguments: Option<&str>) -> serde_json::Value {
+        let quote = |value: &str| value.replace('\'', "''");
+        let update = arguments
+            .map(|arguments| format!("$s.Arguments = '{}'; $s.Save();", quote(arguments)))
+            .unwrap_or_default();
+        let script = format!(
+            "$ErrorActionPreference = 'Stop'; $s = (New-Object -ComObject WScript.Shell).CreateShortcut('{}'); {update} $s | Select-Object TargetPath, Arguments, Description, WorkingDirectory, IconLocation | ConvertTo-Json -Compress",
+            quote(&path.to_string_lossy())
+        );
+        let output = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        serde_json::from_slice(&output.stdout).unwrap()
+    }
+
+    #[tokio::test]
+    async fn windows_launch_options_update_restore_and_apply_to_prepared_shortcuts() {
+        use crate::{
+            application::{cli::arguments::PackageSettingKey, operations::package_op},
+            models::{
+                common::enums::{Channel, Provider},
+                upstream::{Package, PackageExecutable},
+            },
+            storage::database::PackageDatabase,
+        };
+        let root = temp_root("upstream-shortcuts", "O'Brien launch options");
+        let mut paths = upstream_paths(&root);
+        paths.integration.windows_programs_dir = root.join("Programs");
+        fs::create_dir_all(&root).unwrap();
+        let binary = root.join("app.exe");
+        fs::write(
+            &binary,
+            include_bytes!(
+                "../../../../../tests/fixtures/artifacts/windows/windows-version-info.bin"
+            ),
+        )
+        .unwrap();
+        let mut package = Package::with_defaults(
+            "tool".into(),
+            "owner/tool".into(),
+            Filetype::Binary,
+            None,
+            None,
+            Channel::Stable,
+            Provider::Github,
+            None,
+        );
+        package.install_path = Some(binary.clone());
+        package.executables.push(PackageExecutable {
+            name: "tool".into(),
+            path: binary.clone(),
+        });
+        let mut database = PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
+        database.upsert_package(&package).unwrap();
+        let directory = WindowsDesktopHandler::managed_entry_path(&paths, &package.id);
+        let apply = |template: &str| {
+            package_op::set(
+                "tool",
+                vec![format!("desktop_launch_options={template}")],
+                &paths,
+            )
+        };
+        apply(r#"{} --profile "Work Profile""#).unwrap();
+        assert!(!directory.exists());
+        package_op::add_entry("tool", &paths).await.unwrap();
+        let shortcut = directory.join("Example Launcher.lnk");
+        let first = inspect_shortcut(&shortcut, None);
+        assert_eq!(first["TargetPath"], binary.to_str().unwrap());
+        assert_eq!(first["Arguments"], r#"--profile "Work Profile""#);
+        // Recreating a configured shortcut must not accumulate flags.
+        package_op::add_entry("tool", &paths).await.unwrap();
+        assert_eq!(inspect_shortcut(&shortcut, None), first);
+        let prefix = std::env::current_exe().unwrap();
+        apply(&format!("\"{}\" {{}} --flag", prefix.display())).unwrap();
+        let prefixed = inspect_shortcut(&shortcut, None);
+        assert_eq!(prefixed["TargetPath"], prefix.to_str().unwrap());
+        assert!(
+            prefixed["Arguments"]
+                .as_str()
+                .unwrap()
+                .contains(binary.to_str().unwrap())
+        );
+        for field in ["Description", "WorkingDirectory", "IconLocation"] {
+            assert_eq!(prefixed[field], first[field]);
+        }
+        let before = fs::read(&shortcut).unwrap();
+        assert!(apply("upstream-nonexistent-launch-prefix-94783.exe {} --bad").is_err());
+        assert_eq!(fs::read(&shortcut).unwrap(), before);
+        assert!(
+            !package_op::get("tool", &paths)
+                .unwrap()
+                .1
+                .desktop_launch_options
+                .unwrap()
+                .contains("--bad")
+        );
+        package_op::unset(
+            "tool",
+            vec![PackageSettingKey::DesktopLaunchOptions],
+            &paths,
+        )
+        .unwrap();
+        let original = inspect_shortcut(&shortcut, Some(r#"--original "Original Profile""#));
+        apply("{} --one").unwrap();
+        apply("{} --two").unwrap();
+        assert_eq!(
+            inspect_shortcut(&shortcut, None)["Arguments"],
+            r#"--two --original "Original Profile""#
+        );
+        package_op::unset(
+            "tool",
+            vec![PackageSettingKey::DesktopLaunchOptions],
+            &paths,
+        )
+        .unwrap();
+        assert_eq!(inspect_shortcut(&shortcut, None), original);
+        assert!(
+            !shortcut
+                .with_file_name("Example Launcher.lnk.launch.json")
+                .exists()
+        );
+
+        // Upgrade preparation reads version info from staging but formats the final path.
+        apply("{} --flag").unwrap();
+        let mut final_package = package.clone();
+        let final_binary = root.join("future/app.exe");
+        final_package.install_path = Some(final_binary.clone());
+        final_package.executables[0].path = final_binary.clone();
+        let prepared = root.join("prepared");
+        DesktopManager::new(&paths)
+            .unwrap()
+            .prepare_package_entry(
+                &package,
+                &mut final_package,
+                &prepared,
+                &root.join("icons"),
+                &mut None::<fn(&str)>,
+            )
+            .await
+            .unwrap();
+        let staged = inspect_shortcut(&prepared.join("Example Launcher.lnk"), None);
+        assert_eq!(staged["TargetPath"], final_binary.to_str().unwrap());
+        assert_eq!(staged["Arguments"], "--flag");
+        assert!(!final_binary.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn start_menu_package_directory_preserves_friendly_names_on_rename_and_removal() {
