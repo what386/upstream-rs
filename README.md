@@ -155,6 +155,7 @@ To avoid GitHub rate limits, add a token with
 ## Documentation
 
 - [Usage guide](docs/usage.md)
+- [Advanced usage](docs/advanced.md)
 - [Configuration reference](docs/config.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Developer code map](docs/architecture.md)

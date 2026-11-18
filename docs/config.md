@@ -103,4 +103,4 @@ exports.
 `auth reset` clears all tokens after confirmation.
 
 For settings that affect only one installed package, see
-[package settings](usage.md#package-settings).
+[package settings](advanced.md#package-settings).
