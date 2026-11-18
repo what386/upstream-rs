@@ -83,6 +83,7 @@ sigstore = { version = "0.15.0", default-features = false, features = [
 async-trait = "0.1.92"
 strsim = "0.11.1"
 scraper = "0.29"
+shlex = "2.0"
 
 [dev-dependencies]
 sevenz-rust2 = { version = "0.25.0", default-features = false, features = [
