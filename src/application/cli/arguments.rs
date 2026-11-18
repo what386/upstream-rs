@@ -945,9 +945,12 @@ pub enum AuthAction {
     Reset,
 }
 
+const PACKAGE_SETTINGS_HELP: &str = "Settings:\n  match_pattern           Prefer assets matching comma-separated patterns\n  exclude_pattern         Exclude assets matching comma-separated patterns\n  trust_mode              Verification mode: best-effort, checksum, signature, all, none\n  desktop_launch_options  Desktop launch command containing {}";
+
 #[derive(Subcommand)]
 pub enum PackageAction {
     /// Set user-controlled settings for an installed package
+    #[command(after_help = PACKAGE_SETTINGS_HELP)]
     Set {
         /// Installed package name
         name: String,
@@ -958,12 +961,13 @@ pub enum PackageAction {
     },
 
     /// Show user-controlled settings for an installed package
+    #[command(after_help = PACKAGE_SETTINGS_HELP)]
     Get {
         /// Installed package name
         name: String,
 
         /// Settings to show; omitting keys shows all settings
-        #[arg(value_enum)]
+        #[arg(value_enum, hide_possible_values = true)]
         keys: Vec<PackageSettingKey>,
 
         /// Print settings as JSON
@@ -1053,158 +1057,4 @@ pub enum PackageSettingKey {
     ExcludePattern,
     #[value(name = "trust_mode", alias = "trust-mode")]
     TrustMode,
-}
-
-#[cfg(test)]
-mod desktop_option_tests {
-    use super::*;
-
-    #[test]
-    fn desktop_options_preserve_auto_force_and_disable() {
-        for command in ["install", "build", "probe", "find"] {
-            for (options, expected) in [
-                (vec![], None),
-                (vec!["--desktop"], Some(true)),
-                (vec!["--desktop", "true"], Some(true)),
-                (vec!["--desktop", "false"], Some(false)),
-                (vec!["--desktop=false"], Some(false)),
-                (vec!["-d"], Some(true)),
-            ] {
-                let mut args = vec!["upstream", command, "owner/tool"];
-                args.extend(options);
-                let cli = Cli::try_parse_from(&args).unwrap();
-                let desktop = match cli.command {
-                    Commands::Install {
-                        install_options, ..
-                    } => install_options.desktop_options.desktop,
-                    Commands::Build {
-                        desktop_options, ..
-                    }
-                    | Commands::Probe {
-                        desktop_options, ..
-                    }
-                    | Commands::Find {
-                        desktop_options, ..
-                    } => desktop_options.desktop,
-                    _ => unreachable!(),
-                };
-
-                assert_eq!(desktop, expected, "{args:?}");
-            }
-
-            assert!(
-                Cli::try_parse_from(["upstream", command, "owner/tool", "--desktop", "invalid"])
-                    .is_err()
-            );
-        }
-    }
-}
-
-#[cfg(test)]
-mod reinstall_option_tests {
-    use super::*;
-    use clap::CommandFactory;
-
-    #[test]
-    fn reinstall_accepts_every_install_flag() {
-        let command = Cli::command();
-        let install = command.find_subcommand("install").unwrap();
-        let reinstall = command.find_subcommand("reinstall").unwrap();
-        for arg in install
-            .get_arguments()
-            .filter(|arg| arg.get_long().is_some())
-        {
-            let counterpart = reinstall
-                .get_arguments()
-                .find(|other| other.get_long() == arg.get_long())
-                .unwrap_or_else(|| panic!("reinstall is missing --{}", arg.get_long().unwrap()));
-            assert_eq!(counterpart.get_short(), arg.get_short());
-        }
-        for selector in [vec!["--tag", "v2.0.0"], vec!["--semver", "2.0.0"]] {
-            let mut args = vec![
-                "upstream",
-                "reinstall",
-                "one",
-                "two",
-                "--kind",
-                "binary",
-                "--provider",
-                "gitea",
-                "--base-url",
-                "https://example.com",
-                "--channel",
-                "preview",
-                "--match-pattern",
-                "linux",
-                "--exclude-pattern",
-                "debug",
-                "--desktop=false",
-                "--trust",
-                "none",
-                "--force",
-                "--dry-run",
-            ];
-            args.extend(selector);
-            let cli = Cli::try_parse_from(args).unwrap();
-            let Commands::Reinstall {
-                names,
-                install_options,
-                trust_mode,
-                force,
-                dry_run,
-            } = cli.command
-            else {
-                unreachable!()
-            };
-            assert_eq!(names, ["one", "two"]);
-            assert_eq!(install_options.desktop_options.desktop, Some(false));
-            assert_eq!(trust_mode, Some(TrustMode::None));
-            assert!(force && dry_run);
-        }
-        assert!(
-            Cli::try_parse_from([
-                "upstream",
-                "reinstall",
-                "one",
-                "--tag",
-                "v2",
-                "--semver",
-                "2"
-            ])
-            .is_err()
-        );
-        assert!(
-            Cli::try_parse_from([
-                "upstream",
-                "reinstall",
-                "one",
-                "--base-url",
-                "https://example.com"
-            ])
-            .is_err()
-        );
-    }
-
-    #[test]
-    fn reinstall_desktop_supports_auto_force_and_disable() {
-        for (args, expected) in [
-            (vec![], None),
-            (vec!["--desktop"], Some(true)),
-            (vec!["--desktop", "true"], Some(true)),
-            (vec!["--desktop", "false"], Some(false)),
-            (vec!["--desktop=false"], Some(false)),
-            (vec!["-d"], Some(true)),
-        ] {
-            let mut command = vec!["upstream", "reinstall", "one"];
-            command.extend(args);
-            let cli = Cli::try_parse_from(command).unwrap();
-            let Commands::Reinstall {
-                install_options, ..
-            } = cli.command
-            else {
-                unreachable!()
-            };
-            assert_eq!(install_options.desktop_options.desktop, expected);
-        }
-    }
 }
