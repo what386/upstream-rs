@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-11-17
+@modified: 2026-11-18
 
 
 ## Tasks
@@ -14,6 +14,9 @@
 
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
+
+- [ ] feat: launch options, set with 'package set launch_options=
+      @created 2026-11-18 18:52
 
 
 ## Completed

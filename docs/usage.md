@@ -83,13 +83,14 @@ message when saved results include available updates.
 
 ## Package settings
 
-These settings affect future operations on an installed package:
+These settings customize an installed package:
 
-| Key               | Purpose                                                                 |
-| ----------------- | ----------------------------------------------------------------------- |
-| `match_pattern`   | Prefer asset names matching these comma-separated patterns.             |
-| `exclude_pattern` | Exclude asset names matching these comma-separated patterns.            |
-| `trust_mode`      | Choose which checks to require when upgrading or reinstalling releases. |
+| Key                      | Purpose                                                                 |
+| ------------------------ | ----------------------------------------------------------------------- |
+| `match_pattern`          | Prefer asset names matching these comma-separated patterns.             |
+| `exclude_pattern`        | Exclude asset names matching these comma-separated patterns.            |
+| `trust_mode`             | Choose which checks to require when upgrading or reinstalling releases. |
+| `desktop_launch_options` | Customize how an app opens from its desktop launcher on Linux.          |
 
 ```bash
 upstream package get ripgrep
@@ -101,6 +102,26 @@ upstream package unset ripgrep match_pattern trust_mode
 Unsetting patterns clears them; unsetting `trust_mode` restores `best-effort`.
 `--trust` overrides the saved setting for a single command.
 Use `package rename OLD NEW` to change an installed executable alias.
+
+### Desktop launch options
+
+On Linux, use `desktop_launch_options` to add app flags or environment variables.
+Include `{}` once, separated by spaces, where the app's command should go:
+
+```bash
+upstream package set obsidian 'desktop_launch_options=env FOO=bar {} --disable-gpu'
+upstream package unset obsidian desktop_launch_options
+```
+
+Keep the outer quotes as shown. For values with spaces, use double quotes inside,
+such as `'desktop_launch_options={} --profile "Work Profile"'`. Use `env KEY=value`
+for environment variables; shell expressions such as `$HOME` and pipes are not
+supported.
+
+Changes apply to the desktop launcher immediately and are kept across upgrades.
+If the app has no launcher, add one with `upstream package add-entry NAME`.
+Use `unset` to restore the normal launch command. These options only affect
+desktop launches.
 
 ## Download verification
 
