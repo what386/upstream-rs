@@ -79,13 +79,6 @@ pub async fn run(
         output::title(format!("Selected {}", result.repo_slug))
     );
 
-    if search.provider == crate::models::common::enums::Provider::CratesIo {
-        println!(
-            "crates.io provides source packages; use `upstream build crates-io:{}`",
-            result.repo_slug
-        );
-        return Ok(());
-    }
     install::run(
         result.repo_slug.clone(),
         kind,

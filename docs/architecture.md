@@ -10,6 +10,7 @@ build and test commands.
 | Area                                                | Start here                                                      |
 | --------------------------------------------------- | --------------------------------------------------------------- |
 | Command options and help                            | [CLI arguments](../src/application/cli/arguments.rs)            |
+| Provider-dependent command and flag rules           | [CLI gates](../src/application/cli/gates.rs)                    |
 | Running commands and taking locks                   | [CLI dispatch](../src/application/cli/dispatch.rs)              |
 | Command output and interactive flows                | [Source](../src/)                                               |
 | Code shared by commands                             | [Application](../src/application/)                              |
@@ -32,10 +33,13 @@ build and test commands.
 ## How commands run
 
 1. [Early handling](../src/early.rs) handles help, version, shell completion, and
-   saved update results before normal startup.
+   saved update results before normal startup. After parsing, [CLI gates](../src/application/cli/gates.rs)
+   reject unsupported command/provider/flag combinations before configuration,
+   migrations, or network access. Clap handles ordinary argument conflicts.
 2. [Main](../src/main.rs) starts logging, checks layout compatibility, and loads settings.
-3. [Dispatch](../src/application/cli/dispatch.rs) takes a lock if needed, then
-   runs the command.
+3. [Dispatch](../src/application/cli/dispatch.rs) takes a lock if needed and runs
+   the command. Gates use parsed arguments and do not open the package database.
+   Providers and services do not validate CLI flags.
 4. Commands use operations and services to do the work. For installs, this means
    finding a release, downloading it, checking it, and preparing the files.
 5. The activator moves the files into place, adds shell and desktop integration,

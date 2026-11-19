@@ -38,7 +38,7 @@ pub struct AssetOptions {
 /// Options for installing packages.
 #[derive(Args, Debug, Default)]
 pub struct InstallOptions {
-    /// Release tag to install
+    /// Release tag or crate version
     #[arg(short, long)]
     pub tag: Option<String>,
 

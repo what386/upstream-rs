@@ -4,7 +4,10 @@ use clap::Parser;
 
 use upstream_rs::{
     application::{
-        cli::arguments::{Cli, Commands},
+        cli::{
+            arguments::{Cli, Commands},
+            gates,
+        },
         commands::updates,
     },
     completion,
@@ -19,6 +22,7 @@ pub fn run() -> Result<Option<Cli>> {
     }
 
     let cli = Cli::parse();
+    gates::validate(&cli.command).unwrap_or_else(|error| error.exit());
     match cli.command {
         Commands::Updates { notify: true, .. } => {
             if let Ok(paths) = UpstreamPaths::new() {

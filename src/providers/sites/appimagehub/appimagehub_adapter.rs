@@ -217,13 +217,8 @@ impl ReleaseProvider for AppImageHubAdapter {
         &self,
         query: &str,
         limit: Option<u32>,
-        filters: &RepositorySearchFilters,
+        _filters: &RepositorySearchFilters,
     ) -> Result<Vec<RepositorySearchResult>> {
-        ensure!(
-            *filters == RepositorySearchFilters::default(),
-            "AppImageHub search supports text queries and --limit; forge filters (language, topic, stars, pushed-after, forks, archived) are not supported"
-        );
-
         let limit = limit.unwrap_or(10).max(1);
         let page_size = limit.clamp(10, 100);
         let categories = self.client.get_application_categories().await?;

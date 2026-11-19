@@ -22,12 +22,13 @@ class CratesIoLiveTests(unittest.TestCase):
         self.assertTrue(version)
         self.assertGreater(crate["metadata"]["downloads"], 0)
 
-        # Each invocation creates a fresh client; the second exercises persistent
-        # conditional caching against the real sparse index. Both are previews.
+        # Fresh clients exercise persistent sparse-index caching and both spellings
+        # of an exact crate version. These commands only fetch metadata.
         for source in ["crates-io:ripgrep", "https://crates.io/crates/ripgrep"]:
-            preview = run_upstream("build", source, "--semver", version, "--dry-run")
-            self.assertIn("crates-io:ripgrep", preview.stdout)
-            self.assertIn(version, preview.stdout)
+            for selector in ["--semver", "--tag"]:
+                preview = run_upstream("build", source, selector, version, "--dry-run")
+                self.assertIn("crates-io:ripgrep", preview.stdout)
+                self.assertIn(version, preview.stdout)
 
 
 if __name__ == "__main__":

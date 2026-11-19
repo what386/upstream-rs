@@ -38,15 +38,6 @@ pub async fn run(
     paths: &UpstreamPaths,
     app_config: &AppConfig,
 ) -> Result<()> {
-    if provider == Some(Provider::CratesIo)
-        || (provider.is_none()
-            && crate::providers::discovery::infer_source(&repo_slug)
-                .is_ok_and(|source| source.provider == Provider::CratesIo))
-    {
-        let name = crate::providers::sites::crates_io::crate_name(&repo_slug)?;
-        anyhow::bail!("crates.io provides source packages; use `upstream build crates-io:{name}`");
-    }
-
     let context = CommandContext::new(paths, app_config)?;
     let probe_operation = ProbeOperation::new(&context.provider_manager);
     let probe_result = probe_operation

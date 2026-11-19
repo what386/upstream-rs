@@ -83,7 +83,7 @@ pub enum Commands {
         /// GitHub, GitLab, or Gitea repository identifier or URL
         repo_slug: String,
 
-        /// Release tag to build (defaults to latest matching the channel)
+        /// Release tag to build (defaults to latest)
         #[arg(short, long, conflicts_with = "branch")]
         tag: Option<String>,
 
