@@ -697,14 +697,16 @@ impl<'a> DesktopManager<'a> {
 
         #[cfg(not(target_os = "macos"))]
         {
-            if path_exists_no_follow(&Self::managed_entry_path(paths, name)?)? {
-                return Ok(true);
-            }
+            let managed_path = Self::managed_entry_path(paths, name)?;
 
             #[cfg(windows)]
-            return path_exists_no_follow(&Self::legacy_entry_path(paths, name));
+            {
+                Ok(path_exists_no_follow(&managed_path)?
+                    || path_exists_no_follow(&Self::legacy_entry_path(paths, name))?)
+            }
+
             #[cfg(not(windows))]
-            Ok(false)
+            path_exists_no_follow(&managed_path)
         }
     }
 }

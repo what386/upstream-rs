@@ -48,18 +48,13 @@ fn add_shells_from_path(shells: &mut Vec<String>, path_dirs: &[PathBuf]) {
 
 fn shell_exists_in_path(shell: &str, path_dirs: &[PathBuf]) -> bool {
     path_dirs.iter().any(|dir| {
-        if dir.join(shell).is_file() {
-            return true;
-        }
-
         #[cfg(windows)]
         {
-            if dir.join(format!("{shell}.exe")).is_file() {
-                return true;
-            }
+            dir.join(shell).is_file() || dir.join(format!("{shell}.exe")).is_file()
         }
 
-        false
+        #[cfg(not(windows))]
+        dir.join(shell).is_file()
     })
 }
 
