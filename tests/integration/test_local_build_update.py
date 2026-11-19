@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import closing
 import os
 from pathlib import Path
 import shutil
@@ -29,20 +30,24 @@ class LocalBuildUpdateIntegrationTests(unittest.TestCase):
             XDG_DATA_HOME=str(self.home / ".local/share"),
             XDG_DATA_DIRS=str(self.home / ".local/share"),
         )
+        # Let Upstream initialize its current schema and version together.
+        subprocess.run(
+            ["cargo", "run", "--locked", "--quiet", "--features", "shell-completions",
+             "--bin", "upstream", "--", "--no-pager", "hooks", "init"],
+            cwd=ROOT, env=self.env, text=True, capture_output=True, check=True,
+        )
         self.binary = self.home / ".upstream/packages/binaries/custom-upstream-filename"
-        self.binary.parent.mkdir(parents=True)
+        self.binary.parent.mkdir(parents=True, exist_ok=True)
         self.original_binary = b"#!/bin/sh\nprintf 'old fixture binary\\n'\n"
         self.binary.write_bytes(self.original_binary)
         self.binary.chmod(0o755)
         links = self.home / ".upstream/state/symlinks"
-        links.mkdir(parents=True)
+        links.mkdir(parents=True, exist_ok=True)
         for alias in ("upstream", "upstream-dev"):
             (links / alias).symlink_to(self.binary)
 
         self.database = self.home / ".upstream/metadata/packages.db"
-        self.database.parent.mkdir(parents=True)
-        with sqlite3.connect(self.database) as database:
-            database.executescript((ROOT / "src/storage/database/schema.sql").read_text())
+        with closing(sqlite3.connect(self.database)) as database, database:
             database.execute(
                 """INSERT INTO packages
                    (id, repo_slug, filetype, version_major, version_minor, version_patch,
@@ -58,7 +63,7 @@ class LocalBuildUpdateIntegrationTests(unittest.TestCase):
                  for alias in ("upstream", "upstream-dev")],
             )
         self.nushell = self.home / ".local/share/nushell/vendor/autoload/upstream.nu"
-        self.nushell.parent.mkdir(parents=True)
+        self.nushell.parent.mkdir(parents=True, exist_ok=True)
         self.nushell.write_text("# previous completion\n")
 
     def update(self) -> subprocess.CompletedProcess[str]:
@@ -78,7 +83,7 @@ class LocalBuildUpdateIntegrationTests(unittest.TestCase):
         self.assertTrue(
             (self.home / ".local/share/bash-completion/completions/upstream").is_file()
         )
-        with sqlite3.connect(self.database) as database:
+        with closing(sqlite3.connect(self.database)) as database, database:
             self.assertEqual(database.execute(
                 "SELECT id, install_path, is_pinned, release_tag FROM packages"
             ).fetchone(), ("github:what386/upstream-rs", str(self.binary), 1, None))
@@ -94,7 +99,7 @@ class LocalBuildUpdateIntegrationTests(unittest.TestCase):
             self.assertNotIn("old fixture", version.stdout)
 
     def test_failed_metadata_update_restores_binary_and_completions(self) -> None:
-        with sqlite3.connect(self.database) as database:
+        with closing(sqlite3.connect(self.database)) as database, database:
             database.executescript("""
                 CREATE TRIGGER reject_local_build BEFORE UPDATE ON packages BEGIN
                     SELECT RAISE(FAIL, 'injected metadata failure');
