@@ -299,6 +299,14 @@ impl<'a> UnitManager<'a> {
     }
 
     pub fn availability_notice(&self, id: &str) -> Result<Option<String>> {
+        self.availability_notice_with(id, unit_is_enabled)
+    }
+
+    fn availability_notice_with(
+        &self,
+        id: &str,
+        mut is_enabled: impl FnMut(&str) -> bool,
+    ) -> Result<Option<String>> {
         use std::fmt::Write;
         let paths = self.installed_paths(id)?;
         if paths.is_empty() {
@@ -312,7 +320,10 @@ impl<'a> UnitManager<'a> {
             writeln!(notice, "  {name}").expect("write unit notice");
 
             // Templates need an instance before they can be started.
-            if !name.contains("@.") && has_install_rules(&fs::read_to_string(&path)?) {
+            if !name.contains("@.")
+                && has_install_rules(&fs::read_to_string(&path)?)
+                && !is_enabled(&name)
+            {
                 let quoted_name = name.replace('\'', "'\\''");
                 commands.push(format!("  systemctl --user enable --now '{quoted_name}'"));
             }
@@ -409,6 +420,23 @@ impl<'a> UnitManager<'a> {
         reload()?;
         Ok(true)
     }
+}
+
+fn unit_is_enabled(name: &str) -> bool {
+    let output = std::process::Command::new("systemctl")
+        .args(["--user", "--no-ask-password", "is-enabled", "--", name])
+        .stdin(std::process::Stdio::null())
+        .output();
+
+    // Other successful states (such as linked or static) do not mean enabled.
+    // Keep the hint if systemctl is unavailable or cannot determine the state.
+    output.is_ok_and(|output| {
+        output.status.success()
+            && matches!(
+                String::from_utf8_lossy(&output.stdout).trim(),
+                "enabled" | "enabled-runtime"
+            )
+    })
 }
 
 fn owner_marker(id: &str) -> String {
@@ -598,8 +626,12 @@ mod tests {
 
         let manager = UnitManager::new(&paths);
         assert_eq!(manager.install(&package(&paths), &stage).unwrap().len(), 2);
-        let notice = manager.availability_notice("tool").unwrap().unwrap();
+        let notice = manager
+            .availability_notice_with("tool", |_| false)
+            .unwrap()
+            .unwrap();
         assert!(notice.contains("systemctl --user enable --now 'upstream-update-check.timer'"));
+        let notice = manager.availability_notice("tool").unwrap().unwrap();
 
         write(
             paths.config.config_file.parent().unwrap(),
@@ -703,9 +735,25 @@ mod tests {
         let manager = UnitManager::new(&paths);
         manager.install(&package, &stage).unwrap();
         assert_eq!(
-            manager.availability_notice(&package.id).unwrap().unwrap(),
+            manager
+                .availability_notice_with(&package.id, |_| false)
+                .unwrap()
+                .unwrap(),
             "systemd user units available:\n  tool@.service\n  upstream-update-check.service\n  upstream-update-check.timer\nStart with:\n  systemctl --user enable --now 'upstream-update-check.timer'"
         );
+
+        let mut checked = Vec::new();
+        let notice = manager
+            .availability_notice_with(&package.id, |name| {
+                checked.push(name.to_owned());
+                true
+            })
+            .unwrap()
+            .unwrap();
+        assert_eq!(checked, ["upstream-update-check.timer"]);
+        assert!(notice.contains("upstream-update-check.timer"));
+        assert!(!notice.contains("Start with:"));
+        assert!(!notice.contains("systemctl"));
 
         // With only static units, there is no enable instruction.
         fs::remove_file(
@@ -719,6 +767,28 @@ mod tests {
         assert!(notice.contains("upstream-update-check.service"));
         assert!(!notice.contains("Start with:"));
         assert!(!notice.contains("systemctl"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn availability_notice_only_suggests_units_that_are_not_already_enabled() {
+        let root = test_support::temp_root("upstream-unit-test", "enabled-notice");
+        let paths = test_support::upstream_paths(&root);
+        let package = package(&paths);
+        let stage = root.join("stage");
+        write(&stage, "enabled.service", SERVICE);
+        write(&stage, "disabled.service", SERVICE);
+        let manager = UnitManager::new(&paths);
+        manager.install(&package, &stage).unwrap();
+
+        let notice = manager
+            .availability_notice_with(&package.id, |name| name == "enabled.service")
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            notice,
+            "systemd user units available:\n  disabled.service\n  enabled.service\nStart with:\n  systemctl --user enable --now 'disabled.service'"
+        );
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -808,7 +878,10 @@ mod tests {
             "unrelated.service",
             SERVICE,
         );
-        let notice = manager.availability_notice(&package.id).unwrap().unwrap();
+        let notice = manager
+            .availability_notice_with(&package.id, |_| false)
+            .unwrap()
+            .unwrap();
         assert!(notice.contains("systemd user units available"));
         assert!(notice.contains("tool.service"));
         assert!(notice.contains("systemctl --user enable --now 'tool.service'"));
