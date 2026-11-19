@@ -721,7 +721,7 @@ fn persist_check_cache(paths: &UpstreamPaths, rows: &[UpdateCheckRow]) -> Result
         )?
         .list_packages()?;
 
-        crate::storage::updates::refresh(paths, &packages, rows, chrono::Utc::now())
+        crate::storage::updates::refresh(paths, &packages, rows, jiff::Timestamp::now())
     })();
 
     if let Err(error) = result {
@@ -1044,7 +1044,7 @@ mod tests {
                         latest: "1.0.0".into(),
                     },
                 }],
-                chrono::Utc::now(),
+                jiff::Timestamp::now(),
             )
             .unwrap();
             let result = super::run(

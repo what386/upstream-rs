@@ -656,7 +656,7 @@ mod tests {
     use crate::models::common::version::Version;
     use crate::models::provider::{Asset, Release};
     use crate::providers::provider_manager::ProviderManager;
-    use chrono::Utc;
+    use jiff::Timestamp;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -680,7 +680,7 @@ mod tests {
             is_prerelease: false,
             assets: Vec::new(),
             version: Version::new(1, 0, 0, false),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         }
     }
 
@@ -694,7 +694,7 @@ mod tests {
             is_prerelease: false,
             assets,
             version: Version::new(1, 0, 0, false),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         }
     }
 
@@ -863,14 +863,14 @@ mod tests {
                 1,
                 "checksums.txt".to_string(),
                 10,
-                Utc::now(),
+                Timestamp::now(),
             ),
             Asset::new(
                 "https://example.invalid/tool.tar.gz.sha256".to_string(),
                 2,
                 "tool.tar.gz.sha256".to_string(),
                 10,
-                Utc::now(),
+                Timestamp::now(),
             ),
         ];
 
@@ -890,14 +890,14 @@ mod tests {
                 1,
                 "checksums".to_string(),
                 10,
-                Utc::now(),
+                Timestamp::now(),
             ),
             Asset::new(
                 "https://example.invalid/checksums-bsd".to_string(),
                 2,
                 "checksums-bsd".to_string(),
                 10,
-                Utc::now(),
+                Timestamp::now(),
             ),
         ];
 

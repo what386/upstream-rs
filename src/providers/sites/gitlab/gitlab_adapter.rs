@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use std::path::Path;
 
 use crate::models::common::Version;
@@ -67,7 +67,7 @@ impl GitlabAdapter {
         &self,
         project_path: &str,
         from_version: &Version,
-        from_published_at: DateTime<Utc>,
+        from_published_at: Timestamp,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
         let per_page = per_page.unwrap_or(20).min(100);
@@ -165,13 +165,12 @@ impl GitlabAdapter {
         }
     }
 
-    fn parse_timestamp(raw: &str) -> DateTime<Utc> {
+    fn parse_timestamp(raw: &str) -> Timestamp {
         if raw.trim().is_empty() {
-            return DateTime::<Utc>::MIN_UTC;
+            return Timestamp::MIN;
         }
 
-        raw.parse::<DateTime<Utc>>()
-            .unwrap_or(DateTime::<Utc>::MIN_UTC)
+        raw.parse::<Timestamp>().unwrap_or(Timestamp::MIN)
     }
 }
 
@@ -194,7 +193,7 @@ impl ReleaseProvider for GitlabAdapter {
         &self,
         slug: &str,
         from_version: &Version,
-        from_published_at: DateTime<Utc>,
+        from_published_at: Timestamp,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
         GitlabAdapter::get_releases_newer_than(
@@ -237,18 +236,13 @@ mod tests {
     use crate::providers::sites::gitlab::gitlab_dtos::{
         GitlabAssetsDto, GitlabLinkDto, GitlabReleaseDto, GitlabSourceDto,
     };
+    use jiff::Timestamp;
 
     #[test]
     fn parse_timestamp_handles_invalid_values() {
-        assert_eq!(
-            GitlabAdapter::parse_timestamp(""),
-            chrono::DateTime::<chrono::Utc>::MIN_UTC
-        );
+        assert_eq!(GitlabAdapter::parse_timestamp(""), Timestamp::MIN);
 
-        assert_eq!(
-            GitlabAdapter::parse_timestamp("bad-date"),
-            chrono::DateTime::<chrono::Utc>::MIN_UTC
-        );
+        assert_eq!(GitlabAdapter::parse_timestamp("bad-date"), Timestamp::MIN);
     }
 
     #[test]

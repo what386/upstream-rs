@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, anyhow};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use rusqlite::Row;
 use serde::{Serialize, de::DeserializeOwned};
 
@@ -154,14 +154,12 @@ fn db_bool(value: i64) -> bool {
     value != 0
 }
 
-fn parse_timestamp(value: String, column: usize) -> rusqlite::Result<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(&value)
-        .map(|timestamp| timestamp.with_timezone(&Utc))
-        .map_err(|err| {
-            rusqlite::Error::FromSqlConversionFailure(
-                column,
-                rusqlite::types::Type::Text,
-                Box::new(err),
-            )
-        })
+fn parse_timestamp(value: String, column: usize) -> rusqlite::Result<Timestamp> {
+    value.parse::<Timestamp>().map_err(|err| {
+        rusqlite::Error::FromSqlConversionFailure(
+            column,
+            rusqlite::types::Type::Text,
+            Box::new(err),
+        )
+    })
 }

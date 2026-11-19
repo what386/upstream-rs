@@ -1,17 +1,17 @@
 //! Human-readable formatting for elapsed time and byte counts.
-use chrono::{DateTime, Utc};
 use indicatif::HumanBytes;
+use jiff::Timestamp;
 
 const SECONDS_PER_MINUTE: i64 = 60;
 const SECONDS_PER_HOUR: i64 = 60 * SECONDS_PER_MINUTE;
 const SECONDS_PER_DAY: i64 = 24 * SECONDS_PER_HOUR;
 
-fn elapsed_seconds(checked_at: DateTime<Utc>, now: DateTime<Utc>) -> i64 {
-    (now - checked_at).num_seconds().max(0)
+fn elapsed_seconds(checked_at: Timestamp, now: Timestamp) -> i64 {
+    (now - checked_at).as_secs().max(0)
 }
 
 /// Compact elapsed age, such as `40m ago`. Future timestamps become `0s ago`.
-pub fn compact_age(checked_at: DateTime<Utc>, now: DateTime<Utc>) -> String {
+pub fn compact_age(checked_at: Timestamp, now: Timestamp) -> String {
     let seconds = elapsed_seconds(checked_at, now);
     let (amount, unit) = if seconds >= SECONDS_PER_DAY {
         (seconds / SECONDS_PER_DAY, "d")
@@ -27,7 +27,7 @@ pub fn compact_age(checked_at: DateTime<Utc>, now: DateTime<Utc>) -> String {
 }
 
 /// Elapsed age in words, such as `2 hours ago`, or `just now` below one minute.
-pub fn age(checked_at: DateTime<Utc>, now: DateTime<Utc>) -> String {
+pub fn age(checked_at: Timestamp, now: Timestamp) -> String {
     let seconds = elapsed_seconds(checked_at, now);
     let (amount, unit) = if seconds >= SECONDS_PER_DAY {
         (seconds / SECONDS_PER_DAY, "day")
@@ -43,7 +43,7 @@ pub fn age(checked_at: DateTime<Utc>, now: DateTime<Utc>) -> String {
 }
 
 /// Coarse date age for repository listings. Months use 30 days and years 12 months.
-pub fn relative_date(updated_at: DateTime<Utc>, now: DateTime<Utc>) -> String {
+pub fn relative_date(updated_at: Timestamp, now: Timestamp) -> String {
     let days = elapsed_seconds(updated_at, now) / SECONDS_PER_DAY;
     if days == 0 {
         return "today".into();
@@ -74,11 +74,11 @@ pub fn format_transfer(completed: u64, total: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{Duration, TimeZone};
+    use jiff::SignedDuration;
 
     #[test]
     fn compact_ages_use_seconds_minutes_hours_and_days() {
-        let now = Utc.with_ymd_and_hms(2026, 5, 10, 0, 0, 0).unwrap();
+        let now = "2026-05-10T00:00:00Z".parse::<Timestamp>().unwrap();
         for (seconds, expected) in [
             (-60, "0s ago"),
             (0, "0s ago"),
@@ -91,13 +91,16 @@ mod tests {
             (86_400, "1d ago"),
             (30 * 86_400, "30d ago"),
         ] {
-            assert_eq!(compact_age(now - Duration::seconds(seconds), now), expected);
+            assert_eq!(
+                compact_age(now - SignedDuration::from_secs(seconds), now),
+                expected
+            );
         }
     }
 
     #[test]
     fn ages_in_words_handle_singular_plural_and_future_timestamps() {
-        let now = Utc.with_ymd_and_hms(2026, 5, 10, 0, 0, 0).unwrap();
+        let now = "2026-05-10T00:00:00Z".parse::<Timestamp>().unwrap();
         for (seconds, expected) in [
             (-3_600, "just now"),
             (59, "just now"),
@@ -108,13 +111,13 @@ mod tests {
             (86_400, "1 day ago"),
             (172_800, "2 days ago"),
         ] {
-            assert_eq!(age(now - Duration::seconds(seconds), now), expected);
+            assert_eq!(age(now - SignedDuration::from_secs(seconds), now), expected);
         }
     }
 
     #[test]
     fn relative_dates_use_readable_buckets() {
-        let now = Utc.with_ymd_and_hms(2026, 5, 10, 0, 0, 0).unwrap();
+        let now = "2026-05-10T00:00:00Z".parse::<Timestamp>().unwrap();
         for (days, expected) in [
             (-1, "today"),
             (0, "today"),
@@ -125,7 +128,10 @@ mod tests {
             (360, "1 year ago"),
             (800, "2 years ago"),
         ] {
-            assert_eq!(relative_date(now - Duration::days(days), now), expected);
+            assert_eq!(
+                relative_date(now - SignedDuration::from_hours(24 * days), now),
+                expected
+            );
         }
     }
 

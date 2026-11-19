@@ -492,7 +492,7 @@ mod tests {
         provider::{Asset, Release},
     };
     use crate::providers::assets::AssetCandidate;
-    use chrono::Utc;
+    use jiff::Timestamp;
 
     #[test]
     fn explicit_forge_urls_resolve_repository_and_origin() {
@@ -737,7 +737,7 @@ mod tests {
             is_prerelease: false,
             assets: Vec::new(),
             version: Version::new(1, 0, 0, false),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         };
 
         let source = DiscoveredSource {
@@ -753,7 +753,7 @@ mod tests {
             1,
             "tool.tar.gz".to_string(),
             1000,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let result = DiscoveryResult {

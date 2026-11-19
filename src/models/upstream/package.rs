@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -37,7 +37,7 @@ pub struct Package {
     #[serde(default)]
     pub release_tag: Option<String>,
     #[serde(default)]
-    pub release_published_at: Option<DateTime<Utc>>,
+    pub release_published_at: Option<Timestamp>,
     /// Legacy fallback for metadata written before exact release tags were stored.
     #[serde(default)]
     pub version_tag_template: Option<String>,
@@ -58,7 +58,7 @@ pub struct Package {
     #[serde(default)]
     pub executables: Vec<PackageExecutable>,
 
-    pub last_upgraded: DateTime<Utc>,
+    pub last_upgraded: Timestamp,
 }
 
 impl Package {
@@ -96,7 +96,7 @@ impl Package {
             install_path: None,
             executables: Vec::new(),
 
-            last_upgraded: Utc::now(),
+            last_upgraded: Timestamp::now(),
         }
     }
 
@@ -121,7 +121,7 @@ impl Package {
             Some(std::cmp::Ordering::Greater) => true,
             Some(_) => false,
             None => match self.release_published_at {
-                Some(installed_at) if release.published_at != DateTime::<Utc>::MIN_UTC => {
+                Some(installed_at) if release.published_at != Timestamp::MIN => {
                     release.published_at > installed_at
                 }
                 _ if self.release_tag.is_some() => true,
@@ -135,7 +135,7 @@ impl Package {
         if self.provider.is_forge() || self.provider == Provider::AppImageHub {
             self.release_tag = Some(release.tag.clone());
             self.release_published_at =
-                (release.published_at != DateTime::<Utc>::MIN_UTC).then_some(release.published_at);
+                (release.published_at != Timestamp::MIN).then_some(release.published_at);
         } else {
             self.release_tag = None;
             self.release_published_at = None;
@@ -202,7 +202,7 @@ mod tests {
         provider::Release,
     };
     use crate::providers::pattern_matcher::PatternTable;
-    use chrono::{Duration, TimeZone, Utc};
+    use jiff::{SignedDuration, Timestamp};
 
     fn update_test_package(version: Version, channel: Channel) -> Package {
         let mut package = Package::with_defaults(
@@ -217,17 +217,15 @@ mod tests {
         );
 
         package.version = version;
-        package.last_upgraded = Utc
-            .with_ymd_and_hms(2026, 1, 1, 12, 0, 0)
-            .single()
+        package.last_upgraded = "2026-01-01T12:00:00Z"
+            .parse::<Timestamp>()
             .expect("valid timestamp");
         package
     }
 
-    fn update_test_release(version: Version, published_offset: Duration) -> Release {
-        let base = Utc
-            .with_ymd_and_hms(2026, 1, 1, 12, 0, 0)
-            .single()
+    fn update_test_release(version: Version, published_offset: SignedDuration) -> Release {
+        let base = "2026-01-01T12:00:00Z"
+            .parse::<Timestamp>()
             .expect("valid timestamp");
 
         Release {
@@ -273,12 +271,12 @@ mod tests {
 
         assert!(package.is_update_available(&update_test_release(
             Version::new(1, 0, 1, false),
-            Duration::seconds(-1)
+            SignedDuration::from_secs(-1)
         )));
 
         assert!(!package.is_update_available(&update_test_release(
             Version::new(1, 0, 0, false),
-            Duration::days(1)
+            SignedDuration::from_hours(24)
         )));
     }
 
@@ -288,12 +286,12 @@ mod tests {
 
         assert!(package.is_update_available(&update_test_release(
             Version::new(0, 0, 0, false),
-            Duration::seconds(1)
+            SignedDuration::from_secs(1)
         )));
 
         assert!(!package.is_update_available(&update_test_release(
             Version::new(0, 0, 0, false),
-            Duration::seconds(0)
+            SignedDuration::from_secs(0)
         )));
     }
 
@@ -303,12 +301,12 @@ mod tests {
 
         assert!(!package.is_update_available(&update_test_release(
             Version::new(1, 0, 0, false),
-            Duration::seconds(1)
+            SignedDuration::from_secs(1)
         )));
 
         assert!(package.is_update_available(&update_test_release(
             Version::new(99, 0, 0, false),
-            Duration::seconds(0)
+            SignedDuration::from_secs(0)
         )));
     }
 
@@ -319,17 +317,17 @@ mod tests {
 
         assert!(package.is_update_available(&update_test_release(
             Version::parse("20240204-000000-aaaaaaaa").expect("later timestamp"),
-            Duration::seconds(-1),
+            SignedDuration::from_secs(-1),
         )));
 
         assert!(!package.is_update_available(&update_test_release(
             Version::parse("20240202-235959-bbbbbbbb").expect("earlier timestamp"),
-            Duration::days(1),
+            SignedDuration::from_hours(24),
         )));
 
         assert!(package.is_update_available(&update_test_release(
             Version::parse("20240203-110809-cccccccc").expect("revision collision"),
-            Duration::seconds(1),
+            SignedDuration::from_secs(1),
         )));
     }
 
@@ -338,7 +336,9 @@ mod tests {
         let mut package = update_test_package(Version::new(0, 0, 0, false), Channel::Stable);
         package.release_tag = Some("snapshot-alpha".to_string());
 
-        let same = update_test_release(Version::new(0, 0, 0, false), Duration::days(1));
+        let same =
+            update_test_release(Version::new(0, 0, 0, false), SignedDuration::from_hours(24));
+
         assert!(!package.is_update_available(&Release {
             tag: "snapshot-alpha".to_string(),
             ..same.clone()
@@ -346,7 +346,7 @@ mod tests {
 
         let changed_without_timestamp = Release {
             tag: "snapshot-beta".to_string(),
-            published_at: chrono::DateTime::<Utc>::MIN_UTC,
+            published_at: Timestamp::MIN,
             ..same
         };
 
@@ -356,7 +356,8 @@ mod tests {
     #[test]
     fn record_release_keeps_exact_tag_and_publication_time_for_forges() {
         let mut package = update_test_package(Version::new(1, 0, 0, false), Channel::Stable);
-        let release = update_test_release(Version::new(1, 2, 3, false), Duration::days(2));
+        let release =
+            update_test_release(Version::new(1, 2, 3, false), SignedDuration::from_hours(48));
 
         package.record_release(&Release {
             tag: "rust-v1.2.3".to_string(),

@@ -17,11 +17,7 @@ testing_donotuseinrelease = []
 shell-completions = ["dep:clap_complete", "dep:clap_complete_nushell"]
 
 [dependencies]
-chrono = { version = "0.4", default-features = false, features = [
-    "clock",
-    "std",
-    "serde",
-] }
+jiff = { version = "1", default-features = false, features = ["std", "serde"] }
 reqwest = { version = "0.13", default-features = false, features = [
     "json",
     "stream",

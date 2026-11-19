@@ -442,7 +442,7 @@ mod tests {
         common::Version,
         provider::{Asset, Release},
     };
-    use chrono::{TimeZone, Utc};
+    use jiff::Timestamp;
 
     fn asset(name: &str) -> Asset {
         Asset::new(
@@ -450,7 +450,7 @@ mod tests {
             1,
             name.to_string(),
             123,
-            Utc.with_ymd_and_hms(2026, 6, 27, 12, 0, 0).unwrap(),
+            "2026-06-27T12:00:00Z".parse::<Timestamp>().unwrap(),
         )
     }
 
@@ -490,7 +490,7 @@ mod tests {
             is_prerelease: false,
             assets: vec![target.clone(), asset("tool.zsync")],
             version: Version::new(2, 0, 0, false),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         };
 
         let package = crate::models::upstream::Package::with_defaults(
@@ -551,7 +551,7 @@ mod tests {
             is_prerelease: false,
             assets: vec![asset("tool.tar.gz.zsync"), asset("other.tar.gz.zsync")],
             version: Version::new(1, 0, 0, false),
-            published_at: Utc.with_ymd_and_hms(2026, 6, 27, 12, 0, 0).unwrap(),
+            published_at: "2026-06-27T12:00:00Z".parse::<Timestamp>().unwrap(),
         };
 
         let found = find_asset(&release, &target).expect("find zsync sidecar");

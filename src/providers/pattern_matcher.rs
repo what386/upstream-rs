@@ -308,7 +308,7 @@ mod tests {
     use crate::models::upstream::Package;
     #[cfg(target_os = "linux")]
     use crate::providers::assets::AssetSelector;
-    use chrono::Utc;
+    use jiff::Timestamp;
 
     #[cfg(target_os = "linux")]
     fn make_release(assets: Vec<Asset>, prerelease: bool, tag: &str) -> Release {
@@ -321,7 +321,7 @@ mod tests {
             is_prerelease: prerelease,
             assets,
             version: Version::new(1, 0, 0, prerelease),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         }
     }
 
@@ -365,7 +365,7 @@ mod tests {
             1,
             "tool-v1.2.3-x86_64-unknown-linux-musl.tar.gz".to_string(),
             200_000,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let release_assets = vec![
@@ -375,7 +375,7 @@ mod tests {
                 2,
                 "tool-v1.2.3-aarch64-unknown-linux-musl.tar.gz".to_string(),
                 200_000,
-                Utc::now(),
+                Timestamp::now(),
             ),
         ];
 
@@ -424,7 +424,7 @@ mod tests {
             1,
             "ffmpeg-release-essentials.7z".to_string(),
             200_000,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let release_assets = vec![
@@ -434,14 +434,14 @@ mod tests {
                 2,
                 "ffmpeg-release-full.7z".to_string(),
                 200_000,
-                Utc::now(),
+                Timestamp::now(),
             ),
             Asset::new(
                 "https://example.invalid/ffmpeg-release-full-shared.7z".to_string(),
                 3,
                 "ffmpeg-release-full-shared.7z".to_string(),
                 200_000,
-                Utc::now(),
+                Timestamp::now(),
             ),
         ];
 
@@ -477,7 +477,7 @@ mod tests {
             1,
             "tool-v1.2.3-x86_64-unknown-linux-musl.tar.gz".to_string(),
             200_000,
-            Utc::now(),
+            Timestamp::now(),
         );
 
         let generated = generate_patterns_for_asset(
@@ -490,7 +490,7 @@ mod tests {
                     2,
                     "tool-v1.2.3-x86_64-unknown-linux-gnu.tar.gz".to_string(),
                     200_000,
-                    Utc::now(),
+                    Timestamp::now(),
                 ),
             ],
             "tool",
@@ -515,7 +515,7 @@ mod tests {
                     3,
                     "tool-v1.3.0-x86_64-unknown-linux-gnu.tar.gz".to_string(),
                     200_000,
-                    Utc::now(),
+                    Timestamp::now(),
                 ),
                 Asset::new(
                     "https://example.invalid/tool-v1.3.0-x86_64-unknown-linux-musl.tar.gz"
@@ -523,7 +523,7 @@ mod tests {
                     4,
                     "tool-v1.3.0-x86_64-unknown-linux-musl.tar.gz".to_string(),
                     200_000,
-                    Utc::now(),
+                    Timestamp::now(),
                 ),
             ],
             false,

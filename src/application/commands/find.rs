@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use crate::{
     application::commands::{install, search},
@@ -22,7 +22,7 @@ pub async fn run(
     topic: Option<String>,
     min_stars: Option<u64>,
     max_stars: Option<u64>,
-    pushed_after: Option<NaiveDate>,
+    pushed_after: Option<Date>,
     include_forks: bool,
     include_archived: bool,
     kind: Filetype,
@@ -121,7 +121,7 @@ impl SearchChoiceTable {
 mod tests {
     use super::SearchChoiceTable;
     use crate::models::provider::{RepositorySearchResult, SearchMetadataValue};
-    use chrono::{TimeZone, Utc};
+    use jiff::Timestamp;
 
     fn result(repo_slug: &str, display_name: &str) -> RepositorySearchResult {
         RepositorySearchResult {
@@ -132,7 +132,7 @@ mod tests {
                 ("stars".into(), SearchMetadataValue::Integer(51_000)),
                 ("lang".into(), SearchMetadataValue::Text("Rust".into())),
             ],
-            updated_at: Utc.with_ymd_and_hms(2026, 6, 13, 0, 0, 0).unwrap(),
+            updated_at: "2026-06-13T00:00:00Z".parse::<Timestamp>().unwrap(),
         }
     }
 

@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 
 use crate::models::{
     common::Version,
@@ -25,7 +25,7 @@ pub trait ReleaseProvider {
         &self,
         slug: &str,
         from_version: &Version,
-        from_published_at: DateTime<Utc>,
+        from_published_at: Timestamp,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
         let releases = self.get_releases(slug, per_page, None).await?;
@@ -59,7 +59,7 @@ pub trait ReleaseProvider {
     async fn get_latest_release_since(
         &self,
         slug: &str,
-        _last_upgraded: Option<DateTime<Utc>>,
+        _last_upgraded: Option<Timestamp>,
     ) -> Result<Option<Release>> {
         Ok(Some(self.get_latest_release(slug).await?))
     }
@@ -94,7 +94,7 @@ where
         &self,
         slug: &str,
         from_version: &Version,
-        from_published_at: DateTime<Utc>,
+        from_published_at: Timestamp,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
         (*self)
@@ -126,7 +126,7 @@ where
     async fn get_latest_release_since(
         &self,
         slug: &str,
-        last_upgraded: Option<DateTime<Utc>>,
+        last_upgraded: Option<Timestamp>,
     ) -> Result<Option<Release>> {
         (*self).get_latest_release_since(slug, last_upgraded).await
     }

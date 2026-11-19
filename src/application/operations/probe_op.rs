@@ -270,7 +270,7 @@ pub fn build_probe_rows(
                 state: release_state(release.is_draft, release.is_prerelease),
                 tag: release.tag.clone(),
                 version: release.version.to_string(),
-                published: release.published_at.format("%Y-%m-%d %H:%M").to_string(),
+                published: release.published_at.strftime("%Y-%m-%d %H:%M").to_string(),
                 assets_count: release.assets.len(),
                 top_candidate,
                 candidates: Some(candidates),

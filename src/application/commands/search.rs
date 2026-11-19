@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::{NaiveDate, Utc};
+use jiff::{Timestamp, civil::Date};
 use serde::Serialize;
 
 use crate::{
@@ -34,7 +34,7 @@ pub async fn run(
     topic: Option<String>,
     min_stars: Option<u64>,
     max_stars: Option<u64>,
-    pushed_after: Option<NaiveDate>,
+    pushed_after: Option<Date>,
     include_forks: bool,
     include_archived: bool,
     json: bool,
@@ -205,7 +205,10 @@ fn json_search_result(
                     description: result.description.clone(),
                     stars,
                     language,
-                    updated_at: result.updated_at.to_rfc3339(),
+                    updated_at: result
+                        .updated_at
+                        .display_with_offset(jiff::tz::Offset::UTC)
+                        .to_string(),
                     metadata,
                 }
             })
@@ -238,7 +241,7 @@ pub(super) fn table_for_results(
         .map(|row| output::SearchTableRow {
             source: source_label(row, provider),
             metadata: row.metadata.clone(),
-            updated: human_units::relative_date(row.updated_at, Utc::now()),
+            updated: human_units::relative_date(row.updated_at, Timestamp::now()),
             description: row.description.clone(),
         })
         .collect::<Vec<_>>();
@@ -277,7 +280,7 @@ mod tests {
         common::enums::Provider,
         provider::{RepositorySearchFilters, RepositorySearchResult, SearchMetadataValue},
     };
-    use chrono::{TimeZone, Utc};
+    use jiff::Timestamp;
 
     #[test]
     fn truncate_adds_ellipsis_at_fixed_width() {
@@ -291,7 +294,7 @@ mod tests {
 
     #[test]
     fn json_search_result_preserves_repository_fields() {
-        let updated_at = Utc.with_ymd_and_hms(2026, 6, 12, 1, 2, 3).unwrap();
+        let updated_at = "2026-06-12T01:02:03Z".parse::<Timestamp>().unwrap();
         let result = json_search_result(
             "ripgrep",
             &Provider::Github,

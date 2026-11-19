@@ -87,7 +87,7 @@ async fn main() -> Result<()> {
     package.release_tag = None;
     package.release_published_at = None;
     package.version_tag_template = None;
-    package.last_upgraded = chrono::Utc::now();
+    package.last_upgraded = jiff::Timestamp::now();
 
     let activator = PackageActivator::new(&paths);
     let replacement = activator

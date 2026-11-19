@@ -1,6 +1,6 @@
 use crate::models::common::enums::{Channel, Filetype, Provider};
-use chrono::NaiveDate;
 use clap::Args;
+use jiff::civil::Date;
 
 #[derive(Args, Debug, Default)]
 pub struct ProviderOptions {
@@ -84,7 +84,7 @@ pub struct SearchOptions {
 
     /// Restrict results to repositories pushed on or after YYYY-MM-DD
     #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_search_date)]
-    pub pushed_after: Option<NaiveDate>,
+    pub pushed_after: Option<Date>,
 
     /// Include forked repositories in provider search results
     #[arg(long, default_value_t = false)]
@@ -95,7 +95,7 @@ pub struct SearchOptions {
     pub include_archived: bool,
 }
 
-fn parse_search_date(raw: &str) -> Result<NaiveDate, String> {
-    NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+fn parse_search_date(raw: &str) -> Result<Date, String> {
+    Date::strptime("%Y-%m-%d", raw)
         .map_err(|_| format!("expected date in YYYY-MM-DD format, got '{raw}'"))
 }

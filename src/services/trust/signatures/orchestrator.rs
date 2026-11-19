@@ -226,7 +226,7 @@ mod tests {
     use crate::models::provider::{Asset, Release};
     use crate::services::packaging::PackageProgressEvent;
     use crate::services::trust::{MinisignPublicKey, TrustedSignatureKeys};
-    use chrono::Utc;
+    use jiff::Timestamp;
     use serde::Deserialize;
     use std::{fs, path::PathBuf, time::SystemTime};
 
@@ -246,7 +246,7 @@ mod tests {
             is_prerelease: false,
             assets,
             version: Version::new(1, 0, 0, false),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         }
     }
 
@@ -289,14 +289,14 @@ mod tests {
                 1,
                 "signature.minisig".to_string(),
                 10,
-                Utc::now(),
+                Timestamp::now(),
             ),
             Asset::new(
                 "https://example.invalid/tool.tar.gz.minisig".to_string(),
                 2,
                 "tool.tar.gz.minisig".to_string(),
                 10,
-                Utc::now(),
+                Timestamp::now(),
             ),
         ];
 
@@ -314,14 +314,14 @@ mod tests {
                 1,
                 "chezmoi_2.70.3_linux_amd64.tar.gz".to_string(),
                 10,
-                Utc::now(),
+                Timestamp::now(),
             ),
             Asset::new(
                 "https://example.invalid/chezmoi_2.70.3_checksums.txt".to_string(),
                 2,
                 "chezmoi_2.70.3_checksums.txt".to_string(),
                 10,
-                Utc::now(),
+                Timestamp::now(),
             ),
         ]);
 
@@ -368,7 +368,7 @@ mod tests {
             1,
             "Nuclear-1.37.4-1.x86_64.rpm".to_string(),
             10,
-            Utc::now(),
+            Timestamp::now(),
         )]);
 
         let target_name =
@@ -390,7 +390,7 @@ mod tests {
             1,
             "checksum.txt".to_string(),
             10,
-            Utc::now(),
+            Timestamp::now(),
         )]);
 
         let target_name = signature_target_name("checksum.txt.sig").expect("target name");

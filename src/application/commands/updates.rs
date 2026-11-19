@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 
 use anyhow::Result;
-use chrono::Utc;
+use jiff::Timestamp;
 
 use crate::{
     storage::updates::{self, UpdateSnapshot},
@@ -38,7 +38,7 @@ pub fn run(json: bool, notify: bool, paths: &UpstreamPaths) -> Result<()> {
     println!("{header}");
     println!("{}", crate::output::divider(header.len()));
 
-    let now = Utc::now();
+    let now = Timestamp::now();
     for (index, (id, entry)) in snapshot.updates.into_iter().enumerate() {
         println!(
             "{}",
@@ -58,10 +58,7 @@ pub fn run(json: bool, notify: bool, paths: &UpstreamPaths) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn notification_message(
-    snapshot: &UpdateSnapshot,
-    now: chrono::DateTime<Utc>,
-) -> Option<String> {
+pub(crate) fn notification_message(snapshot: &UpdateSnapshot, now: Timestamp) -> Option<String> {
     let last_checked = snapshot
         .updates
         .values()
@@ -78,7 +75,7 @@ pub(crate) fn notification_message(
 
 pub fn run_notification(paths: &UpstreamPaths) {
     if let Ok(Some(snapshot)) = updates::load(paths)
-        && let Some(message) = notification_message(&snapshot, Utc::now())
+        && let Some(message) = notification_message(&snapshot, Timestamp::now())
     {
         // Shell startup must also tolerate a closed output pipe.
         let _ = io::stdout().lock().write_all(message.as_bytes());

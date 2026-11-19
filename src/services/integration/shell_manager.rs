@@ -562,7 +562,7 @@ mod tests {
             path: older_install.clone(),
             name: "old".to_string(),
         }];
-        older.last_upgraded = chrono::Utc::now() - chrono::Duration::days(1);
+        older.last_upgraded = jiff::Timestamp::now() - jiff::SignedDuration::from_hours(24);
 
         let mut newer = Package::with_defaults(
             "newer".to_string(),
@@ -580,7 +580,7 @@ mod tests {
             path: newer_install.clone(),
             name: "new".to_string(),
         }];
-        newer.last_upgraded = chrono::Utc::now();
+        newer.last_upgraded = jiff::Timestamp::now();
 
         package_database.upsert_package(&older).expect("seed older");
         package_database.upsert_package(&newer).expect("seed newer");

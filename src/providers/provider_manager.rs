@@ -1,3 +1,4 @@
+use jiff::Timestamp;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -373,7 +374,7 @@ impl ProviderManager {
         slug: &str,
         provider: &Provider,
         from_version: &Version,
-        from_published_at: chrono::DateTime<chrono::Utc>,
+        from_published_at: Timestamp,
         per_page: Option<u32>,
         base_url: Option<&str>,
     ) -> Result<Vec<Release>> {
@@ -496,7 +497,7 @@ mod tests {
     use super::ProviderManager;
     use crate::models::common::{Version, enums::Channel};
     use crate::models::provider::Release;
-    use chrono::Utc;
+    use jiff::Timestamp;
 
     fn make_release(prerelease: bool, tag: &str) -> Release {
         Release {
@@ -508,7 +509,7 @@ mod tests {
             is_prerelease: prerelease,
             assets: Vec::new(),
             version: Version::new(1, 0, 0, prerelease),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         }
     }
 

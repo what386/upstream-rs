@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, bail};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use reqwest::{Client, StatusCode, header};
 use std::{path::Path, time::Instant};
 
@@ -13,7 +13,7 @@ pub struct HttpAssetInfo {
     pub download_url: String,
     pub name: String,
     pub size: u64,
-    pub last_modified: Option<DateTime<Utc>>,
+    pub last_modified: Option<Timestamp>,
     pub etag: Option<String>,
     pub content_type: Option<String>,
 }
@@ -45,13 +45,13 @@ pub struct HttpClient {
 }
 
 impl HttpClient {
-    fn format_http_date(dt: DateTime<Utc>) -> String {
-        dt.format("%a, %d %b %Y %H:%M:%S GMT").to_string()
+    fn format_http_date(dt: Timestamp) -> String {
+        dt.strftime("%a, %d %b %Y %H:%M:%S GMT").to_string()
     }
 
     fn add_if_modified_since(
         mut request: reqwest::RequestBuilder,
-        last_upgraded: Option<DateTime<Utc>>,
+        last_upgraded: Option<Timestamp>,
     ) -> reqwest::RequestBuilder {
         if let Some(ts) = last_upgraded {
             request = request.header(header::IF_MODIFIED_SINCE, Self::format_http_date(ts));
@@ -60,11 +60,11 @@ impl HttpClient {
         request
     }
 
-    fn parse_last_modified(value: Option<&header::HeaderValue>) -> Option<DateTime<Utc>> {
+    fn parse_last_modified(value: Option<&header::HeaderValue>) -> Option<Timestamp> {
         let raw = value?.to_str().ok()?;
-        DateTime::parse_from_rfc2822(raw)
+        jiff::fmt::rfc2822::DateTimeParser::new()
+            .parse_timestamp(raw)
             .ok()
-            .map(|dt| dt.with_timezone(&Utc))
     }
 
     fn parse_etag(value: Option<&header::HeaderValue>) -> Option<String> {
@@ -179,7 +179,7 @@ impl HttpClient {
     pub async fn fetch_document_if_modified_since(
         &self,
         url_or_slug: &str,
-        last_upgraded: Option<DateTime<Utc>>,
+        last_upgraded: Option<Timestamp>,
     ) -> Result<ConditionalDocumentResult> {
         let started = Instant::now();
         let url = Self::normalize_url(url_or_slug);
@@ -252,7 +252,7 @@ impl HttpClient {
     pub async fn probe_asset_if_modified_since(
         &self,
         url_or_slug: &str,
-        last_upgraded: Option<DateTime<Utc>>,
+        last_upgraded: Option<Timestamp>,
     ) -> Result<ConditionalProbeResult> {
         let url = Self::normalize_url(url_or_slug);
 
@@ -344,6 +344,18 @@ impl HttpClient {
 #[cfg(test)]
 mod tests {
     use super::HttpClient;
+
+    #[test]
+    fn conditional_http_dates_use_gmt_and_round_trip() {
+        let timestamp = "2026-02-10T17:04:05+02:00".parse().unwrap();
+        let formatted = HttpClient::format_http_date(timestamp);
+        assert_eq!(formatted, "Tue, 10 Feb 2026 15:04:05 GMT");
+        let header = reqwest::header::HeaderValue::from_str(&formatted).unwrap();
+        assert_eq!(
+            HttpClient::parse_last_modified(Some(&header)),
+            Some(timestamp)
+        );
+    }
 
     #[test]
     fn normalize_url_and_file_name_from_url_behave_as_expected() {

@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use std::path::Path;
 
 use crate::models::common::Version;
@@ -83,7 +83,7 @@ impl GithubAdapter {
         &self,
         slug: &str,
         from_version: &Version,
-        from_published_at: DateTime<Utc>,
+        from_published_at: Timestamp,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
         let per_page = per_page.unwrap_or(30);
@@ -183,7 +183,7 @@ impl GithubAdapter {
             body: String::new(),
             is_draft: false,
             is_prerelease: version.is_prerelease(),
-            published_at: DateTime::<Utc>::MIN_UTC,
+            published_at: Timestamp::MIN,
             assets: Vec::new(),
             version,
         }
@@ -205,13 +205,12 @@ impl GithubAdapter {
         }
     }
 
-    fn parse_timestamp(raw: &str) -> DateTime<Utc> {
+    fn parse_timestamp(raw: &str) -> Timestamp {
         if raw.trim().is_empty() {
-            return DateTime::<Utc>::MIN_UTC;
+            return Timestamp::MIN;
         }
 
-        raw.parse::<DateTime<Utc>>()
-            .unwrap_or(DateTime::<Utc>::MIN_UTC)
+        raw.parse::<Timestamp>().unwrap_or(Timestamp::MIN)
     }
 }
 
@@ -234,7 +233,7 @@ impl ReleaseProvider for GithubAdapter {
         &self,
         slug: &str,
         from_version: &Version,
-        from_published_at: DateTime<Utc>,
+        from_published_at: Timestamp,
         per_page: Option<u32>,
     ) -> Result<Vec<Release>> {
         GithubAdapter::get_releases_newer_than(
@@ -286,18 +285,13 @@ mod tests {
     use crate::providers::sites::github::github_dtos::{
         GithubAssetDto, GithubReleaseDto, GithubRepositorySearchItemDto, GithubTagDto,
     };
+    use jiff::Timestamp;
 
     #[test]
     fn parse_timestamp_returns_min_for_invalid_or_empty_values() {
-        assert_eq!(
-            GithubAdapter::parse_timestamp(""),
-            chrono::DateTime::<chrono::Utc>::MIN_UTC
-        );
+        assert_eq!(GithubAdapter::parse_timestamp(""), Timestamp::MIN);
 
-        assert_eq!(
-            GithubAdapter::parse_timestamp("not-a-date"),
-            chrono::DateTime::<chrono::Utc>::MIN_UTC
-        );
+        assert_eq!(GithubAdapter::parse_timestamp("not-a-date"), Timestamp::MIN);
     }
 
     #[test]
@@ -343,10 +337,7 @@ mod tests {
         assert_eq!(release.name, "v0.6.5");
         assert_eq!(release.version.to_string(), "0.6.5");
         assert!(release.assets.is_empty());
-        assert_eq!(
-            release.published_at,
-            chrono::DateTime::<chrono::Utc>::MIN_UTC
-        );
+        assert_eq!(release.published_at, Timestamp::MIN);
     }
 
     #[test]
@@ -372,6 +363,6 @@ mod tests {
         };
 
         let result = GithubAdapter::convert_search_result(dto);
-        assert_eq!(result.updated_at, chrono::DateTime::<chrono::Utc>::MIN_UTC);
+        assert_eq!(result.updated_at, Timestamp::MIN);
     }
 }

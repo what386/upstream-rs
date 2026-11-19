@@ -318,7 +318,7 @@ fn write_package_row(out: &mut String, package: &Package, widths: &ColumnWidths)
 
     let pin_indicator = if package.is_pinned { "P" } else { "-" };
     let flags = format!("{desktop_indicator}{pin_indicator}");
-    let last_updated = package.last_upgraded.format("%Y-%m-%d").to_string();
+    let last_updated = package.last_upgraded.strftime("%Y-%m-%d").to_string();
     let package_ref = package_ref_label(package);
 
     writeln!(

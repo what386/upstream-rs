@@ -2,7 +2,7 @@
 use std::{collections::BTreeMap, fs, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -18,7 +18,7 @@ pub struct CachedUpdate {
     pub latest: String,
     pub provider: String,
     pub channel: String,
-    pub checked_at: DateTime<Utc>,
+    pub checked_at: Timestamp,
     // The complete installed record makes changes to selection policy invalidate results too.
     pub installed_state: serde_json::Value,
 }
@@ -82,7 +82,7 @@ pub fn refresh(
     paths: &UpstreamPaths,
     packages: &[Package],
     rows: &[UpdateCheckRow],
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     // A fresh check can repair a damaged or obsolete disposable cache.
     let mut snapshot = load(paths).unwrap_or_default().unwrap_or_default();
@@ -205,7 +205,7 @@ mod tests {
         let fixture = Fixture::new("merge");
         let paths = &fixture.0;
         let packages = [package("a"), package("b"), package("c")];
-        let first = Utc::now() - chrono::Duration::days(2);
+        let first = Timestamp::now() - jiff::SignedDuration::from_hours(48);
         refresh(paths, &packages, &[available("a"), available("b")], first).unwrap();
         refresh(
             paths,
@@ -220,14 +220,14 @@ mod tests {
                     },
                 ),
             ],
-            Utc::now(),
+            Timestamp::now(),
         )
         .unwrap();
         let snapshot = load(paths).unwrap().unwrap();
         assert_eq!(snapshot.updates.len(), 3);
         assert_eq!(snapshot.updates["b"].checked_at, first);
         assert!(
-            notification_message(&snapshot, Utc::now())
+            notification_message(&snapshot, Timestamp::now())
                 .unwrap()
                 .contains("3 pending software updates (last checked 0s ago)")
         );
@@ -241,7 +241,7 @@ mod tests {
                     current: "1.0.0".into(),
                 },
             )],
-            Utc::now(),
+            Timestamp::now(),
         )
         .unwrap();
         assert_eq!(
@@ -264,12 +264,18 @@ mod tests {
             &fixture.0,
             &packages,
             &[available("a"), available("b")],
-            Utc::now(),
+            Timestamp::now(),
         )
         .unwrap();
-        refresh(&fixture.0, &packages[..1], &[available("a")], Utc::now()).unwrap();
+        refresh(
+            &fixture.0,
+            &packages[..1],
+            &[available("a")],
+            Timestamp::now(),
+        )
+        .unwrap();
         assert_eq!(load(&fixture.0).unwrap().unwrap().updates.len(), 1);
-        refresh(&fixture.0, &[], &[], Utc::now()).unwrap();
+        refresh(&fixture.0, &[], &[], Timestamp::now()).unwrap();
         assert!(load(&fixture.0).unwrap().unwrap().updates.is_empty());
     }
 
@@ -287,7 +293,7 @@ mod tests {
             paths,
             &packages,
             &[available("a"), available("b"), available("c")],
-            Utc::now(),
+            Timestamp::now(),
         )
         .unwrap();
         Cli::try_parse_from(["upstream", "package", "pin", "a"])
@@ -340,12 +346,12 @@ mod tests {
             &fixture.0,
             &packages,
             &[available("release"), available("branch")],
-            Utc::now(),
+            Timestamp::now(),
         )
         .unwrap();
         packages[0].version = crate::models::common::Version::new(1, 0, 0, false);
         packages[1].build_commit = Some("new".into());
-        refresh(&fixture.0, &packages, &[], Utc::now()).unwrap();
+        refresh(&fixture.0, &packages, &[], Timestamp::now()).unwrap();
         assert!(load(&fixture.0).unwrap().unwrap().updates.is_empty());
     }
 
@@ -361,7 +367,7 @@ mod tests {
         ] {
             fs::write(path(&fixture.0), bytes).unwrap();
             assert!(load(&fixture.0).is_err());
-            refresh(&fixture.0, &[], &[], Utc::now()).unwrap();
+            refresh(&fixture.0, &[], &[], Timestamp::now()).unwrap();
             assert!(load(&fixture.0).unwrap().unwrap().updates.is_empty());
         }
     }
@@ -369,8 +375,8 @@ mod tests {
     #[test]
     fn notification_handles_empty_and_singular_updates() {
         let fixture = Fixture::new("message");
-        assert!(notification_message(&UpdateSnapshot::default(), Utc::now()).is_none());
-        let now = Utc::now();
+        assert!(notification_message(&UpdateSnapshot::default(), Timestamp::now()).is_none());
+        let now = Timestamp::now();
         refresh(&fixture.0, &[package("a")], &[available("a")], now).unwrap();
         let snapshot = load(&fixture.0).unwrap().unwrap();
         assert_eq!(

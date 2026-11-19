@@ -382,7 +382,7 @@ impl GithubClient {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
+    use jiff::civil::Date;
 
     use crate::models::provider::RepositorySearchFilters;
     use crate::providers::sites::github::GithubClient;
@@ -425,7 +425,7 @@ mod tests {
             Some("cli".to_string()),
             Some(100),
             Some(50_000),
-            Some(NaiveDate::from_ymd_opt(2026, 1, 2).unwrap()),
+            Some(Date::new(2026, 1, 2).unwrap()),
             true,
             false,
         );

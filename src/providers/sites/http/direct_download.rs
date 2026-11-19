@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow, bail};
-use chrono::{DateTime, Datelike, Timelike, Utc};
+use jiff::Timestamp;
 use std::path::Path;
 
 use crate::models::common::Version;
@@ -17,10 +17,11 @@ impl DirectAdapter {
         Version::from_filename(filename).ok()
     }
 
-    fn version_from_last_modified(dt: DateTime<Utc>) -> Version {
-        let major = dt.year_ce().1;
-        let minor = dt.ordinal();
-        let patch = dt.num_seconds_from_midnight();
+    fn version_from_last_modified(dt: Timestamp) -> Version {
+        let dt = dt.to_zoned_datetime(jiff::tz::TimeZone::UTC);
+        let major = dt.year() as u32;
+        let minor = dt.day_of_year() as u32;
+        let patch = dt.hour() as u32 * 3600 + dt.minute() as u32 * 60 + dt.second() as u32;
         Version::new(major, minor, patch, false)
     }
 
@@ -55,7 +56,7 @@ impl DirectAdapter {
     pub async fn get_latest_release_since(
         &self,
         slug: &str,
-        last_upgraded: Option<DateTime<Utc>>,
+        last_upgraded: Option<Timestamp>,
     ) -> Result<Option<Release>> {
         let probe = self
             .client
@@ -69,7 +70,7 @@ impl DirectAdapter {
 
         let published_at = info
             .last_modified
-            .unwrap_or_else(|| last_upgraded.unwrap_or_else(Utc::now));
+            .unwrap_or_else(|| last_upgraded.unwrap_or_else(Timestamp::now));
 
         let version = Self::parse_version_from_filename(&info.name)
             .or_else(|| info.last_modified.map(Self::version_from_last_modified))
@@ -134,7 +135,7 @@ impl ReleaseProvider for DirectAdapter {
     async fn get_latest_release_since(
         &self,
         slug: &str,
-        last_upgraded: Option<DateTime<Utc>>,
+        last_upgraded: Option<Timestamp>,
     ) -> Result<Option<Release>> {
         DirectAdapter::get_latest_release_since(self, slug, last_upgraded).await
     }

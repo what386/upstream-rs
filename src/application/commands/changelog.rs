@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, anyhow};
+use jiff::Timestamp;
 
 use crate::{
     application::context::CommandContext,
@@ -214,7 +215,7 @@ pub async fn changelog_text_for_package(
     provider_manager: &ProviderManager,
     package: &Package,
     from_version: &Version,
-    from_published_at: chrono::DateTime<chrono::Utc>,
+    from_published_at: Timestamp,
     to_release: &Release,
     explicit_to: bool,
 ) -> Result<Option<String>> {
@@ -273,7 +274,7 @@ pub fn changelog_text_from_releases(
         changelog.push_str(&format!(
             "tag {} - published {}\n\n",
             release.tag,
-            release.published_at.format("%Y-%m-%d")
+            release.published_at.strftime("%Y-%m-%d")
         ));
         if release.body.trim().is_empty() {
             changelog.push_str("(no release notes)\n");
@@ -303,7 +304,7 @@ pub fn changelog_text_for_release(package: &Package, release: &Release) -> Strin
     changelog.push_str(&format!(
         "tag {} - published {}\n\n",
         release.tag,
-        release.published_at.format("%Y-%m-%d")
+        release.published_at.strftime("%Y-%m-%d")
     ));
     if release.body.trim().is_empty() {
         changelog.push_str("(no release notes)\n");
@@ -319,7 +320,7 @@ fn select_changelog_releases(
     releases: Vec<Release>,
     package: &Package,
     from_version: &Version,
-    from_published_at: chrono::DateTime<chrono::Utc>,
+    from_published_at: Timestamp,
     to_release: &Release,
     explicit_to: bool,
 ) -> Vec<Release> {
@@ -377,7 +378,7 @@ mod tests {
         provider::Release,
         upstream::Package,
     };
-    use chrono::Utc;
+    use jiff::Timestamp;
 
     fn release(tag: &str, prerelease: bool) -> Release {
         Release {
@@ -389,7 +390,7 @@ mod tests {
             is_prerelease: prerelease,
             assets: Vec::new(),
             version: Version::from_tag(tag).expect("version tag"),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         }
     }
 

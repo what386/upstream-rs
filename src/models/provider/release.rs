@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use std::cmp::Ordering;
 
 use crate::models::common::version::Version;
@@ -17,7 +17,7 @@ pub struct Release {
     pub assets: Vec<Asset>,
     pub version: Version,
 
-    pub published_at: DateTime<Utc>,
+    pub published_at: Timestamp,
 }
 
 impl Release {
@@ -27,7 +27,7 @@ impl Release {
             .unwrap_or_else(|| self.published_at.cmp(&other.published_at))
     }
 
-    pub fn is_newer_than(&self, version: &Version, published_at: DateTime<Utc>) -> bool {
+    pub fn is_newer_than(&self, version: &Version, published_at: Timestamp) -> bool {
         match self.version.partial_cmp(version) {
             Some(Ordering::Greater) => true,
             Some(_) => false,

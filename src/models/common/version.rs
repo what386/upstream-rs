@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, fmt};
 
 use anyhow::{Result, bail};
-use chrono::NaiveDateTime;
+use jiff::civil::DateTime;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 const DATETIME_FORMAT: &str = "%Y%m%d-%H%M%S";
@@ -18,7 +18,7 @@ pub enum Version {
         is_prerelease: bool,
     },
     Datetime {
-        timestamp: NaiveDateTime,
+        timestamp: DateTime,
         revision: String,
     },
 }
@@ -101,7 +101,7 @@ impl Version {
         }
     }
 
-    pub fn datetime_components(&self) -> Option<(NaiveDateTime, &str)> {
+    pub fn datetime_components(&self) -> Option<(DateTime, &str)> {
         match self {
             Self::Datetime {
                 timestamp,
@@ -123,7 +123,7 @@ impl Version {
             Self::Datetime {
                 timestamp,
                 revision,
-            } => format!("{}-{revision}", timestamp.format(DATETIME_FORMAT)),
+            } => format!("{}-{revision}", timestamp.strftime(DATETIME_FORMAT)),
         }
     }
 
@@ -260,7 +260,7 @@ impl Version {
             bail!("Invalid datetime revision");
         }
 
-        let timestamp = NaiveDateTime::parse_from_str(timestamp, DATETIME_FORMAT)
+        let timestamp = DateTime::strptime(DATETIME_FORMAT, timestamp)
             .map_err(|_| anyhow::anyhow!("Invalid datetime timestamp"))?;
 
         Ok(Self::Datetime {
@@ -453,7 +453,7 @@ impl Serialize for Version {
                 revision,
             } => DatetimeWire {
                 scheme: "datetime".to_string(),
-                timestamp: timestamp.format(DATETIME_FORMAT).to_string(),
+                timestamp: timestamp.strftime(DATETIME_FORMAT).to_string(),
                 revision: revision.clone(),
             }
             .serialize(serializer),

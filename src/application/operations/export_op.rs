@@ -62,7 +62,13 @@ impl<'a> ExportOperation<'a> {
         }
 
         emit_phase(progress_callback, OperationPhase::SerializingExport);
-        let export = packages_export(references, chrono::Utc::now().to_rfc3339());
+        let export = packages_export(
+            references,
+            jiff::Timestamp::now()
+                .display_with_offset(jiff::tz::Offset::UTC)
+                .to_string(),
+        );
+
         write_json(output, &export, "packages export", progress_callback)
     }
 
@@ -71,7 +77,11 @@ impl<'a> ExportOperation<'a> {
         P: FnMut(OperationProgressEvent),
     {
         emit_phase(progress_callback, OperationPhase::SerializingExport);
-        let export = self.keys_export(chrono::Utc::now().to_rfc3339())?;
+        let export = self.keys_export(
+            jiff::Timestamp::now()
+                .display_with_offset(jiff::tz::Offset::UTC)
+                .to_string(),
+        )?;
 
         write_json(output, &export, "keys export", progress_callback)
     }
@@ -93,7 +103,10 @@ impl<'a> ExportOperation<'a> {
         P: FnMut(OperationProgressEvent),
     {
         emit_phase(progress_callback, OperationPhase::SerializingExport);
-        let exported_at = chrono::Utc::now().to_rfc3339();
+        let exported_at = jiff::Timestamp::now()
+            .display_with_offset(jiff::tz::Offset::UTC)
+            .to_string();
+
         let config = ConfigStorage::new(&self.paths.config.config_file)?
             .get_config()
             .clone();

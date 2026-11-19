@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -15,5 +15,5 @@ pub struct RepositorySearchResult {
     pub description: String,
     /// Provider-defined columns, in display order.
     pub metadata: Vec<(String, SearchMetadataValue)>,
-    pub updated_at: DateTime<Utc>,
+    pub updated_at: Timestamp,
 }

@@ -84,10 +84,10 @@ fn install_panic_hook(directory: &Path) {
 }
 
 fn write_crash_report(directory: &Path, info: &PanicHookInfo<'_>) -> io::Result<PathBuf> {
-    let timestamp = chrono::Utc::now();
+    let timestamp = jiff::Timestamp::now();
     let path = directory.join(format!(
         "crash-{}.txt",
-        timestamp.format("%Y%m%dT%H%M%S%.9fZ")
+        timestamp.strftime("%Y%m%dT%H%M%S%.9fZ")
     ));
 
     fs::create_dir_all(directory)?;
@@ -102,7 +102,11 @@ fn write_crash_report(directory: &Path, info: &PanicHookInfo<'_>) -> io::Result<
     let mut file = options.open(&path)?;
     let thread = std::thread::current();
     writeln!(file, "Upstream version: {}", env!("CARGO_PKG_VERSION"))?;
-    writeln!(file, "Timestamp: {}", timestamp.to_rfc3339())?;
+    writeln!(
+        file,
+        "Timestamp: {}",
+        timestamp.display_with_offset(jiff::tz::Offset::UTC)
+    )?;
     writeln!(file, "OS: {}", std::env::consts::OS)?;
     writeln!(file, "Architecture: {}", std::env::consts::ARCH)?;
     writeln!(file, "Process: {}", std::process::id())?;

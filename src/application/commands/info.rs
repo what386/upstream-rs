@@ -132,7 +132,7 @@ fn format_package_details(package: &Package) -> String {
         "Updated",
         package
             .last_upgraded
-            .format("%Y-%m-%d %H:%M UTC")
+            .strftime("%Y-%m-%d %H:%M UTC")
             .to_string(),
     );
 

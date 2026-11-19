@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, bail, ensure};
-use chrono::Utc;
+use jiff::Timestamp;
 
 use crate::models::{
     common::enums::{Channel, Provider},
@@ -203,7 +203,7 @@ impl<'a> SourceDownloader<'a> {
             0,
             format!("{}-{git_ref}.tar.gz", repo_slug.replace('/', "-")),
             0,
-            Utc::now(),
+            Timestamp::now(),
         ))
     }
 }
@@ -216,7 +216,7 @@ fn branch_release(branch: &str) -> Release {
         body: String::new(),
         is_draft: false,
         is_prerelease: false,
-        published_at: Utc::now(),
+        published_at: Timestamp::now(),
         assets: vec![],
         version: crate::models::common::version::Version::new(0, 0, 0, false),
     }

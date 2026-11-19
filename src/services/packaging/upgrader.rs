@@ -667,7 +667,7 @@ mod tests {
     };
     use crate::services::trust::TrustedSignatureKeys;
     use crate::utils::{static_paths::UpstreamPaths, test_support};
-    use chrono::Utc;
+    use jiff::Timestamp;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{fs, io};
@@ -728,7 +728,7 @@ mod tests {
             1,
             name.to_string(),
             123,
-            Utc::now(),
+            Timestamp::now(),
         )
     }
 
@@ -850,10 +850,10 @@ mod tests {
                 2,
                 "tool.AppImage".to_string(),
                 123,
-                Utc::now(),
+                Timestamp::now(),
             )],
             version: crate::models::common::Version::new(3, 12, 0, false),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         };
 
         let provider_manager =

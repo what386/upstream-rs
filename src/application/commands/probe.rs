@@ -655,7 +655,10 @@ fn json_asset_candidates(row: &ProbeRow) -> Vec<JsonAssetCandidate> {
                 name: asset.name.clone(),
                 download_url: asset.download_url.clone(),
                 size: asset.size,
-                created_at: asset.created_at.to_rfc3339(),
+                created_at: asset
+                    .created_at
+                    .display_with_offset(jiff::tz::Offset::UTC)
+                    .to_string(),
                 filetype: asset.filetype.to_string(),
                 target_os: asset.target_os.as_ref().map(|value| format!("{value:?}")),
                 target_arch: asset.target_arch.as_ref().map(|value| format!("{value:?}")),
@@ -702,11 +705,11 @@ mod tests {
         providers::{assets::AssetCandidate, provider_manager::ProviderManager},
         services::packaging::{PackagePhase, PackageProgressEvent},
     };
-    use chrono::{TimeZone, Utc};
+    use jiff::Timestamp;
 
     #[test]
     fn json_probe_result_includes_source_releases_and_candidates() {
-        let created_at = chrono::Utc.with_ymd_and_hms(2026, 6, 12, 1, 2, 3).unwrap();
+        let created_at = "2026-06-12T01:02:03Z".parse::<Timestamp>().unwrap();
 
         let row = ProbeRow {
             row_id: "R01".to_string(),
@@ -798,18 +801,18 @@ mod tests {
                     1,
                     "tool.tar.gz".to_string(),
                     1234,
-                    Utc::now(),
+                    Timestamp::now(),
                 ),
                 Asset::new(
                     "https://example.invalid/tool.gz".to_string(),
                     2,
                     "tool.gz".to_string(),
                     5678,
-                    Utc::now(),
+                    Timestamp::now(),
                 ),
             ],
             version: Version::new(1, 2, 3, false),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         }];
 
         let choices = build_probe_asset_choices(&releases, &provider_manager, &package, false);
@@ -850,18 +853,18 @@ mod tests {
                     1,
                     "tool.tar.gz".to_string(),
                     1234,
-                    Utc::now(),
+                    Timestamp::now(),
                 ),
                 Asset::new(
                     "https://example.invalid/tool.gz".to_string(),
                     2,
                     "tool.gz".to_string(),
                     5678,
-                    Utc::now(),
+                    Timestamp::now(),
                 ),
             ],
             version: Version::new(1, 2, 3, false),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         }];
 
         let choices = build_probe_asset_choices(&releases, &provider_manager, &package, false);
@@ -910,18 +913,18 @@ mod tests {
                     1,
                     "tool.tar.gz".to_string(),
                     1234,
-                    Utc::now(),
+                    Timestamp::now(),
                 ),
                 Asset::new(
                     "https://example.invalid/tool".to_string(),
                     2,
                     "tool".to_string(),
                     5678,
-                    Utc::now(),
+                    Timestamp::now(),
                 ),
             ],
             version: Version::new(1, 2, 3, false),
-            published_at: Utc::now(),
+            published_at: Timestamp::now(),
         }];
 
         let choices = build_probe_asset_choices(&releases, &provider_manager, &package, true);

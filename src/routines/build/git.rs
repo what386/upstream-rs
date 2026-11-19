@@ -2,7 +2,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result, anyhow, ensure};
-use chrono::Utc;
+use jiff::Timestamp;
 
 use crate::application::cancellation;
 use crate::models::common::enums::{Channel, Provider};
@@ -207,7 +207,7 @@ fn branch_release(branch: &str) -> Release {
         body: String::new(),
         is_draft: false,
         is_prerelease: false,
-        published_at: Utc::now(),
+        published_at: Timestamp::now(),
         assets: vec![],
         version: Version::new(0, 0, 0, false),
     }

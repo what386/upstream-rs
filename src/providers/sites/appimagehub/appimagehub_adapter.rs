@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow, ensure};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use reqwest::Url;
 
 use crate::{
@@ -38,9 +38,8 @@ impl AppImageHubAdapter {
     fn convert_content(content: AppImageHubContentDto) -> Result<Vec<Release>> {
         let published_at = [content.changed.as_str(), content.created.as_str()]
             .into_iter()
-            .find_map(|value| DateTime::parse_from_rfc3339(value).ok())
-            .map(|date| date.with_timezone(&Utc))
-            .unwrap_or(DateTime::<Utc>::MIN_UTC);
+            .find_map(|value| value.parse::<Timestamp>().ok())
+            .unwrap_or(Timestamp::MIN);
 
         let mut releases = BTreeMap::<String, Release>::new();
         for file in content.files {
@@ -95,7 +94,7 @@ impl AppImageHubAdapter {
                 tag = format!(
                     "{}@{}",
                     if tag.is_empty() { "updated" } else { &tag },
-                    published_at.timestamp()
+                    published_at.as_second()
                 );
             } else if tag.is_empty() {
                 tag = version.to_string();
@@ -248,9 +247,8 @@ impl ReleaseProvider for AppImageHubAdapter {
 
                 let updated_at = [content.changed.as_str(), content.created.as_str()]
                     .into_iter()
-                    .find_map(|value| DateTime::parse_from_rfc3339(value).ok())
-                    .map(|date| date.with_timezone(&Utc))
-                    .unwrap_or(DateTime::<Utc>::MIN_UTC);
+                    .find_map(|value| value.parse::<Timestamp>().ok())
+                    .unwrap_or(Timestamp::MIN);
 
                 let description = if content.description.is_empty() {
                     &content.summary
@@ -421,11 +419,7 @@ mod tests {
         value["data"][0]["changed"] = json!("");
         value["data"][0]["created"] = json!("");
         let releases = releases_from_response(&value, "2259793").unwrap();
-        assert!(
-            releases
-                .iter()
-                .all(|r| r.published_at == DateTime::<Utc>::MIN_UTC)
-        );
+        assert!(releases.iter().all(|r| r.published_at == Timestamp::MIN));
 
         let release = releases.iter().find(|r| r.version.is_unknown()).unwrap();
         assert!(release.tag.starts_with("updated@"));

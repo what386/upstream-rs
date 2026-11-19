@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 
 use crate::models::common::enums::Filetype;
 use crate::providers::assets::filenames::parser::{parse_arch, parse_filetype, parse_os};
@@ -10,7 +10,7 @@ pub struct Asset {
     pub id: u64,
     pub name: String,
     pub size: u64,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
 
     // computed from name
     pub filetype: Filetype,
@@ -24,7 +24,7 @@ impl Asset {
         id: u64,
         name: String,
         size: u64,
-        created_at: DateTime<Utc>,
+        created_at: Timestamp,
     ) -> Self {
         let filetype = parse_filetype(&name);
         Self::with_filetype(download_url, id, name, size, created_at, filetype)
@@ -35,7 +35,7 @@ impl Asset {
         id: u64,
         name: String,
         size: u64,
-        created_at: DateTime<Utc>,
+        created_at: Timestamp,
         filetype: Filetype,
     ) -> Self {
         let os = parse_os(&name);

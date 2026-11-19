@@ -1,4 +1,4 @@
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
@@ -12,7 +12,7 @@ pub struct RepositorySearchFilters {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_stars: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub pushed_after: Option<NaiveDate>,
+    pub pushed_after: Option<Date>,
     pub include_forks: bool,
     pub include_archived: bool,
 }
@@ -23,7 +23,7 @@ impl RepositorySearchFilters {
         topic: Option<String>,
         min_stars: Option<u64>,
         max_stars: Option<u64>,
-        pushed_after: Option<NaiveDate>,
+        pushed_after: Option<Date>,
         include_forks: bool,
         include_archived: bool,
     ) -> Self {

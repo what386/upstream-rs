@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, anyhow, bail};
-use chrono::{DateTime, Datelike, Timelike, Utc};
 use futures_util::{StreamExt, stream};
+use jiff::Timestamp;
 use scraper::{Html, Selector};
 use std::{
     collections::{HashMap, HashSet},
@@ -45,11 +45,12 @@ impl WebScraperAdapter {
         Self { client }
     }
 
-    fn version_from_last_modified(dt: DateTime<Utc>) -> Version {
+    fn version_from_last_modified(dt: Timestamp) -> Version {
+        let dt = dt.to_zoned_datetime(jiff::tz::TimeZone::UTC);
         Version::new(
-            dt.year_ce().1,
-            dt.ordinal(),
-            dt.num_seconds_from_midnight(),
+            dt.year() as u32,
+            dt.day_of_year() as u32,
+            dt.hour() as u32 * 3600 + dt.minute() as u32 * 60 + dt.second() as u32,
             false,
         )
     }
@@ -184,7 +185,7 @@ impl WebScraperAdapter {
     async fn validate_candidates(
         &self,
         candidates: Vec<Candidate>,
-        page_modified: Option<DateTime<Utc>>,
+        page_modified: Option<Timestamp>,
         page_etag: Option<String>,
         probe_timeout: Duration,
     ) -> Vec<(Candidate, HttpAssetInfo)> {
@@ -376,7 +377,7 @@ impl WebScraperAdapter {
     async fn release_since(
         &self,
         slug: &str,
-        last_upgraded: Option<DateTime<Utc>>,
+        last_upgraded: Option<Timestamp>,
     ) -> Result<Option<Release>> {
         let document = tokio::time::timeout(
             PAGE_TIMEOUT,
@@ -414,8 +415,11 @@ impl WebScraperAdapter {
             .headers
             .get(reqwest::header::LAST_MODIFIED)
             .and_then(|value| value.to_str().ok())
-            .and_then(|value| DateTime::parse_from_rfc2822(value).ok())
-            .map(|value| value.with_timezone(&Utc));
+            .and_then(|value| {
+                jiff::fmt::rfc2822::DateTimeParser::new()
+                    .parse_timestamp(value)
+                    .ok()
+            });
 
         let page_etag = document
             .headers
@@ -435,15 +439,12 @@ impl WebScraperAdapter {
         Ok(Some(Self::release_from_infos(infos, last_upgraded)))
     }
 
-    fn release_from_infos(
-        infos: Vec<HttpAssetInfo>,
-        last_upgraded: Option<DateTime<Utc>>,
-    ) -> Release {
+    fn release_from_infos(infos: Vec<HttpAssetInfo>, last_upgraded: Option<Timestamp>) -> Release {
         let published_at = infos
             .iter()
             .filter_map(|info| info.last_modified)
             .max()
-            .unwrap_or_else(|| last_upgraded.unwrap_or_else(Utc::now));
+            .unwrap_or_else(|| last_upgraded.unwrap_or_else(Timestamp::now));
 
         let version = Self::highest_version(
             infos
@@ -508,7 +509,7 @@ impl ReleaseProvider for WebScraperAdapter {
     async fn get_latest_release_since(
         &self,
         slug: &str,
-        last_upgraded: Option<DateTime<Utc>>,
+        last_upgraded: Option<Timestamp>,
     ) -> Result<Option<Release>> {
         self.release_since(slug, last_upgraded).await
     }

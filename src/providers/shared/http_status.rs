@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use reqwest::{Response, StatusCode, header};
 
 pub fn error_for_status(response: &Response, service: &str, url: &str) -> Result<()> {
@@ -130,11 +130,11 @@ fn format_rate_limit_reset(value: &str) -> String {
         return format!("at {value}");
     };
 
-    let Some(reset_at) = DateTime::<Utc>::from_timestamp(seconds, 0) else {
+    let Ok(reset_at) = Timestamp::from_second(seconds) else {
         return format!("at {value}");
     };
 
-    format!("at {}", reset_at.format("%Y-%m-%d %H:%M:%S UTC"))
+    format!("at {}", reset_at.strftime("%Y-%m-%d %H:%M:%S UTC"))
 }
 
 #[cfg(test)]

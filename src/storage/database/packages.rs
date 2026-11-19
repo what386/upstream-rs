@@ -545,7 +545,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             version_kind,
             version_value,
             release_tag,
-            package.release_published_at.map(|value| value.to_rfc3339()),
+            package.release_published_at.map(|value| value.display_with_offset(jiff::tz::Offset::UTC).to_string()),
             package.version_tag_template,
             enum_to_db(&package.channel)?,
             enum_to_db(&package.provider)?,
@@ -556,7 +556,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
             bool_to_db(package.is_pinned),
             optional_path_to_db(&package.icon_path)?,
             optional_path_to_db(&package.install_path)?,
-            package.last_upgraded.to_rfc3339(),
+            package.last_upgraded.display_with_offset(jiff::tz::Offset::UTC).to_string(),
         ],
     )
     .with_context(|| format!("Failed to write package '{}'", package.id))?;
@@ -577,7 +577,7 @@ mod tests {
     };
     use crate::providers::pattern_matcher::PatternTable;
     use crate::storage::database::PackageSettings;
-    use chrono::{TimeZone, Utc};
+    use jiff::Timestamp;
     use std::path::PathBuf;
 
     fn test_package(name: &str) -> Package {
@@ -595,8 +595,8 @@ mod tests {
         package.version = Version::new(1, 2, 3, true);
         package.release_tag = Some("rust-v1.2.3-beta.4".to_string());
         package.release_published_at = Some(
-            Utc.with_ymd_and_hms(2026, 6, 20, 10, 0, 0)
-                .single()
+            "2026-06-20T10:00:00Z"
+                .parse::<Timestamp>()
                 .expect("valid release timestamp"),
         );
         package.version_tag_template = Some("rust-v{}-beta.4".to_string());
@@ -612,9 +612,8 @@ mod tests {
             path: PathBuf::from("/packages/tool/bin/tool"),
             name: name.to_string(),
         }];
-        package.last_upgraded = Utc
-            .with_ymd_and_hms(2026, 6, 21, 12, 30, 0)
-            .single()
+        package.last_upgraded = "2026-06-21T12:30:00Z"
+            .parse::<Timestamp>()
             .expect("valid timestamp");
         package
     }
@@ -658,6 +657,32 @@ mod tests {
         assert_eq!(stored.install_path, package.install_path);
         assert_eq!(stored.executables, package.executables);
         assert_eq!(stored.last_upgraded, package.last_upgraded);
+    }
+
+    #[test]
+    fn loads_existing_json_and_database_timestamps() {
+        let mut db = PackageConnection::open_in_memory().expect("open db");
+        let mut json = serde_json::to_value(test_package("tool")).unwrap();
+        // Existing Chrono metadata uses RFC 3339, including subsecond precision.
+        json["last_upgraded"] = "2026-06-21T14:30:00.123456789+02:00".into();
+        json["release_published_at"] = "2026-06-20T10:00:00.120Z".into();
+        let package: Package = serde_json::from_value(json).unwrap();
+        db.upsert_package(&package).unwrap();
+
+        db.conn
+            .execute(
+                "UPDATE packages SET last_upgraded = ?1, release_published_at = ?2 WHERE id = 'tool'",
+                ["2026-06-21T12:30:00.123456789+00:00", "2026-06-20T10:00:00.120+00:00"],
+            )
+            .unwrap();
+        let stored = db.get_package("tool").unwrap().unwrap();
+        assert_eq!(stored.last_upgraded, package.last_upgraded);
+        assert_eq!(stored.release_published_at, package.release_published_at);
+        assert_eq!(stored.last_upgraded.subsec_nanosecond(), 123_456_789);
+        assert_eq!(
+            stored.release_published_at.unwrap().subsec_nanosecond(),
+            120_000_000
+        );
     }
 
     #[test]

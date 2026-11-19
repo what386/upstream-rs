@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, anyhow};
-use chrono::Utc;
 use console::style;
+use jiff::Timestamp;
 use std::path::Path;
 
 use crate::{
@@ -176,7 +176,7 @@ where
         message_callback,
     );
     package.install_path = Some(out_path);
-    package.last_upgraded = Utc::now();
+    package.last_upgraded = Timestamp::now();
     Ok(package)
 }
 
@@ -422,7 +422,7 @@ where
         );
     }
 
-    package.last_upgraded = Utc::now();
+    package.last_upgraded = Timestamp::now();
     Ok(package)
 }
 
@@ -459,7 +459,7 @@ where
 
     package.install_path = Some(out_path.clone());
     set_executable_aliases(&mut package, vec![out_path], None);
-    package.last_upgraded = Utc::now();
+    package.last_upgraded = Timestamp::now();
     Ok(package)
 }
 
