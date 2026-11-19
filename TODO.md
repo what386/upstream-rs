@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-11-18
+@modified: 2026-11-19
 
 
 ## Tasks
@@ -32,4 +32,8 @@
 - [x] feat: reinstall now shares install's args
       @created 2026-11-17 20:21
       @completed 2026-11-17 20:21
+
+- [x] BREAKING: remove legacy version migrations
+      @created 2026-11-19 00:06
+      @completed 2026-11-19 00:06
 

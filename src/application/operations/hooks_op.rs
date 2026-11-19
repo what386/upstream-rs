@@ -54,8 +54,8 @@ fn check_fail(report: &mut InitCheckReport, detail: impl fmt::Display) {
 }
 
 pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
-    create_package_dirs(paths)?;
     create_manifest_file(paths)?;
+    create_package_dirs(paths)?;
     create_package_database_file(paths)?;
     create_trust_file(paths)?;
     create_metadata_files(paths)?;
@@ -74,7 +74,7 @@ pub fn initialize(paths: &UpstreamPaths) -> Result<()> {
 }
 
 fn create_manifest_file(paths: &UpstreamPaths) -> Result<()> {
-    ManifestStorage::new(&ManifestStorage::path_for_root(&paths.dirs.data_dir))?.ensure_current()
+    crate::routines::migrate::run(paths)
 }
 
 fn create_package_database_file(paths: &UpstreamPaths) -> Result<()> {
@@ -590,10 +590,8 @@ mod tests {
             Some(CURRENT_LAYOUT_VERSION as u64)
         );
 
-        assert_eq!(
-            manifest["platform"]["os"].as_str(),
-            Some(std::env::consts::OS)
-        );
+        assert_eq!(manifest["manifest_version"], 2);
+        assert_eq!(manifest.as_object().unwrap().len(), 2);
 
         cleanup(&root).expect("cleanup");
     }

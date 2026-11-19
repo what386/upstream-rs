@@ -12,18 +12,9 @@ pub use api::PackageDatabase;
 pub use settings::PackageSettings;
 
 pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 13;
+pub const MIN_PACKAGE_DB_SCHEMA_VERSION: u32 = 11;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
-const MIGRATION_001_TO_002: &str = include_str!("migrations/001-to-002.sql");
-const MIGRATION_002_TO_003: &str = include_str!("migrations/002-to-003.sql");
-const MIGRATION_003_TO_004: &str = include_str!("migrations/003-to-004.sql");
-const MIGRATION_004_TO_005: &str = include_str!("migrations/004-to-005.sql");
-const MIGRATION_005_TO_006: &str = include_str!("migrations/005-to-006.sql");
-const MIGRATION_006_TO_007: &str = include_str!("migrations/006-to-007.sql");
-const MIGRATION_007_TO_008: &str = include_str!("migrations/007-to-008.sql");
-const MIGRATION_008_TO_009: &str = include_str!("migrations/008-to-009.sql");
-const MIGRATION_009_TO_010: &str = include_str!("migrations/009-to-010.sql");
-const MIGRATION_010_TO_011: &str = include_str!("migrations/010-to-011.sql");
 const MIGRATION_011_TO_012: &str = include_str!("migrations/011-to-012.sql");
 
 const MIGRATION_012_TO_013: &str = include_str!("migrations/012-to-013.sql");
@@ -34,6 +25,15 @@ fn initialize(conn: &Connection) -> Result<()> {
 
     let current_version = schema_version(conn)?;
     if current_version == 0 {
+        let has_tables: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%')",
+            [], |row| row.get(0),
+        )?;
+        if has_tables {
+            bail!(
+                "Unversioned package database is not empty. Upgrade this installation with Upstream v2.24.1 before using this version."
+            );
+        }
         conn.execute_batch(SCHEMA_SQL)
             .context("Failed to initialize package database schema")?;
         record_schema_version(conn)?;
@@ -47,6 +47,11 @@ fn initialize(conn: &Connection) -> Result<()> {
 }
 
 fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
+    if current_version < MIN_PACKAGE_DB_SCHEMA_VERSION {
+        bail!(
+            "Package database schema {current_version} is no longer supported. Upgrade this installation with Upstream v2.24.1 before using this version."
+        );
+    }
     if current_version > PACKAGE_DB_SCHEMA_VERSION {
         bail!(
             "Unsupported package database schema version {}. Expected version {} or earlier.",
@@ -57,16 +62,6 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
 
     while current_version < PACKAGE_DB_SCHEMA_VERSION {
         let (sql, next_version) = match current_version {
-            1 => (MIGRATION_001_TO_002, 2),
-            2 => (MIGRATION_002_TO_003, 3),
-            3 => (MIGRATION_003_TO_004, 4),
-            4 => (MIGRATION_004_TO_005, 5),
-            5 => (MIGRATION_005_TO_006, 6),
-            6 => (MIGRATION_006_TO_007, 7),
-            7 => (MIGRATION_007_TO_008, 8),
-            8 => (MIGRATION_008_TO_009, 9),
-            9 => (MIGRATION_009_TO_010, 10),
-            10 => (MIGRATION_010_TO_011, 11),
             11 => (MIGRATION_011_TO_012, 12),
             12 => (MIGRATION_012_TO_013, 13),
             version => bail!(
@@ -161,5 +156,48 @@ mod tests {
 
         initialize(&conn).unwrap();
         assert_eq!(schema_version(&conn).unwrap(), PACKAGE_DB_SCHEMA_VERSION);
+    }
+}
+
+#[cfg(test)]
+mod baseline_tests {
+    use super::*;
+
+    #[test]
+    fn retired_and_future_schemas_are_rejected_without_changes() {
+        for version in (1..MIN_PACKAGE_DB_SCHEMA_VERSION).chain([PACKAGE_DB_SCHEMA_VERSION + 1]) {
+            let conn = Connection::open_in_memory().unwrap();
+            conn.execute_batch(
+                "CREATE TABLE preserved(value TEXT); INSERT INTO preserved VALUES ('keep');",
+            )
+            .unwrap();
+            conn.pragma_update(None, "user_version", version).unwrap();
+            assert!(initialize(&conn).is_err());
+            assert_eq!(schema_version(&conn).unwrap(), version);
+            assert_eq!(
+                conn.query_row("SELECT value FROM preserved", [], |r| r.get::<_, String>(0))
+                    .unwrap(),
+                "keep"
+            );
+            assert!(
+                !conn
+                    .prepare("SELECT name FROM sqlite_master WHERE name='packages'")
+                    .unwrap()
+                    .exists([])
+                    .unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn only_empty_unversioned_databases_are_initialized() {
+        let conn = Connection::open_in_memory().unwrap();
+        initialize(&conn).unwrap();
+        assert_eq!(schema_version(&conn).unwrap(), PACKAGE_DB_SCHEMA_VERSION);
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE packages(value TEXT);")
+            .unwrap();
+        assert!(initialize(&conn).is_err());
+        assert_eq!(schema_version(&conn).unwrap(), 0);
     }
 }

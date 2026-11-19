@@ -49,6 +49,12 @@ upstream config set logging.level=info
 If Upstream panics, look for `~/.upstream/crash-<timestamp>.txt`. Upstream prints
 the path when it saves a report. Include the report with your bug report.
 
+## Upgrading an older installation
+
+If Upstream reports an unsupported installation layout or package database,
+run Upstream v2.24.1 with your existing setup first, then
+install the current release. Keep `~/.upstream` in place during both upgrades.
+
 ## Report a bug
 
 Use the [bug report template](../.github/ISSUE_TEMPLATE/bug_report.yml) and include:

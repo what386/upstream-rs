@@ -9,7 +9,6 @@ use crate::{
 };
 
 use super::super::{DoctorReport, Level};
-use super::legacy::{legacy_package_metadata_exists, looks_like_legacy_layout};
 
 const HOOKS_INIT_DIR_HINT: &str =
     "Run `upstream hooks init` to create missing upstream directories and metadata files.";
@@ -107,11 +106,6 @@ pub(in crate::routines::doctor) fn check_local_layout(
     paths: &UpstreamPaths,
     report: &mut DoctorReport,
 ) {
-    let legacy_layout_detected = looks_like_legacy_layout(paths);
-    if legacy_layout_detected {
-        report.line(Level::Warn, "legacy upstream data layout detected");
-    }
-
     for (label, path) in required_directory_checks(paths) {
         if path.exists() {
             report.line(Level::Ok, format!("{} exists", label));
@@ -209,7 +203,7 @@ pub(in crate::routines::doctor) fn check_package_metadata_file(
 ) {
     if paths.metadata.packages_database_file.exists() {
         report.line(Level::Ok, "Package database exists");
-    } else if legacy_package_metadata_exists(paths) {
+    } else if paths.metadata.packages_file.exists() {
         report.line(
             Level::Warn,
             format!(
@@ -217,7 +211,7 @@ pub(in crate::routines::doctor) fn check_package_metadata_file(
                 paths.metadata.packages_file.display()
             ),
         );
-        report.hint("Run `upstream hooks init` to create package metadata storage.");
+        report.hint("Upgrade this installation with Upstream v2.24.1 before using this version.");
     } else {
         report.line(
             Level::Warn,

@@ -1,6 +1,5 @@
 mod filesystem;
 mod integration;
-pub mod legacy;
 mod packages;
 mod tokens;
 

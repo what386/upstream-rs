@@ -33,7 +33,7 @@ build and test commands.
 
 1. [Early handling](../src/early.rs) handles help, version, shell completion, and
    saved update results before normal startup.
-2. [Main](../src/main.rs) starts logging, runs migrations, and loads settings.
+2. [Main](../src/main.rs) starts logging, checks layout compatibility, and loads settings.
 3. [Dispatch](../src/application/cli/dispatch.rs) takes a lock if needed, then
    runs the command.
 4. Commands use operations and services to do the work. For installs, this means
@@ -70,3 +70,14 @@ Enable `testing_donotuseinrelease` when running the CLI against test data to
 keep changes away from your normal installation. Set `UPSTREAM_TEST_HOME` to
 choose the test home directory. See [Contributing](../CONTRIBUTING.md) for test
 commands and required tools.
+
+## Storage compatibility
+
+The minimum supported installation is the v2.20.0 layout (version 5) and package
+database schema 11. For older installations, run v2.24.1 first; historical layout
+converters and SQL migrations below that baseline have been retired.
+
+Future filesystem migrations should run in layout-version order and advance the
+recorded version only after each migration succeeds. SQLite migrations remain independent and use
+`PRAGMA user_version`; schema 11→12 and 12→13 remain supported. New databases are
+created directly from the current schema.
