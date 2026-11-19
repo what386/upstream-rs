@@ -15,3 +15,10 @@
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
 
+
+## Completed
+
+- [x] feat: `build` can store multiple output binaries
+      @created 2026-11-19 21:55
+      @completed 2026-11-19 21:55
+
