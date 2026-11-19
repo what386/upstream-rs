@@ -3,7 +3,6 @@
 @created: 2026-01-31
 @modified: 2026-11-19
 
-
 ## Tasks
 
 - [ ] feat: add macOS desktop launcher support (low) #desktop #macos
@@ -14,10 +13,6 @@
 
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
-
-- [ ] feat: launch options, set with 'package set launch_options=
-      @created 2026-11-18 18:52
-
 
 ## Completed
 
@@ -37,3 +32,6 @@
       @created 2026-11-19 00:06
       @completed 2026-11-19 00:06
 
+- [x] feat: customizable desktop launch options
+      @created 2026-11-18 18:52
+      @completed 2026-11-19 00:41
