@@ -148,8 +148,8 @@ impl LogWriter {
             fs::create_dir_all(parent)?;
         }
 
-        let mut file = OpenOptions::new().create(true).append(true).open(path)?;
-        retain_records(&mut file, path, config)?;
+        let file = OpenOptions::new().create(true).append(true).open(path)?;
+        retain_records(path, config)?;
         Ok(Self {
             file: Mutex::new(file),
             path: path.to_owned(),
@@ -195,12 +195,12 @@ impl Drop for LogGuard<'_> {
         {
             // The guard covers the entire formatted event, so retention never
             // sees a partially written JSON line from another thread.
-            let _ = retain_records(&mut self.file, &self.writer.path, self.writer.config);
+            let _ = retain_records(&self.writer.path, self.writer.config);
         }
     }
 }
 
-fn retain_records(file: &mut File, path: &Path, config: LoggingConfig) -> io::Result<()> {
+fn retain_records(path: &Path, config: LoggingConfig) -> io::Result<()> {
     let content = fs::read_to_string(path)?;
     let mut bytes = 0_u64;
     let mut start = content.len();
@@ -216,8 +216,9 @@ fn retain_records(file: &mut File, path: &Path, config: LoggingConfig) -> io::Re
     }
 
     if start > 0 {
-        file.set_len(0)?;
-        file.write_all(&content.as_bytes()[start..])?;
+        // Windows append-only handles cannot truncate. Rewrite through a
+        // separate write handle, preserving the logger's append semantics.
+        fs::write(path, &content.as_bytes()[start..])?;
     }
 
     Ok(())

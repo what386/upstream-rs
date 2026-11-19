@@ -103,10 +103,12 @@ mod tests {
     fn migrates_v11_provider_constraint_and_preserves_package_relations() {
         let conn = Connection::open_in_memory().unwrap();
         let legacy_schema = SCHEMA_SQL
+            .replace("\r\n", "\n")
             .replace(", 'AppImageHub'", "")
             .replace("    desktop_launch_options TEXT,\n", "");
 
         assert!(!legacy_schema.contains("AppImageHub"));
+        assert!(!legacy_schema.contains("desktop_launch_options"));
         conn.execute_batch(&legacy_schema).unwrap();
         conn.execute_batch(
             "PRAGMA foreign_keys = ON;
