@@ -110,6 +110,7 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
             Ok(()) => tracing::info!(elapsed_ms, outcome = "success", "Command completed"),
             Err(error) => tracing::error!(elapsed_ms, outcome = "failure", error = %format!("{error:#}"), "Command failed"),
         }
+
         result
     }
     .instrument(span)

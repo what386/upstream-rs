@@ -8,20 +8,24 @@ pub fn split_windows_arguments(template: &str) -> Result<Vec<String>> {
         while chars.peek().is_some_and(|ch| matches!(ch, ' ' | '\t')) {
             chars.next();
         }
+
         if chars.peek().is_none() {
             break;
         }
+
         let mut argument = String::new();
         let mut quoted = false;
         while let Some(&ch) = chars.peek() {
             if !quoted && matches!(ch, ' ' | '\t') {
                 break;
             }
+
             let mut backslashes = 0;
             while chars.peek() == Some(&'\\') {
                 backslashes += 1;
                 chars.next();
             }
+
             if chars.peek() == Some(&'"') {
                 argument.extend(std::iter::repeat_n('\\', backslashes / 2));
                 chars.next();
@@ -38,16 +42,20 @@ pub fn split_windows_arguments(template: &str) -> Result<Vec<String>> {
                 if !quoted && chars.peek().is_some_and(|ch| matches!(ch, ' ' | '\t')) {
                     break;
                 }
+
                 if let Some(ch) = chars.next() {
                     argument.push(ch);
                 }
             }
         }
+
         if quoted {
             bail!("Unterminated double quote in Windows command line");
         }
+
         arguments.push(argument);
     }
+
     Ok(arguments)
 }
 
@@ -55,6 +63,7 @@ pub fn quote_windows_argument(argument: &str) -> String {
     if !argument.is_empty() && !argument.contains([' ', '\t', '"']) {
         return argument.to_string();
     }
+
     let mut quoted = String::from("\"");
     let mut backslashes = 0;
     for ch in argument.chars() {
@@ -62,6 +71,7 @@ pub fn quote_windows_argument(argument: &str) -> String {
             backslashes += 1;
             continue;
         }
+
         quoted.extend(std::iter::repeat_n(
             '\\',
             if ch == '"' {
@@ -73,10 +83,12 @@ pub fn quote_windows_argument(argument: &str) -> String {
         backslashes = 0;
         quoted.push(ch);
     }
+
     quoted.extend(std::iter::repeat_n('\\', backslashes * 2));
     quoted.push('"');
     quoted
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -87,6 +99,7 @@ mod tests {
             split_windows_arguments(r#"C:\Tools\runner.exe "C:\Program Files\tool.exe" --profile "Work Profile" "" C:\O'Brien\ C:\next"#).unwrap(),
             [r"C:\Tools\runner.exe", r"C:\Program Files\tool.exe", "--profile", "Work Profile", "", r"C:\O'Brien\", r"C:\next"]
         );
+
         assert!(split_windows_arguments(r#"{} "unterminated"#).is_err());
     }
 
@@ -103,11 +116,13 @@ mod tests {
             "%TEMP%",
             "日本語",
         ];
+
         let command_line = arguments
             .iter()
             .map(|argument| quote_windows_argument(argument))
             .collect::<Vec<_>>()
             .join(" ");
+
         assert_eq!(split_windows_arguments(&command_line).unwrap(), arguments);
     }
 

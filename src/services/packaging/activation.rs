@@ -644,6 +644,7 @@ impl<'a> PackageActivator<'a> {
             elapsed_ms = started.elapsed().as_millis() as u64,
             "Package activated"
         );
+
         Ok(updated_package)
     }
 }
@@ -817,6 +818,7 @@ impl<'a> PackageActivator<'a> {
             elapsed_ms = started.elapsed().as_millis() as u64,
             "Replacement activated; awaiting metadata persistence"
         );
+
         Ok(PendingReplacement {
             package: updated_package,
             backup,
@@ -859,6 +861,7 @@ impl<'a> PackageActivator<'a> {
             reason = failure_context,
             "Restoring previous package after failed replacement"
         );
+
         let mut errors = Vec::new();
         if let Some(package) = backup.partially_installed_package.as_ref()
             && let Err(error) =
@@ -919,6 +922,7 @@ impl<'a> PackageActivator<'a> {
                 elapsed_ms = started.elapsed().as_millis() as u64,
                 "Previous package restoration incomplete"
             );
+
             return Err(anyhow!(
                 "{} for '{}': {failure:#}. Recovery encountered: {}",
                 failure_context,
@@ -931,6 +935,7 @@ impl<'a> PackageActivator<'a> {
             elapsed_ms = started.elapsed().as_millis() as u64,
             "Previous package restored"
         );
+
         Err(failure).context(format!(
             "{} for '{}' (previous version restored)",
             failure_context, backup.previous_package.id
@@ -1021,6 +1026,7 @@ impl<'a> PackageActivator<'a> {
             elapsed_ms = started.elapsed().as_millis() as u64,
             "Package replacement committed"
         );
+
         Ok(package)
     }
 }

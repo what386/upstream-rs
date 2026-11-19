@@ -341,6 +341,7 @@ async fn run_dry_run(
         paths,
     )
     .await;
+
     output::print_disk_impact_with_size_rows(&impact, &[], true);
     output::action_note(
         "resolve only (no remove, no download, no build, no install, no metadata changes)",
@@ -560,6 +561,7 @@ async fn estimate_reinstall_impact_rows(
             .clone()
             .or_else(|| install_options.semver.clone())
             .unwrap_or_else(|| package.version.to_string());
+
         let new_install = match package.install_type {
             InstallType::Release => {
                 let mut preview_package = package.clone();
@@ -620,6 +622,7 @@ async fn resolve_reinstall_release(
             )
             .await;
     }
+
     let tag = install_options.tag.clone().or_else(|| package.installed_release_tag()).ok_or_else(|| {
         anyhow!(
             "package '{}' is missing its installed release tag; run `upstream upgrade {} --force` to repair package metadata",
@@ -725,26 +728,33 @@ fn apply_install_options(package: &Package, options: &InstallOptions) -> Package
     if let Some(kind) = options.asset_options.kind {
         package.filetype = kind;
     }
+
     if let Some(provider) = &options.provider_options.provider {
         package.provider = provider.clone();
     }
+
     if let Some(base_url) = &options.provider_options.base_url {
         package.base_url = Some(base_url.clone());
     }
+
     if let Some(channel) = &options.channel {
         package.channel = channel.clone();
     }
+
     if let Some(pattern) = &options.asset_options.match_pattern {
         package.match_pattern =
             crate::providers::pattern_matcher::PatternTable::from_cli_arg(Some(pattern.clone()));
     }
+
     if let Some(pattern) = &options.asset_options.exclude_pattern {
         package.exclude_pattern =
             crate::providers::pattern_matcher::PatternTable::from_cli_arg(Some(pattern.clone()));
     }
+
     if options.tag.is_some() || options.semver.is_some() {
         package.build_branch = None;
     }
+
     package
 }
 
@@ -781,6 +791,7 @@ mod tests {
             Provider::Gitea,
             None,
         );
+
         package.install_path = Some(active_path.clone());
         package.executables = vec![crate::models::upstream::PackageExecutable {
             name: "tool".into(),
@@ -809,6 +820,7 @@ mod tests {
                     }
                     Err(error) => panic!("{error}"),
                 };
+
                 stream
                     .set_read_timeout(Some(Duration::from_secs(5)))
                     .unwrap();
@@ -822,6 +834,7 @@ mod tests {
                         break;
                     }
                 }
+
                 let (status, body) = if request.contains("/releases/tags/v2.0.0 ") {
                     (
                         "200 OK",
@@ -837,6 +850,7 @@ mod tests {
                 } else {
                     ("404 Not Found", "missing".into())
                 };
+
                 write!(
                     stream,
                     "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -845,6 +859,7 @@ mod tests {
                 .unwrap();
             }
         });
+
         let manager = ProviderManager::new(None, None, None, Default::default()).unwrap();
         let mut database = PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
         database.upsert_package(&package).unwrap();
@@ -865,6 +880,7 @@ mod tests {
             },
             ..Default::default()
         };
+
         // A failed resolution must leave the active package and metadata intact.
         options.tag = Some("missing".into());
         let failed = reinstall_one(
@@ -880,6 +896,7 @@ mod tests {
             &mut None::<fn(PackageProgressEvent)>,
         )
         .await;
+
         assert!(failed.is_err());
         assert_eq!(fs::read(&active_path).unwrap(), b"old binary");
         assert_eq!(
@@ -897,6 +914,7 @@ mod tests {
             serde_json::to_value(database.get_package(&package.id).unwrap().unwrap()).unwrap(),
             serde_json::to_value(&original).unwrap()
         );
+
         let result = reinstall_one(
             &manager,
             &mut database,
@@ -910,6 +928,7 @@ mod tests {
             &mut None::<fn(PackageProgressEvent)>,
         )
         .await;
+
         stopped.store(true, Ordering::Relaxed);
         server.join().unwrap();
         result.unwrap();
@@ -923,6 +942,7 @@ mod tests {
             fs::read(updated.install_path.unwrap()).unwrap(),
             b"new binary"
         );
+
         fs::remove_dir_all(root).unwrap();
     }
 }

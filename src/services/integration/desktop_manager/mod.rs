@@ -375,6 +375,7 @@ impl<'a> DesktopManager<'a> {
         if !paths.metadata.packages_database_file.exists() {
             return Ok(PackageSettings::new(&package.id));
         }
+
         Ok(
             PackageDatabase::open(&paths.metadata.packages_database_file)?
                 .get_package_settings(&package.id)?
@@ -393,8 +394,10 @@ impl<'a> DesktopManager<'a> {
             let entry = Self::managed_entry_path(paths, &package.id)?;
             Self::update_entry_launch_targets(package, settings, &entry)?;
         }
+
         #[cfg(not(any(target_os = "linux", windows)))]
         let _ = (paths, package, settings);
+
         Ok(())
     }
 
@@ -411,10 +414,12 @@ impl<'a> DesktopManager<'a> {
                 package,
                 settings.desktop_launch_options.as_deref(),
             )?;
+
             if updated != content {
                 write_atomic(entry, updated.as_bytes())?;
             }
         }
+
         #[cfg(windows)]
         WindowsDesktopHandler::update_launch_commands(
             entry,
@@ -423,6 +428,7 @@ impl<'a> DesktopManager<'a> {
         )?;
         #[cfg(not(any(target_os = "linux", windows)))]
         let _ = (package, settings, entry);
+
         Ok(())
     }
 

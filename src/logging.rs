@@ -20,6 +20,7 @@ pub(crate) fn source_url(value: &str) -> String {
     let Ok(mut url) = reqwest::Url::parse(value) else {
         return "<invalid URL>".to_owned();
     };
+
     let _ = url.set_password(None);
     let _ = url.set_username("");
     url.set_query(None);
@@ -76,6 +77,7 @@ fn install_panic_hook(directory: &Path) {
                     path.display()
                 );
             }
+
             previous(info);
         }));
     });
@@ -87,6 +89,7 @@ fn write_crash_report(directory: &Path, info: &PanicHookInfo<'_>) -> io::Result<
         "crash-{}.txt",
         timestamp.format("%Y%m%dT%H%M%S%.9fZ")
     ));
+
     fs::create_dir_all(directory)?;
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
@@ -95,6 +98,7 @@ fn write_crash_report(directory: &Path, info: &PanicHookInfo<'_>) -> io::Result<
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(0o600);
     }
+
     let mut file = options.open(&path)?;
     let thread = std::thread::current();
     writeln!(file, "Upstream version: {}", env!("CARGO_PKG_VERSION"))?;
@@ -122,8 +126,10 @@ fn filter(level: LoggingLevel) -> Result<EnvFilter> {
         LoggingLevel::Debug => "debug",
         LoggingLevel::Trace => "trace",
     };
+
     let directives = std::env::var("RUST_LOG")
         .unwrap_or_else(|_| format!("off,upstream={level},upstream_rs={level}"));
+
     EnvFilter::builder()
         .with_regex(false)
         .parse(directives)
@@ -141,6 +147,7 @@ impl LogWriter {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
+
         let mut file = OpenOptions::new().create(true).append(true).open(path)?;
         retain_records(&mut file, path, config)?;
         Ok(Self {
@@ -203,13 +210,16 @@ fn retain_records(file: &mut File, path: &Path, config: LoggingConfig) -> io::Re
         if count >= config.vacuum || (max > 0 && next_bytes > max) {
             break;
         }
+
         bytes = next_bytes;
         start -= line.len();
     }
+
     if start > 0 {
         file.set_len(0)?;
         file.write_all(&content.as_bytes()[start..])?;
     }
+
     Ok(())
 }
 
@@ -225,6 +235,7 @@ mod tests {
         let Some(directory) = std::env::var_os("UPSTREAM_PANIC_TEST_DIR") else {
             return;
         };
+
         let previous = panic::take_hook();
         panic::set_hook(Box::new(move |info| {
             let _ = writeln!(io::stderr().lock(), "Previous panic hook called");
@@ -243,6 +254,7 @@ mod tests {
             .spawn(|| panic!("panic report test"))
             .unwrap()
             .join();
+
         std::process::exit(101);
     }
 
@@ -258,6 +270,7 @@ mod tests {
             .env("RUST_BACKTRACE", "0")
             .output()
             .unwrap();
+
         assert_eq!(output.status.code(), Some(101));
         let stderr = String::from_utf8(output.stderr).unwrap();
         assert!(stderr.contains("Previous panic hook called"));
@@ -274,6 +287,7 @@ mod tests {
             .unwrap()
             .map(|entry| entry.unwrap().path())
             .collect();
+
         assert_eq!(files.len(), 1);
         let path = &files[0];
         assert!(
@@ -283,6 +297,7 @@ mod tests {
                 .unwrap()
                 .starts_with("crash-")
         );
+
         assert_eq!(path.extension().unwrap(), "txt");
         assert!(stderr.contains(&path.display().to_string()));
         let report = fs::read_to_string(path).unwrap();
@@ -297,6 +312,7 @@ mod tests {
         ] {
             assert!(report.contains(expected), "Report missing {expected}");
         }
+
         assert!(!report.contains("disabled backtrace"));
         fs::remove_dir_all(directory).unwrap();
     }
@@ -319,6 +335,7 @@ mod tests {
             ),
             "https://example.com:8443/releases/tool.tar.gz"
         );
+
         assert_eq!(source_url("not a URL: private"), "<invalid URL>");
     }
 
@@ -332,12 +349,14 @@ mod tests {
             max_size_mb: 1,
             ..LoggingConfig::default()
         };
+
         let writer = LogWriter::new(&path, config).unwrap();
         assert_eq!(fs::read_to_string(&path).unwrap(), line.repeat(2));
         {
             let mut guard = writer.make_writer();
             guard.write_all(b"new\n").unwrap();
         }
+
         assert_eq!(fs::read_to_string(&path).unwrap(), format!("{line}new\n"));
         drop(writer);
         fs::remove_file(path).unwrap();
@@ -356,6 +375,7 @@ mod tests {
             },
         )
         .unwrap();
+
         assert_eq!(fs::read_to_string(&path).unwrap(), "two\nthree\n");
         drop(writer);
         fs::remove_file(path).unwrap();

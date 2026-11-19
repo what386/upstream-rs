@@ -15,12 +15,15 @@ impl LauncherManager {
         if template.contains(['\0', '\n', '\r']) {
             bail!("desktop_launch_options cannot contain NUL bytes or newlines");
         }
+
         #[cfg(windows)]
         let arguments = split_windows_arguments(template)
             .context("desktop_launch_options contains invalid argument quoting")?;
+
         #[cfg(not(windows))]
         let arguments = shlex::split(template)
             .ok_or_else(|| anyhow!("desktop_launch_options contains invalid argument quoting"))?;
+
         if arguments.iter().filter(|arg| arg.as_str() == "{}").count() != 1
             || arguments
                 .iter()
@@ -28,6 +31,7 @@ impl LauncherManager {
         {
             bail!("desktop_launch_options must contain exactly one standalone {{}} argument");
         }
+
         if arguments
             .first()
             .is_none_or(|arg| arg.is_empty() || arg.contains('='))
@@ -36,6 +40,7 @@ impl LauncherManager {
                 "desktop_launch_options must start with a command, not an environment assignment"
             );
         }
+
         Ok(arguments)
     }
 
@@ -48,9 +53,11 @@ impl LauncherManager {
         let executable = executable
             .to_str()
             .ok_or_else(|| anyhow!("Executable path is not valid UTF-8"))?;
+
         if executable.contains(['\0', '\n', '\r']) {
             bail!("Executable path cannot be represented in a shortcut");
         }
+
         let mut expanded = arguments.iter().map(|argument| {
             if argument == "{}" {
                 executable
@@ -58,10 +65,12 @@ impl LauncherManager {
                 argument.as_str()
             }
         });
+
         let target = expanded
             .next()
             .filter(|target| !target.is_empty())
             .ok_or_else(|| anyhow!("Desktop launch command is empty"))?;
+
         Ok((
             target.to_string(),
             expanded
@@ -77,9 +86,11 @@ impl LauncherManager {
         let executable = executable
             .to_str()
             .ok_or_else(|| anyhow!("Executable path is not valid UTF-8"))?;
+
         if executable.contains(['\0', '\n', '\r', '=']) {
             bail!("Executable path cannot be represented in a desktop launch command");
         }
+
         Ok(arguments
             .iter()
             .map(|arg| {
@@ -101,9 +112,11 @@ mod tests {
             r#"C:\Tools\runner.exe --mode desktop {} --profile "Work Profile" "" "C:\my folder\\""#,
         )
         .unwrap();
+
         let executable = Path::new(r"C:\Apps\O'Brien\my app.exe");
         let (target, command_line) =
             LauncherManager::format_windows_command(&arguments, executable).unwrap();
+
         assert_eq!(target, r"C:\Tools\runner.exe");
         assert_eq!(
             split_windows_arguments(&command_line).unwrap(),
@@ -117,9 +130,11 @@ mod tests {
                 r"C:\my folder\"
             ]
         );
+
         let direct =
             LauncherManager::format_windows_command(&["{}".into(), "--flag".into()], executable)
                 .unwrap();
+
         assert_eq!(
             direct,
             (executable.to_string_lossy().into_owned(), "--flag".into())
@@ -150,6 +165,7 @@ mod tests {
             r#"env FOO=bar {} --profile "Work Profile" "$HOME" "100%" """#,
         )
         .unwrap();
+
         assert_eq!(
             LauncherManager::format_desktop_command(&options, Path::new("/my apps/tool")).unwrap(),
             "env FOO=bar \"/my apps/tool\" --profile \"Work Profile\" \"\\\\$HOME\" 100%% \"\""

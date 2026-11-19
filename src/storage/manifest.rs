@@ -45,6 +45,7 @@ impl ManifestStorage {
                         manifest_file.display()
                     )
                 })?;
+
                 match value
                     .get("manifest_version")
                     .and_then(serde_json::Value::as_u64)
@@ -56,6 +57,7 @@ impl ManifestStorage {
                             .get("layout_version")
                             .and_then(serde_json::Value::as_u64)
                             .context("Legacy migration manifest has no layout version")?;
+
                         validate_layout(version)?;
                         None
                     }
@@ -80,6 +82,7 @@ impl ManifestStorage {
                 });
             }
         };
+
         Ok(Self {
             manifest_file: manifest_file.to_owned(),
             manifest,
@@ -101,6 +104,7 @@ impl ManifestStorage {
                 manifest.manifest_version
             );
         }
+
         validate_layout(u64::from(manifest.layout_version))?;
         let json = serde_json::to_vec_pretty(&manifest)?;
         write_atomic(&self.manifest_file, &json)?;
@@ -113,6 +117,7 @@ impl ManifestStorage {
         if self.manifest.is_none() {
             self.save_manifest(MigrationManifest::current())?;
         }
+
         Ok(())
     }
 }
@@ -123,8 +128,10 @@ fn validate_layout(version: u64) -> Result<()> {
             "Installation layout {version} is no longer supported. Upgrade this installation with Upstream v2.24.1 before using this version."
         );
     }
+
     if version > u64::from(CURRENT_LAYOUT_VERSION) {
         bail!("Installation layout {version} is newer than this version of Upstream supports");
     }
+
     Ok(())
 }

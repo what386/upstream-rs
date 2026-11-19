@@ -28,9 +28,11 @@ pub fn run(paths: &UpstreamPaths) -> Result<()> {
             );
         }
     }
+
     // Do not certify an installation whose database cannot be upgraded safely.
     if paths.metadata.packages_database_file.try_exists()? {
         PackageDatabase::open(&paths.metadata.packages_database_file)?;
     }
+
     ledger.ensure_current()
 }

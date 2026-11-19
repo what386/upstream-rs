@@ -22,6 +22,7 @@ pub fn get(name: &str, paths: &UpstreamPaths) -> Result<(Package, PackageSetting
     let settings = database
         .get_package_settings(&package.id)?
         .unwrap_or_else(|| PackageSettings::new(&package.id));
+
     Ok((package, settings))
 }
 
@@ -31,6 +32,7 @@ pub fn set(name: &str, assignments: Vec<String>, paths: &UpstreamPaths) -> Resul
     let mut settings = package_database
         .get_package_settings(&package.id)?
         .unwrap_or_else(|| PackageSettings::new(&package.id));
+
     let previous = settings.clone();
     let mut seen = HashSet::new();
 
@@ -75,6 +77,7 @@ pub fn set(name: &str, assignments: Vec<String>, paths: &UpstreamPaths) -> Resul
                 if cfg!(target_os = "macos") {
                     bail!("Desktop integration is unsupported on macOS");
                 }
+
                 LauncherManager::validate(value)?;
                 settings.desktop_launch_options = Some(value.to_string());
             }
@@ -96,6 +99,7 @@ pub fn unset(name: &str, keys: Vec<PackageSettingKey>, paths: &UpstreamPaths) ->
     let mut settings = database
         .get_package_settings(&package.id)?
         .unwrap_or_else(|| PackageSettings::new(&package.id));
+
     let previous = settings.clone();
     for key in selected_setting_keys(keys) {
         match key {
@@ -106,10 +110,12 @@ pub fn unset(name: &str, keys: Vec<PackageSettingKey>, paths: &UpstreamPaths) ->
                 if cfg!(target_os = "macos") {
                     bail!("Desktop integration is unsupported on macOS");
                 }
+
                 settings.desktop_launch_options = None;
             }
         }
     }
+
     commit(&mut database, &package, &previous, &settings, paths)
 }
 
@@ -123,17 +129,20 @@ fn commit(
     if previous.desktop_launch_options == settings.desktop_launch_options {
         return database.upsert_package_with_settings(package, settings);
     }
+
     let snapshot = DesktopManager::snapshot_for_package(paths, package)?;
     let result = (|| {
         DesktopManager::update_launch_targets(paths, package, settings)?;
         database.upsert_package_with_settings(package, settings)
     })();
+
     if let Err(error) = result {
         snapshot
             .restore(Some(package))
             .context(format!("Desktop launch options update failed: {error:#}"))?;
         return Err(error).context("Desktop launch options update failed; previous entry restored");
     }
+
     Ok(())
 }
 
@@ -169,10 +178,12 @@ pub async fn add_entry(name: &str, paths: &UpstreamPaths) -> Result<()> {
         database.upsert_package(&package)
     }
     .await;
+
     if let Err(error) = result {
         snapshot.restore(Some(&package))?;
         return Err(error);
     }
+
     Ok(())
 }
 
@@ -185,10 +196,12 @@ pub fn remove_entry(name: &str, paths: &UpstreamPaths) -> Result<()> {
         DesktopManager::new(paths)?.disable_package_entry(&mut package, &mut ignored)?;
         database.upsert_package(&package)
     })();
+
     if let Err(error) = result {
         snapshot.restore(Some(&package))?;
         return Err(error);
     }
+
     Ok(())
 }
 
@@ -260,6 +273,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         let binary = root.join("my apps/tool");
         fs::create_dir_all(binary.parent().unwrap()).unwrap();
         fs::write(&binary, "binary").unwrap();
@@ -280,6 +294,7 @@ mod tests {
             DesktopEntry::quote_exec_path(&binary),
             DesktopEntry::quote_exec_path(&binary)
         );
+
         fs::create_dir_all(entry.parent().unwrap()).unwrap();
         fs::write(&entry, &base).unwrap();
         let apply = |template: &str| {
@@ -289,12 +304,14 @@ mod tests {
                 &paths,
             )
         };
+
         apply("env FOO=bar {} --profile 'Work Profile'").unwrap();
         let content = fs::read_to_string(&entry).unwrap();
         assert!(content.contains(&format!(
             "Exec=env FOO=bar {} --profile \"Work Profile\" %U",
             DesktopEntry::quote_exec_path(&binary)
         )));
+
         assert!(content.contains("--profile \"Work Profile\" --new-window %u"));
         assert!(content.contains("DBusActivatable=false"));
         assert!(content.contains("Icon=tool\n"));
@@ -302,6 +319,7 @@ mod tests {
             fs::read_link(paths.state.symlinks_dir.join("tool")).unwrap(),
             binary
         );
+
         assert!(!paths.dirs.generated_dir.join("wrappers").exists());
         assert_eq!(
             get("tool", &paths)
@@ -311,6 +329,7 @@ mod tests {
                 .as_deref(),
             Some("env FOO=bar {} --profile 'Work Profile'")
         );
+
         apply("{} --disable-gpu").unwrap();
         let updated = fs::read_to_string(&entry).unwrap();
         assert!(!updated.contains("FOO=bar"));

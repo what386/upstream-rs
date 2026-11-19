@@ -438,6 +438,7 @@ fn write_package_settings(tx: &Transaction<'_>, settings: &PackageSettings) -> R
         )?;
         return Ok(());
     }
+
     let trust_mode = settings.trust_mode.as_ref().map(enum_to_db).transpose()?;
     tx.execute(
         "

@@ -140,6 +140,7 @@ impl<'a> TrustVerifier<'a> {
             ?signature_status,
             "Trust verification results"
         );
+
         self.enforce_policy(&checksum_status, &signature_status)?;
         tracing::debug!(
             elapsed_ms = started.elapsed().as_millis() as u64,

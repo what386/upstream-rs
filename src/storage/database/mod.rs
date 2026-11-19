@@ -29,11 +29,13 @@ fn initialize(conn: &Connection) -> Result<()> {
             "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%')",
             [], |row| row.get(0),
         )?;
+
         if has_tables {
             bail!(
                 "Unversioned package database is not empty. Upgrade this installation with Upstream v2.24.1 before using this version."
             );
         }
+
         conn.execute_batch(SCHEMA_SQL)
             .context("Failed to initialize package database schema")?;
         record_schema_version(conn)?;
@@ -52,6 +54,7 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
             "Package database schema {current_version} is no longer supported. Upgrade this installation with Upstream v2.24.1 before using this version."
         );
     }
+
     if current_version > PACKAGE_DB_SCHEMA_VERSION {
         bail!(
             "Unsupported package database schema version {}. Expected version {} or earlier.",
@@ -102,6 +105,7 @@ mod tests {
         let legacy_schema = SCHEMA_SQL
             .replace(", 'AppImageHub'", "")
             .replace("    desktop_launch_options TEXT,\n", "");
+
         assert!(!legacy_schema.contains("AppImageHub"));
         conn.execute_batch(&legacy_schema).unwrap();
         conn.execute_batch(
@@ -179,6 +183,7 @@ mod baseline_tests {
                     .unwrap(),
                 "keep"
             );
+
             assert!(
                 !conn
                     .prepare("SELECT name FROM sqlite_master WHERE name='packages'")

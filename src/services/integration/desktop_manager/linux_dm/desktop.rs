@@ -133,6 +133,7 @@ impl LinuxDesktopHandler {
             let (_, remainder) = desktop_command(embedded_exec);
             generated_exec.push_str(remainder);
         }
+
         let mut merged = embedded.merge(generated).ensure_name(fallback_name);
         if embedded_name.is_some() {
             merged.name = embedded_name;
@@ -159,20 +160,25 @@ impl LinuxDesktopHandler {
                 for line in lines {
                     output.push_str(line);
                 }
+
                 return Ok(());
             }
+
             let original = lines.iter().find_map(|line| line.strip_prefix(ORIGINAL));
             let dbus_original = lines
                 .iter()
                 .find_map(|line| line.strip_prefix(DBUS_ORIGINAL));
+
             for line in lines {
                 if line.starts_with(DBUS_ORIGINAL) {
                     continue;
                 }
+
                 if let Some(current) = line.strip_prefix("DBusActivatable=") {
                     let base = dbus_original
                         .unwrap_or(current)
                         .trim_end_matches(['\n', '\r']);
+
                     if options.is_some() {
                         output.push_str(DBUS_ORIGINAL);
                         output.push_str(base);
@@ -181,18 +187,23 @@ impl LinuxDesktopHandler {
                         output.push_str("DBusActivatable=");
                         output.push_str(base);
                     }
+
                     if line.ends_with('\n') {
                         output.push('\n');
                     }
+
                     continue;
                 }
+
                 if line.starts_with(ORIGINAL) {
                     continue;
                 }
+
                 let Some(current) = line.strip_prefix("Exec=") else {
                     output.push_str(line);
                     continue;
                 };
+
                 let base = original.unwrap_or(current).trim_end_matches(['\n', '\r']);
                 let (token, remainder) = desktop_command(base);
                 let executable = package.executables.iter().find(|exec| {
@@ -200,6 +211,7 @@ impl LinuxDesktopHandler {
                         || token == exec.name
                         || Path::new(&token).file_name() == exec.path.file_name()
                 });
+
                 if let (Some(options), Some(exec)) = (&options, executable) {
                     output.push_str(ORIGINAL);
                     output.push_str(base);
@@ -213,12 +225,15 @@ impl LinuxDesktopHandler {
                     output.push_str("Exec=");
                     output.push_str(base);
                 }
+
                 if line.ends_with('\n') {
                     output.push('\n');
                 }
             }
+
             Ok(())
         };
+
         for line in content.split_inclusive('\n') {
             let trimmed = line.trim();
             if trimmed.starts_with('[') {
@@ -227,8 +242,10 @@ impl LinuxDesktopHandler {
                 launch_group =
                     trimmed == "[Desktop Entry]" || trimmed.starts_with("[Desktop Action ");
             }
+
             group.push(line);
         }
+
         render(&group, launch_group, &mut output)?;
         Ok(output)
     }
@@ -360,6 +377,7 @@ fn desktop_command(value: &str) -> (String, &str) {
             _ => token.push(ch),
         }
     }
+
     (token, &value[value.len()..])
 }
 

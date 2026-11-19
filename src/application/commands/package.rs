@@ -64,10 +64,12 @@ pub fn run_get(
             }
         }
     }
+
     if json {
         println!("{}", serde_json::to_string_pretty(&values)?);
         return Ok(());
     }
+
     println!("{}", output::title("Package settings"));
     for key in keys {
         match key {
@@ -88,6 +90,7 @@ pub fn run_get(
             ),
         }
     }
+
     Ok(())
 }
 
@@ -97,12 +100,14 @@ pub fn run_pin(name: String, paths: &UpstreamPaths) -> Result<()> {
     output::status_line(Status::Ok, &name, "pinned");
     Ok(())
 }
+
 pub fn run_unpin(name: String, paths: &UpstreamPaths) -> Result<()> {
     package_op::pin(&name, false, paths)?;
     println!("{}", output::title("Package unpin"));
     output::status_line(Status::Ok, &name, "unpinned");
     Ok(())
 }
+
 pub fn run_rename(old_name: String, new_name: String, paths: &UpstreamPaths) -> Result<()> {
     let outcome = package_op::rename(&old_name, &new_name, paths)?;
     println!("{}", output::title("Package rename"));
@@ -118,14 +123,17 @@ pub fn run_rename(old_name: String, new_name: String, paths: &UpstreamPaths) -> 
             ))
         );
     }
+
     Ok(())
 }
+
 pub async fn run_add_entry(name: String, paths: &UpstreamPaths) -> Result<()> {
     package_op::add_entry(&name, paths).await?;
     println!("{}", output::title("Package add-entry"));
     output::status_line(Status::Ok, &name, "entry added");
     Ok(())
 }
+
 pub async fn run_rm_entry(name: String, paths: &UpstreamPaths) -> Result<()> {
     package_op::remove_entry(&name, paths)?;
     println!("{}", output::title("Package rm-entry"));

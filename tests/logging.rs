@@ -16,9 +16,11 @@ impl TestHome {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
+
         let home = Self(
             std::env::temp_dir().join(format!("upstream-tracing-{}-{nonce}", std::process::id())),
         );
+
         let config_dir = home.0.join(".config/upstream");
         fs::create_dir_all(&config_dir).unwrap();
         fs::write(config_dir.join("config.toml"), config).unwrap();
@@ -33,6 +35,7 @@ impl TestHome {
         if let Some(filter) = filter {
             command.env("RUST_LOG", filter);
         }
+
         command.arg("--no-pager").args(args).output().unwrap()
     }
 
@@ -60,21 +63,25 @@ fn successful_read_only_command_logs_outcome_without_changing_json_output() {
         "{}",
         String::from_utf8_lossy(&result.stderr)
     );
+
     assert!(result.stderr.is_empty());
     assert_eq!(
         serde_json::from_slice::<Value>(&result.stdout).unwrap(),
         serde_json::json!([])
     );
+
     let events = home.events();
     assert!(
         events
             .iter()
             .any(|event| event["fields"]["message"] == "Command started")
     );
+
     let completed = events
         .iter()
         .find(|event| event["fields"]["outcome"] == "success")
         .unwrap();
+
     assert_eq!(completed["span"]["command"], "list");
     assert!(completed["fields"]["elapsed_ms"].is_u64());
     assert!(!events.iter().any(|event| event["level"] == "DEBUG"));
@@ -104,6 +111,7 @@ fn disabled_logging_and_early_requests_do_not_create_a_log() {
             .status
             .success()
     );
+
     assert!(!home.0.join(".upstream/upstream.log").exists());
     let home = TestHome::new("");
     assert!(home.run(&["--help"], None).status.success());
@@ -112,6 +120,7 @@ fn disabled_logging_and_early_requests_do_not_create_a_log() {
             .status
             .success()
     );
+
     assert!(!home.0.join(".upstream/upstream.log").exists());
     assert!(!home.run(&["history"], None).status.success());
 }
@@ -125,6 +134,7 @@ fn auth_commands_do_not_log_token_values() {
             .status
             .success()
     );
+
     let result = home.run(&["auth", "get", "github.api_token"], None);
     assert!(result.status.success());
     assert!(String::from_utf8_lossy(&result.stdout).contains(token));

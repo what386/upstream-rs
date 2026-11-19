@@ -166,6 +166,7 @@ impl<'a> ChecksumVerifier<'a> {
                 HashAlgo::Sha256 => "sha256",
                 HashAlgo::Sha512 => "sha512",
             };
+
             tracing::debug!(asset = %asset_path.display(), checksum_file = %checksum_path.name, algorithm, elapsed_ms = started.elapsed().as_millis() as u64, "Checksum verified");
             return Ok(ChecksumVerificationResult::Verified(
                 VerifiedChecksumAsset {

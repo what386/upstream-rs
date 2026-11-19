@@ -91,6 +91,7 @@ impl WindowsDesktopHandler {
         if !directory.is_dir() {
             return Ok(());
         }
+
         let command = template
             .map(|template| {
                 let executable = package.primary_executable().ok_or_else(|| {
@@ -99,12 +100,14 @@ impl WindowsDesktopHandler {
                         package.id
                     )
                 })?;
+
                 LauncherManager::format_windows_command(
                     &LauncherManager::validate(template)?,
                     &executable.path,
                 )
             })
             .transpose()?;
+
         let quote = |value: &str| value.replace('\'', "''");
         let mut script = vec![
             "$ErrorActionPreference = 'Stop'".to_string(),
@@ -114,6 +117,7 @@ impl WindowsDesktopHandler {
                 quote(&directory.to_string_lossy())
             ),
         ];
+
         if let Some((target, arguments)) = command {
             script.push(format!("$Target = '{}'", quote(&target)));
             // Shortcut targets must be full paths; resolve an explicitly supplied prefix on PATH.
@@ -123,6 +127,7 @@ impl WindowsDesktopHandler {
         } else {
             script.push("foreach ($Link in $Links) { $OriginalPath = $Link.FullName + '.launch.json'; if (Test-Path -LiteralPath $OriginalPath) { $Original = Get-Content -LiteralPath $OriginalPath -Raw | ConvertFrom-Json; $Shortcut = $WshShell.CreateShortcut($Link.FullName); $Shortcut.TargetPath = $Original.TargetPath; $Shortcut.Arguments = $Original.Arguments; $Shortcut.Save(); Remove-Item -LiteralPath $OriginalPath } }".to_string());
         }
+
         let output = Command::new("powershell")
             .args([
                 "-NoProfile",
@@ -134,11 +139,13 @@ impl WindowsDesktopHandler {
             ])
             .output()
             .context("Failed to execute PowerShell to update shortcut launch options")?;
+
         anyhow::ensure!(
             output.status.success(),
             "Failed to update Windows shortcut launch options: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         );
+
         Ok(())
     }
 
@@ -286,19 +293,23 @@ mod tests {
         let update = arguments
             .map(|arguments| format!("$s.Arguments = '{}'; $s.Save();", quote(arguments)))
             .unwrap_or_default();
+
         let script = format!(
             "$ErrorActionPreference = 'Stop'; $s = (New-Object -ComObject WScript.Shell).CreateShortcut('{}'); {update} $s | Select-Object TargetPath, Arguments, Description, WorkingDirectory, IconLocation | ConvertTo-Json -Compress",
             quote(&path.to_string_lossy())
         );
+
         let output = Command::new("powershell")
             .args(["-NoProfile", "-NonInteractive", "-Command", &script])
             .output()
             .unwrap();
+
         assert!(
             output.status.success(),
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
+
         serde_json::from_slice(&output.stdout).unwrap()
     }
 
@@ -334,6 +345,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_path = Some(binary.clone());
         package.executables.push(PackageExecutable {
             name: "tool".into(),
@@ -349,6 +361,7 @@ mod tests {
                 &paths,
             )
         };
+
         apply(r#"{} --profile "Work Profile""#).unwrap();
         assert!(!directory.exists());
         package_op::add_entry("tool", &paths).await.unwrap();
@@ -369,9 +382,11 @@ mod tests {
                 .unwrap()
                 .contains(binary.to_str().unwrap())
         );
+
         for field in ["Description", "WorkingDirectory", "IconLocation"] {
             assert_eq!(prefixed[field], first[field]);
         }
+
         let before = fs::read(&shortcut).unwrap();
         assert!(apply("upstream-nonexistent-launch-prefix-94783.exe {} --bad").is_err());
         assert_eq!(fs::read(&shortcut).unwrap(), before);
@@ -383,6 +398,7 @@ mod tests {
                 .unwrap()
                 .contains("--bad")
         );
+
         package_op::unset(
             "tool",
             vec![PackageSettingKey::DesktopLaunchOptions],
@@ -396,6 +412,7 @@ mod tests {
             inspect_shortcut(&shortcut, None)["Arguments"],
             r#"--two --original "Original Profile""#
         );
+
         package_op::unset(
             "tool",
             vec![PackageSettingKey::DesktopLaunchOptions],

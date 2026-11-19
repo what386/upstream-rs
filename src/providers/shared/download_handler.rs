@@ -762,12 +762,15 @@ mod tests {
                 } else {
                     "HTTP/1.1 500 Internal Server Error"
                 };
+
                 // No Content-Length: the completion event must use the actual
                 // byte count rather than the server's advertised size.
                 http_response(status, &[], &body)
             });
+
             let url = server.replacen("http://", "http://user:private-password@", 1)
                 + "/artifact?token=private-query#private-fragment";
+
             let destination = temp_file_path("logged-download");
             let log_path = temp_file_path("download-log");
             let subscriber = tracing_subscriber::fmt()
@@ -775,6 +778,7 @@ mod tests {
                 .with_env_filter("off,upstream_rs=debug")
                 .with_writer(fs::File::create(&log_path).unwrap())
                 .finish();
+
             let mut last_progress = None;
             let result = download_file(
                 &Client::new(),
@@ -785,20 +789,24 @@ mod tests {
             )
             .with_subscriber(subscriber)
             .await;
+
             assert_eq!(result.is_ok(), successful);
 
             let log = fs::read_to_string(&log_path).unwrap();
             for secret in ["private-password", "private-query", "private-fragment"] {
                 assert!(!log.contains(secret));
             }
+
             let events: Vec<serde_json::Value> = log
                 .lines()
                 .map(|line| serde_json::from_str(line).unwrap())
                 .collect();
+
             let completed: Vec<_> = events
                 .iter()
                 .filter(|event| event["fields"]["message"] == "Download completed")
                 .collect();
+
             if successful {
                 assert_eq!(completed.len(), 1);
                 assert_eq!(completed[0]["fields"]["bytes"], len as u64);
@@ -806,11 +814,13 @@ mod tests {
                     completed[0]["fields"]["source"],
                     format!("{server}/artifact")
                 );
+
                 assert!(completed[0]["fields"]["elapsed_ms"].is_u64());
                 assert_eq!(
                     completed[0]["span"]["destination"],
                     destination.display().to_string()
                 );
+
                 assert_eq!(last_progress, Some((len as u64, 0)));
                 // Start, strategy, completion: callbacks never generate events.
                 assert_eq!(events.len(), 3);
@@ -819,6 +829,7 @@ mod tests {
                 assert!(completed.is_empty());
                 assert!(!destination.exists());
             }
+
             cleanup_file(&log_path).unwrap();
         }
     }

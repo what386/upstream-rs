@@ -126,13 +126,16 @@ impl DesktopEntry {
         {
             return value;
         }
+
         let mut escaped = String::new();
         for ch in value.chars() {
             if matches!(ch, '"' | '`' | '$' | '\\') {
                 escaped.push('\\');
             }
+
             escaped.push(ch);
         }
+
         format!(
             "\"{}\"",
             escaped

@@ -187,6 +187,7 @@ impl ProviderManager {
                     .await
             }
         }?;
+
         tracing::debug!(tag = %release.tag, assets = release.assets.len(), "Latest release resolved");
         Ok(release)
     }
@@ -467,6 +468,7 @@ impl ProviderManager {
         let asset = self
             .asset_selector
             .find_recommended_asset(release, package)?;
+
         tracing::debug!(package = %package.id, asset = %asset.name, "Release asset selected");
         Ok(asset)
     }
