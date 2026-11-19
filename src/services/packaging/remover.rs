@@ -133,6 +133,7 @@ impl<'a> PackageRemover<'a> {
                 "Failed to remove '{}' from package storage",
                 package_name
             ))?;
+        crate::storage::updates::invalidate(self.paths, &package.id);
         ShellManager::new(&self.paths.generated.paths_file)
             .regenerate_paths(package_database, self.paths)
             .context(format!(

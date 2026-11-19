@@ -397,22 +397,18 @@ impl PackageConnection {
         Ok(true)
     }
 
-    pub fn rename_executable_alias(&mut self, old_name: &str, new_name: &str) -> Result<()> {
-        let affected = self
-            .conn
-            .execute(
-                "UPDATE package_executables SET name = ?1 WHERE name = ?2",
+    pub fn rename_executable_alias(&mut self, old_name: &str, new_name: &str) -> Result<String> {
+        self.conn
+            .query_row(
+                "UPDATE package_executables SET name = ?1 WHERE name = ?2 RETURNING package_id",
                 params![new_name, old_name],
+                |row| row.get(0),
             )
+            .optional()
             .with_context(|| {
                 format!("Failed to rename executable alias '{old_name}' to '{new_name}'")
-            })?;
-
-        if affected == 0 {
-            bail!("Executable alias '{}' not found", old_name);
-        }
-
-        Ok(())
+            })?
+            .ok_or_else(|| anyhow!("Executable alias '{old_name}' not found"))
     }
 
     pub fn executable_alias_exists(&self, name: &str) -> Result<bool> {

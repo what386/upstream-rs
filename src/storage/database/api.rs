@@ -125,7 +125,8 @@ impl PackageDatabase {
         self.connection()?.update_package(name, update)
     }
 
-    pub fn rename_alias(&mut self, old_name: &str, new_name: &str) -> Result<()> {
+    /// Rename a command alias and return its owning canonical package ID.
+    pub fn rename_alias(&mut self, old_name: &str, new_name: &str) -> Result<String> {
         self.connection()?
             .rename_executable_alias(old_name, new_name)
     }

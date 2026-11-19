@@ -134,6 +134,7 @@ pub(in crate::routines::doctor) fn select_packages(
 }
 
 pub(in crate::routines::doctor) async fn check_version_tag_templates(
+    paths: &UpstreamPaths,
     package_database: &mut PackageDatabase,
     selected: &[Package],
     fix: bool,
@@ -165,6 +166,7 @@ pub(in crate::routines::doctor) async fn check_version_tag_templates(
                 package.version_tag_template = Some("v{}".to_string());
                 Ok(true)
             })?;
+            crate::storage::updates::invalidate(paths, &package.id);
             report.line(
                 Level::Ok,
                 format!("package '{}' repaired version tag template", package.id),
@@ -526,7 +528,7 @@ mod tests {
         let selected = vec![package];
         let mut report = DoctorReport::new();
 
-        check_version_tag_templates(&mut db, &selected, true, &mut report)
+        check_version_tag_templates(&paths, &mut db, &selected, true, &mut report)
             .await
             .expect("repair templates");
 

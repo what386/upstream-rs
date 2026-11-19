@@ -31,13 +31,16 @@ pub fn rename_alias(
 
     let symlink_manager = SymlinkManager::new(&paths.state.symlinks_dir);
     let renamed_link = symlink_manager.rename_link(old_name, new_name)?;
-    if let Err(error) = package_database.rename_alias(old_name, new_name) {
-        if renamed_link {
-            let _ = symlink_manager.rename_link(new_name, old_name);
+    let package_id = match package_database.rename_alias(old_name, new_name) {
+        Ok(id) => id,
+        Err(error) => {
+            if renamed_link {
+                let _ = symlink_manager.rename_link(new_name, old_name);
+            }
+            return Err(error).context("Executable alias rename failed; runtime link was reverted");
         }
-
-        return Err(error).context("Executable alias rename failed; runtime link was reverted");
-    }
+    };
+    crate::storage::updates::invalidate(paths, &package_id);
 
     Ok(RenameOutcome::Renamed)
 }

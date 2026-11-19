@@ -20,19 +20,6 @@ impl Cli {
         output::set_no_pager(self.no_pager);
 
         let command = self.command;
-        let reconcile_updates = match &command {
-            Commands::Install { dry_run, .. }
-            | Commands::Build { dry_run, .. }
-            | Commands::Remove { dry_run, .. }
-            | Commands::Reinstall { dry_run, .. }
-            | Commands::Probe { dry_run, .. } => !dry_run,
-            Commands::Upgrade { check, dry_run, .. } => !check && !dry_run,
-            Commands::Package { action } => !matches!(action, PackageAction::Get { .. }),
-            Commands::Find { .. } | Commands::Import { .. } => true,
-            Commands::Doctor { fix, .. } => *fix,
-            _ => false,
-        };
-
         let operation = command.to_string();
         let requires_lock = command.requires_lock();
         let _lock = if requires_lock {
@@ -41,13 +28,7 @@ impl Cli {
             None
         };
 
-        let result = Self::dispatch_command(command, paths, app_config).await;
-        if reconcile_updates && let Err(error) = crate::storage::updates::reconcile(paths) {
-            tracing::warn!(error = %format!("{error:#}"), "Could not reconcile update cache");
-            eprintln!("Warning: could not reconcile update cache: {error:#}");
-        }
-
-        result
+        Self::dispatch_command(command, paths, app_config).await
     }
 }
 

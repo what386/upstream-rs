@@ -43,7 +43,8 @@ pub async fn run(names: Vec<String>, fix: bool, paths: &UpstreamPaths) -> Result
     }
 
     if let Some(package_database) = &mut package_database {
-        checks::check_version_tag_templates(package_database, &selected, fix, &mut report).await?;
+        checks::check_version_tag_templates(paths, package_database, &selected, fix, &mut report)
+            .await?;
         checks::check_installed_packages(paths, package_database, &selected, fix, &mut report)?;
     }
 

@@ -624,6 +624,8 @@ impl<'a> PackageActivator<'a> {
             ));
         }
 
+        crate::storage::updates::invalidate(self.paths, &updated_package.id);
+
         if let Err(error) = ShellManager::new(&self.paths.generated.paths_file)
             .regenerate_paths(package_database, self.paths)
         {
@@ -997,6 +999,8 @@ impl<'a> PackageActivator<'a> {
                 &mut None::<fn(&str)>,
             );
         }
+
+        crate::storage::updates::invalidate(self.paths, &replacement.package.id);
 
         let had_units = replacement
             .backup

@@ -127,7 +127,9 @@ fn commit(
     paths: &UpstreamPaths,
 ) -> Result<()> {
     if previous.desktop_launch_options == settings.desktop_launch_options {
-        return database.upsert_package_with_settings(package, settings);
+        database.upsert_package_with_settings(package, settings)?;
+        crate::storage::updates::invalidate(paths, &package.id);
+        return Ok(());
     }
 
     let snapshot = DesktopManager::snapshot_for_package(paths, package)?;
@@ -143,12 +145,13 @@ fn commit(
         return Err(error).context("Desktop launch options update failed; previous entry restored");
     }
 
+    crate::storage::updates::invalidate(paths, &package.id);
     Ok(())
 }
 
 pub fn pin(name: &str, pinned: bool, paths: &UpstreamPaths) -> Result<()> {
     let mut database = PackageDatabase::open(&paths.metadata.packages_database_file)?;
-    let mut manager = super::metadata_op::MetadataManager::new(&mut database);
+    let mut manager = super::metadata_op::MetadataManager::new(&mut database, paths);
     if pinned {
         manager.pin_package(name)
     } else {
@@ -184,6 +187,7 @@ pub async fn add_entry(name: &str, paths: &UpstreamPaths) -> Result<()> {
         return Err(error);
     }
 
+    crate::storage::updates::invalidate(paths, &package.id);
     Ok(())
 }
 
@@ -202,6 +206,7 @@ pub fn remove_entry(name: &str, paths: &UpstreamPaths) -> Result<()> {
         return Err(error);
     }
 
+    crate::storage::updates::invalidate(paths, &package.id);
     Ok(())
 }
 

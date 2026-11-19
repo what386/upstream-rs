@@ -1,38 +1,42 @@
-use crate::storage::database::PackageDatabase;
+use crate::{storage::database::PackageDatabase, utils::static_paths::UpstreamPaths};
 use anyhow::Result;
 
 pub struct MetadataManager<'a> {
     package_database: &'a mut PackageDatabase,
+    paths: &'a UpstreamPaths,
 }
 
 impl<'a> MetadataManager<'a> {
-    pub fn new(package_database: &'a mut PackageDatabase) -> Self {
-        Self { package_database }
+    pub fn new(package_database: &'a mut PackageDatabase, paths: &'a UpstreamPaths) -> Self {
+        Self {
+            package_database,
+            paths,
+        }
     }
 
     /// Pins a package to its current version, preventing automatic updates.
     pub fn pin_package(&mut self, name: &str) -> Result<()> {
-        self.package_database.update_package(name, |package| {
-            if package.is_pinned {
-                return Ok(false);
-            }
-
-            package.is_pinned = true;
-            Ok(true)
-        })?;
-        Ok(())
+        self.set_pinned(name, true)
     }
 
     /// Unpins a package, allowing it to receive automatic updates.
     pub fn unpin_package(&mut self, name: &str) -> Result<()> {
+        self.set_pinned(name, false)
+    }
+
+    fn set_pinned(&mut self, name: &str, pinned: bool) -> Result<()> {
+        let mut changed_id = None;
         self.package_database.update_package(name, |package| {
-            if !package.is_pinned {
+            if package.is_pinned == pinned {
                 return Ok(false);
             }
-
-            package.is_pinned = false;
+            package.is_pinned = pinned;
+            changed_id = Some(package.id.clone());
             Ok(true)
         })?;
+        if let Some(id) = changed_id {
+            crate::storage::updates::invalidate(self.paths, &id);
+        }
         Ok(())
     }
 }
@@ -86,7 +90,8 @@ mod tests {
         let mut storage = PackageDatabase::open(&path).expect("create storage");
         let package = test_package("fd");
         storage.upsert_package(&package).expect("store package");
-        let mut manager = MetadataManager::new(&mut storage);
+        let paths = crate::utils::test_support::upstream_paths(path.parent().unwrap());
+        let mut manager = MetadataManager::new(&mut storage, &paths);
 
         manager.pin_package("fd").expect("pin package");
         assert!(

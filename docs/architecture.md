@@ -54,6 +54,8 @@ build and test commands.
 - Use the [activator](../src/services/packaging/activation.rs) to replace packages.
   It keeps the old package until the new package record is saved, so a failed
   replacement can restore it.
+- After committing a package-state change, call [update-cache invalidation](../src/storage/updates.rs)
+  Cache failures are warnings, not errors; the update cache is unused by anything important.
 - Add [cancellation checks](../src/application/cancellation.rs) to long operations
   so Ctrl-C can stop the work and clean up.
 - Shell completion must not run migrations or start logging.
