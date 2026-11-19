@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import platform
 from pathlib import Path
@@ -31,6 +32,7 @@ class Server:
     ) -> None:
         self.directory = Path(tempfile.mkdtemp(prefix=prefix))
         self.request_marker = self.directory / ".request-marker"
+        self.request_log = self.directory / ".requests.jsonl"
         self.throttle_pattern = throttle_pattern
         self.throttle_delay = throttle_delay
         self.process: subprocess.Popen[str] | None = None
@@ -58,6 +60,16 @@ class Server:
         path.write_text(content, encoding="utf-8")
         return path
 
+    def routes(self, *routes: dict[str, object]) -> None:
+        """Replace fixture responses atomically while the server is running."""
+        temporary = self.write_text(".routes.tmp", json.dumps(routes))
+        temporary.replace(self.directory / ".routes.json")
+
+    def requests(self) -> list[dict[str, object]]:
+        if not self.request_log.exists():
+            return []
+        return [json.loads(line) for line in self.request_log.read_text().splitlines()]
+
     def start(self) -> None:
         if self.process is not None:
             return
@@ -68,6 +80,7 @@ class Server:
                 "SERVER_ARTIFACT_ROOT": str(self.directory),
                 "SERVER_PORT": "0",
                 "SERVER_REQUEST_MARKER": str(self.request_marker),
+                "SERVER_REQUEST_LOG": str(self.request_log),
             }
         )
         if self.throttle_pattern:

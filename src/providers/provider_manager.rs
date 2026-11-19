@@ -494,93 +494,9 @@ impl ProviderManager {
 #[cfg(test)]
 mod tests {
     use super::ProviderManager;
-    use crate::models::common::{
-        Version,
-        enums::{Channel, Filetype, Provider},
-    };
+    use crate::models::common::{Version, enums::Channel};
     use crate::models::provider::Release;
-    use crate::models::upstream::{Package, config::DownloadConfig};
     use chrono::Utc;
-    use std::io::{BufRead, BufReader, Write};
-    use std::net::TcpListener;
-    use std::sync::mpsc;
-    use std::thread;
-
-    fn spawn_gitea_release_server() -> String {
-        let (tx, rx) = mpsc::channel();
-        thread::spawn(move || {
-            let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
-            tx.send(listener.local_addr().expect("resolve test server address"))
-                .expect("send test server address");
-
-            let (mut stream, _) = listener.accept().expect("accept request");
-            let mut reader = BufReader::new(stream.try_clone().expect("clone stream"));
-            let mut request_line = String::new();
-            reader
-                .read_line(&mut request_line)
-                .expect("read request line");
-            let path = request_line.split_whitespace().nth(1).unwrap_or("/");
-
-            let body = if path.ends_with("/releases/latest") {
-                r#"{"id":1,"tag_name":"v2.0.0","name":"stable","prerelease":false,"draft":false,"published_at":"2026-01-01T00:00:00Z","assets":[]}"#
-            } else {
-                r#"[{"id":2,"tag_name":"v2.1.0-rc1","name":"preview","prerelease":true,"draft":false,"published_at":"2026-02-01T00:00:00Z","assets":[]}]"#
-            };
-
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                body.len(),
-                body
-            );
-
-            stream
-                .write_all(response.as_bytes())
-                .expect("write response");
-        });
-
-        format!("http://{}", rx.recv().expect("receive test server address"))
-    }
-
-    fn spawn_gitea_semver_server() -> (String, thread::JoinHandle<()>) {
-        let (tx, rx) = mpsc::channel();
-        let handle = thread::spawn(move || {
-            let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
-            tx.send(listener.local_addr().expect("resolve test server address"))
-                .expect("send test server address");
-
-            for (expected_path, tag) in [
-                ("/api/v1/repos/owner/tool/releases/latest", "v2.0.0"),
-                ("/api/v1/repos/owner/tool/releases/tags/v1.2.4", "v1.2.4"),
-            ] {
-                let (mut stream, _) = listener.accept().expect("accept request");
-                let mut reader = BufReader::new(stream.try_clone().expect("clone stream"));
-                let mut request_line = String::new();
-                reader
-                    .read_line(&mut request_line)
-                    .expect("read request line");
-                assert_eq!(request_line.split_whitespace().nth(1), Some(expected_path));
-
-                let body = format!(
-                    "{{\"id\":1,\"tag_name\":\"{tag}\",\"prerelease\":false,\"draft\":false,\"published_at\":\"2026-01-01T00:00:00Z\",\"assets\":[]}}"
-                );
-
-                let response = format!(
-                    "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                    body.len(),
-                    body
-                );
-
-                stream
-                    .write_all(response.as_bytes())
-                    .expect("write response");
-            }
-        });
-
-        (
-            format!("http://{}", rx.recv().expect("receive test server address")),
-            handle,
-        )
-    }
 
     fn make_release(prerelease: bool, tag: &str) -> Release {
         Release {
@@ -625,55 +541,5 @@ mod tests {
 
         assert_eq!(matches.len(), 2);
         assert!(matches.iter().all(|release| !release.is_prerelease));
-    }
-
-    #[tokio::test]
-    async fn semver_resolves_inferred_tag_without_listing_release_history() {
-        let (base_url, server) = spawn_gitea_semver_server();
-        let manager = ProviderManager::new(None, None, None, DownloadConfig::default())
-            .expect("create provider manager");
-
-        let release = manager
-            .get_release_by_semver(
-                "owner/tool",
-                &Version::new(1, 2, 4, false),
-                &Provider::Gitea,
-                &Channel::Stable,
-                Some(&base_url),
-            )
-            .await
-            .expect("resolve inferred tag");
-
-        assert_eq!(release.tag, "v1.2.4");
-        server
-            .join()
-            .expect("server handled only the two expected requests");
-    }
-
-    #[tokio::test]
-    async fn update_checks_select_latest_release_from_package_channel() {
-        let base_url = spawn_gitea_release_server();
-        let manager = ProviderManager::new(None, None, None, DownloadConfig::default())
-            .expect("create provider manager");
-
-        let package = Package::with_defaults(
-            "tool".to_string(),
-            "owner/tool".to_string(),
-            Filetype::Archive,
-            None,
-            None,
-            Channel::Preview,
-            Provider::Gitea,
-            Some(base_url),
-        );
-
-        let release = manager
-            .check_for_updates(&package)
-            .await
-            .expect("check for updates")
-            .expect("forge checks always return a candidate");
-
-        assert_eq!(release.tag, "v2.1.0-rc1");
-        assert!(release.is_prerelease);
     }
 }

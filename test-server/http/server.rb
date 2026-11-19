@@ -6,6 +6,7 @@ require_relative 'request'
 require_relative 'response'
 require_relative '../artifacts/store'
 require_relative '../pages/router'
+require_relative '../pages/fixtures'
 
 module LocalArtifactServer
   # Owns socket lifecycle and dispatches requests to artifact/page handlers.
@@ -14,6 +15,9 @@ module LocalArtifactServer
       @host = host
       @port = Integer(port)
       @artifact_store = ArtifactStore.new(artifact_root)
+      @fixtures = FixtureRouter.new(artifact_root)
+      @request_log = ENV.fetch('SERVER_REQUEST_LOG', nil)
+      @request_lock = Mutex.new
       @page_router = page_router
       @logger = logger
       @server = TCPServer.new(@host, @port)
@@ -59,6 +63,7 @@ module LocalArtifactServer
 
     def handle(socket)
       request = Request.parse(socket)
+      record_request(request)
       response = dispatch(request)
       response.write(socket, request)
       log("#{request.method} #{request.path} #{response.status}")
@@ -75,6 +80,9 @@ module LocalArtifactServer
         return Response.new(status: 405, body: "method not allowed\n", content_type: 'text/plain; charset=utf-8')
       end
 
+      fixture = @fixtures.call(request)
+      return fixture if fixture
+
       return @artifact_store.call(request) if request.path.start_with?(ArtifactStore::PREFIX)
 
       @page_router.call(request) || ArtifactStore::NOT_FOUND
@@ -83,6 +91,16 @@ module LocalArtifactServer
     def log(message)
       @logger.puts(message)
       @logger.flush
+    end
+
+    def record_request(request)
+      @request_lock.synchronize do
+        next unless @request_log
+
+        record = { method: request.method, path: request.path, query: request.query,
+                   headers: request.headers }
+        File.open(@request_log, 'a') { |file| file.puts(JSON.generate(record)) }
+      end
     end
   end
 end
