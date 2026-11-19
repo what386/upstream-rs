@@ -33,6 +33,14 @@ pub struct GitlabClient {
 }
 
 impl GitlabClient {
+    pub(super) fn source_archive_url(&self, slug: &str, reference: &str) -> String {
+        format!(
+            "{}/api/v4/projects/{}/repository/archive.tar.gz?sha={reference}",
+            self.base_url,
+            Self::encode_project_path(slug)
+        )
+    }
+
     pub fn new(
         token: Option<&str>,
         base_url: Option<&str>,

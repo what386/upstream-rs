@@ -216,6 +216,16 @@ impl GithubAdapter {
 
 #[async_trait::async_trait(?Send)]
 impl ReleaseProvider for GithubAdapter {
+    async fn get_source_archive(&self, slug: &str, reference: &str) -> Result<Asset> {
+        Ok(Asset::new(
+            format!("https://api.github.com/repos/{slug}/tarball/{reference}"),
+            0,
+            format!("{}-{reference}.tar.gz", slug.replace('/', "-")),
+            0,
+            Timestamp::MIN,
+        ))
+    }
+
     async fn get_latest_release(&self, slug: &str) -> Result<Release> {
         GithubAdapter::get_latest_release(self, slug).await
     }

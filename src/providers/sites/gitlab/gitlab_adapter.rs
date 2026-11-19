@@ -176,6 +176,16 @@ impl GitlabAdapter {
 
 #[async_trait::async_trait(?Send)]
 impl ReleaseProvider for GitlabAdapter {
+    async fn get_source_archive(&self, slug: &str, reference: &str) -> Result<Asset> {
+        Ok(Asset::new(
+            self.client.source_archive_url(slug, reference),
+            0,
+            format!("{}-{reference}.tar.gz", slug.replace('/', "-")),
+            0,
+            Timestamp::MIN,
+        ))
+    }
+
     async fn get_latest_release(&self, slug: &str) -> Result<Release> {
         GitlabAdapter::get_latest_release(self, slug).await
     }

@@ -37,6 +37,13 @@ pub struct GiteaClient {
 }
 
 impl GiteaClient {
+    pub(super) fn source_archive_url(&self, slug: &str, reference: &str) -> String {
+        format!(
+            "{}/api/v1/repos/{slug}/archive/{reference}.tar.gz",
+            self.base_url
+        )
+    }
+
     pub fn new(
         token: Option<&str>,
         base_url: Option<&str>,

@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use jiff::Timestamp;
 
 pub mod appimagehub;
+pub mod crates_io;
 pub mod gitea;
 pub mod github;
 pub mod gitlab;
@@ -18,6 +19,12 @@ use crate::models::{
 
 #[async_trait(?Send)]
 pub trait ReleaseProvider {
+    async fn get_source_archive(&self, _slug: &str, _reference: &str) -> Result<Asset> {
+        Err(anyhow!(
+            "Source archives are not supported for this provider"
+        ))
+    }
+
     async fn get_latest_release(&self, slug: &str) -> Result<Release>;
 
     async fn get_releases(
@@ -83,6 +90,10 @@ impl<T> ReleaseProvider for &T
 where
     T: ReleaseProvider + ?Sized,
 {
+    async fn get_source_archive(&self, slug: &str, reference: &str) -> Result<Asset> {
+        (*self).get_source_archive(slug, reference).await
+    }
+
     async fn get_latest_release(&self, slug: &str) -> Result<Release> {
         (*self).get_latest_release(slug).await
     }
