@@ -385,11 +385,17 @@ impl<'a> PackageActivator<'a> {
         H: FnMut(&str),
     {
         let mut errors = Vec::new();
-        if runtime_link_activated
-            && let Err(error) =
-                SymlinkManager::new(&self.paths.state.symlinks_dir).remove_link(&package.id)
-        {
-            errors.push(format!("failed to remove runtime link: {error:#}"));
+        if runtime_link_activated {
+            for executable in &package.executables {
+                if let Err(error) = SymlinkManager::new(&self.paths.state.symlinks_dir)
+                    .remove_link(&executable.name)
+                {
+                    errors.push(format!(
+                        "failed to remove runtime link '{}': {error:#}",
+                        executable.name
+                    ));
+                }
+            }
         }
 
         if let Err(error) = UnitManager::new(self.paths).remove(&package.id) {
@@ -561,10 +567,10 @@ impl<'a> PackageActivator<'a> {
         let mut runtime_link_activated = false;
         let activation_result = (|| {
             for executable in &updated_package.executables {
+                runtime_link_activated = true;
                 SymlinkManager::new(&self.paths.state.symlinks_dir)
                     .add_link(&executable.path, &executable.name)
                     .context("Failed to activate runtime link")?;
-                runtime_link_activated = true;
             }
 
             prepared.install_completions(self.paths)?;
@@ -753,6 +759,19 @@ impl<'a> PackageActivator<'a> {
         };
 
         backup.set_partial_package(updated_package.clone());
+        for executable in &previous_package.executables {
+            if let Err(error) =
+                SymlinkManager::new(&self.paths.state.symlinks_dir).remove_link(&executable.name)
+            {
+                return self.restore_after_failure(
+                    backup,
+                    error.context("Failed to remove previous runtime link"),
+                    "Failed to activate prepared replacement",
+                    message_callback,
+                );
+            }
+        }
+        backup.mark_runtime_link_activated();
         for executable in &updated_package.executables {
             if let Err(error) = SymlinkManager::new(&self.paths.state.symlinks_dir)
                 .add_link(&executable.path, &executable.name)
@@ -766,7 +785,6 @@ impl<'a> PackageActivator<'a> {
             }
         }
 
-        backup.mark_runtime_link_activated();
         if let Err(error) = prepared.install_completions(self.paths) {
             return self.restore_after_failure(
                 backup,

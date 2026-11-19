@@ -16,6 +16,7 @@ pub enum Version {
         minor: u32,
         patch: u32,
         is_prerelease: bool,
+        full: Option<String>,
     },
     Datetime {
         timestamp: DateTime,
@@ -66,6 +67,7 @@ impl Version {
                 minor,
                 patch,
                 is_prerelease,
+                full: None,
             }
         }
     }
@@ -96,6 +98,7 @@ impl Version {
                 minor,
                 patch,
                 is_prerelease,
+                ..
             } => Some((*major, *minor, *patch, *is_prerelease)),
             Self::Datetime { .. } => None,
         }
@@ -217,7 +220,63 @@ impl Version {
         Self::from_filename(cleaned)
     }
 
+    /// Exact SemVer parsing for registry versions, without forge prefixes.
+    pub fn parse_strict_semver(s: &str) -> Result<Self> {
+        let (without_build, build) = s.split_once('+').map_or((s, None), |(v, b)| (v, Some(b)));
+        let (core, pre) = without_build
+            .split_once('-')
+            .map_or((without_build, None), |(v, p)| (v, Some(p)));
+        let parts = core.split('.').collect::<Vec<_>>();
+        if parts.len() != 3 {
+            bail!("Expected MAJOR.MINOR.PATCH");
+        }
+        let number = |part: &str| -> Result<u32> {
+            if part.is_empty()
+                || !part.bytes().all(|b| b.is_ascii_digit())
+                || (part.len() > 1 && part.starts_with('0'))
+            {
+                bail!("Invalid SemVer numeric component");
+            }
+            Ok(part.parse()?)
+        };
+        for (identifiers, prerelease) in [(pre, true), (build, false)] {
+            if let Some(identifiers) = identifiers {
+                for id in identifiers.split('.') {
+                    if id.is_empty()
+                        || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+                        || (prerelease
+                            && id.len() > 1
+                            && id.starts_with('0')
+                            && id.bytes().all(|b| b.is_ascii_digit()))
+                    {
+                        bail!("Invalid SemVer identifier");
+                    }
+                }
+            }
+        }
+        let (major, minor, patch) = (number(parts[0])?, number(parts[1])?, number(parts[2])?);
+        let full = (pre.is_some() || build.is_some() || (major, minor, patch) == (0, 0, 0))
+            .then(|| s.to_owned());
+        Ok(Self::Semver {
+            major,
+            minor,
+            patch,
+            is_prerelease: pre.is_some(),
+            full,
+        })
+    }
+
+    pub fn full_semver(&self) -> Option<&str> {
+        match self {
+            Self::Semver { full, .. } => full.as_deref(),
+            _ => None,
+        }
+    }
+
     fn parse_semver(s: &str) -> Result<Self> {
+        if s.contains(['-', '+']) {
+            return Self::parse_strict_semver(s);
+        }
         let parts: Vec<&str> = s.split('.').collect();
         if parts.is_empty() || parts.len() > 3 {
             bail!("Invalid version format");
@@ -355,6 +414,9 @@ impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Semver {
+                full: Some(full), ..
+            } => write!(f, "{full}"),
+            Self::Semver {
                 is_prerelease: true,
                 ..
             } => write!(f, "{}-pre", self.core_string()),
@@ -372,15 +434,28 @@ impl PartialOrd for Version {
                     minor: a_minor,
                     patch: a_patch,
                     is_prerelease: a_pre,
+                    full: a_full,
                 },
                 Self::Semver {
                     major: b_major,
                     minor: b_minor,
                     patch: b_patch,
                     is_prerelease: b_pre,
+                    full: b_full,
                 },
             ) => {
-                Some((a_major, a_minor, a_patch, !a_pre).cmp(&(b_major, b_minor, b_patch, !b_pre)))
+                let core =
+                    (a_major, a_minor, a_patch, !a_pre).cmp(&(b_major, b_minor, b_patch, !b_pre));
+                if core != Ordering::Equal || !a_pre {
+                    return Some(core);
+                }
+                match (
+                    a_full.as_deref().and_then(prerelease),
+                    b_full.as_deref().and_then(prerelease),
+                ) {
+                    (Some(a), Some(b)) => Some(compare_prerelease(a, b)),
+                    _ => Some(Ordering::Equal),
+                }
             }
             (
                 Self::Datetime {
@@ -401,12 +476,42 @@ impl PartialOrd for Version {
     }
 }
 
+fn prerelease(version: &str) -> Option<&str> {
+    version
+        .split('+')
+        .next()?
+        .split_once('-')
+        .map(|(_, pre)| pre)
+}
+
+fn compare_prerelease(a: &str, b: &str) -> Ordering {
+    let (a, b) = (
+        a.split('.').collect::<Vec<_>>(),
+        b.split('.').collect::<Vec<_>>(),
+    );
+    for (a, b) in a.iter().zip(&b) {
+        let numeric = |s: &str| s.bytes().all(|b| b.is_ascii_digit());
+        let order = match (numeric(a), numeric(b)) {
+            (true, true) => a.len().cmp(&b.len()).then_with(|| a.cmp(b)),
+            (true, false) => Ordering::Less,
+            (false, true) => Ordering::Greater,
+            _ => a.cmp(b),
+        };
+        if order != Ordering::Equal {
+            return order;
+        }
+    }
+    a.len().cmp(&b.len())
+}
+
 #[derive(Serialize, Deserialize)]
 struct SemverWire {
     major: u32,
     minor: u32,
     patch: u32,
     is_prerelease: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    full: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -434,6 +539,7 @@ impl Serialize for Version {
                 minor: 0,
                 patch: 0,
                 is_prerelease: false,
+                full: None,
             }
             .serialize(serializer),
             Self::Semver {
@@ -441,11 +547,13 @@ impl Serialize for Version {
                 minor,
                 patch,
                 is_prerelease,
+                full,
             } => SemverWire {
                 major: *major,
                 minor: *minor,
                 patch: *patch,
                 is_prerelease: *is_prerelease,
+                full: full.clone(),
             }
             .serialize(serializer),
             Self::Datetime {
@@ -467,12 +575,18 @@ impl<'de> Deserialize<'de> for Version {
         D: Deserializer<'de>,
     {
         match VersionWire::deserialize(deserializer)? {
-            VersionWire::Semver(value) => Ok(Self::new(
-                value.major,
-                value.minor,
-                value.patch,
-                value.is_prerelease,
-            )),
+            VersionWire::Semver(value) => {
+                if let Some(full) = value.full {
+                    Self::parse_strict_semver(&full).map_err(serde::de::Error::custom)
+                } else {
+                    Ok(Self::new(
+                        value.major,
+                        value.minor,
+                        value.patch,
+                        value.is_prerelease,
+                    ))
+                }
+            }
             VersionWire::Datetime(value) => {
                 if value.scheme != "datetime" {
                     return Err(serde::de::Error::custom("unsupported version scheme"));
@@ -625,5 +739,64 @@ mod tests {
 
         assert_eq!(template.as_str(), "rust-v{}-linux");
         assert_eq!(template.render(&requested), "rust-v2.4.6-linux");
+    }
+}
+
+#[cfg(test)]
+mod strict_semver_tests {
+    use super::*;
+    #[test]
+    fn strict_versions_round_trip_and_follow_semver_precedence() {
+        let ordered = [
+            "0.0.0",
+            "1.0.0-alpha",
+            "1.0.0-alpha.1",
+            "1.0.0-beta.2",
+            "1.0.0-beta.10",
+            "1.0.0-rc.1",
+            "1.0.0",
+        ];
+        for pair in ordered.windows(2) {
+            assert!(
+                Version::parse_strict_semver(pair[0]).unwrap()
+                    < Version::parse_strict_semver(pair[1]).unwrap()
+            );
+        }
+        for text in ordered.into_iter().chain(["1.0.0-beta.2+build.01"]) {
+            let version = Version::parse_strict_semver(text).unwrap();
+            assert_eq!(version.to_string(), text);
+            assert!(!version.is_unknown());
+            assert_eq!(
+                serde_json::from_str::<Version>(&serde_json::to_string(&version).unwrap()).unwrap(),
+                version
+            );
+        }
+        assert!(Version::new(0, 0, 0, false).is_unknown());
+        assert_eq!(
+            Version::parse_strict_semver("1.0.0+a")
+                .unwrap()
+                .partial_cmp(&Version::parse_strict_semver("1.0.0+b").unwrap()),
+            Some(Ordering::Equal)
+        );
+    }
+    #[test]
+    fn strict_parser_rejects_prefixes_short_versions_and_leading_zeroes() {
+        for text in [
+            "1",
+            "1.0",
+            "v1.0.0",
+            "01.0.0",
+            "1.00.0",
+            "1.0.00",
+            "1.0.0-01",
+            "1.0.0-",
+            "1.0.0+",
+            "1.0.0-a..b",
+            "1.0.0+a+b",
+            " 1.0.0",
+            "1.0.0-α",
+        ] {
+            assert!(Version::parse_strict_semver(text).is_err(), "{text}");
+        }
     }
 }

@@ -132,7 +132,9 @@ impl Package {
 
     pub fn record_release(&mut self, release: &Release) {
         self.version = release.version.clone();
-        if self.provider.is_forge() || self.provider == Provider::AppImageHub {
+        if self.provider.is_forge()
+            || matches!(self.provider, Provider::AppImageHub | Provider::CratesIo)
+        {
             self.release_tag = Some(release.tag.clone());
             self.release_published_at =
                 (release.published_at != Timestamp::MIN).then_some(release.published_at);

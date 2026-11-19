@@ -71,6 +71,9 @@ fn build_fixture<P: BuildProfileHandler>(
         .run_build(&workspace, target_hint, &mut callback)
         .expect("build fixture repository");
 
+    assert_eq!(artifact.len(), 1);
+    let artifact = &artifact[0];
+
     assert_eq!(
         artifact.file_name().and_then(|name| name.to_str()),
         Some(expected_artifact)

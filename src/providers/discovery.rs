@@ -117,6 +117,16 @@ pub fn infer_source(source: &str) -> Result<DiscoveredSource> {
         return Err(anyhow!("Source cannot be empty"));
     }
 
+    if original.starts_with("crates-io:") || original.starts_with("https://crates.io/crates/") {
+        return Ok(DiscoveredSource {
+            repo_slug: crate::providers::sites::crates_io::crate_name(&original)?,
+            original,
+            provider: Provider::CratesIo,
+            base_url: None,
+            kind: SourceKind::CatalogEntry,
+        });
+    }
+
     if original.starts_with("appimagehub:") {
         return Ok(DiscoveredSource {
             repo_slug: crate::providers::sites::appimagehub::content_id(&original)?,
@@ -158,6 +168,11 @@ pub fn normalize_source_for_provider(
     let trimmed = source.trim();
     if trimmed.is_empty() {
         return String::new();
+    }
+
+    if *provider == Provider::CratesIo {
+        return crate::providers::sites::crates_io::crate_name(trimmed)
+            .unwrap_or_else(|_| trimmed.to_owned());
     }
 
     if *provider == Provider::AppImageHub {
@@ -216,7 +231,7 @@ pub fn normalize_source_for_provider(
                 return slug;
             }
         }
-        Provider::AppImageHub | Provider::Direct | Provider::WebScraper => {}
+        Provider::CratesIo | Provider::AppImageHub | Provider::Direct | Provider::WebScraper => {}
     }
 
     trimmed.to_string()
@@ -281,6 +296,7 @@ pub fn friendly_name(provider: &Provider, source: &str, _base_url: Option<&str>)
 
     match provider {
         Provider::AppImageHub => crate::providers::sites::appimagehub::content_id(source).ok(),
+        Provider::CratesIo => crate::providers::sites::crates_io::crate_name(source).ok(),
         Provider::Direct | Provider::WebScraper => {
             let url = Url::parse(source).ok()?;
             let host = url.host_str()?.trim_end_matches('.').to_ascii_lowercase();

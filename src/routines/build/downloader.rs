@@ -72,23 +72,25 @@ impl<'a> SourceDownloader<'a> {
             ));
         }
 
-        match self
-            .fetch_source_from_git(
-                repo_slug,
-                provider,
-                base_url,
-                channel,
-                tag,
-                branch,
-                status_callback,
-            )
-            .await
-        {
-            Ok(source) => return Ok(source),
-            Err(err) => Self::emit_status(
-                status_callback,
-                format!("Git source cache unavailable, falling back to source archive: {err}"),
-            ),
+        if provider.is_forge() {
+            match self
+                .fetch_source_from_git(
+                    repo_slug,
+                    provider,
+                    base_url,
+                    channel,
+                    tag,
+                    branch,
+                    status_callback,
+                )
+                .await
+            {
+                Ok(source) => return Ok(source),
+                Err(err) => Self::emit_status(
+                    status_callback,
+                    format!("Git source cache unavailable, falling back to source archive: {err}"),
+                ),
+            }
         }
 
         self.fetch_source_from_archive(

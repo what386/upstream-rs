@@ -35,10 +35,11 @@ pub enum InstallSource {
     },
     SelectedRelease {
         release: Release,
-        asset: Asset,
+        asset: Box<Asset>,
     },
-    LocalArtifact {
-        artifact_path: PathBuf,
+    /// Explicit executable files, installed together as one package.
+    LocalFiles {
+        files: Vec<PathBuf>,
         version: Version,
     },
 }
@@ -66,10 +67,11 @@ pub struct InstallPlan {
 pub enum PlannedInstallSource {
     Release {
         release: Release,
-        asset: Asset,
+        asset: Box<Asset>,
     },
-    LocalArtifact {
-        artifact_path: PathBuf,
+    /// Explicit executable files, installed together as one package.
+    LocalFiles {
+        files: Vec<PathBuf>,
         version: Version,
     },
 }
@@ -95,7 +97,7 @@ impl InstallPlan {
             resolved_filetype,
             disk_impact: self.disk_impact.clone(),
             release: release.clone(),
-            asset: asset.clone(),
+            asset: asset.as_ref().clone(),
         })
     }
 }

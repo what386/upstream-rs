@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result};
 use jiff::Timestamp;
 
 use crate::models::{
@@ -38,7 +38,9 @@ impl<'a> SourceDownloader<'a> {
             let release = branch_release(branch_name);
             let workspace_path = self
                 .download_and_extract(
-                    &self.make_source_archive_asset(repo_slug, provider, branch_name, base_url)?,
+                    &self
+                        .make_source_archive_asset(repo_slug, provider, branch_name, base_url)
+                        .await?,
                     provider,
                     status_callback,
                 )
@@ -83,8 +85,9 @@ impl<'a> SourceDownloader<'a> {
                 .context(format!("fetch latest release for '{}'", repo_slug))?
         };
 
-        let primary =
-            self.make_source_archive_asset(repo_slug, provider, &release.tag, base_url)?;
+        let primary = self
+            .make_source_archive_asset(repo_slug, provider, &release.tag, base_url)
+            .await?;
 
         let downloaded_primary = self
             .download_asset(&primary, provider, status_callback)
@@ -170,41 +173,16 @@ impl<'a> SourceDownloader<'a> {
             .context("Failed to unpack source archive")
     }
 
-    fn make_source_archive_asset(
+    async fn make_source_archive_asset(
         &self,
         repo_slug: &str,
         provider: &Provider,
         git_ref: &str,
         base_url: Option<&str>,
     ) -> Result<Asset> {
-        ensure!(
-            provider.is_forge(),
-            "Build supports forge providers only (github/gitlab/gitea)"
-        );
-
-        let url = match provider {
-            Provider::Github => {
-                format!("https://api.github.com/repos/{repo_slug}/tarball/{git_ref}")
-            }
-            Provider::Gitlab => format!(
-                "{}/api/v4/projects/{}/repository/archive.tar.gz?sha={git_ref}",
-                base_url.unwrap_or("https://gitlab.com"),
-                repo_slug.replace('/', "%2F")
-            ),
-            Provider::Gitea => format!(
-                "{}/api/v1/repos/{repo_slug}/archive/{git_ref}.tar.gz",
-                base_url.unwrap_or("https://gitea.com")
-            ),
-            _ => bail!("Source archive downloads are not implemented for {provider}"),
-        };
-
-        Ok(Asset::new(
-            url,
-            0,
-            format!("{}-{git_ref}.tar.gz", repo_slug.replace('/', "-")),
-            0,
-            Timestamp::now(),
-        ))
+        self.provider_manager
+            .get_source_archive(repo_slug, provider, git_ref, base_url)
+            .await
     }
 }
 

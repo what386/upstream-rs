@@ -71,10 +71,11 @@ pub enum Commands {
         Clones or updates a cached source checkout, selects a tag or branch, runs the \
         detected or requested build profile, installs the produced artifact, and records \
         the package for future rebuilds/upgrades. Use this when release artifacts are \
-        unavailable or unsuitable. Build accepts GitHub, GitLab, or Gitea repository \
+        unavailable or unsuitable. Build accepts crates.io packages and GitHub, GitLab, or Gitea repository \
         sources.\n\n\
         EXAMPLES:\n  \
         upstream build BurntSushi/ripgrep\n  \
+        upstream build crates-io:ripgrep --semver 14.1.1\n  \
         upstream build BurntSushi/ripgrep --branch main\n  \
         upstream build BurntSushi/ripgrep --build-profile rust\n  \
         upstream build owner/repo --build-profile dotnet --tag v1.2.3")]

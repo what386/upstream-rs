@@ -23,6 +23,26 @@ pub async fn run(
     paths: &UpstreamPaths,
     app_config: &AppConfig,
 ) -> Result<()> {
+    let registry = provider == Some(Provider::CratesIo)
+        || (provider.is_none()
+            && crate::providers::discovery::infer_source(&repo_slug)
+                .is_ok_and(|source| source.provider == Provider::CratesIo));
+    if registry {
+        anyhow::ensure!(
+            tag.is_none(),
+            "crates.io does not support --tag; use --semver <version>"
+        );
+        anyhow::ensure!(branch.is_none(), "crates.io does not support --branch");
+        anyhow::ensure!(base_url.is_none(), "crates.io does not support --base-url");
+        anyhow::ensure!(
+            channel != Channel::Nightly,
+            "crates.io does not support the nightly channel"
+        );
+        anyhow::ensure!(
+            build_profile.is_none_or(|profile| profile == BuildProfile::Rust),
+            "crates.io requires the Rust build profile"
+        );
+    }
     let plan = InstallPlan {
         desktop,
         source: InstallSource::Build(BuildInstallSource {

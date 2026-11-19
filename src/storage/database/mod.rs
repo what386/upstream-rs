@@ -11,11 +11,13 @@ mod settings;
 pub use api::PackageDatabase;
 pub use settings::PackageSettings;
 
-pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 13;
+pub const PACKAGE_DB_SCHEMA_VERSION: u32 = 14;
 pub const MIN_PACKAGE_DB_SCHEMA_VERSION: u32 = 11;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 const MIGRATION_011_TO_012: &str = include_str!("migrations/011-to-012.sql");
+
+const MIGRATION_013_TO_014: &str = include_str!("migrations/013-to-014.sql");
 
 const MIGRATION_012_TO_013: &str = include_str!("migrations/012-to-013.sql");
 
@@ -67,6 +69,7 @@ fn migrate_schema(conn: &Connection, mut current_version: u32) -> Result<()> {
         let (sql, next_version) = match current_version {
             11 => (MIGRATION_011_TO_012, 12),
             12 => (MIGRATION_012_TO_013, 13),
+            13 => (MIGRATION_013_TO_014, 14),
             version => bail!(
                 "Unsupported package database schema version {}. Expected version {} or earlier.",
                 version,
@@ -98,6 +101,40 @@ fn schema_version(conn: &Connection) -> Result<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn migrates_v13_provider_constraint_without_losing_relations() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(&SCHEMA_SQL.replace(", 'CratesIo'", ""))
+            .unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA user_version = 13;
+            INSERT INTO packages (id, repo_slug, filetype, version_major, version_minor, version_patch, version_is_prerelease, channel, provider, install_type, is_pinned, last_upgraded)
+            VALUES ('github:owner/tool', 'owner/tool', 'Binary', 1, 0, 0, 0, 'Stable', 'Github', 'Build', 0, '2026-01-01T00:00:00Z');
+            INSERT INTO package_executables VALUES ('github:owner/tool', '/tools/tool', 'tool');
+            INSERT INTO patterns VALUES ('github:owner/tool', 'match', 0, 'linux');").unwrap();
+        initialize(&conn).unwrap();
+        assert_eq!(schema_version(&conn).unwrap(), 14);
+        assert!(
+            !conn
+                .prepare("PRAGMA foreign_key_check")
+                .unwrap()
+                .exists([])
+                .unwrap()
+        );
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM package_executables", [], |r| r
+                .get::<_, u32>(0))
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM patterns", [], |r| r.get::<_, u32>(0))
+                .unwrap(),
+            1
+        );
+        conn.execute("UPDATE packages SET provider = 'CratesIo'", [])
+            .unwrap();
+    }
 
     #[test]
     fn migrates_v11_provider_constraint_and_preserves_package_relations() {

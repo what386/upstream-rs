@@ -108,27 +108,16 @@ impl<'a> PackageInstaller<'a> {
 
                 PlannedInstallSource::Release {
                     release: resolved.release,
-                    asset: resolved.asset,
+                    asset: Box::new(resolved.asset),
                 }
             }
             InstallSource::SelectedRelease { release, asset } => {
                 PlannedInstallSource::Release { release, asset }
             }
-            InstallSource::LocalArtifact {
-                artifact_path,
-                version,
-            } => {
-                if !artifact_path.exists() {
-                    return Err(anyhow!(
-                        "Local artifact path '{}' does not exist",
-                        artifact_path.display()
-                    ));
-                }
+            InstallSource::LocalFiles { files, version } => {
+                Self::validate_local_files(&files)?;
 
-                PlannedInstallSource::LocalArtifact {
-                    artifact_path,
-                    version,
-                }
+                PlannedInstallSource::LocalFiles { files, version }
             }
         };
 
@@ -143,7 +132,7 @@ impl<'a> PackageInstaller<'a> {
                 estimate_fresh_install(filetype, asset_size_estimate(asset.size))
             }
 
-            PlannedInstallSource::LocalArtifact { .. } => DiskImpact::unknown(),
+            PlannedInstallSource::LocalFiles { .. } => DiskImpact::unknown(),
         };
 
         Ok(InstallPlan {
@@ -225,13 +214,10 @@ impl<'a> PackageInstaller<'a> {
                 )
                 .await
             }
-            PlannedInstallSource::LocalArtifact {
-                artifact_path,
-                version,
-            } => {
-                self.install_local_artifact(
+            PlannedInstallSource::LocalFiles { files, version } => {
+                self.install_local_files(
                     plan.package,
-                    &artifact_path,
+                    &files,
                     version,
                     &plan.add_entry,
                     message_callback,
@@ -403,10 +389,10 @@ impl<'a> PackageInstaller<'a> {
         .await
     }
 
-    pub async fn install_local_artifact<H, P>(
+    pub async fn install_local_files<H, P>(
         &mut self,
         package: Package,
-        artifact_path: &Path,
+        files: &[std::path::PathBuf],
         version: crate::models::common::version::Version,
         add_entry: &Option<bool>,
         message_callback: &mut Option<H>,
@@ -418,8 +404,8 @@ impl<'a> PackageInstaller<'a> {
     {
         self.ensure_workspace(&package.id)?;
         let installed_package = self
-            .install_local_artifact_files(package, artifact_path, version, message_callback)
-            .context("Failed to install local artifact")?;
+            .install_local_files_to_workspace(package, files, version, message_callback)
+            .context("Failed to install local files")?;
 
         self.finish_installed_package(
             installed_package,
@@ -934,16 +920,28 @@ impl<'a> PackageInstaller<'a> {
     where
         H: FnMut(&str),
     {
-        if !artifact_path.exists() {
-            return Err(anyhow!(
-                "Local artifact path '{}' does not exist",
-                artifact_path.display()
-            ));
-        }
+        anyhow::ensure!(
+            artifact_path.is_file(),
+            "Local artifact '{}' is not a file",
+            artifact_path.display()
+        );
+        package.version = version;
+        filetypes::handle_file(self.workspace(), artifact_path, package, message_callback)
+    }
 
+    pub fn install_local_files_to_workspace<H>(
+        &self,
+        mut package: Package,
+        files: &[std::path::PathBuf],
+        version: crate::models::common::version::Version,
+        message_callback: &mut Option<H>,
+    ) -> Result<Package>
+    where
+        H: FnMut(&str),
+    {
+        Self::validate_local_files(files)?;
         if self.workspace().integration.systemd_units
-            && package.install_type == crate::models::upstream::InstallType::Build
-            && let Some(parent) = artifact_path.parent()
+            && let Some(parent) = files.first().and_then(|path| path.parent())
             && let Err(error) = crate::services::integration::UnitManager::stage_from_root(
                 parent,
                 &self.workspace().units_dir,
@@ -951,25 +949,32 @@ impl<'a> PackageInstaller<'a> {
         {
             message!(message_callback, "User unit discovery skipped: {error:#}");
         }
-
-        message!(message_callback, "Installing local artifact ...");
+        message!(message_callback, "Installing local files ...");
         package.version = version;
+        package.filetype = Filetype::Binary;
+        filetypes::handle_local_files(self.workspace(), files, package)
+    }
 
-        if artifact_path.is_dir() {
-            let mut extraction_progress = |_: u64, _: u64| {};
-            return filetypes::handle_archive(
-                self.workspace(),
-                artifact_path,
-                &self.extract_cache,
-                package,
-                message_callback,
-                &mut extraction_progress,
-            )
-            .context("Failed to install local artifact directory");
+    fn validate_local_files(files: &[std::path::PathBuf]) -> Result<()> {
+        anyhow::ensure!(!files.is_empty(), "No local executable files were supplied");
+        let mut names = std::collections::HashSet::new();
+        for path in files {
+            anyhow::ensure!(
+                path.is_file(),
+                "Local file '{}' is not a file",
+                path.display()
+            );
+            let name = path
+                .file_name()
+                .ok_or_else(|| anyhow!("Local file has no filename"))?;
+            let alias = filetypes::local_executable_name(path)?;
+            anyhow::ensure!(
+                names.insert(alias),
+                "Duplicate local executable name: {}",
+                name.to_string_lossy()
+            );
         }
-
-        filetypes::handle_file(self.workspace(), artifact_path, package, message_callback)
-            .context("Failed to install local artifact file")
+        Ok(())
     }
 }
 
@@ -1074,6 +1079,147 @@ mod tests {
 
         drop(staged);
         drop(installer);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn built_commands_activate_and_replace_as_one_package() {
+        use crate::{
+            models::{common::Version, upstream::InstallType},
+            services::packaging::{PackageActivator, PackageProgressEvent, PreparedInstall},
+            storage::database::PackageDatabase,
+        };
+        let root = test_support::temp_root("upstream-installer-test", "built-commands");
+        let paths = test_support::upstream_paths(&root);
+        fs::create_dir_all(&paths.state.symlinks_dir).unwrap();
+        fs::create_dir_all(&paths.dirs.config_dir).unwrap();
+        let source = root.join("source");
+        fs::create_dir_all(&source).unwrap();
+        for name in ["tool", "helper-linux", "next-helper"] {
+            fs::write(source.join(name), name.as_bytes()).unwrap();
+        }
+        let manager = ProviderManager::new(None, None, None, Default::default()).unwrap();
+        let mut database = PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
+        let activator = PackageActivator::new(&paths);
+        let mut previous = None;
+        for (version, commands) in [(1, ["tool", "helper-linux"]), (2, ["tool", "next-helper"])] {
+            let workspace = InstallWorkspace::new(&paths, "tool").unwrap();
+            let mut installer =
+                PackageInstaller::new_for_workspace(&manager, &paths, workspace).unwrap();
+            let mut package = make_package("tool", None, None);
+            package.install_type = InstallType::Build;
+            let files = commands
+                .iter()
+                .map(|name| source.join(name))
+                .collect::<Vec<_>>();
+            let staged = installer
+                .install_local_files_to_workspace(
+                    package,
+                    &files,
+                    Version::new(version, 0, 0, false),
+                    &mut None::<fn(&str)>,
+                )
+                .unwrap();
+            assert_eq!(
+                staged
+                    .executables
+                    .iter()
+                    .map(|e| e.name.as_str())
+                    .collect::<Vec<_>>(),
+                commands
+            );
+            let prepared = PreparedInstall::new(staged, installer.take_workspace().unwrap());
+            let active = if let Some(previous) = &previous {
+                let pending = activator
+                    .replace(
+                        previous,
+                        prepared,
+                        false,
+                        &mut None::<fn(&str)>,
+                        &mut None::<fn(PackageProgressEvent)>,
+                    )
+                    .await
+                    .unwrap();
+                activator.persist(&mut database, pending).unwrap()
+            } else {
+                activator
+                    .install_new(
+                        &mut database,
+                        prepared,
+                        Some(false),
+                        &mut None::<fn(&str)>,
+                        &mut None::<fn(PackageProgressEvent)>,
+                    )
+                    .await
+                    .unwrap()
+            };
+            assert!(active.install_path.as_ref().unwrap().is_dir());
+            for executable in &active.executables {
+                assert!(executable.path.is_file());
+                assert_eq!(
+                    fs::read_link(paths.state.symlinks_dir.join(&executable.name)).unwrap(),
+                    executable.path
+                );
+            }
+            previous = Some(active);
+        }
+        let installed = database.get_package("tool").unwrap().unwrap();
+        assert_eq!(installed.executables.len(), 2);
+        assert!(
+            !installed
+                .install_path
+                .unwrap()
+                .join("helper-linux")
+                .exists()
+        );
+        assert!(fs::symlink_metadata(paths.state.symlinks_dir.join("helper-linux")).is_err());
+        assert!(source.join("helper-linux").is_file());
+
+        // A failed metadata commit must restore every previous command link.
+        let workspace = InstallWorkspace::new(&paths, "tool").unwrap();
+        let mut installer =
+            PackageInstaller::new_for_workspace(&manager, &paths, workspace).unwrap();
+        let candidate = installer
+            .install_local_files_to_workspace(
+                previous.clone().unwrap(),
+                &[source.join("tool"), source.join("helper-linux")],
+                Version::new(3, 0, 0, false),
+                &mut None::<fn(&str)>,
+            )
+            .unwrap();
+        let pending = activator
+            .replace(
+                previous.as_ref().unwrap(),
+                PreparedInstall::new(candidate, installer.take_workspace().unwrap()),
+                false,
+                &mut None::<fn(&str)>,
+                &mut None::<fn(PackageProgressEvent)>,
+            )
+            .await
+            .unwrap();
+        rusqlite::Connection::open(&paths.metadata.packages_database_file)
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER reject_replacement BEFORE INSERT ON packages BEGIN
+             SELECT RAISE(FAIL, 'injected persistence failure'); END;",
+            )
+            .unwrap();
+        assert!(activator.persist(&mut database, pending).is_err());
+        for executable in &previous.as_ref().unwrap().executables {
+            assert!(executable.path.is_file());
+            assert_eq!(
+                fs::read_link(paths.state.symlinks_dir.join(&executable.name)).unwrap(),
+                executable.path
+            );
+        }
+        assert!(fs::symlink_metadata(paths.state.symlinks_dir.join("helper-linux")).is_err());
+        assert_eq!(
+            database.get_package("tool").unwrap().unwrap().version,
+            Version::new(2, 0, 0, false)
+        );
+
+        drop(database);
         fs::remove_dir_all(root).unwrap();
     }
 

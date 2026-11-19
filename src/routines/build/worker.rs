@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, anyhow};
@@ -132,14 +132,14 @@ impl<'a> BuildWorker<'a> {
 
         Self::emit_status(line_callback, "Staging built artifact ...");
         cancellation::check()?;
-        let persisted_artifact = Self::persist_artifact(&artifact)?;
+        let persisted_binaries = Self::persist_binaries(&artifact)?;
         let integration =
             crate::storage::system::config::ConfigStorage::new(&self.paths.config.config_file)?
                 .get_config()
                 .integration;
 
         if integration.systemd_units
-            && let Some(parent) = persisted_artifact.parent()
+            && let Some(parent) = persisted_binaries.first().and_then(|path| path.parent())
             && let Err(error) = crate::services::integration::UnitManager::stage_from_root(
                 &source.workspace_path,
                 &parent.join("systemd/user"),
@@ -158,7 +158,7 @@ impl<'a> BuildWorker<'a> {
         };
 
         Ok(BuildOutput {
-            artifact_path: persisted_artifact,
+            binaries: persisted_binaries,
             profile,
             release: source.release,
             version,
@@ -176,42 +176,39 @@ impl<'a> BuildWorker<'a> {
         }
     }
 
-    fn persist_artifact(artifact_path: &Path) -> Result<PathBuf> {
-        let file_name = artifact_path
-            .file_name()
-            .ok_or_else(|| anyhow!("Built artifact path has no filename"))?;
-
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-
-        let persist_dir = std::env::temp_dir().join(format!("upstream-artifact-{nonce}"));
-        fs::create_dir_all(&persist_dir).context(format!(
-            "Failed to create artifact staging directory '{}'",
-            persist_dir.display()
-        ))?;
-
-        let persisted_path = persist_dir.join(file_name);
-        fs::copy(artifact_path, &persisted_path).context(format!(
-            "Failed to stage built artifact from '{}' to '{}'",
-            artifact_path.display(),
-            persisted_path.display()
-        ))?;
-
-        let perms = fs::metadata(artifact_path)
-            .context(format!(
-                "Failed to read built artifact metadata '{}'",
-                artifact_path.display()
-            ))?
-            .permissions();
-
-        fs::set_permissions(&persisted_path, perms).context(format!(
-            "Failed to preserve artifact permissions on '{}'",
-            persisted_path.display()
-        ))?;
-
-        Ok(persisted_path)
+    fn persist_binaries(binaries: &[PathBuf]) -> Result<Vec<PathBuf>> {
+        anyhow::ensure!(!binaries.is_empty(), "Build produced no executable files");
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
+        let directory =
+            std::env::temp_dir().join(format!("upstream-artifact-{}-{nonce}", std::process::id()));
+        fs::create_dir_all(&directory)?;
+        let result = (|| {
+            let mut staged = Vec::new();
+            for binary in binaries {
+                anyhow::ensure!(
+                    binary.is_file(),
+                    "Built binary '{}' is not a file",
+                    binary.display()
+                );
+                let filename = binary
+                    .file_name()
+                    .ok_or_else(|| anyhow!("Built binary has no filename"))?;
+                let destination = directory.join(filename);
+                anyhow::ensure!(
+                    !destination.exists(),
+                    "Duplicate built binary: {}",
+                    filename.to_string_lossy()
+                );
+                fs::copy(binary, &destination)
+                    .with_context(|| format!("Failed to stage '{}'", binary.display()))?;
+                staged.push(destination);
+            }
+            Ok(staged)
+        })();
+        if result.is_err() {
+            let _ = fs::remove_dir_all(&directory);
+        }
+        result
     }
 }
 
@@ -239,7 +236,9 @@ mod tests {
         let mut f = fs::File::create(&src).expect("create source artifact");
         f.write_all(b"binary-data").expect("write source artifact");
 
-        let persisted = BuildWorker::persist_artifact(&src).expect("persist artifact");
+        let persisted = BuildWorker::persist_binaries(std::slice::from_ref(&src))
+            .expect("persist artifact")
+            .remove(0);
         assert!(persisted.exists());
         assert_eq!(
             fs::read(&persisted).expect("read persisted"),

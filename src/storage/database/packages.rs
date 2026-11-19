@@ -480,7 +480,7 @@ fn write_package(tx: &Transaction<'_>, package: &Package) -> Result<()> {
 
     let (version_kind, version_value) = match &package.version {
         Version::Unknown => ("Unknown", None),
-        Version::Semver { .. } => ("Semver", None),
+        Version::Semver { .. } => ("Semver", package.version.full_semver().map(str::to_owned)),
         Version::Datetime { .. } => ("Datetime", Some(package.version.core_string())),
     };
 
@@ -703,6 +703,30 @@ mod tests {
             stored.version_tag_from_template().as_deref(),
             Some("v20240203-110809-5046fc22-linux")
         );
+    }
+
+    #[test]
+    fn crates_io_round_trips_exact_semver_and_exports_build_reference() {
+        use crate::models::upstream::PackageReference;
+        let mut db = PackageConnection::open_in_memory().unwrap();
+        for version in ["0.0.0", "1.0.0-beta.10+build.01", "1.0.0"] {
+            let mut package = test_package("crates-io:fixture");
+            package.provider = Provider::CratesIo;
+            package.repo_slug = "fixture".into();
+            package.base_url = None;
+            package.version = Version::parse_strict_semver(version).unwrap();
+            package.release_tag = Some(version.into());
+            package.build_branch = None;
+            package.build_commit = None;
+            db.upsert_package(&package).unwrap();
+            let stored = db.get_package("fixture").unwrap().unwrap();
+            assert_eq!(stored.version, package.version);
+            assert_eq!(stored.version.to_string(), version);
+            let reference = PackageReference::from_package(stored);
+            assert_eq!(reference.version_tag.as_deref(), Some(version));
+            assert_eq!(reference.install_type, InstallType::Build);
+            assert_eq!(reference.provider, Provider::CratesIo);
+        }
     }
 
     #[test]

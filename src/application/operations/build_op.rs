@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, anyhow, bail};
 
-use crate::application::operations::install_op::{InstallOperation, LocalArtifactInstallRequest};
+use crate::application::operations::install_op::{InstallOperation, LocalFilesInstallRequest};
 use crate::models::{
     common::enums::{Channel, Filetype, Provider},
     upstream::{InstallType, Package},
@@ -64,9 +64,9 @@ impl<'a> BuildOperation<'a> {
                 discovered.base_url = Some(base);
             }
 
-            if !discovered.provider.is_forge() {
+            if !discovered.provider.can_build() {
                 return Err(anyhow!(
-                    "Build requires a forge repository source (github/gitlab/gitea), got '{}'",
+                    "Build requires a provider supporting source builds, got '{}'",
                     input.repo_slug
                 ));
             }
@@ -78,8 +78,8 @@ impl<'a> BuildOperation<'a> {
             )
         };
 
-        if !resolved_provider.is_forge() {
-            bail!("Build supports forge providers only (github/gitlab/gitea)");
+        if !resolved_provider.can_build() {
+            bail!("Selected provider does not support source builds");
         }
 
         let package_id = Package::key(&resolved_provider, &resolved_repo_slug);
@@ -91,7 +91,8 @@ impl<'a> BuildOperation<'a> {
             .to_string();
 
         if let Some(semver) = input.semver.as_deref() {
-            let requested = crate::models::common::Version::parse(semver)
+            let requested = crate::models::common::Version::parse_strict_semver(semver)
+                .or_else(|_| crate::models::common::Version::parse(semver))
                 .with_context(|| format!("Invalid semantic version '{semver}'"))?;
 
             let release = self
@@ -257,8 +258,13 @@ impl<'a> BuildOperation<'a> {
         println!(
             "{}",
             output::title(format!(
-                "Built artifact: {} ({:?})",
-                build_result.artifact_path.display(),
+                "Built binaries: {} ({:?})",
+                build_result
+                    .binaries
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
                 build_result.profile
             ))
         );
@@ -291,10 +297,10 @@ impl<'a> BuildOperation<'a> {
         let mut msg = Some(|_: &str| {});
         let mut no_progress: Option<fn(PackageProgressEvent)> = None;
         let installed = install_operation
-            .install_local_artifact(
-                LocalArtifactInstallRequest {
+            .install_local_files(
+                LocalFilesInstallRequest {
                     package,
-                    artifact_path: &build_result.artifact_path,
+                    files: &build_result.binaries,
                     version: build_result.version,
                     add_entry: input.desktop,
                 },

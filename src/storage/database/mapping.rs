@@ -45,6 +45,11 @@ pub(super) fn row_to_package(row: &Row<'_>) -> rusqlite::Result<Package> {
 
     let version = match version_kind.as_str() {
         "Unknown" => Version::new(0, 0, 0, false),
+        "Semver" if version_value.is_some() => {
+            Version::parse_strict_semver(version_value.as_deref().unwrap()).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, e.into())
+            })?
+        }
         "Semver" => Version::new(
             version_major,
             version_minor,

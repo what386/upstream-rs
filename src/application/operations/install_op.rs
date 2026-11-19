@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::{Result, anyhow};
 
 use crate::{
@@ -43,9 +41,9 @@ pub struct SelectedAssetInstallRequest<'a> {
     pub trust_mode: TrustMode,
 }
 
-pub struct LocalArtifactInstallRequest<'a> {
+pub struct LocalFilesInstallRequest<'a> {
     pub package: Package,
-    pub artifact_path: &'a Path,
+    pub files: &'a [std::path::PathBuf],
     pub version: Version,
     pub add_entry: Option<bool>,
 }
@@ -115,7 +113,7 @@ impl<'a> InstallOperation<'a> {
                 package: request.package,
                 source: InstallSource::SelectedRelease {
                     release: request.plan.release,
-                    asset: request.plan.asset,
+                    asset: Box::new(request.plan.asset),
                 },
                 add_entry: request.add_entry,
                 trust_mode: request.trust_mode,
@@ -199,7 +197,7 @@ impl<'a> InstallOperation<'a> {
                 package: request.package,
                 source: InstallSource::SelectedRelease {
                     release: request.release.clone(),
-                    asset: request.asset.clone(),
+                    asset: Box::new(request.asset.clone()),
                 },
                 add_entry: request.add_entry,
                 trust_mode: request.trust_mode,
@@ -218,9 +216,9 @@ impl<'a> InstallOperation<'a> {
             .await
     }
 
-    pub async fn install_local_artifact<H, P>(
+    pub async fn install_local_files<H, P>(
         &mut self,
-        request: LocalArtifactInstallRequest<'_>,
+        request: LocalFilesInstallRequest<'_>,
         message_callback: &mut Option<H>,
         progress_callback: &mut Option<P>,
     ) -> Result<Package>
@@ -235,8 +233,8 @@ impl<'a> InstallOperation<'a> {
             .installer
             .plan_install(InstallRequest {
                 package: request.package,
-                source: InstallSource::LocalArtifact {
-                    artifact_path: request.artifact_path.to_path_buf(),
+                source: InstallSource::LocalFiles {
+                    files: request.files.to_vec(),
                     version: request.version,
                 },
                 add_entry: request.add_entry,
@@ -287,7 +285,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn install_local_artifact_rejects_existing_package_name_before_installing() {
+    async fn install_local_files_rejects_existing_package_name_before_installing() {
         let root = test_support::temp_root("upstream-install-op", "duplicate-name");
         let paths = test_support::upstream_paths(&root);
         fs::create_dir_all(&paths.install.tmp_dir).expect("create tmp dir");
@@ -315,10 +313,10 @@ mod tests {
         let mut message = Some(|_: &str| {});
         let mut progress: Option<fn(crate::services::packaging::PackageProgressEvent)> = None;
         let err = operation
-            .install_local_artifact(
-                crate::application::operations::install_op::LocalArtifactInstallRequest {
+            .install_local_files(
+                crate::application::operations::install_op::LocalFilesInstallRequest {
                     package: test_package("tool"),
-                    artifact_path: &root.join("missing-artifact"),
+                    files: &[root.join("missing-artifact")],
                     version: crate::models::common::Version::new(1, 2, 3, false),
                     add_entry: None,
                 },

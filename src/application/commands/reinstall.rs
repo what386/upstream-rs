@@ -141,6 +141,30 @@ pub async fn run(
     let context = CommandContext::new(paths, app_config)?;
     let mut package_database = context.package_database()?;
     let trusted_keys = context.trusted_keys()?;
+    for name in &names {
+        if let Some(package) = package_database.get_package(name)?
+            && install_options
+                .provider_options
+                .provider
+                .as_ref()
+                .unwrap_or(&package.provider)
+                == &crate::models::common::enums::Provider::CratesIo
+        {
+            anyhow::ensure!(
+                install_options.tag.is_none(),
+                "crates.io does not support --tag; use --semver <version>"
+            );
+            anyhow::ensure!(
+                install_options.provider_options.base_url.is_none(),
+                "crates.io does not support --base-url"
+            );
+            anyhow::ensure!(
+                install_options.channel.as_ref()
+                    != Some(&crate::models::common::enums::Channel::Nightly),
+                "crates.io does not support the nightly channel"
+            );
+        }
+    }
 
     if dry_run {
         return run_dry_run(
@@ -611,7 +635,8 @@ async fn resolve_reinstall_release(
     install_options: &InstallOptions,
 ) -> Result<Release> {
     if let Some(semver) = &install_options.semver {
-        let requested = crate::models::common::Version::parse(semver)?;
+        let requested = crate::models::common::Version::parse_strict_semver(semver)
+            .or_else(|_| crate::models::common::Version::parse(semver))?;
         return provider_manager
             .get_release_by_semver(
                 &package.repo_slug,

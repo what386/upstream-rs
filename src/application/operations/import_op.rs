@@ -737,8 +737,8 @@ where
     let plan = installer
         .plan_install(InstallRequest {
             package,
-            source: InstallSource::LocalArtifact {
-                artifact_path: output.artifact_path,
+            source: InstallSource::LocalFiles {
+                files: output.binaries,
                 version: output.version,
             },
             add_entry: None,

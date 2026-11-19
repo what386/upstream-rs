@@ -120,7 +120,7 @@ impl BuildProfileHandler for DotnetProfile {
         workspace: &Path,
         package_name: &str,
         line_callback: &mut Option<&mut dyn FnMut(&str)>,
-    ) -> Result<PathBuf> {
+    ) -> Result<Vec<PathBuf>> {
         let project = Self::find_project_file(workspace).ok_or_else(|| {
             anyhow!(
                 "Could not find a .sln or .csproj in repository root '{}'.",
@@ -169,6 +169,6 @@ impl BuildProfileHandler for DotnetProfile {
             ));
         }
 
-        Ok(artifact)
+        Ok(vec![artifact])
     }
 }

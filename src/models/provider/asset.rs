@@ -10,6 +10,7 @@ pub struct Asset {
     pub id: u64,
     pub name: String,
     pub size: u64,
+    pub expected_sha256: Option<String>,
     pub created_at: Timestamp,
 
     // computed from name
@@ -45,6 +46,7 @@ impl Asset {
             id,
             name,
             size,
+            expected_sha256: None,
             created_at,
             filetype,
             target_os: os,

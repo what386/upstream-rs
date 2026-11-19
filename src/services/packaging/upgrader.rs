@@ -475,9 +475,9 @@ impl<'a> PackageUpgrader<'a> {
                         }
                     });
 
-                    let install_result = staging_installer.install_local_artifact_files(
+                    let install_result = staging_installer.install_local_files_to_workspace(
                         install_pkg,
-                        &output.artifact_path,
+                        &output.binaries,
                         output.version,
                         &mut install_message_callback,
                     );

@@ -121,6 +121,14 @@ pub async fn search_repositories(
 ) -> Result<SearchResults> {
     let context = CommandContext::new(paths, app_config)?;
     let effective_provider = provider.unwrap_or(Provider::Github);
+    if effective_provider == Provider::CratesIo {
+        anyhow::ensure!(base_url.is_none(), "crates.io does not support --base-url");
+        anyhow::ensure!(
+            filters == RepositorySearchFilters::default(),
+            "crates.io search supports text queries and --limit; forge filters are not supported"
+        );
+    }
+
     let effective_limit = limit.max(1);
 
     let results = context

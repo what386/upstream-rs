@@ -31,7 +31,7 @@ pub struct BuildRequest {
 
 #[derive(Debug, Clone)]
 pub struct BuildOutput {
-    pub artifact_path: PathBuf,
+    pub binaries: Vec<PathBuf>,
     pub profile: BuildProfile,
     pub release: Release,
     pub version: Version,

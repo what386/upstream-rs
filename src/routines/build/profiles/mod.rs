@@ -36,7 +36,7 @@ pub trait BuildProfileHandler {
         workspace: &Path,
         package_name: &str,
         line_callback: &mut Option<&mut dyn FnMut(&str)>,
-    ) -> Result<PathBuf>;
+    ) -> Result<Vec<PathBuf>>;
 }
 
 pub fn run_command_with_line_callback(

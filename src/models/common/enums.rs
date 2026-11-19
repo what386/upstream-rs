@@ -86,11 +86,16 @@ pub enum Provider {
     Gitlab,
     Gitea,
     AppImageHub,
+    CratesIo,
     WebScraper,
     Direct,
 }
 
 impl Provider {
+    pub fn can_build(&self) -> bool {
+        self.is_forge() || *self == Self::CratesIo
+    }
+
     /// Whether this provider represents a source-code forge.
     /// Keep this exhaustive so every new provider must declare its classification.
     pub fn is_forge(&self) -> bool {
@@ -99,6 +104,7 @@ impl Provider {
             Self::Gitlab => true,
             Self::Gitea => true,
             Self::AppImageHub => false,
+            Self::CratesIo => false,
             Self::WebScraper => false,
             Self::Direct => false,
         }
@@ -114,6 +120,7 @@ impl FromStr for Provider {
             "gitlab" => Ok(Provider::Gitlab),
             "gitea" => Ok(Provider::Gitea),
             "appimagehub" => Ok(Provider::AppImageHub),
+            "crates-io" => Ok(Provider::CratesIo),
             "scraper" => Ok(Provider::WebScraper),
             "direct" => Ok(Provider::Direct),
             _ => Err(format!("Unknown provider: {}", s)),
@@ -128,6 +135,7 @@ impl std::fmt::Display for Provider {
             Provider::Gitlab => write!(f, "gitlab"),
             Provider::Gitea => write!(f, "gitea"),
             Provider::AppImageHub => write!(f, "appimagehub"),
+            Provider::CratesIo => write!(f, "crates-io"),
             Provider::WebScraper => write!(f, "scraper"),
             Provider::Direct => write!(f, "direct"),
         }

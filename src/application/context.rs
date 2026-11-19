@@ -27,7 +27,8 @@ impl<'a> CommandContext<'a> {
             auth.get_auth().gitlab.api_token.as_deref(),
             auth.get_auth().gitea.api_token.as_deref(),
             app_config.download,
-        )?;
+        )?
+        .with_crates_io_cache_dir(paths.dirs.cache_dir.join("source/crates-io-index"));
 
         Ok(Self {
             paths,

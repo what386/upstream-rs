@@ -109,7 +109,7 @@ impl BuildProfileHandler for GoProfile {
         workspace: &Path,
         package_name: &str,
         line_callback: &mut Option<&mut dyn FnMut(&str)>,
-    ) -> Result<PathBuf> {
+    ) -> Result<Vec<PathBuf>> {
         let project_dir = Self::find_project_dir(workspace).ok_or_else(|| {
             anyhow!(
                 "Could not find go.mod in repository root '{}'.",
@@ -170,6 +170,6 @@ impl BuildProfileHandler for GoProfile {
             ));
         }
 
-        Ok(artifact)
+        Ok(vec![artifact])
     }
 }

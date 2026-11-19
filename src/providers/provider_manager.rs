@@ -12,6 +12,7 @@ use crate::models::upstream::{Package, config::DownloadConfig};
 use crate::providers::assets::{AssetCandidate, AssetSelector};
 use crate::providers::sites::ReleaseProvider;
 use crate::providers::sites::appimagehub::{AppImageHubAdapter, AppImageHubClient};
+use crate::providers::sites::crates_io::{CratesIoAdapter, CratesIoClient, CratesIoIndexClient};
 use crate::providers::sites::gitea::{GiteaAdapter, GiteaClient};
 use crate::providers::sites::github::{GithubAdapter, GithubClient};
 use crate::providers::sites::gitlab::{GitlabAdapter, GitlabClient};
@@ -31,6 +32,8 @@ pub struct ProviderManager {
     http: OnceLock<WebScraperAdapter>,
     direct: OnceLock<DirectAdapter>,
     appimagehub: OnceLock<AppImageHubAdapter>,
+    crates_io: OnceLock<CratesIoAdapter>,
+    crates_io_cache_dir: Option<PathBuf>,
 
     asset_selector: AssetSelector,
 }
@@ -53,6 +56,8 @@ impl ProviderManager {
             http: OnceLock::new(),
             direct: OnceLock::new(),
             appimagehub: OnceLock::new(),
+            crates_io: OnceLock::new(),
+            crates_io_cache_dir: None,
             asset_selector: AssetSelector::new(),
         })
     }
@@ -110,12 +115,36 @@ impl ProviderManager {
         Ok(self.direct.get_or_init(|| adapter))
     }
 
+    pub fn with_crates_io_cache_dir(mut self, path: PathBuf) -> Self {
+        self.crates_io_cache_dir = Some(path);
+        self
+    }
+
+    fn crates_io_adapter(&self) -> Result<&CratesIoAdapter> {
+        if let Some(adapter) = self.crates_io.get() {
+            return Ok(adapter);
+        }
+        let path = match &self.crates_io_cache_dir {
+            Some(path) => path.clone(),
+            None => crate::utils::static_paths::UpstreamPaths::new()?
+                .dirs
+                .cache_dir
+                .join("source/crates-io-index"),
+        };
+        let adapter = CratesIoAdapter::new(
+            CratesIoClient::new(self.download_config)?,
+            CratesIoIndexClient::new(path)?,
+        );
+        Ok(self.crates_io.get_or_init(|| adapter))
+    }
+
     fn resolve_provider(
         &self,
         provider: &Provider,
         base_url: Option<&str>,
     ) -> Result<Box<dyn ReleaseProvider + '_>> {
         match provider {
+            Provider::CratesIo => Ok(Box::new(self.crates_io_adapter()?)),
             Provider::AppImageHub => {
                 if let Some(base) = base_url {
                     return Ok(Box::new(AppImageHubAdapter::new(AppImageHubClient::new(
@@ -174,6 +203,9 @@ impl ProviderManager {
         base_url: Option<&str>,
     ) -> Result<Release> {
         tracing::debug!("Resolving latest release");
+        if *provider == Provider::CratesIo {
+            return self.crates_io_adapter()?.latest(slug, channel).await;
+        }
         let release = match channel {
             Channel::Stable => {
                 self.get_latest_stable_release(slug, provider, base_url)
@@ -235,6 +267,11 @@ impl ProviderManager {
         channel: &Channel,
         base_url: Option<&str>,
     ) -> Result<Release> {
+        if *provider == Provider::CratesIo {
+            return self
+                .get_release_by_tag(slug, &requested.to_string(), provider, base_url)
+                .await;
+        }
         if !matches!(requested, Version::Semver { .. }) {
             return Err(anyhow!(
                 "Semantic version selection requires a semver value"
@@ -435,6 +472,18 @@ impl ProviderManager {
         resolved.get_project_readme(slug).await
     }
 
+    pub async fn get_source_archive(
+        &self,
+        slug: &str,
+        provider: &Provider,
+        reference: &str,
+        base_url: Option<&str>,
+    ) -> Result<Asset> {
+        self.resolve_provider(provider, base_url)?
+            .get_source_archive(slug, reference)
+            .await
+    }
+
     #[tracing::instrument(skip_all, fields(asset = %asset.name, %provider))]
     pub async fn download_asset<F>(
         &self,
@@ -461,6 +510,13 @@ impl ProviderManager {
         resolved
             .download_asset(asset, &download_filepath, callback)
             .await?;
+
+        if let Some(expected) = asset.expected_sha256.as_deref() {
+            crate::services::trust::checksum_verifier::verify_expected_sha256(
+                &download_filepath,
+                expected,
+            )?;
+        }
 
         Ok(download_filepath)
     }
