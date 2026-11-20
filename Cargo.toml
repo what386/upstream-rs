@@ -1,6 +1,6 @@
 [package]
 name = "upstream-rs"
-version = "2.25.0"
+version = "2.26.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -25,7 +25,7 @@ reqwest = { version = "0.13", default-features = false, features = [
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-rusqlite = { version = "0.42.0", features = ["bundled"] }
+rusqlite = { version = "0.43.0", features = ["bundled"] }
 sevenz-rust2 = { version = "0.25.0", default-features = false, features = [
     "util",
     "bzip2",
@@ -55,7 +55,7 @@ dirs = "7.0"
 clap = { version = "4.6", features = ["derive"] }
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 tar = "0.4"
-zip = { version = "9.5", default-features = false, features = [
+zip = { version = "9.8", default-features = false, features = [
     "deflate-flate2-zlib-rs",
 ] }
 bzip2 = "0.6.1"
