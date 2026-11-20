@@ -1,7 +1,7 @@
 # TODO — upstream-cli
 
 @created: 2026-01-31
-@modified: 2026-11-19
+@modified: 2026-11-20
 
 
 ## Tasks
@@ -21,4 +21,8 @@
 - [x] feat: `build` can store multiple output binaries
       @created 2026-11-19 21:55
       @completed 2026-11-19 21:55
+
+- [x] feat: crates-io (cargo) provider
+      @created 2026-11-20 17:44
+      @completed 2026-11-20 17:44
 
