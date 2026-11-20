@@ -5,6 +5,7 @@ use std::{
     fs,
     path::PathBuf,
     process::{Command, Output},
+    sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -12,14 +13,18 @@ struct TestHome(PathBuf);
 
 impl TestHome {
     fn new(config: &str) -> Self {
+        // Clock resolution varies by platform; parallel tests can share a timestamp.
+        static NEXT_HOME: AtomicU64 = AtomicU64::new(0);
+        let id = NEXT_HOME.fetch_add(1, Ordering::Relaxed);
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
 
-        let home = Self(
-            std::env::temp_dir().join(format!("upstream-tracing-{}-{nonce}", std::process::id())),
-        );
+        let home = Self(std::env::temp_dir().join(format!(
+            "upstream-tracing-{}-{nonce}-{id}",
+            std::process::id()
+        )));
 
         let config_dir = home.0.join(".config/upstream");
         fs::create_dir_all(&config_dir).unwrap();
