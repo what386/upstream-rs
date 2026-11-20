@@ -80,16 +80,19 @@ pub(crate) fn verify_expected_sha256(path: &Path, digest: &str) -> Result<()> {
         digest.len() == 64 && digest.bytes().all(|b| b.is_ascii_hexdigit()),
         "Invalid expected SHA-256 checksum"
     );
+
     let entry = ChecksumEntry {
         algo: HashAlgo::Sha256,
         filename: String::new(),
         digest: digest.to_owned(),
     };
+
     anyhow::ensure!(
         ChecksumVerifier::verify_checksum_with_progress(path, &entry, |_, _| {})?,
         "SHA-256 checksum mismatch for '{}'",
         path.display()
     );
+
     Ok(())
 }
 

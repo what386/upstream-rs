@@ -32,12 +32,15 @@ fn registry_options(
     if *provider != Provider::CratesIo {
         return Ok(());
     }
+
     if base_url.is_some() {
         return Err(invalid("crates.io does not support --base-url"));
     }
+
     if channel == Some(&Channel::Nightly) {
         return Err(invalid("crates.io does not support the nightly channel"));
     }
+
     Ok(())
 }
 
@@ -47,6 +50,7 @@ fn release_source(command: &str, source: &str, options: &ProviderOptions) -> Gat
             "crates.io does not support {command}; use `upstream search <query> --provider crates-io` or `upstream build crates-io:<name>`",
         )));
     }
+
     Ok(())
 }
 
@@ -60,6 +64,7 @@ fn search(options: &ProviderOptions, filters: &SearchOptions) -> GateResult {
             "{provider} does not support repository search"
         )));
     }
+
     registry_options(&provider, None, options.base_url.as_deref())?;
     if provider != Provider::Github {
         let unsupported = [
@@ -71,12 +76,14 @@ fn search(options: &ProviderOptions, filters: &SearchOptions) -> GateResult {
             (filters.include_forks, "--include-forks"),
             (filters.include_archived, "--include-archived"),
         ];
+
         if let Some((_, flag)) = unsupported.into_iter().find(|(set, _)| *set) {
             return Err(invalid(format!(
                 "{provider} search does not support {flag}; use a text query and --limit"
             )));
         }
     }
+
     Ok(())
 }
 
@@ -94,11 +101,13 @@ pub fn validate(command: &Commands) -> GateResult {
             let Some(provider) = source_provider(repo_slug, provider_options) else {
                 return Ok(());
             };
+
             if !provider.can_build() {
                 return Err(invalid(format!(
                     "{provider} does not support source builds"
                 )));
             }
+
             registry_options(
                 &provider,
                 Some(channel),
@@ -108,6 +117,7 @@ pub fn validate(command: &Commands) -> GateResult {
                 if branch.is_some() {
                     return Err(invalid("crates.io does not support --branch"));
                 }
+
                 if build_profile.is_some_and(|profile| profile != BuildProfile::Rust) {
                     return Err(invalid("crates.io requires the Rust build profile"));
                 }
@@ -142,6 +152,7 @@ pub fn validate(command: &Commands) -> GateResult {
                     "crates.io does not support find's release installation; use `upstream search <query> --provider crates-io` then `upstream build crates-io:<name>`",
                 ));
             }
+
             search(provider_options, search_options)?;
         }
         Commands::Reinstall {
@@ -157,6 +168,7 @@ pub fn validate(command: &Commands) -> GateResult {
         }
         _ => {}
     }
+
     Ok(())
 }
 
@@ -183,11 +195,13 @@ mod tests {
             &["build", "crates-io:ripgrep"],
             &["build", "https://crates.io/crates/ripgrep"],
         ];
+
         let invalid_flags: &[(&[&str], &str)] = &[
             (&["--branch", "main"], "--branch"),
             (&["--channel", "nightly"], "nightly"),
             (&["--build-profile", "go"], "Rust build profile"),
         ];
+
         for source in sources {
             for (flags, message) in invalid_flags {
                 let args = source
@@ -195,8 +209,10 @@ mod tests {
                     .chain(flags.iter())
                     .copied()
                     .collect::<Vec<_>>();
+
                 rejected(&args, message);
             }
+
             for flags in [
                 &[][..],
                 &["--tag", "0.0.0"],
@@ -211,9 +227,11 @@ mod tests {
                     .chain(flags.iter())
                     .copied()
                     .collect::<Vec<_>>();
+
                 validate(&parse(&args).command).unwrap();
             }
         }
+
         rejected(
             &[
                 "build",
@@ -233,11 +251,13 @@ mod tests {
             for source in ["crates-io:ripgrep", "https://crates.io/crates/ripgrep"] {
                 rejected(&[command, source], "upstream build");
             }
+
             rejected(
                 &[command, "ripgrep", "--provider", "crates-io"],
                 "upstream build",
             );
         }
+
         rejected(
             &["find", "ripgrep", "--provider", "crates-io"],
             "upstream search",
@@ -255,6 +275,7 @@ mod tests {
             &["--include-forks"],
             &["--include-archived"],
         ];
+
         for provider in ["crates-io", "appimagehub"] {
             let source = ["search", "terminal", "--provider", provider];
             validate(&parse(&source).command).unwrap();
@@ -264,15 +285,19 @@ mod tests {
                     .chain(flag.iter())
                     .copied()
                     .collect::<Vec<_>>();
+
                 rejected(&args, flag[0]);
             }
+
             let args = source
                 .iter()
                 .chain(["--limit", "5"].iter())
                 .copied()
                 .collect::<Vec<_>>();
+
             validate(&parse(&args).command).unwrap();
         }
+
         rejected(
             &[
                 "search",
@@ -364,6 +389,7 @@ mod tests {
             ])
             .is_err()
         );
+
         assert!(
             Cli::try_parse_from([
                 "upstream",

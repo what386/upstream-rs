@@ -121,17 +121,20 @@ mod tests {
                 .exists([])
                 .unwrap()
         );
+
         assert_eq!(
             conn.query_row("SELECT count(*) FROM package_executables", [], |r| r
                 .get::<_, u32>(0))
                 .unwrap(),
             1
         );
+
         assert_eq!(
             conn.query_row("SELECT count(*) FROM patterns", [], |r| r.get::<_, u32>(0))
                 .unwrap(),
             1
         );
+
         conn.execute("UPDATE packages SET provider = 'CratesIo'", [])
             .unwrap();
     }

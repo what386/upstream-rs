@@ -630,6 +630,7 @@ mod tests {
             .availability_notice_with("tool", |_| false)
             .unwrap()
             .unwrap();
+
         assert!(notice.contains("systemctl --user enable --now 'upstream-update-check.timer'"));
         let notice = manager.availability_notice("tool").unwrap().unwrap();
 
@@ -750,6 +751,7 @@ mod tests {
             })
             .unwrap()
             .unwrap();
+
         assert_eq!(checked, ["upstream-update-check.timer"]);
         assert!(notice.contains("upstream-update-check.timer"));
         assert!(!notice.contains("Start with:"));
@@ -785,10 +787,12 @@ mod tests {
             .availability_notice_with(&package.id, |name| name == "enabled.service")
             .unwrap()
             .unwrap();
+
         assert_eq!(
             notice,
             "systemd user units available:\n  disabled.service\n  enabled.service\nStart with:\n  systemctl --user enable --now 'disabled.service'"
         );
+
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -882,6 +886,7 @@ mod tests {
             .availability_notice_with(&package.id, |_| false)
             .unwrap()
             .unwrap();
+
         assert!(notice.contains("systemd user units available"));
         assert!(notice.contains("tool.service"));
         assert!(notice.contains("systemctl --user enable --now 'tool.service'"));

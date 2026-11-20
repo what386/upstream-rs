@@ -10,6 +10,7 @@ use std::{
 };
 
 pub struct RustProfile;
+
 impl RustProfile {
     fn default_packages(
         manifest: &Path,
@@ -26,6 +27,7 @@ impl RustProfile {
         if locked {
             command.arg("--locked");
         }
+
         let mut packages = None;
         let mut capture = |line: &str| {
             if let Ok(metadata) = serde_json::from_str::<serde_json::Value>(line)
@@ -41,11 +43,13 @@ impl RustProfile {
                 emit_line_callback(callback, line);
             }
         };
+
         let status = run_command_with_line_callback(
             &mut command,
             "Failed to run cargo metadata; is Cargo installed?",
             &mut Some(&mut capture),
         )?;
+
         ensure!(status.success(), "Cargo metadata failed");
         packages.context("Cargo metadata did not report default workspace members")
     }
@@ -57,29 +61,36 @@ impl RustProfile {
             !binaries.is_empty(),
             "Rust source produced no executable binary targets with default features"
         );
+
         let mut names = HashSet::new();
         let mut paths = Vec::new();
         for (_, binary) in binaries {
             let name = binary
                 .file_name()
                 .context("Invalid Cargo executable path")?;
+
             ensure!(
                 names.insert(name.to_string_lossy().to_lowercase()),
                 "Multiple binary targets produce the same executable name: {}",
                 name.to_string_lossy()
             );
+
             paths.push(binary);
         }
+
         Ok(paths)
     }
 }
+
 impl BuildProfileHandler for RustProfile {
     fn profile(&self) -> BuildProfile {
         BuildProfile::Rust
     }
+
     fn detect(&self, workspace: &Path) -> bool {
         workspace.join("Cargo.toml").is_file()
     }
+
     fn run_build(
         &self,
         workspace: &Path,
@@ -90,6 +101,7 @@ impl BuildProfileHandler for RustProfile {
             .join("Cargo.toml")
             .canonicalize()
             .context("Could not find Cargo.toml in source root")?;
+
         let locked = workspace.join("Cargo.lock").is_file();
         let packages = Self::default_packages(&manifest, workspace, locked, callback)?;
         let mut command = Command::new("cargo");
@@ -111,6 +123,7 @@ impl BuildProfileHandler for RustProfile {
                 "Source has no Cargo.lock; resolving dependencies.",
             );
         }
+
         emit_line_callback(callback, "Building all default Rust binary targets ...");
         let mut binaries = Vec::new();
         let mut capture = |line: &str| {
@@ -125,6 +138,7 @@ impl BuildProfileHandler for RustProfile {
                 {
                     binaries.push((package.to_owned(), PathBuf::from(executable)));
                 }
+
                 if let Some(rendered) = message["message"]["rendered"].as_str() {
                     emit_line_callback(callback, rendered);
                 }
@@ -132,11 +146,13 @@ impl BuildProfileHandler for RustProfile {
                 emit_line_callback(callback, line);
             }
         };
+
         let status = run_command_with_line_callback(
             &mut command,
             "Failed to run cargo build; is Cargo installed?",
             &mut Some(&mut capture),
         )?;
+
         ensure!(status.success(), "Cargo build failed");
         Self::collect_binaries(binaries)
     }
@@ -168,18 +184,21 @@ mod tests {
     }
 
     struct Fixture(PathBuf);
+
     impl Fixture {
         fn new(name: &str) -> Self {
             let root = test_support::temp_root("rust-build", name);
             fs::create_dir_all(&root).unwrap();
             Self(root)
         }
+
         fn write(&self, file: &str, content: &str) {
             let path = self.0.join(file);
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, content).unwrap();
         }
     }
+
     impl Drop for Fixture {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
@@ -193,6 +212,7 @@ mod tests {
         for path in ["src/main.rs", "src/bin/helper.rs", "src/gated.rs"] {
             f.write(path, "fn main() {}\n");
         }
+
         let binaries = RustProfile.run_build(&f.0, "fixture", &mut None).unwrap();
         let names = names(&binaries);
         assert!(names.contains(&"fixture".to_owned()));
@@ -212,6 +232,7 @@ mod tests {
             Provider::Github,
             None,
         );
+
         package.install_type = InstallType::Build;
         let installed = installer
             .install_local_files_to_workspace(
@@ -221,6 +242,7 @@ mod tests {
                 &mut None::<fn(&str)>,
             )
             .unwrap();
+
         assert_eq!(installed.filetype, Filetype::Binary);
         assert_eq!(installed.executables.len(), 2);
         assert!(installed.executables.iter().all(|e| e.path.is_file()));
@@ -246,16 +268,19 @@ mod tests {
             } else {
                 ""
             };
+
             f.write(
                 &format!("{name}/Cargo.toml"),
                 &format!("[package]\nname='{name}'\nversion='1.0.0'\nedition='2021'\n{dependency}"),
             );
             f.write(&format!("{name}/src/main.rs"), "fn main() {}\n");
         }
+
         f.write("dep/src/lib.rs", "pub fn library() {}\n");
         let binaries = RustProfile
             .run_build(&f.0, "ignored-name-hint", &mut None)
             .unwrap();
+
         let names = names(&binaries);
         assert!(names.contains(&"first".to_owned()));
         assert!(names.contains(&"second".to_owned()));
@@ -303,6 +328,7 @@ mod tests {
                 .to_string()
                 .contains("no executable")
         );
+
         f.write("one/tool", "first");
         f.write("two/tool", "second");
         assert!(

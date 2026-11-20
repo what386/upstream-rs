@@ -124,6 +124,7 @@ impl ProviderManager {
         if let Some(adapter) = self.crates_io.get() {
             return Ok(adapter);
         }
+
         let path = match &self.crates_io_cache_dir {
             Some(path) => path.clone(),
             None => crate::utils::static_paths::UpstreamPaths::new()?
@@ -131,10 +132,12 @@ impl ProviderManager {
                 .cache_dir
                 .join("source/crates-io-index"),
         };
+
         let adapter = CratesIoAdapter::new(
             CratesIoClient::new(self.download_config)?,
             CratesIoIndexClient::new(path)?,
         );
+
         Ok(self.crates_io.get_or_init(|| adapter))
     }
 
@@ -206,6 +209,7 @@ impl ProviderManager {
         if *provider == Provider::CratesIo {
             return self.crates_io_adapter()?.latest(slug, channel).await;
         }
+
         let release = match channel {
             Channel::Stable => {
                 self.get_latest_stable_release(slug, provider, base_url)
@@ -272,6 +276,7 @@ impl ProviderManager {
                 .get_release_by_tag(slug, &requested.to_string(), provider, base_url)
                 .await;
         }
+
         if !matches!(requested, Version::Semver { .. }) {
             return Err(anyhow!(
                 "Semantic version selection requires a semver value"

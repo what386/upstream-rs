@@ -37,9 +37,11 @@ pub fn rename_alias(
             if renamed_link {
                 let _ = symlink_manager.rename_link(new_name, old_name);
             }
+
             return Err(error).context("Executable alias rename failed; runtime link was reverted");
         }
     };
+
     crate::storage::updates::invalidate(paths, &package_id);
 
     Ok(RenameOutcome::Renamed)

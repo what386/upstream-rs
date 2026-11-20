@@ -613,6 +613,7 @@ async fn resolve_reinstall_release(
     if let Some(semver) = &install_options.semver {
         let requested = crate::models::common::Version::parse_strict_semver(semver)
             .or_else(|_| crate::models::common::Version::parse(semver))?;
+
         return provider_manager
             .get_release_by_semver(
                 &package.repo_slug,

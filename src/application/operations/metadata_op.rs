@@ -30,6 +30,7 @@ impl<'a> MetadataManager<'a> {
             if package.is_pinned == pinned {
                 return Ok(false);
             }
+
             package.is_pinned = pinned;
             changed_id = Some(package.id.clone());
             Ok(true)
@@ -37,6 +38,7 @@ impl<'a> MetadataManager<'a> {
         if let Some(id) = changed_id {
             crate::storage::updates::invalidate(self.paths, &id);
         }
+
         Ok(())
     }
 }

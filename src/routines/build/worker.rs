@@ -181,6 +181,7 @@ impl<'a> BuildWorker<'a> {
         let nonce = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let directory =
             std::env::temp_dir().join(format!("upstream-artifact-{}-{nonce}", std::process::id()));
+
         fs::create_dir_all(&directory)?;
         let result = (|| {
             let mut staged = Vec::new();
@@ -190,24 +191,30 @@ impl<'a> BuildWorker<'a> {
                     "Built binary '{}' is not a file",
                     binary.display()
                 );
+
                 let filename = binary
                     .file_name()
                     .ok_or_else(|| anyhow!("Built binary has no filename"))?;
+
                 let destination = directory.join(filename);
                 anyhow::ensure!(
                     !destination.exists(),
                     "Duplicate built binary: {}",
                     filename.to_string_lossy()
                 );
+
                 fs::copy(binary, &destination)
                     .with_context(|| format!("Failed to stage '{}'", binary.display()))?;
                 staged.push(destination);
             }
+
             Ok(staged)
         })();
+
         if result.is_err() {
             let _ = fs::remove_dir_all(&directory);
         }
+
         result
     }
 }
@@ -239,6 +246,7 @@ mod tests {
         let persisted = BuildWorker::persist_binaries(std::slice::from_ref(&src))
             .expect("persist artifact")
             .remove(0);
+
         assert!(persisted.exists());
         assert_eq!(
             fs::read(&persisted).expect("read persisted"),

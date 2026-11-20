@@ -432,6 +432,7 @@ pub(super) fn local_executable_name(path: &Path) -> Result<String> {
         .and_then(|name| name.to_str())
         .ok_or_else(|| anyhow!("Local executable has no valid filename"))?
         .to_lowercase();
+
     Ok(name.strip_suffix(".exe").unwrap_or(&name).to_owned())
 }
 
@@ -446,6 +447,7 @@ pub(super) fn handle_local_files(
         .join(crate::providers::assets::filenames::filesystem_name(
             &package.id,
         ));
+
     std::fs::create_dir_all(&root).context("Failed to create package directory")?;
     let mut paths = Vec::new();
     for binary in files {
@@ -455,6 +457,7 @@ pub(super) fn handle_local_files(
                 .file_name()
                 .ok_or_else(|| anyhow!("Local file has no filename"))?,
         );
+
         std::fs::copy(binary, &destination)
             .with_context(|| format!("Failed to stage '{}'", binary.display()))?;
         permission_handler::make_executable(&destination)?;
@@ -463,6 +466,7 @@ pub(super) fn handle_local_files(
             path: destination,
         });
     }
+
     package.executables = paths;
     package.install_path = Some(root);
     package.last_upgraded = Timestamp::now();

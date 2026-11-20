@@ -226,10 +226,12 @@ impl Version {
         let (core, pre) = without_build
             .split_once('-')
             .map_or((without_build, None), |(v, p)| (v, Some(p)));
+
         let parts = core.split('.').collect::<Vec<_>>();
         if parts.len() != 3 {
             bail!("Expected MAJOR.MINOR.PATCH");
         }
+
         let number = |part: &str| -> Result<u32> {
             if part.is_empty()
                 || !part.bytes().all(|b| b.is_ascii_digit())
@@ -237,8 +239,10 @@ impl Version {
             {
                 bail!("Invalid SemVer numeric component");
             }
+
             Ok(part.parse()?)
         };
+
         for (identifiers, prerelease) in [(pre, true), (build, false)] {
             if let Some(identifiers) = identifiers {
                 for id in identifiers.split('.') {
@@ -254,9 +258,11 @@ impl Version {
                 }
             }
         }
+
         let (major, minor, patch) = (number(parts[0])?, number(parts[1])?, number(parts[2])?);
         let full = (pre.is_some() || build.is_some() || (major, minor, patch) == (0, 0, 0))
             .then(|| s.to_owned());
+
         Ok(Self::Semver {
             major,
             minor,
@@ -277,6 +283,7 @@ impl Version {
         if s.contains(['-', '+']) {
             return Self::parse_strict_semver(s);
         }
+
         let parts: Vec<&str> = s.split('.').collect();
         if parts.is_empty() || parts.len() > 3 {
             bail!("Invalid version format");
@@ -446,9 +453,11 @@ impl PartialOrd for Version {
             ) => {
                 let core =
                     (a_major, a_minor, a_patch, !a_pre).cmp(&(b_major, b_minor, b_patch, !b_pre));
+
                 if core != Ordering::Equal || !a_pre {
                     return Some(core);
                 }
+
                 match (
                     a_full.as_deref().and_then(prerelease),
                     b_full.as_deref().and_then(prerelease),
@@ -489,6 +498,7 @@ fn compare_prerelease(a: &str, b: &str) -> Ordering {
         a.split('.').collect::<Vec<_>>(),
         b.split('.').collect::<Vec<_>>(),
     );
+
     for (a, b) in a.iter().zip(&b) {
         let numeric = |s: &str| s.bytes().all(|b| b.is_ascii_digit());
         let order = match (numeric(a), numeric(b)) {
@@ -497,10 +507,12 @@ fn compare_prerelease(a: &str, b: &str) -> Ordering {
             (false, true) => Ordering::Greater,
             _ => a.cmp(b),
         };
+
         if order != Ordering::Equal {
             return order;
         }
     }
+
     a.len().cmp(&b.len())
 }
 
@@ -745,6 +757,7 @@ mod tests {
 #[cfg(test)]
 mod strict_semver_tests {
     use super::*;
+
     #[test]
     fn strict_versions_round_trip_and_follow_semver_precedence() {
         let ordered = [
@@ -756,12 +769,14 @@ mod strict_semver_tests {
             "1.0.0-rc.1",
             "1.0.0",
         ];
+
         for pair in ordered.windows(2) {
             assert!(
                 Version::parse_strict_semver(pair[0]).unwrap()
                     < Version::parse_strict_semver(pair[1]).unwrap()
             );
         }
+
         for text in ordered.into_iter().chain(["1.0.0-beta.2+build.01"]) {
             let version = Version::parse_strict_semver(text).unwrap();
             assert_eq!(version.to_string(), text);
@@ -771,6 +786,7 @@ mod strict_semver_tests {
                 version
             );
         }
+
         assert!(Version::new(0, 0, 0, false).is_unknown());
         assert_eq!(
             Version::parse_strict_semver("1.0.0+a")
@@ -779,6 +795,7 @@ mod strict_semver_tests {
             Some(Ordering::Equal)
         );
     }
+
     #[test]
     fn strict_parser_rejects_prefixes_short_versions_and_leading_zeroes() {
         for text in [

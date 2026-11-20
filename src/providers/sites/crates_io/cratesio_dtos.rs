@@ -14,6 +14,7 @@ pub(super) struct IndexVersion {
     pub rust_version: Option<String>,
     pub pubtime: Option<Timestamp>,
 }
+
 impl IndexVersion {
     pub fn release(&self) -> Result<Release> {
         let version = Version::parse_strict_semver(&self.num)?;
@@ -30,15 +31,18 @@ impl IndexVersion {
         })
     }
 }
+
 #[derive(Deserialize)]
 pub(super) struct SearchResponse {
     pub crates: Vec<SearchCrate>,
     pub meta: SearchMeta,
 }
+
 #[derive(Deserialize)]
 pub(super) struct SearchMeta {
     pub total: usize,
 }
+
 #[derive(Deserialize)]
 pub(super) struct SearchCrate {
     pub name: String,

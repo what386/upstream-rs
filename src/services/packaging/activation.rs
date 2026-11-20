@@ -773,6 +773,7 @@ impl<'a> PackageActivator<'a> {
                 );
             }
         }
+
         backup.mark_runtime_link_activated();
         for executable in &updated_package.executables {
             if let Err(error) = SymlinkManager::new(&self.paths.state.symlinks_dir)

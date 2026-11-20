@@ -27,21 +27,25 @@ pub fn crate_name(source: &str) -> Result<String> {
         .trim()
         .strip_prefix("crates-io:")
         .unwrap_or(source.trim());
+
     let name = if source.starts_with("https://") {
         let url = reqwest::Url::parse(source)?;
         ensure!(
             url.host_str() == Some("crates.io"),
             "Expected a crates.io URL"
         );
+
         let parts = url.path().trim_matches('/').split('/').collect::<Vec<_>>();
         ensure!(
             parts.len() == 2 && parts[0] == "crates",
             "Expected https://crates.io/crates/<name>"
         );
+
         parts[1].to_owned()
     } else {
         source.to_owned()
     };
+
     ensure!(
         !name.is_empty()
             && name.len() <= 64
@@ -51,12 +55,15 @@ pub fn crate_name(source: &str) -> Result<String> {
                 .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'),
         "Invalid crate name '{name}'"
     );
+
     Ok(name)
 }
+
 impl CratesIoAdapter {
     pub fn new(client: CratesIoClient, index: CratesIoIndexClient) -> Self {
         Self { client, index }
     }
+
     async fn version(&self, name: &str, version: &str) -> Result<IndexVersion> {
         Version::parse_strict_semver(version)?;
         let versions = self.index.versions(name).await?;
@@ -64,9 +71,11 @@ impl CratesIoAdapter {
             .iter()
             .find(|v| v.num == version)
             .ok_or_else(|| anyhow::anyhow!("Version {version} not found for '{name}'"))?;
+
         ensure!(!found.yanked, "Crate {name}@{version} has been yanked");
         Ok(found.clone())
     }
+
     pub(crate) async fn latest(&self, name: &str, channel: &Channel) -> Result<Release> {
         let versions = self.index.versions(name).await?;
         versions
@@ -84,6 +93,7 @@ impl CratesIoAdapter {
             .ok_or_else(|| anyhow::anyhow!("No non-yanked {channel} version found for '{name}'"))
     }
 }
+
 #[async_trait(?Send)]
 impl ReleaseProvider for CratesIoAdapter {
     async fn get_source_archive(&self, name: &str, version: &str) -> Result<Asset> {
@@ -98,12 +108,15 @@ impl ReleaseProvider for CratesIoAdapter {
             0,
             entry.pubtime.unwrap_or(Timestamp::MIN),
         );
+
         asset.expected_sha256 = Some(entry.checksum);
         Ok(asset)
     }
+
     async fn get_latest_release(&self, name: &str) -> Result<Release> {
         self.latest(name, &Channel::Stable).await
     }
+
     async fn get_releases(
         &self,
         name: &str,
@@ -118,15 +131,19 @@ impl ReleaseProvider for CratesIoAdapter {
             .filter(|v| !v.yanked)
             .map(IndexVersion::release)
             .collect::<Result<Vec<_>>>()?;
+
         releases.sort_by(|a, b| b.cmp_version_then_published(a));
         if let Some(max) = max_total {
             releases.truncate(max as usize);
         }
+
         Ok(releases)
     }
+
     async fn get_release_by_tag(&self, name: &str, version: &str) -> Result<Release> {
         self.version(name, version).await?.release()
     }
+
     async fn search_repositories(
         &self,
         query: &str,
@@ -149,9 +166,11 @@ impl ReleaseProvider for CratesIoAdapter {
                     ],
                 )
                 .await?;
+
             if response.crates.is_empty() {
                 break;
             }
+
             results.extend(response.crates.into_iter().map(|c| RepositorySearchResult {
                 repo_slug: c.name.clone(),
                 display_name: c.name,
@@ -168,11 +187,14 @@ impl ReleaseProvider for CratesIoAdapter {
             if results.len() >= response.meta.total {
                 break;
             }
+
             page += 1;
         }
+
         results.truncate(limit);
         Ok(results)
     }
+
     async fn download_asset(
         &self,
         asset: &Asset,
@@ -202,6 +224,7 @@ mod tests {
         ] {
             assert_eq!(crate_name(source).unwrap(), "ripgrep");
         }
+
         for source in [
             "",
             "../ripgrep",

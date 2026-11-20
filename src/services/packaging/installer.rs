@@ -925,6 +925,7 @@ impl<'a> PackageInstaller<'a> {
             "Local artifact '{}' is not a file",
             artifact_path.display()
         );
+
         package.version = version;
         filetypes::handle_file(self.workspace(), artifact_path, package, message_callback)
     }
@@ -949,6 +950,7 @@ impl<'a> PackageInstaller<'a> {
         {
             message!(message_callback, "User unit discovery skipped: {error:#}");
         }
+
         message!(message_callback, "Installing local files ...");
         package.version = version;
         package.filetype = Filetype::Binary;
@@ -964,9 +966,11 @@ impl<'a> PackageInstaller<'a> {
                 "Local file '{}' is not a file",
                 path.display()
             );
+
             let name = path
                 .file_name()
                 .ok_or_else(|| anyhow!("Local file has no filename"))?;
+
             let alias = filetypes::local_executable_name(path)?;
             anyhow::ensure!(
                 names.insert(alias),
@@ -974,6 +978,7 @@ impl<'a> PackageInstaller<'a> {
                 name.to_string_lossy()
             );
         }
+
         Ok(())
     }
 }
@@ -1099,6 +1104,7 @@ mod tests {
         for name in ["tool", "helper-linux", "next-helper"] {
             fs::write(source.join(name), name.as_bytes()).unwrap();
         }
+
         let manager = ProviderManager::new(None, None, None, Default::default()).unwrap();
         let mut database = PackageDatabase::open(&paths.metadata.packages_database_file).unwrap();
         let activator = PackageActivator::new(&paths);
@@ -1107,12 +1113,14 @@ mod tests {
             let workspace = InstallWorkspace::new(&paths, "tool").unwrap();
             let mut installer =
                 PackageInstaller::new_for_workspace(&manager, &paths, workspace).unwrap();
+
             let mut package = make_package("tool", None, None);
             package.install_type = InstallType::Build;
             let files = commands
                 .iter()
                 .map(|name| source.join(name))
                 .collect::<Vec<_>>();
+
             let staged = installer
                 .install_local_files_to_workspace(
                     package,
@@ -1121,6 +1129,7 @@ mod tests {
                     &mut None::<fn(&str)>,
                 )
                 .unwrap();
+
             assert_eq!(
                 staged
                     .executables
@@ -1129,6 +1138,7 @@ mod tests {
                     .collect::<Vec<_>>(),
                 commands
             );
+
             let prepared = PreparedInstall::new(staged, installer.take_workspace().unwrap());
             let active = if let Some(previous) = &previous {
                 let pending = activator
@@ -1141,6 +1151,7 @@ mod tests {
                     )
                     .await
                     .unwrap();
+
                 activator.persist(&mut database, pending).unwrap()
             } else {
                 activator
@@ -1154,6 +1165,7 @@ mod tests {
                     .await
                     .unwrap()
             };
+
             assert!(active.install_path.as_ref().unwrap().is_dir());
             for executable in &active.executables {
                 assert!(executable.path.is_file());
@@ -1162,8 +1174,10 @@ mod tests {
                     executable.path
                 );
             }
+
             previous = Some(active);
         }
+
         let installed = database.get_package("tool").unwrap().unwrap();
         assert_eq!(installed.executables.len(), 2);
         assert!(
@@ -1173,6 +1187,7 @@ mod tests {
                 .join("helper-linux")
                 .exists()
         );
+
         assert!(fs::symlink_metadata(paths.state.symlinks_dir.join("helper-linux")).is_err());
         assert!(source.join("helper-linux").is_file());
 
@@ -1180,6 +1195,7 @@ mod tests {
         let workspace = InstallWorkspace::new(&paths, "tool").unwrap();
         let mut installer =
             PackageInstaller::new_for_workspace(&manager, &paths, workspace).unwrap();
+
         let candidate = installer
             .install_local_files_to_workspace(
                 previous.clone().unwrap(),
@@ -1188,6 +1204,7 @@ mod tests {
                 &mut None::<fn(&str)>,
             )
             .unwrap();
+
         let pending = activator
             .replace(
                 previous.as_ref().unwrap(),
@@ -1198,6 +1215,7 @@ mod tests {
             )
             .await
             .unwrap();
+
         rusqlite::Connection::open(&paths.metadata.packages_database_file)
             .unwrap()
             .execute_batch(
@@ -1213,6 +1231,7 @@ mod tests {
                 executable.path
             );
         }
+
         assert!(fs::symlink_metadata(paths.state.symlinks_dir.join("helper-linux")).is_err());
         assert_eq!(
             database.get_package("tool").unwrap().unwrap().version,

@@ -14,12 +14,14 @@ use std::{
 use tokio::{sync::Mutex, time::Instant};
 
 static NEXT_API_REQUEST: OnceLock<Mutex<Instant>> = OnceLock::new();
+
 #[derive(Clone)]
 pub struct CratesIoClient {
     http: Client,
     cache: Arc<Mutex<HashMap<String, serde_json::Value>>>,
     download_config: DownloadConfig,
 }
+
 pub(super) fn http_client() -> Result<Client> {
     Ok(Client::builder()
         .user_agent(format!(
@@ -29,6 +31,7 @@ pub(super) fn http_client() -> Result<Client> {
         .timeout(Duration::from_secs(60))
         .build()?)
 }
+
 impl CratesIoClient {
     pub fn new(download_config: DownloadConfig) -> Result<Self> {
         Ok(Self {
@@ -37,6 +40,7 @@ impl CratesIoClient {
             download_config,
         })
     }
+
     pub(super) async fn get<T: DeserializeOwned>(
         &self,
         path: &str,
@@ -49,12 +53,14 @@ impl CratesIoClient {
         if let Some(value) = cache.get(url.as_str()) {
             return Ok(serde_json::from_value(value.clone())?);
         }
+
         tracing::debug!(%url, "Fetching crates.io API");
         for attempt in 0..3 {
             let mut next = tokio::select! {
                 next = NEXT_API_REQUEST.get_or_init(|| Mutex::new(Instant::now())).lock() => next,
                 _ = cancellation::cancelled() => return Err(cancellation::Cancelled.into()),
             };
+
             wait_until(*next).await?;
             *next = Instant::now() + Duration::from_secs(1);
             let response = tokio::select! { r = self.http.get(url.clone()).send() => r, _ = cancellation::cancelled() => return Err(cancellation::Cancelled.into()) };
@@ -70,17 +76,21 @@ impl CratesIoClient {
                             .and_then(|h| h.to_str().ok())
                             .and_then(retry_after)
                             .unwrap_or(Duration::from_secs(1 << attempt));
+
                         *next = (*next).max(Instant::now() + delay);
                         drop(next);
                         continue;
                     }
+
                     drop(next);
                     let response = response
                         .error_for_status()
                         .with_context(|| format!("crates.io API request failed: {url}"))?;
+
                     let value: serde_json::Value = tokio::select! { v = response.json() => v?, _ = cancellation::cancelled() => return Err(cancellation::Cancelled.into()) };
                     let result = serde_json::from_value(value.clone())
                         .context("Invalid crates.io API response")?;
+
                     cache.insert(url.to_string(), value);
                     return Ok(result);
                 }
@@ -88,8 +98,10 @@ impl CratesIoClient {
                 Err(_) => drop(next),
             }
         }
+
         bail!("crates.io API request failed")
     }
+
     pub(super) async fn download(
         &self,
         url: &str,
@@ -106,17 +118,21 @@ impl CratesIoClient {
         .await
     }
 }
+
 pub(super) fn retry_after(value: &str) -> Option<Duration> {
     if let Ok(seconds) = value.parse() {
         return Some(Duration::from_secs(seconds));
     }
+
     let date = jiff::fmt::rfc2822::DateTimeParser::new()
         .parse_timestamp(value)
         .ok()?;
+
     Some(Duration::from_secs(
         (date.as_second() - jiff::Timestamp::now().as_second()).max(0) as u64,
     ))
 }
+
 pub(super) async fn wait_until(deadline: Instant) -> Result<()> {
     tokio::select! { _ = tokio::time::sleep_until(deadline) => Ok(()), _ = cancellation::cancelled() => Err(cancellation::Cancelled.into()) }
 }

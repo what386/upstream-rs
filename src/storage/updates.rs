@@ -128,9 +128,11 @@ fn invalidate_entry(paths: &UpstreamPaths, package_id: &str) -> Result<()> {
     let Some(mut snapshot) = load(paths)? else {
         return Ok(());
     };
+
     if snapshot.updates.remove(package_id).is_some() {
         save(paths, &snapshot)?;
     }
+
     Ok(())
 }
 
@@ -336,6 +338,7 @@ mod tests {
             .iter()
             .map(|package| available(&package.id))
             .collect::<Vec<_>>();
+
         refresh(paths, &packages, &rows, Timestamp::now()).unwrap();
     }
 
@@ -429,12 +432,14 @@ mod tests {
         let before = fs::read(path(paths)).unwrap();
         let connection =
             rusqlite::Connection::open(&paths.metadata.packages_database_file).unwrap();
+
         connection.execute_batch("CREATE TRIGGER reject_pin BEFORE UPDATE ON packages BEGIN SELECT RAISE(FAIL, 'injected persistence failure'); END;").unwrap();
         assert!(
             MetadataManager::new(&mut database, paths)
                 .pin_package("a")
                 .is_err()
         );
+
         assert_eq!(fs::read(path(paths)).unwrap(), before);
         assert!(!database.get_package("a").unwrap().unwrap().is_pinned);
         connection
@@ -457,6 +462,7 @@ mod tests {
         for id in ["a", "b"] {
             database.upsert_package(&package(id)).unwrap();
         }
+
         cache_installed(paths, &database);
         fs::write(&paths.dirs.generated_dir, b"blocks PATH generation").unwrap();
         let result = PackageRemover::new(paths).remove(
@@ -467,6 +473,7 @@ mod tests {
             &mut None::<fn(&str)>,
             &mut None::<fn(&str, PackageProgressEvent)>,
         );
+
         assert!(result.unwrap_err().to_string().contains("PATH"));
         assert!(database.get_package("a").unwrap().is_none());
         assert_eq!(cached_ids(paths), ["b"]);
@@ -520,6 +527,7 @@ mod tests {
             )
             .await
             .unwrap();
+
         assert_eq!(cached_ids(paths), ["b"]);
 
         cache_installed(paths, &database);
@@ -534,6 +542,7 @@ mod tests {
             )
             .await
             .unwrap();
+
         assert_eq!(cached_ids(paths), ["a", "b"]); // Activation has not committed metadata yet.
         let installed = activator.persist(&mut database, replacement).unwrap();
         assert_eq!(cached_ids(paths), ["b"]);
@@ -551,6 +560,7 @@ mod tests {
             )
             .await
             .unwrap();
+
         rusqlite::Connection::open(&paths.metadata.packages_database_file).unwrap().execute_batch(
             "CREATE TRIGGER reject_replacement BEFORE UPDATE ON packages BEGIN SELECT RAISE(FAIL, 'injected persistence failure'); END;",
         ).unwrap();
@@ -559,6 +569,7 @@ mod tests {
             database.get_package("a").unwrap().unwrap().version,
             Version::new(2, 0, 0, false)
         );
+
         assert_eq!(fs::read(path(paths)).unwrap(), before);
         assert_eq!(
             fs::read(installed.install_path.unwrap()).unwrap(),
