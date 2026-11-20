@@ -1,8 +1,16 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-11-19*
+*Generated on 2026-11-20*
 
 _Generated on 2026-11-16_
+
+## 2.26.0 — 2026-11-20
+
+### Changes
+
+- feat: `build` can store multiple output binaries
+- feat: crates-io (cargo) provider
+
 
 ## 2.25.0 — 2026-11-19
 
