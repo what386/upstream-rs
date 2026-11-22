@@ -161,6 +161,7 @@ impl GithubAdapter {
             dto.size as u64,
             created_at,
         );
+
         asset.api_download_url = Some(dto.url);
         asset
     }
@@ -347,6 +348,7 @@ mod tests {
             release.assets[0].api_download_url.as_deref(),
             Some("https://api.github.com/repos/owner/tool/releases/assets/9")
         );
+
         assert_eq!(
             release.assets[0].download_url,
             "https://github.com/owner/tool/releases/download/v2.3.4/tool-linux-x86_64.tar.gz"

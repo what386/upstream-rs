@@ -136,6 +136,7 @@ impl GithubClient {
                 crate::logging::source_url(url)
             )
         })?;
+
         http_status::error_for_status(
             &response,
             "GitHub asset API",
@@ -151,6 +152,7 @@ impl GithubClient {
         } else {
             &self.download_client
         };
+
         download_handler::download_file(
             client,
             download_url.as_str(),
