@@ -1,8 +1,15 @@
 # Changelog — upstream-cli
 
-*Generated on 2026-11-20*
+*Generated on 2026-11-22*
 
 _Generated on 2026-11-16_
+
+## 2.27.0 — 2026-11-22
+
+### Changes
+
+- feat: GH asset api downloads
+
 
 ## 2.26.0 — 2026-11-20
 

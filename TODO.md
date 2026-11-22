@@ -3,6 +3,7 @@
 @created: 2026-01-31
 @modified: 2026-11-22
 
+
 ## Tasks
 
 - [ ] feat: add macOS desktop launcher support (low) #desktop #macos
@@ -14,8 +15,3 @@
 - [ ] feat: upstream.patch files to allow users to customize built software
       @created 2026-10-15 19:24
 
-## Completed
-
-- [x] feat: GH asset api downloads
-      @created 2026-11-22 19:17
-      @completed 2026-11-22 19:17
