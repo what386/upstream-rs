@@ -66,9 +66,19 @@ where
         response = response.send() => response,
         _ = cancellation::cancelled() => return Err(cancellation::Cancelled.into()),
     }
-    .context(format!("Failed to download from {}", url))?;
+    .map_err(reqwest::Error::without_url)
+    .with_context(|| {
+        format!(
+            "Failed to download from {}",
+            crate::logging::source_url(url)
+        )
+    })?;
 
-    http_status::error_for_status(&response, "Download server", url)?;
+    http_status::error_for_status(
+        &response,
+        "Download server",
+        &crate::logging::source_url(url),
+    )?;
 
     let source = crate::logging::source_url(response.url().as_str());
     let total_bytes = response.content_length().unwrap_or(0);
@@ -148,9 +158,19 @@ where
         response = response => response,
         _ = cancellation::cancelled() => return Err(cancellation::Cancelled.into()),
     }
-    .context(format!("Failed to download from {}", url))?;
+    .map_err(reqwest::Error::without_url)
+    .with_context(|| {
+        format!(
+            "Failed to download from {}",
+            crate::logging::source_url(url)
+        )
+    })?;
 
-    http_status::error_for_status(&response, "Download server", url)?;
+    http_status::error_for_status(
+        &response,
+        "Download server",
+        &crate::logging::source_url(url),
+    )?;
 
     let total_bytes = response.content_length().unwrap_or(0);
     write_single_response_atomic(response, destination, total_bytes, progress).await
@@ -445,14 +465,20 @@ async fn download_range(
         response = response => response,
         _ = cancellation::cancelled() => return Err(cancellation::Cancelled.into()),
     }
-    .context(format!("Failed to download range from {}", url))?;
+    .map_err(reqwest::Error::without_url)
+    .with_context(|| {
+        format!(
+            "Failed to download range from {}",
+            crate::logging::source_url(&url)
+        )
+    })?;
 
     if response.status() != StatusCode::PARTIAL_CONTENT {
         if let Some(message) = http_status::rate_limit_message(
             response.status(),
             response.headers(),
             "Download server",
-            &url,
+            &crate::logging::source_url(&url),
         ) {
             bail!("{message}");
         }

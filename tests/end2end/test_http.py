@@ -7,6 +7,7 @@ import os
 import sys
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 from tests.framework.commands import run_upstream, run_upstream_json, run_upstream_result
 from tests.framework.environment import FAKEHOME, reset_fakehome
@@ -119,6 +120,46 @@ class HttpTests(unittest.TestCase):
                 self.assertTrue(ranges, requests)
                 if mode == "ignore":
                     self.assertNotIn("range", requests[-1]["headers"])
+
+    @unittest.skipIf(os.name == "nt", "fixture zsync executable requires Unix")
+    def test_zsync_uses_descriptor_url_as_relative_payload_base(self) -> None:
+        api = "/api/v1/repos/owner/tool/releases"
+        browser = f"{self.server.base_url}/owner/tool/releases/download/v2.0.0/tool.bin.zsync"
+        old = self.release("v1.0.0")
+        new = self.release("v2.0.0")
+        new["assets"].append({
+            "id": 3, "name": "tool.bin.zsync", "size": 10,
+            "browser_download_url": browser,
+        })
+        self.server.routes(
+            self.json_route(f"{api}/latest", old),
+            self.route("/artifacts/tool.bin", body="old binary"),
+        )
+        self.install("owner/tool", "--provider", "gitea", "--base-url", self.server.base_url,
+                     "--exclude-pattern", "zsync")
+        self.server.routes(
+            self.json_route(f"{api}/latest", new),
+            self.route("/owner/tool/releases/download/v2.0.0/tool.bin.zsync", body="URL: tool.bin\n"),
+        )
+        # Stand in for zsync and check its URL base at the process boundary.
+        executable = self.server.write_text("bin/zsync", f"""#!{sys.executable}
+import pathlib
+import sys
+if '-V' in sys.argv:
+    sys.exit(0)
+assert {('-u=' + browser)!r} in sys.argv, sys.argv
+descriptor = pathlib.Path(sys.argv[-1]).read_text()
+assert descriptor == 'URL: tool.bin\\n', descriptor
+output = next(arg[3:] for arg in sys.argv if arg.startswith('-o='))
+pathlib.Path(output).write_bytes(b'new binary')
+""")
+        executable.chmod(0o755)
+        with patch.dict(os.environ, {"PATH": str(executable.parent) + os.pathsep + os.environ.get("PATH", "")}):
+            run_upstream("upgrade", "tool", "--yes")
+        self.assertEqual(package_path(package_from_list("tool")).read_bytes(), b"new binary")
+        paths = [request["path"] for request in self.server.requests()]
+        self.assertIn("/owner/tool/releases/download/v2.0.0/tool.bin.zsync", paths)
+        self.assertEqual(paths.count("/artifacts/tool.bin"), 1)
 
     def test_download_logs_actual_bytes_and_redacts_source(self) -> None:
         run_upstream("config", "set", "logging.level=debug")

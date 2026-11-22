@@ -33,7 +33,14 @@ impl GithubAdapter {
         F: FnMut(u64, u64),
     {
         self.client
-            .download_file(&asset.download_url, destination_path, dl_callback)
+            .download_file(
+                asset
+                    .api_download_url
+                    .as_deref()
+                    .unwrap_or(&asset.download_url),
+                destination_path,
+                dl_callback,
+            )
             .await
     }
 
@@ -147,13 +154,15 @@ impl GithubAdapter {
 
     fn convert_asset(dto: GithubAssetDto) -> Asset {
         let created_at = Self::parse_timestamp(&dto.created_at);
-        Asset::new(
+        let mut asset = Asset::new(
             dto.browser_download_url,
             dto.id as u64,
             dto.name,
             dto.size as u64,
             created_at,
-        )
+        );
+        asset.api_download_url = Some(dto.url);
+        asset
     }
 
     fn convert_release(&self, dto: GithubReleaseDto) -> Release {
@@ -320,8 +329,8 @@ mod tests {
             assets: vec![GithubAssetDto {
                 id: 9,
                 name: "tool-linux-x86_64.tar.gz".to_string(),
-                browser_download_url: "https://example.invalid/tool-linux-x86_64.tar.gz"
-                    .to_string(),
+                url: "https://api.github.com/repos/owner/tool/releases/assets/9".to_string(),
+                browser_download_url: "https://github.com/owner/tool/releases/download/v2.3.4/tool-linux-x86_64.tar.gz".to_string(),
                 size: 123,
                 content_type: "application/gzip".to_string(),
                 created_at: "2026-02-20T00:00:00Z".to_string(),
@@ -334,6 +343,14 @@ mod tests {
         assert!(release.is_prerelease);
         assert_eq!(release.assets.len(), 1);
         assert_eq!(release.assets[0].id, 9);
+        assert_eq!(
+            release.assets[0].api_download_url.as_deref(),
+            Some("https://api.github.com/repos/owner/tool/releases/assets/9")
+        );
+        assert_eq!(
+            release.assets[0].download_url,
+            "https://github.com/owner/tool/releases/download/v2.3.4/tool-linux-x86_64.tar.gz"
+        );
     }
 
     #[test]

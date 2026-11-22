@@ -722,6 +722,7 @@ mod tests {
             candidates: Some(vec![AssetCandidate {
                 asset: Asset {
                     expected_sha256: None,
+                    api_download_url: None,
                     download_url: "https://example.invalid/tool.tar.gz".to_string(),
                     id: 7,
                     name: "tool.tar.gz".to_string(),

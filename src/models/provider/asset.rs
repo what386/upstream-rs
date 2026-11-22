@@ -6,7 +6,10 @@ use crate::utils::platform::platform_info::{CpuArch, OSKind};
 
 #[derive(Debug, Clone)]
 pub struct Asset {
+    /// Download location shown to users and used to resolve relative zsync URLs.
     pub download_url: String,
+    /// Provider API endpoint used to fetch authenticated asset content.
+    pub api_download_url: Option<String>,
     pub id: u64,
     pub name: String,
     pub size: u64,
@@ -43,6 +46,7 @@ impl Asset {
         let arch = parse_arch(&name);
         Self {
             download_url,
+            api_download_url: None,
             id,
             name,
             size,

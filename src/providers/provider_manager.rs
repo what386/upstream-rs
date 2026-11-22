@@ -165,7 +165,17 @@ impl ProviderManager {
 
                 Ok(Box::new(self.appimagehub.get_or_init(|| adapter)))
             }
-            Provider::Github => Ok(Box::new(self.github_adapter()?)),
+            Provider::Github => {
+                if let Some(base) = base_url {
+                    let client =
+                        GithubClient::new(self.github_token.as_deref(), self.download_config)?
+                            .with_base_url(base)?;
+
+                    Ok(Box::new(GithubAdapter::new(client)))
+                } else {
+                    Ok(Box::new(self.github_adapter()?))
+                }
+            }
             Provider::Gitlab => {
                 if let Some(base) = base_url {
                     let adapter = GitlabAdapter::new(GitlabClient::new(

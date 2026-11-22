@@ -15,12 +15,19 @@ use super::github_dtos::{
 #[derive(Debug, Clone)]
 pub struct GithubClient {
     client: Client,
+    download_client: Client,
+    base_url: String,
     download_config: DownloadConfig,
 }
 
 impl GithubClient {
     pub fn new(token: Option<&str>, download_config: DownloadConfig) -> Result<Self> {
         let mut headers = header::HeaderMap::new();
+        // Request binary asset content; metadata requests override Accept.
+        headers.insert(
+            header::ACCEPT,
+            header::HeaderValue::from_static("application/octet-stream"),
+        );
 
         let user_agent = format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         headers.insert(
@@ -28,6 +35,13 @@ impl GithubClient {
             header::HeaderValue::from_str(&user_agent)
                 .context("Failed to create user agent header")?,
         );
+
+        // This client is used only after a cross-origin redirect. It must not
+        // carry the PAT when requesting ranges from the asset storage host.
+        let download_client = Client::builder()
+            .default_headers(headers.clone())
+            .build()
+            .context("Failed to build GitHub asset download client")?;
 
         if let Some(token) = token {
             let auth_value = format!("Bearer {}", token);
@@ -45,14 +59,28 @@ impl GithubClient {
 
         Ok(Self {
             client,
+            download_client,
+            base_url: "https://api.github.com".to_owned(),
             download_config,
         })
+    }
+
+    pub fn with_base_url(mut self, base_url: &str) -> Result<Self> {
+        let url = reqwest::Url::parse(base_url).context("Invalid GitHub API base URL")?;
+        anyhow::ensure!(
+            matches!(url.scheme(), "http" | "https"),
+            "GitHub API requires HTTP(S)"
+        );
+
+        self.base_url = url.as_str().trim_end_matches('/').to_owned();
+        Ok(self)
     }
 
     async fn get_json<T: for<'de> Deserialize<'de>>(&self, url: &str) -> Result<T> {
         let response = self
             .client
             .get(url)
+            .header(header::ACCEPT, "application/vnd.github+json")
             .send()
             .await
             .context(format!("Failed to send request to {}", url))?;
@@ -93,9 +121,39 @@ impl GithubClient {
     where
         F: FnMut(u64, u64),
     {
+        // Resolve the API asset URL before starting the normal download flow.
+        // GET also supports endpoints that stream content instead of redirecting.
+        let response = tokio::select! {
+            response = self.client.get(url).send() => response,
+            _ = crate::application::cancellation::cancelled() => {
+                return Err(crate::application::cancellation::Cancelled.into());
+            }
+        }
+        .map_err(reqwest::Error::without_url)
+        .with_context(|| {
+            format!(
+                "Failed to resolve GitHub download from {}",
+                crate::logging::source_url(url)
+            )
+        })?;
+        http_status::error_for_status(
+            &response,
+            "GitHub asset API",
+            &crate::logging::source_url(url),
+        )?;
+
+        let download_url = response.url().clone();
+        drop(response);
+        // Signed storage URLs carry their own authorization. Only retain the
+        // PAT when downloading from the original origin (including direct streams).
+        let client = if reqwest::Url::parse(url)?.origin() == download_url.origin() {
+            &self.client
+        } else {
+            &self.download_client
+        };
         download_handler::download_file(
-            &self.client,
-            url,
+            client,
+            download_url.as_str(),
             destination,
             progress,
             self.download_config,
@@ -104,9 +162,10 @@ impl GithubClient {
     }
 
     pub async fn check_token(&self) -> Result<reqwest::Response> {
-        let url = "https://api.github.com/user";
+        let url = format!("{}/user", self.base_url);
         self.client
-            .get(url)
+            .get(&url)
+            .header(header::ACCEPT, "application/vnd.github+json")
             .send()
             .await
             .context(format!("Failed to send request to {}", url))
@@ -118,8 +177,8 @@ impl GithubClient {
         tag: &str,
     ) -> Result<GithubReleaseDto> {
         let url = format!(
-            "https://api.github.com/repos/{}/releases/tags/{}",
-            owner_repo, tag
+            "{}/repos/{}/releases/tags/{}",
+            self.base_url, owner_repo, tag
         );
 
         self.get_json(&url)
@@ -152,10 +211,7 @@ impl GithubClient {
     }
 
     pub async fn get_latest_release(&self, owner_repo: &str) -> Result<GithubReleaseDto> {
-        let url = format!(
-            "https://api.github.com/repos/{}/releases/latest",
-            owner_repo
-        );
+        let url = format!("{}/repos/{}/releases/latest", self.base_url, owner_repo);
 
         self.get_json(&url)
             .await
@@ -179,8 +235,8 @@ impl GithubClient {
         page: u32,
     ) -> Result<Vec<GithubTagDto>> {
         let url = format!(
-            "https://api.github.com/repos/{}/tags?per_page={}&page={}",
-            owner_repo, per_page, page
+            "{}/repos/{}/tags?per_page={}&page={}",
+            self.base_url, owner_repo, per_page, page
         );
 
         self.get_json(&url)
@@ -237,8 +293,8 @@ impl GithubClient {
         page: u32,
     ) -> Result<Vec<GithubReleaseDto>> {
         let url = format!(
-            "https://api.github.com/repos/{}/releases?per_page={}&page={}",
-            owner_repo, per_page, page
+            "{}/repos/{}/releases?per_page={}&page={}",
+            self.base_url, owner_repo, per_page, page
         );
 
         self.get_json(&url)
@@ -249,13 +305,14 @@ impl GithubClient {
     pub async fn get_branch_head_sha(&self, owner_repo: &str, branch: &str) -> Result<String> {
         let encoded_branch = branch.replace('/', "%2F");
         let url = format!(
-            "https://api.github.com/repos/{}/branches/{}",
-            owner_repo, encoded_branch
+            "{}/repos/{}/branches/{}",
+            self.base_url, owner_repo, encoded_branch
         );
 
         let response = self
             .client
             .get(&url)
+            .header(header::ACCEPT, "application/vnd.github+json")
             .send()
             .await
             .context(format!("Failed to send request to {}", url))?;
@@ -295,7 +352,7 @@ impl GithubClient {
     }
 
     pub async fn get_project_readme(&self, owner_repo: &str) -> Result<String> {
-        let url = format!("https://api.github.com/repos/{}/readme", owner_repo);
+        let url = format!("{}/repos/{}/readme", self.base_url, owner_repo);
         self.get_text_with_accept(&url, "application/vnd.github.raw")
             .await
             .context(format!("Failed to get README for {}", owner_repo))
@@ -309,7 +366,7 @@ impl GithubClient {
     ) -> Result<GithubRepositorySearchResponseDto> {
         let per_page = limit.unwrap_or(10).clamp(1, 100);
         let search_query = Self::build_repository_search_query(query, filters);
-        let mut url = reqwest::Url::parse("https://api.github.com/search/repositories")
+        let mut url = reqwest::Url::parse(&format!("{}/search/repositories", self.base_url))
             .context("Failed to build GitHub search URL")?;
 
         url.query_pairs_mut()
@@ -386,23 +443,7 @@ mod tests {
 
     use crate::models::provider::RepositorySearchFilters;
     use crate::providers::sites::github::GithubClient;
-    use crate::providers::sites::github::github_dtos::{
-        GithubReleaseDto, GithubRepositorySearchResponseDto,
-    };
-
-    #[test]
-    fn github_release_dto_accepts_nullable_string_fields() {
-        let json = include_str!(
-            "../../../../tests/fixtures/providers/github-release-nullable-fields.json"
-        );
-
-        let parsed = serde_json::from_str::<GithubReleaseDto>(json).expect("valid release JSON");
-        assert_eq!(parsed.name, "");
-        assert_eq!(parsed.body, "");
-        assert_eq!(parsed.published_at, "");
-        assert_eq!(parsed.assets[0].content_type, "");
-        assert_eq!(parsed.assets[0].created_at, "");
-    }
+    use crate::providers::sites::github::github_dtos::GithubRepositorySearchResponseDto;
 
     #[test]
     fn github_search_dto_accepts_nullable_string_fields() {

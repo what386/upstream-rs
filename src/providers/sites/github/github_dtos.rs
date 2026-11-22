@@ -5,6 +5,7 @@ pub struct GithubAssetDto {
     pub id: i64,
     #[serde(default, deserialize_with = "deserialize_nullable_string")]
     pub name: String,
+    pub url: String,
     #[serde(default, deserialize_with = "deserialize_nullable_string")]
     pub browser_download_url: String,
     pub size: i64,
